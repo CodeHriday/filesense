@@ -1,0 +1,141 @@
+.file-upload-container {
+  padding: 20px 0;
+}
+
+.upload-instructions {
+  margin-bottom: 20px;
+  color: var(--dark-gray);
+}
+
+.selected-file-info {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: var(--light-gray);
+  border-radius: 8px;
+}
+
+.selected-file-info h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+  color: var(--secondary-color);
+}
+
+.selected-file-info p {
+  margin: 8px 0;
+}
+
+.selected-file-info button {
+  margin-top: 15px;
+}
+
+.btn-disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.process-success {
+  margin-top: 20px;
+}
+
+.file-metadata {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: var(--light-gray);
+  border-radius: 8px;
+}
+
+.file-metadata h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+  color: var(--secondary-color);
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.metadata-label {
+  font-size: 0.9rem;
+  color: var(--dark-gray);
+  margin-bottom: 5px;
+}
+
+.metadata-value {
+  font-weight: 600;
+  color: var(--secondary-color);
+}
+
+.next-steps {
+  margin-top: 20px;
+  border-top: 1px solid var(--mid-gray);
+  padding-top: 20px;
+}
+
+.next-steps p {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.next-steps ul {
+  padding-left: 20px;
+}
+
+.next-steps li {
+  margin-bottom: 8px;
+}
+
+.supported-formats {
+  margin-top: 10px;
+}
+
+.format-item {
+  display: flex;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--mid-gray);
+}
+
+.format-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.format-icon {
+  font-size: 2rem;
+  margin-right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  background-color: var(--light-gray);
+  border-radius: 8px;
+}
+
+.format-details h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  color: var(--secondary-color);
+}
+
+.format-details p {
+  margin: 0;
+  color: var(--dark-gray);
+}
+
+@media (max-width: 768px) {
+  .metadata-grid {
+    grid-template-columns: 1fr;
+  }
+}
