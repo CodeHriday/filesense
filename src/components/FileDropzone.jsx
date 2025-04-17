@@ -1,110 +1,158 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useState } from 'react';
+import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import './FileDropzone.css';
 
-export const FileDropzone = ({ onFileSelect }) => {
+function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 10 }) {
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState(null);
-  const fileInputRef = useRef(null);
+  const [fileError, setFileError] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState(null);
   
-  const handleDragOver = (e) => {
+  const handleDragEnter = useCallback((e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
-  };
+  }, []);
   
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
-  };
+  }, []);
   
-  const validateFile = (file) => {
-    // Check file type
-    const validTypes = ['.csv', '.json', '.parquet', 'text/csv', 'application/json', 'application/octet-stream'];
-    const fileExtension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    const isValidType = validTypes.some(type => 
-      type.startsWith('.') ? fileExtension === type : file.type === type
-    );
-    
-    if (!isValidType) {
-      return 'Invalid file type. Please upload CSV, JSON, or Parquet files.';
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+  
+  const validateFile = useCallback((file) => {
+    // Check file size
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return `File size exceeds maximum allowed size (${maxSizeMB}MB)`;
     }
     
-    // Check file size (limit to 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      return 'File is too large. Maximum file size is 10MB.';
+    // Check file type
+    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    if (!acceptedFileTypes.includes(fileExtension)) {
+      return `File type ${fileExtension} is not supported. Please upload ${acceptedFileTypes.join(', ')}`;
     }
     
     return null;
-  };
+  }, [acceptedFileTypes, maxSizeMB]);
   
-  const processFile = (file) => {
-    const validationError = validateFile(file);
-    
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    
-    setError(null);
-    onFileSelect && onFileSelect(file);
-  };
-  
-  const handleDrop = (e) => {
+  const handleDrop = useCallback((e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      processFile(file);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      const error = validateFile(file);
+      
+      if (error) {
+        setFileError(error);
+        setUploadStatus('error');
+        return;
+      }
+      
+      setFileError(null);
+      setUploadStatus('uploading');
+      
+      // Call onFileDrop callback
+      if (onFileDrop) {
+        onFileDrop(file)
+          .then(() => {
+            setUploadStatus('success');
+          })
+          .catch(err => {
+            setFileError(err.message || 'Failed to upload file');
+            setUploadStatus('error');
+          });
+      }
     }
-  };
+  }, [onFileDrop, validateFile]);
   
-  const handleFileInputChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      processFile(file);
+  const handleFileSelect = useCallback((e) => {
+    const files = e.target.files;
+    if (files.length > 0) {
+      const file = files[0];
+      const error = validateFile(file);
+      
+      if (error) {
+        setFileError(error);
+        setUploadStatus('error');
+        return;
+      }
+      
+      setFileError(null);
+      setUploadStatus('uploading');
+      
+      // Call onFileDrop callback
+      if (onFileDrop) {
+        onFileDrop(file)
+          .then(() => {
+            setUploadStatus('success');
+          })
+          .catch(err => {
+            setFileError(err.message || 'Failed to upload file');
+            setUploadStatus('error');
+          });
+      }
     }
-  };
-  
-  const handleButtonClick = () => {
-    fileInputRef.current && fileInputRef.current.click();
-  };
+  }, [onFileDrop, validateFile]);
   
   return (
-    <div className="file-dropzone-container">
-      <div 
-        className={`file-dropzone ${isDragging ? 'dragging' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className="dropzone-content">
-          <div className="dropzone-icon">📁</div>
-          <div className="dropzone-text">
-            <p>Drag and drop your file here, or</p>
-            <button className="btn" onClick={handleButtonClick}>
-              Browse Files
-            </button>
+    <div 
+      className={`file-dropzone ${isDragging ? 'dragging' : ''} ${uploadStatus ? `status-${uploadStatus}` : ''}`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <div className="dropzone-content">
+        {uploadStatus === 'success' ? (
+          <div className="upload-success">
+            <FiCheckCircle className="success-icon" />
+            <p>File uploaded successfully!</p>
           </div>
-          <input 
-            type="file" 
-            ref={fileInputRef}
-            className="file-input"
-            onChange={handleFileInputChange}
-            accept=".csv,.json,.parquet"
-          />
-        </div>
-      </div>
-      
-      {error && (
-        <div className="alert alert-error file-error">
-          {error}
-        </div>
-      )}
-      
-      <div className="dropzone-help">
-        <p>Supported file formats: CSV, JSON, Parquet</p>
-        <p>Maximum file size: 10MB</p>
+        ) : uploadStatus === 'error' ? (
+          <div className="upload-error">
+            <FiAlertCircle className="error-icon" />
+            <p>{fileError}</p>
+          </div>
+        ) : uploadStatus === 'uploading' ? (
+          <div className="upload-progress">
+            <div className="spinner"></div>
+            <p>Uploading file...</p>
+          </div>
+        ) : (
+          <>
+            <div className="upload-icon">
+              <FiUpload />
+            </div>
+            <div className="dropzone-text">
+              <p>Drag and drop file here, or</p>
+              <label className="file-select-button">
+                <span>Browse Files</span>
+                <input 
+                  type="file" 
+                  className="file-input" 
+                  onChange={handleFileSelect}
+                  accept={acceptedFileTypes.join(',')}
+                />
+              </label>
+            </div>
+            <div className="file-requirements">
+              <p>Supported file types: {acceptedFileTypes.join(', ')}</p>
+              <p>Maximum file size: {maxSizeMB}MB</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
-};
+}
+
+export default FileDropzone;

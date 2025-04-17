@@ -1,18 +1,17 @@
 .card {
-  background-color: var(--white);
+  background-color: var(--card-bg-color);
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  margin-bottom: 20px;
 }
 
 .card-header {
   padding: 15px 20px;
-  background-color: var(--white);
-  border-bottom: 1px solid var(--mid-gray);
-  font-size: 1.1rem;
+  border-bottom: 1px solid var(--border-color);
   font-weight: 600;
-  color: var(--secondary-color);
+  font-size: 1.1rem;
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .card-body {

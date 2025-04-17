@@ -1,82 +1,47 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { FiHome, FiUpload, FiDatabase, FiBarChart2, FiAlertTriangle, FiSettings, FiLink } from 'react-icons/fi';
 import './Sidebar.css';
 
-export const Sidebar = ({ activePage, onNavigate }) => {
-  const [expanded, setExpanded] = useState(true);
-  
-  const toggleSidebar = () => {
-    setExpanded(!expanded);
-  };
-  
-  const handleNavigation = (page) => {
-    onNavigate && onNavigate(page);
-  };
-  
+function Sidebar() {
   return (
-    <div className={`sidebar ${expanded ? 'expanded' : 'collapsed'}`}>
-      <div className="sidebar-toggle" onClick={toggleSidebar}>
-        {expanded ? '◀' : '▶'}
-      </div>
-      
+    <aside className="sidebar">
       <nav className="sidebar-nav">
-        <ul className="nav-list">
-          <li 
-            className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
-            onClick={() => handleNavigation('dashboard')}
-          >
-            <span className="nav-icon">📈</span>
-            {expanded && <span className="nav-text">Dashboard</span>}
+        <ul>
+          <li>
+            <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiHome className="icon" />
+              <span>Dashboard</span>
+            </NavLink>
           </li>
-          
-          <li 
-            className={`nav-item ${activePage === 'upload' ? 'active' : ''}`}
-            onClick={() => handleNavigation('upload')}
-          >
-            <span className="nav-icon">📤</span>
-            {expanded && <span className="nav-text">File Upload</span>}
+          <li>
+            <NavLink to="/upload" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiUpload className="icon" />
+              <span>Upload File</span>
+            </NavLink>
           </li>
-          
-          <li 
-            className={`nav-item ${activePage === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('profile')}
-          >
-            <span className="nav-icon">📋</span>
-            {expanded && <span className="nav-text">Data Profile</span>}
+          <li>
+            <NavLink to="/alerts" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiAlertTriangle className="icon" />
+              <span>Alerts</span>
+            </NavLink>
           </li>
-          
-          <li 
-            className={`nav-item ${activePage === 'quality' ? 'active' : ''}`}
-            onClick={() => handleNavigation('quality')}
-          >
-            <span className="nav-icon">✓</span>
-            {expanded && <span className="nav-text">Quality Checks</span>}
+          <li>
+            <NavLink to="/connections" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiDatabase className="icon" />
+              <span>Connections</span>
+            </NavLink>
           </li>
-          
-          <li 
-            className={`nav-item ${activePage === 'alerts' ? 'active' : ''}`}
-            onClick={() => handleNavigation('alerts')}
-          >
-            <span className="nav-icon">🔔</span>
-            {expanded && <span className="nav-text">Alerts</span>}
-          </li>
-          
-          <li 
-            className={`nav-item ${activePage === 'catalog' ? 'active' : ''}`}
-            onClick={() => handleNavigation('catalog')}
-          >
-            <span className="nav-icon">📚</span>
-            {expanded && <span className="nav-text">File Catalog</span>}
+          <li>
+            <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiLink className="icon" />
+              <span>Mappings</span>
+            </NavLink>
           </li>
         </ul>
       </nav>
-      
-      <div className="sidebar-footer">
-        {expanded && (
-          <div className="version-info">
-            v1.0.0
-          </div>
-        )}
-      </div>
-    </div>
+    </aside>
   );
-};
+}
+
+export default Sidebar;

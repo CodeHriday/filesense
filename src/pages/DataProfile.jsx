@@ -1,275 +1,304 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '../components/Card';
+import { useParams, Link } from 'react-router-dom';
+import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload } from 'react-icons/fi';
+import Card from '../components/Card';
+import { getFileDetails, getFileProfile } from '../api/fileService';
+import { formatBytes, formatDate, getTimeSince, formatNumber } from '../utils/formatters';
 import './DataProfile.css';
 
-export const DataProfile = ({ selectedFile }) => {
-  const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(false);
+function DataProfile() {
+  const { fileId } = useParams();
+  const [file, setFile] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    if (selectedFile) {
-      fetchProfileData();
-    } else {
-      setProfileData(null);
-    }
-  }, [selectedFile]);
-
-  const fetchProfileData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // In a real app, this would be an API call
-      // For example: const response = await api.getFileProfile(selectedFile.id);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock profile data
-      const mockProfileData = {
-        id: selectedFile.id,
-        fileName: selectedFile.fileName,
-        fileSize: selectedFile.fileSize,
-        fileType: selectedFile.fileType,
-        rows: selectedFile.rows,
-        columns: selectedFile.columns,
-        createdAt: selectedFile.processedAt,
-        columnStats: generateMockColumnStats(selectedFile.columns),
-        completeness: 98.2,
-        duplicateRows: Math.floor(selectedFile.rows * 0.02), // 2% duplicates
-        nullValues: Math.floor(selectedFile.rows * 0.03), // 3% null values
-        dataTypes: {
-          numeric: Math.floor(selectedFile.columns * 0.4),
-          text: Math.floor(selectedFile.columns * 0.3),
-          datetime: Math.floor(selectedFile.columns * 0.1),
-          boolean: Math.floor(selectedFile.columns * 0.1),
-          other: Math.floor(selectedFile.columns * 0.1)
-        }
-      };
-      
-      setProfileData(mockProfileData);
-    } catch (err) {
-      setError('Failed to fetch profile data. Please try again.');
-      console.error('Error fetching profile:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Helper function to generate mock column statistics
-  const generateMockColumnStats = (numColumns) => {
-    const columnTypes = ['text', 'numeric', 'numeric', 'datetime', 'boolean'];
-    const columns = [];
-    
-    for (let i = 0; i < numColumns; i++) {
-      const columnType = columnTypes[i % columnTypes.length];
-      
-      const column = {
-        name: `column_${i + 1}`,
-        type: columnType,
-        nullCount: Math.floor(Math.random() * 50),
-        uniqueCount: columnType === 'text' ? Math.floor(Math.random() * 500) + 100 : Math.floor(Math.random() * 20) + 5,
-        completeness: (90 + Math.random() * 10).toFixed(1)
-      };
-      
-      // Add type-specific stats
-      if (columnType === 'numeric') {
-        column.min = (Math.random() * 100).toFixed(2);
-        column.max = (parseFloat(column.min) + Math.random() * 900).toFixed(2);
-        column.mean = ((parseFloat(column.min) + parseFloat(column.max)) / 2).toFixed(2);
-        column.stdDev = (Math.random() * 50).toFixed(2);
-      } else if (columnType === 'text') {
-        column.minLength = Math.floor(Math.random() * 5) + 1;
-        column.maxLength = column.minLength + Math.floor(Math.random() * 20) + 5;
-        column.avgLength = Math.floor((column.minLength + column.maxLength) / 2);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [fileData, profileData] = await Promise.all([
+          getFileDetails(fileId),
+          getFileProfile(fileId)
+        ]);
+        
+        setFile(fileData);
+        setProfile(profileData || {});
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching file data:', err);
+        setError('Failed to load file data. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-      
-      columns.push(column);
-    }
+    };
     
-    return columns;
-  };
+    fetchData();
+  }, [fileId]);
 
-  const formatBytes = (bytes, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
+  const renderOverviewTab = () => {
+    if (!file || !profile) return null;
     
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
-
-  if (!selectedFile) {
     return (
-      <div className="data-profile-container">
-        <h1 className="page-title">Data Profile</h1>
-        <Card>
-          <div className="no-file-message">
-            <p>No file selected. Please upload a file or select a file from the catalog.</p>
-            <button className="btn" onClick={() => window.history.pushState({}, '', '/')}>
-              Upload a File
-            </button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="data-profile-container">
-        <h1 className="page-title">Data Profile</h1>
-        <div className="loading">Loading profile data...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="data-profile-container">
-        <h1 className="page-title">Data Profile</h1>
-        <div className="alert alert-error">{error}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="data-profile-container">
-      <h1 className="page-title">Data Profile</h1>
-      
-      {profileData && (
-        <>
-          <Card title="File Overview" className="overview-card">
-            <div className="overview-grid">
-              <div className="overview-item">
-                <div className="overview-label">File Name</div>
-                <div className="overview-value">{profileData.fileName}</div>
-              </div>
-              <div className="overview-item">
-                <div className="overview-label">File Size</div>
-                <div className="overview-value">{formatBytes(profileData.fileSize)}</div>
-              </div>
-              <div className="overview-item">
-                <div className="overview-label">File Type</div>
-                <div className="overview-value">{profileData.fileType || 'Unknown'}</div>
-              </div>
-              <div className="overview-item">
-                <div className="overview-label">Rows</div>
-                <div className="overview-value">{profileData.rows.toLocaleString()}</div>
-              </div>
-              <div className="overview-item">
-                <div className="overview-label">Columns</div>
-                <div className="overview-value">{profileData.columns}</div>
-              </div>
-              <div className="overview-item">
-                <div className="overview-label">Processed At</div>
-                <div className="overview-value">{formatDate(profileData.createdAt)}</div>
-              </div>
+      <div className="profile-overview">
+        <div className="file-stats-grid">
+          <Card className="file-stat-card">
+            <div className="stat-icon rows-icon">
+              <FiFileText />
+            </div>
+            <div className="stat-details">
+              <h3>{formatNumber(profile.row_count || 0)}</h3>
+              <p>Rows</p>
             </div>
           </Card>
           
-          <div className="profile-grid">
-            <Card title="Data Completeness" className="completeness-card">
-              <div className="completeness-meter">
-                <div className="meter-container">
-                  <div 
-                    className="meter-fill" 
-                    style={{ width: `${profileData.completeness}%` }}
-                  ></div>
-                </div>
-                <div className="meter-value">{profileData.completeness}%</div>
-              </div>
-              
-              <div className="completeness-stats">
-                <div className="stat-row">
-                  <div className="stat-label">Null Values:</div>
-                  <div className="stat-value">{profileData.nullValues.toLocaleString()}</div>
-                </div>
-                <div className="stat-row">
-                  <div className="stat-label">Duplicate Rows:</div>
-                  <div className="stat-value">{profileData.duplicateRows.toLocaleString()}</div>
-                </div>
-              </div>
-            </Card>
-            
-            <Card title="Data Types Distribution" className="types-card">
-              <div className="data-types-chart">
-                {Object.entries(profileData.dataTypes).map(([type, count]) => (
-                  <div key={type} className="data-type-item">
-                    <div className="data-type-label">{type}</div>
-                    <div className="data-type-bar-container">
-                      <div 
-                        className={`data-type-bar ${type}`}
-                        style={{ 
-                          width: `${(count / profileData.columns) * 100}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="data-type-count">{count}</div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-          
-          <Card title="Column Statistics" className="columns-card">
-            <div className="column-stats-header">
-              <div className="column-header name">Name</div>
-              <div className="column-header type">Type</div>
-              <div className="column-header completeness">Completeness</div>
-              <div className="column-header unique-values">Unique Values</div>
-              <div className="column-header stats">Statistics</div>
+          <Card className="file-stat-card">
+            <div className="stat-icon columns-icon">
+              <FiBarChart2 />
             </div>
-            
-            <div className="column-stats-body">
-              {profileData.columnStats.map((column, index) => (
-                <div key={index} className="column-stats-row">
-                  <div className="column-cell name">{column.name}</div>
-                  <div className="column-cell type">
-                    <span className={`type-badge ${column.type}`}>
-                      {column.type}
+            <div className="stat-details">
+              <h3>{file.columns ? file.columns.length : 0}</h3>
+              <p>Columns</p>
+            </div>
+          </Card>
+          
+          <Card className="file-stat-card">
+            <div className="stat-icon size-icon">
+              <FiDownload />
+            </div>
+            <div className="stat-details">
+              <h3>{file.file_size ? formatBytes(file.file_size) : 'Unknown'}</h3>
+              <p>File Size</p>
+            </div>
+          </Card>
+          
+          <Card className="file-stat-card">
+            <div className="stat-icon age-icon">
+              <FiCalendar />
+            </div>
+            <div className="stat-details">
+              <h3>{getTimeSince(file.created_at)}</h3>
+              <p>Age</p>
+            </div>
+          </Card>
+        </div>
+        
+        <Card title="Data Completeness">
+          {profile.missing_values ? (
+            <div className="completeness-bars">
+              {Object.entries(profile.missing_values).map(([column, stats]) => (
+                <div key={column} className="completeness-bar-container">
+                  <div className="completeness-bar-label">
+                    <span className="column-name">{column}</span>
+                    <span className="completeness-value">
+                      {Math.round((1 - stats.percentage) * 100)}%
                     </span>
                   </div>
-                  <div className="column-cell completeness">
-                    <div className="mini-meter-container">
-                      <div 
-                        className="mini-meter-fill" 
-                        style={{ width: `${column.completeness}%` }}
-                      ></div>
-                    </div>
-                    <span>{column.completeness}%</span>
-                  </div>
-                  <div className="column-cell unique-values">{column.uniqueCount}</div>
-                  <div className="column-cell stats">
-                    {column.type === 'numeric' && (
-                      <span>
-                        Min: {column.min}, Max: {column.max}, Mean: {column.mean}
-                      </span>
-                    )}
-                    {column.type === 'text' && (
-                      <span>
-                        Length: {column.minLength}-{column.maxLength} (avg: {column.avgLength})
-                      </span>
-                    )}
-                    {(column.type === 'datetime' || column.type === 'boolean') && (
-                      <span>-</span>
-                    )}
+                  <div className="completeness-bar-track">
+                    <div 
+                      className="completeness-bar-fill" 
+                      style={{ width: `${Math.round((1 - stats.percentage) * 100)}%` }}
+                    ></div>
                   </div>
                 </div>
               ))}
             </div>
-          </Card>
+          ) : (
+            <div className="empty-state">
+              <p>No completeness data available.</p>
+            </div>
+          )}
+        </Card>
+        
+        <Card title="Data Freshness">
+          {profile.freshness ? (
+            <div className="freshness-stats">
+              <div className="freshness-stat">
+                <h3>Last Updated</h3>
+                <p>{formatDate(profile.freshness.last_updated)}</p>
+              </div>
+              
+              <div className="freshness-stat">
+                <h3>Update Frequency</h3>
+                <p>{profile.freshness.update_frequency || 'Unknown'}</p>
+              </div>
+              
+              <div className="freshness-stat">
+                <h3>Data Period</h3>
+                <p>{profile.freshness.data_start_date ? `${formatDate(profile.freshness.data_start_date)} - ${formatDate(profile.freshness.data_end_date)}` : 'Unknown'}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>No freshness data available.</p>
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  };
+
+  const renderColumnsTab = () => {
+    if (!file || !file.columns) return null;
+    
+    return (
+      <div className="columns-tab">
+        <Card title="Column Details">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Column Name</th>
+                <th>Data Type</th>
+                <th>Nullable</th>
+                <th>Distinct Values</th>
+                <th>Missing Values</th>
+              </tr>
+            </thead>
+            <tbody>
+              {file.columns.map((column) => (
+                <tr key={column.column_name}>
+                  <td>{column.column_name}</td>
+                  <td>{column.data_type}</td>
+                  <td>{column.is_nullable ? 'Yes' : 'No'}</td>
+                  <td>
+                    {profile && profile.column_stats && profile.column_stats[column.column_name] 
+                      ? profile.column_stats[column.column_name].distinct_count 
+                      : 'Unknown'}
+                  </td>
+                  <td>
+                    {profile && profile.missing_values && profile.missing_values[column.column_name] 
+                      ? `${Math.round(profile.missing_values[column.column_name].percentage * 100)}%` 
+                      : '0%'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+    );
+  };
+
+  const renderDistributionTab = () => {
+    if (!profile || !profile.column_stats) return null;
+    
+    return (
+      <div className="distribution-tab">
+        <div className="distribution-cards">
+          {file.columns.map((column) => (
+            <Card key={column.column_name} title={column.column_name}>
+              {profile.column_stats[column.column_name] ? (
+                <div className="column-distribution">
+                  <div className="distribution-summary">
+                    <div className="summary-stat">
+                      <h4>Min</h4>
+                      <p>{profile.column_stats[column.column_name].min ?? 'N/A'}</p>
+                    </div>
+                    <div className="summary-stat">
+                      <h4>Max</h4>
+                      <p>{profile.column_stats[column.column_name].max ?? 'N/A'}</p>
+                    </div>
+                    <div className="summary-stat">
+                      <h4>Mean</h4>
+                      <p>{profile.column_stats[column.column_name].mean ? profile.column_stats[column.column_name].mean.toFixed(2) : 'N/A'}</p>
+                    </div>
+                    <div className="summary-stat">
+                      <h4>Stddev</h4>
+                      <p>{profile.column_stats[column.column_name].std ? profile.column_stats[column.column_name].std.toFixed(2) : 'N/A'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="distribution-visualization">
+                    {/* In a real app, there would be a histogram or distribution chart here */}
+                    <div className="histogram-placeholder">
+                      <p>Distribution visualization would appear here.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <p>No distribution data available for this column.</p>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="data-profile-container">
+      {loading ? (
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading file data...</p>
+        </div>
+      ) : error ? (
+        <div className="error-message">
+          <p>{error}</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </div>
+      ) : file ? (
+        <>
+          <div className="profile-header">
+            <div className="profile-title">
+              <h1>
+                <span className="file-type">{file.file_type.toUpperCase()}</span>
+                {file.filename}
+              </h1>
+              <div className="file-details">
+                <span className="file-size">{file.file_size ? formatBytes(file.file_size) : 'Unknown size'}</span>
+                <span className="file-date">Uploaded {getTimeSince(file.created_at)}</span>
+              </div>
+            </div>
+            
+            <div className="profile-actions">
+              <Link to={`/quality/${fileId}`} className="btn btn-primary">
+                <FiAlertTriangle className="btn-icon" />
+                View Quality Checks
+              </Link>
+            </div>
+          </div>
+          
+          <div className="profile-tabs">
+            <button 
+              className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'columns' ? 'active' : ''}`}
+              onClick={() => setActiveTab('columns')}
+            >
+              Columns
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'distribution' ? 'active' : ''}`}
+              onClick={() => setActiveTab('distribution')}
+            >
+              Distribution
+            </button>
+          </div>
+          
+          <div className="profile-content">
+            {activeTab === 'overview' && renderOverviewTab()}
+            {activeTab === 'columns' && renderColumnsTab()}
+            {activeTab === 'distribution' && renderDistributionTab()}
+          </div>
         </>
+      ) : (
+        <div className="empty-state">
+          <p>File not found.</p>
+          <Link to="/" className="btn btn-primary">Return to Dashboard</Link>
+        </div>
       )}
     </div>
   );
-};
+}
+
+export default DataProfile;

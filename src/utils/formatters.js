@@ -9,7 +9,7 @@ export const formatBytes = (bytes, decimals = 2) => {
   
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   
@@ -22,8 +22,17 @@ export const formatBytes = (bytes, decimals = 2) => {
  * @returns {string} Formatted date string
  */
 export const formatDate = (dateString) => {
+  if (!dateString) return '';
+  
   const date = new Date(dateString);
-  return date.toLocaleString();
+  
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 };
 
 /**
@@ -32,29 +41,32 @@ export const formatDate = (dateString) => {
  * @returns {string} Readable elapsed time
  */
 export const getTimeSince = (dateString) => {
-  const now = new Date();
-  const date = new Date(dateString);
-  const diffTime = Math.abs(now - date);
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  if (!dateString) return '';
   
-  if (diffDays === 0) {
-    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-    if (diffHours === 0) {
-      const diffMinutes = Math.floor(diffTime / (1000 * 60));
-      return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
-    }
-    return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-  } else if (diffDays === 1) {
-    return 'Yesterday';
-  } else if (diffDays < 30) {
-    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-  } else if (diffDays < 365) {
-    const diffMonths = Math.floor(diffDays / 30);
-    return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
-  } else {
-    const diffYears = Math.floor(diffDays / 365);
-    return `${diffYears} year${diffYears !== 1 ? 's' : ''} ago`;
+  const date = new Date(dateString);
+  const now = new Date();
+  const secondsPast = (now.getTime() - date.getTime()) / 1000;
+  
+  if (secondsPast < 60) {
+    return `${Math.round(secondsPast)}s ago`;
   }
+  if (secondsPast < 3600) {
+    return `${Math.round(secondsPast / 60)}m ago`;
+  }
+  if (secondsPast < 86400) {
+    return `${Math.round(secondsPast / 3600)}h ago`;
+  }
+  if (secondsPast < 604800) {
+    return `${Math.round(secondsPast / 86400)}d ago`;
+  }
+  if (secondsPast < 2592000) {
+    return `${Math.round(secondsPast / 604800)}w ago`;
+  }
+  if (secondsPast < 31536000) {
+    return `${Math.round(secondsPast / 2592000)}mo ago`;
+  }
+  
+  return `${Math.round(secondsPast / 31536000)}y ago`;
 };
 
 /**
@@ -63,5 +75,7 @@ export const getTimeSince = (dateString) => {
  * @returns {string} Formatted number string
  */
 export const formatNumber = (num) => {
-  return num.toLocaleString();
+  if (num === null || num === undefined) return '';
+  
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };

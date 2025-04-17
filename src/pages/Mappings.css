@@ -1,0 +1,283 @@
+.mappings-container {
+  padding: 20px;
+}
+
+.mappings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.mappings-header h1 {
+  margin: 0;
+}
+
+.btn-icon {
+  margin-right: 5px;
+}
+
+.mappings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.mapping-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mapping-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.mapping-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.mapping-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: #555;
+  background-color: rgba(0, 0, 0, 0.05);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--primary-color);
+}
+
+.delete-button:hover {
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--error-color);
+}
+
+.mapping-content {
+  flex: 1;
+  margin-bottom: 15px;
+}
+
+.mapping-detail {
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #555;
+  margin-right: 5px;
+}
+
+.detail-value {
+  color: #333;
+}
+
+.mapping-footer {
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.mapping-form-card {
+  margin-bottom: 30px;
+}
+
+.mapping-form-card h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.mapping-builder {
+  margin-top: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 20px;
+  background-color: #f9f9f9;
+}
+
+.mapping-columns-container {
+  display: flex;
+  align-items: stretch;
+}
+
+.mapping-source-columns,
+.mapping-target-columns {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  padding: 15px;
+}
+
+.mapping-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  color: #777;
+  font-size: 1.5rem;
+}
+
+.mapping-source-columns h3,
+.mapping-target-columns h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.column-loading,
+.column-empty {
+  padding: 20px;
+  text-align: center;
+  color: #777;
+}
+
+.column-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.source-column {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.source-column:last-child {
+  border-bottom: none;
+}
+
+.source-column-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.source-column-type {
+  color: #777;
+  font-size: 0.9rem;
+  margin-right: 10px;
+}
+
+.source-column-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--primary-color);
+  background-color: rgba(52, 152, 219, 0.1);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.source-column-add:hover {
+  background-color: rgba(52, 152, 219, 0.2);
+}
+
+.mapping-column {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background-color: white;
+  cursor: move;
+}
+
+.mapping-column:last-child {
+  margin-bottom: 0;
+}
+
+.mapping-column-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.mapping-column-type {
+  color: #777;
+  font-size: 0.9rem;
+  margin-right: 10px;
+}
+
+.mapping-column-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--error-color);
+  background-color: rgba(231, 76, 60, 0.1);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mapping-column-remove:hover {
+  background-color: rgba(231, 76, 60, 0.2);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+}
+
+.empty-state h2 {
+  margin-bottom: 10px;
+}
+
+.empty-state p {
+  margin-bottom: 20px;
+  color: #777;
+  max-width: 500px;
+}

@@ -1,0 +1,253 @@
+.connections-container {
+  padding: 20px;
+}
+
+.connections-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.connections-header h1 {
+  margin: 0;
+}
+
+.btn-icon {
+  margin-right: 5px;
+}
+
+.connections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.connection-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.connection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.connection-title {
+  display: flex;
+  align-items: center;
+}
+
+.connection-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  margin-right: 12px;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.connection-icon.postgresql {
+  background-color: #336791;
+}
+
+.connection-icon.mysql {
+  background-color: #00758f;
+}
+
+.connection-icon.bigquery {
+  background-color: #4285f4;
+}
+
+.connection-icon.snowflake {
+  background-color: #29b5e8;
+}
+
+.connection-icon.redshift {
+  background-color: #8c4fff;
+}
+
+.connection-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.connection-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: #555;
+  background-color: rgba(0, 0, 0, 0.05);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--primary-color);
+}
+
+.delete-button:hover {
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--error-color);
+}
+
+.connection-content {
+  flex: 1;
+  margin-bottom: 15px;
+}
+
+.connection-detail {
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #555;
+  margin-right: 5px;
+}
+
+.detail-value {
+  color: #333;
+}
+
+.connection-footer {
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.connection-form-card {
+  margin-bottom: 30px;
+}
+
+.connection-form-card h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+}
+
+.connection-toggle {
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:first-child {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.toggle-btn:last-child {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.toggle-btn.active {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.form-text {
+  font-size: 0.85rem;
+  color: #777;
+  margin-top: 5px;
+  display: block;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.test-connection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.test-success {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.test-error {
+  color: var(--error-color);
+  font-weight: 500;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+}
+
+.empty-state h2 {
+  margin-bottom: 10px;
+}
+
+.empty-state p {
+  margin-bottom: 20px;
+  color: #777;
+  max-width: 500px;
+}
