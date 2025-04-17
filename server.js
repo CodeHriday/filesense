@@ -279,6 +279,9 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                     
                     mostFrequentValue = sortedValues[0][0];
                     leastFrequentValue = sortedValues[sortedValues.length - 1][0];
+                    
+                    // Count number of unique values (distinct values)
+                    uniqueCount = Object.keys(valueCounts).length;
                   }
                 }
                 
@@ -292,7 +295,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                   min_value_decimal: dataType === 'integer' || dataType === 'decimal' ? minValue : null,
                   max_value_decimal: dataType === 'integer' || dataType === 'decimal' ? maxValue : null,
                   most_frequent_value: mostFrequentValue,
-                  least_frequent_value: leastFrequentValue
+                  least_frequent_value: leastFrequentValue,
+                  unique_count: uniqueCount
                 };
               });
             }
@@ -338,9 +342,9 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             `INSERT INTO file_columns 
               (file_id, column_name, column_type, column_index, file_name, 
                min_value, max_value, min_value_decimal, max_value_decimal, 
-               most_frequent_value, least_frequent_value, created_at) 
+               most_frequent_value, least_frequent_value, unique_count, created_at) 
              VALUES 
-              ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+              ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())`,
             [
               fileId,
               column.column_name,
@@ -352,7 +356,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               column.min_value_decimal,
               column.max_value_decimal,
               column.most_frequent_value,
-              column.least_frequent_value
+              column.least_frequent_value,
+              column.unique_count
             ]
           );
         } catch (columnErr) {
