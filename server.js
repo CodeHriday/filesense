@@ -145,6 +145,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               // Get the column values from all data rows
               const columnValues = [];
               const valueCounts = {};
+              let nullCount = 0;
               
               for (let i = 1; i < lines.length; i++) {
                 const rowValues = lines[i].split(',');
@@ -152,8 +153,11 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                   const value = rowValues[index].trim();
                   columnValues.push(value);
                   
-                  // Count occurrences for frequency analysis
-                  if (value && value !== '') {
+                  // Count missing values (null, empty, or whitespace only)
+                  if (!value || value === '' || value.toLowerCase() === 'null' || value.toLowerCase() === 'n/a') {
+                    nullCount++;
+                  } else {
+                    // Count occurrences for frequency analysis
                     valueCounts[value] = (valueCounts[value] || 0) + 1;
                   }
                 }
@@ -208,7 +212,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               max_value_decimal: dataType === 'integer' || dataType === 'decimal' ? maxValue : null,
               most_frequent_value: mostFrequentValue,
               least_frequent_value: leastFrequentValue,
-              unique_count: uniqueCount
+              unique_count: uniqueCount,
+              null_count: nullCount
             };
           });
         }
@@ -264,8 +269,15 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                   
                   // For all columns, find frequency stats
                   const valueCounts = {};
+                  let nullCount = 0;
+                  
                   jsonData.forEach(item => {
-                    if (item[key] !== null && item[key] !== undefined) {
+                    // Check for missing values (null, undefined, empty string, whitespace)
+                    if (item[key] === null || item[key] === undefined || 
+                        (typeof item[key] === 'string' && (item[key] === '' || item[key].trim() === '' || 
+                        item[key].toLowerCase() === 'null' || item[key].toLowerCase() === 'n/a'))) {
+                      nullCount++;
+                    } else {
                       // Convert to string for consistent counting
                       const strValue = String(item[key]);
                       valueCounts[strValue] = (valueCounts[strValue] || 0) + 1;
@@ -296,7 +308,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                   max_value_decimal: dataType === 'integer' || dataType === 'decimal' ? maxValue : null,
                   most_frequent_value: mostFrequentValue,
                   least_frequent_value: leastFrequentValue,
-                  unique_count: uniqueCount
+                  unique_count: uniqueCount,
+                  null_count: nullCount
                 };
               });
             }
@@ -342,9 +355,9 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             `INSERT INTO file_columns 
               (file_id, column_name, column_type, column_index, file_name, 
                min_value, max_value, min_value_decimal, max_value_decimal, 
-               most_frequent_value, least_frequent_value, unique_count, created_at) 
+               most_frequent_value, least_frequent_value, unique_count, null_count, created_at) 
              VALUES 
-              ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())`,
+              ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())`,
             [
               fileId,
               column.column_name,
@@ -357,7 +370,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               column.max_value_decimal,
               column.most_frequent_value,
               column.least_frequent_value,
-              column.unique_count
+              column.unique_count,
+              column.null_count || 0
             ]
           );
         } catch (columnErr) {
