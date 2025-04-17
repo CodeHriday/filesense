@@ -160,8 +160,8 @@ function DataProfile() {
                 <th>Data Type</th>
                 <th>Unique Values</th>
                 <th>Missing Values</th>
-                <th>Min Value</th>
-                <th>Max Value</th>
+                <th>Min / Most Frequent</th>
+                <th>Max / Least Frequent</th>
               </tr>
             </thead>
             <tbody>
@@ -177,13 +177,17 @@ function DataProfile() {
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? (column.min_value !== undefined && column.min_value !== null ? column.min_value : '0') 
-                      : (column.type === 'string' ? 'N/A' : '0')}
+                      ? (column.min_value_decimal !== undefined && column.min_value_decimal !== null 
+                          ? parseFloat(column.min_value_decimal).toFixed(2) 
+                          : (column.min_value !== undefined && column.min_value !== null ? column.min_value : '0.00'))
+                      : (column.most_frequent_value || 'N/A')}
                     </td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? (column.max_value !== undefined && column.max_value !== null ? column.max_value : '0') 
-                      : (column.type === 'string' ? 'N/A' : '0')}
+                      ? (column.max_value_decimal !== undefined && column.max_value_decimal !== null 
+                          ? parseFloat(column.max_value_decimal).toFixed(2) 
+                          : (column.max_value !== undefined && column.max_value !== null ? column.max_value : '0.00'))
+                      : (column.least_frequent_value || 'N/A')}
                     </td>
                   </tr>
                 );
@@ -220,11 +224,19 @@ function DataProfile() {
                     <>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
-                        <div className="column-stat-value">{column.min_value !== undefined && column.min_value !== null ? column.min_value : '0'}</div>
+                        <div className="column-stat-value">
+                          {column.min_value_decimal !== undefined && column.min_value_decimal !== null 
+                            ? parseFloat(column.min_value_decimal).toFixed(2) 
+                            : (column.min_value !== undefined && column.min_value !== null ? column.min_value : '0.00')}
+                        </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Max:</div>
-                        <div className="column-stat-value">{column.max_value !== undefined && column.max_value !== null ? column.max_value : '0'}</div>
+                        <div className="column-stat-value">
+                          {column.max_value_decimal !== undefined && column.max_value_decimal !== null 
+                            ? parseFloat(column.max_value_decimal).toFixed(2) 
+                            : (column.max_value !== undefined && column.max_value !== null ? column.max_value : '0.00')}
+                        </div>
                       </div>
                     </>
                   )}
@@ -232,12 +244,12 @@ function DataProfile() {
                   {column.type === 'string' && (
                     <>
                       <div className="column-stat-row">
-                        <div className="column-stat-label">Most Common:</div>
-                        <div className="column-stat-value">{column.most_common_value || 'N/A'}</div>
+                        <div className="column-stat-label">Most Frequent:</div>
+                        <div className="column-stat-value">{column.most_frequent_value || 'N/A'}</div>
                       </div>
                       <div className="column-stat-row">
-                        <div className="column-stat-label">Avg Length:</div>
-                        <div className="column-stat-value">{column.avg_length !== undefined ? column.avg_length.toFixed(1) : 'N/A'}</div>
+                        <div className="column-stat-label">Least Frequent:</div>
+                        <div className="column-stat-value">{column.least_frequent_value || 'N/A'}</div>
                       </div>
                     </>
                   )}
