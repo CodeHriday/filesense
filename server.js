@@ -135,17 +135,61 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
           columns = header.map((colName, index) => {
             // Identify simple data types based on first data row
             let dataType = 'string';
+            let minValue = null;
+            let maxValue = null;
+            let mostFrequentValue = null;
+            let leastFrequentValue = null;
+            
             if (lines.length > 1) {
-              const firstRowValues = lines[1].split(',');
-              if (index < firstRowValues.length) {
-                const value = firstRowValues[index].trim();
-                if (!isNaN(Number(value))) {
-                  dataType = Number.isInteger(Number(value)) ? 'integer' : 'decimal';
-                } else if (value.toLowerCase() === 'true' || value.toLowerCase() === 'false') {
+              // Get the column values from all data rows
+              const columnValues = [];
+              const valueCounts = {};
+              
+              for (let i = 1; i < lines.length; i++) {
+                const rowValues = lines[i].split(',');
+                if (index < rowValues.length) {
+                  const value = rowValues[index].trim();
+                  columnValues.push(value);
+                  
+                  // Count occurrences for frequency analysis
+                  if (value && value !== '') {
+                    valueCounts[value] = (valueCounts[value] || 0) + 1;
+                  }
+                }
+              }
+              
+              // Analyze first non-empty value to determine type
+              const firstValue = columnValues.find(v => v !== '');
+              if (firstValue) {
+                if (!isNaN(Number(firstValue))) {
+                  dataType = Number.isInteger(Number(firstValue)) ? 'integer' : 'decimal';
+                } else if (firstValue.toLowerCase() === 'true' || firstValue.toLowerCase() === 'false') {
                   dataType = 'boolean';
-                } else if (!isNaN(Date.parse(value))) {
+                } else if (!isNaN(Date.parse(firstValue))) {
                   dataType = 'date';
                 }
+              }
+              
+              // Find min/max for numeric columns
+              if (dataType === 'integer' || dataType === 'decimal') {
+                const numericValues = columnValues
+                  .filter(v => v !== '' && !isNaN(Number(v)))
+                  .map(v => Number(v));
+                
+                if (numericValues.length > 0) {
+                  minValue = Math.min(...numericValues);
+                  maxValue = Math.max(...numericValues);
+                }
+              }
+              
+              // Find most/least frequent for all columns
+              if (Object.keys(valueCounts).length > 0) {
+                // Sort by frequency (descending)
+                const sortedValues = Object.entries(valueCounts)
+                  .sort((a, b) => b[1] - a[1]);
+                
+                mostFrequentValue = sortedValues[0][0];
+                leastFrequentValue = sortedValues[sortedValues.length - 1][0];
               }
             }
             
@@ -153,7 +197,13 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               column_name: colName,
               column_type: dataType,
               column_index: index,
-              file_id: fileId
+              file_id: fileId,
+              min_value: dataType === 'integer' || dataType === 'decimal' ? String(minValue) : null,
+              max_value: dataType === 'integer' || dataType === 'decimal' ? String(maxValue) : null,
+              min_value_decimal: dataType === 'integer' || dataType === 'decimal' ? minValue : null,
+              max_value_decimal: dataType === 'integer' || dataType === 'decimal' ? maxValue : null,
+              most_frequent_value: mostFrequentValue,
+              least_frequent_value: leastFrequentValue
             };
           });
         }
@@ -172,6 +222,12 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               
               columns = keys.map((key, index) => {
                 let dataType = 'string';
+                let minValue = null;
+                let maxValue = null;
+                let mostFrequentValue = null;
+                let leastFrequentValue = null;
+                
+                // Get initial type from first item
                 const value = firstItem[key];
                 
                 if (typeof value === 'number') {
@@ -186,11 +242,51 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                   dataType = 'object';
                 }
                 
+                // Process all rows to collect stats
+                if (jsonData.length > 1) {
+                  // For numeric columns, find min/max
+                  if (dataType === 'integer' || dataType === 'decimal') {
+                    const numericValues = jsonData
+                      .map(item => item[key])
+                      .filter(v => v !== null && v !== undefined && typeof v === 'number');
+                    
+                    if (numericValues.length > 0) {
+                      minValue = Math.min(...numericValues);
+                      maxValue = Math.max(...numericValues);
+                    }
+                  }
+                  
+                  // For all columns, find frequency stats
+                  const valueCounts = {};
+                  jsonData.forEach(item => {
+                    if (item[key] !== null && item[key] !== undefined) {
+                      // Convert to string for consistent counting
+                      const strValue = String(item[key]);
+                      valueCounts[strValue] = (valueCounts[strValue] || 0) + 1;
+                    }
+                  });
+                  
+                  // Find most/least frequent values
+                  if (Object.keys(valueCounts).length > 0) {
+                    const sortedValues = Object.entries(valueCounts)
+                      .sort((a, b) => b[1] - a[1]);
+                    
+                    mostFrequentValue = sortedValues[0][0];
+                    leastFrequentValue = sortedValues[sortedValues.length - 1][0];
+                  }
+                }
+                
                 return {
                   column_name: key,
                   column_type: dataType,
                   column_index: index,
-                  file_id: fileId
+                  file_id: fileId,
+                  min_value: dataType === 'integer' || dataType === 'decimal' ? String(minValue) : null,
+                  max_value: dataType === 'integer' || dataType === 'decimal' ? String(maxValue) : null,
+                  min_value_decimal: dataType === 'integer' || dataType === 'decimal' ? minValue : null,
+                  max_value_decimal: dataType === 'integer' || dataType === 'decimal' ? maxValue : null,
+                  most_frequent_value: mostFrequentValue,
+                  least_frequent_value: leastFrequentValue
                 };
               });
             }
@@ -234,14 +330,23 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         try {
           await pool.query(
             `INSERT INTO file_columns 
-              (file_id, column_name, column_type, column_index, created_at) 
+              (file_id, column_name, column_type, column_index, file_name, 
+               min_value, max_value, min_value_decimal, max_value_decimal, 
+               most_frequent_value, least_frequent_value, created_at) 
              VALUES 
-              ($1, $2, $3, $4, NOW())`,
+              ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
             [
               fileId,
               column.column_name,
               column.column_type,
-              column.column_index
+              column.column_index,
+              file.originalname,
+              column.min_value,
+              column.max_value,
+              column.min_value_decimal,
+              column.max_value_decimal,
+              column.most_frequent_value,
+              column.least_frequent_value
             ]
           );
         } catch (columnErr) {
@@ -329,7 +434,12 @@ app.get('/api/files/:fileId/profile', async (req, res) => {
         null_count: col.null_count || 0,
         unique_count: col.unique_count || 0,
         min_value: col.min_value,
-        max_value: col.max_value
+        max_value: col.max_value,
+        min_value_decimal: col.min_value_decimal,
+        max_value_decimal: col.max_value_decimal,
+        most_frequent_value: col.most_frequent_value,
+        least_frequent_value: col.least_frequent_value,
+        file_name: col.file_name
       })),
       file_data: fileData
     };
