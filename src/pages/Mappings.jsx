@@ -74,8 +74,8 @@ function Mappings() {
       try {
         setLoading(true);
         const [mappingsRes, filesRes] = await Promise.all([
-          axios.get('http://localhost:3000/api/mappings'),
-          axios.get('http://localhost:3000/api/files')
+          axios.get('/api/mappings'),
+          axios.get('/api/files')
         ]);
         
         setMappings(mappingsRes.data || []);
@@ -123,7 +123,7 @@ function Mappings() {
   const handleDeleteMapping = async (id) => {
     if (window.confirm('Are you sure you want to delete this mapping?')) {
       try {
-        await axios.delete(`http://localhost:3000/api/mappings/${id}`);
+        await axios.delete(`/api/mappings/${id}`);
         setMappings(mappings.filter(mapping => mapping.id !== id));
       } catch (err) {
         console.error('Error deleting mapping:', err);
@@ -140,7 +140,7 @@ function Mappings() {
     
     try {
       setSourceLoading(true);
-      const response = await axios.get(`http://localhost:3000/api/files/${fileId}`);
+      const response = await axios.get(`/api/files/${fileId}`);
       
       if (response.data && response.data.columns) {
         setSourceColumns(response.data.columns.map(col => ({
@@ -212,7 +212,7 @@ function Mappings() {
       if (currentMapping) {
         // Update existing mapping
         response = await axios.put(
-          `http://localhost:3000/api/mappings/${currentMapping.id}`,
+          `/api/mappings/${currentMapping.id}`,
           mappingData
         );
         
@@ -221,7 +221,7 @@ function Mappings() {
         ));
       } else {
         // Create new mapping
-        response = await axios.post('http://localhost:3000/api/mappings', mappingData);
+        response = await axios.post('/api/mappings', mappingData);
         setMappings([...mappings, response.data]);
       }
       

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+// Use relative URL for API calls in the same domain
+const API_URL = '/api';
 
 export const getAlertRules = async () => {
   try {

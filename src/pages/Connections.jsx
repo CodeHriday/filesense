@@ -28,7 +28,7 @@ function Connections() {
     const fetchConnections = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://localhost:3000/api/connections');
+        const response = await axios.get('/api/connections');
         setConnections(response.data || []);
         setError(null);
       } catch (err) {
@@ -75,7 +75,7 @@ function Connections() {
   const handleDeleteConnection = async (id) => {
     if (window.confirm('Are you sure you want to delete this connection?')) {
       try {
-        await axios.delete(`http://localhost:3000/api/connections/${id}`);
+        await axios.delete(`/api/connections/${id}`);
         setConnections(connections.filter(conn => conn.id !== id));
       } catch (err) {
         console.error('Error deleting connection:', err);
@@ -132,7 +132,7 @@ function Connections() {
       if (currentConnection) {
         // Update existing connection
         response = await axios.put(
-          `http://localhost:3000/api/connections/${currentConnection.id}`,
+          `/api/connections/${currentConnection.id}`,
           connectionData
         );
         
@@ -141,7 +141,7 @@ function Connections() {
         ));
       } else {
         // Create new connection
-        response = await axios.post('http://localhost:3000/api/connections', connectionData);
+        response = await axios.post('/api/connections', connectionData);
         setConnections([...connections, response.data]);
       }
       
