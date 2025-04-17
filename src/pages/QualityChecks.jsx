@@ -92,17 +92,17 @@ function QualityChecks() {
             </div>
           </div>
           
-          {quality && quality.quality_score !== undefined ? (
+          {quality && quality.overall_score !== undefined ? (
             <>
               <div className="quality-summary">
                 <Card className="quality-score-card">
                   <div className="quality-score">
-                    <div className="score-circle" data-score={Math.round(quality.quality_score)}>
-                      <div className="score-value">{Math.round(quality.quality_score)}</div>
+                    <div className="score-circle" data-score={Math.round(quality.overall_score)}>
+                      <div className="score-value">{Math.round(quality.overall_score)}</div>
                       <div className="score-label">Quality Score</div>
                     </div>
                     <div className="score-timestamp">
-                      Last checked: {quality.check_timestamp ? formatDate(quality.check_timestamp) : 'Never'}
+                      File: {quality.filename || file.filename}
                     </div>
                   </div>
                 </Card>
@@ -111,73 +111,100 @@ function QualityChecks() {
                   <Card className="metric-card">
                     <div className="metric-header">
                       <h3>Completeness</h3>
-                      <div className="metric-score good">{quality.completeness_score}%</div>
+                      <div className={`metric-score ${quality.completeness?.score >= 80 ? 'good' : quality.completeness?.score >= 60 ? 'medium' : 'poor'}`}>
+                        {quality.completeness?.score?.toFixed(1) || '0'}%
+                      </div>
                     </div>
                     <p>Percentage of non-empty values across all columns.</p>
                   </Card>
                   
+                  {/* Display column metrics summary */}
                   <Card className="metric-card">
                     <div className="metric-header">
-                      <h3>Consistency</h3>
-                      <div className="metric-score good">{quality.consistency_score}%</div>
+                      <h3>Columns</h3>
+                      <div className="metric-score good">{quality.column_metrics?.length || 0}</div>
                     </div>
-                    <p>Consistency of data types and formats.</p>
+                    <p>Total number of columns analyzed in the file.</p>
                   </Card>
                   
+                  {/* Calculate completeness percentage of the most complete column */}
                   <Card className="metric-card">
                     <div className="metric-header">
-                      <h3>Validity</h3>
-                      <div className="metric-score medium">{quality.validity_score}%</div>
+                      <h3>Best Column</h3>
+                      {quality.completeness?.details && quality.completeness.details.length > 0 ? (
+                        <>
+                          <div className="metric-score good">
+                            {Math.max(...quality.completeness.details.map(col => col.score)).toFixed(1)}%
+                          </div>
+                          <p>{quality.completeness.details.reduce((prev, current) => 
+                            (prev.score > current.score) ? prev : current).column}</p>
+                        </>
+                      ) : (
+                        <div className="metric-score">N/A</div>
+                      )}
                     </div>
-                    <p>Adherence to predefined data validation rules.</p>
+                    <p>Column with highest completeness score.</p>
                   </Card>
                   
+                  {/* Calculate completeness percentage of the least complete column */}
                   <Card className="metric-card">
                     <div className="metric-header">
-                      <h3>Uniqueness</h3>
-                      <div className="metric-score good">{quality.uniqueness_score}%</div>
+                      <h3>Worst Column</h3>
+                      {quality.completeness?.details && quality.completeness.details.length > 0 ? (
+                        <>
+                          <div className="metric-score poor">
+                            {Math.min(...quality.completeness.details.map(col => col.score)).toFixed(1)}%
+                          </div>
+                          <p>{quality.completeness.details.reduce((prev, current) => 
+                            (prev.score < current.score) ? prev : current).column}</p>
+                        </>
+                      ) : (
+                        <div className="metric-score">N/A</div>
+                      )}
                     </div>
-                    <p>Percentage of unique values in key columns.</p>
+                    <p>Column with lowest completeness score.</p>
                   </Card>
                 </div>
               </div>
               
               <div className="quality-details">
-                <Card title="Quality Check Results">
+                <Card title="Column Quality Details">
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Check</th>
-                        <th>Column</th>
-                        <th>Status</th>
-                        <th>Message</th>
+                        <th>Column Name</th>
+                        <th>Data Type</th>
+                        <th>Completeness</th>
+                        <th>Unique Values</th>
+                        <th>Null Count</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {quality.checks && quality.checks.map((check, index) => (
-                        <tr key={index} className={check.status}>
-                          <td>{check.check_name}</td>
-                          <td>{check.column || 'All'}</td>
+                      {quality.column_metrics && quality.column_metrics.map((col, index) => (
+                        <tr key={index}>
+                          <td>{col.name}</td>
+                          <td>{col.type}</td>
                           <td>
-                            <span className={`check-status ${check.status}`}>
-                              {check.status === 'success' ? (
+                            <span className={`check-status ${col.completeness >= 80 ? 'success' : col.completeness >= 60 ? 'warning' : 'error'}`}>
+                              {col.completeness >= 80 ? (
                                 <FiCheck />
-                              ) : check.status === 'warning' ? (
+                              ) : col.completeness >= 60 ? (
                                 <FiAlertTriangle />
                               ) : (
                                 <FiX />
                               )}
-                              {check.status.charAt(0).toUpperCase() + check.status.slice(1)}
+                              {col.completeness?.toFixed(1)}%
                             </span>
                           </td>
-                          <td>{check.message}</td>
+                          <td>{col.unique_count || 'N/A'}</td>
+                          <td>{col.null_count || 0}</td>
                         </tr>
                       ))}
                       
-                      {(!quality.checks || quality.checks.length === 0) && (
+                      {(!quality.column_metrics || quality.column_metrics.length === 0) && (
                         <tr>
-                          <td colSpan="4" className="empty-message">
-                            No quality checks have been run.
+                          <td colSpan="5" className="empty-message">
+                            No column metrics available.
                           </td>
                         </tr>
                       )}

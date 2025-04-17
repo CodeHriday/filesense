@@ -40,6 +40,10 @@ function DataProfile() {
   const renderOverviewTab = () => {
     if (!file || !profile) return null;
     
+    // Get data from the updated API response format
+    const basicInfo = profile.basic_info || {};
+    const columns = profile.columns || [];
+    
     return (
       <div className="profile-overview">
         <div className="file-stats-grid">
@@ -48,7 +52,7 @@ function DataProfile() {
               <FiFileText />
             </div>
             <div className="stat-details">
-              <h3>{formatNumber(profile.row_count || 0)}</h3>
+              <h3>{formatNumber(basicInfo.row_count || 0)}</h3>
               <p>Rows</p>
             </div>
           </Card>
@@ -58,7 +62,7 @@ function DataProfile() {
               <FiBarChart2 />
             </div>
             <div className="stat-details">
-              <h3>{file.columns ? file.columns.length : 0}</h3>
+              <h3>{basicInfo.column_count || columns.length || 0}</h3>
               <p>Columns</p>
             </div>
           </Card>
@@ -68,7 +72,7 @@ function DataProfile() {
               <FiDownload />
             </div>
             <div className="stat-details">
-              <h3>{file.file_size ? formatBytes(file.file_size) : 'Unknown'}</h3>
+              <h3>{basicInfo.file_size ? formatBytes(basicInfo.file_size) : (file.file_size ? formatBytes(file.file_size) : 'Unknown')}</h3>
               <p>File Size</p>
             </div>
           </Card>
@@ -78,31 +82,37 @@ function DataProfile() {
               <FiCalendar />
             </div>
             <div className="stat-details">
-              <h3>{getTimeSince(file.created_at)}</h3>
+              <h3>{getTimeSince(basicInfo.created_at || file.created_at)}</h3>
               <p>Age</p>
             </div>
           </Card>
         </div>
         
         <Card title="Data Completeness">
-          {profile.missing_values ? (
+          {columns && columns.length > 0 ? (
             <div className="completeness-bars">
-              {Object.entries(profile.missing_values).map(([column, stats]) => (
-                <div key={column} className="completeness-bar-container">
-                  <div className="completeness-bar-label">
-                    <span className="column-name">{column}</span>
-                    <span className="completeness-value">
-                      {Math.round((1 - stats.percentage) * 100)}%
-                    </span>
+              {columns.map((column) => {
+                const totalRows = basicInfo.row_count || 100;
+                const nullCount = column.null_count || 0;
+                const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
+                
+                return (
+                  <div key={column.name} className="completeness-bar-container">
+                    <div className="completeness-bar-label">
+                      <span className="column-name">{column.name}</span>
+                      <span className="completeness-value">
+                        {completeness}%
+                      </span>
+                    </div>
+                    <div className="completeness-bar-track">
+                      <div 
+                        className="completeness-bar-fill" 
+                        style={{ width: `${completeness}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="completeness-bar-track">
-                    <div 
-                      className="completeness-bar-fill" 
-                      style={{ width: `${Math.round((1 - stats.percentage) * 100)}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="empty-state">
@@ -112,35 +122,33 @@ function DataProfile() {
         </Card>
         
         <Card title="Data Freshness">
-          {profile.freshness ? (
-            <div className="freshness-stats">
-              <div className="freshness-stat">
-                <h3>Last Updated</h3>
-                <p>{formatDate(profile.freshness.last_updated)}</p>
-              </div>
-              
-              <div className="freshness-stat">
-                <h3>Update Frequency</h3>
-                <p>{profile.freshness.update_frequency || 'Unknown'}</p>
-              </div>
-              
-              <div className="freshness-stat">
-                <h3>Data Period</h3>
-                <p>{profile.freshness.data_start_date ? `${formatDate(profile.freshness.data_start_date)} - ${formatDate(profile.freshness.data_end_date)}` : 'Unknown'}</p>
-              </div>
+          <div className="freshness-stats">
+            <div className="freshness-stat">
+              <h3>Last Updated</h3>
+              <p>{formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</p>
             </div>
-          ) : (
-            <div className="empty-state">
-              <p>No freshness data available.</p>
+            
+            <div className="freshness-stat">
+              <h3>Created At</h3>
+              <p>{formatDate(basicInfo.created_at || file.created_at)}</p>
             </div>
-          )}
+            
+            <div className="freshness-stat">
+              <h3>File Type</h3>
+              <p>{basicInfo.file_type || file.file_type || 'Unknown'}</p>
+            </div>
+          </div>
         </Card>
       </div>
     );
   };
 
   const renderColumnsTab = () => {
-    if (!file || !file.columns) return null;
+    if (!profile || !profile.columns) return null;
+    
+    const columns = profile.columns;
+    const basicInfo = profile.basic_info || {};
+    const totalRows = basicInfo.row_count || 100;
     
     return (
       <div className="columns-tab">
@@ -150,29 +158,28 @@ function DataProfile() {
               <tr>
                 <th>Column Name</th>
                 <th>Data Type</th>
-                <th>Nullable</th>
-                <th>Distinct Values</th>
+                <th>Unique Values</th>
                 <th>Missing Values</th>
+                <th>Min Value</th>
+                <th>Max Value</th>
               </tr>
             </thead>
             <tbody>
-              {file.columns.map((column) => (
-                <tr key={column.column_name}>
-                  <td>{column.column_name}</td>
-                  <td>{column.data_type}</td>
-                  <td>{column.is_nullable ? 'Yes' : 'No'}</td>
-                  <td>
-                    {profile && profile.column_stats && profile.column_stats[column.column_name] 
-                      ? profile.column_stats[column.column_name].distinct_count 
-                      : 'Unknown'}
-                  </td>
-                  <td>
-                    {profile && profile.missing_values && profile.missing_values[column.column_name] 
-                      ? `${Math.round(profile.missing_values[column.column_name].percentage * 100)}%` 
-                      : '0%'}
-                  </td>
-                </tr>
-              ))}
+              {columns.map((column) => {
+                const nullCount = column.null_count || 0;
+                const missingPercentage = Math.round((nullCount / totalRows) * 100);
+                
+                return (
+                  <tr key={column.name}>
+                    <td>{column.name}</td>
+                    <td>{column.type}</td>
+                    <td>{column.unique_count || 'N/A'}</td>
+                    <td>{`${nullCount} (${missingPercentage}%)`}</td>
+                    <td>{column.min_value || 'N/A'}</td>
+                    <td>{column.max_value || 'N/A'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </Card>
@@ -181,46 +188,42 @@ function DataProfile() {
   };
 
   const renderDistributionTab = () => {
-    if (!profile || !profile.column_stats) return null;
+    if (!profile || !profile.columns) return null;
+    
+    const columns = profile.columns;
     
     return (
       <div className="distribution-tab">
         <div className="distribution-cards">
-          {file.columns.map((column) => (
-            <Card key={column.column_name} title={column.column_name}>
-              {profile.column_stats[column.column_name] ? (
-                <div className="column-distribution">
-                  <div className="distribution-summary">
-                    <div className="summary-stat">
-                      <h4>Min</h4>
-                      <p>{profile.column_stats[column.column_name].min ?? 'N/A'}</p>
-                    </div>
-                    <div className="summary-stat">
-                      <h4>Max</h4>
-                      <p>{profile.column_stats[column.column_name].max ?? 'N/A'}</p>
-                    </div>
-                    <div className="summary-stat">
-                      <h4>Mean</h4>
-                      <p>{profile.column_stats[column.column_name].mean ? profile.column_stats[column.column_name].mean.toFixed(2) : 'N/A'}</p>
-                    </div>
-                    <div className="summary-stat">
-                      <h4>Stddev</h4>
-                      <p>{profile.column_stats[column.column_name].std ? profile.column_stats[column.column_name].std.toFixed(2) : 'N/A'}</p>
-                    </div>
+          {columns.map((column) => (
+            <Card key={column.name} title={column.name}>
+              <div className="column-distribution">
+                <div className="distribution-summary">
+                  <div className="summary-stat">
+                    <h4>Type</h4>
+                    <p>{column.type || 'Unknown'}</p>
                   </div>
-                  
-                  <div className="distribution-visualization">
-                    {/* In a real app, there would be a histogram or distribution chart here */}
-                    <div className="histogram-placeholder">
-                      <p>Distribution visualization would appear here.</p>
-                    </div>
+                  <div className="summary-stat">
+                    <h4>Min</h4>
+                    <p>{column.min_value ?? 'N/A'}</p>
+                  </div>
+                  <div className="summary-stat">
+                    <h4>Max</h4>
+                    <p>{column.max_value ?? 'N/A'}</p>
+                  </div>
+                  <div className="summary-stat">
+                    <h4>Unique Values</h4>
+                    <p>{column.unique_count ?? 'N/A'}</p>
                   </div>
                 </div>
-              ) : (
-                <div className="empty-state">
-                  <p>No distribution data available for this column.</p>
+                
+                <div className="distribution-visualization">
+                  {/* In a real app, there would be a histogram or distribution chart here */}
+                  <div className="histogram-placeholder">
+                    <p>Distribution visualization would appear here.</p>
+                  </div>
                 </div>
-              )}
+              </div>
             </Card>
           ))}
         </div>
