@@ -160,16 +160,17 @@ function QualityChecks() {
                           {(() => {
                             const incompleteColumns = quality.completeness.details.filter(col => col.score < 100);
                             if (incompleteColumns.length > 0) {
-                              const minScore = Math.min(...incompleteColumns.map(col => col.score));
+                              const worstColumn = incompleteColumns.reduce((prev, current) => 
+                                (prev.score < current.score) ? prev : current);
                               return (
                                 <div className="metric-score poor">
-                                  {minScore.toFixed(1)}%
+                                  {worstColumn.score.toFixed(1)}%
                                 </div>
                               );
                             } else {
                               return (
                                 <div className="metric-score good">
-                                  All 100%
+                                  100%
                                 </div>
                               );
                             }

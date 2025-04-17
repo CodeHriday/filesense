@@ -209,6 +209,7 @@
   justify-content: space-between;
   margin-bottom: 8px;
   align-items: center;
+  width: 100%;
 }
 
 .column-name {
@@ -219,6 +220,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-right: 10px;
+  text-align: left;
 }
 
 .completeness-value {
@@ -228,6 +230,8 @@
   padding: 2px 8px;
   border-radius: 12px;
   flex-shrink: 0;
+  text-align: right;
+  margin-left: auto;
 }
 
 .completeness-bar-track {
