@@ -237,6 +237,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                 let mostFrequentValue = null;
                 let leastFrequentValue = null;
                 let uniqueCount = 0;
+                let nullCount = 0;
                 
                 // Get initial type from first item
                 const value = firstItem[key];
@@ -269,7 +270,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                   
                   // For all columns, find frequency stats
                   const valueCounts = {};
-                  let nullCount = 0;
+                  nullCount = 0; // Reset nullCount
                   
                   jsonData.forEach(item => {
                     // Check for missing values (null, undefined, empty string, whitespace)
