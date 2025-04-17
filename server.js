@@ -106,14 +106,110 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
-    // For now, we'll just save basic information
     const file = req.file;
     const fileId = `file_${Date.now()}`;
-    const fileType = path.extname(file.originalname).substring(1);
+    const fileType = path.extname(file.originalname).substring(1).toLowerCase();
     
     console.log('Attempting to save file:', file.originalname, 'Size:', file.size);
     
-    // Use a more complete insert query matching the database schema
+    // Process file based on type
+    let rowCount = 0;
+    let columnCount = 0;
+    let columns = [];
+    let qualityScore = 85; // Default quality score
+    
+    try {
+      // Extract basic file metrics based on file type
+      if (fileType === 'csv') {
+        // Read the CSV file to extract schema and basic statistics
+        const fileContent = fs.readFileSync(file.path, 'utf8');
+        const lines = fileContent.split('\n').filter(line => line.trim());
+        
+        if (lines.length > 0) {
+          // Extract header row for column names
+          const header = lines[0].split(',').map(h => h.trim());
+          columnCount = header.length;
+          rowCount = lines.length - 1; // Subtract header row
+          
+          // Create column entries
+          columns = header.map((colName, index) => {
+            // Identify simple data types based on first data row
+            let dataType = 'string';
+            if (lines.length > 1) {
+              const firstRowValues = lines[1].split(',');
+              if (index < firstRowValues.length) {
+                const value = firstRowValues[index].trim();
+                if (!isNaN(Number(value))) {
+                  dataType = Number.isInteger(Number(value)) ? 'integer' : 'decimal';
+                } else if (value.toLowerCase() === 'true' || value.toLowerCase() === 'false') {
+                  dataType = 'boolean';
+                } else if (!isNaN(Date.parse(value))) {
+                  dataType = 'date';
+                }
+              }
+            }
+            
+            return {
+              column_name: colName,
+              column_type: dataType,
+              column_index: index,
+              file_id: fileId
+            };
+          });
+        }
+      } else if (fileType === 'json') {
+        try {
+          const fileContent = fs.readFileSync(file.path, 'utf8');
+          const jsonData = JSON.parse(fileContent);
+          
+          if (Array.isArray(jsonData)) {
+            rowCount = jsonData.length;
+            if (rowCount > 0) {
+              // Extract columns from first item
+              const firstItem = jsonData[0];
+              const keys = Object.keys(firstItem);
+              columnCount = keys.length;
+              
+              columns = keys.map((key, index) => {
+                let dataType = 'string';
+                const value = firstItem[key];
+                
+                if (typeof value === 'number') {
+                  dataType = Number.isInteger(value) ? 'integer' : 'decimal';
+                } else if (typeof value === 'boolean') {
+                  dataType = 'boolean';
+                } else if (value instanceof Date) {
+                  dataType = 'date';
+                } else if (value === null) {
+                  dataType = 'null';
+                } else if (typeof value === 'object') {
+                  dataType = 'object';
+                }
+                
+                return {
+                  column_name: key,
+                  column_type: dataType,
+                  column_index: index,
+                  file_id: fileId
+                };
+              });
+            }
+          }
+        } catch (jsonError) {
+          console.error('Error parsing JSON file:', jsonError);
+        }
+      } else if (fileType === 'parquet') {
+        // For parquet, we'd need a specific library to read the format
+        // For now, just provide minimal metadata
+        columnCount = 0;
+        rowCount = 0;
+      }
+    } catch (processingError) {
+      console.error('Error processing file:', processingError);
+      // Continue even if processing fails
+    }
+    
+    // Save file information to database
     await pool.query(
       `INSERT INTO files 
         (file_id, filename, file_type, file_size, checksum, row_count, column_count, quality_score, metadata, created_at, updated_at) 
@@ -125,12 +221,35 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         fileType, 
         file.size, 
         null, // checksum
-        0,    // row_count (placeholder)
-        0,    // column_count (placeholder)
-        0,    // quality_score (placeholder)
+        rowCount,
+        columnCount,
+        qualityScore,
         JSON.stringify({ path: file.path }) // basic metadata
       ]
     );
+    
+    // Save column information if available
+    if (columns.length > 0) {
+      for (const column of columns) {
+        try {
+          await pool.query(
+            `INSERT INTO file_columns 
+              (file_id, column_name, column_type, column_index, created_at) 
+             VALUES 
+              ($1, $2, $3, $4, NOW())`,
+            [
+              fileId,
+              column.column_name,
+              column.column_type,
+              column.column_index
+            ]
+          );
+        } catch (columnErr) {
+          console.error('Error saving column information:', columnErr);
+          // Continue with other columns
+        }
+      }
+    }
     
     res.json({ 
       success: true, 
@@ -138,6 +257,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
       filename: file.originalname,
       file_type: fileType,
       file_size: file.size,
+      row_count: rowCount,
+      column_count: columnCount,
       created_at: new Date().toISOString(),
       message: 'File uploaded successfully'
     });
@@ -145,6 +266,179 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     console.error('Error uploading file:', err);
     console.error(err.stack);
     res.status(500).json({ error: 'Failed to upload file: ' + err.message });
+  }
+});
+
+// File profile endpoint
+app.get('/api/files/:fileId/profile', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Get basic file info
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Get columns info
+    const columnsResult = await pool.query(
+      'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
+      [fileId]
+    );
+    
+    // Read file contents based on file type
+    const filePath = file.metadata?.path;
+    let fileData = {};
+    
+    if (filePath) {
+      try {
+        // For now, just return some basic metadata
+        fileData = {
+          filename: file.filename,
+          file_type: file.file_type,
+          file_size: file.file_size,
+          row_count: file.row_count || 0,
+          column_count: file.column_count || columnsResult.rows.length,
+          columns: columnsResult.rows,
+          created_at: file.created_at,
+          updated_at: file.updated_at
+        };
+      } catch (readErr) {
+        console.error('Error reading file contents:', readErr);
+        // Continue with available metadata even if file read fails
+      }
+    }
+    
+    // Generate profile
+    const profile = {
+      file_id: file.file_id,
+      basic_info: {
+        filename: file.filename,
+        file_type: file.file_type,
+        file_size: file.file_size,
+        created_at: file.created_at,
+        row_count: file.row_count || 0,
+        column_count: file.column_count || columnsResult.rows.length,
+      },
+      columns: columnsResult.rows.map(col => ({
+        name: col.column_name,
+        type: col.column_type,
+        null_count: col.null_count || 0,
+        unique_count: col.unique_count || 0,
+        min_value: col.min_value,
+        max_value: col.max_value
+      })),
+      file_data: fileData
+    };
+    
+    res.json(profile);
+  } catch (err) {
+    console.error('Error generating file profile:', err);
+    console.error(err.stack);
+    res.status(500).json({ error: 'Failed to generate file profile' });
+  }
+});
+
+// File quality endpoint
+app.get('/api/files/:fileId/quality', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Get basic file info
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Get columns info
+    const columnsResult = await pool.query(
+      'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
+      [fileId]
+    );
+    
+    // Calculate completeness score based on null values
+    const columnsWithCompleteness = columnsResult.rows.map(col => {
+      const totalRows = file.row_count || 100; // Default if row_count not available
+      const nullCount = col.null_count || 0;
+      const completeness = ((totalRows - nullCount) / totalRows) * 100;
+      
+      return {
+        ...col,
+        completeness: Math.round(completeness * 100) / 100 // Round to 2 decimal places
+      };
+    });
+    
+    // Calculate overall quality score
+    const qualityScore = file.quality_score || 
+      Math.round(columnsWithCompleteness.reduce((sum, col) => sum + col.completeness, 0) / 
+      (columnsWithCompleteness.length || 1));
+    
+    const qualityResults = {
+      file_id: file.file_id,
+      filename: file.filename,
+      overall_score: qualityScore,
+      completeness: {
+        score: Math.round(columnsWithCompleteness.reduce((sum, col) => sum + col.completeness, 0) / 
+          (columnsWithCompleteness.length || 1) * 100) / 100,
+        details: columnsWithCompleteness.map(col => ({
+          column: col.column_name,
+          score: col.completeness
+        }))
+      },
+      column_metrics: columnsWithCompleteness.map(col => ({
+        name: col.column_name,
+        type: col.column_type,
+        null_count: col.null_count || 0,
+        unique_count: col.unique_count || 0,
+        completeness: col.completeness
+      }))
+    };
+    
+    res.json(qualityResults);
+  } catch (err) {
+    console.error('Error generating quality metrics:', err);
+    console.error(err.stack);
+    res.status(500).json({ error: 'Failed to generate quality metrics' });
+  }
+});
+
+// Quality check run endpoint
+app.post('/api/files/:fileId/quality-check', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { rules } = req.body;
+    
+    // Get file info
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Run the quality check
+    // For now, we'll just return a mock result based on the file's quality score
+    const file = fileResult.rows[0];
+    const qualityScore = file.quality_score || Math.round(Math.random() * 100);
+    
+    res.json({
+      file_id: fileId,
+      filename: file.filename,
+      check_time: new Date().toISOString(),
+      quality_score: qualityScore,
+      rules_evaluated: rules?.length || 0,
+      issues_found: Math.round((100 - qualityScore) / 10), // Mock value
+      passed: qualityScore > 80
+    });
+  } catch (err) {
+    console.error('Error running quality check:', err);
+    console.error(err.stack);
+    res.status(500).json({ error: 'Failed to run quality check' });
   }
 });
 
