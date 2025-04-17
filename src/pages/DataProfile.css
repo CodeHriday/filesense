@@ -205,21 +205,12 @@
 }
 
 .completeness-bar-label {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-gap: 10px;
   margin-bottom: 8px;
   align-items: center;
   width: 100%;
-}
-
-.column-name-container {
-  text-align: left;
-  flex: 1;
-}
-
-.percentage-container {
-  text-align: right;
-  min-width: 60px;
 }
 
 .column-name {
@@ -238,6 +229,7 @@
   padding: 2px 8px;
   border-radius: 12px;
   display: inline-block;
+  text-align: right;
 }
 
 .completeness-bar-track {
