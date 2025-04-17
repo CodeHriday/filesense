@@ -91,29 +91,49 @@ app.get('/api/files/:fileId', async (req, res) => {
 app.post('/api/files/upload', upload.single('file'), async (req, res) => {
   try {
     // Process file upload and save metadata
-    // This would typically involve:
-    // 1. Reading the uploaded file
-    // 2. Analyzing its structure
-    // 3. Creating records in the files and file_columns tables
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
     
     // For now, we'll just save basic information
     const file = req.file;
     const fileId = `file_${Date.now()}`;
     const fileType = path.extname(file.originalname).substring(1);
     
+    console.log('Attempting to save file:', file.originalname, 'Size:', file.size);
+    
+    // Use a more complete insert query matching the database schema
     await pool.query(
-      'INSERT INTO files (file_id, filename, file_type, file_size, created_at) VALUES ($1, $2, $3, $4, NOW())',
-      [fileId, file.originalname, fileType, file.size]
+      `INSERT INTO files 
+        (file_id, filename, file_type, file_size, checksum, row_count, column_count, quality_score, metadata, created_at, updated_at) 
+       VALUES 
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+      [
+        fileId, 
+        file.originalname, 
+        fileType, 
+        file.size, 
+        null, // checksum
+        0,    // row_count (placeholder)
+        0,    // column_count (placeholder)
+        0,    // quality_score (placeholder)
+        JSON.stringify({ path: file.path }) // basic metadata
+      ]
     );
     
     res.json({ 
       success: true, 
       fileId: fileId,
+      filename: file.originalname,
+      file_type: fileType,
+      file_size: file.size,
+      created_at: new Date().toISOString(),
       message: 'File uploaded successfully'
     });
   } catch (err) {
     console.error('Error uploading file:', err);
-    res.status(500).json({ error: 'Failed to upload file' });
+    console.error(err.stack);
+    res.status(500).json({ error: 'Failed to upload file: ' + err.message });
   }
 });
 
