@@ -95,14 +95,20 @@ function FileUpload() {
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
-      setUploadedFile({
+      const fileDetails = {
         fileId: result.fileId,
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size
-      });
+      };
       
+      setUploadedFile(fileDetails);
       setUploadStatus('success');
+      
+      // Automatically redirect to profile page after a short delay
+      setTimeout(() => {
+        navigate(`/profile/${result.fileId}`);
+      }, 500);
       
       return result;
     } catch (error) {

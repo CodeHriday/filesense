@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiUpload, FiDatabase, FiBarChart2, FiAlertTriangle, FiSettings, FiLink } from 'react-icons/fi';
+import { FiHome, FiUpload, FiDatabase, FiBarChart2, FiAlertTriangle, FiSettings, FiLink, FiMonitor } from 'react-icons/fi';
 import './Sidebar.css';
 
 function Sidebar() {
@@ -18,6 +18,12 @@ function Sidebar() {
             <NavLink to="/upload" className={({ isActive }) => isActive ? 'active' : ''}>
               <FiUpload className="icon" />
               <span>Upload File</span>
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/monitor" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiMonitor className="icon" />
+              <span>Monitor</span>
             </NavLink>
           </li>
           <li>

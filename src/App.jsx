@@ -9,6 +9,7 @@ import QualityChecks from './pages/QualityChecks';
 import Alerts from './pages/Alerts';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
+import Monitor from './pages/Monitor';
 import './App.css';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/connections" element={<Connections />} />
               <Route path="/mappings" element={<Mappings />} />
+              <Route path="/monitor" element={<Monitor />} />
             </Routes>
           </main>
         </div>
