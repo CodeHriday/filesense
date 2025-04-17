@@ -15,7 +15,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Configure middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5000', 'https://localhost:5000', 'https://*.replit.dev', 'https://*.replit.app'],
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
