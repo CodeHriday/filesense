@@ -38,15 +38,21 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Configure PostgreSQL connection
+// Configure PostgreSQL connection with better error handling
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+});
+
+// Add error handler to connection pool
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
 });
 
 // Test database connection
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('Error connecting to the database:', err);
+    console.error(err.stack);
   } else {
     console.log('Database connected successfully');
   }
@@ -209,17 +215,37 @@ app.delete('/api/alerts/:id', async (req, res) => {
 
 app.get('/api/alerts/history', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT ah.*, ar.rule_name, ar.rule_type, ar.severity, f.filename
-      FROM alert_history ah
-      JOIN alert_rules ar ON ah.rule_id = ar.id
-      JOIN files f ON ah.file_id = f.file_id
-      ORDER BY ah.triggered_at DESC
-    `);
-    res.json(result.rows);
+    // Check if the alert_history table has any records
+    const countResult = await pool.query('SELECT COUNT(*) FROM alert_history');
+    const count = parseInt(countResult.rows[0].count);
+    
+    if (count === 0) {
+      // If no records, return an empty array
+      return res.json([]);
+    }
+    
+    // If records exist, proceed with the join query
+    try {
+      const result = await pool.query(`
+        SELECT ah.*, ar.rule_name, ar.rule_type, ar.severity, f.filename
+        FROM alert_history ah
+        JOIN alert_rules ar ON ah.rule_id = ar.id
+        JOIN files f ON ah.file_id = f.file_id
+        ORDER BY ah.triggered_at DESC
+      `);
+      res.json(result.rows);
+    } catch (joinErr) {
+      console.error('Error with join query in alert history:', joinErr);
+      console.error(joinErr.stack);
+      
+      // Fallback: Return just the alert history without joins
+      const fallbackResult = await pool.query('SELECT * FROM alert_history ORDER BY triggered_at DESC');
+      res.json(fallbackResult.rows);
+    }
   } catch (err) {
     console.error('Error fetching alert history:', err);
-    res.status(500).json({ error: 'Failed to fetch alert history' });
+    console.error(err.stack);
+    res.status(500).json({ error: 'Failed to fetch alert history: ' + err.message });
   }
 });
 
@@ -342,16 +368,36 @@ app.delete('/api/connections/:id', async (req, res) => {
 // Column Mappings API
 app.get('/api/mappings', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT m.*, f.filename as source_filename
-      FROM column_mappings m
-      JOIN files f ON m.source_file_id = f.file_id
-      ORDER BY m.created_at DESC
-    `);
-    res.json(result.rows);
+    // Check if the column_mappings table has any records
+    const countResult = await pool.query('SELECT COUNT(*) FROM column_mappings');
+    const count = parseInt(countResult.rows[0].count);
+    
+    if (count === 0) {
+      // If no records, return an empty array
+      return res.json([]);
+    }
+    
+    // If records exist, proceed with the join query
+    try {
+      const result = await pool.query(`
+        SELECT m.*, f.filename as source_filename
+        FROM column_mappings m
+        JOIN files f ON m.source_file_id = f.file_id
+        ORDER BY m.created_at DESC
+      `);
+      res.json(result.rows);
+    } catch (joinErr) {
+      console.error('Error with join query in column mappings:', joinErr);
+      console.error(joinErr.stack);
+      
+      // Fallback: Return just the mappings without joins
+      const fallbackResult = await pool.query('SELECT * FROM column_mappings ORDER BY created_at DESC');
+      res.json(fallbackResult.rows);
+    }
   } catch (err) {
     console.error('Error fetching column mappings:', err);
-    res.status(500).json({ error: 'Failed to fetch column mappings' });
+    console.error(err.stack);
+    res.status(500).json({ error: 'Failed to fetch column mappings: ' + err.message });
   }
 });
 
@@ -403,7 +449,31 @@ app.delete('/api/mappings/:id', async (req, res) => {
   }
 });
 
+// Global error handler middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error in request:', err);
+  console.error(err.stack);
+  res.status(500).json({ 
+    error: 'Internal server error', 
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong' 
+  });
+});
+
+// Catch unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+  // Don't crash the server
+});
+
+// Catch uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:');
+  console.error(err.stack);
+  // Keep the process alive
+});
+
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
