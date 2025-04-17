@@ -139,6 +139,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             let maxValue = null;
             let mostFrequentValue = null;
             let leastFrequentValue = null;
+            let uniqueCount = 0;
             
             if (lines.length > 1) {
               // Get the column values from all data rows
@@ -190,6 +191,9 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                 
                 mostFrequentValue = sortedValues[0][0];
                 leastFrequentValue = sortedValues[sortedValues.length - 1][0];
+                
+                // Count number of unique values (distinct values)
+                uniqueCount = Object.keys(valueCounts).length;
               }
             }
             
@@ -203,7 +207,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               min_value_decimal: dataType === 'integer' || dataType === 'decimal' ? minValue : null,
               max_value_decimal: dataType === 'integer' || dataType === 'decimal' ? maxValue : null,
               most_frequent_value: mostFrequentValue,
-              least_frequent_value: leastFrequentValue
+              least_frequent_value: leastFrequentValue,
+              unique_count: uniqueCount
             };
           });
         }
@@ -226,6 +231,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
                 let maxValue = null;
                 let mostFrequentValue = null;
                 let leastFrequentValue = null;
+                let uniqueCount = 0;
                 
                 // Get initial type from first item
                 const value = firstItem[key];
