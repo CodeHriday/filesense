@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
-import { uploadFile } from '../api/fileService';
+import { uploadFile, testApiConnection } from '../api/fileService';
+import axios from 'axios';
 import './FileUpload.css';
 
 function FileUpload() {

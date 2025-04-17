@@ -59,6 +59,11 @@ pool.query('SELECT NOW()', (err, res) => {
 });
 
 // API Routes
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Files API
 app.get('/api/files', async (req, res) => {
   try {
