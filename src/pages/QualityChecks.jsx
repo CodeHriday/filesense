@@ -136,13 +136,17 @@ function QualityChecks() {
                           <div className="metric-score good">
                             {Math.max(...quality.completeness.details.map(col => col.score)).toFixed(1)}%
                           </div>
-                          <p>{quality.completeness.details.reduce((prev, current) => 
-                            (prev.score > current.score) ? prev : current).column}</p>
                         </>
                       ) : (
                         <div className="metric-score">N/A</div>
                       )}
                     </div>
+                    {quality.completeness?.details && quality.completeness.details.length > 0 && (
+                      <p>
+                        {quality.completeness.details.reduce((prev, current) => 
+                          (prev.score > current.score) ? prev : current).column}
+                      </p>
+                    )}
                     <p>Column with highest completeness score.</p>
                   </Card>
                   
@@ -155,13 +159,17 @@ function QualityChecks() {
                           <div className="metric-score poor">
                             {Math.min(...quality.completeness.details.map(col => col.score)).toFixed(1)}%
                           </div>
-                          <p>{quality.completeness.details.reduce((prev, current) => 
-                            (prev.score < current.score) ? prev : current).column}</p>
                         </>
                       ) : (
                         <div className="metric-score">N/A</div>
                       )}
                     </div>
+                    {quality.completeness?.details && quality.completeness.details.length > 0 && (
+                      <p>
+                        {quality.completeness.details.reduce((prev, current) => 
+                          (prev.score < current.score) ? prev : current).column}
+                      </p>
+                    )}
                     <p>Column with lowest completeness score.</p>
                   </Card>
                 </div>
@@ -196,8 +204,8 @@ function QualityChecks() {
                               {col.completeness?.toFixed(1)}%
                             </span>
                           </td>
-                          <td>{col.unique_count || 'N/A'}</td>
-                          <td>{col.null_count || 0}</td>
+                          <td>{col.unique_count !== undefined ? col.unique_count.toLocaleString() : 'N/A'}</td>
+                          <td>{col.null_count !== undefined ? col.null_count.toLocaleString() : 0}</td>
                         </tr>
                       ))}
                       

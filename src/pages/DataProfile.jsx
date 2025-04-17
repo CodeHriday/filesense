@@ -173,10 +173,10 @@ function DataProfile() {
                   <tr key={column.name}>
                     <td>{column.name}</td>
                     <td>{column.type}</td>
-                    <td>{column.unique_count || 'N/A'}</td>
-                    <td>{`${nullCount} (${missingPercentage}%)`}</td>
-                    <td>{column.min_value || 'N/A'}</td>
-                    <td>{column.max_value || 'N/A'}</td>
+                    <td>{column.unique_count !== undefined ? column.unique_count.toLocaleString() : 'N/A'}</td>
+                    <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
+                    <td>{column.min_value !== undefined && column.min_value !== null ? column.min_value : 'N/A'}</td>
+                    <td>{column.max_value !== undefined && column.max_value !== null ? column.max_value : 'N/A'}</td>
                   </tr>
                 );
               })}
@@ -205,22 +205,60 @@ function DataProfile() {
                   </div>
                   <div className="summary-stat">
                     <h4>Min</h4>
-                    <p>{column.min_value ?? 'N/A'}</p>
+                    <p>{column.min_value !== undefined && column.min_value !== null ? column.min_value : 'N/A'}</p>
                   </div>
                   <div className="summary-stat">
                     <h4>Max</h4>
-                    <p>{column.max_value ?? 'N/A'}</p>
+                    <p>{column.max_value !== undefined && column.max_value !== null ? column.max_value : 'N/A'}</p>
                   </div>
                   <div className="summary-stat">
                     <h4>Unique Values</h4>
-                    <p>{column.unique_count ?? 'N/A'}</p>
+                    <p>{column.unique_count !== undefined ? column.unique_count.toLocaleString() : 'N/A'}</p>
                   </div>
                 </div>
                 
                 <div className="distribution-visualization">
-                  {/* In a real app, there would be a histogram or distribution chart here */}
-                  <div className="histogram-placeholder">
-                    <p>Distribution visualization would appear here.</p>
+                  <div className="histogram-container">
+                    <div className="histogram-title">Value Distribution</div>
+                    <div className="pseudo-histogram">
+                      {column.type === 'integer' || column.type === 'decimal' || column.type === 'number' ? (
+                        // Create a simple pseudo-histogram for numeric data
+                        <div className="bars">
+                          {[...Array(8)].map((_, i) => (
+                            <div 
+                              key={i} 
+                              className="bar" 
+                              style={{ 
+                                height: `${20 + Math.floor(Math.random() * 80)}%`,
+                                backgroundColor: `rgba(52, 152, 219, ${0.4 + (i / 10)})`
+                              }}
+                            ></div>
+                          ))}
+                        </div>
+                      ) : (
+                        // Create a simple pseudo-distribution for categorical data
+                        <div className="categorical-distribution">
+                          {[...Array(5)].map((_, i) => (
+                            <div key={i} className="category-row">
+                              <div className="category-label">Category {i+1}</div>
+                              <div className="category-bar-container">
+                                <div 
+                                  className="category-bar" 
+                                  style={{ 
+                                    width: `${20 + Math.floor(Math.random() * 80)}%`,
+                                    backgroundColor: `rgba(52, 152, 219, ${0.4 + (i / 10)})`
+                                  }}
+                                ></div>
+                              </div>
+                              <div className="category-percentage">{`${Math.floor(Math.random() * 30) + 5}%`}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="histogram-footer">
+                      <div className="note">Note: This is a visualization placeholder.</div>
+                    </div>
                   </div>
                 </div>
               </div>
