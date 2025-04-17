@@ -173,10 +173,18 @@ function DataProfile() {
                   <tr key={column.name}>
                     <td>{column.name}</td>
                     <td>{column.type}</td>
-                    <td>{column.unique_count !== undefined ? column.unique_count.toLocaleString() : 'N/A'}</td>
+                    <td>{column.unique_count !== undefined && column.unique_count !== null ? column.unique_count.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
-                    <td>{column.min_value !== undefined && column.min_value !== null ? column.min_value : 'N/A'}</td>
-                    <td>{column.max_value !== undefined && column.max_value !== null ? column.max_value : 'N/A'}</td>
+                    <td>
+                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
+                      ? (column.min_value !== undefined && column.min_value !== null ? column.min_value : '0') 
+                      : (column.type === 'string' ? 'N/A' : '0')}
+                    </td>
+                    <td>
+                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
+                      ? (column.max_value !== undefined && column.max_value !== null ? column.max_value : '0') 
+                      : (column.type === 'string' ? 'N/A' : '0')}
+                    </td>
                   </tr>
                 );
               })}
@@ -198,23 +206,41 @@ function DataProfile() {
           {columns.map((column) => (
             <Card key={column.name} title={column.name}>
               <div className="column-distribution">
-                <div className="distribution-summary">
-                  <div className="summary-stat">
-                    <h4>Type</h4>
-                    <p>{column.type || 'Unknown'}</p>
+                <div className="column-stats-table">
+                  <div className="column-stat-row">
+                    <div className="column-stat-label">Type:</div>
+                    <div className="column-stat-value">{column.type || 'Unknown'}</div>
                   </div>
-                  <div className="summary-stat">
-                    <h4>Min</h4>
-                    <p>{column.min_value !== undefined && column.min_value !== null ? column.min_value : 'N/A'}</p>
+                  <div className="column-stat-row">
+                    <div className="column-stat-label">Unique Values:</div>
+                    <div className="column-stat-value">{column.unique_count !== undefined && column.unique_count !== null ? column.unique_count.toLocaleString() : '0'}</div>
                   </div>
-                  <div className="summary-stat">
-                    <h4>Max</h4>
-                    <p>{column.max_value !== undefined && column.max_value !== null ? column.max_value : 'N/A'}</p>
-                  </div>
-                  <div className="summary-stat">
-                    <h4>Unique Values</h4>
-                    <p>{column.unique_count !== undefined ? column.unique_count.toLocaleString() : 'N/A'}</p>
-                  </div>
+                  {/* Only show min/max for numeric types */}
+                  {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') && (
+                    <>
+                      <div className="column-stat-row">
+                        <div className="column-stat-label">Min:</div>
+                        <div className="column-stat-value">{column.min_value !== undefined && column.min_value !== null ? column.min_value : '0'}</div>
+                      </div>
+                      <div className="column-stat-row">
+                        <div className="column-stat-label">Max:</div>
+                        <div className="column-stat-value">{column.max_value !== undefined && column.max_value !== null ? column.max_value : '0'}</div>
+                      </div>
+                    </>
+                  )}
+                  {/* For string types, show different stats */}
+                  {column.type === 'string' && (
+                    <>
+                      <div className="column-stat-row">
+                        <div className="column-stat-label">Most Common:</div>
+                        <div className="column-stat-value">{column.most_common_value || 'N/A'}</div>
+                      </div>
+                      <div className="column-stat-row">
+                        <div className="column-stat-label">Avg Length:</div>
+                        <div className="column-stat-value">{column.avg_length !== undefined ? column.avg_length.toFixed(1) : 'N/A'}</div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 
                 <div className="distribution-visualization">

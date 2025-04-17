@@ -334,42 +334,42 @@
   padding: 16px;
 }
 
-.distribution-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+.column-stats-table {
   background-color: #f8fafc;
   padding: 16px;
   border-radius: 8px;
+  margin-bottom: 24px;
 }
 
-.summary-stat {
-  text-align: center;
+.column-stat-row {
+  display: flex;
+  padding: 10px 16px;
+  border-bottom: 1px solid #ecf0f1;
+  align-items: center;
   background-color: white;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 6px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
 }
 
-.summary-stat:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+.column-stat-row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  background-color: #f9f9f9;
 }
 
-.summary-stat h4 {
-  margin: 0 0 8px 0;
-  color: #7f8c8d;
+.column-stat-label {
   font-weight: 500;
-  font-size: 14px;
+  color: #7f8c8d;
+  width: 120px;
+  flex-shrink: 0;
 }
 
-.summary-stat p {
-  margin: 0;
+.column-stat-value {
   font-weight: 600;
-  font-size: 18px;
   color: #2c3e50;
+  font-size: 16px;
 }
 
 .histogram-container {
