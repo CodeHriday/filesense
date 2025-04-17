@@ -140,12 +140,13 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             let mostFrequentValue = null;
             let leastFrequentValue = null;
             let uniqueCount = 0;
+            let nullCount = 0;
             
             if (lines.length > 1) {
               // Get the column values from all data rows
               const columnValues = [];
               const valueCounts = {};
-              let nullCount = 0;
+              nullCount = 0; // Reset nullCount
               
               for (let i = 1; i < lines.length; i++) {
                 const rowValues = lines[i].split(',');
