@@ -221,6 +221,8 @@
   text-overflow: ellipsis;
   margin-right: 10px;
   text-align: left;
+  display: inline-block;
+  flex: 1;
 }
 
 .completeness-value {
