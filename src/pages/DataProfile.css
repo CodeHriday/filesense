@@ -205,9 +205,8 @@
 }
 
 .completeness-bar-label {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-gap: 10px;
+  display: flex;
+  justify-content: space-between;
   margin-bottom: 8px;
   align-items: center;
   width: 100%;
@@ -216,10 +215,14 @@
 .column-name {
   font-weight: 500;
   color: #2c3e50;
+  max-width: 70%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-right: 10px;
   text-align: left;
+  display: inline-block;
+  flex: 1;
 }
 
 .completeness-value {
@@ -228,8 +231,9 @@
   background-color: rgba(46, 204, 113, 0.1);
   padding: 2px 8px;
   border-radius: 12px;
-  display: inline-block;
+  flex-shrink: 0;
   text-align: right;
+  margin-left: auto;
 }
 
 .completeness-bar-track {
