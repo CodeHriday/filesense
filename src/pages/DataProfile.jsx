@@ -99,10 +99,14 @@ function DataProfile() {
                 return (
                   <div key={column.name} className="completeness-bar-container">
                     <div className="completeness-bar-label">
-                      <span className="column-name" title={column.name}>{column.name}</span>
-                      <span className="completeness-value">
-                        {completeness}%
-                      </span>
+                      <div className="column-name-container">
+                        <span className="column-name" title={column.name}>{column.name}</span>
+                      </div>
+                      <div className="percentage-container">
+                        <span className="completeness-value">
+                          {completeness}%
+                        </span>
+                      </div>
                     </div>
                     <div className="completeness-bar-track">
                       <div 
