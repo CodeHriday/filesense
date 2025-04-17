@@ -26,3 +26,74 @@
   gap: 15px;
   margin-top: 20px;
 }
+
+/* Debug section styles */
+.debug-section {
+  margin-top: 20px;
+}
+
+.debug-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.debug-section h3 {
+  font-size: 1.2rem;
+  margin: 15px 0 10px;
+  color: #555;
+}
+
+.debug-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.api-status {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-badge {
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-badge.connected {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-badge.error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.debug-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.diagnostic-info {
+  margin-top: 20px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.diagnostic-info pre {
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  max-height: 300px;
+  overflow-y: auto;
+}

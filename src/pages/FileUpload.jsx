@@ -9,14 +9,91 @@ import './FileUpload.css';
 function FileUpload() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [apiStatus, setApiStatus] = useState({ checked: false, status: null });
+  const [diagnosticInfo, setDiagnosticInfo] = useState('');
   const navigate = useNavigate();
+  
+  // Test API connection when component mounts
+  useEffect(() => {
+    const checkApiStatus = async () => {
+      try {
+        const result = await testApiConnection();
+        setApiStatus({ 
+          checked: true, 
+          status: result.success ? 'connected' : 'error',
+          details: result 
+        });
+        setDiagnosticInfo(prev => prev + `\nAPI health check: ${JSON.stringify(result, null, 2)}`);
+      } catch (err) {
+        setApiStatus({ checked: true, status: 'error', error: err.message });
+        setDiagnosticInfo(prev => prev + `\nAPI health check error: ${err.message}`);
+      }
+    };
+    
+    checkApiStatus();
+  }, []);
+  
+  const handleTestConnection = async () => {
+    setDiagnosticInfo('Running API connection test...\n');
+    try {
+      const result = await testApiConnection();
+      setDiagnosticInfo(prev => prev + `API connection test result: ${JSON.stringify(result, null, 2)}\n`);
+      setApiStatus({ 
+        checked: true, 
+        status: result.success ? 'connected' : 'error',
+        details: result 
+      });
+    } catch (err) {
+      setDiagnosticInfo(prev => prev + `API connection test error: ${err.message}\n`);
+      setApiStatus({ checked: true, status: 'error', error: err.message });
+    }
+  };
+  
+  const handleDirectUpload = async () => {
+    setDiagnosticInfo('Attempting direct file upload...\n');
+    try {
+      // Create a blob from test data
+      const csvData = 'id,name,email\n1,Test User,test@example.com';
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const testFile = new File([blob], 'test-upload.csv', { type: 'text/csv' });
+      
+      setDiagnosticInfo(prev => prev + `Created test file: ${testFile.name} (${testFile.size} bytes)\n`);
+      setUploadStatus('uploading');
+      
+      // Manually create FormData
+      const formData = new FormData();
+      formData.append('file', testFile);
+      
+      setDiagnosticInfo(prev => prev + 'Sending direct axios request...\n');
+      
+      // Send direct request without using uploadFile function
+      const response = await axios.post('/api/files/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+      
+      setDiagnosticInfo(prev => prev + `Upload response: ${JSON.stringify(response.data, null, 2)}\n`);
+      setUploadStatus('success');
+      
+    } catch (err) {
+      setDiagnosticInfo(prev => prev + `Direct upload error: ${err.message}\n`);
+      if (err.response) {
+        setDiagnosticInfo(prev => prev + `Error response: ${JSON.stringify(err.response.data, null, 2)}\n`);
+      }
+      setUploadStatus('error');
+    }
+  };
   
   const handleFileDrop = async (file) => {
     try {
+      setDiagnosticInfo(`Starting file upload for ${file.name} (${file.size} bytes, type: ${file.type})...\n`);
       setUploadStatus('uploading');
       
       // Upload the file
       const result = await uploadFile(file);
+      
+      setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
       setUploadedFile({
         fileId: result.fileId,
@@ -30,6 +107,10 @@ function FileUpload() {
       return result;
     } catch (error) {
       console.error('Error uploading file:', error);
+      setDiagnosticInfo(prev => prev + `Upload error: ${error.message}\n`);
+      if (error.response) {
+        setDiagnosticInfo(prev => prev + `Error response: ${JSON.stringify(error.response.data, null, 2)}\n`);
+      }
       setUploadStatus('error');
       throw error;
     }
@@ -81,6 +162,44 @@ function FileUpload() {
             </button>
           </div>
         )}
+      </Card>
+
+      {/* Debug Tools */}
+      <Card>
+        <div className="debug-section">
+          <h2>API Diagnostics</h2>
+          <div className="debug-status">
+            <div className="api-status">
+              <span>API Status: </span>
+              <span className={`status-badge ${apiStatus.status}`}>
+                {!apiStatus.checked ? 'Checking...' : 
+                  apiStatus.status === 'connected' ? 'Connected' : 'Error'}
+              </span>
+            </div>
+            
+            <div className="debug-actions">
+              <button 
+                className="btn btn-secondary"
+                onClick={handleTestConnection}
+              >
+                Test API Connection
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={handleDirectUpload}
+              >
+                Test Direct Upload
+              </button>
+            </div>
+          </div>
+          
+          <div className="diagnostic-info">
+            <h3>Diagnostic Information</h3>
+            <pre>
+              {diagnosticInfo || 'No diagnostic information available yet.'}
+            </pre>
+          </div>
+        </div>
       </Card>
     </div>
   );
