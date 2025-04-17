@@ -208,11 +208,17 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
+  align-items: center;
 }
 
 .column-name {
   font-weight: 500;
   color: #2c3e50;
+  max-width: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 10px;
 }
 
 .completeness-value {
@@ -221,6 +227,7 @@
   background-color: rgba(46, 204, 113, 0.1);
   padding: 2px 8px;
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .completeness-bar-track {

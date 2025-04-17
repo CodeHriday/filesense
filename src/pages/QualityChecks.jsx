@@ -156,9 +156,24 @@ function QualityChecks() {
                       <h3>Worst Column</h3>
                       {quality.completeness?.details && quality.completeness.details.length > 0 ? (
                         <>
-                          <div className="metric-score poor">
-                            {Math.min(...quality.completeness.details.map(col => col.score)).toFixed(1)}%
-                          </div>
+                          {/* Find columns with score less than 100% */}
+                          {(() => {
+                            const incompleteColumns = quality.completeness.details.filter(col => col.score < 100);
+                            if (incompleteColumns.length > 0) {
+                              const minScore = Math.min(...incompleteColumns.map(col => col.score));
+                              return (
+                                <div className="metric-score poor">
+                                  {minScore.toFixed(1)}%
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <div className="metric-score good">
+                                  All 100%
+                                </div>
+                              );
+                            }
+                          })()}
                         </>
                       ) : (
                         <div className="metric-score">N/A</div>
@@ -166,8 +181,15 @@ function QualityChecks() {
                     </div>
                     {quality.completeness?.details && quality.completeness.details.length > 0 && (
                       <p>
-                        {quality.completeness.details.reduce((prev, current) => 
-                          (prev.score < current.score) ? prev : current).column}
+                        {(() => {
+                          const incompleteColumns = quality.completeness.details.filter(col => col.score < 100);
+                          if (incompleteColumns.length > 0) {
+                            return incompleteColumns.reduce((prev, current) => 
+                              (prev.score < current.score) ? prev : current).column;
+                          } else {
+                            return "All columns complete";
+                          }
+                        })()}
                       </p>
                     )}
                     <p>Column with lowest completeness score.</p>
