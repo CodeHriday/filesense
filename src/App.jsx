@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import FileUpload from './pages/FileUpload';
 import DataProfile from './pages/DataProfile';
 import QualityChecks from './pages/QualityChecks';
+import QualityReport from './pages/QualityReport';
 import Alerts from './pages/Alerts';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
@@ -27,6 +28,7 @@ function App() {
               <Route path="/upload" element={<FileUpload />} />
               <Route path="/profile/:fileId" element={<DataProfile />} />
               <Route path="/quality/:fileId" element={<QualityChecks />} />
+              <Route path="/report/:fileId" element={<QualityReport />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/connections" element={<Connections />} />
               <Route path="/mappings" element={<Mappings />} />

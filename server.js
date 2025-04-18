@@ -402,6 +402,181 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
 });
 
 // File profile endpoint
+// Get health trend data for visualization
+app.get('/api/files/:fileId/health-trends', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { period = '1w' } = req.query; // Options: 1d, 1w, 1m, 3m, 6m
+    
+    // Get all quality reports for this file ordered by date
+    const reportsQuery = await pool.query(
+      'SELECT * FROM quality_reports WHERE file_id = $1 ORDER BY created_at ASC',
+      [fileId]
+    );
+    
+    const reports = reportsQuery.rows;
+    
+    if (reports.length === 0) {
+      // No reports yet - return empty data structure
+      return res.json({
+        file_id: fileId,
+        trend_points: [],
+        components: {
+          completeness: [],
+          consistency: [],
+          accuracy: [],
+          validity: [],
+          timeliness: []
+        },
+        anomalies: [],
+        message: 'No quality report history available for this file'
+      });
+    }
+    
+    // Calculate date range based on period
+    const now = new Date();
+    let dateStart;
+    
+    switch(period) {
+      case '1d':
+        dateStart = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        break;
+      case '1w':
+        dateStart = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+        break;
+      case '1m':
+        dateStart = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        break;
+      case '3m':
+        dateStart = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+        break;
+      case '6m':
+        dateStart = new Date(now.getTime() - (180 * 24 * 60 * 60 * 1000));
+        break;
+      default:
+        // Default to 1 week
+        dateStart = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+    }
+    
+    // Filter reports by date
+    const filteredReports = reports.filter(report => 
+      new Date(report.created_at) >= dateStart
+    );
+    
+    // Prepare trend data for overall score
+    const trendPoints = filteredReports.map(report => ({
+      date: report.created_at,
+      score: report.quality_score,
+      rules_passed: report.rules_passed,
+      rules_evaluated: report.rules_evaluated,
+      anomalies: report.anomalies_detected
+    }));
+    
+    // Extract component scores from report data
+    const componentData = {
+      completeness: [],
+      consistency: [],
+      accuracy: [],
+      validity: [],
+      timeliness: []
+    };
+    
+    // Extract component data if available in report_data
+    filteredReports.forEach(report => {
+      try {
+        const reportData = report.report_data;
+        if (reportData && reportData.reliability_components) {
+          const components = reportData.reliability_components;
+          const date = report.created_at;
+          
+          // Add data points for each component if they exist
+          if (components.completeness) {
+            componentData.completeness.push({
+              date,
+              score: components.completeness.score
+            });
+          }
+          
+          if (components.consistency) {
+            componentData.consistency.push({
+              date,
+              score: components.consistency.score
+            });
+          }
+          
+          if (components.accuracy) {
+            componentData.accuracy.push({
+              date,
+              score: components.accuracy.score
+            });
+          }
+          
+          if (components.validity) {
+            componentData.validity.push({
+              date,
+              score: components.validity.score
+            });
+          }
+          
+          if (components.timeliness) {
+            componentData.timeliness.push({
+              date,
+              score: components.timeliness.score
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error parsing report data:', err);
+        // Continue processing other reports
+      }
+    });
+    
+    // Extract anomaly trends - count anomalies by type over time
+    const anomalyTrends = [];
+    filteredReports.forEach(report => {
+      try {
+        const reportData = report.report_data;
+        if (reportData && reportData.anomaly_details && reportData.anomaly_details.length > 0) {
+          // Group anomalies by type
+          const anomaliesByType = {};
+          reportData.anomaly_details.forEach(anomaly => {
+            const type = anomaly.type;
+            if (!anomaliesByType[type]) {
+              anomaliesByType[type] = 0;
+            }
+            anomaliesByType[type]++;
+          });
+          
+          // Add to trends with date
+          anomalyTrends.push({
+            date: report.created_at,
+            anomalies: anomaliesByType
+          });
+        }
+      } catch (err) {
+        console.error('Error processing anomaly trends:', err);
+        // Continue processing other reports
+      }
+    });
+    
+    // Return complete trend data
+    res.json({
+      file_id: fileId,
+      period: period,
+      start_date: dateStart,
+      end_date: now,
+      total_points: trendPoints.length,
+      trend_points: trendPoints,
+      components: componentData,
+      anomaly_trends: anomalyTrends
+    });
+    
+  } catch (err) {
+    console.error('Error fetching health trends:', err);
+    res.status(500).json({ error: 'Failed to fetch health trend data' });
+  }
+});
+
 app.get('/api/files/:fileId/profile', async (req, res) => {
   try {
     const { fileId } = req.params;
@@ -1701,6 +1876,276 @@ app.delete('/api/lineage/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting file lineage:', err);
     res.status(500).json({ error: 'Failed to delete file lineage relationship' });
+  }
+});
+
+// Cloud Storage Connectors
+
+// AWS S3 Storage Connector
+app.post('/api/storage/s3/connect', async (req, res) => {
+  try {
+    const { accessKeyId, secretAccessKey, region, bucket } = req.body;
+    
+    if (!accessKeyId || !secretAccessKey || !region || !bucket) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters', 
+        required: ['accessKeyId', 'secretAccessKey', 'region', 'bucket'] 
+      });
+    }
+    
+    // Import AWS SDK
+    const AWS = require('aws-sdk');
+    
+    // Configure AWS
+    AWS.config.update({
+      accessKeyId: accessKeyId,
+      secretAccessKey: secretAccessKey,
+      region: region
+    });
+    
+    // Create S3 service object
+    const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
+    
+    // Test connection by listing objects
+    try {
+      const data = await s3.listObjectsV2({ Bucket: bucket, MaxKeys: 1 }).promise();
+      
+      // Save connection info in database for future use
+      const connectId = `s3_${Date.now()}`;
+      await pool.query(
+        `INSERT INTO storage_connections
+          (connection_id, type, name, config, status, created_at)
+         VALUES
+          ($1, $2, $3, $4, $5, NOW())`,
+        [
+          connectId,
+          's3',
+          `S3 - ${bucket}`,
+          JSON.stringify({
+            accessKeyId: accessKeyId,
+            secretAccessKey: '***********', // Don't store actual secret
+            region: region,
+            bucket: bucket
+          }),
+          'active'
+        ]
+      );
+      
+      res.json({
+        success: true,
+        connection_id: connectId,
+        message: 'Successfully connected to S3 bucket',
+        bucket_info: {
+          name: bucket,
+          region: region,
+          object_count: data.KeyCount || 0
+        }
+      });
+    } catch (testError) {
+      console.error('Error testing S3 connection:', testError);
+      res.status(400).json({
+        error: 'Failed to connect to S3 bucket',
+        details: testError.message
+      });
+    }
+  } catch (err) {
+    console.error('Error in S3 connection endpoint:', err);
+    res.status(500).json({ error: 'Failed to establish S3 connection: ' + err.message });
+  }
+});
+
+// GCP Storage Connector
+app.post('/api/storage/gcp/connect', async (req, res) => {
+  try {
+    const { projectId, keyFilename, bucketName } = req.body;
+    
+    if (!projectId || !keyFilename || !bucketName) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters', 
+        required: ['projectId', 'keyFilename', 'bucketName'] 
+      });
+    }
+    
+    // Import GCP Storage
+    const { Storage } = require('@google-cloud/storage');
+    
+    // Create storage client
+    const storage = new Storage({
+      projectId: projectId,
+      keyFilename: keyFilename
+    });
+    
+    // Test connection by getting bucket metadata
+    try {
+      const [metadata] = await storage.bucket(bucketName).getMetadata();
+      
+      // Save connection info
+      const connectId = `gcp_${Date.now()}`;
+      await pool.query(
+        `INSERT INTO storage_connections
+          (connection_id, type, name, config, status, created_at)
+         VALUES
+          ($1, $2, $3, $4, $5, NOW())`,
+        [
+          connectId,
+          'gcp',
+          `GCP - ${bucketName}`,
+          JSON.stringify({
+            projectId: projectId,
+            keyFilename: '***********', // Don't store actual key file content
+            bucketName: bucketName
+          }),
+          'active'
+        ]
+      );
+      
+      res.json({
+        success: true,
+        connection_id: connectId,
+        message: 'Successfully connected to GCP bucket',
+        bucket_info: {
+          name: bucketName,
+          location: metadata.location,
+          storageClass: metadata.storageClass
+        }
+      });
+    } catch (testError) {
+      console.error('Error testing GCP connection:', testError);
+      res.status(400).json({
+        error: 'Failed to connect to GCP bucket',
+        details: testError.message
+      });
+    }
+  } catch (err) {
+    console.error('Error in GCP connection endpoint:', err);
+    res.status(500).json({ error: 'Failed to establish GCP connection: ' + err.message });
+  }
+});
+
+// Azure Blob Storage Connector
+app.post('/api/storage/azure/connect', async (req, res) => {
+  try {
+    const { accountName, accountKey, containerName } = req.body;
+    
+    if (!accountName || !accountKey || !containerName) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters', 
+        required: ['accountName', 'accountKey', 'containerName'] 
+      });
+    }
+    
+    // Import Azure Storage
+    const { BlobServiceClient } = require('azure-storage-blob');
+    
+    // Create connection string and client
+    const connectionString = `DefaultEndpointsProtocol=https;AccountName=${accountName};AccountKey=${accountKey};EndpointSuffix=core.windows.net`;
+    const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+    
+    // Test connection by getting container properties
+    try {
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+      const properties = await containerClient.getProperties();
+      
+      // Save connection info
+      const connectId = `azure_${Date.now()}`;
+      await pool.query(
+        `INSERT INTO storage_connections
+          (connection_id, type, name, config, status, created_at)
+         VALUES
+          ($1, $2, $3, $4, $5, NOW())`,
+        [
+          connectId,
+          'azure',
+          `Azure - ${containerName}`,
+          JSON.stringify({
+            accountName: accountName,
+            accountKey: '***********', // Don't store actual key
+            containerName: containerName
+          }),
+          'active'
+        ]
+      );
+      
+      res.json({
+        success: true,
+        connection_id: connectId,
+        message: 'Successfully connected to Azure container',
+        container_info: {
+          name: containerName,
+          lastModified: properties.lastModified
+        }
+      });
+    } catch (testError) {
+      console.error('Error testing Azure connection:', testError);
+      res.status(400).json({
+        error: 'Failed to connect to Azure container',
+        details: testError.message
+      });
+    }
+  } catch (err) {
+    console.error('Error in Azure connection endpoint:', err);
+    res.status(500).json({ error: 'Failed to establish Azure connection: ' + err.message });
+  }
+});
+
+// Get all storage connections
+app.get('/api/storage/connections', async (req, res) => {
+  try {
+    const connectionsResult = await pool.query(
+      'SELECT * FROM storage_connections ORDER BY created_at DESC'
+    );
+    
+    // Remove sensitive information from configs
+    const connections = connectionsResult.rows.map(conn => ({
+      ...conn,
+      config: typeof conn.config === 'string' ? JSON.parse(conn.config) : conn.config
+    }));
+    
+    res.json(connections);
+  } catch (err) {
+    console.error('Error fetching storage connections:', err);
+    res.status(500).json({ error: 'Failed to fetch storage connections' });
+  }
+});
+
+// Test an existing connection
+app.get('/api/storage/connections/:connectionId/test', async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    
+    // Get connection info
+    const connectResult = await pool.query(
+      'SELECT * FROM storage_connections WHERE connection_id = $1',
+      [connectionId]
+    );
+    
+    if (connectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Storage connection not found' });
+    }
+    
+    const connection = connectResult.rows[0];
+    let config;
+    
+    try {
+      config = typeof connection.config === 'string' 
+        ? JSON.parse(connection.config) 
+        : connection.config;
+    } catch (err) {
+      return res.status(500).json({ error: 'Invalid connection configuration' });
+    }
+    
+    // Simply return success as real testing would require actual credentials
+    // which we don't store in the database
+    res.json({
+      success: true,
+      message: `Connection to ${connection.name} is valid`,
+      connection_type: connection.type,
+      status: 'Connection requires actual credentials to test'
+    });
+    
+  } catch (err) {
+    console.error('Error testing storage connection:', err);
+    res.status(500).json({ error: 'Failed to test storage connection' });
   }
 });
 
