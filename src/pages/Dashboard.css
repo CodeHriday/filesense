@@ -426,89 +426,92 @@
   color: #888;
 }
 
-/* Chart area styling */
-.chart-area {
+/* Pure Chart Styling - Simplified, cleaner approach */
+.pure-chart-area {
+  display: flex;
   height: 300px;
   position: relative;
-  flex: 1;
-  margin-bottom: 30px;
+  margin-bottom: 50px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* New chart container with grid */
-.trend-chart-container {
-  display: flex;
-  height: 250px;
-  position: relative;
-  border-bottom: 1px solid #eee;
-  background-color: rgba(250, 250, 250, 0.5);
-}
-
-/* Y-axis ticks and labels */
-.chart-y-axis {
+/* Y-axis with percentage labels */
+.pure-y-axis {
   width: 40px;
-  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding-right: 5px;
-  border-right: 1px solid #ddd;
+  padding-right: 8px;
+  margin-right: 5px;
   position: relative;
 }
 
-.y-axis-tick {
+.pure-y-label {
+  font-size: 11px;
+  color: #666;
   position: relative;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  font-size: 9px;
-  color: #888;
-}
-
-.y-tick-label {
-  position: absolute;
-  right: 8px;
+  text-align: right;
   transform: translateY(-50%);
 }
 
-.y-tick-line {
-  position: absolute;
-  right: 0;
-  width: 4px;
-  height: 1px;
-  background-color: #ccc;
-}
-
-/* Main chart */
-.trend-line-chart {
+/* Main chart area */
+.pure-chart {
   flex: 1;
+  height: 250px;
+  position: relative;
+  border: 1px solid #eee;
+  border-bottom: none;
+  background-color: rgba(250, 250, 250, 0.7);
+  overflow: hidden;
+}
+
+/* Horizontal grid lines */
+.pure-grid-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: #eee;
+}
+
+/* SVG line chart */
+.pure-line-chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: 100%;
-  overflow: visible;
 }
 
-/* Grid lines */
-.grid-line {
-  stroke: #eee;
-  stroke-width: 1;
-  stroke-dasharray: 3,3;
+/* Data points */
+.pure-data-point {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: white;
+  border: 2px solid;
+  transform: translate(-50%, 50%);
+  z-index: 5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.grid-line-solid {
-  stroke: #ddd;
-  stroke-width: 1;
+/* X-axis with date labels */
+.pure-x-axis {
+  position: relative;
+  height: 50px;
+  width: 100%;
+  display: flex;
+  margin-left: 40px; /* Align with the chart (compensate for y-axis width) */
 }
 
-/* Line and points styling */
-.trend-line {
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.1));
-}
-
-.data-point-highlight {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-}
-
-.data-point-inner {
-  stroke-width: 0;
+.pure-x-label {
+  position: absolute;
+  font-size: 11px;
+  color: #555;
+  transform: translateX(-50%);
+  top: 10px;
+  text-align: center;
 }
 
 /* Date labels styling */

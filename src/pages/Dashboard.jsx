@@ -294,44 +294,65 @@ const Dashboard = () => {
   };
   
   const renderTrendChart = () => {
+    if (!trendData || trendData.length === 0) {
+      return (
+        <div className="no-data-placeholder">
+          <FiBarChart2 />
+          <p>No historical data available yet</p>
+          <p className="hint">Upload more files to see trends over time</p>
+        </div>
+      );
+    }
+    
+    // Extract the data points for the selected metric
     const dataPoints = trendData.map(point => ({
       date: point.date,
       value: selectedMetric === 'all' ? point.overall : point[selectedMetric]
     }));
     
-    // Set a fixed range with a margin to make visualization better
-    const values = dataPoints.map(p => p.value);
-    const rawMax = Math.max(...values);
-    const rawMin = Math.min(...values);
+    if (dataPoints.length === 0) {
+      return (
+        <div className="no-data-placeholder">
+          <FiBarChart2 />
+          <p>No data available for {selectedMetric}</p>
+          <p className="hint">Try selecting a different metric</p>
+        </div>
+      );
+    }
     
-    // Add a 10% padding to top and bottom to improve visual appeal
-    const padding = (rawMax - rawMin) * 0.1;
-    const maxValue = Math.ceil(Math.min(100, rawMax + padding));
-    const minValue = Math.floor(Math.max(0, rawMin - padding));
-    const range = maxValue - minValue;
-    
-    // Normalize the values for the chart height (0-100%) and format dates
-    const normalizedPoints = dataPoints.map(point => {
-      // Format the date to be shorter and more readable
+    // Format dates and select key points for labels
+    const formattedPoints = dataPoints.map(point => {
       const dateObj = new Date(point.date);
-      const formattedDate = dateObj.toLocaleDateString('en-US', {
-        month: 'short', 
-        day: 'numeric'
-      });
-      
       return {
         ...point,
-        date: formattedDate,
-        normalized: range > 0 ? ((point.value - minValue) / range) * 100 : 50
+        formattedDate: dateObj.toLocaleDateString('en-US', {
+          month: 'short', 
+          day: 'numeric'
+        })
       };
     });
     
-    // Take only specific points for labels (start, end, and a few key ones)
-    const labelIndices = [0, 7, 15, 22, dataPoints.length-1];
+    // Select evenly spaced points for labels to avoid overcrowding
+    const totalPoints = formattedPoints.length;
+    const labelPoints = [0]; // Always include first point
+    
+    // Add 3 evenly spaced points in the middle
+    const spacing = Math.floor(totalPoints / 4);
+    for (let i = 1; i <= 3; i++) {
+      labelPoints.push(Math.min(i * spacing, totalPoints - 1));
+    }
+    
+    // Ensure the last point is included
+    if (labelPoints[labelPoints.length - 1] !== totalPoints - 1) {
+      labelPoints.push(totalPoints - 1);
+    }
+    
+    // Remove duplicates and sort
+    const uniqueLabelPoints = [...new Set(labelPoints)].sort((a, b) => a - b);
     
     // Create data table columns for accessibility
     const tableColumns = [
-      { header: 'Date', accessor: 'date' },
+      { header: 'Date', accessor: 'formattedDate' },
       { header: `${selectedMetric === 'all' ? 'Overall' : selectedMetric} Value (%)`, accessor: 'value' }
     ];
     
@@ -407,93 +428,68 @@ const Dashboard = () => {
         </div>
         
         <div className="chart-container">
-          <div className="chart-area">
-            {/* Chart container with axes */}
-            <div className="trend-chart-container">
-              {/* Y-axis ticks (percentages) */}
-              <div className="chart-y-axis">
-                {[100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map(tick => (
-                  <div key={tick} className="y-axis-tick">
-                    <span className="y-tick-label">{tick}%</span>
-                    <span className="y-tick-line"></span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Main chart SVG */}
-              <svg className="trend-line-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {/* Horizontal grid lines */}
-                <g className="grid-lines">
-                  {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(tick => (
-                    <line 
-                      key={tick}
-                      x1="0" 
-                      y1={100 - tick} 
-                      x2="100" 
-                      y2={100 - tick} 
-                      className={tick === 0 || tick === 100 ? "grid-line-solid" : "grid-line"} 
-                    />
-                  ))}
-                </g>
-                
-                {/* Line connecting the points */}
-                <path
-                  d={normalizedPoints.map((point, i) => {
-                    const x = (i / (normalizedPoints.length - 1)) * 100;
-                    const y = 100 - point.normalized;
-                    return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-                  }).join(' ')}
-                  stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
-                  strokeWidth="2"
-                  fill="none"
-                  className="trend-line"
-                />
-                
-                {/* Points on the line */}
-                {labelIndices.map(i => {
-                  const x = (i / (normalizedPoints.length - 1)) * 100;
-                  const y = 100 - normalizedPoints[i].normalized;
-                  return (
-                    <g key={i} className="labeled-point">
-                      <circle 
-                        cx={x}
-                        cy={y}
-                        r="3.5"
-                        fill={getScoreColor(dataPoints[i].value)}
-                        className="data-point-highlight"
-                      />
-                      <circle 
-                        cx={x}
-                        cy={y}
-                        r="2"
-                        fill="white"
-                        className="data-point-inner"
-                      >
-                        <title>{normalizedPoints[i].date}: {dataPoints[i].value}%</title>
-                      </circle>
-                    </g>
-                  );
-                })}
-              </svg>
+          <div className="pure-chart-area">
+            {/* Percentage labels along y-axis */}
+            <div className="pure-y-axis">
+              {[100, 80, 60, 40, 20, 0].map(value => (
+                <div key={value} className="pure-y-label">
+                  <span>{value}%</span>
+                </div>
+              ))}
             </div>
             
-            {/* Date labels below the chart */}
-            <div className="date-labels">
-              {labelIndices.map(i => {
-                const leftPos = (i / (normalizedPoints.length - 1)) * 100;
-                return (
-                  <div 
-                    key={i} 
-                    className="date-label" 
-                    style={{ left: `${leftPos}%` }}
-                  >
-                    <div className="date-tick"></div>
-                    <div className="date-text">
-                      {normalizedPoints[i].date}
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Main chart area */}
+            <div className="pure-chart">
+              {/* Grid lines */}
+              {[100, 80, 60, 40, 20, 0].map(value => (
+                <div 
+                  key={value} 
+                  className="pure-grid-line" 
+                  style={{ bottom: `${value}%` }}
+                ></div>
+              ))}
+              
+              {/* Line chart */}
+              <svg className="pure-line-chart" viewBox={`0 0 ${totalPoints-1} 100`} preserveAspectRatio="none">
+                <path
+                  d={formattedPoints.map((point, i) => {
+                    const x = i;
+                    const y = 100 - point.value;
+                    return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+                  }).join(' ')}
+                  fill="none"
+                  stroke={getScoreColor(formattedPoints[formattedPoints.length - 1].value)}
+                  strokeWidth="2"
+                />
+              </svg>
+              
+              {/* Data points */}
+              {uniqueLabelPoints.map(idx => (
+                <div 
+                  key={idx}
+                  className="pure-data-point"
+                  style={{
+                    left: `${(idx / (totalPoints - 1)) * 100}%`,
+                    bottom: `${formattedPoints[idx].value}%`,
+                    backgroundColor: getScoreColor(formattedPoints[idx].value),
+                    borderColor: getScoreColor(formattedPoints[idx].value)
+                  }}
+                  title={`${formattedPoints[idx].formattedDate}: ${formattedPoints[idx].value}%`}
+                />
+              ))}
+            </div>
+            
+            {/* Date labels on x-axis */}
+            <div className="pure-x-axis">
+              {uniqueLabelPoints.map(idx => (
+                <div 
+                  key={idx}
+                  className="pure-x-label"
+                  style={{ left: `${(idx / (totalPoints - 1)) * 100}%` }}
+                >
+                  {formattedPoints[idx].formattedDate}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -542,7 +538,7 @@ const Dashboard = () => {
       <ChartAccessibleWrapper
         title={`${selectedMetric === 'all' ? 'Overall' : selectedMetric} Health Trend - Last 30 Days`}
         description={`This line chart shows the trend of ${selectedMetric === 'all' ? 'Overall' : selectedMetric} health score over the last 30 days.`}
-        data={dataPoints}
+        data={formattedPoints}
         chartType="line"
         xAxisLabel="Date"
         yAxisLabel="Health Score Percentage"
