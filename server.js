@@ -65,12 +65,12 @@ const authenticateToken = async (req, res, next) => {
 
 // Middleware
 app.use(cors({
-  origin: function(origin, callback) {
-    return callback(null, true);
-  },
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
