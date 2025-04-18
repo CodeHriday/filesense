@@ -27,7 +27,7 @@ import './Sidebar.css';
 function Sidebar() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { currentUser, hasPermission, hasRole, hasFeaturePermission } = useAuth();
-  const [debug, setDebug] = useState(false);
+  const [debug, setDebug] = useState(true);
   
   // Debug info to help diagnose permission issues
   useEffect(() => {
@@ -69,10 +69,43 @@ function Sidebar() {
     );
   }
   
-  // Admin users see all sections and menu items
-  const isAdmin = hasRole('Admin');
-  const isCreator = hasRole('Creator');
-  const isExecutor = hasRole('Executor');
+  // Debug info for role detection
+  if (debug && currentUser) {
+    console.log("Current user roles:", currentUser.roles);
+    console.log("Is Admin via hasRole:", hasRole('Admin'));
+    console.log("Is Creator via hasRole:", hasRole('Creator'));
+    console.log("Is Executor via hasRole:", hasRole('Executor'));
+    console.log("Manual check for Executor role:", 
+      currentUser.roles && 
+      (Array.isArray(currentUser.roles) ? 
+        currentUser.roles.includes('Executor') : 
+        (typeof currentUser.roles === 'string' ? 
+          currentUser.roles === 'Executor' : 
+          false)
+      )
+    );
+  }
+
+  // Admin users see all sections and menu items - use multiple detection methods
+  const isAdmin = hasRole('Admin') || 
+                 (currentUser.roles && 
+                   (Array.isArray(currentUser.roles) ? 
+                     currentUser.roles.includes('Admin') : 
+                     currentUser.roles === 'Admin'));
+                     
+  const isCreator = hasRole('Creator') || 
+                   (currentUser.roles && 
+                     (Array.isArray(currentUser.roles) ? 
+                       currentUser.roles.includes('Creator') : 
+                       currentUser.roles === 'Creator'));
+                       
+  const isExecutor = hasRole('Executor') || 
+                    (currentUser.roles && 
+                      (Array.isArray(currentUser.roles) ? 
+                        currentUser.roles.includes('Executor') : 
+                        currentUser.roles === 'Executor')) ||
+                    // Also check for role_id for older API responses
+                    (currentUser.role_id === 3);
   
   // Admin section should always be shown for Admin users and for others with specific permissions
   let showAdminSection = isAdmin || 

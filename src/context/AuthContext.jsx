@@ -269,17 +269,53 @@ export const AuthProvider = ({ children }) => {
     return false;
   };
   
-  // Check if user has any of the roles
+  // Enhanced role checking that works with different role data formats
   const hasRole = (roles) => {
-    if (!currentUser || !currentUser.roles) {
+    // Handle no user or no roles data
+    if (!currentUser) {
       return false;
     }
     
-    if (typeof roles === 'string') {
-      return currentUser.roles.includes(roles);
+    // Check for role_id (numerical) for legacy support
+    // role_id: 1 = Admin, 2 = Creator, 3 = Executor 
+    if (typeof currentUser.role_id === 'number') {
+      const roleIdMap = {
+        1: 'Admin',
+        2: 'Creator',
+        3: 'Executor'
+      };
+      const roleName = roleIdMap[currentUser.role_id];
+      
+      // Convert input roles to array if string
+      const rolesToCheck = typeof roles === 'string' ? [roles] : roles;
+      
+      if (roleName && rolesToCheck.includes(roleName)) {
+        return true;
+      }
     }
     
-    return roles.some(role => currentUser.roles.includes(role));
+    // Handle missing roles array
+    if (!currentUser.roles) {
+      return false;
+    }
+    
+    // Handle string role (from direct API)
+    if (typeof currentUser.roles === 'string') {
+      return roles === currentUser.roles || 
+        (Array.isArray(roles) && roles.includes(currentUser.roles));
+    }
+    
+    // Handle array of roles (normal case)
+    if (Array.isArray(currentUser.roles)) {
+      if (typeof roles === 'string') {
+        return currentUser.roles.includes(roles);
+      }
+      
+      return roles.some(role => currentUser.roles.includes(role));
+    }
+    
+    // Default to false for any other case
+    return false;
   };
   
   // Check if user has write permission for a specific feature
@@ -288,24 +324,32 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
+    // Directly use our enhanced hasRole function
+    const isAdmin = hasRole('Admin');
+    const isCreator = hasRole('Creator');
+    
     // Admin role has access to everything
-    if (currentUser.roles && 
-       (currentUser.roles.includes('Admin') || 
-        (resource !== 'user_management' && resource !== 'role_management' && currentUser.roles.includes('Creator')))) {
+    if (isAdmin) {
       return true;
     }
     
-    // These resources should always be available to Creators
-    const creatorResources = [
-      'connections', 'connection', 'mappings', 'mapping', 
-      'file_upload', 'files', 'file', 'quality_checks', 'quality_check',
-      'lineage', 'scheduler', 'alerts', 'alert'
-    ];
-    
-    // Allow Creator role write access to specific resources
-    if (currentUser.roles && currentUser.roles.includes('Creator') && 
-        creatorResources.includes(resource)) {
-      return true;
+    // Creator role has access to most features except user/role management
+    if (isCreator && resource !== 'user_management' && resource !== 'role_management') {
+      // These resources should always be available to Creators
+      const creatorResources = [
+        'connections', 'connection', 'mappings', 'mapping', 
+        'file_upload', 'files', 'file', 'quality_checks', 'quality_check',
+        'lineage', 'scheduler', 'alerts', 'alert',
+        // Add additional resource variations
+        'file_profile', 'quality', 'monitor', 'dashboard',
+        'badges', 'badge', 'insights', 'insight',
+        'recommendations', 'recommendation',
+        'stories', 'story'
+      ];
+      
+      if (creatorResources.includes(resource)) {
+        return true;
+      }
     }
     
     // Check permissions from the backend - this is the primary source of truth
