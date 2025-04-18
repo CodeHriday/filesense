@@ -6,10 +6,34 @@ const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3000;
+
+// JWT Configuration
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
+const JWT_EXPIRATION = '24h'; // Token expiration time
+
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied. No token provided.' });
+  }
+  
+  try {
+    const verified = jwt.verify(token, JWT_SECRET);
+    req.user = verified;
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Invalid token or token expired.' });
+  }
+};
 
 // Middleware
 app.use(cors({
@@ -1170,6 +1194,375 @@ app.get('/api/alerts', async (req, res) => {
   } catch (err) {
     console.error('Error fetching alert rules:', err);
     res.status(500).json({ error: 'Failed to fetch alert rules' });
+  }
+});
+
+// Authentication and User Management API
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    
+    // Find user in database
+    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Verify password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+    
+    // Get user roles and permissions
+    const userRolesQuery = `
+      SELECT r.name as role_name, r.id as role_id
+      FROM roles r
+      JOIN user_roles ur ON r.id = ur.role_id
+      WHERE ur.user_id = $1
+    `;
+    const rolesResult = await pool.query(userRolesQuery, [user.id]);
+    
+    const roleIds = rolesResult.rows.map(role => role.role_id);
+    const userRoles = rolesResult.rows.map(role => role.role_name);
+    
+    // If we have roles, get permissions
+    let userPermissions = [];
+    if (roleIds.length > 0) {
+      const permissionsQuery = `
+        SELECT DISTINCT p.name, p.resource, p.action
+        FROM permissions p
+        JOIN role_permissions rp ON p.id = rp.permission_id
+        WHERE rp.role_id = ANY($1::int[])
+      `;
+      const permissionsResult = await pool.query(permissionsQuery, [roleIds]);
+      userPermissions = permissionsResult.rows.map(p => ({ 
+        name: p.name, 
+        resource: p.resource, 
+        action: p.action 
+      }));
+    }
+    
+    // Create token
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        username: user.username,
+        roles: userRoles,
+        permissions: userPermissions
+      }, 
+      JWT_SECRET, 
+      { expiresIn: JWT_EXPIRATION }
+    );
+    
+    // Update last login time
+    await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    
+    // Store token in sessions table
+    await pool.query(
+      'INSERT INTO user_sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'24 hours\')',
+      [user.id, token]
+    );
+    
+    // Return token and user info (excluding password)
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({
+      user: {
+        ...userWithoutPassword,
+        roles: userRoles,
+        permissions: userPermissions
+      },
+      token
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'An error occurred during login' });
+  }
+});
+
+// Register endpoint (for creating new users)
+app.post('/api/auth/register', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has permission to create users
+    const hasPermission = req.user.permissions.some(p => p.name === 'user_create');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to create users' });
+    }
+    
+    const { username, password, email, fullName, roles } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    
+    // Check if username already exists
+    const existingUser = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    // Create user
+    const userResult = await pool.query(
+      'INSERT INTO users (username, password, email, full_name) VALUES ($1, $2, $3, $4) RETURNING *',
+      [username, hashedPassword, email, fullName]
+    );
+    
+    const user = userResult.rows[0];
+    
+    // Assign roles if provided
+    if (Array.isArray(roles) && roles.length > 0) {
+      const rolesQuery = 'SELECT id FROM roles WHERE name = ANY($1::varchar[])';
+      const rolesResult = await pool.query(rolesQuery, [roles]);
+      
+      const roleIds = rolesResult.rows.map(role => role.id);
+      if (roleIds.length > 0) {
+        // Insert role assignments
+        const values = roleIds.map(roleId => `(${user.id}, ${roleId})`).join(', ');
+        await pool.query(`INSERT INTO user_roles (user_id, role_id) VALUES ${values}`);
+      }
+    }
+    
+    // Return user info (excluding password)
+    const { password: _, ...userWithoutPassword } = user;
+    res.status(201).json(userWithoutPassword);
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'An error occurred during registration' });
+  }
+});
+
+// Get current user info
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get user from database
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Return user info (excluding password)
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({
+      ...userWithoutPassword,
+      roles: req.user.roles,
+      permissions: req.user.permissions
+    });
+  } catch (err) {
+    console.error('Error fetching user info:', err);
+    res.status(500).json({ error: 'An error occurred while fetching user info' });
+  }
+});
+
+// Logout endpoint
+app.post('/api/auth/logout', authenticateToken, async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    
+    // Remove token from sessions table
+    await pool.query('DELETE FROM user_sessions WHERE token = $1', [token]);
+    
+    res.json({ message: 'Logged out successfully' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    res.status(500).json({ error: 'An error occurred during logout' });
+  }
+});
+
+// User Management API (protected by authentication and permissions)
+
+// Get all users (admin only)
+app.get('/api/users', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has permission to view users
+    const hasPermission = req.user.permissions.some(p => p.name === 'user_view');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to view users' });
+    }
+    
+    const result = await pool.query(`
+      SELECT u.id, u.username, u.email, u.full_name, u.created_at, u.updated_at, u.last_login,
+        array_agg(r.name) as roles
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      GROUP BY u.id
+      ORDER BY u.id ASC
+    `);
+    
+    // Remove null values from roles array
+    const users = result.rows.map(user => ({
+      ...user,
+      roles: user.roles.filter(role => role !== null)
+    }));
+    
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get roles
+app.get('/api/roles', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has permission to view roles
+    const hasPermission = req.user.permissions.some(p => p.name === 'role_view');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to view roles' });
+    }
+    
+    const result = await pool.query('SELECT * FROM roles ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching roles:', err);
+    res.status(500).json({ error: 'Failed to fetch roles' });
+  }
+});
+
+// Get permissions
+app.get('/api/permissions', authenticateToken, async (req, res) => {
+  try {
+    // Check if user has permission to view roles
+    const hasPermission = req.user.permissions.some(p => 
+      p.name === 'role_view' || p.name === 'role_create' || p.name === 'role_edit'
+    );
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to view permissions' });
+    }
+    
+    const result = await pool.query('SELECT * FROM permissions ORDER BY resource, action');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching permissions:', err);
+    res.status(500).json({ error: 'Failed to fetch permissions' });
+  }
+});
+
+// Get AI insights for a file
+app.get('/api/files/:fileId/insights', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if user has permission to view insights
+    const hasPermission = req.user.permissions.some(p => p.name === 'insight_view');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to view insights' });
+    }
+    
+    // Get file from database
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Get column statistics
+    const columnStats = await pool.query(
+      'SELECT * FROM file_columns WHERE file_id = $1',
+      [fileId]
+    );
+    
+    // Get file profile
+    const profileResult = await pool.query(
+      'SELECT * FROM file_profiles WHERE file_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [fileId]
+    );
+    
+    let profile = null;
+    if (profileResult.rows.length > 0) {
+      profile = profileResult.rows[0];
+    }
+    
+    // Get quality report
+    const qualityResult = await pool.query(
+      'SELECT * FROM file_quality_checks WHERE file_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [fileId]
+    );
+    
+    let quality = null;
+    if (qualityResult.rows.length > 0) {
+      quality = qualityResult.rows[0];
+    }
+    
+    // Generate insights based on file data
+    const insights = {
+      summary: {
+        fileType: file.file_type,
+        rowCount: file.row_count,
+        columnCount: file.column_count,
+        qualityScore: file.quality_score,
+        createdAt: file.created_at,
+        updatedAt: file.updated_at
+      },
+      columnInsights: columnStats.rows.map(col => ({
+        name: col.column_name,
+        type: col.column_type,
+        nullPercentage: col.null_percentage,
+        uniquePercentage: col.unique_percentage,
+        recommendations: []
+      })),
+      qualityInsights: quality ? {
+        overallScore: quality.overall_score,
+        completenessScore: quality.completeness_score,
+        validityScore: quality.validity_score,
+        consistencyScore: quality.consistency_score,
+        accuracyScore: quality.accuracy_score,
+        issues: JSON.parse(quality.issues)
+      } : null,
+      recommendations: [
+        {
+          id: `rec_${Date.now()}_1`,
+          type: 'quality',
+          title: 'Improve Data Quality',
+          description: 'Consider addressing missing values and outliers to improve overall data quality.',
+          actionable: true,
+          priority: 'high'
+        },
+        {
+          id: `rec_${Date.now()}_2`,
+          type: 'performance',
+          title: 'Optimize Data Structure',
+          description: 'Converting categorical columns to numerical encodings can improve processing efficiency.',
+          actionable: true,
+          priority: 'medium'
+        },
+        {
+          id: `rec_${Date.now()}_3`,
+          type: 'security',
+          title: 'Review Sensitive Data',
+          description: 'Ensure any potentially sensitive information is properly anonymized or encrypted.',
+          actionable: true,
+          priority: 'high'
+        }
+      ]
+    };
+    
+    res.json(insights);
+  } catch (err) {
+    console.error('Error generating AI insights:', err);
+    res.status(500).json({ error: 'Failed to generate insights' });
   }
 });
 
