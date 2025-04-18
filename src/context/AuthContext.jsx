@@ -161,7 +161,8 @@ export function AuthProvider({ children }) {
       // Granting limited viewing permissions to Executor role
       const executorPermissions = [
         'dashboard_view', 'file_profile', 'file_view',
-        'lineage_view'
+        'lineage_view', 'badges_read', 'insights_read', 
+        'recommendations_read', 'stories_read'
       ];
       
       if (executorPermissions.includes(permission)) {
@@ -204,7 +205,8 @@ export function AuthProvider({ children }) {
     // Executor role has very limited read-only access to basic features
     if (currentUser.roles && currentUser.roles.includes('Executor')) {
       const executorResources = [
-        'dashboard', 'file', 'profile'
+        'dashboard', 'file', 'profile', 'badge', 'insight', 
+        'recommendation', 'story'
       ];
       
       if (executorResources.includes(resource) && action === 'view') {
