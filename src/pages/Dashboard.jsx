@@ -447,7 +447,9 @@ const Dashboard = () => {
           
           <div className="x-axis rotated-dates">
             {labelIndices.map(i => (
-              <span key={i} className="rotated-date">{normalizedPoints[i].date}</span>
+              <div key={i} className="date-column" style={{ left: `${(i / (normalizedPoints.length - 1)) * 100}%` }}>
+                <span className="rotated-date">{normalizedPoints[i].date}</span>
+              </div>
             ))}
           </div>
         </div>

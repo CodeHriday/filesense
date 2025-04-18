@@ -428,17 +428,31 @@
 
 /* Rotated date labels */
 .rotated-dates {
-  height: 80px; /* Increased height for rotated text */
+  height: 60px; /* Reduced height for better proximity */
+  padding-top: 0;
+  margin-top: -5px; /* Pull it closer to the chart */
+  position: relative;
+}
+
+.date-column {
+  position: absolute;
+  width: 1px;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
 }
 
 .rotated-date {
   transform: rotate(-90deg);
-  transform-origin: center top;
-  position: relative;
+  transform-origin: left center;
+  position: absolute;
+  left: 0;
   top: 10px;
   display: inline-block;
-  width: 20px;
+  width: auto;
   text-align: right;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .trend-summary {
