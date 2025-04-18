@@ -21,4 +21,158 @@
 .header-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
+}
+
+/* AI Insights button */
+.ai-insights-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #4a6fdc;
+  transition: background-color 0.3s;
+}
+
+.ai-insights-btn:hover {
+  background-color: #3a5fc5;
+}
+
+/* User Menu */
+.user-menu {
+  position: relative;
+}
+
+.user-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  color: white;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.user-menu-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.user-menu-btn .username {
+  margin-left: 5px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  position: absolute;
+  top: 45px;
+  right: 0;
+  min-width: 240px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-info strong {
+  color: #333;
+  font-size: 14px;
+}
+
+.user-info small {
+  color: #666;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.user-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.role-badge {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.dropdown-content {
+  padding: 8px 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+/* High Contrast Mode */
+body.high-contrast .header {
+  background-color: #000;
+  border-bottom: 2px solid #fff;
+}
+
+body.high-contrast .user-menu-btn {
+  border-color: #fff;
+}
+
+body.high-contrast .dropdown-menu {
+  background-color: #000;
+  border: 2px solid #fff;
+  box-shadow: none;
+}
+
+body.high-contrast .dropdown-header {
+  border-bottom: 1px solid #fff;
+}
+
+body.high-contrast .user-info strong,
+body.high-contrast .user-info small,
+body.high-contrast .dropdown-item {
+  color: #fff;
+}
+
+body.high-contrast .role-badge {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #fff;
+}
+
+body.high-contrast .dropdown-item:hover {
+  background-color: #333;
 }
