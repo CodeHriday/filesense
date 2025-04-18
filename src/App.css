@@ -60,6 +60,16 @@
   background-color: #c0392b;
 }
 
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid #3498db;
+  color: #3498db;
+}
+
+.btn-outline:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
 .card {
   background-color: var(--card-bg-color);
   border-radius: 6px;
