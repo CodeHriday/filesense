@@ -1,7 +1,18 @@
 // API configuration
-export const API_BASE_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3000' 
-  : `${window.location.protocol}//${window.location.hostname}:3000`;
+// In development, use localhost
+// In Replit, use the same origin but with port 3000 for the API
+export const API_BASE_URL = (() => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  
+  // For localhost development
+  if (hostname === 'localhost') {
+    return 'http://localhost:3000';
+  }
+  
+  // For Replit environment, use current origin with port 3000
+  return `${protocol}//${hostname}:3000`;
+})();
 
 // Blumetra theme colors
 export const THEME = {

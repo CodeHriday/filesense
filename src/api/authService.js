@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 /**
  * Login user with username and password
@@ -9,7 +10,7 @@ import axios from 'axios';
 export const login = async (username, password) => {
   try {
     // Make the base URL explicit for API calls
-    const response = await axios.post('http://localhost:3000/api/auth/login', { username, password });
+    const response = await axios.post(`${API_BASE_URL}/api/auth/login`, { username, password });
     return response.data;
   } catch (error) {
     console.error('Login error:', error);
@@ -23,7 +24,7 @@ export const login = async (username, password) => {
  */
 export const logout = async () => {
   try {
-    const response = await axios.post('http://localhost:3000/api/auth/logout');
+    const response = await axios.post(`${API_BASE_URL}/api/auth/logout`);
     return response.data;
   } catch (error) {
     console.error('Logout error:', error);
@@ -37,7 +38,7 @@ export const logout = async () => {
  */
 export const getCurrentUser = async () => {
   try {
-    const response = await axios.get('/api/auth/me');
+    const response = await axios.get(`${API_BASE_URL}/api/auth/me`);
     return response.data;
   } catch (error) {
     console.error('Get current user error:', error);
@@ -51,7 +52,7 @@ export const getCurrentUser = async () => {
  */
 export const getAllUsers = async () => {
   try {
-    const response = await axios.get('/api/users');
+    const response = await axios.get(`${API_BASE_URL}/api/users`);
     return response.data;
   } catch (error) {
     console.error('Get all users error:', error);
@@ -71,7 +72,7 @@ export const getAllUsers = async () => {
  */
 export const createUser = async (userData) => {
   try {
-    const response = await axios.post('/api/auth/register', userData);
+    const response = await axios.post(`${API_BASE_URL}/api/auth/register`, userData);
     return response.data;
   } catch (error) {
     console.error('Create user error:', error);
@@ -87,7 +88,7 @@ export const createUser = async (userData) => {
  */
 export const updateUser = async (userId, userData) => {
   try {
-    const response = await axios.put(`/api/users/${userId}`, userData);
+    const response = await axios.put(`${API_BASE_URL}/api/users/${userId}`, userData);
     return response.data;
   } catch (error) {
     console.error('Update user error:', error);
@@ -102,7 +103,7 @@ export const updateUser = async (userId, userData) => {
  */
 export const deleteUser = async (userId) => {
   try {
-    const response = await axios.delete(`/api/users/${userId}`);
+    const response = await axios.delete(`${API_BASE_URL}/api/users/${userId}`);
     return response.data;
   } catch (error) {
     console.error('Delete user error:', error);
@@ -116,7 +117,7 @@ export const deleteUser = async (userId) => {
  */
 export const getRoles = async () => {
   try {
-    const response = await axios.get('/api/roles');
+    const response = await axios.get(`${API_BASE_URL}/api/roles`);
     return response.data;
   } catch (error) {
     console.error('Get roles error:', error);
@@ -130,7 +131,7 @@ export const getRoles = async () => {
  */
 export const getPermissions = async () => {
   try {
-    const response = await axios.get('/api/permissions');
+    const response = await axios.get(`${API_BASE_URL}/api/permissions`);
     return response.data;
   } catch (error) {
     console.error('Get permissions error:', error);
