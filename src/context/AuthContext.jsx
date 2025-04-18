@@ -236,6 +236,40 @@ export function AuthProvider({ children }) {
     return roles.some(role => currentUser.roles.includes(role));
   };
   
+  // Check if user has write permission for a specific feature
+  const hasWritePermission = (resource) => {
+    if (!currentUser) {
+      return false;
+    }
+    
+    // Admin role has access to everything
+    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+      return true;
+    }
+    
+    // Check permissions from the backend
+    if (currentUser.permissions) {
+      return currentUser.permissions.some(p => 
+        p.resource === resource && p.action === 'write'
+      );
+    }
+    
+    // For Creator role, check specific permissions
+    if (currentUser.roles && currentUser.roles.includes('Creator')) {
+      const creatorWriteResources = [
+        'dashboard', 'file', 'profile', 'quality', 'alert',
+        'connection', 'mapping', 'lineage', 'monitor', 'scheduler', 'badge',
+        'insight', 'recommendation', 'story'
+      ];
+      
+      if (creatorWriteResources.includes(resource)) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   const value = {
     currentUser,
     login,
@@ -244,7 +278,8 @@ export function AuthProvider({ children }) {
     error,
     hasPermission,
     hasFeaturePermission,
-    hasRole
+    hasRole,
+    hasWritePermission
   };
   
   return (

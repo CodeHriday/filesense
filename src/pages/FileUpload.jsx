@@ -4,6 +4,7 @@ import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import FilePreview from '../components/FilePreview';
 import { uploadFile, testApiConnection } from '../api/fileService';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import './FileUpload.css';
 
@@ -13,6 +14,7 @@ function FileUpload() {
   const [apiStatus, setApiStatus] = useState({ checked: false, status: null });
   const [diagnosticInfo, setDiagnosticInfo] = useState('');
   const navigate = useNavigate();
+  const { hasWritePermission } = useAuth();
   
   // Test API connection when component mounts
   useEffect(() => {
@@ -147,11 +149,17 @@ function FileUpload() {
           </p>
         </div>
         
-        <FileDropzone 
-          onFileDrop={handleFileDrop}
-          acceptedFileTypes={['.csv', '.json', '.parquet']}
-          maxSizeMB={50}
-        />
+        {hasWritePermission('file') ? (
+          <FileDropzone 
+            onFileDrop={handleFileDrop}
+            acceptedFileTypes={['.csv', '.json', '.parquet']}
+            maxSizeMB={50}
+          />
+        ) : (
+          <div className="access-denied-message">
+            <p>You do not have permission to upload files. Please contact an administrator.</p>
+          </div>
+        )}
         
         {uploadStatus === 'success' && uploadedFile && (
           <>
