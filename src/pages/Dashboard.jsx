@@ -310,14 +310,24 @@ const Dashboard = () => {
     const minValue = Math.floor(Math.max(0, rawMin - padding));
     const range = maxValue - minValue;
     
-    // Normalize the values for the chart height (0-100%)
-    const normalizedPoints = dataPoints.map(point => ({
-      ...point,
-      normalized: range > 0 ? ((point.value - minValue) / range) * 100 : 50
-    }));
+    // Normalize the values for the chart height (0-100%) and format dates
+    const normalizedPoints = dataPoints.map(point => {
+      // Format the date to be shorter and more readable
+      const dateObj = new Date(point.date);
+      const formattedDate = dateObj.toLocaleDateString('en-US', {
+        month: 'short', 
+        day: 'numeric'
+      });
+      
+      return {
+        ...point,
+        date: formattedDate,
+        normalized: range > 0 ? ((point.value - minValue) / range) * 100 : 50
+      };
+    });
     
-    // Take only a subset of labels for display to avoid overcrowding
-    const labelIndices = [0, 10, 20, 30];
+    // Take only specific points for labels (start, end, and a few key ones)
+    const labelIndices = [0, 7, 15, 22, dataPoints.length-1];
     
     // Create data table columns for accessibility
     const tableColumns = [
@@ -425,21 +435,25 @@ const Dashboard = () => {
               />
               
               {/* Scatter points */}
-              {normalizedPoints.map((point, i) => (
-                <g key={i}>
-                  <circle 
-                    cx={(i / (normalizedPoints.length - 1)) * 100}
-                    cy={100 - point.normalized}
-                    r="2"
-                    className="data-point"
-                    fill="white"
-                    stroke={getScoreColor(dataPoints[i].value)}
-                    strokeWidth="1.5"
-                  >
-                    <title>{point.date}: {dataPoints[i].value}%</title>
-                  </circle>
-                </g>
-              ))}
+              {normalizedPoints.map((point, i) => {
+                // Determine if this is a labeled point (make it larger)
+                const isLabeledPoint = labelIndices.includes(i);
+                return (
+                  <g key={i}>
+                    <circle 
+                      cx={(i / (normalizedPoints.length - 1)) * 100}
+                      cy={100 - point.normalized}
+                      r={isLabeledPoint ? 3 : 2}
+                      className="data-point"
+                      fill="white"
+                      stroke={getScoreColor(dataPoints[i].value)}
+                      strokeWidth={isLabeledPoint ? 2 : 1.5}
+                    >
+                      <title>{point.date}: {dataPoints[i].value}%</title>
+                    </circle>
+                  </g>
+                );
+              })}
             </svg>
             
             {/* Date labels below the chart */}

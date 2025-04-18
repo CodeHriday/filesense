@@ -463,7 +463,7 @@
 .date-tick {
   width: 1px;
   height: 5px;
-  background-color: #ccc;
+  background-color: #aaa;
   margin: 0 auto;
 }
 
@@ -476,7 +476,11 @@
   left: 0;
   text-align: right;
   white-space: nowrap;
-  color: #666;
+  color: #555;
+  border-left: 1px solid transparent;
+  padding-left: 4px;
+  min-width: 50px;
+  font-weight: 500;
 }
 
 .trend-summary {
