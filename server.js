@@ -1613,9 +1613,9 @@ app.delete('/api/roles/:id', authenticateToken, async (req, res) => {
     
     // Check if role is assigned to users
     const usersWithRole = await pool.query(
-      `SELECT COUNT(*) FROM users 
-       WHERE $1 = ANY(roles)`,
-      [existingRole.rows[0].name]
+      `SELECT COUNT(*) FROM user_roles 
+       WHERE role_id = $1`,
+      [roleId]
     );
     
     if (parseInt(usersWithRole.rows[0].count) > 0) {

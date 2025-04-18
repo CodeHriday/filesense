@@ -251,18 +251,32 @@
 }
 
 .roles-checkboxes {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
+  margin-top: 10px;
 }
 
 .role-checkbox {
   display: flex;
   align-items: center;
+  padding: 5px;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+}
+
+.role-checkbox:hover {
+  background-color: #e8f0fe;
 }
 
 .role-checkbox input {
   margin-right: 8px;
+}
+
+.role-checkbox label {
+  margin-bottom: 0;
+  font-weight: normal;
+  cursor: pointer;
 }
 
 .modal-actions {

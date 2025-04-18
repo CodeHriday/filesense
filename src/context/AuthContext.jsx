@@ -139,6 +139,24 @@ export function AuthProvider({ children }) {
     return currentUser.permissions.some(p => p.name === permission);
   };
   
+  // Check if user has permission to access a specific feature
+  const hasFeaturePermission = (featureId, accessType = 'read') => {
+    if (!currentUser || !currentUser.permissions) {
+      return false;
+    }
+    
+    // Admin role has access to everything
+    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+      return true;
+    }
+    
+    // Format: 'featureId:accessType' (e.g., 'dashboard:read', 'users:write')
+    const permissionKey = `${featureId}:${accessType}`;
+    
+    // Check if the user has this specific permission
+    return currentUser.permissions.includes(permissionKey);
+  };
+  
   // Check if user has any of the roles
   const hasRole = (roles) => {
     if (!currentUser || !currentUser.roles) {
@@ -159,6 +177,7 @@ export function AuthProvider({ children }) {
     loading,
     error,
     hasPermission,
+    hasFeaturePermission,
     hasRole
   };
   
