@@ -8,7 +8,8 @@ import axios from 'axios';
  */
 export const login = async (username, password) => {
   try {
-    const response = await axios.post('/api/auth/login', { username, password });
+    // Make the base URL explicit for API calls
+    const response = await axios.post('http://localhost:3000/api/auth/login', { username, password });
     return response.data;
   } catch (error) {
     console.error('Login error:', error);
@@ -22,7 +23,7 @@ export const login = async (username, password) => {
  */
 export const logout = async () => {
   try {
-    const response = await axios.post('/api/auth/logout');
+    const response = await axios.post('http://localhost:3000/api/auth/logout');
     return response.data;
   } catch (error) {
     console.error('Logout error:', error);

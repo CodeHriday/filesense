@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
   const login = async (username, password) => {
     setError('');
     try {
-      const response = await axios.post('/api/auth/login', {
+      const response = await axios.post('http://localhost:3000/api/auth/login', {
         username,
         password
       });

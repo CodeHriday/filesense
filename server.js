@@ -1566,6 +1566,19 @@ app.get('/api/files/:fileId/insights', authenticateToken, async (req, res) => {
   }
 });
 
+// Debug route to check password hashing - REMOVE IN PRODUCTION
+app.get('/api/debug/hash-password/:password', async (req, res) => {
+  try {
+    const { password } = req.params;
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    res.json({ hashedPassword });
+  } catch (err) {
+    console.error('Error hashing password:', err);
+    res.status(500).json({ error: 'Failed to hash password' });
+  }
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
