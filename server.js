@@ -1182,6 +1182,106 @@ app.post('/api/files/:fileId/quality-check', async (req, res) => {
     
     // Construct the report
     const reportId = `report_${Date.now()}`;
+    
+    // Calculate data reliability components if requested
+    let reliabilityComponents = null;
+    let reliabilityScore = qualityScore;
+    let reliabilityRating = 'Satisfactory';
+    let reliabilityColor = '#4dabf7';
+    
+    if (calculateReliabilityScore) {
+      // Calculate component scores for the 5 reliability dimensions
+      
+      // 1. Completeness - Based on null counts across columns
+      const completenessDetails = columns.map(col => {
+        const nullCount = col.null_count || 0;
+        const totalRows = file.row_count || 1;
+        const score = Math.round(((totalRows - nullCount) / totalRows) * 100);
+        return {
+          column: col.column_name,
+          score: score,
+          null_count: nullCount,
+          total_rows: totalRows
+        };
+      });
+      
+      const avgCompleteness = completenessDetails.reduce((sum, col) => sum + col.score, 0) / 
+                             (completenessDetails.length || 1);
+      
+      // 2. Consistency - Based on pattern adherence and anomalies
+      // Use anomaly count as a proxy for consistency issues
+      const consistencyScore = Math.max(0, 100 - (anomalyCount * 15));
+      
+      // 3. Accuracy - Based on passed rules percentage
+      const accuracyScore = totalRules > 0 ? Math.round((passedRules / totalRules) * 100) : 85;
+      
+      // 4. Validity - Based on data type adherence and range checks
+      // For simplicity, use a combination of rule results and anomalies
+      const validityScore = Math.round((consistencyScore + accuracyScore) / 2);
+      
+      // 5. Timeliness - Based on file upload recency (currently using a default)
+      // In a real system, this would compare to expected refresh schedules
+      const timelinessScore = 90; 
+      
+      // Store all components with weights
+      reliabilityComponents = {
+        completeness: {
+          score: Math.round(avgCompleteness),
+          weight: 0.25,
+          description: "Data completeness measures the presence of required data points",
+          details: completenessDetails
+        },
+        consistency: {
+          score: consistencyScore,
+          weight: 0.2,
+          description: "Data consistency measures adherence to expected patterns"
+        },
+        accuracy: {
+          score: accuracyScore,
+          weight: 0.25,
+          description: "Data accuracy measures correctness based on business rules"
+        },
+        validity: {
+          score: validityScore,
+          weight: 0.2,
+          description: "Data validity measures adherence to format and range constraints"
+        },
+        timeliness: {
+          score: timelinessScore,
+          weight: 0.1,
+          description: "Data timeliness measures adherence to expected update schedules"
+        }
+      };
+      
+      // Calculate weighted reliability score
+      const totalWeight = Object.values(reliabilityComponents).reduce((sum, comp) => sum + comp.weight, 0);
+      const weightedScore = Object.values(reliabilityComponents).reduce(
+        (sum, comp) => sum + (comp.score * comp.weight), 0) / totalWeight;
+      
+      reliabilityScore = Math.round(weightedScore);
+      
+      // Determine rating based on score
+      if (reliabilityScore >= 90) {
+        reliabilityRating = 'Excellent';
+        reliabilityColor = '#28a745';
+      } else if (reliabilityScore >= 80) {
+        reliabilityRating = 'Good';
+        reliabilityColor = '#5cb85c';
+      } else if (reliabilityScore >= 70) {
+        reliabilityRating = 'Satisfactory';
+        reliabilityColor = '#4dabf7';
+      } else if (reliabilityScore >= 60) {
+        reliabilityRating = 'Fair';
+        reliabilityColor = '#ffc107';
+      } else if (reliabilityScore >= 50) {
+        reliabilityRating = 'Poor';
+        reliabilityColor = '#fd7e14';
+      } else {
+        reliabilityRating = 'Critical';
+        reliabilityColor = '#dc3545';
+      }
+    }
+    
     const report = {
       report_id: reportId,
       file_id: fileId,
@@ -1196,6 +1296,18 @@ app.post('/api/files/:fileId/quality-check', async (req, res) => {
       previous_score: file.quality_score,
       score_change: qualityScore - file.quality_score,
       
+      // Reliability metrics (if calculated)
+      overall_score: calculateReliabilityScore ? reliabilityScore : qualityScore,
+      reliability_rating: reliabilityRating,
+      reliability_color: reliabilityColor,
+      reliability_components: reliabilityComponents,
+      
+      // Completeness details for visualization
+      completeness: calculateReliabilityScore ? {
+        score: reliabilityComponents.completeness.score,
+        details: reliabilityComponents.completeness.details
+      } : null,
+      
       // Rule evaluation results
       rules_evaluated: totalRules,
       rules_passed: passedRules,
@@ -1207,7 +1319,7 @@ app.post('/api/files/:fileId/quality-check', async (req, res) => {
       anomaly_details: anomalies,
       
       // Overall evaluation
-      passed: qualityScore >= 70, 
+      passed: (calculateReliabilityScore ? reliabilityScore : qualityScore) >= 70, 
       issues_found: checkResults.filter(r => !r.passed).length + anomalyCount,
       
       // Recommendations based on findings
