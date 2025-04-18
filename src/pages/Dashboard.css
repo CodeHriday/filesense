@@ -428,23 +428,87 @@
 
 /* Chart area styling */
 .chart-area {
-  height: 250px;
+  height: 300px;
   position: relative;
   flex: 1;
   margin-bottom: 30px;
 }
 
-.scatter-chart {
-  width: 100%;
-  height: 200px;
-  background-color: rgba(250, 250, 250, 0.5);
+/* New chart container with grid */
+.trend-chart-container {
+  display: flex;
+  height: 250px;
+  position: relative;
   border-bottom: 1px solid #eee;
+  background-color: rgba(250, 250, 250, 0.5);
 }
 
+/* Y-axis ticks and labels */
+.chart-y-axis {
+  width: 40px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-right: 5px;
+  border-right: 1px solid #ddd;
+  position: relative;
+}
+
+.y-axis-tick {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 9px;
+  color: #888;
+}
+
+.y-tick-label {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+}
+
+.y-tick-line {
+  position: absolute;
+  right: 0;
+  width: 4px;
+  height: 1px;
+  background-color: #ccc;
+}
+
+/* Main chart */
+.trend-line-chart {
+  flex: 1;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Grid lines */
 .grid-line {
-  stroke: #ddd;
+  stroke: #eee;
   stroke-width: 1;
   stroke-dasharray: 3,3;
+}
+
+.grid-line-solid {
+  stroke: #ddd;
+  stroke-width: 1;
+}
+
+/* Line and points styling */
+.trend-line {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.1));
+}
+
+.data-point-highlight {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.data-point-inner {
+  stroke-width: 0;
 }
 
 /* Date labels styling */

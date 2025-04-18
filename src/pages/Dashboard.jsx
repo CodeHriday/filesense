@@ -407,54 +407,75 @@ const Dashboard = () => {
         </div>
         
         <div className="chart-container">
-          <div className="y-axis">
-            <span>{maxValue}%</span>
-            <span>{Math.round((maxValue + minValue) / 2)}%</span>
-            <span>{minValue}%</span>
-          </div>
-          
           <div className="chart-area">
-            {/* Complete SVG chart with data points, lines and labels */}
-            <svg className="scatter-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
-              {/* Horizontal grid lines */}
-              <line x1="0" y1="0" x2="100" y2="0" className="grid-line" />
-              <line x1="0" y1="50" x2="100" y2="50" className="grid-line" />
-              <line x1="0" y1="100" x2="100" y2="100" className="grid-line" />
+            {/* Chart container with axes */}
+            <div className="trend-chart-container">
+              {/* Y-axis ticks (percentages) */}
+              <div className="chart-y-axis">
+                {[100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map(tick => (
+                  <div key={tick} className="y-axis-tick">
+                    <span className="y-tick-label">{tick}%</span>
+                    <span className="y-tick-line"></span>
+                  </div>
+                ))}
+              </div>
               
-              {/* Line connecting the points */}
-              <path
-                d={normalizedPoints.map((point, i) => {
+              {/* Main chart SVG */}
+              <svg className="trend-line-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {/* Horizontal grid lines */}
+                <g className="grid-lines">
+                  {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(tick => (
+                    <line 
+                      key={tick}
+                      x1="0" 
+                      y1={100 - tick} 
+                      x2="100" 
+                      y2={100 - tick} 
+                      className={tick === 0 || tick === 100 ? "grid-line-solid" : "grid-line"} 
+                    />
+                  ))}
+                </g>
+                
+                {/* Line connecting the points */}
+                <path
+                  d={normalizedPoints.map((point, i) => {
+                    const x = (i / (normalizedPoints.length - 1)) * 100;
+                    const y = 100 - point.normalized;
+                    return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+                  }).join(' ')}
+                  stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
+                  strokeWidth="2"
+                  fill="none"
+                  className="trend-line"
+                />
+                
+                {/* Points on the line */}
+                {labelIndices.map(i => {
                   const x = (i / (normalizedPoints.length - 1)) * 100;
-                  const y = 100 - point.normalized;
-                  return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-                }).join(' ')}
-                stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
-                strokeWidth="1.5"
-                fill="none"
-                className="trend-line"
-              />
-              
-              {/* Scatter points */}
-              {normalizedPoints.map((point, i) => {
-                // Determine if this is a labeled point (make it larger)
-                const isLabeledPoint = labelIndices.includes(i);
-                return (
-                  <g key={i}>
-                    <circle 
-                      cx={(i / (normalizedPoints.length - 1)) * 100}
-                      cy={100 - point.normalized}
-                      r={isLabeledPoint ? 3 : 2}
-                      className="data-point"
-                      fill="white"
-                      stroke={getScoreColor(dataPoints[i].value)}
-                      strokeWidth={isLabeledPoint ? 2 : 1.5}
-                    >
-                      <title>{point.date}: {dataPoints[i].value}%</title>
-                    </circle>
-                  </g>
-                );
-              })}
-            </svg>
+                  const y = 100 - normalizedPoints[i].normalized;
+                  return (
+                    <g key={i} className="labeled-point">
+                      <circle 
+                        cx={x}
+                        cy={y}
+                        r="3.5"
+                        fill={getScoreColor(dataPoints[i].value)}
+                        className="data-point-highlight"
+                      />
+                      <circle 
+                        cx={x}
+                        cy={y}
+                        r="2"
+                        fill="white"
+                        className="data-point-inner"
+                      >
+                        <title>{normalizedPoints[i].date}: {dataPoints[i].value}%</title>
+                      </circle>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
             
             {/* Date labels below the chart */}
             <div className="date-labels">
