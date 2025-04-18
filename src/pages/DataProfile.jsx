@@ -188,9 +188,9 @@ function DataProfile() {
                     </td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? (column.max_value_decimal !== undefined && column.max_value_decimal !== null 
-                          ? parseFloat(column.max_value_decimal).toFixed(2) 
-                          : (column.max_value !== undefined && column.max_value !== null ? column.max_value : '0.00'))
+                      ? (column.max !== undefined && column.max !== null 
+                          ? column.max 
+                          : '0.00')
                       : (column.least_frequent_value || 'N/A')}
                     </td>
                   </tr>
@@ -229,17 +229,13 @@ function DataProfile() {
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
                         <div className="column-stat-value">
-                          {column.min_value_decimal !== undefined && column.min_value_decimal !== null 
-                            ? parseFloat(column.min_value_decimal).toFixed(2) 
-                            : (column.min_value !== undefined && column.min_value !== null ? column.min_value : '0.00')}
+                          {column.min !== undefined && column.min !== null ? column.min : '0.00'}
                         </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Max:</div>
                         <div className="column-stat-value">
-                          {column.max_value_decimal !== undefined && column.max_value_decimal !== null 
-                            ? parseFloat(column.max_value_decimal).toFixed(2) 
-                            : (column.max_value !== undefined && column.max_value !== null ? column.max_value : '0.00')}
+                          {column.max !== undefined && column.max !== null ? column.max : '0.00'}
                         </div>
                       </div>
                     </>
