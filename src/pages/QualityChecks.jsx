@@ -23,6 +23,9 @@ function QualityChecks() {
           getFileQuality(fileId)
         ]);
         
+        console.log('File Data:', fileData);
+        console.log('Quality Data:', qualityData);
+        
         setFile(fileData);
         setQuality(qualityData || {});
         setError(null);
