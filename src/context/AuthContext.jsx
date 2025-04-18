@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const AuthContext = createContext();
 
@@ -25,7 +26,7 @@ export function AuthProvider({ children }) {
   
   const fetchUserData = async (token) => {
     try {
-      const response = await axios.get('/api/auth/me', {
+      const response = await axios.get(`${API_BASE_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -45,7 +46,7 @@ export function AuthProvider({ children }) {
   const login = async (username, password) => {
     setError('');
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         username,
         password
       });
@@ -77,7 +78,7 @@ export function AuthProvider({ children }) {
     
     try {
       if (token) {
-        await axios.post('/api/auth/logout', {}, {
+        await axios.post(`${API_BASE_URL}/api/auth/logout`, {}, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -92,8 +93,12 @@ export function AuthProvider({ children }) {
     }
   };
   
-  // Add auth headers to all requests if user is logged in
+  // Configure axios defaults and interceptors
   useEffect(() => {
+    // Set default base URL
+    axios.defaults.baseURL = API_BASE_URL;
+    
+    // Add auth headers to all requests if user is logged in
     const interceptor = axios.interceptors.request.use(
       config => {
         const token = localStorage.getItem('token');
