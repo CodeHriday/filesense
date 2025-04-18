@@ -399,8 +399,7 @@ const Dashboard = () => {
     const chartContent = (
       <div className="trend-chart">
         <div className="trend-header">
-          <h3 id="trend-chart-title">Data Health Metrics</h3>
-          <div className="trend-selector" role="radiogroup" aria-labelledby="trend-chart-title">
+          <div className="trend-selector" role="radiogroup">
             <button 
               className={selectedMetric === 'all' ? 'active' : ''} 
               onClick={() => setSelectedMetric('all')}
