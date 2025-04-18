@@ -1,0 +1,246 @@
+.badges-container {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  display: flex;
+  align-items: center;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.page-header-icon {
+  margin-right: 0.5rem;
+  color: #4a6cf7;
+}
+
+.page-header p {
+  color: #666;
+  max-width: 600px;
+}
+
+.badge-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.badge-filters button {
+  background-color: #f5f5f5;
+  border: none;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.badge-filters button:hover {
+  background-color: #e5e5e5;
+}
+
+.badge-filters button.active {
+  background-color: #4a6cf7;
+  color: white;
+}
+
+.badge-group {
+  margin-bottom: 2.5rem;
+}
+
+.badge-group-title {
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.no-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.no-badges svg {
+  color: #ccc;
+  margin-bottom: 1rem;
+}
+
+.no-badges h3 {
+  margin-bottom: 0.5rem;
+  color: #666;
+}
+
+.no-badges p {
+  color: #888;
+  max-width: 400px;
+}
+
+/* Badge Detail Modal */
+.badge-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.badge-detail-content {
+  background-color: white;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.close-modal {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #777;
+  z-index: 10;
+}
+
+.badge-detail-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.badge-detail-info {
+  padding: 1.5rem;
+}
+
+.badge-detail-info h3 {
+  margin-bottom: 1rem;
+}
+
+.badge-tips {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.badge-tips h4 {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.badge-tips h4 svg {
+  margin-right: 0.5rem;
+  color: #4a6cf7;
+}
+
+.badge-tips ul {
+  margin-left: 1.5rem;
+}
+
+.badge-tips li {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+/* Achievement progress section */
+.achievement-progress {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border-radius: 10px;
+  background-color: #f7fafc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.progress-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.progress-stat {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  min-width: 120px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #4a6cf7;
+  margin-bottom: 0.3rem;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.progress-bar-container {
+  height: 12px;
+  background-color: #e5e7eb;
+  border-radius: 6px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #4a6cf7;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .badges-container {
+    padding: 1rem;
+  }
+  
+  .progress-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .badge-detail-content {
+    width: 95%;
+  }
+}
