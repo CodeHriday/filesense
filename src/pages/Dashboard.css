@@ -356,6 +356,67 @@
   z-index: 1;
 }
 
+/* Line chart enhancements */
+.line-chart-body {
+  position: relative;
+  overflow: hidden;
+}
+
+.line-chart-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.horizontal-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.vertical-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.line-chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 10px 0;
+  z-index: 2;
+}
+
+.trend-line {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+}
+
+.trend-point {
+  fill: white;
+  stroke-width: 2;
+}
+
+.key-point {
+  r: 3;
+}
+
+.data-point-group:hover .trend-point {
+  r: 4;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.3));
+}
+
 .x-axis {
   height: 30px;
   margin-left: 50px;

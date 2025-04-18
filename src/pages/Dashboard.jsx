@@ -299,8 +299,15 @@ const Dashboard = () => {
       value: selectedMetric === 'all' ? point.overall : point[selectedMetric]
     }));
     
-    const maxValue = Math.max(...dataPoints.map(p => p.value));
-    const minValue = Math.min(...dataPoints.map(p => p.value));
+    // Set a fixed range with a margin to make visualization better
+    const values = dataPoints.map(p => p.value);
+    const rawMax = Math.max(...values);
+    const rawMin = Math.min(...values);
+    
+    // Add a 10% padding to top and bottom to improve visual appeal
+    const padding = (rawMax - rawMin) * 0.1;
+    const maxValue = Math.ceil(Math.min(100, rawMax + padding));
+    const minValue = Math.floor(Math.max(0, rawMin - padding));
     const range = maxValue - minValue;
     
     // Normalize the values for the chart height (0-100%)
@@ -396,55 +403,65 @@ const Dashboard = () => {
             <span>{minValue}%</span>
           </div>
           
-          <div className="chart-body">
-            <div className="chart-grid">
-              <div className="grid-line"></div>
-              <div className="grid-line"></div>
-              <div className="grid-line"></div>
+          <div className="chart-body line-chart-body">
+            {/* Background grid for better readability */}
+            <div className="line-chart-grid">
+              <div className="horizontal-grid-line" style={{ top: '0%' }}></div>
+              <div className="horizontal-grid-line" style={{ top: '25%' }}></div>
+              <div className="horizontal-grid-line" style={{ top: '50%' }}></div>
+              <div className="horizontal-grid-line" style={{ top: '75%' }}></div>
+              <div className="horizontal-grid-line" style={{ top: '100%' }}></div>
+              
+              {labelIndices.map((i, index) => (
+                <div 
+                  key={i} 
+                  className="vertical-grid-line" 
+                  style={{ left: `${(i / (normalizedPoints.length - 1)) * 100}%` }}
+                ></div>
+              ))}
             </div>
             
-            <div className="data-line">
-              {/* Pure line chart without scatter points */}
-              <svg className="line-svg" aria-hidden="true" width="100%" height="100%">
-                {/* Add grid lines for reference */}
-                <line x1="0%" y1="25%" x2="100%" y2="25%" stroke="#eee" strokeWidth="1" strokeDasharray="3,3" />
-                <line x1="0%" y1="50%" x2="100%" y2="50%" stroke="#eee" strokeWidth="1" strokeDasharray="3,3" />
-                <line x1="0%" y1="75%" x2="100%" y2="75%" stroke="#eee" strokeWidth="1" strokeDasharray="3,3" />
-                
+            {/* Line chart */}
+            <div className="line-chart">
+              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
                 {/* Draw the line path connecting all data points */}
                 <path
                   d={normalizedPoints.map((point, i) => {
                     const x = (i / (normalizedPoints.length - 1)) * 100;
                     const y = 100 - point.normalized;
-                    return i === 0 ? `M ${x}%,${y}%` : `L ${x}%,${y}%`;
+                    return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
                   }).join(' ')}
                   stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
-                  strokeWidth="3"
+                  strokeWidth="2"
                   fill="none"
+                  className="trend-line"
                 />
                 
-                {/* Add subtle markers at key points for visual reference */}
-                {[0, 10, 20, 30].map(i => (
+                {/* Highlight key points */}
+                {labelIndices.map(i => (
                   <circle 
                     key={i}
-                    cx={`${(i / (normalizedPoints.length - 1)) * 100}%`}
-                    cy={`${100 - normalizedPoints[i].normalized}%`}
-                    r="4"
-                    fill="#fff"
-                    stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
-                    strokeWidth="2"
+                    cx={`${(i / (normalizedPoints.length - 1)) * 100}`}
+                    cy={`${100 - normalizedPoints[i].normalized}`}
+                    r="2"
+                    className="trend-point key-point"
+                    style={{ stroke: getScoreColor(dataPoints[i].value) }}
                   />
                 ))}
                 
-                {/* Add the latest data point with a slightly larger marker */}
-                <circle 
-                  cx="100%"
-                  cy={`${100 - normalizedPoints[normalizedPoints.length - 1].normalized}%`}
-                  r="6"
-                  fill="#fff"
-                  stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
-                  strokeWidth="2"
-                />
+                {/* Add all points with tooltips */}
+                {normalizedPoints.map((point, i) => (
+                  <g key={i} className="data-point-group">
+                    <circle 
+                      cx={`${(i / (normalizedPoints.length - 1)) * 100}`}
+                      cy={`${100 - point.normalized}`}
+                      r="1.5"
+                      className="trend-point"
+                      style={{ stroke: getScoreColor(dataPoints[i].value) }}
+                    />
+                    <title>{point.date}: {dataPoints[i].value}%</title>
+                  </g>
+                ))}
               </svg>
             </div>
           </div>
