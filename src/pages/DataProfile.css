@@ -206,42 +206,47 @@
 
 .completeness-bar-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 10px;
   width: 100%;
 }
 
 .column-name-wrapper {
   margin-bottom: 4px;
-  width: 100%;
+  width: 70%; /* Limit width to prevent overlap */
+  padding-right: 8px;
 }
 
 .column-name {
   font-weight: 500;
   color: #2c3e50;
-  font-size: 0.85rem; /* 20% smaller font */
+  font-size: 0.8rem; /* Even smaller font */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
   display: block;
+  line-height: 1.2;
 }
 
 .completeness-value-wrapper {
+  width: 30%;
   display: flex;
   justify-content: flex-end;
-  width: 100%;
+  align-items: flex-start;
 }
 
 .completeness-value {
   color: #2ecc71;
   font-weight: 600;
-  font-size: 0.85rem; /* 20% smaller font */
+  font-size: 0.8rem; /* Even smaller font */
   background-color: rgba(46, 204, 113, 0.1);
   padding: 2px 8px;
   border-radius: 12px;
   text-align: right;
   display: inline-block;
+  white-space: nowrap;
 }
 
 .completeness-bar-track {
