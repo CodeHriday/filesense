@@ -53,6 +53,7 @@ export const getCurrentUser = async () => {
 export const getAllUsers = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/api/users`);
+    console.log('Get all users response:', response);
     return response.data;
   } catch (error) {
     console.error('Get all users error:', error);
