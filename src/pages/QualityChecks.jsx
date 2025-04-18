@@ -95,13 +95,13 @@ function QualityChecks() {
             </div>
           </div>
           
-          {quality && quality.overall_score !== undefined ? (
+          {quality && quality.qualityScore !== undefined ? (
             <>
               <div className="quality-summary">
                 <Card className="quality-score-card">
                   <div className="quality-score">
-                    <div className="score-circle" data-score={Math.round(quality.overall_score)}>
-                      <div className="score-value">{Math.round(quality.overall_score)}</div>
+                    <div className="score-circle" data-score={Math.round(parseFloat(quality.qualityScore || "0"))}>
+                      <div className="score-value">{Math.round(parseFloat(quality.qualityScore || "0"))}</div>
                       <div className="score-label">Quality Score</div>
                     </div>
                     <div className="score-timestamp">
@@ -114,9 +114,13 @@ function QualityChecks() {
                   <Card className="metric-card">
                     <div className="metric-header">
                       <h3>Completeness</h3>
-                      <div className={`metric-score ${quality.completeness?.score >= 80 ? 'good' : quality.completeness?.score >= 60 ? 'medium' : 'poor'}`}>
-                        {formatDecimal(quality.completeness?.score, 1)}%
-                      </div>
+                      {quality.checks?.[0]?.score ? (
+                        <div className={`metric-score ${parseFloat(quality.checks[0].score) >= 80 ? 'good' : parseFloat(quality.checks[0].score) >= 60 ? 'medium' : 'poor'}`}>
+                          {formatDecimal(quality.checks[0].score, 1)}%
+                        </div>
+                      ) : (
+                        <div className="metric-score">0.0%</div>
+                      )}
                     </div>
                     <p>Percentage of non-empty values across all columns.</p>
                   </Card>
@@ -125,77 +129,26 @@ function QualityChecks() {
                   <Card className="metric-card">
                     <div className="metric-header">
                       <h3>Columns</h3>
-                      <div className="metric-score good">{quality.column_metrics?.length || 0}</div>
+                      <div className="metric-score good">{file.column_count || 0}</div>
                     </div>
                     <p>Total number of columns analyzed in the file.</p>
                   </Card>
                   
-                  {/* Calculate completeness percentage of the most complete column */}
+                  {/* Best Column */}
                   <Card className="metric-card">
                     <div className="metric-header">
                       <h3>Best Column</h3>
-                      {quality.completeness?.details && quality.completeness.details.length > 0 ? (
-                        <>
-                          <div className="metric-score good">
-                            {formatDecimal(Math.max(...quality.completeness.details.map(col => col.score)), 1)}%
-                          </div>
-                        </>
-                      ) : (
-                        <div className="metric-score">N/A</div>
-                      )}
+                      <div className="metric-score">N/A</div>
                     </div>
-                    {quality.completeness?.details && quality.completeness.details.length > 0 && (
-                      <p>
-                        {quality.completeness.details.reduce((prev, current) => 
-                          (prev.score > current.score) ? prev : current).column}
-                      </p>
-                    )}
                     <p>Column with highest completeness score.</p>
                   </Card>
                   
-                  {/* Calculate completeness percentage of the least complete column */}
+                  {/* Worst Column */}
                   <Card className="metric-card">
                     <div className="metric-header">
                       <h3>Worst Column</h3>
-                      {quality.completeness?.details && quality.completeness.details.length > 0 ? (
-                        <>
-                          {/* Find columns with score less than 100% */}
-                          {(() => {
-                            const incompleteColumns = quality.completeness.details.filter(col => col.score < 100);
-                            if (incompleteColumns.length > 0) {
-                              const worstColumn = incompleteColumns.reduce((prev, current) => 
-                                (prev.score < current.score) ? prev : current);
-                              return (
-                                <div className="metric-score poor">
-                                  {formatDecimal(worstColumn.score, 1)}%
-                                </div>
-                              );
-                            } else {
-                              return (
-                                <div className="metric-score good">
-                                  100%
-                                </div>
-                              );
-                            }
-                          })()}
-                        </>
-                      ) : (
-                        <div className="metric-score">N/A</div>
-                      )}
+                      <div className="metric-score">N/A</div>
                     </div>
-                    {quality.completeness?.details && quality.completeness.details.length > 0 && (
-                      <p>
-                        {(() => {
-                          const incompleteColumns = quality.completeness.details.filter(col => col.score < 100);
-                          if (incompleteColumns.length > 0) {
-                            return incompleteColumns.reduce((prev, current) => 
-                              (prev.score < current.score) ? prev : current).column;
-                          } else {
-                            return "All columns complete";
-                          }
-                        })()}
-                      </p>
-                    )}
                     <p>Column with lowest completeness score.</p>
                   </Card>
                 </div>
@@ -214,28 +167,30 @@ function QualityChecks() {
                       </tr>
                     </thead>
                     <tbody>
-                      {quality.column_metrics && quality.column_metrics.map((col, index) => (
+                      {file?.columns && file.columns.map((col, index) => (
                         <tr key={index}>
-                          <td>{col.name}</td>
-                          <td>{col.type}</td>
+                          <td>{col.column_name}</td>
+                          <td>{col.column_type}</td>
                           <td>
-                            <span className={`check-status ${col.completeness >= 80 ? 'success' : col.completeness >= 60 ? 'warning' : 'error'}`}>
-                              {col.completeness >= 80 ? (
-                                <FiCheck />
-                              ) : col.completeness >= 60 ? (
-                                <FiAlertTriangle />
-                              ) : (
-                                <FiX />
-                              )}
-                              {formatDecimal(col.completeness, 1)}%
-                            </span>
+                            {col.null_count !== undefined && (
+                              <span className={`check-status ${(100 - (col.null_count / file.row_count * 100)) >= 80 ? 'success' : (100 - (col.null_count / file.row_count * 100)) >= 60 ? 'warning' : 'error'}`}>
+                                {(100 - (col.null_count / file.row_count * 100)) >= 80 ? (
+                                  <FiCheck />
+                                ) : (100 - (col.null_count / file.row_count * 100)) >= 60 ? (
+                                  <FiAlertTriangle />
+                                ) : (
+                                  <FiX />
+                                )}
+                                {formatDecimal(100 - (col.null_count / file.row_count * 100), 1)}%
+                              </span>
+                            )}
                           </td>
                           <td>{col.unique_count !== undefined ? col.unique_count.toLocaleString() : 'N/A'}</td>
                           <td>{col.null_count !== undefined ? col.null_count.toLocaleString() : 0}</td>
                         </tr>
                       ))}
                       
-                      {(!quality.column_metrics || quality.column_metrics.length === 0) && (
+                      {(!file?.columns || file.columns.length === 0) && (
                         <tr>
                           <td colSpan="5" className="empty-message">
                             No column metrics available.
