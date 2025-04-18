@@ -99,20 +99,59 @@ function Sidebar() {
     
   // Modified helper for permission checking that accounts for multiple formats and variations
   const checkPermissions = (permissions) => {
+    // Admin role always has all permissions
     if (isAdmin) return true;
     
     // Convert permissions to array if it's a string
     const permissionList = Array.isArray(permissions) ? permissions : [permissions];
     
-    return permissionList.some(perm => {
-      // Try both old format (permission_name) and new format (resource:action)
-      return hasPermission(perm) || 
-             // Also check if user has role-specific access
-             (isCreator && ['dashboard_view', 'file_view', 'file_profile', 'quality_checks', 
-                         'connections', 'mappings', 'lineage', 'scheduler'].includes(perm)) ||
-             (isExecutor && ['dashboard_view', 'file_profile', 'quality_checks', 'monitor', 
-                           'lineage_view', 'badge', 'insight', 'recommendation', 'story'].includes(perm));
-    });
+    // For Executor role - explicitly define what they can see in the sidebar
+    if (isExecutor) {
+      // Define which menu items are visible for Executor role
+      const executorVisible = [
+        'dashboard_view', 'dashboard:read', 'dashboard',
+        'file_profile', 'file_profile:read',
+        'quality_checks', 'quality_checks:read', 
+        'monitor', 'monitor:read',
+        'lineage', 'lineage_view', 'lineage:read',
+        'scheduler', 'scheduler:read',
+        'badges', 'badges_read', 'badges:read', 'badge', 'badge:read',
+        'insights', 'insights_read', 'insights:read', 'insight', 'insight:read',
+        'recommendations', 'recommendations_read', 'recommendations:read', 'recommendation', 'recommendation:read',
+        'stories', 'stories_read', 'stories:read', 'story', 'story:read'
+      ];
+      
+      // If any of the permissions match what the Executor can access, return true
+      if (permissionList.some(p => executorVisible.includes(p))) {
+        return true;
+      }
+    }
+    
+    // For Creator role - they have access to most features except admin
+    if (isCreator) {
+      // Define which menu items are visible for Creator role
+      const creatorVisible = [
+        'dashboard_view', 'dashboard:read', 'dashboard',
+        'file_upload', 'file_upload:read', 'file_upload:write',
+        'file_view', 'file:read', 'file:write',
+        'file_profile', 'file_profile:read', 'file_profile:write',
+        'quality_checks', 'quality_checks:read', 'quality_checks:write',
+        'monitor', 'monitor:read', 'monitor:write',
+        'alerts', 'alerts:read', 'alerts:write',
+        'connections', 'connections:read', 'connections:write',
+        'mappings', 'mappings:read', 'mappings:write',
+        'lineage', 'lineage_view', 'lineage:read', 'lineage:write',
+        'scheduler', 'scheduler:read', 'scheduler:write'
+      ];
+      
+      // If any of the permissions match what the Creator can access, return true
+      if (permissionList.some(p => creatorVisible.includes(p))) {
+        return true;
+      }
+    }
+    
+    // Fallback to checking permissions from the database/token
+    return permissionList.some(perm => hasPermission(perm));
   };
 
   return (
