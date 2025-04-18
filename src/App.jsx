@@ -13,6 +13,7 @@ import Mappings from './pages/Mappings';
 import FileLineage from './pages/FileLineage';
 import LineageImpact from './pages/LineageImpact';
 import Monitor from './pages/Monitor';
+import Scheduler from './pages/Scheduler';
 import Badges from './pages/Badges';
 import DataInsights from './pages/DataInsights';
 import Recommendations from './pages/Recommendations';
@@ -106,6 +107,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
                 <Route path="/lineage/impact/:fileId" element={<ProtectedRoute><LineageImpact /></ProtectedRoute>} />
                 <Route path="/monitor" element={<ProtectedRoute><Monitor /></ProtectedRoute>} />
+                <Route path="/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
                 <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
                 <Route path="/insights" element={<ProtectedRoute><DataInsights /></ProtectedRoute>} />
                 <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />

@@ -1771,6 +1771,255 @@ app.get('/api/debug/hash-password/:password', async (req, res) => {
   }
 });
 
+// Create the schedules table if it doesn't exist
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS file_schedules (
+        id SERIAL PRIMARY KEY,
+        file_id VARCHAR(255) NOT NULL,
+        frequency VARCHAR(50) NOT NULL, -- 'hourly', 'daily', 'weekly', 'monthly'
+        time VARCHAR(10), -- HH:MM format (for non-hourly frequencies)
+        day INTEGER, -- Day of week (0-6) for weekly or day of month (1-31) for monthly
+        is_active BOOLEAN DEFAULT TRUE,
+        last_run TIMESTAMP,
+        next_run TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by VARCHAR(255),
+        CONSTRAINT fk_file FOREIGN KEY(file_id) REFERENCES files(file_id) ON DELETE CASCADE
+      )
+    `);
+    console.log('File schedules table initialized');
+  } catch (error) {
+    console.error('Error creating schedules table:', error);
+  }
+})();
+
+// Schedule endpoints
+
+// Get all schedules
+app.get('/api/schedules', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM file_schedules ORDER BY created_at DESC');
+    res.json({ schedules: result.rows });
+  } catch (error) {
+    console.error('Error fetching schedules:', error);
+    res.status(500).json({ error: 'Failed to fetch schedules', details: error.message });
+  }
+});
+
+// Get a specific schedule
+app.get('/api/schedules/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    res.json({ schedule: result.rows[0] });
+  } catch (error) {
+    console.error('Error fetching schedule:', error);
+    res.status(500).json({ error: 'Failed to fetch schedule', details: error.message });
+  }
+});
+
+// Create a new schedule
+app.post('/api/schedules', async (req, res) => {
+  try {
+    const { file_id, frequency, time, day, is_active } = req.body;
+    
+    if (!file_id || !frequency) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Calculate next run time
+    const now = new Date();
+    let nextRun = new Date(now);
+    
+    switch (frequency) {
+      case 'hourly':
+        nextRun.setHours(nextRun.getHours() + 1, 0, 0, 0);
+        break;
+      case 'daily':
+        const [hours, minutes] = time ? time.split(':').map(Number) : [0, 0];
+        nextRun.setDate(nextRun.getDate() + 1);
+        nextRun.setHours(hours, minutes, 0, 0);
+        break;
+      case 'weekly':
+        const dayOfWeek = day || 0;
+        const daysToAdd = (dayOfWeek + 7 - now.getDay()) % 7;
+        nextRun.setDate(nextRun.getDate() + (daysToAdd === 0 ? 7 : daysToAdd));
+        const [weekHours, weekMinutes] = time ? time.split(':').map(Number) : [0, 0];
+        nextRun.setHours(weekHours, weekMinutes, 0, 0);
+        break;
+      case 'monthly':
+        const dayOfMonth = day || 1;
+        nextRun.setMonth(nextRun.getMonth() + 1);
+        nextRun.setDate(dayOfMonth);
+        const [monthHours, monthMinutes] = time ? time.split(':').map(Number) : [0, 0];
+        nextRun.setHours(monthHours, monthMinutes, 0, 0);
+        break;
+      default:
+        nextRun.setDate(nextRun.getDate() + 1);
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO file_schedules 
+       (file_id, frequency, time, day, is_active, next_run) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
+       RETURNING *`,
+      [file_id, frequency, time, day, is_active, nextRun]
+    );
+    
+    res.status(201).json({ schedule: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating schedule:', error);
+    res.status(500).json({ error: 'Failed to create schedule', details: error.message });
+  }
+});
+
+// Update a schedule
+app.patch('/api/schedules/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { frequency, time, day, is_active } = req.body;
+    
+    // Start with the updates we have
+    const updates = {};
+    const values = [];
+    let paramIndex = 1;
+    
+    if (frequency !== undefined) {
+      updates.frequency = `frequency = $${paramIndex++}`;
+      values.push(frequency);
+    }
+    
+    if (time !== undefined) {
+      updates.time = `time = $${paramIndex++}`;
+      values.push(time);
+    }
+    
+    if (day !== undefined) {
+      updates.day = `day = $${paramIndex++}`;
+      values.push(day);
+    }
+    
+    if (is_active !== undefined) {
+      updates.is_active = `is_active = $${paramIndex++}`;
+      values.push(is_active);
+    }
+    
+    // Add the updated_at timestamp
+    updates.updated_at = `updated_at = $${paramIndex++}`;
+    values.push(new Date());
+    
+    // Add the schedule ID as the last parameter
+    values.push(id);
+    
+    // Construct the update query
+    const updateClause = Object.values(updates).join(', ');
+    const query = `UPDATE file_schedules SET ${updateClause} WHERE id = $${paramIndex} RETURNING *`;
+    
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    res.json({ schedule: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating schedule:', error);
+    res.status(500).json({ error: 'Failed to update schedule', details: error.message });
+  }
+});
+
+// Delete a schedule
+app.delete('/api/schedules/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM file_schedules WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    res.json({ message: 'Schedule deleted successfully', schedule: result.rows[0] });
+  } catch (error) {
+    console.error('Error deleting schedule:', error);
+    res.status(500).json({ error: 'Failed to delete schedule', details: error.message });
+  }
+});
+
+// Run a schedule immediately
+app.post('/api/schedules/:id/run', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, get the schedule
+    const scheduleResult = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    
+    if (scheduleResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    const schedule = scheduleResult.rows[0];
+    
+    // Get the file info
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [schedule.file_id]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Associated file not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Update the last_run time
+    await pool.query(
+      'UPDATE file_schedules SET last_run = $1 WHERE id = $2',
+      [new Date(), id]
+    );
+    
+    // Here you would trigger the file processing logic
+    // For now, just return success
+    res.json({ 
+      message: 'Schedule triggered successfully',
+      job: {
+        id: uuidv4(),
+        status: 'processing',
+        file: {
+          id: file.file_id,
+          name: file.filename
+        },
+        started_at: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Error running schedule:', error);
+    res.status(500).json({ error: 'Failed to run schedule', details: error.message });
+  }
+});
+
+// Get schedules for a specific file
+app.get('/api/files/:fileId/schedules', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await pool.query(
+      'SELECT * FROM file_schedules WHERE file_id = $1 ORDER BY created_at DESC',
+      [fileId]
+    );
+    
+    res.json({ schedules: result.rows });
+  } catch (error) {
+    console.error('Error fetching file schedules:', error);
+    res.status(500).json({ error: 'Failed to fetch file schedules', details: error.message });
+  }
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

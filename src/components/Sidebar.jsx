@@ -15,7 +15,8 @@ import {
   FiTrendingUp,
   FiBookOpen,
   FiHelpCircle,
-  FiPlay
+  FiPlay,
+  FiCalendar
 } from 'react-icons/fi';
 import OnboardingWizard from './OnboardingWizard';
 import './Sidebar.css';
@@ -59,6 +60,12 @@ function Sidebar() {
               <NavLink to="/alerts" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiAlertTriangle className="icon" />
                 <span>Alerts</span>
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiCalendar className="icon" />
+                <span>File Scheduler</span>
               </NavLink>
             </li>
             <li>
