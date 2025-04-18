@@ -70,6 +70,27 @@ const authenticateToken = async (req, res, next) => {
       for (const role of rolesResult.rows) {
         console.log(`Processing role ${role.name} with permissions:`, role.permissions);
         
+        // Special handling for Executor role to ensure it always has badges/insights access
+        if (role.name === 'Executor') {
+          // Core Executor permissions that should always be included
+          const executorCorePermissions = [
+            'dashboard:read',
+            'file_profile:read',
+            'quality_checks:read',
+            'mappings:read',
+            'lineage:read',
+            'monitor:read',
+            'scheduler:read',
+            'badges:read',
+            'insights:read',
+            'recommendations:read',
+            'stories:read'
+          ];
+          
+          console.log(`Adding core permissions for Executor role:`, executorCorePermissions);
+          allPermissions = [...allPermissions, ...executorCorePermissions];
+        }
+        
         if (role.permissions) {
           // For string array format
           if (Array.isArray(role.permissions)) {
