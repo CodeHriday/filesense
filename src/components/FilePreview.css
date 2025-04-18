@@ -1,0 +1,211 @@
+.file-preview-container {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--card-bg-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 400px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.file-preview-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--card-bg-color);
+}
+
+.preview-info h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.preview-count {
+  font-size: 13px;
+  color: var(--text-light-color);
+  margin-top: 4px;
+  display: block;
+}
+
+.preview-actions .refresh-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-actions .refresh-button:hover {
+  background-color: var(--hover-bg-color);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.preview-table-container {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+  position: relative;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.preview-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--bg-light-color);
+}
+
+.preview-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-color);
+  border-bottom: 2px solid var(--border-color);
+  background-color: var(--bg-light-color);
+}
+
+.preview-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-color);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-table tr:nth-child(even) {
+  background-color: var(--hover-bg-color);
+}
+
+.preview-table tr:hover {
+  background-color: var(--bg-light-color);
+}
+
+.null-value {
+  color: #999;
+  font-style: italic;
+}
+
+.file-preview-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--card-bg-color);
+}
+
+.file-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-name {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.file-type {
+  font-size: 12px;
+  color: #fff;
+  background-color: var(--primary-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.preview-notice {
+  font-size: 13px;
+  color: var(--text-light-color);
+}
+
+/* Loading States */
+.file-preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  background-color: var(--card-bg-color);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error States */
+.file-preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  background-color: var(--card-bg-color);
+  border-radius: 8px;
+  padding: 20px;
+  color: #f44336;
+  text-align: center;
+}
+
+.file-preview-error svg {
+  margin-bottom: 16px;
+}
+
+.file-preview-error .refresh-button {
+  margin-top: 16px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+/* Empty State */
+.file-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  background-color: var(--card-bg-color);
+  border-radius: 8px;
+  padding: 20px;
+  color: var(--text-light-color);
+}

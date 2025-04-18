@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
+import FilePreview from '../components/FilePreview';
 import { uploadFile, testApiConnection } from '../api/fileService';
 import axios from 'axios';
 import './FileUpload.css';
@@ -153,20 +154,30 @@ function FileUpload() {
         />
         
         {uploadStatus === 'success' && uploadedFile && (
-          <div className="upload-success-actions">
-            <button 
-              className="btn btn-primary"
-              onClick={handleViewProfile}
-            >
-              View File Profile
-            </button>
-            <button 
-              className="btn btn-secondary"
-              onClick={handleUploadAnother}
-            >
-              Upload Another File
-            </button>
-          </div>
+          <>
+            <div className="upload-success-actions">
+              <button 
+                className="btn btn-primary"
+                onClick={handleViewProfile}
+              >
+                View File Profile
+              </button>
+              <button 
+                className="btn btn-secondary"
+                onClick={handleUploadAnother}
+              >
+                Upload Another File
+              </button>
+            </div>
+            
+            <div className="file-preview-section">
+              <h3>File Preview</h3>
+              <p className="preview-description">
+                Showing the first 100 records of your file to help you verify the data before analysis.
+              </p>
+              <FilePreview fileId={uploadedFile.fileId} maxRows={100} />
+            </div>
+          </>
         )}
       </Card>
 

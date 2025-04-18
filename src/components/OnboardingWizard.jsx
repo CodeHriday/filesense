@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUpload, FiCheck, FiAlertTriangle, FiBarChart2, FiGrid, FiLink, FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
+import { FiUpload, FiCheck, FiAlertTriangle, FiBarChart2, FiGrid, FiLink, FiChevronLeft, FiChevronRight, FiX, FiEye } from 'react-icons/fi';
 import axios from 'axios';
+import FilePreview from './FilePreview';
 import './OnboardingWizard.css';
 
 const OnboardingWizard = ({ onClose }) => {
@@ -142,6 +143,30 @@ const OnboardingWizard = ({ onClose }) => {
               <li>Consistent data formats yield better profile accuracy</li>
             </ul>
           </div>
+        </div>
+      )
+    },
+    {
+      title: 'Preview Your Data',
+      description: 'Review your uploaded file before proceeding with analysis.',
+      content: (
+        <div className="preview-content">
+          {uploadedFileId ? (
+            <FilePreview fileId={uploadedFileId} maxRows={100} />
+          ) : (
+            <div className="preview-placeholder">
+              <FiEye size={40} className="preview-icon" />
+              <p>Upload a file first to preview its contents</p>
+              <div className="preview-placeholder-description">
+                <p>The preview will show the first 100 records from your file, helping you:</p>
+                <ul>
+                  <li>Verify the data was uploaded correctly</li>
+                  <li>Check column headers and data types</li>
+                  <li>Identify potential quality issues before analysis</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )
     },

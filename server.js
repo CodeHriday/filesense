@@ -2790,6 +2790,116 @@ app.delete('/api/badges/:badgeId', async (req, res) => {
   }
 });
 
+// File Data Preview endpoint
+app.get('/api/files/:fileId/preview', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { limit = 100 } = req.query; // Default to 100 records
+    
+    // Get file metadata to determine file type and path
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    const fileType = file.file_type;
+    const metadata = typeof file.metadata === 'string' ? JSON.parse(file.metadata) : file.metadata;
+    
+    if (!metadata || !metadata.path) {
+      return res.status(404).json({ error: 'File path not found in metadata' });
+    }
+    
+    const filePath = metadata.path;
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+    
+    // Get column information
+    const columnsResult = await pool.query(
+      'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
+      [fileId]
+    );
+    
+    const columns = columnsResult.rows;
+    
+    // Read and parse file based on type
+    let previewData = [];
+    const maxRecords = parseInt(limit) || 100;
+    
+    if (fileType === 'csv') {
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      const lines = fileContent.split('\n').filter(line => line.trim());
+      
+      if (lines.length > 0) {
+        // Parse header row
+        const header = lines[0].split(',').map(h => h.trim());
+        
+        // Parse data rows (up to limit)
+        const rowLimit = Math.min(lines.length, maxRecords + 1); // +1 for header
+        
+        for (let i = 1; i < rowLimit; i++) {
+          const rowValues = lines[i].split(',').map(value => value.trim());
+          const row = {};
+          
+          header.forEach((colName, index) => {
+            if (index < rowValues.length) {
+              row[colName] = rowValues[index];
+            } else {
+              row[colName] = null;
+            }
+          });
+          
+          previewData.push(row);
+        }
+      }
+    } else if (fileType === 'json') {
+      try {
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const jsonData = JSON.parse(fileContent);
+        
+        if (Array.isArray(jsonData)) {
+          previewData = jsonData.slice(0, maxRecords);
+        } else if (typeof jsonData === 'object') {
+          // If JSON is not an array, convert it to an array with a single item
+          previewData = [jsonData];
+        }
+      } catch (jsonError) {
+        console.error('Error parsing JSON file:', jsonError);
+        return res.status(500).json({ error: 'Failed to parse JSON file' });
+      }
+    } else if (fileType === 'parquet') {
+      // For Parquet files, we would need a specific library
+      return res.status(400).json({ 
+        error: 'Preview not supported for Parquet files in this version',
+        message: 'Please install a Parquet viewer extension for this file type'
+      });
+    } else {
+      return res.status(400).json({ 
+        error: 'Unsupported file type for preview',
+        message: 'File previews are supported for CSV and JSON files only'
+      });
+    }
+    
+    // Return preview data with metadata
+    res.json({
+      file_id: fileId,
+      filename: file.filename,
+      file_type: fileType,
+      total_rows: file.row_count,
+      columns: columns,
+      preview_count: previewData.length,
+      data: previewData
+    });
+  } catch (err) {
+    console.error('Error generating file preview:', err);
+    res.status(500).json({ error: 'Failed to generate file preview: ' + err.message });
+  }
+});
+
 // Catch unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise);
