@@ -680,6 +680,9 @@ function Mappings() {
   };
   
   const handleSourceFileChange = async (fileId) => {
+    // First set the sourceFileId state
+    setSourceFileId(fileId);
+    
     if (!fileId) {
       setSourceColumns([]);
       return;
@@ -687,15 +690,18 @@ function Mappings() {
     
     try {
       setSourceLoading(true);
+      console.log('Fetching source file columns for fileId:', fileId);
       const response = await axios.get(`/api/files/${fileId}`);
       
       if (response.data && response.data.columns) {
+        console.log('Received columns:', response.data.columns);
         setSourceColumns(response.data.columns.map(col => ({
           id: col.column_name,
           name: col.column_name,
-          type: col.data_type
+          type: col.column_type || 'string' // Fixed column type property
         })));
       } else {
+        console.log('No columns found in response:', response.data);
         setSourceColumns([]);
       }
     } catch (err) {
