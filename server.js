@@ -1500,25 +1500,152 @@ app.post('/api/connections', async (req, res) => {
   try {
     const { 
       connection_name, 
-      connection_type, 
+      connection_type,
+      // Common fields 
       host, 
       port, 
       username, 
       password, 
       database_name, 
       connection_string,
-      parameters 
+      parameters,
+      // AWS S3 fields
+      region,
+      bucket_name,
+      access_key,
+      secret_key,
+      // GCP fields
+      project_id,
+      client_email,
+      private_key,
+      // Azure fields
+      account_name,
+      account_key,
+      container_name,
+      // Snowflake fields
+      snowflake_account,
+      snowflake_username,
+      snowflake_password,
+      snowflake_warehouse,
+      snowflake_database,
+      snowflake_schema,
+      snowflake_role,
+      // Databricks fields
+      databricks_host,
+      databricks_token,
+      databricks_catalog,
+      databricks_schema,
+      // SharePoint fields
+      sharepoint_tenant_id,
+      sharepoint_client_id,
+      sharepoint_client_secret,
+      sharepoint_site_url,
+      sharepoint_document_library,
+      // Outlook fields
+      outlook_tenant_id,
+      outlook_client_id,
+      outlook_client_secret,
+      outlook_user_email,
+      outlook_folder_path
     } = req.body;
+
+    // Create a JSON object for the connection config based on the connection type
+    let config = {};
     
-    // In a real app, you would encrypt the password
+    switch (connection_type) {
+      case 'aws':
+        config = {
+          region,
+          bucket_name,
+          access_key,
+          secret_key: secret_key // In a real app, you would encrypt this
+        };
+        break;
+      case 'gcp':
+        config = {
+          project_id,
+          bucket_name,
+          client_email,
+          private_key: private_key // In a real app, you would encrypt this
+        };
+        break;
+      case 'azure':
+        config = {
+          account_name,
+          container_name,
+          account_key: account_key // In a real app, you would encrypt this
+        };
+        break;
+      case 'snowflake':
+        config = {
+          account: snowflake_account,
+          username: snowflake_username,
+          password: snowflake_password, // In a real app, you would encrypt this
+          warehouse: snowflake_warehouse,
+          database: snowflake_database,
+          schema: snowflake_schema,
+          role: snowflake_role
+        };
+        break;
+      case 'databricks':
+        config = {
+          host: databricks_host,
+          token: databricks_token, // In a real app, you would encrypt this
+          catalog: databricks_catalog,
+          schema: databricks_schema
+        };
+        break;
+      case 'sharepoint':
+        config = {
+          tenant_id: sharepoint_tenant_id,
+          client_id: sharepoint_client_id,
+          client_secret: sharepoint_client_secret, // In a real app, you would encrypt this
+          site_url: sharepoint_site_url,
+          document_library: sharepoint_document_library
+        };
+        break;
+      case 'outlook':
+        config = {
+          tenant_id: outlook_tenant_id,
+          client_id: outlook_client_id,
+          client_secret: outlook_client_secret, // In a real app, you would encrypt this
+          user_email: outlook_user_email,
+          folder_path: outlook_folder_path
+        };
+        break;
+      default:
+        // Legacy format for database connections
+        config = {
+          host,
+          port,
+          username,
+          password, // In a real app, you would encrypt this
+          database_name,
+          connection_string,
+          parameters: parameters || {}
+        };
+    }
+    
+    // In a real app, you would encrypt sensitive fields
     const password_encrypted = password; // For simplicity, not encrypting here
     
     const result = await pool.query(
       `INSERT INTO connections 
-       (connection_name, connection_type, host, port, username, password_encrypted, database_name, connection_string, parameters, created_at, updated_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()) 
-       RETURNING id, connection_name, connection_type, host, port, username, database_name, created_at, updated_at`,
-      [connection_name, connection_type, host, port, username, password_encrypted, database_name, connection_string, parameters || {}]
+       (connection_name, connection_type, host, port, username, password_encrypted, database_name, connection_string, parameters, config, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) 
+       RETURNING id, connection_name, connection_type, created_at, updated_at`,
+      [
+        connection_name, 
+        connection_type, 
+        host || null, 
+        port || null, 
+        username || null, 
+        password_encrypted || null, 
+        database_name || null, 
+        connection_string || null, 
+        parameters || {},
+        JSON.stringify(config)
+      ]
     );
     
     res.json(result.rows[0]);
@@ -1533,54 +1660,231 @@ app.put('/api/connections/:id', async (req, res) => {
     const { id } = req.params;
     const { 
       connection_name, 
-      connection_type, 
+      connection_type,
+      // Common fields 
       host, 
       port, 
       username, 
       password, 
       database_name, 
       connection_string,
-      parameters 
+      parameters,
+      // AWS S3 fields
+      region,
+      bucket_name,
+      access_key,
+      secret_key,
+      // GCP fields
+      project_id,
+      client_email,
+      private_key,
+      // Azure fields
+      account_name,
+      account_key,
+      container_name,
+      // Snowflake fields
+      snowflake_account,
+      snowflake_username,
+      snowflake_password,
+      snowflake_warehouse,
+      snowflake_database,
+      snowflake_schema,
+      snowflake_role,
+      // Databricks fields
+      databricks_host,
+      databricks_token,
+      databricks_catalog,
+      databricks_schema,
+      // SharePoint fields
+      sharepoint_tenant_id,
+      sharepoint_client_id,
+      sharepoint_client_secret,
+      sharepoint_site_url,
+      sharepoint_document_library,
+      // Outlook fields
+      outlook_tenant_id,
+      outlook_client_id,
+      outlook_client_secret,
+      outlook_user_email,
+      outlook_folder_path
     } = req.body;
     
-    let updateQuery, updateParams;
+    // Create a JSON object for the connection config based on the connection type
+    let config = {};
+    let hasSensitiveInfo = false;
     
-    if (password) {
-      // If password is provided, update it as well
-      const password_encrypted = password; // Again, for simplicity
-      
-      updateQuery = `
-        UPDATE connections 
-        SET connection_name = $1, connection_type = $2, host = $3, port = $4, username = $5, 
-            password_encrypted = $6, database_name = $7, connection_string = $8, parameters = $9, updated_at = NOW() 
-        WHERE id = $10 
-        RETURNING id, connection_name, connection_type, host, port, username, database_name, created_at, updated_at
-      `;
-      
-      updateParams = [
-        connection_name, connection_type, host, port, username, 
-        password_encrypted, database_name, connection_string, parameters || {}, id
-      ];
-    } else {
-      // If no password, don't update it
-      updateQuery = `
-        UPDATE connections 
-        SET connection_name = $1, connection_type = $2, host = $3, port = $4, username = $5, 
-            database_name = $6, connection_string = $7, parameters = $8, updated_at = NOW() 
-        WHERE id = $9 
-        RETURNING id, connection_name, connection_type, host, port, username, database_name, created_at, updated_at
-      `;
-      
-      updateParams = [
-        connection_name, connection_type, host, port, username, 
-        database_name, connection_string, parameters || {}, id
-      ];
+    switch (connection_type) {
+      case 'aws':
+        config = {
+          region,
+          bucket_name,
+          access_key
+        };
+        // Only update the secret key if provided (for security)
+        if (secret_key) {
+          config.secret_key = secret_key; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
+        break;
+      case 'gcp':
+        config = {
+          project_id,
+          bucket_name,
+          client_email
+        };
+        // Only update the private key if provided (for security)
+        if (private_key) {
+          config.private_key = private_key; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
+        break;
+      case 'azure':
+        config = {
+          account_name,
+          container_name
+        };
+        // Only update the account key if provided (for security)
+        if (account_key) {
+          config.account_key = account_key; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
+        break;
+      case 'snowflake':
+        config = {
+          account: snowflake_account,
+          username: snowflake_username,
+          warehouse: snowflake_warehouse,
+          database: snowflake_database,
+          schema: snowflake_schema,
+          role: snowflake_role
+        };
+        // Only update the password if provided (for security)
+        if (snowflake_password) {
+          config.password = snowflake_password; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
+        break;
+      case 'databricks':
+        config = {
+          host: databricks_host,
+          catalog: databricks_catalog,
+          schema: databricks_schema
+        };
+        // Only update the token if provided (for security)
+        if (databricks_token) {
+          config.token = databricks_token; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
+        break;
+      case 'sharepoint':
+        config = {
+          tenant_id: sharepoint_tenant_id,
+          client_id: sharepoint_client_id,
+          site_url: sharepoint_site_url,
+          document_library: sharepoint_document_library
+        };
+        // Only update the client secret if provided (for security)
+        if (sharepoint_client_secret) {
+          config.client_secret = sharepoint_client_secret; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
+        break;
+      case 'outlook':
+        config = {
+          tenant_id: outlook_tenant_id,
+          client_id: outlook_client_id,
+          user_email: outlook_user_email,
+          folder_path: outlook_folder_path
+        };
+        // Only update the client secret if provided (for security)
+        if (outlook_client_secret) {
+          config.client_secret = outlook_client_secret; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
+        break;
+      default:
+        // Legacy format for database connections
+        config = {
+          host,
+          port,
+          username,
+          database_name,
+          connection_string,
+          parameters: parameters || {}
+        };
+        // Only update password if provided (for security)
+        if (password) {
+          config.password = password; // In a real app, you would encrypt this
+          hasSensitiveInfo = true;
+        }
     }
+    
+    // First get the existing connection to merge configs
+    const existingConnection = await pool.query(
+      'SELECT config FROM connections WHERE id = $1',
+      [id]
+    );
+    
+    if (existingConnection.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    // Parse existing config
+    let existingConfig = {};
+    try {
+      existingConfig = typeof existingConnection.rows[0].config === 'string' 
+        ? JSON.parse(existingConnection.rows[0].config) 
+        : (existingConnection.rows[0].config || {});
+    } catch (parseErr) {
+      console.error('Error parsing existing config:', parseErr);
+      // Continue with empty config if parse fails
+    }
+    
+    // Merge configs - only override fields that are provided in the request
+    const mergedConfig = { ...existingConfig, ...config };
+    
+    // Update the connection with the merged config
+    const updateQuery = `
+      UPDATE connections 
+      SET connection_name = $1, 
+          connection_type = $2, 
+          host = $3, 
+          port = $4, 
+          username = $5, 
+          database_name = $6, 
+          connection_string = $7, 
+          parameters = $8, 
+          config = $9,
+          ${hasSensitiveInfo ? 'password_encrypted = $10,' : ''} 
+          updated_at = NOW() 
+      WHERE id = ${hasSensitiveInfo ? '$11' : '$10'} 
+      RETURNING id, connection_name, connection_type, updated_at
+    `;
+    
+    let updateParams = [
+      connection_name, 
+      connection_type, 
+      host || null, 
+      port || null, 
+      username || null, 
+      database_name || null, 
+      connection_string || null, 
+      parameters || {},
+      JSON.stringify(mergedConfig)
+    ];
+    
+    if (hasSensitiveInfo) {
+      // If there's sensitive info, add password to params
+      updateParams.push(password || null);
+    }
+    
+    // Add id as the last parameter
+    updateParams.push(id);
     
     const result = await pool.query(updateQuery, updateParams);
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Connection not found' });
+      return res.status(404).json({ error: 'Connection not found after update attempt' });
     }
     
     res.json(result.rows[0]);
