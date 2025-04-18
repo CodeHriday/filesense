@@ -18,7 +18,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
 const JWT_EXPIRATION = '24h'; // Token expiration time
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
   
@@ -27,10 +27,38 @@ const authenticateToken = (req, res, next) => {
   }
   
   try {
+    // Verify token
     const verified = jwt.verify(token, JWT_SECRET);
+    
+    // Store user data from token
     req.user = verified;
+    
+    // Get permissions for the user based on roles
+    if (verified.roles && verified.roles.length > 0) {
+      // Get all permissions for the user's roles
+      const permissionsQuery = `
+        SELECT DISTINCT p.name, p.resource, p.action
+        FROM permissions p
+        JOIN role_permissions rp ON p.id = rp.permission_id
+        JOIN roles r ON rp.role_id = r.id
+        WHERE r.name = ANY($1::varchar[])
+      `;
+      
+      const permissionsResult = await pool.query(permissionsQuery, [verified.roles]);
+      
+      // Add permissions to the request object
+      req.user.permissions = permissionsResult.rows.map(p => ({
+        name: p.name,
+        resource: p.resource,
+        action: p.action
+      }));
+    } else {
+      req.user.permissions = [];
+    }
+    
     next();
   } catch (error) {
+    console.error('Token verification error:', error);
     return res.status(403).json({ error: 'Invalid token or token expired.' });
   }
 };
@@ -1223,7 +1251,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
     
-    // Get user roles and permissions
+    // Get user roles
     const userRolesQuery = `
       SELECT r.name as role_name, r.id as role_id
       FROM roles r
@@ -1235,30 +1263,12 @@ app.post('/api/auth/login', async (req, res) => {
     const roleIds = rolesResult.rows.map(role => role.role_id);
     const userRoles = rolesResult.rows.map(role => role.role_name);
     
-    // If we have roles, get permissions
-    let userPermissions = [];
-    if (roleIds.length > 0) {
-      const permissionsQuery = `
-        SELECT DISTINCT p.name, p.resource, p.action
-        FROM permissions p
-        JOIN role_permissions rp ON p.id = rp.permission_id
-        WHERE rp.role_id = ANY($1::int[])
-      `;
-      const permissionsResult = await pool.query(permissionsQuery, [roleIds]);
-      userPermissions = permissionsResult.rows.map(p => ({ 
-        name: p.name, 
-        resource: p.resource, 
-        action: p.action 
-      }));
-    }
-    
-    // Create token
+    // Create simpler token
     const token = jwt.sign(
       { 
         id: user.id, 
         username: user.username,
-        roles: userRoles,
-        permissions: userPermissions
+        roles: userRoles
       }, 
       JWT_SECRET, 
       { expiresIn: JWT_EXPIRATION }
@@ -1267,11 +1277,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Update last login time
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
     
-    // Store token in sessions table
-    await pool.query(
-      'INSERT INTO user_sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'24 hours\')',
-      [user.id, token]
-    );
+    // Don't store token in database
     
     // Return token and user info (excluding password)
     const { password: _, ...userWithoutPassword } = user;
@@ -1280,7 +1286,6 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         ...userWithoutPassword,
         roles: userRoles,
-        permissions: userPermissions
       },
       token
     });
