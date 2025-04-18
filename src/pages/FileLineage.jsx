@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiDatabase, FiLink, FiTrash2, FiInfo, FiArrowRight, FiGitBranch } from 'react-icons/fi';
+import { 
+  FiDatabase, 
+  FiLink, 
+  FiTrash2, 
+  FiInfo, 
+  FiArrowRight, 
+  FiGitBranch,
+  FiActivity,
+  FiMap
+} from 'react-icons/fi';
 import Card from '../components/Card';
+import LineageGraph from '../components/LineageGraph';
 import { getFileCatalog } from '../api/fileService';
 import { getLineages, createLineage, deleteLineage } from '../api/lineageService';
 import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor } from '@dnd-kit/core';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import './FileLineage.css';
+import '../components/LineageGraph.css';
 
 // Component for a draggable file card
 const FileCard = ({ file, draggable = true, isDragging = false }) => {
@@ -368,6 +379,27 @@ function FileLineage() {
           </div>
         </div>
       </div>
+      
+      {/* Interactive Lineage Visualization Graph */}
+      <Card className="lineage-visualization-card">
+        <div className="card-header">
+          <div className="header-title">
+            <FiActivity className="header-icon" />
+            <h2>Interactive Lineage Visualization</h2>
+          </div>
+          <p className="section-description">
+            Visualize the relationships between files with this interactive graph
+          </p>
+        </div>
+        {lineages.length === 0 ? (
+          <div className="empty-graph-message">
+            <FiMap className="empty-icon" />
+            <p>Create lineage relationships to visualize them in the graph</p>
+          </div>
+        ) : (
+          <LineageGraph onNodeClick={handleViewImpact} />
+        )}
+      </Card>
       
       <Card className="lineage-info-card">
         <div className="info-header">
