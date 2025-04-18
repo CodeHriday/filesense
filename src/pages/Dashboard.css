@@ -459,7 +459,7 @@
 .chart-content {
   position: relative;
   height: 250px;
-  margin-left: 40px;
+  margin-left: 0;
   margin-bottom: 40px;
   background-color: rgba(250, 250, 250, 0.7);
   border: none; /* Remove all borders */
@@ -532,7 +532,7 @@
 .x-axis-labels {
   position: relative;
   height: 40px;
-  margin-left: 40px;
+  margin-left: 0;
 }
 
 .x-label {

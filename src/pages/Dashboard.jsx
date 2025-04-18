@@ -454,11 +454,7 @@ const Dashboard = () => {
         <div className="chart-container">
           {/* Super simplified chart implementation */}
           <div className="basic-chart">
-            <div className="y-axis-labels">
-              {[100, 80, 60, 40, 20, 0].map(value => (
-                <div key={value} className="y-label">{value}</div>
-              ))}
-            </div>
+            {/* Removed Y-axis labels */}
             
             <div className="chart-content no-left-border">
               {/* Horizontal grid lines */}
