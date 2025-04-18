@@ -426,6 +426,21 @@
   color: #888;
 }
 
+/* Rotated date labels */
+.rotated-dates {
+  height: 80px; /* Increased height for rotated text */
+}
+
+.rotated-date {
+  transform: rotate(-90deg);
+  transform-origin: center top;
+  position: relative;
+  top: 10px;
+  display: inline-block;
+  width: 20px;
+  text-align: right;
+}
+
 .trend-summary {
   display: flex;
   justify-content: space-around;

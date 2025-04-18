@@ -403,72 +403,51 @@ const Dashboard = () => {
             <span>{minValue}%</span>
           </div>
           
-          <div className="chart-body line-chart-body">
-            {/* Background grid for better readability */}
-            <div className="line-chart-grid">
-              <div className="horizontal-grid-line" style={{ top: '0%' }}></div>
-              <div className="horizontal-grid-line" style={{ top: '25%' }}></div>
-              <div className="horizontal-grid-line" style={{ top: '50%' }}></div>
-              <div className="horizontal-grid-line" style={{ top: '75%' }}></div>
-              <div className="horizontal-grid-line" style={{ top: '100%' }}></div>
-              
-              {labelIndices.map((i, index) => (
-                <div 
-                  key={i} 
-                  className="vertical-grid-line" 
-                  style={{ left: `${(i / (normalizedPoints.length - 1)) * 100}%` }}
-                ></div>
-              ))}
+          <div className="chart-body">
+            <div className="chart-grid">
+              <div className="grid-line"></div>
+              <div className="grid-line"></div>
+              <div className="grid-line"></div>
             </div>
             
-            {/* Line chart */}
-            <div className="line-chart">
-              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {/* Draw the line path connecting all data points */}
+            <div className="data-line">
+              {/* Connect points with a line */}
+              <svg className="line-svg" aria-hidden="true">
                 <path
                   d={normalizedPoints.map((point, i) => {
                     const x = (i / (normalizedPoints.length - 1)) * 100;
                     const y = 100 - point.normalized;
-                    return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+                    return i === 0 ? `M ${x},${y}` : `L ${x},${y}`;
                   }).join(' ')}
                   stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
-                  strokeWidth="2"
+                  strokeWidth="3"
                   fill="none"
-                  className="trend-line"
                 />
-                
-                {/* Highlight key points */}
-                {labelIndices.map(i => (
-                  <circle 
-                    key={i}
-                    cx={`${(i / (normalizedPoints.length - 1)) * 100}`}
-                    cy={`${100 - normalizedPoints[i].normalized}`}
-                    r="2"
-                    className="trend-point key-point"
-                    style={{ stroke: getScoreColor(dataPoints[i].value) }}
-                  />
-                ))}
-                
-                {/* Add all points with tooltips */}
-                {normalizedPoints.map((point, i) => (
-                  <g key={i} className="data-point-group">
-                    <circle 
-                      cx={`${(i / (normalizedPoints.length - 1)) * 100}`}
-                      cy={`${100 - point.normalized}`}
-                      r="1.5"
-                      className="trend-point"
-                      style={{ stroke: getScoreColor(dataPoints[i].value) }}
-                    />
-                    <title>{point.date}: {dataPoints[i].value}%</title>
-                  </g>
-                ))}
               </svg>
+              
+              {/* Display individual data points */}
+              {normalizedPoints.map((point, index) => (
+                <div 
+                  key={index} 
+                  className="data-point"
+                  style={{ 
+                    left: `${(index / (normalizedPoints.length - 1)) * 100}%`,
+                    bottom: `${point.normalized}%`
+                  }}
+                  title={`${point.date}: ${dataPoints[index].value}%`}
+                  aria-hidden="true"
+                >
+                  {index % 5 === 0 && (
+                    <span className="point-value">{dataPoints[index].value}%</span>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
           
-          <div className="x-axis">
+          <div className="x-axis rotated-dates">
             {labelIndices.map(i => (
-              <span key={i}>{normalizedPoints[i].date}</span>
+              <span key={i} className="rotated-date">{normalizedPoints[i].date}</span>
             ))}
           </div>
         </div>
