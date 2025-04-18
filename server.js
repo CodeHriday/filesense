@@ -929,7 +929,7 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
 app.post('/api/files/:fileId/quality-check', async (req, res) => {
   try {
     const { fileId } = req.params;
-    const { rules = [], anomalyDetection = true } = req.body;
+    const { rules = [], anomalyDetection = true, calculateReliabilityScore = true } = req.body;
     
     // Get file info
     const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);

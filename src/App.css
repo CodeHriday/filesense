@@ -42,6 +42,15 @@
   background-color: #1a252f;
 }
 
+.btn-success {
+  background-color: var(--success-color, #28a745);
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+}
+
 .btn-danger {
   background-color: var(--error-color);
   color: white;
