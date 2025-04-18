@@ -464,6 +464,7 @@
   background-color: rgba(250, 250, 250, 0.7);
   border: 1px solid #eee;
   border-bottom: none;
+  margin-top: 10px; /* Add some spacing on top */
 }
 
 .h-grid-line {
@@ -493,6 +494,21 @@
   left: 0;
   width: 100%;
   transition: height 0.5s ease-out;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.data-value-label {
+  color: #333;
+  font-weight: 500;
+  font-size: 12px;
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  top: -20px;
+  white-space: nowrap;
 }
 
 .data-point {

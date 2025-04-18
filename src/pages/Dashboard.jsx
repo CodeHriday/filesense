@@ -355,10 +355,25 @@ const Dashboard = () => {
     // Sort indices
     labelIndices.sort((a, b) => a - b);
     
-    // Get min and max values for visual scaling
+    // Get min and max values for visual scaling - to adjust the chart height
     const values = formattedPoints.map(p => p.value);
     const maxValue = Math.max(...values);
     const minValue = Math.min(...values);
+    
+    // Calculate height scaling factor to adjust chart height to visible range
+    // If values are all in the top range (e.g., 70-90%), we need to scale them
+    // to make the differences more visible
+    const scaleFactor = 100 / maxValue;
+    
+    // Adjust heights of data points to make the chart more visible
+    const adjustedPoints = formattedPoints.map(point => {
+      return {
+        ...point,
+        // Scale height so the highest value is at the top of the chart
+        // and the others are proportional to it
+        adjustedHeight: point.value * scaleFactor
+      };
+    });
     
     // Create data table columns for accessibility
     const tableColumns = [
@@ -463,11 +478,7 @@ const Dashboard = () => {
                 </caption>
                 <tbody>
                   <tr>
-                    {formattedPoints.map((point, index) => {
-                      // Calculate actual column height as percentage of chart
-                      // This gives appropriate visual height based on value within chart
-                      const columnHeight = `${point.value}%`;
-                      
+                    {adjustedPoints.map((point, index) => {
                       return (
                         <td 
                           key={index} 
@@ -480,18 +491,25 @@ const Dashboard = () => {
                           <div 
                             className="data-column"
                             style={{
-                              height: columnHeight,
-                              backgroundColor: index === formattedPoints.length - 1 ? 
+                              height: `${point.adjustedHeight}%`,
+                              backgroundColor: index === adjustedPoints.length - 1 ? 
                                 getScoreColor(point.value) : '#1890FF',
-                              opacity: index === formattedPoints.length - 1 ? 1 : 0.8
+                              opacity: index === adjustedPoints.length - 1 ? 1 : 0.8
                             }}
-                          ></div>
+                          >
+                            {/* Add value label on top of the column */}
+                            {labelIndices.includes(index) && (
+                              <div className="data-value-label">
+                                {point.value}%
+                              </div>
+                            )}
+                          </div>
                           
                           {labelIndices.includes(index) && (
                             <div 
                               className="data-point"
                               style={{
-                                bottom: columnHeight,
+                                bottom: `${point.adjustedHeight}%`,
                                 backgroundColor: getScoreColor(point.value),
                                 borderColor: getScoreColor(point.value)
                               }}
