@@ -88,35 +88,45 @@ function DataProfile() {
           </Card>
         </div>
         
-        <Card title="Data Completeness">
+        <Card title="Column Details">
           {columns && columns.length > 0 ? (
-            <div className="completeness-bars">
-              {columns.map((column) => {
-                const totalRows = basicInfo.rowCount || 100;
-                const nullCount = column.missing || 0;
-                const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
-                
-                return (
-                  <div key={column.name} className="completeness-bar-container">
-                    <div className="completeness-bar-header">
-                      <div className="column-name-wrapper" title={column.name}>
-                        <span className="column-name">{column.name}</span>
-                      </div>
-                      <div className="completeness-value-wrapper">
-                        <span className="completeness-value">
-                          {completeness}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="completeness-bar-track">
-                      <div 
-                        className="completeness-bar-fill" 
-                        style={{ width: `${completeness}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="completeness-table-container">
+              <table className="completeness-table">
+                <thead>
+                  <tr>
+                    <th className="col-name">Name</th>
+                    <th className="col-type">Type</th>
+                    <th className="col-completeness">Completeness</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {columns.map(column => {
+                    const totalRows = file.row_count || basicInfo.rowCount || 100;
+                    const nullCount = column.missing || 0;
+                    const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
+                    
+                    return (
+                      <tr key={column.name} className="completeness-row">
+                        <td className="col-name">{column.name}</td>
+                        <td className="col-type">{column.type}</td>
+                        <td className="col-completeness">
+                          <div className="completeness-bar-container">
+                            <div className="completeness-bar-track">
+                              <div 
+                                className="completeness-bar-fill" 
+                                style={{ width: `${completeness}%` }}
+                              ></div>
+                            </div>
+                            <span className="completeness-value">
+                              {completeness.toFixed(1)}%
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="empty-state">
