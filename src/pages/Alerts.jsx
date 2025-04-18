@@ -118,10 +118,16 @@ function Alerts() {
       <>
         <div className="tab-header">
           <h2>Alert Rules</h2>
-          <button className="btn btn-primary" onClick={handleAddRule}>
-            <FiPlus className="btn-icon" />
-            Add Rule
-          </button>
+          {hasWritePermission('alerts') ? (
+            <button className="btn btn-primary" onClick={handleAddRule}>
+              <FiPlus className="btn-icon" />
+              Add Rule
+            </button>
+          ) : (
+            <div className="permission-notice">
+              Write permission required to create alert rules
+            </div>
+          )}
         </div>
         
         {showRuleForm && (
@@ -226,10 +232,16 @@ function Alerts() {
                 Configure alert rules to monitor your data files for quality issues,
                 schema changes, and more.
               </p>
-              <button className="btn btn-primary" onClick={handleAddRule}>
-                <FiPlus className="btn-icon" />
-                Create Your First Alert Rule
-              </button>
+              {hasWritePermission('alerts') ? (
+                <button className="btn btn-primary" onClick={handleAddRule}>
+                  <FiPlus className="btn-icon" />
+                  Create Your First Alert Rule
+                </button>
+              ) : (
+                <div className="permission-notice">
+                  Write permission required to create alert rules
+                </div>
+              )}
             </div>
           </Card>
         ) : (
@@ -249,20 +261,24 @@ function Alerts() {
                     )}
                   </div>
                   <div className="rule-actions">
-                    <button 
-                      className="action-button" 
-                      title="Edit Rule"
-                      onClick={() => handleEditRule(rule)}
-                    >
-                      <FiEdit2 />
-                    </button>
-                    <button 
-                      className="action-button delete-button" 
-                      title="Delete Rule"
-                      onClick={() => handleDeleteRule(rule.id)}
-                    >
-                      <FiTrash2 />
-                    </button>
+                    {hasWritePermission('alerts') && (
+                      <>
+                        <button 
+                          className="action-button" 
+                          title="Edit Rule"
+                          onClick={() => handleEditRule(rule)}
+                        >
+                          <FiEdit2 />
+                        </button>
+                        <button 
+                          className="action-button delete-button" 
+                          title="Delete Rule"
+                          onClick={() => handleDeleteRule(rule.id)}
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="rule-content">
