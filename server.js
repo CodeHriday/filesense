@@ -885,6 +885,145 @@ app.delete('/api/mappings/:id', async (req, res) => {
   }
 });
 
+// File Lineage API endpoints
+app.get('/api/lineage', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT l.*, 
+             sf.filename as source_filename, 
+             tf.filename as target_filename,
+             sf.file_type as source_file_type,
+             tf.file_type as target_file_type
+      FROM file_lineage l
+      JOIN files sf ON l.source_file_id = sf.file_id
+      JOIN files tf ON l.target_file_id = tf.file_id
+      ORDER BY l.created_at DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching file lineage:', err);
+    res.status(500).json({ error: 'Failed to fetch file lineage data' });
+  }
+});
+
+app.get('/api/lineage/:fileId', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Get both upstream and downstream relationships
+    const result = await pool.query(`
+      SELECT l.*, 
+             sf.filename as source_filename, 
+             tf.filename as target_filename,
+             sf.file_type as source_file_type,
+             tf.file_type as target_file_type,
+             'downstream' as direction
+      FROM file_lineage l
+      JOIN files sf ON l.source_file_id = sf.file_id
+      JOIN files tf ON l.target_file_id = tf.file_id
+      WHERE l.source_file_id = $1
+      
+      UNION ALL
+      
+      SELECT l.*, 
+             sf.filename as source_filename, 
+             tf.filename as target_filename,
+             sf.file_type as source_file_type,
+             tf.file_type as target_file_type,
+             'upstream' as direction
+      FROM file_lineage l
+      JOIN files sf ON l.source_file_id = sf.file_id
+      JOIN files tf ON l.target_file_id = tf.file_id
+      WHERE l.target_file_id = $1
+      
+      ORDER BY created_at DESC
+    `, [fileId]);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching file lineage for specific file:', err);
+    res.status(500).json({ error: 'Failed to fetch file lineage data' });
+  }
+});
+
+app.post('/api/lineage', async (req, res) => {
+  try {
+    const { source_file_id, target_file_id, relationship_type, transformation_details } = req.body;
+    
+    // Validate that source and target are different files
+    if (source_file_id === target_file_id) {
+      return res.status(400).json({ error: 'Source and target files must be different' });
+    }
+    
+    // Check if files exist
+    const sourceFileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [source_file_id]);
+    const targetFileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [target_file_id]);
+    
+    if (sourceFileResult.rows.length === 0 || targetFileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Source or target file not found' });
+    }
+    
+    // Insert the new lineage record
+    const result = await pool.query(
+      `INSERT INTO file_lineage 
+        (source_file_id, target_file_id, relationship_type, transformation_details) 
+       VALUES 
+        ($1, $2, $3, $4) 
+       RETURNING *`,
+      [source_file_id, target_file_id, relationship_type, transformation_details || {}]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating file lineage:', err);
+    res.status(500).json({ error: 'Failed to create file lineage relationship' });
+  }
+});
+
+app.put('/api/lineage/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { relationship_type, transformation_details } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE file_lineage 
+       SET relationship_type = $1, 
+           transformation_details = $2, 
+           updated_at = NOW() 
+       WHERE id = $3 
+       RETURNING *`,
+      [relationship_type, transformation_details || {}, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Lineage relationship not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating file lineage:', err);
+    res.status(500).json({ error: 'Failed to update file lineage relationship' });
+  }
+});
+
+app.delete('/api/lineage/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM file_lineage WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Lineage relationship not found' });
+    }
+    
+    res.json({ message: 'Lineage relationship deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting file lineage:', err);
+    res.status(500).json({ error: 'Failed to delete file lineage relationship' });
+  }
+});
+
 // Global error handler middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error in request:', err);
