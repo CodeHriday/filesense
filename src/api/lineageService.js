@@ -32,6 +32,25 @@ export const getFileLineage = async (fileId) => {
 };
 
 /**
+ * Get impact analysis for a file (traces lineage recursively)
+ * @param {string} fileId - The file ID to analyze
+ * @param {string} [direction='downstream'] - The direction of analysis ('upstream' or 'downstream')
+ * @param {number} [depth=5] - Maximum depth of the impact analysis
+ * @returns {Promise<Object>} Impact analysis results with graph structure
+ */
+export const getImpactAnalysis = async (fileId, direction = 'downstream', depth = 5) => {
+  try {
+    const response = await axios.get(`${API_URL}/lineage/${fileId}/impact`, {
+      params: { direction, depth }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching impact analysis:', error);
+    throw error;
+  }
+};
+
+/**
  * Create a new lineage relationship
  * @param {Object} lineageData - Lineage data
  * @param {string} lineageData.source_file_id - Source file ID

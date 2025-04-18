@@ -10,6 +10,7 @@ import Alerts from './pages/Alerts';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
 import FileLineage from './pages/FileLineage';
+import LineageImpact from './pages/LineageImpact';
 import Monitor from './pages/Monitor';
 import './App.css';
 
@@ -30,6 +31,7 @@ function App() {
               <Route path="/connections" element={<Connections />} />
               <Route path="/mappings" element={<Mappings />} />
               <Route path="/lineage" element={<FileLineage />} />
+              <Route path="/lineage/impact/:fileId" element={<LineageImpact />} />
               <Route path="/monitor" element={<Monitor />} />
             </Routes>
           </main>

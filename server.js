@@ -947,6 +947,173 @@ app.get('/api/lineage/:fileId', async (req, res) => {
   }
 });
 
+// Impact Analysis endpoint - recursively trace lineage
+app.get('/api/lineage/:fileId/impact', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { direction = 'downstream', depth = 5 } = req.query;
+    
+    // Get the starting file information
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const rootFile = fileResult.rows[0];
+    
+    // Use recursive CTE to trace lineage to specified depth
+    const query = direction === 'upstream' 
+      ? `
+        WITH RECURSIVE lineage_tree AS (
+          -- Base case: start with the specified file as target
+          SELECT 
+            l.id, 
+            l.source_file_id, 
+            l.target_file_id, 
+            l.relationship_type,
+            l.transformation_details,
+            sf.filename as source_filename,
+            tf.filename as target_filename,
+            sf.file_type as source_file_type,
+            tf.file_type as target_file_type,
+            1 as depth
+          FROM file_lineage l
+          JOIN files sf ON l.source_file_id = sf.file_id
+          JOIN files tf ON l.target_file_id = tf.file_id
+          WHERE l.target_file_id = $1
+          
+          UNION ALL
+          
+          -- Recursive case: find the "upstream" files
+          SELECT 
+            l.id, 
+            l.source_file_id, 
+            l.target_file_id, 
+            l.relationship_type,
+            l.transformation_details,
+            sf.filename as source_filename,
+            tf.filename as target_filename,
+            sf.file_type as source_file_type,
+            tf.file_type as target_file_type,
+            lt.depth + 1
+          FROM file_lineage l
+          JOIN files sf ON l.source_file_id = sf.file_id
+          JOIN files tf ON l.target_file_id = tf.file_id
+          JOIN lineage_tree lt ON l.target_file_id = lt.source_file_id
+          WHERE lt.depth < $2
+        )
+        SELECT * FROM lineage_tree ORDER BY depth;
+      `
+      : `
+        WITH RECURSIVE lineage_tree AS (
+          -- Base case: start with the specified file as source
+          SELECT 
+            l.id, 
+            l.source_file_id, 
+            l.target_file_id, 
+            l.relationship_type,
+            l.transformation_details,
+            sf.filename as source_filename,
+            tf.filename as target_filename,
+            sf.file_type as source_file_type,
+            tf.file_type as target_file_type,
+            1 as depth
+          FROM file_lineage l
+          JOIN files sf ON l.source_file_id = sf.file_id
+          JOIN files tf ON l.target_file_id = tf.file_id
+          WHERE l.source_file_id = $1
+          
+          UNION ALL
+          
+          -- Recursive case: find the "downstream" files
+          SELECT 
+            l.id, 
+            l.source_file_id, 
+            l.target_file_id, 
+            l.relationship_type,
+            l.transformation_details,
+            sf.filename as source_filename,
+            tf.filename as target_filename,
+            sf.file_type as source_file_type,
+            tf.file_type as target_file_type,
+            lt.depth + 1
+          FROM file_lineage l
+          JOIN files sf ON l.source_file_id = sf.file_id
+          JOIN files tf ON l.target_file_id = tf.file_id
+          JOIN lineage_tree lt ON l.source_file_id = lt.target_file_id
+          WHERE lt.depth < $2
+        )
+        SELECT * FROM lineage_tree ORDER BY depth;
+      `;
+    
+    const impactResult = await pool.query(query, [fileId, depth]);
+    
+    // Build a graph structure for the impact analysis
+    const graph = {
+      nodes: [
+        // Add the root node (starting file)
+        {
+          id: rootFile.file_id,
+          label: rootFile.filename,
+          type: rootFile.file_type,
+          level: 0, // Root level
+          isRoot: true
+        }
+      ],
+      edges: []
+    };
+    
+    const processedNodes = new Set([rootFile.file_id]);
+    
+    // Process lineage relationships into graph structure
+    impactResult.rows.forEach(rel => {
+      const sourceId = rel.source_file_id;
+      const targetId = rel.target_file_id;
+      
+      // Add nodes if they don't exist
+      if (!processedNodes.has(sourceId)) {
+        graph.nodes.push({
+          id: sourceId,
+          label: rel.source_filename,
+          type: rel.source_file_type,
+          level: direction === 'upstream' ? rel.depth : rel.depth - 1
+        });
+        processedNodes.add(sourceId);
+      }
+      
+      if (!processedNodes.has(targetId)) {
+        graph.nodes.push({
+          id: targetId,
+          label: rel.target_filename,
+          type: rel.target_file_type,
+          level: direction === 'upstream' ? rel.depth - 1 : rel.depth
+        });
+        processedNodes.add(targetId);
+      }
+      
+      // Add edge
+      graph.edges.push({
+        id: rel.id,
+        source: sourceId,
+        target: targetId,
+        label: rel.relationship_type,
+        details: rel.transformation_details
+      });
+    });
+    
+    res.json({
+      rootFile,
+      direction,
+      impactGraph: graph,
+      relationships: impactResult.rows
+    });
+  } catch (err) {
+    console.error('Error performing impact analysis:', err);
+    res.status(500).json({ error: 'Failed to analyze impact: ' + err.message });
+  }
+});
+
 app.post('/api/lineage', async (req, res) => {
   try {
     const { source_file_id, target_file_id, relationship_type, transformation_details } = req.body;
