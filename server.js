@@ -1033,7 +1033,9 @@ app.get('/api/files/:fileId/profile', async (req, res) => {
       mean: col.mean_value,
       median: col.median_value,
       stdDev: col.std_dev,
-      histogram: col.histogram ? JSON.parse(col.histogram) : null
+      histogram: col.histogram ? JSON.parse(col.histogram) : null,
+      most_frequent_value: col.most_frequent_value,
+      least_frequent_value: col.least_frequent_value
     }));
     
     const profile = {
