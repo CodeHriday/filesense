@@ -70,6 +70,13 @@ function Sidebar() {
           </li>
           
           <li>
+            <NavLink to="/dashboard-settings" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiSettings className="icon" />
+              <span>Dashboard Settings</span>
+            </NavLink>
+          </li>
+          
+          <li>
             <NavLink to="/badges" className={({ isActive }) => isActive ? 'active' : ''}>
               <FiAward className="icon" />
               <span>Achievement Badges</span>

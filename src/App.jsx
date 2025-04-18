@@ -17,6 +17,7 @@ import Badges from './pages/Badges';
 import DataInsights from './pages/DataInsights';
 import Recommendations from './pages/Recommendations';
 import DataStories from './pages/DataStories';
+import DashboardSettings from './pages/DashboardSettings';
 import OnboardingWizard from './components/OnboardingWizard';
 import './App.css';
 
@@ -54,6 +55,7 @@ function App() {
               <Route path="/insights" element={<DataInsights />} />
               <Route path="/recommendations" element={<Recommendations />} />
               <Route path="/stories" element={<DataStories />} />
+              <Route path="/dashboard-settings" element={<DashboardSettings />} />
             </Routes>
           </main>
         </div>
