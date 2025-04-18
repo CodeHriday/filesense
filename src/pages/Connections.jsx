@@ -1094,6 +1094,50 @@ const Connections = () => {
                         Connect to Databricks
                       </button>
                     </div>
+
+                    <div className="cloud-provider-section sharepoint">
+                      <div className="cloud-provider-header">
+                        <FiFolder className="cloud-provider-icon sharepoint" />
+                        <div className="cloud-provider-title">
+                          <h3>SharePoint</h3>
+                          <div className="cloud-provider-features">
+                            Access files from Microsoft SharePoint document libraries
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Microsoft SharePoint to access files from your organization's document libraries.
+                        Import spreadsheets, reports, and data files directly from SharePoint sites.
+                      </p>
+                      <button className="btn btn-outline" onClick={() => {
+                        setFormData({...formData, connection_type: 'sharepoint'});
+                        handleAddNew();
+                      }}>
+                        Connect to SharePoint
+                      </button>
+                    </div>
+
+                    <div className="cloud-provider-section outlook">
+                      <div className="cloud-provider-header">
+                        <FiMail className="cloud-provider-icon outlook" />
+                        <div className="cloud-provider-title">
+                          <h3>Outlook</h3>
+                          <div className="cloud-provider-features">
+                            Process email attachments from Outlook folders
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Microsoft Outlook to access and process file attachments from emails.
+                        Automatically import data from scheduled reports sent to your inbox.
+                      </p>
+                      <button className="btn btn-outline" onClick={() => {
+                        setFormData({...formData, connection_type: 'outlook'});
+                        handleAddNew();
+                      }}>
+                        Connect to Outlook
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : (

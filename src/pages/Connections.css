@@ -48,6 +48,22 @@
   border-left-color: #0078D4;
 }
 
+.connection-card.snowflake {
+  border-left-color: #29B5E8;
+}
+
+.connection-card.databricks {
+  border-left-color: #FF3621;
+}
+
+.connection-card.sharepoint {
+  border-left-color: #036C70;
+}
+
+.connection-card.outlook {
+  border-left-color: #0078D4;
+}
+
 .connection-header {
   display: flex;
   align-items: center;
@@ -69,6 +85,22 @@
 }
 
 .connection-icon.azure {
+  color: #0078D4;
+}
+
+.connection-icon.snowflake {
+  color: #29B5E8;
+}
+
+.connection-icon.databricks {
+  color: #FF3621;
+}
+
+.connection-icon.sharepoint {
+  color: #036C70;
+}
+
+.connection-icon.outlook {
   color: #0078D4;
 }
 
@@ -226,6 +258,14 @@
   border-left-color: #FF3621;
 }
 
+.cloud-provider-section.sharepoint {
+  border-left-color: #036C70;
+}
+
+.cloud-provider-section.outlook {
+  border-left-color: #0078D4;
+}
+
 .cloud-provider-header {
   display: flex;
   align-items: center;
@@ -255,6 +295,14 @@
 
 .cloud-provider-icon.databricks {
   color: #FF3621;
+}
+
+.cloud-provider-icon.sharepoint {
+  color: #036C70;
+}
+
+.cloud-provider-icon.outlook {
+  color: #0078D4;
 }
 
 .cloud-provider-title {
