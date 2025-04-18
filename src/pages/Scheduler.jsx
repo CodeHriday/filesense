@@ -1,497 +1,542 @@
-import React, { useState, useEffect } from "react";
-import {
-  FiCalendar,
-  FiClock,
-  FiRepeat,
-  FiCheck,
-  FiPlus,
-  FiPlay,
-  FiEdit2,
-  FiTrash2,
-  FiX,
-  FiRefreshCw,
-  FiAlertCircle,
-} from "react-icons/fi";
-import { AnimatedButton as Button } from "../components/MicroAnimations";
-import Modal from "../components/Modal";
-import { 
-  getSchedules, 
-  createSchedule, 
-  updateSchedule, 
-  deleteSchedule,
-  runScheduleNow
-} from "../api/schedulerService";
-import { getFileCatalog } from "../api/fileService";
-import LoadingSpinner from "../components/LoadingSpinner";
-import PageHeader from "../components/PageHeader";
-import "../components/styles/Scheduler.css";
-import { formatRelativeTime } from "../utils/formatters";
+import React, { useState, useEffect } from 'react';
+import { FiCalendar, FiClock, FiPlusCircle, FiEdit2, FiTrash2, FiPlay } from 'react-icons/fi';
+import { PageTransition } from '../components/MicroAnimations';
+import PageHeader from '../components/PageHeader';
+import Modal from '../components/Modal';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { AnimatedButton } from '../components/MicroAnimations';
+import { getSchedules, createSchedule, updateSchedule, deleteSchedule, runScheduleNow } from '../api/schedulerService';
+import '../components/styles/Scheduler.css';
+import { formatRelativeTime } from '../utils/formatters';
 
 const Scheduler = () => {
   const [schedules, setSchedules] = useState([]);
-  const [files, setFiles] = useState([]);
+  const [filteredSchedules, setFilteredSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState(null);
-  const [formData, setFormData] = useState({
-    fileId: "",
-    frequency: "daily",
-    time: "09:00",
-    day: 1,
-    isActive: true,
-  });
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [currentSchedule, setCurrentSchedule] = useState(null);
+  const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'delete'
+  const [formData, setFormData] = useState({
+    file_id: '',
+    frequency: 'daily',
+    time: '12:00',
+    day: 1,
+    is_active: true
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [alertMessage, setAlertMessage] = useState(null);
+  const [alertType, setAlertType] = useState('info'); // 'success', 'error', 'warning', 'info'
 
-  // Fetch schedules and files on load
+  // Load schedules on component mount
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [schedulesData, filesData] = await Promise.all([
-          getSchedules(),
-          getFileCatalog(),
-        ]);
-        setSchedules(schedulesData);
-        setFiles(filesData);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching scheduler data:", err);
-        setError("Failed to load schedule data. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchSchedules();
   }, []);
 
-  // Refresh schedules
-  const handleRefresh = async () => {
-    setRefreshing(true);
+  // Filter schedules based on search term
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredSchedules(schedules);
+    } else {
+      const term = searchTerm.toLowerCase();
+      const filtered = schedules.filter(schedule => {
+        return (
+          schedule.file_id.toLowerCase().includes(term) ||
+          schedule.frequency.toLowerCase().includes(term)
+        );
+      });
+      setFilteredSchedules(filtered);
+    }
+  }, [searchTerm, schedules]);
+
+  // Fetch all schedules
+  const fetchSchedules = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const schedulesData = await getSchedules();
-      setSchedules(schedulesData);
-      setError(null);
+      const data = await getSchedules();
+      setSchedules(data);
+      setFilteredSchedules(data);
     } catch (err) {
-      console.error("Error refreshing schedules:", err);
-      setError("Failed to refresh schedules. Please try again later.");
+      console.error('Failed to fetch schedules:', err);
+      setError('Failed to load schedules. Please try again later.');
     } finally {
-      setRefreshing(false);
+      setLoading(false);
     }
   };
 
-  // Form handlers
+  // Show alert message
+  const showAlert = (message, type = 'info', duration = 5000) => {
+    setAlertMessage(message);
+    setAlertType(type);
+    
+    if (duration > 0) {
+      setTimeout(() => {
+        setAlertMessage(null);
+      }, duration);
+    }
+  };
+
+  // Open modal for creating a new schedule
+  const openCreateModal = () => {
+    setCurrentSchedule(null);
+    setFormData({
+      file_id: '',
+      frequency: 'daily',
+      time: '12:00',
+      day: 1,
+      is_active: true
+    });
+    setFormErrors({});
+    setModalMode('create');
+    setModalOpen(true);
+  };
+
+  // Open modal for editing a schedule
+  const openEditModal = (schedule) => {
+    setCurrentSchedule(schedule);
+    setFormData({
+      file_id: schedule.file_id,
+      frequency: schedule.frequency,
+      time: schedule.time || '12:00',
+      day: schedule.day || 1,
+      is_active: schedule.is_active
+    });
+    setFormErrors({});
+    setModalMode('edit');
+    setModalOpen(true);
+  };
+
+  // Open modal for deleting a schedule
+  const openDeleteModal = (schedule) => {
+    setCurrentSchedule(schedule);
+    setModalMode('delete');
+    setModalOpen(true);
+  };
+
+  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleFrequencySelect = (frequency) => {
-    setFormData((prev) => ({ ...prev, frequency }));
-  };
-
-  // Modal handlers
-  const openAddModal = () => {
     setFormData({
-      fileId: files.length > 0 ? files[0].file_id : "",
-      frequency: "daily",
-      time: "09:00",
-      day: 1,
-      isActive: true,
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
     });
-    setShowAddModal(true);
-  };
-
-  const openEditModal = (schedule) => {
-    setSelectedSchedule(schedule);
-    setFormData({
-      fileId: schedule.file_id,
-      frequency: schedule.frequency,
-      time: schedule.time || "09:00",
-      day: schedule.day || 1,
-      isActive: schedule.is_active,
-    });
-    setShowEditModal(true);
-  };
-
-  const openDeleteModal = (schedule) => {
-    setSelectedSchedule(schedule);
-    setShowDeleteModal(true);
-  };
-
-  // CRUD operations
-  const handleCreate = async () => {
-    try {
-      await createSchedule(formData);
-      setShowAddModal(false);
-      await handleRefresh();
-    } catch (err) {
-      console.error("Error creating schedule:", err);
-      setError("Failed to create schedule. Please try again.");
+    
+    // Clear error for this field if it exists
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: null
+      });
     }
   };
 
-  const handleUpdate = async () => {
+  // Validate form data
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.file_id.trim()) {
+      errors.file_id = 'File ID is required';
+    }
+    
+    if (!formData.frequency) {
+      errors.frequency = 'Frequency is required';
+    }
+    
+    if (formData.frequency !== 'hourly' && !formData.time) {
+      errors.time = 'Time is required for this frequency';
+    }
+    
+    if (formData.frequency === 'weekly' && (formData.day < 0 || formData.day > 6)) {
+      errors.day = 'Day must be between 0 (Sunday) and 6 (Saturday)';
+    }
+    
+    if (formData.frequency === 'monthly' && (formData.day < 1 || formData.day > 31)) {
+      errors.day = 'Day must be between 1 and 31';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setFormSubmitting(true);
+    
     try {
-      await updateSchedule(selectedSchedule.id, formData);
-      setShowEditModal(false);
-      await handleRefresh();
+      if (modalMode === 'create') {
+        await createSchedule(formData);
+        showAlert('Schedule created successfully', 'success');
+      } else if (modalMode === 'edit') {
+        await updateSchedule(currentSchedule.id, formData);
+        showAlert('Schedule updated successfully', 'success');
+      }
+      
+      setModalOpen(false);
+      fetchSchedules();
     } catch (err) {
-      console.error("Error updating schedule:", err);
-      setError("Failed to update schedule. Please try again.");
+      console.error('Error submitting form:', err);
+      showAlert('Failed to save schedule. Please try again.', 'error');
+    } finally {
+      setFormSubmitting(false);
     }
   };
 
+  // Handle schedule deletion
   const handleDelete = async () => {
+    if (!currentSchedule) return;
+    
+    setFormSubmitting(true);
+    
     try {
-      await deleteSchedule(selectedSchedule.id);
-      setShowDeleteModal(false);
-      await handleRefresh();
+      await deleteSchedule(currentSchedule.id);
+      showAlert('Schedule deleted successfully', 'success');
+      setModalOpen(false);
+      fetchSchedules();
     } catch (err) {
-      console.error("Error deleting schedule:", err);
-      setError("Failed to delete schedule. Please try again.");
+      console.error('Error deleting schedule:', err);
+      showAlert('Failed to delete schedule. Please try again.', 'error');
+    } finally {
+      setFormSubmitting(false);
     }
   };
 
+  // Handle running a schedule now
   const handleRunNow = async (scheduleId) => {
     try {
       await runScheduleNow(scheduleId);
-      await handleRefresh();
+      showAlert('Schedule execution started', 'success');
+      setTimeout(fetchSchedules, 1000); // Refresh after a short delay
     } catch (err) {
-      console.error("Error running schedule:", err);
-      setError("Failed to run schedule. Please try again.");
+      console.error('Error running schedule:', err);
+      showAlert('Failed to run schedule. Please try again.', 'error');
     }
   };
 
-  // Render frequency text
-  const renderFrequencyText = (schedule) => {
-    switch (schedule.frequency) {
-      case "hourly":
-        return "Every hour";
-      case "daily":
-        return `Every day at ${schedule.time || "00:00"}`;
-      case "weekly":
-        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        return `Every ${days[schedule.day || 0]} at ${schedule.time || "00:00"}`;
-      case "monthly":
-        return `Day ${schedule.day || 1} of each month at ${schedule.time || "00:00"}`;
+  // Render frequency in a human-readable format
+  const renderFrequency = (schedule) => {
+    const { frequency, time, day } = schedule;
+    
+    switch (frequency) {
+      case 'hourly':
+        return 'Every hour';
+      case 'daily':
+        return `Daily at ${time || '00:00'}`;
+      case 'weekly':
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return `Weekly on ${days[day || 0]} at ${time || '00:00'}`;
+      case 'monthly':
+        const dayStr = day || 1;
+        const suffix = dayStr === 1 ? 'st' : dayStr === 2 ? 'nd' : dayStr === 3 ? 'rd' : 'th';
+        return `Monthly on the ${dayStr}${suffix} at ${time || '00:00'}`;
       default:
-        return "Custom schedule";
+        return frequency;
     }
   };
 
-  // Get file name from file ID
-  const getFileName = (fileId) => {
-    const file = files.find((f) => f.file_id === fileId);
-    return file ? file.filename : "Unknown file";
-  };
-
-  // Render schedule form (for add/edit modals)
-  const renderScheduleForm = () => (
-    <div className="schedule-form">
-      <div className="form-group">
-        <label htmlFor="fileId">Select File</label>
-        <select
-          id="fileId"
-          name="fileId"
-          className="form-control"
-          value={formData.fileId}
-          onChange={handleInputChange}
-          required
-        >
-          <option value="">Select a file</option>
-          {files.map((file) => (
-            <option key={file.file_id} value={file.file_id}>
-              {file.filename}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-group">
-        <label>Frequency</label>
-        <div className="frequency-options">
-          {["hourly", "daily", "weekly", "monthly"].map((freq) => (
-            <div
-              key={freq}
-              className={`frequency-option ${
-                formData.frequency === freq ? "frequency-option-active" : ""
-              }`}
-              onClick={() => handleFrequencySelect(freq)}
+  // Render modal content based on mode
+  const renderModalContent = () => {
+    if (modalMode === 'delete') {
+      return (
+        <div className="delete-confirmation">
+          <p>Are you sure you want to delete this schedule?</p>
+          <p className="delete-item-details">
+            {currentSchedule && (
+              <>
+                <span className="delete-item-title">File ID: {currentSchedule.file_id}</span>
+                <span className="delete-item-subtitle">{renderFrequency(currentSchedule)}</span>
+              </>
+            )}
+          </p>
+          <div className="modal-actions">
+            <AnimatedButton
+              variant="secondary"
+              onClick={() => setModalOpen(false)}
+              disabled={formSubmitting}
             >
-              {freq.charAt(0).toUpperCase() + freq.slice(1)}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {formData.frequency !== "hourly" && (
-        <div className="form-group">
-          <label htmlFor="time">Time</label>
-          <input
-            type="time"
-            id="time"
-            name="time"
-            className="form-control"
-            value={formData.time}
-            onChange={handleInputChange}
-          />
-        </div>
-      )}
-
-      {formData.frequency === "weekly" && (
-        <div className="form-group">
-          <label htmlFor="day">Day of Week</label>
-          <select
-            id="day"
-            name="day"
-            className="form-control"
-            value={formData.day}
-            onChange={handleInputChange}
-          >
-            <option value="0">Sunday</option>
-            <option value="1">Monday</option>
-            <option value="2">Tuesday</option>
-            <option value="3">Wednesday</option>
-            <option value="4">Thursday</option>
-            <option value="5">Friday</option>
-            <option value="6">Saturday</option>
-          </select>
-        </div>
-      )}
-
-      {formData.frequency === "monthly" && (
-        <div className="form-group">
-          <label htmlFor="day">Day of Month</label>
-          <select
-            id="day"
-            name="day"
-            className="form-control"
-            value={formData.day}
-            onChange={handleInputChange}
-          >
-            {[...Array(31)].map((_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {i + 1}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="form-group">
-        <label htmlFor="isActive">
-          <input
-            type="checkbox"
-            id="isActive"
-            name="isActive"
-            checked={formData.isActive}
-            onChange={handleInputChange}
-          />
-          {" "}Active
-        </label>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="schedule-page">
-      <PageHeader
-        title="File Scheduler"
-        subtitle="Schedule automated file processing tasks"
-        icon={<FiCalendar />}
-        actions={
-          <Button
-            variant="primary"
-            onClick={openAddModal}
-            icon={<FiPlus />}
-            disabled={files.length === 0}
-          >
-            New Schedule
-          </Button>
-        }
-      />
-
-      {error && (
-        <div className="alert alert-error">
-          <FiAlertCircle /> {error}
-        </div>
-      )}
-
-      <div className="schedule-container">
-        <div className="schedule-header">
-          <h2>Active Schedules</h2>
-          <Button
-            variant="text"
-            onClick={handleRefresh}
-            icon={<FiRefreshCw />}
-            loading={refreshing}
-          >
-            Refresh
-          </Button>
-        </div>
-
-        {loading ? (
-          <LoadingSpinner />
-        ) : schedules.length > 0 ? (
-          <div className="schedule-list">
-            {schedules.map((schedule) => (
-              <div key={schedule.id} className="schedule-item">
-                <div className="schedule-info">
-                  <div className="schedule-file-name">
-                    {getFileName(schedule.file_id)}
-                    <span
-                      className={`schedule-tag ${
-                        schedule.is_active
-                          ? "schedule-tag-active"
-                          : "schedule-tag-inactive"
-                      }`}
-                    >
-                      {schedule.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                  <div className="schedule-details">
-                    <div className="schedule-detail">
-                      <FiRepeat className="schedule-icon" />
-                      {renderFrequencyText(schedule)}
-                    </div>
-                    {schedule.next_run && (
-                      <div className="schedule-detail">
-                        <FiClock className="schedule-icon" />
-                        Next run: {formatRelativeTime(new Date(schedule.next_run))}
-                      </div>
-                    )}
-                    {schedule.last_run && (
-                      <div className="schedule-detail">
-                        <FiCheck className="schedule-icon" />
-                        Last run: {formatRelativeTime(new Date(schedule.last_run))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="schedule-actions">
-                  <Button
-                    variant="icon"
-                    onClick={() => handleRunNow(schedule.id)}
-                    title="Run Now"
-                    icon={<FiPlay />}
-                  />
-                  <Button
-                    variant="icon"
-                    onClick={() => openEditModal(schedule)}
-                    title="Edit"
-                    icon={<FiEdit2 />}
-                  />
-                  <Button
-                    variant="icon"
-                    onClick={() => openDeleteModal(schedule)}
-                    title="Delete"
-                    color="danger"
-                    icon={<FiTrash2 />}
-                  />
-                </div>
-              </div>
-            ))}
+              Cancel
+            </AnimatedButton>
+            <AnimatedButton
+              variant="danger"
+              onClick={handleDelete}
+              loading={formSubmitting}
+            >
+              Delete
+            </AnimatedButton>
           </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiCalendar />
-            </div>
-            <h3 className="empty-state-title">No Schedules Found</h3>
-            <p className="empty-state-description">
-              You haven't created any file processing schedules yet.
-            </p>
-            <Button
-              variant="primary"
-              onClick={openAddModal}
-              icon={<FiPlus />}
-              disabled={files.length === 0}
-            >
-              Create Your First Schedule
-            </Button>
+        </div>
+      );
+    }
+    
+    return (
+      <form onSubmit={handleSubmit} className="schedule-form">
+        <div className="form-group">
+          <label htmlFor="file_id">File ID *</label>
+          <input
+            type="text"
+            id="file_id"
+            name="file_id"
+            value={formData.file_id}
+            onChange={handleInputChange}
+            className={formErrors.file_id ? 'error' : ''}
+            disabled={formSubmitting}
+            required
+          />
+          {formErrors.file_id && <div className="error-message">{formErrors.file_id}</div>}
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="frequency">Frequency *</label>
+          <select
+            id="frequency"
+            name="frequency"
+            value={formData.frequency}
+            onChange={handleInputChange}
+            className={formErrors.frequency ? 'error' : ''}
+            disabled={formSubmitting}
+            required
+          >
+            <option value="hourly">Hourly</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+          {formErrors.frequency && <div className="error-message">{formErrors.frequency}</div>}
+        </div>
+        
+        {formData.frequency !== 'hourly' && (
+          <div className="form-group">
+            <label htmlFor="time">Time *</label>
+            <input
+              type="time"
+              id="time"
+              name="time"
+              value={formData.time}
+              onChange={handleInputChange}
+              className={formErrors.time ? 'error' : ''}
+              disabled={formSubmitting}
+              required
+            />
+            {formErrors.time && <div className="error-message">{formErrors.time}</div>}
           </div>
         )}
+        
+        {formData.frequency === 'weekly' && (
+          <div className="form-group">
+            <label htmlFor="day">Day of Week *</label>
+            <select
+              id="day"
+              name="day"
+              value={formData.day}
+              onChange={handleInputChange}
+              className={formErrors.day ? 'error' : ''}
+              disabled={formSubmitting}
+              required
+            >
+              <option value="0">Sunday</option>
+              <option value="1">Monday</option>
+              <option value="2">Tuesday</option>
+              <option value="3">Wednesday</option>
+              <option value="4">Thursday</option>
+              <option value="5">Friday</option>
+              <option value="6">Saturday</option>
+            </select>
+            {formErrors.day && <div className="error-message">{formErrors.day}</div>}
+          </div>
+        )}
+        
+        {formData.frequency === 'monthly' && (
+          <div className="form-group">
+            <label htmlFor="day">Day of Month *</label>
+            <input
+              type="number"
+              id="day"
+              name="day"
+              value={formData.day}
+              onChange={handleInputChange}
+              min="1"
+              max="31"
+              className={formErrors.day ? 'error' : ''}
+              disabled={formSubmitting}
+              required
+            />
+            {formErrors.day && <div className="error-message">{formErrors.day}</div>}
+          </div>
+        )}
+        
+        <div className="form-group form-checkbox">
+          <input
+            type="checkbox"
+            id="is_active"
+            name="is_active"
+            checked={formData.is_active}
+            onChange={handleInputChange}
+            disabled={formSubmitting}
+          />
+          <label htmlFor="is_active">Active</label>
+        </div>
+        
+        <div className="modal-actions">
+          <AnimatedButton
+            variant="secondary"
+            onClick={() => setModalOpen(false)}
+            disabled={formSubmitting}
+            type="button"
+          >
+            Cancel
+          </AnimatedButton>
+          <AnimatedButton
+            variant="primary"
+            type="submit"
+            loading={formSubmitting}
+          >
+            {modalMode === 'create' ? 'Create' : 'Update'}
+          </AnimatedButton>
+        </div>
+      </form>
+    );
+  };
+
+  return (
+    <PageTransition>
+      <div className="scheduler-page">
+        <PageHeader
+          title="File Scheduler"
+          subtitle="Schedule automatic file profiling and analysis"
+          icon={<FiCalendar className="page-header-icon-svg" />}
+          actions={
+            <AnimatedButton
+              icon={<FiPlusCircle />}
+              onClick={openCreateModal}
+            >
+              New Schedule
+            </AnimatedButton>
+          }
+        />
+        
+        {alertMessage && (
+          <div className={`alert alert-${alertType}`}>
+            {alertMessage}
+          </div>
+        )}
+        
+        <div className="scheduler-content">
+          <div className="scheduler-filters">
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search schedules..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+              />
+            </div>
+          </div>
+          
+          {loading ? (
+            <div className="loading-container">
+              <LoadingSpinner size="large" text="Loading schedules..." />
+            </div>
+          ) : error ? (
+            <div className="error-container">
+              <div className="error-message">{error}</div>
+              <AnimatedButton onClick={fetchSchedules}>Retry</AnimatedButton>
+            </div>
+          ) : filteredSchedules.length === 0 ? (
+            <div className="empty-state">
+              <FiClock className="empty-state-icon" />
+              <h3 className="empty-state-title">No schedules found</h3>
+              <p className="empty-state-description">
+                {searchTerm ? 'No schedules match your search criteria.' : 'Create your first schedule to automate file profiling.'}
+              </p>
+              {!searchTerm && (
+                <AnimatedButton
+                  icon={<FiPlusCircle />}
+                  onClick={openCreateModal}
+                >
+                  Create Schedule
+                </AnimatedButton>
+              )}
+            </div>
+          ) : (
+            <div className="schedules-grid">
+              <div className="schedules-header">
+                <div className="schedule-cell">File ID</div>
+                <div className="schedule-cell">Frequency</div>
+                <div className="schedule-cell">Last Run</div>
+                <div className="schedule-cell">Next Run</div>
+                <div className="schedule-cell">Status</div>
+                <div className="schedule-cell">Actions</div>
+              </div>
+              <div className="schedules-body">
+                {filteredSchedules.map(schedule => (
+                  <div className="schedule-row" key={schedule.id}>
+                    <div className="schedule-cell">{schedule.file_id}</div>
+                    <div className="schedule-cell">{renderFrequency(schedule)}</div>
+                    <div className="schedule-cell">
+                      {schedule.last_run ? formatRelativeTime(new Date(schedule.last_run)) : 'Never'}
+                    </div>
+                    <div className="schedule-cell">
+                      {schedule.next_run ? formatRelativeTime(new Date(schedule.next_run)) : 'Not scheduled'}
+                    </div>
+                    <div className="schedule-cell">
+                      <span className={`status-badge ${schedule.is_active ? 'status-active' : 'status-inactive'}`}>
+                        {schedule.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="schedule-cell actions-cell">
+                      <button
+                        className="action-button"
+                        onClick={() => handleRunNow(schedule.id)}
+                        title="Run now"
+                      >
+                        <FiPlay />
+                      </button>
+                      <button
+                        className="action-button"
+                        onClick={() => openEditModal(schedule)}
+                        title="Edit"
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        className="action-button"
+                        onClick={() => openDeleteModal(schedule)}
+                        title="Delete"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <Modal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={
+            modalMode === 'create' ? 'Create Schedule' :
+            modalMode === 'edit' ? 'Edit Schedule' :
+            'Delete Schedule'
+          }
+          size={modalMode === 'delete' ? 'small' : 'medium'}
+        >
+          {renderModalContent()}
+        </Modal>
       </div>
-
-      {/* Add Schedule Modal */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Create New Schedule"
-        footer={
-          <>
-            <Button variant="text" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleCreate}
-              disabled={!formData.fileId}
-            >
-              Create Schedule
-            </Button>
-          </>
-        }
-      >
-        {renderScheduleForm()}
-      </Modal>
-
-      {/* Edit Schedule Modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title="Edit Schedule"
-        footer={
-          <>
-            <Button variant="text" onClick={() => setShowEditModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleUpdate}
-              disabled={!formData.fileId}
-            >
-              Save Changes
-            </Button>
-          </>
-        }
-      >
-        {renderScheduleForm()}
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title="Delete Schedule"
-        footer={
-          <>
-            <Button variant="text" onClick={() => setShowDeleteModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        <p>
-          Are you sure you want to delete the schedule for{" "}
-          <strong>
-            {selectedSchedule && getFileName(selectedSchedule.file_id)}
-          </strong>
-          ?
-        </p>
-        <p>This action cannot be undone.</p>
-      </Modal>
-    </div>
+    </PageTransition>
   );
 };
 
