@@ -791,6 +791,50 @@ const Connections = () => {
                         Connect to Azure
                       </button>
                     </div>
+                    
+                    <div className="cloud-provider-section snowflake">
+                      <div className="cloud-provider-header">
+                        <FiDatabase className="cloud-provider-icon snowflake" />
+                        <div className="cloud-provider-title">
+                          <h3>Snowflake</h3>
+                          <div className="cloud-provider-features">
+                            Connect to your Snowflake data warehouse
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Access data directly from your Snowflake data warehouse. Query tables and views
+                        to import data for profiling, quality checks, and lineage tracking.
+                      </p>
+                      <button className="btn btn-outline" onClick={() => {
+                        setFormData({...formData, connection_type: 'snowflake'});
+                        handleAddNew();
+                      }}>
+                        Connect to Snowflake
+                      </button>
+                    </div>
+                    
+                    <div className="cloud-provider-section databricks">
+                      <div className="cloud-provider-header">
+                        <FiDatabase className="cloud-provider-icon databricks" />
+                        <div className="cloud-provider-title">
+                          <h3>Databricks</h3>
+                          <div className="cloud-provider-features">
+                            Access data from your Databricks lakehouse
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Databricks to access tables and views from your lakehouse platform.
+                        Seamlessly import structured data for advanced profiling and quality monitoring.
+                      </p>
+                      <button className="btn btn-outline" onClick={() => {
+                        setFormData({...formData, connection_type: 'databricks'});
+                        handleAddNew();
+                      }}>
+                        Connect to Databricks
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : (
