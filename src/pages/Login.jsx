@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { THEME } from '../config';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -56,6 +57,11 @@ const Login = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
+          <img 
+            src="/images/blumetra-logo.png" 
+            alt="Blumetra" 
+            className="login-logo" 
+          />
           <h2>Data File Observatory</h2>
           <h3>Sign In</h3>
         </div>

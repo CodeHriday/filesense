@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { THEME } from '../config';
 import { FaUser, FaCog, FaSignOutAlt, FaChartBar, FaLightbulb, FaUsers } from 'react-icons/fa';
 import './Header.css';
 
@@ -37,6 +38,11 @@ function Header({ showAIInsights }) {
     <header className="header">
       <div className="logo">
         <Link to="/">
+          <img 
+            src="/images/blumetra-logo.png" 
+            alt="Blumetra" 
+            className="header-logo" 
+          />
           <h1>Data File Observatory</h1>
         </Link>
       </div>

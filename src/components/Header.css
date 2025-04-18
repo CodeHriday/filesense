@@ -2,20 +2,29 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background-color: var(--secondary-color);
+  padding: 0.8rem 2rem;
+  background-color: #0079C1;
   color: white;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  font-family: 'Poppins', sans-serif;
 }
 
 .header .logo a {
   color: white;
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .header .logo h1 {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   margin: 0;
+  font-weight: 500;
+}
+
+.header-logo {
+  height: 35px;
 }
 
 .header-actions {
@@ -29,12 +38,35 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: #4a6fdc;
-  transition: background-color 0.3s;
+  background-color: #FF5722;
+  transition: all 0.2s ease;
+  font-family: 'Poppins', sans-serif;
+  padding: 8px 15px;
+  border-radius: 6px;
 }
 
 .ai-insights-btn:hover {
-  background-color: #3a5fc5;
+  background-color: #E64A19;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn.btn-primary {
+  background-color: #0066A3;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-family: 'Poppins', sans-serif;
+  text-decoration: none;
+  color: white;
+}
+
+.btn.btn-primary:hover {
+  background-color: #005289;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* User Menu */
@@ -45,44 +77,50 @@
 .user-menu-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: none;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
+  border-radius: 6px;
   color: white;
-  padding: 6px 12px;
+  padding: 8px 14px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  font-family: 'Poppins', sans-serif;
 }
 
 .user-menu-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .user-menu-btn .username {
   margin-left: 5px;
-  max-width: 100px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 /* Dropdown Menu */
 .dropdown-menu {
   position: absolute;
-  top: 45px;
+  top: 48px;
   right: 0;
-  min-width: 240px;
+  min-width: 260px;
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   z-index: 1000;
   overflow: hidden;
+  font-family: 'Open Sans', sans-serif;
+  border-top: 3px solid #0079C1;
 }
 
 .dropdown-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #eee;
+  padding: 16px;
+  border-bottom: 1px solid #EEF2F6;
+  background-color: #F9FBFD;
 }
 
 .user-info {
@@ -91,45 +129,47 @@
 }
 
 .user-info strong {
-  color: #333;
-  font-size: 14px;
+  color: #333333;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .user-info small {
-  color: #666;
-  font-size: 12px;
-  margin-top: 2px;
+  color: #666666;
+  font-size: 13px;
+  margin-top: 3px;
 }
 
 .user-roles {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
+  gap: 5px;
+  margin-top: 8px;
 }
 
 .role-badge {
-  background-color: #e8f0fe;
-  color: #1a73e8;
-  padding: 2px 6px;
+  background-color: #EBF6FC;
+  color: #0079C1;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 .dropdown-content {
-  padding: 8px 0;
+  padding: 10px 0;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  color: #333;
+  gap: 10px;
+  padding: 10px 16px;
+  color: #333333;
   text-decoration: none;
   font-size: 14px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   cursor: pointer;
   width: 100%;
   text-align: left;
@@ -138,7 +178,8 @@
 }
 
 .dropdown-item:hover {
-  background-color: #f5f5f5;
+  background-color: #F4F7F9;
+  color: #0079C1;
 }
 
 /* High Contrast Mode */
