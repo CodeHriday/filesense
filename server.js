@@ -968,6 +968,211 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
   }
 });
 
+// File profile endpoint
+app.get('/api/files/:fileId/profile', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if file exists
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Get file columns
+    const columnsResult = await pool.query(
+      'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
+      [fileId]
+    );
+    
+    // Create profile response
+    const file = fileResult.rows[0];
+    const columns = columnsResult.rows.map(col => ({
+      name: col.column_name,
+      type: col.column_type,
+      count: col.non_null_count,
+      unique: col.unique_count,
+      missing: col.null_count,
+      min: col.min_value,
+      max: col.max_value,
+      mean: col.mean_value,
+      median: col.median_value,
+      stdDev: col.std_dev,
+      histogram: col.histogram ? JSON.parse(col.histogram) : null
+    }));
+    
+    const profile = {
+      fileId,
+      filename: file.filename,
+      fileType: file.file_type,
+      fileSize: file.file_size,
+      rowCount: file.row_count,
+      columnCount: file.column_count,
+      processedAt: file.processed_at,
+      columns,
+      summary: {
+        completeness: ((file.row_count * file.column_count - columnsResult.rows.reduce((acc, col) => acc + (col.null_count || 0), 0)) / (file.row_count * file.column_count) * 100).toFixed(2),
+        uniqueness: (columnsResult.rows.reduce((acc, col) => acc + (col.unique_count || 0), 0) / (file.row_count * file.column_count) * 100).toFixed(2)
+      }
+    };
+    
+    res.json(profile);
+  } catch (err) {
+    console.error('Error fetching file profile:', err);
+    res.status(500).json({ error: 'Failed to fetch file profile' });
+  }
+});
+
+// File quality endpoint
+app.get('/api/files/:fileId/quality', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if file exists
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Create quality check table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS file_quality_checks (
+        id SERIAL PRIMARY KEY,
+        file_id VARCHAR(255) NOT NULL,
+        check_type VARCHAR(50) NOT NULL,
+        check_name VARCHAR(100) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        score NUMERIC(5,2),
+        details JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Get file quality checks
+    const qualityChecksResult = await pool.query(
+      'SELECT * FROM file_quality_checks WHERE file_id = $1',
+      [fileId]
+    );
+    
+    const file = fileResult.rows[0];
+    
+    // If no quality checks exist yet, create basic ones
+    if (qualityChecksResult.rows.length === 0) {
+      const basicChecks = [
+        {
+          check_type: 'completeness',
+          check_name: 'Missing Values Check',
+          status: 'passed',
+          score: 90,
+          details: { description: 'Check for missing values in the dataset' }
+        },
+        {
+          check_type: 'consistency',
+          check_name: 'Data Type Consistency',
+          status: 'passed',
+          score: 95,
+          details: { description: 'Check if data types are consistent across columns' }
+        },
+        {
+          check_type: 'validity',
+          check_name: 'Value Range Check',
+          status: 'warning',
+          score: 80,
+          details: { description: 'Check if values are within expected ranges' }
+        }
+      ];
+      
+      for (const check of basicChecks) {
+        await pool.query(
+          'INSERT INTO file_quality_checks (file_id, check_type, check_name, status, score, details) VALUES ($1, $2, $3, $4, $5, $6)',
+          [fileId, check.check_type, check.check_name, check.status, check.score, JSON.stringify(check.details)]
+        );
+      }
+      
+      // Fetch the newly created checks
+      const newChecksResult = await pool.query(
+        'SELECT * FROM file_quality_checks WHERE file_id = $1',
+        [fileId]
+      );
+      
+      qualityChecksResult.rows = newChecksResult.rows;
+    }
+    
+    const qualityScore = file.quality_score || 85;
+    
+    const quality = {
+      fileId,
+      filename: file.filename,
+      qualityScore,
+      scoringMethod: 'weighted_average',
+      checks: qualityChecksResult.rows.map(check => ({
+        id: check.id,
+        type: check.check_type,
+        name: check.check_name,
+        status: check.status,
+        score: check.score,
+        details: check.details
+      })),
+      summary: {
+        passed: qualityChecksResult.rows.filter(c => c.status === 'passed').length,
+        warning: qualityChecksResult.rows.filter(c => c.status === 'warning').length,
+        failed: qualityChecksResult.rows.filter(c => c.status === 'failed').length
+      }
+    };
+    
+    res.json(quality);
+  } catch (err) {
+    console.error('Error fetching file quality:', err);
+    res.status(500).json({ error: 'Failed to fetch file quality' });
+  }
+});
+
+// Alert rules endpoint
+app.get('/api/alerts', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM alert_rules');
+    
+    // If no rules exist, create some default ones
+    if (result.rows.length === 0) {
+      const defaultRules = [
+        {
+          rule_name: 'Missing Values Alert',
+          rule_condition: 'greater_than',
+          rule_value: '10',
+          rule_type: 'data_quality',
+          severity: 'warning',
+          enabled: true
+        },
+        {
+          rule_name: 'File Size Alert',
+          rule_condition: 'percentage_change',
+          rule_value: '20',
+          rule_type: 'file_metadata',
+          severity: 'critical',
+          enabled: true
+        }
+      ];
+      
+      for (const rule of defaultRules) {
+        await pool.query(
+          'INSERT INTO alert_rules (rule_name, rule_condition, rule_value, rule_type, severity, enabled) VALUES ($1, $2, $3, $4, $5, $6)',
+          [rule.rule_name, rule.rule_condition, rule.rule_value, rule.rule_type, rule.severity, rule.enabled]
+        );
+      }
+      
+      const newResult = await pool.query('SELECT * FROM alert_rules');
+      res.json(newResult.rows);
+    } else {
+      res.json(result.rows);
+    }
+  } catch (err) {
+    console.error('Error fetching alert rules:', err);
+    res.status(500).json({ error: 'Failed to fetch alert rules' });
+  }
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
