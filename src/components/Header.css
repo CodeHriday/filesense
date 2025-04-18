@@ -185,21 +185,35 @@
 /* High Contrast Mode */
 body.high-contrast .header {
   background-color: #000;
-  border-bottom: 2px solid #fff;
+  border-bottom: 2px solid #0079C1;
+}
+
+body.high-contrast .header-logo {
+  filter: brightness(0) invert(1);
+}
+
+body.high-contrast .btn.btn-primary,
+body.high-contrast .ai-insights-btn {
+  background-color: #0079C1;
+  color: #fff;
+  border: 2px solid #0079C1;
 }
 
 body.high-contrast .user-menu-btn {
-  border-color: #fff;
+  border-color: #0079C1;
+  background-color: #000;
 }
 
 body.high-contrast .dropdown-menu {
   background-color: #000;
-  border: 2px solid #fff;
+  border: 2px solid #0079C1;
   box-shadow: none;
+  border-top: 3px solid #0079C1;
 }
 
 body.high-contrast .dropdown-header {
-  border-bottom: 1px solid #fff;
+  border-bottom: 1px solid #0079C1;
+  background-color: #111;
 }
 
 body.high-contrast .user-info strong,
@@ -209,11 +223,12 @@ body.high-contrast .dropdown-item {
 }
 
 body.high-contrast .role-badge {
-  background-color: #333;
+  background-color: #0079C1;
   color: #fff;
-  border: 1px solid #fff;
+  border: none;
 }
 
 body.high-contrast .dropdown-item:hover {
-  background-color: #333;
+  background-color: #111;
+  color: #0079C1;
 }
