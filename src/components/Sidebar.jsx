@@ -24,7 +24,7 @@ function Sidebar() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   return (
-    <>
+    <div>
       <aside className="sidebar">
         <nav className="sidebar-nav">
           <ul>
@@ -125,7 +125,7 @@ function Sidebar() {
       {showOnboarding && (
         <OnboardingWizard onClose={() => setShowOnboarding(false)} />
       )}
-    </>
+    </div>
   );
 }
 
