@@ -1,0 +1,731 @@
+/* Hover Card */
+.hover-card {
+  position: relative;
+  display: inline-block;
+}
+
+.hover-card-content {
+  position: absolute;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  padding: 12px 16px;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.hover-card-content.up {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(var(--distance));
+  margin-bottom: 8px;
+}
+
+.hover-card-content.down {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(calc(-1 * var(--distance)));
+  margin-top: 8px;
+}
+
+.hover-card-content.left {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(var(--distance));
+  margin-right: 8px;
+}
+
+.hover-card-content.right {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(calc(-1 * var(--distance)));
+  margin-left: 8px;
+}
+
+.hover-card-content.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.hover-card-content.left.visible {
+  transform: translateY(-50%) translateX(0);
+}
+
+.hover-card-content.right.visible {
+  transform: translateY(-50%) translateX(0);
+}
+
+/* Like Button */
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #757575;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: visible;
+  gap: 6px;
+  outline: none;
+}
+
+.like-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: scale(1.05);
+}
+
+.like-button.active {
+  color: var(--active-color, #e53935);
+}
+
+.like-button.active:hover {
+  background-color: rgba(229, 57, 53, 0.1);
+}
+
+.like-button .like-icon {
+  transition: all 0.2s ease;
+  fill: transparent;
+  stroke-width: 2px;
+}
+
+.like-button.active .like-icon {
+  fill: var(--active-color, #e53935);
+}
+
+.like-button.animating .like-icon {
+  animation: heartBeat 0.7s cubic-bezier(0.17, 0.89, 0.32, 1.49);
+}
+
+.like-button.small {
+  font-size: 0.8rem;
+}
+
+.like-button.medium {
+  font-size: 1rem;
+}
+
+.like-button.large {
+  font-size: 1.5rem;
+}
+
+.like-count {
+  font-size: 0.75em;
+  font-weight: 500;
+}
+
+@keyframes heartBeat {
+  0% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.3);
+  }
+  30% {
+    transform: scale(0.95);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Accordion */
+.accordion {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 1px solid #e0e0e0;
+  background-color: white;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-align: left;
+  font-weight: 500;
+  font-size: 1rem;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.accordion-header:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.accordion.open .accordion-header {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.accordion-icon {
+  transition: transform 0.3s;
+  color: #757575;
+}
+
+.accordion.open .accordion-icon {
+  transform: rotate(180deg);
+}
+
+.accordion-content {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.accordion-content-inner {
+  padding: 16px;
+}
+
+/* Toggle Switch */
+.toggle-switch-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.toggle-switch-container.left {
+  flex-direction: row-reverse;
+}
+
+.toggle-switch-container.small {
+  font-size: 0.8rem;
+}
+
+.toggle-switch-container.medium {
+  font-size: 1rem;
+}
+
+.toggle-switch-container.large {
+  font-size: 1.25rem;
+}
+
+.toggle-switch-container.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch.small {
+  width: 36px;
+  height: 18px;
+}
+
+.toggle-switch.large {
+  width: 60px;
+  height: 30px;
+}
+
+.toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 34px;
+}
+
+.toggle-knob {
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 10px;
+}
+
+.toggle-switch.small .toggle-knob {
+  height: 12px;
+  width: 12px;
+}
+
+.toggle-switch.large .toggle-knob {
+  height: 24px;
+  width: 24px;
+}
+
+.toggle-icon {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.toggle-switch.on .toggle-slider {
+  background-color: var(--active-color, #2196f3);
+}
+
+.toggle-switch.on .toggle-knob {
+  transform: translateX(24px);
+  color: var(--active-color, #2196f3);
+}
+
+.toggle-switch.small.on .toggle-knob {
+  transform: translateX(18px);
+}
+
+.toggle-switch.large.on .toggle-knob {
+  transform: translateX(30px);
+}
+
+.toggle-switch.on .toggle-icon,
+.toggle-switch.off .toggle-icon {
+  opacity: 1;
+}
+
+.toggle-label {
+  user-select: none;
+}
+
+/* Ripple Button */
+.ripple-button {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s, box-shadow 0.3s;
+  border: none;
+  outline: none;
+  font-weight: 500;
+  gap: 8px;
+}
+
+.ripple-button.filled {
+  background-color: var(--button-color, #2196f3);
+  color: white;
+}
+
+.ripple-button.filled:hover {
+  background-color: var(--button-color, #2196f3);
+  filter: brightness(0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.ripple-button.outlined {
+  background-color: transparent;
+  color: var(--button-color, #2196f3);
+  border: 1px solid var(--button-color, #2196f3);
+}
+
+.ripple-button.outlined:hover {
+  background-color: rgba(33, 150, 243, 0.05);
+}
+
+.ripple-button.text {
+  background-color: transparent;
+  color: var(--button-color, #2196f3);
+}
+
+.ripple-button.text:hover {
+  background-color: rgba(33, 150, 243, 0.05);
+}
+
+.ripple-button.small {
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  height: 32px;
+}
+
+.ripple-button.medium {
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  height: 36px;
+}
+
+.ripple-button.large {
+  font-size: 1rem;
+  padding: 10px 20px;
+  height: 42px;
+}
+
+.ripple-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ripple-button.loading {
+  cursor: wait;
+}
+
+.button-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-icon {
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  background-color: var(--ripple-color, rgba(255, 255, 255, 0.7));
+  pointer-events: none;
+  animation: ripple-animation 0.6s linear;
+}
+
+.loading-spinner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Animated Counter */
+.animated-counter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.counter-label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.counter-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.counter-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  padding: 6px;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.counter-button:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #222;
+}
+
+.counter-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.counter-value-container {
+  min-width: 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  height: 24px;
+}
+
+.counter-value {
+  font-weight: 500;
+  position: absolute;
+  left: 0;
+  right: 0;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.counter-value.incrementing {
+  animation: slide-up 0.2s forwards;
+}
+
+.counter-value.decrementing {
+  animation: slide-down 0.2s forwards;
+}
+
+@keyframes slide-up {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Notification Badge */
+.badge-container {
+  position: relative;
+  display: inline-flex;
+}
+
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: var(--badge-color, #e53935);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 2px solid white;
+  box-sizing: content-box;
+  transform-origin: center;
+  z-index: 10;
+}
+
+.badge-container.small .badge {
+  min-width: 14px;
+  height: 14px;
+  font-size: 8px;
+  top: -6px;
+  right: -6px;
+}
+
+.badge-container.large .badge {
+  min-width: 22px;
+  height: 22px;
+  font-size: 12px;
+  top: -10px;
+  right: -10px;
+}
+
+.badge.pulse {
+  animation: badge-pulse 1s cubic-bezier(0.17, 0.89, 0.32, 1.49);
+}
+
+@keyframes badge-pulse {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Progress Indicator */
+.progress-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.progress-track {
+  width: 100%;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #2196f3;
+  width: 0;
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+.progress-fill.animated {
+  transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.progress-percentage {
+  font-size: 0.8rem;
+  color: #555;
+  align-self: flex-end;
+  margin-top: 4px;
+}
+
+/* Expandable Search */
+.expandable-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: var(--collapsed-width, 40px);
+  transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  border-radius: 20px;
+  background-color: #f5f5f5;
+  overflow: hidden;
+}
+
+.expandable-search.expanded {
+  width: var(--expanded-width, 250px);
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 40px 8px 16px;
+  font-size: 0.9rem;
+  outline: none;
+  width: 100%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.expandable-search.expanded .search-input {
+  opacity: 1;
+}
+
+.search-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  transition: color 0.2s;
+}
+
+.search-button:hover {
+  color: #333;
+}
+
+/* Collapsible Panel */
+.collapsible-panel {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+  margin-bottom: 16px;
+}
+
+.panel-header {
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f9f9f9;
+  transition: background-color 0.2s;
+}
+
+.panel-header:hover {
+  background-color: #f0f0f0;
+}
+
+.panel-icon {
+  transition: transform 0.3s ease;
+}
+
+.collapsible-panel.expanded .panel-icon {
+  transform: rotate(180deg);
+}
+
+.panel-content {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.panel-content-inner {
+  padding: 16px;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .expandable-search.expanded {
+    width: 100%;
+    position: absolute;
+    z-index: 100;
+    top: 0;
+    left: 0;
+  }
+}

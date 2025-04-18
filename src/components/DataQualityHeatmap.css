@@ -1,0 +1,448 @@
+/* Data Quality Heatmap Component */
+.data-quality-heatmap {
+  --color-excellent: #4caf50;
+  --color-good: #8bc34a;
+  --color-fair: #ffc107;
+  --color-poor: #ff9800;
+  --color-critical: #f44336;
+  --color-neutral: #e0e0e0;
+  
+  width: 100%;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.heatmap-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.heatmap-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.heatmap-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-button,
+.refresh-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #e0e0e0;
+  background-color: white;
+  color: #555;
+}
+
+.filter-button:hover,
+.refresh-button:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.filter-button.active {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border-color: #bbdefb;
+}
+
+/* Filter Panel */
+.filter-panel {
+  padding: 12px 20px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  animation: slideDown 0.3s ease;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.filter-item label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #666;
+}
+
+.filter-item input,
+.filter-item select {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 0.9rem;
+}
+
+.filter-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-range input {
+  width: 70px;
+}
+
+.reset-filters-button {
+  background-color: transparent;
+  border: none;
+  color: #f44336;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 0;
+  align-self: flex-end;
+  transition: all 0.2s;
+}
+
+.reset-filters-button:hover {
+  text-decoration: underline;
+}
+
+/* Table Container */
+.heatmap-table-container {
+  flex: 1;
+  overflow-x: auto;
+  padding: 0;
+}
+
+.heatmap-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Table Header */
+.heatmap-table thead th {
+  background-color: #f5f5f5;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #555;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.heatmap-table thead th:hover {
+  background-color: #e0e0e0;
+}
+
+.heatmap-table th.sorted {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sort-indicator {
+  display: inline-block;
+  margin-left: 4px;
+}
+
+/* Table Body */
+.heatmap-table tbody tr {
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.heatmap-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.heatmap-table tbody tr.clickable {
+  cursor: pointer;
+}
+
+.heatmap-table td {
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+/* Specific Cell Types */
+.filename-cell {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 250px;
+}
+
+.filename-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filetype-cell {
+  font-family: monospace;
+  color: #555;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.quality-score-cell,
+.metric-cell {
+  width: 100px;
+  text-align: center;
+}
+
+.quality-indicator,
+.metric-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 30px;
+  border-radius: 15px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.metric-value-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #4caf50;
+  display: inline-block;
+}
+
+/* No Data Message */
+.no-data-row {
+  height: 200px;
+}
+
+.no-data-cell {
+  text-align: center;
+}
+
+.no-data-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #757575;
+  padding: 40px 0;
+}
+
+.no-data-icon {
+  font-size: 2rem;
+  opacity: 0.6;
+}
+
+/* Footer */
+.heatmap-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background-color: #f9f9f9;
+}
+
+.color-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.legend-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #555;
+}
+
+.legend-items {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.heatmap-status {
+  font-size: 0.8rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.last-updated {
+  color: #999;
+  margin-left: 8px;
+}
+
+/* Tooltip Specific Styles */
+.heatmap-tooltip {
+  width: 100%;
+  max-width: 300px;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.tooltip-score {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.tooltip-details {
+  margin-bottom: 12px;
+}
+
+.tooltip-detail-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.detail-key {
+  color: #666;
+}
+
+.detail-value {
+  font-weight: 500;
+}
+
+.tooltip-issues {
+  font-size: 0.9rem;
+}
+
+.issues-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #f44336;
+}
+
+.issues-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.issue-item {
+  margin-bottom: 4px;
+}
+
+/* Loading State */
+.data-quality-heatmap.loading {
+  opacity: 0.8;
+}
+
+/* Animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .heatmap-header,
+  .heatmap-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .heatmap-actions {
+    width: 100%;
+    margin-top: 12px;
+  }
+  
+  .filter-controls {
+    flex-direction: column;
+  }
+  
+  .filter-item {
+    width: 100%;
+  }
+  
+  .legend-items {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  
+  .heatmap-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+}
