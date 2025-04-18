@@ -1,385 +1,560 @@
 import React, { useState, useEffect } from 'react';
-import { DndContext, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core';
-import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { FiMove, FiMaximize2, FiMinimize2, FiX, FiSave, FiPlus, FiSettings } from 'react-icons/fi';
-import axios from 'axios';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy
+} from '@dnd-kit/sortable';
+import { restrictToParentElement } from '@dnd-kit/modifiers';
+import { FiGrid, FiPlus, FiMinus, FiX, FiMove, FiMaximize2, FiMinimize2, FiSettings } from 'react-icons/fi';
+import { AnimationContainer, AnimatedButton } from './MicroAnimations';
 import './DashboardLayoutCreator.css';
 
-// Available widgets
-const AVAILABLE_WIDGETS = [
-  {
-    id: 'recent-files',
-    name: 'Recent Files',
-    description: 'Shows recently uploaded or modified files',
-    icon: 'file',
-    defaultSize: 'medium',
+// Available widget types and their configurations
+const WIDGET_TYPES = {
+  'quality-score': {
+    title: 'Data Quality Score',
+    description: 'Overall quality score for your data files',
+    icon: 'chart',
+    minSize: [1, 1],
+    defaultSize: [1, 1],
+    maxSize: [2, 2]
   },
-  {
-    id: 'quality-summary',
-    name: 'Quality Summary',
-    description: 'Overview of data quality across all files',
-    icon: 'check-circle',
-    defaultSize: 'medium',
+  'recent-files': {
+    title: 'Recent Files',
+    description: 'Recently uploaded or modified files',
+    icon: 'list',
+    minSize: [1, 1],
+    defaultSize: [1, 2],
+    maxSize: [2, 2]
   },
-  {
-    id: 'alerts',
-    name: 'Recent Alerts',
-    description: 'Recent data quality alerts',
-    icon: 'alert-triangle',
-    defaultSize: 'small',
+  'alerts': {
+    title: 'Active Alerts',
+    description: 'Current data quality alerts across files',
+    icon: 'alert',
+    minSize: [1, 1],
+    defaultSize: [1, 1],
+    maxSize: [2, 2]
   },
-  {
-    id: 'file-stats',
-    name: 'File Statistics',
-    description: 'Key statistics about your data files',
-    icon: 'bar-chart-2',
-    defaultSize: 'small',
+  'completeness-chart': {
+    title: 'Data Completeness',
+    description: 'Completeness metrics across all files',
+    icon: 'chart',
+    minSize: [1, 1],
+    defaultSize: [2, 1],
+    maxSize: [2, 2]
   },
-  {
-    id: 'quality-trend',
-    name: 'Quality Trend',
-    description: 'Data quality trend over time',
-    icon: 'trending-up',
-    defaultSize: 'medium',
+  'timeliness-chart': {
+    title: 'Data Freshness',
+    description: 'Freshness and timeliness metrics',
+    icon: 'chart',
+    minSize: [1, 1],
+    defaultSize: [1, 1],
+    maxSize: [2, 2]
   },
-  {
-    id: 'storage-usage',
-    name: 'Storage Usage',
-    description: 'Storage usage by file type and size',
-    icon: 'database',
-    defaultSize: 'small',
+  'lineage-summary': {
+    title: 'Lineage Summary',
+    description: 'Summary of file relationships and dependencies',
+    icon: 'network',
+    minSize: [1, 1],
+    defaultSize: [2, 1],
+    maxSize: [2, 2]
   },
-  {
-    id: 'badges-progress',
-    name: 'Badges Progress',
-    description: 'Progress towards earning new badges',
+  'recommendations': {
+    title: 'Recommendations',
+    description: 'Smart recommendations to improve data quality',
+    icon: 'lightbulb',
+    minSize: [1, 1],
+    defaultSize: [1, 1],
+    maxSize: [2, 2]
+  },
+  'quick-actions': {
+    title: 'Quick Actions',
+    description: 'Frequently used actions and shortcuts',
+    icon: 'bolt',
+    minSize: [1, 1],
+    defaultSize: [1, 1],
+    maxSize: [1, 1]
+  },
+  'data-trends': {
+    title: 'Data Trends',
+    description: 'Trend analysis of data quality over time',
+    icon: 'trend',
+    minSize: [1, 1],
+    defaultSize: [2, 1],
+    maxSize: [2, 2]
+  },
+  'achievement-badges': {
+    title: 'Achievement Badges',
+    description: 'Data reliability achievement badges',
     icon: 'award',
-    defaultSize: 'small',
-  },
-  {
-    id: 'recommendations',
-    name: 'Recommendations',
-    description: 'Smart recommendations for data improvements',
-    icon: 'zap',
-    defaultSize: 'medium',
-  },
-  {
-    id: 'heatmap',
-    name: 'Quality Heatmap',
-    description: 'Visual heatmap of data quality metrics',
-    icon: 'grid',
-    defaultSize: 'large',
-  },
-  {
-    id: 'lineage-summary',
-    name: 'Lineage Summary',
-    description: 'Summary of data lineage relationships',
-    icon: 'git-branch',
-    defaultSize: 'medium',
+    minSize: [1, 1],
+    defaultSize: [1, 1],
+    maxSize: [2, 1]
   }
-];
+};
 
-// Sortable widget item
-const SortableWidget = ({ id, widget, onRemove, onResize }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  
-  const style = {
-    transform: CSS.Transform.toString(transform),
+/**
+ * Widget Item Component (Draggable)
+ */
+const SortableWidgetItem = ({ id, widget, onRemove, onResize, onConfigureWidget }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
     transition,
+    isDragging
+  } = useSortable({ id });
+
+  const widgetInfo = WIDGET_TYPES[widget.type] || { 
+    title: 'Unknown Widget', 
+    description: '', 
+    defaultSize: [1, 1], 
+    maxSize: [2, 2] 
+  };
+
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+    gridColumn: `span ${widget.width || widgetInfo.defaultSize[0]}`,
+    gridRow: `span ${widget.height || widgetInfo.defaultSize[1]}`,
+    zIndex: isDragging ? 999 : 1,
+    opacity: isDragging ? 0.4 : 1
+  };
+
+  const handleResize = (action) => {
+    if (!onResize) return;
+    
+    const currentWidth = widget.width || widgetInfo.defaultSize[0];
+    const currentHeight = widget.height || widgetInfo.defaultSize[1];
+    const [maxWidth, maxHeight] = widgetInfo.maxSize || [2, 2];
+    const [minWidth, minHeight] = widgetInfo.minSize || [1, 1];
+    
+    let newWidth = currentWidth;
+    let newHeight = currentHeight;
+    
+    if (action === 'expand-width' && currentWidth < maxWidth) {
+      newWidth = currentWidth + 1;
+    } else if (action === 'shrink-width' && currentWidth > minWidth) {
+      newWidth = currentWidth - 1;
+    } else if (action === 'expand-height' && currentHeight < maxHeight) {
+      newHeight = currentHeight + 1;
+    } else if (action === 'shrink-height' && currentHeight > minHeight) {
+      newHeight = currentHeight - 1;
+    } else if (action === 'maximize') {
+      newWidth = maxWidth;
+      newHeight = maxHeight;
+    } else if (action === 'minimize') {
+      newWidth = minWidth;
+      newHeight = minHeight;
+    }
+    
+    if (newWidth !== currentWidth || newHeight !== currentHeight) {
+      onResize(id, newWidth, newHeight);
+    }
   };
 
   return (
     <div 
-      ref={setNodeRef}
-      style={style}
-      className={`dashboard-widget dashboard-widget-${widget.size || widget.defaultSize}`}
+      ref={setNodeRef} 
+      style={style} 
+      className={`dashboard-widget ${isDragging ? 'dragging' : ''}`}
     >
       <div className="widget-header">
-        <div className="widget-drag-handle" {...attributes} {...listeners}>
-          <FiMove className="widget-icon" />
-          <span className="widget-title">{widget.name}</span>
-        </div>
+        <h3>{widget.title || widgetInfo.title}</h3>
+        
         <div className="widget-controls">
-          {widget.size !== 'small' && (
-            <button 
-              className="widget-control"
-              onClick={() => onResize(id, 'small')}
-              aria-label="Minimize widget"
-            >
-              <FiMinimize2 />
-            </button>
-          )}
-          {widget.size !== 'large' && (
-            <button 
-              className="widget-control"
-              onClick={() => onResize(id, 'large')}
-              aria-label="Maximize widget"
-            >
-              <FiMaximize2 />
-            </button>
-          )}
-          {widget.size !== 'medium' && widget.size !== widget.defaultSize && (
-            <button 
-              className="widget-control"
-              onClick={() => onResize(id, 'medium')}
-              aria-label="Reset widget size"
-            >
-              <FiSettings />
-            </button>
-          )}
           <button 
-            className="widget-control widget-remove"
+            className="widget-control-button" 
+            onClick={() => handleResize('shrink-width')}
+            title="Decrease width"
+          >
+            <FiMinus />
+          </button>
+          
+          <button 
+            className="widget-control-button" 
+            onClick={() => handleResize('expand-width')}
+            title="Increase width"
+          >
+            <FiPlus />
+          </button>
+          
+          <button 
+            className="widget-control-button" 
+            onClick={() => onConfigureWidget(id)}
+            title="Configure widget"
+          >
+            <FiSettings />
+          </button>
+          
+          <button 
+            className="widget-control-button" 
             onClick={() => onRemove(id)}
-            aria-label="Remove widget"
+            title="Remove widget"
           >
             <FiX />
           </button>
+          
+          <button 
+            className="widget-control-button drag-handle" 
+            {...attributes} 
+            {...listeners}
+            title="Drag to reposition"
+          >
+            <FiMove />
+          </button>
         </div>
+      </div>
+      
+      <div className="widget-content">
+        <div className="widget-placeholder">
+          {widget.type} Widget Content
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Widget Item for Drag Overlay
+ */
+const DragOverlayWidget = ({ widget }) => {
+  const widgetInfo = WIDGET_TYPES[widget.type] || { 
+    title: 'Unknown Widget', 
+    defaultSize: [1, 1] 
+  };
+
+  return (
+    <div 
+      className="dashboard-widget dragging-overlay"
+      style={{
+        width: `${(widget.width || widgetInfo.defaultSize[0]) * 100}%`,
+        height: `${(widget.height || widgetInfo.defaultSize[1]) * 120}px`,
+      }}
+    >
+      <div className="widget-header">
+        <h3>{widget.title || widgetInfo.title}</h3>
       </div>
       <div className="widget-content">
         <div className="widget-placeholder">
-          {widget.name} Content
-          <p className="widget-description">{widget.description}</p>
+          {widget.type} Widget Content
         </div>
       </div>
     </div>
   );
 };
 
-const WidgetGallery = ({ onAddWidget, activeWidgets }) => {
+/**
+ * Add Widget Panel
+ */
+const AddWidgetPanel = ({ onAddWidget, onClose }) => {
   return (
-    <div className="widget-gallery">
-      <h3>Available Widgets</h3>
-      <div className="gallery-widgets">
-        {AVAILABLE_WIDGETS.map(widget => {
-          const isActive = activeWidgets.some(active => active.id === widget.id);
-          return (
-            <div 
-              key={widget.id} 
-              className={`gallery-widget ${isActive ? 'gallery-widget-active' : ''}`}
-              onClick={() => !isActive && onAddWidget(widget)}
+    <div className="add-widget-panel">
+      <div className="panel-header">
+        <h2>Add Widget</h2>
+        <button onClick={onClose} className="close-button">
+          <FiX />
+        </button>
+      </div>
+      
+      <div className="widget-options">
+        {Object.entries(WIDGET_TYPES).map(([type, info]) => (
+          <AnimationContainer 
+            key={type} 
+            animationType="fade" 
+            className="widget-option"
+            duration={300}
+          >
+            <button 
+              className="widget-option-button" 
+              onClick={() => onAddWidget(type)}
             >
-              <div className="gallery-widget-icon">
-                <span className="widget-icon-placeholder">{widget.icon.charAt(0).toUpperCase()}</span>
+              <div className="widget-option-icon">{getWidgetIcon(info.icon)}</div>
+              <div className="widget-option-info">
+                <h4>{info.title}</h4>
+                <p>{info.description}</p>
               </div>
-              <div className="gallery-widget-info">
-                <div className="gallery-widget-name">{widget.name}</div>
-                <div className="gallery-widget-description">{widget.description}</div>
-              </div>
-              {isActive ? (
-                <span className="widget-added-indicator">Added</span>
-              ) : (
-                <button 
-                  className="widget-add-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddWidget(widget);
-                  }}
-                >
-                  <FiPlus />
-                </button>
-              )}
-            </div>
-          );
-        })}
+            </button>
+          </AnimationContainer>
+        ))}
       </div>
     </div>
   );
 };
 
-const DashboardLayoutCreator = () => {
-  const [activeLayout, setActiveLayout] = useState('default');
-  const [layouts, setLayouts] = useState({
-    default: {
-      name: 'Default Layout',
-      widgets: [
-        { ...AVAILABLE_WIDGETS.find(w => w.id === 'recent-files'), size: 'medium' },
-        { ...AVAILABLE_WIDGETS.find(w => w.id === 'quality-summary'), size: 'medium' },
-        { ...AVAILABLE_WIDGETS.find(w => w.id === 'alerts'), size: 'small' },
-        { ...AVAILABLE_WIDGETS.find(w => w.id === 'quality-trend'), size: 'medium' }
-      ]
-    }
-  });
-  const [showGallery, setShowGallery] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedMessage, setSavedMessage] = useState('');
+/**
+ * Helper function to get icon for widget type
+ */
+const getWidgetIcon = (iconType) => {
+  switch (iconType) {
+    case 'chart':
+      return <span className="material-icon">📊</span>;
+    case 'list':
+      return <span className="material-icon">📋</span>;
+    case 'alert':
+      return <span className="material-icon">🚨</span>;
+    case 'network':
+      return <span className="material-icon">🔄</span>;
+    case 'lightbulb':
+      return <span className="material-icon">💡</span>;
+    case 'bolt':
+      return <span className="material-icon">⚡</span>;
+    case 'trend':
+      return <span className="material-icon">📈</span>;
+    case 'award':
+      return <span className="material-icon">🏆</span>;
+    default:
+      return <span className="material-icon">📊</span>;
+  }
+};
+
+/**
+ * Main Dashboard Layout Creator Component
+ */
+const DashboardLayoutCreator = ({ 
+  initialLayout = [],
+  onSaveLayout,
+  readOnly = false,
+  maxColumns = 2,
+  maxRows = 4
+}) => {
+  const [widgets, setWidgets] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [layoutChanged, setLayoutChanged] = useState(false);
   
-  // Load saved layouts from localStorage on mount
-  useEffect(() => {
-    const savedLayouts = localStorage.getItem('dfo-dashboard-layouts');
-    if (savedLayouts) {
-      try {
-        setLayouts(JSON.parse(savedLayouts));
-      } catch (error) {
-        console.error('Failed to parse saved layouts:', error);
-      }
-    }
-  }, []);
-  
-  // Define sensors for drag & drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 10,
+        distance: 8,
       },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // Get current active widgets
-  const activeWidgets = layouts[activeLayout]?.widgets || [];
   
-  // Handle widget reordering
+  // Initialize from prop
+  useEffect(() => {
+    if (initialLayout && initialLayout.length > 0) {
+      setWidgets(initialLayout.map(item => ({
+        ...item,
+        id: item.id || generateId()
+      })));
+    } else {
+      // Default layout if none provided
+      setWidgets([
+        { 
+          id: generateId(), 
+          type: 'quality-score', 
+          width: 1, 
+          height: 1,
+          position: 0
+        },
+        { 
+          id: generateId(), 
+          type: 'recent-files', 
+          width: 1, 
+          height: 2,
+          position: 1
+        },
+        { 
+          id: generateId(), 
+          type: 'alerts', 
+          width: 1, 
+          height: 1,
+          position: 2
+        },
+        { 
+          id: generateId(), 
+          type: 'recommendations', 
+          width: 1, 
+          height: 1,
+          position: 3
+        }
+      ]);
+    }
+  }, [initialLayout]);
+  
+  // Generate random ID for widgets
+  const generateId = () => {
+    return `widget-${Math.random().toString(36).substr(2, 9)}`;
+  };
+  
+  // Handle drag start
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+  
+  // Handle drag end and reordering
   const handleDragEnd = (event) => {
     const { active, over } = event;
     
-    if (active.id !== over.id) {
-      setLayouts(prev => {
-        const oldIndex = activeWidgets.findIndex(widget => widget.id === active.id);
-        const newIndex = activeWidgets.findIndex(widget => widget.id === over.id);
+    if (active.id !== over?.id) {
+      setWidgets((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
         
-        return {
-          ...prev,
-          [activeLayout]: {
-            ...prev[activeLayout],
-            widgets: arrayMove(activeWidgets, oldIndex, newIndex)
-          }
-        };
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        // Update positions for proper saving
+        return newItems.map((item, index) => ({
+          ...item,
+          position: index
+        }));
       });
+      
+      setLayoutChanged(true);
     }
+    
+    setActiveId(null);
   };
   
-  // Add a widget to the layout
-  const handleAddWidget = (widget) => {
-    setLayouts(prev => ({
-      ...prev,
-      [activeLayout]: {
-        ...prev[activeLayout],
-        widgets: [...prev[activeLayout].widgets, { ...widget, size: widget.defaultSize }]
-      }
-    }));
-    setShowGallery(false);
+  // Add a new widget
+  const handleAddWidget = (widgetType) => {
+    const widgetInfo = WIDGET_TYPES[widgetType];
+    if (!widgetInfo) return;
+    
+    const newWidget = {
+      id: generateId(),
+      type: widgetType,
+      width: widgetInfo.defaultSize[0],
+      height: widgetInfo.defaultSize[1],
+      position: widgets.length
+    };
+    
+    setWidgets([...widgets, newWidget]);
+    setShowAddPanel(false);
+    setLayoutChanged(true);
   };
   
-  // Remove a widget from the layout
+  // Remove a widget
   const handleRemoveWidget = (widgetId) => {
-    setLayouts(prev => ({
-      ...prev,
-      [activeLayout]: {
-        ...prev[activeLayout],
-        widgets: prev[activeLayout].widgets.filter(w => w.id !== widgetId)
-      }
-    }));
+    setWidgets(widgets.filter(w => w.id !== widgetId)
+      .map((item, index) => ({
+        ...item,
+        position: index
+      }))
+    );
+    setLayoutChanged(true);
   };
   
   // Resize a widget
-  const handleResizeWidget = (widgetId, newSize) => {
-    setLayouts(prev => ({
-      ...prev,
-      [activeLayout]: {
-        ...prev[activeLayout],
-        widgets: prev[activeLayout].widgets.map(w => 
-          w.id === widgetId ? { ...w, size: newSize } : w
-        )
-      }
-    }));
+  const handleResizeWidget = (widgetId, newWidth, newHeight) => {
+    setWidgets(widgets.map(widget => 
+      widget.id === widgetId 
+        ? { ...widget, width: newWidth, height: newHeight }
+        : widget
+    ));
+    setLayoutChanged(true);
   };
   
-  // Save layout
-  const saveLayout = async () => {
-    setIsSaving(true);
-    setSavedMessage('');
-    
-    try {
-      // Save to localStorage
-      localStorage.setItem('dfo-dashboard-layouts', JSON.stringify(layouts));
-      
-      // Also save to server if we implement that
-      try {
-        await axios.post('/api/user/dashboard-layouts', { layouts });
-      } catch (error) {
-        // Fail silently, as we've saved to localStorage already
-        console.warn('Failed to save layouts to server, saved to localStorage only');
-      }
-      
-      setSavedMessage('Layout saved successfully!');
-      setTimeout(() => setSavedMessage(''), 3000);
-    } catch (error) {
-      console.error('Failed to save layout:', error);
-      setSavedMessage('Failed to save layout. Please try again.');
-    } finally {
-      setIsSaving(false);
+  // Configure a widget
+  const handleConfigureWidget = (widgetId) => {
+    // This is a placeholder for future widget configuration
+    console.log('Configure widget:', widgetId);
+    // In a real implementation, this would open a configuration panel
+  };
+  
+  // Save the current layout
+  const handleSaveLayout = () => {
+    if (onSaveLayout) {
+      onSaveLayout(widgets);
+      setLayoutChanged(false);
     }
   };
   
+  // Find the currently active widget
+  const activeWidget = activeId ? widgets.find((item) => item.id === activeId) : null;
+  
   return (
     <div className="dashboard-layout-creator">
-      <div className="layout-controls">
-        <h2>Customize Dashboard Layout</h2>
-        
-        <div className="layout-actions">
-          <button 
-            className="layout-action-button primary"
-            onClick={() => setShowGallery(!showGallery)}
+      {!readOnly && (
+        <div className="layout-toolbar">
+          <AnimatedButton 
+            icon={<FiGrid />}
+            onClick={() => setShowAddPanel(true)}
+            variant="primary"
           >
-            <FiPlus /> {showGallery ? 'Hide Gallery' : 'Add Widget'}
-          </button>
+            Add Widget
+          </AnimatedButton>
           
-          <button 
-            className="layout-action-button"
-            onClick={saveLayout}
-            disabled={isSaving}
+          <AnimatedButton 
+            icon={<FiMaximize2 />}
+            onClick={() => {
+              // This would implement auto-arranging functionality
+              console.log('Auto-arrange widgets');
+            }}
+            variant="secondary"
           >
-            <FiSave /> {isSaving ? 'Saving...' : 'Save Layout'}
-          </button>
-        </div>
-        
-        {savedMessage && (
-          <div className={`save-message ${savedMessage.includes('Failed') ? 'error' : 'success'}`}>
-            {savedMessage}
-          </div>
-        )}
-      </div>
-      
-      {showGallery && (
-        <WidgetGallery 
-          onAddWidget={handleAddWidget} 
-          activeWidgets={activeWidgets} 
-        />
-      )}
-      
-      <div className="layout-preview">
-        <h3>Layout Preview</h3>
-        
-        <div className="dashboard-grid">
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext 
-              items={activeWidgets.map(widget => widget.id)}
-              strategy={rectSortingStrategy}
+            Auto Arrange
+          </AnimatedButton>
+          
+          {layoutChanged && (
+            <AnimatedButton 
+              onClick={handleSaveLayout}
+              variant="success"
             >
-              {activeWidgets.map(widget => (
-                <SortableWidget 
-                  key={widget.id}
-                  id={widget.id}
-                  widget={widget}
-                  onRemove={handleRemoveWidget}
-                  onResize={handleResizeWidget}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-          
-          {activeWidgets.length === 0 && (
-            <div className="empty-layout">
-              <p>Your dashboard is empty. Click "Add Widget" to add widgets to your dashboard.</p>
-            </div>
+              Save Layout
+            </AnimatedButton>
           )}
         </div>
+      )}
+      
+      <div 
+        className="dashboard-grid" 
+        style={{ 
+          gridTemplateColumns: `repeat(${maxColumns}, 1fr)` 
+        }}
+      >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          modifiers={[restrictToParentElement]}
+        >
+          <SortableContext
+            items={widgets.map((w) => w.id)}
+            strategy={rectSortingStrategy}
+          >
+            {widgets.map((widget) => (
+              <SortableWidgetItem
+                key={widget.id}
+                id={widget.id}
+                widget={widget}
+                onRemove={!readOnly ? handleRemoveWidget : undefined}
+                onResize={!readOnly ? handleResizeWidget : undefined}
+                onConfigureWidget={!readOnly ? handleConfigureWidget : undefined}
+              />
+            ))}
+          </SortableContext>
+          
+          <DragOverlay>
+            {activeWidget ? (
+              <DragOverlayWidget widget={activeWidget} />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
+      
+      {showAddPanel && (
+        <AddWidgetPanel 
+          onAddWidget={handleAddWidget}
+          onClose={() => setShowAddPanel(false)}
+        />
+      )}
     </div>
   );
 };
