@@ -463,37 +463,48 @@ const Dashboard = () => {
                 </caption>
                 <tbody>
                   <tr>
-                    {formattedPoints.map((point, index) => (
-                      <td 
-                        key={index} 
-                        style={{ 
-                          height: `${point.value}%`,
-                          width: `${100 / totalPoints}%`
-                        }}
-                      >
-                        {labelIndices.includes(index) && (
-                          <div 
-                            className="data-point"
-                            style={{
-                              backgroundColor: getScoreColor(point.value),
-                              borderColor: getScoreColor(point.value)
-                            }}
-                            title={`${point.formattedDate}: ${point.value}%`}
-                          >
-                            <span className="sr-only">
-                              {point.formattedDate}: {point.value}%
-                            </span>
-                          </div>
-                        )}
-                        
-                        <div 
-                          className="data-line"
-                          style={{
-                            backgroundColor: getScoreColor(point.value)
+                    {formattedPoints.map((point, index) => {
+                      // Calculate actual column height as percentage of chart
+                      // This gives appropriate visual height based on value within chart
+                      const columnHeight = `${point.value}%`;
+                      
+                      return (
+                        <td 
+                          key={index} 
+                          style={{ 
+                            width: `${100 / totalPoints}%`,
+                            position: 'relative',
+                            height: '100%'
                           }}
-                        />
-                      </td>
-                    ))}
+                        >
+                          <div 
+                            className="data-column"
+                            style={{
+                              height: columnHeight,
+                              backgroundColor: index === formattedPoints.length - 1 ? 
+                                getScoreColor(point.value) : '#1890FF',
+                              opacity: index === formattedPoints.length - 1 ? 1 : 0.8
+                            }}
+                          ></div>
+                          
+                          {labelIndices.includes(index) && (
+                            <div 
+                              className="data-point"
+                              style={{
+                                bottom: columnHeight,
+                                backgroundColor: getScoreColor(point.value),
+                                borderColor: getScoreColor(point.value)
+                              }}
+                              title={`${point.formattedDate}: ${point.value}%`}
+                            >
+                              <span className="sr-only">
+                                {point.formattedDate}: {point.value}%
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 </tbody>
               </table>
