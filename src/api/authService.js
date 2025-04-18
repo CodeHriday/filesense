@@ -127,6 +127,55 @@ export const getRoles = async () => {
 };
 
 /**
+ * Create a new role (admin only)
+ * @param {Object} roleData - Role data
+ * @param {string} roleData.name - Role name
+ * @param {string} roleData.description - Role description
+ * @param {Array<Object>} roleData.permissions - Array of permission objects
+ * @returns {Promise<Object>} Created role data
+ */
+export const createRole = async (roleData) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/roles`, roleData);
+    return response.data;
+  } catch (error) {
+    console.error('Create role error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a role (admin only)
+ * @param {number} roleId - Role ID to update
+ * @param {Object} roleData - Updated role data
+ * @returns {Promise<Object>} Updated role data
+ */
+export const updateRole = async (roleId, roleData) => {
+  try {
+    const response = await axios.put(`${API_BASE_URL}/api/roles/${roleId}`, roleData);
+    return response.data;
+  } catch (error) {
+    console.error('Update role error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a role (admin only)
+ * @param {number} roleId - Role ID to delete
+ * @returns {Promise<Object>} Response with success message
+ */
+export const deleteRole = async (roleId) => {
+  try {
+    const response = await axios.delete(`${API_BASE_URL}/api/roles/${roleId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Delete role error:', error);
+    throw error;
+  }
+};
+
+/**
  * Get all permissions (admin only)
  * @returns {Promise<Array>} Array of permission objects
  */

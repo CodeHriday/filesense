@@ -21,6 +21,7 @@ import DataStories from './pages/DataStories';
 import DashboardSettings from './pages/DashboardSettings';
 import Login from './pages/Login';
 import UserManagement from './pages/UserManagement';
+import RoleManagement from './pages/RoleManagement';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -30,6 +31,7 @@ import './App.css';
 import './styles/accessibility.css';
 import './styles/Login.css';
 import './styles/UserManagement.css';
+import './styles/RoleManagement.css';
 import './styles/AIPredictiveInsights.css';
 
 // Protected route component
@@ -114,6 +116,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/stories" element={<ProtectedRoute><DataStories /></ProtectedRoute>} />
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+                <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
