@@ -98,3 +98,42 @@ export const formatDecimal = (value, decimals = 2) => {
   // Return with fixed decimal places
   return num.toFixed(decimals);
 };
+
+/**
+ * Format a date in the future as a relative time string
+ * @param {Date} date - The future date to format
+ * @returns {string} Formatted relative time string
+ */
+export const formatRelativeTime = (date) => {
+  if (!date) return '';
+  
+  const now = new Date();
+  
+  // If the date is in the past, use getTimeSince
+  if (date < now) {
+    return getTimeSince(date);
+  }
+  
+  const secondsUntil = (date.getTime() - now.getTime()) / 1000;
+  
+  if (secondsUntil < 60) {
+    return 'in a few seconds';
+  }
+  if (secondsUntil < 3600) {
+    return `in ${Math.round(secondsUntil / 60)} minutes`;
+  }
+  if (secondsUntil < 86400) {
+    return `in ${Math.round(secondsUntil / 3600)} hours`;
+  }
+  if (secondsUntil < 604800) {
+    return `in ${Math.round(secondsUntil / 86400)} days`;
+  }
+  if (secondsUntil < 2592000) {
+    return `in ${Math.round(secondsUntil / 604800)} weeks`;
+  }
+  if (secondsUntil < 31536000) {
+    return `in ${Math.round(secondsUntil / 2592000)} months`;
+  }
+  
+  return `in ${Math.round(secondsUntil / 31536000)} years`;
+};
