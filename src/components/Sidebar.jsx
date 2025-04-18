@@ -63,7 +63,11 @@ function Sidebar() {
   }
   
   // Check if the insights section should be displayed
-  let showInsightsSection = isAdmin || hasPermission('insight_view');
+  let showInsightsSection = isAdmin || 
+    hasPermission('badges_read') || 
+    hasPermission('insights_read') || 
+    hasPermission('recommendations_read') || 
+    hasPermission('stories_read');
   
   // Force visibility of insights section for Admin role
   if (currentUser.roles && currentUser.roles.includes('Admin')) {
@@ -206,7 +210,7 @@ function Sidebar() {
                   <span>Insights & Badges</span>
                 </li>
                 
-                {(isAdmin || hasPermission('insight_view')) && (
+                {(isAdmin || hasPermission('badges_read')) && (
                   <li>
                     <NavLink to="/badges" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiAward className="icon" />
@@ -215,7 +219,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {(isAdmin || hasPermission('insight_view')) && (
+                {(isAdmin || hasPermission('recommendations_read')) && (
                   <li>
                     <NavLink to="/recommendations" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiTrendingUp className="icon" />
@@ -224,7 +228,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {(isAdmin || hasPermission('insight_view')) && (
+                {(isAdmin || hasPermission('insights_read')) && (
                   <li>
                     <NavLink to="/insights" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiMessageSquare className="icon" />
@@ -233,7 +237,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {(isAdmin || hasPermission('insight_view')) && (
+                {(isAdmin || hasPermission('stories_read')) && (
                   <li>
                     <NavLink to="/stories" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiBookOpen className="icon" />
