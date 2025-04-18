@@ -48,14 +48,17 @@ function Sidebar() {
     );
   }
   
+  // Admin users see all sections and menu items
+  const isAdmin = hasRole('Admin');
+  
   // Check if the admin section should be displayed
-  const showAdminSection = hasRole('Admin') || 
+  const showAdminSection = isAdmin || 
                          hasPermission('user_view') || 
                          hasPermission('role_view') || 
                          hasPermission('dashboard_edit');
   
   // Check if the insights section should be displayed
-  const showInsightsSection = hasRole('Admin') || hasPermission('insight_view');
+  const showInsightsSection = isAdmin || hasPermission('insight_view');
 
   return (
     <div>
@@ -63,7 +66,7 @@ function Sidebar() {
         <nav className="sidebar-nav">
           <ul>
             {/* Core features */}
-            {hasPermission('dashboard_view') && (
+            {(isAdmin || hasPermission('dashboard_view')) && (
               <li>
                 <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiHome className="icon" />
@@ -72,7 +75,7 @@ function Sidebar() {
               </li>
             )}
             
-            {hasPermission('file_upload') && (
+            {(isAdmin || hasPermission('file_upload')) && (
               <li>
                 <NavLink to="/upload" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiUpload className="icon" />
@@ -93,7 +96,7 @@ function Sidebar() {
             </li>
             
             {/* Monitoring section */}
-            {hasPermission('file_view') && (
+            {(isAdmin || hasPermission('file_view')) && (
               <li>
                 <NavLink to="/monitor" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiMonitor className="icon" />
@@ -102,7 +105,7 @@ function Sidebar() {
               </li>
             )}
             
-            {hasPermission('alert_view') && (
+            {(isAdmin || hasPermission('alert_view')) && (
               <li>
                 <NavLink to="/alerts" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiAlertTriangle className="icon" />
@@ -111,7 +114,7 @@ function Sidebar() {
               </li>
             )}
             
-            {hasPermission('file_view') && (
+            {(isAdmin || hasPermission('file_view')) && (
               <li>
                 <NavLink to="/scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiCalendar className="icon" />
@@ -121,7 +124,7 @@ function Sidebar() {
             )}
             
             {/* Data sources section */}
-            {hasPermission('file_view') && (
+            {(isAdmin || hasPermission('file_view')) && (
               <li>
                 <NavLink to="/connections" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiDatabase className="icon" />
@@ -130,7 +133,7 @@ function Sidebar() {
               </li>
             )}
             
-            {hasPermission('file_view') && (
+            {(isAdmin || hasPermission('file_view')) && (
               <li>
                 <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiLink className="icon" />
@@ -139,7 +142,7 @@ function Sidebar() {
               </li>
             )}
             
-            {hasPermission('lineage_view') && (
+            {(isAdmin || hasPermission('lineage_view')) && (
               <li>
                 <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
                   <FiGitBranch className="icon" />
@@ -155,7 +158,7 @@ function Sidebar() {
                   <span>Administration</span>
                 </li>
                 
-                {hasPermission('user_view') && (
+                {(isAdmin || hasPermission('user_view')) && (
                   <li>
                     <NavLink to="/users" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiUsers className="icon" />
@@ -164,7 +167,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {hasPermission('role_view') && (
+                {(isAdmin || hasPermission('role_view')) && (
                   <li>
                     <NavLink to="/roles" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiShield className="icon" />
@@ -173,7 +176,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {hasPermission('dashboard_edit') && (
+                {(isAdmin || hasPermission('dashboard_edit')) && (
                   <li>
                     <NavLink to="/dashboard-settings" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiSettings className="icon" />
@@ -191,7 +194,7 @@ function Sidebar() {
                   <span>Insights & Badges</span>
                 </li>
                 
-                {hasPermission('insight_view') && (
+                {(isAdmin || hasPermission('insight_view')) && (
                   <li>
                     <NavLink to="/badges" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiAward className="icon" />
@@ -200,7 +203,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {hasPermission('insight_view') && (
+                {(isAdmin || hasPermission('insight_view')) && (
                   <li>
                     <NavLink to="/recommendations" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiTrendingUp className="icon" />
@@ -209,7 +212,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {hasPermission('insight_view') && (
+                {(isAdmin || hasPermission('insight_view')) && (
                   <li>
                     <NavLink to="/insights" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiMessageSquare className="icon" />
@@ -218,7 +221,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {hasPermission('insight_view') && (
+                {(isAdmin || hasPermission('insight_view')) && (
                   <li>
                     <NavLink to="/stories" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiBookOpen className="icon" />
