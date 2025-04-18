@@ -193,7 +193,7 @@
 .completeness-bar-container {
   margin-bottom: 16px;
   background-color: white;
-  padding: 16px;
+  padding: 14px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
@@ -204,36 +204,44 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.completeness-bar-label {
+.completeness-bar-header {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  align-items: center;
+  flex-direction: column;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.column-name-wrapper {
+  margin-bottom: 4px;
   width: 100%;
 }
 
 .column-name {
   font-weight: 500;
   color: #2c3e50;
-  max-width: 70%;
+  font-size: 0.85rem; /* 20% smaller font */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-right: 10px;
   text-align: left;
-  display: inline-block;
-  flex: 1;
+  display: block;
+}
+
+.completeness-value-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .completeness-value {
   color: #2ecc71;
   font-weight: 600;
+  font-size: 0.85rem; /* 20% smaller font */
   background-color: rgba(46, 204, 113, 0.1);
   padding: 2px 8px;
   border-radius: 12px;
-  flex-shrink: 0;
   text-align: right;
-  margin-left: auto;
+  display: inline-block;
 }
 
 .completeness-bar-track {
@@ -241,6 +249,7 @@
   background-color: #ecf0f1;
   border-radius: 8px;
   overflow: hidden;
+  margin-top: 2px;
 }
 
 .completeness-bar-fill {
