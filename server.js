@@ -385,12 +385,24 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     try {
       // Extract basic file metrics based on file type
       if (fileType === 'csv') {
-        // For large files, use streaming to process only the first 1000 rows for analysis
-        // This prevents loading the entire file into memory
+        // For large files, analyze only a limited sample to speed up processing
         const MAX_ANALYZE_ROWS = 1000;
         
+        // Use faster file analysis that doesn't require reading the entire file
+        // Estimate row count from file size instead of counting all lines
+        const stats = fs.statSync(file.path);
+        const fileSizeBytes = stats.size;
+        
+        // Process only a portion of the file to calculate averages
+        const SAMPLE_SIZE = 100 * 1024; // 100 KB sample
+        
         // Create a read stream to process the file efficiently
-        const fileStream = fs.createReadStream(file.path, { encoding: 'utf8' });
+        const fileStream = fs.createReadStream(file.path, { 
+          encoding: 'utf8',
+          highWaterMark: SAMPLE_SIZE
+        });
+        
+        // Initialize variables for file processing
         let buffer = '';
         let lineCount = 0;
         let header = [];
@@ -398,60 +410,35 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         let isFirstChunk = true;
         const sampleLines = [];
         
-        // Count total lines in file using a separate stream
-        const lineCountStream = fs.createReadStream(file.path, { encoding: 'utf8' });
-        let totalLineCount = 0;
-        
-        lineCountStream.on('data', (chunk) => {
-          for (let i = 0; i < chunk.length; i++) {
-            if (chunk[i] === '\n') {
-              totalLineCount++;
-            }
-          }
-        });
-        
-        // Process file content in chunks
+        // Process file content in first chunk only
         await new Promise((resolve, reject) => {
           fileStream.on('data', (chunk) => {
             buffer += chunk;
             const lines = buffer.split('\n');
             
-            // Keep the last partial line in the buffer
-            buffer = lines.pop();
-            
-            if (isFirstChunk && lines.length > 0) {
-              // Process header on first chunk
+            if (lines.length > 0) {
+              // Process header
               header = lines[0].split(',').map(h => h.trim());
               columnCount = header.length;
-              isFirstChunk = false;
               
-              // Start from second line (after header)
-              for (let i = 1; i < lines.length && lineAnalyzed < MAX_ANALYZE_ROWS; i++) {
-                sampleLines.push(lines[i]);
-                lineAnalyzed++;
+              // Process sample lines
+              const sampleLimit = Math.min(lines.length, MAX_ANALYZE_ROWS + 1);
+              for (let i = 1; i < sampleLimit; i++) {
+                if (lines[i].trim().length > 0) {
+                  sampleLines.push(lines[i]);
+                  lineAnalyzed++;
+                }
               }
-            } else {
-              // Process subsequent chunks
-              for (let i = 0; i < lines.length && lineAnalyzed < MAX_ANALYZE_ROWS; i++) {
-                sampleLines.push(lines[i]);
-                lineAnalyzed++;
-              }
-            }
-            
-            lineCount += lines.length;
-            
-            // If we've processed enough lines, end the stream early
-            if (lineAnalyzed >= MAX_ANALYZE_ROWS) {
+              
+              lineCount = sampleLimit;
+              
+              // We have enough data - end the stream
               fileStream.destroy();
+              resolve();
             }
           });
           
           fileStream.on('end', () => {
-            // Process any remaining buffer content
-            if (buffer.trim().length > 0) {
-              sampleLines.push(buffer);
-              lineCount++;
-            }
             resolve();
           });
           
@@ -460,21 +447,16 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
           });
         });
         
-        // Wait for line counting to complete
-        await new Promise((resolve) => {
-          lineCountStream.on('end', () => {
-            resolve();
-          });
-          
-          lineCountStream.on('error', () => {
-            // On error, fall back to the sampled line count
-            resolve();
-          });
-        });
+        // Estimate total rows based on average line length and file size
+        const sampleSize = buffer.length;
+        const avgBytesPerLine = sampleSize / (lineCount || 1);
+        const estimatedRowCount = Math.max(
+          Math.floor(fileSizeBytes / avgBytesPerLine) - 1, // Subtract header
+          sampleLines.length
+        );
         
-        // Use total line count if it's greater than the sampled count
-        // Otherwise fall back to sampled count
-        rowCount = Math.max(totalLineCount - 1, lineCount - 1); // Subtract header row
+        // Use estimated row count from the file size calculation
+        rowCount = Math.max(estimatedRowCount, lineCount - 1); // Subtract header row
         
         if (header.length > 0) {
           // Use header and sample lines for analysis
