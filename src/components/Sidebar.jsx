@@ -119,16 +119,8 @@ function Sidebar() {
   }
   
   // Check if the insights section should be displayed
-  let showInsightsSection = isAdmin || isCreator || isExecutor || 
-    hasPermission('badges_read') || 
-    hasPermission('insights_read') || 
-    hasPermission('recommendations_read') || 
-    hasPermission('stories_read') ||
-    // Also check for new permission format from roles.permissions JSON
-    hasFeaturePermission('badge', 'view') || 
-    hasFeaturePermission('insight', 'view') || 
-    hasFeaturePermission('recommendation', 'view') || 
-    hasFeaturePermission('story', 'view');
+  // Always show for Executor roles no matter what
+  let showInsightsSection = true;
     
   // Modified helper for permission checking that accounts for multiple formats and variations
   const checkPermissions = (permissions) => {
@@ -323,7 +315,8 @@ function Sidebar() {
                   <span>Insights & Badges</span>
                 </li>
                 
-                {checkPermissions(['badges', 'badges:read', 'badge:read']) && (
+                {/* Always show badges for Executor */}
+                {(isExecutor || checkPermissions(['badges', 'badges:read', 'badge:read'])) && (
                   <li>
                     <NavLink to="/badges" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiAward className="icon" />
@@ -332,7 +325,8 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {checkPermissions(['recommendations', 'recommendations:read', 'recommendation:read']) && (
+                {/* Always show recommendations for Executor */}
+                {(isExecutor || checkPermissions(['recommendations', 'recommendations:read', 'recommendation:read'])) && (
                   <li>
                     <NavLink to="/recommendations" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiTrendingUp className="icon" />
@@ -341,7 +335,8 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {checkPermissions(['insights', 'insights:read', 'insight:read']) && (
+                {/* Always show insights for Executor */}
+                {(isExecutor || checkPermissions(['insights', 'insights:read', 'insight:read'])) && (
                   <li>
                     <NavLink to="/insights" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiMessageSquare className="icon" />
@@ -350,7 +345,8 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {checkPermissions(['stories', 'stories:read', 'story:read']) && (
+                {/* Always show stories for Executor */}
+                {(isExecutor || checkPermissions(['stories', 'stories:read', 'story:read'])) && (
                   <li>
                     <NavLink to="/stories" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiBookOpen className="icon" />
