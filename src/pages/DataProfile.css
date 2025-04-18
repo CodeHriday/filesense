@@ -186,17 +186,18 @@
 .completeness-bars {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
 }
 
 .completeness-bar-container {
   margin-bottom: 16px;
   background-color: white;
-  padding: 14px;
+  padding: 14px 16px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
+  overflow: hidden;
 }
 
 .completeness-bar-container:hover {
@@ -205,42 +206,42 @@
 }
 
 .completeness-bar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  position: relative;
   margin-bottom: 10px;
   width: 100%;
+  display: flex;
+  justify-content: space-between;
 }
 
 .column-name-wrapper {
-  margin-bottom: 4px;
-  width: 70%; /* Limit width to prevent overlap */
-  padding-right: 8px;
+  flex: 1;
+  text-align: left;
+  padding-right: 70px; /* Make room for percentage on right */
 }
 
 .column-name {
   font-weight: 500;
   color: #2c3e50;
-  font-size: 0.8rem; /* Even smaller font */
+  font-size: 0.75rem; /* Smaller font */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: left;
   display: block;
   line-height: 1.2;
+  max-width: 100%;
 }
 
 .completeness-value-wrapper {
-  width: 30%;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
+  position: absolute;
+  right: 0;
+  top: 0;
+  text-align: right;
 }
 
 .completeness-value {
   color: #2ecc71;
   font-weight: 600;
-  font-size: 0.8rem; /* Even smaller font */
+  font-size: 0.75rem; /* Smaller font */
   background-color: rgba(46, 204, 113, 0.1);
   padding: 2px 8px;
   border-radius: 12px;
@@ -250,11 +251,12 @@
 }
 
 .completeness-bar-track {
-  height: 10px;
+  height: 12px;
   background-color: #ecf0f1;
   border-radius: 8px;
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 6px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .completeness-bar-fill {
@@ -262,6 +264,7 @@
   background: linear-gradient(to right, #2ecc71, #27ae60);
   border-radius: 8px;
   transition: width 0.5s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .freshness-stats {
