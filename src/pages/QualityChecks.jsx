@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { FiCheck, FiX, FiAlertTriangle, FiBarChart2 } from 'react-icons/fi';
 import Card from '../components/Card';
 import { getFileDetails, getFileQuality, runQualityCheck } from '../api/fileService';
-import { formatDate, getTimeSince } from '../utils/formatters';
+import { formatDate, getTimeSince, formatDecimal } from '../utils/formatters';
 import './QualityChecks.css';
 
 function QualityChecks() {
@@ -112,7 +112,7 @@ function QualityChecks() {
                     <div className="metric-header">
                       <h3>Completeness</h3>
                       <div className={`metric-score ${quality.completeness?.score >= 80 ? 'good' : quality.completeness?.score >= 60 ? 'medium' : 'poor'}`}>
-                        {quality.completeness?.score?.toFixed(1) || '0'}%
+                        {formatDecimal(quality.completeness?.score, 1)}%
                       </div>
                     </div>
                     <p>Percentage of non-empty values across all columns.</p>
@@ -134,7 +134,7 @@ function QualityChecks() {
                       {quality.completeness?.details && quality.completeness.details.length > 0 ? (
                         <>
                           <div className="metric-score good">
-                            {Math.max(...quality.completeness.details.map(col => col.score)).toFixed(1)}%
+                            {formatDecimal(Math.max(...quality.completeness.details.map(col => col.score)), 1)}%
                           </div>
                         </>
                       ) : (
@@ -164,7 +164,7 @@ function QualityChecks() {
                                 (prev.score < current.score) ? prev : current);
                               return (
                                 <div className="metric-score poor">
-                                  {worstColumn.score.toFixed(1)}%
+                                  {formatDecimal(worstColumn.score, 1)}%
                                 </div>
                               );
                             } else {
@@ -224,7 +224,7 @@ function QualityChecks() {
                               ) : (
                                 <FiX />
                               )}
-                              {col.completeness?.toFixed(1)}%
+                              {formatDecimal(col.completeness, 1)}%
                             </span>
                           </td>
                           <td>{col.unique_count !== undefined ? col.unique_count.toLocaleString() : 'N/A'}</td>
