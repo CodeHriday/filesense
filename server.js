@@ -1485,6 +1485,33 @@ app.get('/api/alerts/history', async (req, res) => {
   }
 });
 
+// Get alerts for a specific file
+app.get('/api/files/:fileId/alerts', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    if (!fileId || fileId === 'undefined') {
+      return res.json([]); // Return empty array for invalid file ID
+    }
+    
+    // Check if alert_history table exists and has the file_id column
+    const result = await pool.query(`
+      SELECT ah.*, ar.rule_name, ar.rule_type, ar.severity, f.filename
+      FROM alert_history ah
+      JOIN alert_rules ar ON ah.rule_id = ar.id
+      JOIN files f ON ah.file_id = f.file_id
+      WHERE ah.file_id = $1
+      ORDER BY ah.triggered_at DESC
+    `, [fileId]);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching file alerts:', err);
+    // Return empty array on error to prevent frontend crashes
+    res.json([]);
+  }
+});
+
 // Connections API
 app.get('/api/connections', async (req, res) => {
   try {

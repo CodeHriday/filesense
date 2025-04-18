@@ -3,7 +3,7 @@ import { FiBarChart2, FiCheckCircle, FiClock, FiAlertTriangle, FiTrendingUp, FiC
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getFileCatalog } from '../api/fileService';
-import { getFileAlerts } from '../api/alertService';
+import { getFileAlerts, getAlertHistory } from '../api/alertService';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -35,8 +35,13 @@ const Dashboard = () => {
         // Get file data
         const files = await getFileCatalog();
         
-        // Get alerts
-        const alertsData = await getFileAlerts();
+        // Get all alerts using the global endpoint instead of file-specific endpoint
+        let alertsData = [];
+        try {
+          alertsData = await getAlertHistory();
+        } catch (error) {
+          console.log('Error fetching alert history, continuing with empty alerts');
+        }
         
         // Process files for statistics
         const fileTypes = {};
