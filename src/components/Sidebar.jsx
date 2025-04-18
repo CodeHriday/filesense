@@ -1,6 +1,20 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiUpload, FiDatabase, FiBarChart2, FiAlertTriangle, FiSettings, FiLink, FiMonitor, FiGitBranch } from 'react-icons/fi';
+import { 
+  FiHome, 
+  FiUpload, 
+  FiDatabase, 
+  FiBarChart2, 
+  FiAlertTriangle, 
+  FiSettings, 
+  FiLink, 
+  FiMonitor, 
+  FiGitBranch,
+  FiAward,
+  FiMessageSquare,
+  FiTrendingUp,
+  FiBookOpen
+} from 'react-icons/fi';
 import './Sidebar.css';
 
 function Sidebar() {
@@ -48,6 +62,38 @@ function Sidebar() {
             <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
               <FiGitBranch className="icon" />
               <span>File Lineage</span>
+            </NavLink>
+          </li>
+          
+          <li className="nav-divider">
+            <span>Insights & Badges</span>
+          </li>
+          
+          <li>
+            <NavLink to="/badges" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiAward className="icon" />
+              <span>Achievement Badges</span>
+            </NavLink>
+          </li>
+          
+          <li>
+            <NavLink to="/recommendations" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiTrendingUp className="icon" />
+              <span>Recommendations</span>
+            </NavLink>
+          </li>
+          
+          <li>
+            <NavLink to="/insights" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiMessageSquare className="icon" />
+              <span>AI Insights</span>
+            </NavLink>
+          </li>
+          
+          <li>
+            <NavLink to="/stories" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiBookOpen className="icon" />
+              <span>Data Stories</span>
             </NavLink>
           </li>
         </ul>

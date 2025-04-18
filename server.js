@@ -2575,6 +2575,194 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Badge API endpoints
+app.get('/api/badges', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM user_badges ORDER BY earned_date DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching badges:', err);
+    res.status(500).json({ error: 'Failed to fetch badges' });
+  }
+});
+
+app.post('/api/badges', async (req, res) => {
+  try {
+    const { badgeId, score, fileId, earnedDate } = req.body;
+    
+    // Check if badge already exists
+    const existingBadge = await pool.query(
+      'SELECT * FROM user_badges WHERE badge_id = $1',
+      [badgeId]
+    );
+    
+    if (existingBadge.rows.length > 0) {
+      return res.status(409).json({ error: 'Badge already earned', badge: existingBadge.rows[0] });
+    }
+    
+    // Insert new badge
+    const result = await pool.query(
+      `INSERT INTO user_badges 
+       (badge_id, score, file_id, earned_date, created_at) 
+       VALUES ($1, $2, $3, $4, NOW()) 
+       RETURNING *`,
+      [badgeId, score, fileId, earnedDate || new Date()]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error saving badge:', err);
+    res.status(500).json({ error: 'Failed to save badge' });
+  }
+});
+
+app.post('/api/badges/check', async (req, res) => {
+  try {
+    const fileData = req.body;
+    const { file_id } = fileData;
+    
+    // Get all badges for reference
+    const badgeResult = await pool.query('SELECT * FROM user_badges');
+    const existingBadges = badgeResult.rows;
+    
+    // Get latest quality data for the file
+    const qualityResult = await pool.query(
+      'SELECT * FROM quality_checks WHERE file_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [file_id]
+    );
+    
+    if (qualityResult.rows.length === 0) {
+      return res.json({ newBadges: [], allBadges: existingBadges });
+    }
+    
+    const qualityData = qualityResult.rows[0];
+    
+    // Get historical quality data to check improvements
+    const historyResult = await pool.query(
+      'SELECT * FROM quality_checks WHERE file_id = $1 ORDER BY created_at ASC',
+      [file_id]
+    );
+    
+    const historyData = historyResult.rows;
+    
+    // Calculate improvement if we have history
+    let improvementPercentage = 0;
+    if (historyData.length > 1) {
+      const firstCheck = historyData[0];
+      const latestCheck = historyData[historyData.length - 1];
+      
+      if (firstCheck.quality_score > 0) {
+        improvementPercentage = Math.round(
+          ((latestCheck.quality_score - firstCheck.quality_score) / firstCheck.quality_score) * 100
+        );
+      }
+    }
+    
+    // Get file metadata for freshness calculation
+    const fileResult = await pool.query(
+      'SELECT * FROM files WHERE file_id = $1',
+      [file_id]
+    );
+    
+    if (fileResult.rows.length === 0) {
+      return res.json({ newBadges: [], allBadges: existingBadges });
+    }
+    
+    const fileMetadata = fileResult.rows[0];
+    const lastUpdated = new Date(fileMetadata.last_updated || fileMetadata.created_at);
+    const now = new Date();
+    const daysSinceLastUpdate = Math.floor((now - lastUpdated) / (1000 * 60 * 60 * 24));
+    
+    // Prepare data for badge checks
+    const badgeCheckData = {
+      fileId: file_id,
+      qualityScore: qualityData.quality_score,
+      completenessScore: qualityData.completeness_score || 0,
+      consistencyScore: qualityData.consistency_score || 0,
+      validityScore: qualityData.validity_score || 0,
+      accuracyScore: qualityData.accuracy_score || 0,
+      daysSinceLastUpdate,
+      improvementPercentage,
+      overallScore: qualityData.quality_score
+    };
+    
+    // Use the badge definitions from the imported service
+    const { BADGE_DEFINITIONS } = require('./src/api/badgeService');
+    
+    // Check which badges have been earned
+    const earnedBadgeIds = new Set(existingBadges.map(b => b.badge_id));
+    const newBadges = [];
+    
+    for (const [badgeId, def] of Object.entries(BADGE_DEFINITIONS)) {
+      // Skip if already earned
+      if (earnedBadgeIds.has(badgeId)) continue;
+      
+      // Check if badge criteria is met
+      let isEarned = false;
+      const fieldValue = badgeCheckData[def.field];
+      
+      if (def.field === 'daysSinceLastUpdate') {
+        // For freshness, lower is better
+        isEarned = fieldValue <= def.threshold;
+      } else {
+        // For other metrics, higher is better
+        isEarned = fieldValue >= def.threshold;
+      }
+      
+      if (isEarned) {
+        // Create the new badge
+        const newBadge = {
+          badge_id: badgeId,
+          score: fieldValue,
+          file_id,
+          earned_date: new Date()
+        };
+        
+        // Insert into database
+        const insertResult = await pool.query(
+          `INSERT INTO user_badges 
+           (badge_id, score, file_id, earned_date, created_at) 
+           VALUES ($1, $2, $3, $4, NOW()) 
+           RETURNING *`,
+          [newBadge.badge_id, newBadge.score, newBadge.file_id, newBadge.earned_date]
+        );
+        
+        newBadges.push({
+          ...insertResult.rows[0],
+          ...def
+        });
+      }
+    }
+    
+    // Get updated list of all badges
+    const updatedBadgeResult = await pool.query('SELECT * FROM user_badges');
+    const allBadges = updatedBadgeResult.rows;
+    
+    res.json({ newBadges, allBadges });
+  } catch (err) {
+    console.error('Error checking for badges:', err);
+    res.status(500).json({ error: 'Failed to check for badges' });
+  }
+});
+
+app.delete('/api/badges/:badgeId', async (req, res) => {
+  try {
+    const { badgeId } = req.params;
+    
+    await pool.query(
+      'DELETE FROM user_badges WHERE badge_id = $1',
+      [badgeId]
+    );
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting badge:', err);
+    res.status(500).json({ error: 'Failed to delete badge' });
+  }
+});
+
 // Catch unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise);

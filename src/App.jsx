@@ -13,6 +13,10 @@ import Mappings from './pages/Mappings';
 import FileLineage from './pages/FileLineage';
 import LineageImpact from './pages/LineageImpact';
 import Monitor from './pages/Monitor';
+import Badges from './pages/Badges';
+import DataInsights from './pages/DataInsights';
+import Recommendations from './pages/Recommendations';
+import DataStories from './pages/DataStories';
 import './App.css';
 
 function App() {
@@ -35,6 +39,10 @@ function App() {
               <Route path="/lineage" element={<FileLineage />} />
               <Route path="/lineage/impact/:fileId" element={<LineageImpact />} />
               <Route path="/monitor" element={<Monitor />} />
+              <Route path="/badges" element={<Badges />} />
+              <Route path="/insights" element={<DataInsights />} />
+              <Route path="/recommendations" element={<Recommendations />} />
+              <Route path="/stories" element={<DataStories />} />
             </Routes>
           </main>
         </div>
