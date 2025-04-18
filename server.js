@@ -68,14 +68,31 @@ const authenticateToken = async (req, res, next) => {
       
       // Process each role's JSON permissions
       for (const role of rolesResult.rows) {
-        if (role.permissions && Array.isArray(role.permissions)) {
-          // These are already in string format like "resource:action"
-          const stringPermissions = role.permissions.map(p => p);
-          allPermissions = [...allPermissions, ...stringPermissions];
-        } else if (role.permissions && typeof role.permissions === 'object') {
-          // The permissions is a JSON object, convert to array
-          const permissionsArray = Object.values(role.permissions);
-          allPermissions = [...allPermissions, ...permissionsArray];
+        console.log(`Processing role ${role.name} with permissions:`, role.permissions);
+        
+        if (role.permissions) {
+          // For string array format
+          if (Array.isArray(role.permissions)) {
+            // These are already in string format like "resource:action"
+            const stringPermissions = role.permissions;
+            console.log(`Adding array permissions for ${role.name}:`, stringPermissions);
+            allPermissions = [...allPermissions, ...stringPermissions];
+          } 
+          // For object format that PostgreSQL returns from JSONB
+          else if (typeof role.permissions === 'object') {
+            // Check if it's the specialized format with numeric keys that PostgreSQL returns
+            if (Object.keys(role.permissions).some(key => !isNaN(parseInt(key)))) {
+              // This is the format PostgreSQL returns for JSONB arrays: {"0":"perm1","1":"perm2"}
+              const stringPermissions = Object.values(role.permissions);
+              console.log(`Adding object-array permissions for ${role.name}:`, stringPermissions);
+              allPermissions = [...allPermissions, ...stringPermissions];
+            } else {
+              // It's a regular object format
+              const permissionsArray = Object.values(role.permissions);
+              console.log(`Adding object permissions for ${role.name}:`, permissionsArray);
+              allPermissions = [...allPermissions, ...permissionsArray];
+            }
+          }
         }
       }
       

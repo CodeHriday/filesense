@@ -282,7 +282,22 @@ export function AuthProvider({ children }) {
     }
     
     // Admin role has access to everything
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    if (currentUser.roles && 
+       (currentUser.roles.includes('Admin') || 
+        (resource !== 'user_management' && resource !== 'role_management' && currentUser.roles.includes('Creator')))) {
+      return true;
+    }
+    
+    // These resources should always be available to Creators
+    const creatorResources = [
+      'connections', 'connection', 'mappings', 'mapping', 
+      'file_upload', 'files', 'file', 'quality_checks', 'quality_check',
+      'lineage', 'scheduler', 'alerts', 'alert'
+    ];
+    
+    // Allow Creator role write access to specific resources
+    if (currentUser.roles && currentUser.roles.includes('Creator') && 
+        creatorResources.includes(resource)) {
       return true;
     }
     
@@ -307,12 +322,14 @@ export function AuthProvider({ children }) {
           const [permResource, permAction] = parts;
           
           // Check if any variation of the resource matches and action is 'write'
-          return resourceVariations.includes(permResource) && permAction === 'write';
+          return resourceVariations.includes(permResource) && 
+                 (permAction === 'write' || permAction === '*');
         }
         
         // For object format permissions (older format)
         if (typeof p === 'object' && p.resource && p.action) {
-          return resourceVariations.includes(p.resource) && p.action === 'write';
+          return resourceVariations.includes(p.resource) && 
+                 (p.action === 'write' || p.action === '*');
         }
         
         return false;
