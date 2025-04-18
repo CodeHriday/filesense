@@ -1041,12 +1041,18 @@ const Connections = () => {
                         Connect to Google Cloud Storage to import data files from your GCP projects.
                         Use service account credentials to securely access your storage buckets.
                       </p>
-                      <button className="btn btn-outline" onClick={() => {
-                        setFormData({...formData, connection_type: 'gcp'});
-                        handleAddNew();
-                      }}>
-                        Connect to Google Cloud
-                      </button>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'gcp'});
+                          handleAddNew();
+                        }}>
+                          Connect to Google Cloud
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
                     </div>
                     
                     <div className="cloud-provider-section azure">
@@ -1063,12 +1069,18 @@ const Connections = () => {
                         Connect to Microsoft Azure Blob Storage to import files from your storage containers.
                         Supports secure access using storage account keys.
                       </p>
-                      <button className="btn btn-outline" onClick={() => {
-                        setFormData({...formData, connection_type: 'azure'});
-                        handleAddNew();
-                      }}>
-                        Connect to Azure
-                      </button>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'azure'});
+                          handleAddNew();
+                        }}>
+                          Connect to Azure
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
                     </div>
                     
                     <div className="cloud-provider-section snowflake">
@@ -1085,12 +1097,18 @@ const Connections = () => {
                         Access data directly from your Snowflake data warehouse. Query tables and views
                         to import data for profiling, quality checks, and lineage tracking.
                       </p>
-                      <button className="btn btn-outline" onClick={() => {
-                        setFormData({...formData, connection_type: 'snowflake'});
-                        handleAddNew();
-                      }}>
-                        Connect to Snowflake
-                      </button>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'snowflake'});
+                          handleAddNew();
+                        }}>
+                          Connect to Snowflake
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
                     </div>
                     
                     <div className="cloud-provider-section databricks">
@@ -1107,12 +1125,18 @@ const Connections = () => {
                         Connect to Databricks to access tables and views from your lakehouse platform.
                         Seamlessly import structured data for advanced profiling and quality monitoring.
                       </p>
-                      <button className="btn btn-outline" onClick={() => {
-                        setFormData({...formData, connection_type: 'databricks'});
-                        handleAddNew();
-                      }}>
-                        Connect to Databricks
-                      </button>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'databricks'});
+                          handleAddNew();
+                        }}>
+                          Connect to Databricks
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
                     </div>
 
                     <div className="cloud-provider-section sharepoint">
@@ -1129,12 +1153,18 @@ const Connections = () => {
                         Connect to Microsoft SharePoint to access files from your organization's document libraries.
                         Import spreadsheets, reports, and data files directly from SharePoint sites.
                       </p>
-                      <button className="btn btn-outline" onClick={() => {
-                        setFormData({...formData, connection_type: 'sharepoint'});
-                        handleAddNew();
-                      }}>
-                        Connect to SharePoint
-                      </button>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'sharepoint'});
+                          handleAddNew();
+                        }}>
+                          Connect to SharePoint
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
                     </div>
 
                     <div className="cloud-provider-section outlook">
@@ -1151,12 +1181,18 @@ const Connections = () => {
                         Connect to Microsoft Outlook to access and process file attachments from emails.
                         Automatically import data from scheduled reports sent to your inbox.
                       </p>
-                      <button className="btn btn-outline" onClick={() => {
-                        setFormData({...formData, connection_type: 'outlook'});
-                        handleAddNew();
-                      }}>
-                        Connect to Outlook
-                      </button>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'outlook'});
+                          handleAddNew();
+                        }}>
+                          Connect to Outlook
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>

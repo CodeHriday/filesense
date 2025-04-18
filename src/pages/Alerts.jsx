@@ -4,9 +4,11 @@ import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck } from 'react-icons
 import Card from '../components/Card';
 import { getAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, getAlertHistory } from '../api/alertService';
 import { formatDate, getTimeSince } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import './Alerts.css';
 
 function Alerts() {
+  const { hasWritePermission } = useAuth();
   const [alertRules, setAlertRules] = useState([]);
   const [alertHistory, setAlertHistory] = useState([]);
   const [loading, setLoading] = useState(true);
