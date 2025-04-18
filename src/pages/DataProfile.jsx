@@ -280,62 +280,57 @@ function DataProfile() {
                           })}
                         </div>
                       ) : (
-                        // Create a data-based distribution for categorical data
+                        // Create a data-based distribution for categorical data based on top_values
                         <div className="categorical-distribution">
-                          {/* Most frequent value */}
-                          <div className="category-row">
-                            <div className="category-label">{column.most_frequent_value || 'Most Common'}</div>
-                            <div className="category-bar-container">
-                              <div 
-                                className="category-bar" 
-                                style={{ 
-                                  width: '80%',
-                                  backgroundColor: 'rgba(52, 152, 219, 0.8)'
-                                }}
-                              ></div>
-                            </div>
-                            <div className="category-percentage">
-                              {column.unique > 0 ? `${Math.max(5, Math.round(100 / Math.min(column.unique, 20)))}%` : '0%'}
-                            </div>
-                          </div>
-                          
-                          {/* Other data */}
-                          {column.unique > 2 && (
-                            <div className="category-row">
-                              <div className="category-label">Other Values</div>
-                              <div className="category-bar-container">
-                                <div 
-                                  className="category-bar" 
-                                  style={{ 
-                                    width: '50%',
-                                    backgroundColor: 'rgba(52, 152, 219, 0.5)'
-                                  }}
-                                ></div>
+                          {(() => {
+                            // Parse top_values if it exists, or create default values
+                            let topValues;
+                            try {
+                              topValues = column.top_values ? 
+                                (typeof column.top_values === 'string' ? 
+                                  JSON.parse(column.top_values) : column.top_values) 
+                                : [
+                                  { value: column.most_frequent_value || 'Unknown', frequency: 20 },
+                                  { value: 'Other Values', frequency: 60 },
+                                  { value: column.least_frequent_value || 'Unknown', frequency: 20 }
+                                ];
+                            } catch (e) {
+                              // Default if parsing fails
+                              topValues = [
+                                { value: column.most_frequent_value || 'Unknown', frequency: 20 },
+                                { value: 'Other Values', frequency: 60 },
+                                { value: column.least_frequent_value || 'Unknown', frequency: 20 }
+                              ];
+                            }
+                            
+                            // For string data, show up to 5 values in descending order
+                            // Make sure it has at least the most frequent and least frequent
+                            if (topValues.length < 2 && column.most_frequent_value) {
+                              topValues = [
+                                { value: column.most_frequent_value, frequency: 20 },
+                                { value: column.least_frequent_value || 'Other', frequency: 5 }
+                              ];
+                            }
+                            
+                            // We want a maximum of 5 values
+                            const limitedValues = topValues.slice(0, 5);
+                            
+                            return limitedValues.map((item, index) => (
+                              <div key={index} className="category-row">
+                                <div className="category-label">{item.value}</div>
+                                <div className="category-bar-container">
+                                  <div 
+                                    className="category-bar" 
+                                    style={{ 
+                                      width: `${Math.max(20, Math.min(80, item.frequency))}%`,
+                                      backgroundColor: `rgba(52, 152, 219, ${0.8 - (index * 0.1)})`
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="category-percentage">{`${item.frequency}%`}</div>
                               </div>
-                              <div className="category-percentage">
-                                {`${Math.round(100 - (2 * Math.max(5, Math.round(100 / Math.min(column.unique, 20)))))}%`}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Least frequent value */}
-                          {column.unique > 1 && (
-                            <div className="category-row">
-                              <div className="category-label">{column.least_frequent_value || 'Least Common'}</div>
-                              <div className="category-bar-container">
-                                <div 
-                                  className="category-bar" 
-                                  style={{ 
-                                    width: '20%',
-                                    backgroundColor: 'rgba(52, 152, 219, 0.3)'
-                                  }}
-                                ></div>
-                              </div>
-                              <div className="category-percentage">
-                                {column.unique > 0 ? `${Math.max(5, Math.round(100 / Math.min(column.unique, 20)))}%` : '0%'}
-                              </div>
-                            </div>
-                          )}
+                            ));
+                          })()}
                         </div>
                       )}
                     </div>

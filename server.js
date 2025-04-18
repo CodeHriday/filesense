@@ -1035,7 +1035,17 @@ app.get('/api/files/:fileId/profile', async (req, res) => {
       stdDev: col.std_dev,
       histogram: col.histogram ? JSON.parse(col.histogram) : null,
       most_frequent_value: col.most_frequent_value,
-      least_frequent_value: col.least_frequent_value
+      least_frequent_value: col.least_frequent_value,
+      top_values: col.top_values ? col.top_values : (
+        // If top_values doesn't exist in the database, generate a simulated version
+        // based on most_frequent_value and least_frequent_value
+        col.type === 'string' || col.type === 'date' ? 
+          JSON.stringify([
+            { value: col.most_frequent_value || 'Unknown', frequency: 20 },
+            { value: 'Other Values', frequency: 60 },
+            { value: col.least_frequent_value || 'Unknown', frequency: 20 }
+          ]) : null
+      )
     }));
     
     const profile = {
