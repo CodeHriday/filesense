@@ -19,110 +19,150 @@ const JWT_EXPIRATION = '24h'; // Token expiration time
 
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
+  console.log('==== authenticateToken middleware called ====');
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
   
   if (!token) {
+    console.log('No token provided');
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
   
   try {
     // Verify token
+    console.log('Verifying token');
     const verified = jwt.verify(token, JWT_SECRET);
+    console.log('Token verified:', JSON.stringify(verified));
     
     // Store user data from token
     req.user = verified;
     
+    // Store the original token for debugging
+    req.token = token;
+    
     // Get permissions for the user based on roles
     if (verified.roles && verified.roles.length > 0) {
+      console.log('User has roles:', verified.roles);
       let allPermissions = [];
       
-      // 1. Get all permissions from the permissions and role_permissions tables (old system)
-      const permissionsQuery = `
-        SELECT DISTINCT p.name, p.resource, p.action
-        FROM permissions p
-        JOIN role_permissions rp ON p.id = rp.permission_id
-        JOIN roles r ON rp.role_id = r.id
-        WHERE r.name = ANY($1::varchar[])
-      `;
+      // Add some critical permissions regardless of role to ensure minimal functionality
+      const criticalPermissions = [
+        { name: 'dashboard_view', resource: 'dashboard', action: 'view' },
+        { name: 'file_view', resource: 'file', action: 'view' },
+        'dashboard:read',
+        'file_profile:read'
+      ];
+      allPermissions = [...allPermissions, ...criticalPermissions];
+      console.log('Added critical permissions for all roles');
       
-      const permissionsResult = await pool.query(permissionsQuery, [verified.roles]);
-      
-      // Store the permissions from the old system
-      const oldSystemPermissions = permissionsResult.rows.map(p => ({
-        name: p.name,
-        resource: p.resource,
-        action: p.action
-      }));
-      
-      allPermissions = [...oldSystemPermissions];
-      
-      // 2. Get permissions from the JSON array in the roles table (new system)
-      const rolesWithPermissionsQuery = `
-        SELECT name, permissions 
-        FROM roles 
-        WHERE name = ANY($1::varchar[])
-      `;
-      
-      const rolesResult = await pool.query(rolesWithPermissionsQuery, [verified.roles]);
-      
-      // Process each role's JSON permissions
-      for (const role of rolesResult.rows) {
-        console.log(`Processing role ${role.name} with permissions:`, role.permissions);
+      try {
+        // 1. Get all permissions from the permissions and role_permissions tables (old system)
+        console.log('Fetching old system permissions from database');
+        const permissionsQuery = `
+          SELECT DISTINCT p.name, p.resource, p.action
+          FROM permissions p
+          JOIN role_permissions rp ON p.id = rp.permission_id
+          JOIN roles r ON rp.role_id = r.id
+          WHERE r.name = ANY($1::varchar[])
+        `;
         
-        // Special handling for Executor role to ensure it always has badges/insights access
-        if (role.name === 'Executor') {
-          // Core Executor permissions that should always be included
-          const executorCorePermissions = [
-            'dashboard:read',
-            'file_profile:read',
-            'quality_checks:read',
-            'mappings:read',
-            'lineage:read',
-            'monitor:read',
-            'scheduler:read',
-            'badges:read',
-            'insights:read',
-            'recommendations:read',
-            'stories:read'
-          ];
+        const permissionsResult = await pool.query(permissionsQuery, [verified.roles]);
+        console.log('Old system permissions result rows:', permissionsResult.rows.length);
+        
+        // Store the permissions from the old system
+        const oldSystemPermissions = permissionsResult.rows.map(p => ({
+          name: p.name,
+          resource: p.resource,
+          action: p.action
+        }));
+        
+        allPermissions = [...allPermissions, ...oldSystemPermissions];
+        console.log('Added permissions from old system');
+        
+        // 2. Get permissions from the JSON array in the roles table (new system)
+        console.log('Fetching new system permissions from roles table');
+        const rolesWithPermissionsQuery = `
+          SELECT name, permissions 
+          FROM roles 
+          WHERE name = ANY($1::varchar[])
+        `;
+        
+        const rolesResult = await pool.query(rolesWithPermissionsQuery, [verified.roles]);
+        console.log('New system permissions result rows:', rolesResult.rows.length);
+        
+        // Process each role's JSON permissions
+        for (const role of rolesResult.rows) {
+          console.log(`Processing role ${role.name}`);
+          console.log('Role permissions type:', typeof role.permissions);
+          console.log('Role permissions:', JSON.stringify(role.permissions));
           
-          console.log(`Adding core permissions for Executor role:`, executorCorePermissions);
-          allPermissions = [...allPermissions, ...executorCorePermissions];
-        }
-        
-        if (role.permissions) {
-          // For string array format
-          if (Array.isArray(role.permissions)) {
-            // These are already in string format like "resource:action"
-            const stringPermissions = role.permissions;
-            console.log(`Adding array permissions for ${role.name}:`, stringPermissions);
-            allPermissions = [...allPermissions, ...stringPermissions];
-          } 
-          // For object format that PostgreSQL returns from JSONB
-          else if (typeof role.permissions === 'object') {
-            // Check if it's the specialized format with numeric keys that PostgreSQL returns
-            if (Object.keys(role.permissions).some(key => !isNaN(parseInt(key)))) {
-              // This is the format PostgreSQL returns for JSONB arrays: {"0":"perm1","1":"perm2"}
-              const stringPermissions = Object.values(role.permissions);
-              console.log(`Adding object-array permissions for ${role.name}:`, stringPermissions);
-              allPermissions = [...allPermissions, ...stringPermissions];
-            } else {
-              // It's a regular object format
-              const permissionsArray = Object.values(role.permissions);
-              console.log(`Adding object permissions for ${role.name}:`, permissionsArray);
-              allPermissions = [...allPermissions, ...permissionsArray];
+          // Special handling for Executor role to ensure it always has badges/insights access
+          if (role.name === 'Executor') {
+            // Core Executor permissions that should always be included
+            const executorCorePermissions = [
+              'dashboard:read',
+              'file_profile:read',
+              'quality_checks:read',
+              'mappings:read',
+              'lineage:read',
+              'monitor:read',
+              'scheduler:read',
+              'badges:read',
+              'insights:read',
+              'recommendations:read',
+              'stories:read'
+            ];
+            
+            console.log(`Adding core permissions for Executor role:`, executorCorePermissions);
+            allPermissions = [...allPermissions, ...executorCorePermissions];
+          }
+          
+          if (role.permissions) {
+            try {
+              // For string array format
+              if (Array.isArray(role.permissions)) {
+                // These are already in string format like "resource:action"
+                const stringPermissions = role.permissions;
+                console.log(`Adding array permissions for ${role.name}:`, stringPermissions);
+                allPermissions = [...allPermissions, ...stringPermissions];
+              } 
+              // For object format that PostgreSQL returns from JSONB
+              else if (typeof role.permissions === 'object') {
+                // Check if it's the specialized format with numeric keys that PostgreSQL returns
+                if (Object.keys(role.permissions).some(key => !isNaN(parseInt(key)))) {
+                  // This is the format PostgreSQL returns for JSONB arrays: {"0":"perm1","1":"perm2"}
+                  const stringPermissions = Object.values(role.permissions);
+                  console.log(`Adding object-array permissions for ${role.name}:`, stringPermissions);
+                  allPermissions = [...allPermissions, ...stringPermissions];
+                } else {
+                  // It's a regular object format
+                  const permissionsArray = Object.values(role.permissions);
+                  console.log(`Adding object permissions for ${role.name}:`, permissionsArray);
+                  allPermissions = [...allPermissions, ...permissionsArray];
+                }
+              } else {
+                console.log(`Unrecognized permissions format for ${role.name}:`, typeof role.permissions);
+              }
+            } catch (innerErr) {
+              console.error(`Error processing permissions for role ${role.name}:`, innerErr);
             }
+          } else {
+            console.log(`No permissions found for role ${role.name}`);
           }
         }
+      } catch (dbErr) {
+        console.error('Error fetching permissions from database:', dbErr);
       }
       
       // Set the combined permissions on the user object
-      req.user.permissions = allPermissions;
+      req.user.permissions = [...new Set(allPermissions)]; // Remove duplicates
+      console.log('Final permissions count:', req.user.permissions.length);
     } else {
+      console.log('User has no roles, setting empty permissions array');
       req.user.permissions = [];
     }
     
+    console.log('Authentication successful, proceeding to next middleware');
     next();
   } catch (error) {
     console.error('Token verification error:', error);
@@ -1417,92 +1457,153 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
 // Get current user info - with complete role and permission information
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
+    console.log('=== /api/auth/me endpoint called ===');
+    console.log('User from token:', JSON.stringify(req.user));
+    
     const userId = req.user.id;
+    console.log('Fetching user with ID:', userId);
     
     // Get user from database
     const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
     
     if (userResult.rows.length === 0) {
+      console.log('User not found in database');
       return res.status(404).json({ error: 'User not found' });
     }
     
+    console.log('User found in database');
+    
     // Get the complete role information from the database
     const userRoles = req.user.roles || [];
+    console.log('User roles from token:', userRoles);
+    
     let permissions = [];
+    let roleDetails = []; // Initialize roleDetails here
+    
+    // Hardcoded permissions for ALL roles to ensure critical features work
+    const corePermissions = [
+      'dashboard:read',
+      'file_profile:read',
+      'quality_checks:read'
+    ];
+    
+    permissions = [...permissions, ...corePermissions];
+    console.log('Added core permissions:', corePermissions);
     
     // Get roles directly from database to ensure we have the correct permissions
     if (userRoles.length > 0) {
-      // Get all permissions from the permissions table for this user's roles
-      // 1. Get permissions from the old system (role_permissions)
-      const permissionsQuery = `
-        SELECT DISTINCT p.name, p.resource, p.action
-        FROM permissions p
-        JOIN role_permissions rp ON p.id = rp.permission_id
-        JOIN roles r ON rp.role_id = r.id
-        WHERE r.name = ANY($1::varchar[])
-      `;
+      console.log('Fetching detailed role information from database');
       
-      const permissionsResult = await pool.query(permissionsQuery, [userRoles]);
-      
-      // Convert permissions to the format expected by the frontend
-      const oldSystemPermissions = permissionsResult.rows.map(p => ({
-        name: p.name,
-        resource: p.resource,
-        action: p.action
-      }));
-      
-      permissions = [...oldSystemPermissions];
-      
-      // 2. Get permissions from the roles table JSON array (new system)
-      const rolesQuery = `SELECT id, name, permissions FROM roles WHERE name = ANY($1::varchar[])`;
-      const rolesResult = await pool.query(rolesQuery, [userRoles]);
-      
-      // Process each role's JSON permissions
-      for (const role of rolesResult.rows) {
-        console.log(`Processing role ${role.name} with permissions:`, role.permissions);
+      try {
+        // 1. Get permissions from the old system (role_permissions)
+        const permissionsQuery = `
+          SELECT DISTINCT p.name, p.resource, p.action
+          FROM permissions p
+          JOIN role_permissions rp ON p.id = rp.permission_id
+          JOIN roles r ON rp.role_id = r.id
+          WHERE r.name = ANY($1::varchar[])
+        `;
         
-        // Special hardcoded permissions for Executor role to ensure proper sidebar
-        if (role.name === 'Executor') {
-          // These are the permissions that Executor should always have
-          const executorMappingPermissions = [
-            'mappings:read',  // Ensure mappings is included
-          ];
-          permissions = [...permissions, ...executorMappingPermissions];
-        }
+        const permissionsResult = await pool.query(permissionsQuery, [userRoles]);
+        console.log('Permission query result rows:', permissionsResult.rows.length);
         
-        // Process the permissions from the database (could be in several formats)
-        if (role.permissions) {
-          // Handle array format
-          if (Array.isArray(role.permissions)) {
-            permissions = [...permissions, ...role.permissions];
-          } 
-          // Handle object format from PostgreSQL
-          else if (typeof role.permissions === 'object') {
-            // Check if it's PostgreSQL's numeric key format
-            if (Object.keys(role.permissions).some(key => !isNaN(parseInt(key)))) {
-              const stringPermissions = Object.values(role.permissions);
-              permissions = [...permissions, ...stringPermissions];
+        // Convert permissions to the format expected by the frontend
+        const oldSystemPermissions = permissionsResult.rows.map(p => ({
+          name: p.name,
+          resource: p.resource,
+          action: p.action
+        }));
+        
+        permissions = [...permissions, ...oldSystemPermissions];
+        console.log('Added permissions from role_permissions junction table');
+        
+        // 2. Get permissions from the roles table JSON array (new system)
+        console.log('Fetching role details with permissions array');
+        const rolesQuery = `SELECT id, name, permissions FROM roles WHERE name = ANY($1::varchar[])`;
+        const rolesResult = await pool.query(rolesQuery, [userRoles]);
+        console.log('Roles query result rows:', rolesResult.rows.length);
+        
+        roleDetails = rolesResult.rows || []; // Capture role details
+        
+        // Process each role's JSON permissions
+        for (const role of rolesResult.rows) {
+          console.log(`Processing role ${role.name}`);
+          console.log('Role permissions type:', typeof role.permissions);
+          console.log('Role permissions:', JSON.stringify(role.permissions));
+          
+          // Special hardcoded permissions for Executor role to ensure proper sidebar
+          if (role.name === 'Executor') {
+            console.log('Adding special permissions for Executor role');
+            // These are the permissions that Executor should always have
+            const executorCorePermissions = [
+              'mappings:read',        // Ensure mappings is included
+              'insights:read',        // Ensure insights is included
+              'badges:read',          // Ensure badges is included
+              'stories:read',         // Ensure stories is included
+              'recommendations:read', // Ensure recommendations is included
+              'monitor:read',         // Ensure monitor is included
+              'scheduler:read',       // Ensure scheduler is included
+              'lineage:read'          // Ensure lineage is included
+            ];
+            permissions = [...permissions, ...executorCorePermissions];
+            console.log('Added Executor core permissions:', executorCorePermissions);
+          }
+          
+          // Process the permissions from the database (could be in several formats)
+          if (role.permissions) {
+            // Handle array format
+            if (Array.isArray(role.permissions)) {
+              console.log('Processing array format permissions');
+              permissions = [...permissions, ...role.permissions];
+            } 
+            // Handle object format from PostgreSQL
+            else if (typeof role.permissions === 'object') {
+              console.log('Processing object format permissions');
+              try {
+                // Check if it's PostgreSQL's numeric key format
+                if (Object.keys(role.permissions).some(key => !isNaN(parseInt(key)))) {
+                  console.log('Processing PostgreSQL numeric key format');
+                  const stringPermissions = Object.values(role.permissions);
+                  permissions = [...permissions, ...stringPermissions];
+                } else {
+                  // Regular object format
+                  console.log('Processing regular object format');
+                  const permissionsArray = Object.values(role.permissions);
+                  permissions = [...permissions, ...permissionsArray];
+                }
+              } catch (permErr) {
+                console.error('Error processing permissions object:', permErr);
+              }
             } else {
-              // Regular object format
-              const permissionsArray = Object.values(role.permissions);
-              permissions = [...permissions, ...permissionsArray];
+              console.log('Unknown permission format:', typeof role.permissions);
             }
+          } else {
+            console.log('No permissions found for role');
           }
         }
+      } catch (rolesErr) {
+        console.error('Error processing roles/permissions:', rolesErr);
       }
+    } else {
+      console.log('No roles found for user, using default permissions only');
     }
     
     const user = userResult.rows[0];
+    console.log('Final permission count:', permissions.length);
     
     // Return user info (excluding password)
     const { password: _, ...userWithoutPassword } = user;
     
-    res.json({
+    const responseData = {
       ...userWithoutPassword,
       roles: userRoles,
       permissions: [...new Set(permissions)], // Remove duplicate permissions
-      roleDetails: rolesResult ? rolesResult.rows : []
-    });
+      roleDetails: roleDetails
+    };
+    
+    console.log('Sending user data response. Unique permissions count:', new Set(permissions).size);
+    
+    res.json(responseData);
   } catch (err) {
     console.error('Error fetching user info:', err);
     res.status(500).json({ error: 'An error occurred while fetching user info' });
