@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiUpload, FiDatabase, FiBarChart2, FiAlertTriangle, FiSettings, FiLink, FiMonitor } from 'react-icons/fi';
+import { FiHome, FiUpload, FiDatabase, FiBarChart2, FiAlertTriangle, FiSettings, FiLink, FiMonitor, FiGitBranch } from 'react-icons/fi';
 import './Sidebar.css';
 
 function Sidebar() {
@@ -42,6 +42,12 @@ function Sidebar() {
             <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
               <FiLink className="icon" />
               <span>Mappings</span>
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
+              <FiGitBranch className="icon" />
+              <span>File Lineage</span>
             </NavLink>
           </li>
         </ul>
