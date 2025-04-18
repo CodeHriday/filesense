@@ -141,64 +141,54 @@ export function AuthProvider({ children }) {
       return true;
     }
     
-    // Creator role has access to all basic features
-    if (currentUser.roles && currentUser.roles.includes('Creator')) {
-      // Granting all basic permissions to Creator role
-      const creatorPermissions = [
-        'dashboard_view', 'dashboard_edit', 'file_upload', 'file_upload_write',
-        'file_profile', 'file_profile_write', 'quality_checks', 'quality_checks_write', 
-        'alerts', 'alerts_write', 'connections', 'connections_write', 
-        'mappings', 'mappings_write', 'lineage', 'lineage_write', 
-        'monitor', 'monitor_write', 'scheduler', 'scheduler_write', 
-        'badges', 'badges_write', 'insights', 'insights_write', 
-        'recommendations', 'recommendations_write', 'stories', 'stories_write', 
-        'file_view', 'insight_view', 'lineage_view', 'alert_view',
-        'badges_read', 'insights_read', 'recommendations_read', 'stories_read'
-      ];
-      
-      if (creatorPermissions.includes(permission)) {
-        return true;
-      }
-    }
-    
-    // Executor role has limited access to viewing features only
-    if (currentUser.roles && currentUser.roles.includes('Executor')) {
-      // Granting limited viewing permissions to Executor role
-      const executorPermissions = [
-        'dashboard_view', 'file_profile', 'quality_checks_read', 'mappings_read', 
-        'lineage_read', 'monitor_read', 'scheduler_read', 'badges_read', 
-        'insights_read', 'recommendations_read', 'stories_read',
-        'file_view', 'lineage_view', 'quality_checks'
-      ];
-      
-      if (executorPermissions.includes(permission)) {
-        return true;
-      }
-    }
-    
-    // Check permissions from the backend
+    // Check permissions from the backend - this is the primary source of truth
     if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
-      // Check permissions in both formats: direct match and resource:action format
+      // Process the permission to get resource and action
+      let resource, action;
+      
+      // Handle various permission formats
+      if (permission.includes('_')) {
+        // Format: 'resource_action' like 'dashboard_view'
+        const parts = permission.split('_');
+        // The last part is the action, everything else is the resource
+        action = parts.pop();
+        resource = parts.join('_');
+        
+        // Convert view/edit to read/write
+        if (action === 'view') action = 'read';
+        if (action === 'edit') action = 'write';
+      } else if (permission.endsWith('_view') || permission.endsWith('_edit')) {
+        // Legacy format: 'resource_view' or 'resource_edit'
+        action = permission.endsWith('_view') ? 'read' : 'write';
+        resource = permission.replace('_view', '').replace('_edit', '');
+      } else {
+        // Just a resource name, default to read access check
+        resource = permission;
+        action = 'read';
+      }
+      
+      // Try various formats of the resource name to handle inconsistencies
+      const resourceVariations = [
+        resource,                    // Original
+        resource.replace(/s$/, ''),  // Remove trailing 's' (e.g. connections -> connection)
+        resource + 's',              // Add trailing 's' (e.g. connection -> connections)
+        resource.replace(/_/g, '-'), // Replace underscore with dash
+        resource.replace(/-/g, '_')  // Replace dash with underscore
+      ];
+      
       return currentUser.permissions.some(p => {
-        // Direct match with name property
-        if (p.name === permission) {
-          return true;
+        // Handle string format permissions (new format from database)
+        if (typeof p === 'string') {
+          const [permResource, permAction] = p.split(':');
+          
+          // Check if any variation of the resource matches
+          return resourceVariations.includes(permResource) && 
+                 (permAction === action || permAction === '*');
         }
         
-        // Match with resource:action format (for string arrays from backend)
-        // Convert view/edit to read/write
-        if (typeof p === 'string') {
-          // For permissions like 'badges_read', convert to 'badges:read'
-          if (permission.includes('_')) {
-            const [resource, action] = permission.split('_');
-            const convertedAction = action === 'view' ? 'read' : (action === 'edit' ? 'write' : action);
-            return p === `${resource}:${convertedAction}`;
-          }
-          
-          // For legacy permission formats
-          const action = permission.endsWith('_view') ? 'read' : 'write';
-          const resource = permission.replace('_view', '').replace('_edit', '');
-          return p === `${resource}:${action}`;
+        // Handle object format permissions (older format)
+        if (typeof p === 'object' && p.name === permission) {
+          return true;
         }
         
         return false;
@@ -219,46 +209,50 @@ export function AuthProvider({ children }) {
       return true;
     }
     
-    // Creator role has access to all basic features
-    if (currentUser.roles && currentUser.roles.includes('Creator')) {
-      const creatorResources = [
-        'dashboard', 'file', 'profile', 'quality', 'alert',
-        'connection', 'mapping', 'lineage', 'monitor', 'scheduler', 'badge',
-        'insight', 'recommendation', 'story'
-      ];
-      
-      if (creatorResources.includes(resource)) {
-        return true;
-      }
+    // Convert the action to read/write format used in the database
+    const convertedAction = action === 'view' ? 'read' : 'write';
+    
+    // Try various formats of the resource name to handle inconsistencies
+    const resourceVariations = [
+      resource,                    // Original
+      resource.replace(/s$/, ''),  // Remove trailing 's' (e.g. connections -> connection)
+      resource + 's',              // Add trailing 's' (e.g. connection -> connections)
+      resource.replace(/_/g, '-'), // Replace underscore with dash
+      resource.replace(/-/g, '_')  // Replace dash with underscore
+    ];
+    
+    // For specific features, also try with alternate names
+    if (resource === 'file_upload') {
+      resourceVariations.push('file'); 
+      resourceVariations.push('files');
+    }
+    if (resource === 'connection') {
+      resourceVariations.push('connections');
+    }
+    if (resource === 'quality_checks' || resource === 'quality_check') {
+      resourceVariations.push('quality');
     }
     
-    // Executor role has limited read-only access to basic features
-    if (currentUser.roles && currentUser.roles.includes('Executor')) {
-      const executorResources = [
-        'dashboard', 'file', 'profile', 'quality', 'lineage', 'monitor', 
-        'scheduler', 'badge', 'insight', 'recommendation', 'story'
-      ];
-      
-      if (executorResources.includes(resource) && action === 'view') {
-        return true;
-      }
-    }
-    
-    // Check permissions from the backend
+    // Check permissions from the database
     if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
       return currentUser.permissions.some(p => {
-        // For object format permissions (older format)
-        if (typeof p === 'object' && p.resource === resource && 
-            (p.action === action || p.action === '*')) {
-          return true;
+        // For string format permissions (from database)
+        if (typeof p === 'string') {
+          const parts = p.split(':');
+          if (parts.length !== 2) return false;
+          
+          const [permResource, permAction] = parts;
+          
+          // Check if any variation of the resource matches
+          return resourceVariations.includes(permResource) && 
+                 (permAction === convertedAction || permAction === 'write' || permAction === '*');
         }
         
-        // For string format permissions (new format)
-        if (typeof p === 'string') {
-          const [permResource, permAction] = p.split(':');
-          const convertedAction = action === 'view' ? 'read' : 'write';
-          return permResource === resource && 
-                 (permAction === convertedAction || permAction === '*');
+        // For object format permissions (older format)
+        if (typeof p === 'object' && p.resource && p.action) {
+          const objAction = p.action === 'read' ? 'view' : p.action;
+          return resourceVariations.includes(p.resource) && 
+                 (objAction === action || objAction === 'write' || objAction === '*');
         }
         
         return false;
@@ -292,31 +286,33 @@ export function AuthProvider({ children }) {
       return true;
     }
     
-    // For Creator role, check specific permissions
-    if (currentUser.roles && currentUser.roles.includes('Creator')) {
-      const creatorWriteResources = [
-        'dashboard', 'file', 'profile', 'quality', 'alert',
-        'connection', 'mapping', 'lineage', 'monitor', 'scheduler', 'badge',
-        'insight', 'recommendation', 'story'
+    // Check permissions from the backend - this is the primary source of truth
+    if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
+      // Try various formats of the resource name to handle inconsistencies
+      const resourceVariations = [
+        resource,                    // Original
+        resource.replace(/s$/, ''),  // Remove trailing 's' (e.g. connections -> connection)
+        resource + 's',              // Add trailing 's' (e.g. connection -> connections)
+        resource.replace(/_/g, '-'), // Replace underscore with dash
+        resource.replace(/-/g, '_')  // Replace dash with underscore
       ];
       
-      if (creatorWriteResources.includes(resource)) {
-        return true;
-      }
-    }
-    
-    // Check permissions from the backend
-    if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
       return currentUser.permissions.some(p => {
-        // For object format permissions (older format)
-        if (typeof p === 'object' && p.resource === resource && p.action === 'write') {
-          return true;
+        // Only check string format permissions from the database
+        if (typeof p === 'string') {
+          // Split into resource and action parts
+          const parts = p.split(':');
+          if (parts.length !== 2) return false;
+          
+          const [permResource, permAction] = parts;
+          
+          // Check if any variation of the resource matches and action is 'write'
+          return resourceVariations.includes(permResource) && permAction === 'write';
         }
         
-        // For string format permissions (new format)
-        if (typeof p === 'string') {
-          const [permResource, permAction] = p.split(':');
-          return permResource === resource && permAction === 'write';
+        // For object format permissions (older format)
+        if (typeof p === 'object' && p.resource && p.action) {
+          return resourceVariations.includes(p.resource) && p.action === 'write';
         }
         
         return false;
