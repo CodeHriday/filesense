@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload } from 'react-icons/fi';
 import Card from '../components/Card';
 import { getFileDetails, getFileProfile } from '../api/fileService';
-import { formatBytes, formatDate, getTimeSince, formatNumber } from '../utils/formatters';
+import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import './DataProfile.css';
 
 function DataProfile() {
@@ -118,7 +118,7 @@ function DataProfile() {
                               ></div>
                             </div>
                             <span className="completeness-value">
-                              {completeness.toFixed(1)}%
+                              {formatDecimal(completeness, 1)}%
                             </span>
                           </div>
                         </td>
@@ -191,20 +191,12 @@ function DataProfile() {
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? (column.min !== undefined && column.min !== null 
-                          ? (typeof column.min === 'number' 
-                              ? Number(column.min).toFixed(2) 
-                              : column.min)
-                          : '0.00')
+                      ? formatDecimal(column.min, 2)
                       : (column.most_frequent_value || 'N/A')}
                     </td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? (column.max !== undefined && column.max !== null 
-                          ? (typeof column.max === 'number' 
-                              ? Number(column.max).toFixed(2) 
-                              : column.max)
-                          : '0.00')
+                      ? formatDecimal(column.max, 2)
                       : (column.least_frequent_value || 'N/A')}
                     </td>
                   </tr>
@@ -243,21 +235,13 @@ function DataProfile() {
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
                         <div className="column-stat-value">
-                          {column.min !== undefined && column.min !== null 
-                          ? (typeof column.min === 'number' 
-                            ? Number(column.min).toFixed(2) 
-                            : column.min) 
-                          : '0.00'}
+                          {formatDecimal(column.min, 2)}
                         </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Max:</div>
                         <div className="column-stat-value">
-                          {column.max !== undefined && column.max !== null 
-                          ? (typeof column.max === 'number' 
-                            ? Number(column.max).toFixed(2) 
-                            : column.max) 
-                          : '0.00'}
+                          {formatDecimal(column.max, 2)}
                         </div>
                       </div>
                     </>
@@ -286,18 +270,10 @@ function DataProfile() {
                         <div className="numeric-distribution">
                           <div className="value-labels">
                             <span className="min-label">
-                              {column.min !== undefined && column.min !== null 
-                                ? (typeof column.min === 'number' 
-                                  ? Number(column.min).toFixed(2) 
-                                  : column.min) 
-                                : '0.00'}
+                              {formatDecimal(column.min, 2)}
                             </span>
                             <span className="max-label">
-                              {column.max !== undefined && column.max !== null 
-                                ? (typeof column.max === 'number' 
-                                  ? Number(column.max).toFixed(2) 
-                                  : column.max) 
-                                : '0.00'}
+                              {formatDecimal(column.max, 2)}
                             </span>
                           </div>
                           <div className="bars">
@@ -318,7 +294,7 @@ function DataProfile() {
                                     height: `${heightFactor}%`,
                                     backgroundColor: `rgba(52, 152, 219, ${0.5 + (i / 16)})`
                                   }}
-                                  title={`Range: ${((parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * i / 7)).toFixed(2))} - ${((parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * (i+1) / 7))).toFixed(2)}`}
+                                  title={`Range: ${formatDecimal(parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * i / 7))} - ${formatDecimal(parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * (i+1) / 7))}`}
                                 ></div>
                               );
                             })}

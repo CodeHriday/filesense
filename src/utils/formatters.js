@@ -79,3 +79,22 @@ export const formatNumber = (num) => {
   
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
+
+/**
+ * Format a number to have a fixed number of decimal places
+ * @param {number|string} value - The number to format
+ * @param {number} decimals - The number of decimal places (default: 2)
+ * @returns {string} Formatted number string with fixed decimal places
+ */
+export const formatDecimal = (value, decimals = 2) => {
+  if (value === null || value === undefined || value === '') return '0.00';
+  
+  // Convert to number if it's a string
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  
+  // Check if it's a valid number
+  if (isNaN(num)) return '0.00';
+  
+  // Return with fixed decimal places
+  return num.toFixed(decimals);
+};
