@@ -21,6 +21,7 @@ import DashboardSettings from './pages/DashboardSettings';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
+import { AnnouncementProvider } from './components/accessibility';
 import './App.css';
 import './styles/accessibility.css';
 
@@ -37,45 +38,47 @@ function App() {
   
   return (
     <AccessibilityProvider>
-      <Router>
-        <div className="app">
-          {/* Skip to main content link for keyboard users */}
-          <a href="#main-content" className="skip-link">Skip to main content</a>
-          
-          <Header />
-          <div className="main-container">
-            <Sidebar />
-            <main id="main-content" className="content" tabIndex="-1">
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/upload" element={<FileUpload />} />
-                <Route path="/profile/:fileId" element={<DataProfile />} />
-                <Route path="/quality/:fileId" element={<QualityChecks />} />
-                <Route path="/report/:fileId" element={<QualityReport />} />
-                <Route path="/alerts" element={<Alerts />} />
-                <Route path="/connections" element={<Connections />} />
-                <Route path="/mappings" element={<Mappings />} />
-                <Route path="/lineage" element={<FileLineage />} />
-                <Route path="/lineage/impact/:fileId" element={<LineageImpact />} />
-                <Route path="/monitor" element={<Monitor />} />
-                <Route path="/badges" element={<Badges />} />
-                <Route path="/insights" element={<DataInsights />} />
-                <Route path="/recommendations" element={<Recommendations />} />
-                <Route path="/stories" element={<DataStories />} />
-                <Route path="/dashboard-settings" element={<DashboardSettings />} />
-              </Routes>
-            </main>
+      <AnnouncementProvider>
+        <Router>
+          <div className="app">
+            {/* Skip to main content link for keyboard users */}
+            <a href="#main-content" className="skip-link">Skip to main content</a>
+            
+            <Header />
+            <div className="main-container">
+              <Sidebar />
+              <main id="main-content" className="content" tabIndex="-1">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/upload" element={<FileUpload />} />
+                  <Route path="/profile/:fileId" element={<DataProfile />} />
+                  <Route path="/quality/:fileId" element={<QualityChecks />} />
+                  <Route path="/report/:fileId" element={<QualityReport />} />
+                  <Route path="/alerts" element={<Alerts />} />
+                  <Route path="/connections" element={<Connections />} />
+                  <Route path="/mappings" element={<Mappings />} />
+                  <Route path="/lineage" element={<FileLineage />} />
+                  <Route path="/lineage/impact/:fileId" element={<LineageImpact />} />
+                  <Route path="/monitor" element={<Monitor />} />
+                  <Route path="/badges" element={<Badges />} />
+                  <Route path="/insights" element={<DataInsights />} />
+                  <Route path="/recommendations" element={<Recommendations />} />
+                  <Route path="/stories" element={<DataStories />} />
+                  <Route path="/dashboard-settings" element={<DashboardSettings />} />
+                </Routes>
+              </main>
+            </div>
+            
+            {/* Accessibility Widget */}
+            <AccessibilityWidget />
+            
+            {/* Onboarding Wizard */}
+            {showOnboarding && (
+              <OnboardingWizard onClose={() => setShowOnboarding(false)} />
+            )}
           </div>
-          
-          {/* Accessibility Widget */}
-          <AccessibilityWidget />
-          
-          {/* Onboarding Wizard */}
-          {showOnboarding && (
-            <OnboardingWizard onClose={() => setShowOnboarding(false)} />
-          )}
-        </div>
-      </Router>
+        </Router>
+      </AnnouncementProvider>
     </AccessibilityProvider>
   );
 }
