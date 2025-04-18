@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiDownload, FiLink } from 'react-icons/fi';
+import { 
+  FiPlus, 
+  FiEdit2, 
+  FiTrash2, 
+  FiDownload, 
+  FiLink, 
+  FiSettings, 
+  FiEdit, 
+  FiCalendar, 
+  FiHash, 
+  FiType, 
+  FiServer,
+  FiGrid,
+  FiFilter
+} from 'react-icons/fi';
 import axios from 'axios';
 import {
   DndContext,
@@ -21,7 +35,276 @@ import Card from '../components/Card';
 import { formatDate } from '../utils/formatters';
 import './Mappings.css';
 
-function SortableItem({ id, column, onRemove }) {
+function TransformationPanel({ column, onUpdate, onClose }) {
+  const [name, setName] = useState(column.name);
+  const [type, setType] = useState(column.type);
+  const [transformation, setTransformation] = useState(column.transformation || 'none');
+  const [transformConfig, setTransformConfig] = useState(column.transformConfig || {});
+  const [param1, setParam1] = useState(column.transformConfig?.param1 || '');
+  const [param2, setParam2] = useState(column.transformConfig?.param2 || '');
+  const [sourceColumn2, setSourceColumn2] = useState(column.transformConfig?.sourceColumn2 || '');
+  const [formula, setFormula] = useState(column.transformConfig?.formula || '');
+  const [format, setFormat] = useState(column.transformConfig?.format || '');
+  const [conditionValue, setConditionValue] = useState(column.transformConfig?.conditionValue || '');
+  const [operator, setOperator] = useState(column.transformConfig?.operator || '=');
+  const [trueValue, setTrueValue] = useState(column.transformConfig?.trueValue || '');
+  const [falseValue, setFalseValue] = useState(column.transformConfig?.falseValue || '');
+
+  const handleSave = () => {
+    // Prepare transform config based on the transformation type
+    let newConfig = {};
+    
+    switch(transformation) {
+      case 'math':
+        newConfig = { formula };
+        break;
+      case 'concat':
+        newConfig = { sourceColumn2 };
+        break;
+      case 'substring':
+        newConfig = { param1, param2 };
+        break;
+      case 'dateFormat':
+        newConfig = { format };
+        break;
+      case 'conditional':
+        newConfig = { operator, conditionValue, trueValue, falseValue };
+        break;
+      case 'uppercase':
+      case 'lowercase':
+      case 'trim':
+      case 'round':
+      case 'floor':
+      case 'ceiling':
+        // These transformations don't need additional config
+        break;
+      default:
+        newConfig = {};
+    }
+    
+    onUpdate({
+      ...column,
+      name,
+      type,
+      transformation,
+      transformConfig: newConfig
+    });
+    
+    onClose();
+  };
+  
+  const renderTransformationFields = () => {
+    switch(transformation) {
+      case 'math':
+        return (
+          <div className="transform-field">
+            <label>Formula:</label>
+            <input 
+              type="text" 
+              value={formula} 
+              onChange={(e) => setFormula(e.target.value)}
+              placeholder="e.g., [column] * 2 + 10"
+              className="form-control"
+            />
+            <div className="field-help">
+              Use [columnName] to reference other columns. Operators: +, -, *, /, %, ^.
+            </div>
+          </div>
+        );
+        
+      case 'concat':
+        return (
+          <div className="transform-field">
+            <label>Concatenate with column:</label>
+            <input 
+              type="text" 
+              value={sourceColumn2} 
+              onChange={(e) => setSourceColumn2(e.target.value)}
+              placeholder="Second column to concatenate with"
+              className="form-control"
+            />
+          </div>
+        );
+        
+      case 'substring':
+        return (
+          <>
+            <div className="transform-field">
+              <label>Start Position:</label>
+              <input 
+                type="number" 
+                value={param1} 
+                onChange={(e) => setParam1(e.target.value)}
+                min="0"
+                className="form-control"
+              />
+            </div>
+            <div className="transform-field">
+              <label>Length (optional):</label>
+              <input 
+                type="number" 
+                value={param2} 
+                onChange={(e) => setParam2(e.target.value)}
+                min="0"
+                className="form-control"
+              />
+            </div>
+          </>
+        );
+        
+      case 'dateFormat':
+        return (
+          <div className="transform-field">
+            <label>Output Format:</label>
+            <input 
+              type="text" 
+              value={format} 
+              onChange={(e) => setFormat(e.target.value)}
+              placeholder="e.g., YYYY-MM-DD"
+              className="form-control"
+            />
+            <div className="field-help">
+              Format options: YYYY (year), MM (month), DD (day), HH (hour), mm (minute), ss (second)
+            </div>
+          </div>
+        );
+        
+      case 'conditional':
+        return (
+          <>
+            <div className="transform-field">
+              <label>Condition:</label>
+              <div className="condition-row">
+                <select 
+                  value={operator} 
+                  onChange={(e) => setOperator(e.target.value)}
+                  className="form-control operator-select"
+                >
+                  <option value="=">=</option>
+                  <option value="!=">!=</option>
+                  <option value=">">&gt;</option>
+                  <option value=">=">&gt;=</option>
+                  <option value="<">&lt;</option>
+                  <option value="<=">&lt;=</option>
+                  <option value="contains">contains</option>
+                  <option value="starts_with">starts with</option>
+                  <option value="ends_with">ends with</option>
+                </select>
+                <input 
+                  type="text" 
+                  value={conditionValue} 
+                  onChange={(e) => setConditionValue(e.target.value)}
+                  placeholder="Compare value"
+                  className="form-control"
+                />
+              </div>
+            </div>
+            <div className="transform-field">
+              <label>Then:</label>
+              <input 
+                type="text" 
+                value={trueValue} 
+                onChange={(e) => setTrueValue(e.target.value)}
+                placeholder="Value if condition is true"
+                className="form-control"
+              />
+            </div>
+            <div className="transform-field">
+              <label>Else:</label>
+              <input 
+                type="text" 
+                value={falseValue} 
+                onChange={(e) => setFalseValue(e.target.value)}
+                placeholder="Value if condition is false"
+                className="form-control"
+              />
+            </div>
+          </>
+        );
+        
+      default:
+        return null;
+    }
+  };
+  
+  return (
+    <div className="transform-panel">
+      <div className="transform-panel-header">
+        <h3>Configure Transformation</h3>
+        <button type="button" className="close-button" onClick={onClose}>×</button>
+      </div>
+      
+      <div className="transform-panel-body">
+        <div className="transform-field">
+          <label>Column Name:</label>
+          <input 
+            type="text" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)}
+            className="form-control"
+          />
+        </div>
+        
+        <div className="transform-field">
+          <label>Data Type:</label>
+          <select 
+            value={type} 
+            onChange={(e) => setType(e.target.value)}
+            className="form-control"
+          >
+            <option value="string">String</option>
+            <option value="number">Number</option>
+            <option value="integer">Integer</option>
+            <option value="float">Float</option>
+            <option value="boolean">Boolean</option>
+            <option value="date">Date</option>
+            <option value="timestamp">Timestamp</option>
+          </select>
+        </div>
+        
+        <div className="transform-field">
+          <label>Transformation:</label>
+          <select 
+            value={transformation} 
+            onChange={(e) => setTransformation(e.target.value)}
+            className="form-control"
+          >
+            <option value="none">None (Direct Mapping)</option>
+            <optgroup label="String Transformations">
+              <option value="uppercase">Convert to UPPERCASE</option>
+              <option value="lowercase">Convert to lowercase</option>
+              <option value="trim">Trim Whitespace</option>
+              <option value="substring">Extract Substring</option>
+              <option value="concat">Concatenate</option>
+            </optgroup>
+            <optgroup label="Numeric Transformations">
+              <option value="round">Round</option>
+              <option value="floor">Floor (Round Down)</option>
+              <option value="ceiling">Ceiling (Round Up)</option>
+              <option value="math">Math Formula</option>
+            </optgroup>
+            <optgroup label="Date Transformations">
+              <option value="dateFormat">Format Date</option>
+            </optgroup>
+            <optgroup label="Logic Transformations">
+              <option value="conditional">If-Then-Else</option>
+            </optgroup>
+          </select>
+        </div>
+        
+        {renderTransformationFields()}
+      </div>
+      
+      <div className="transform-panel-footer">
+        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="button" className="btn btn-primary" onClick={handleSave}>Apply Transformation</button>
+      </div>
+    </div>
+  );
+}
+
+function SortableItem({ id, column, onRemove, onUpdate }) {
+  const [showTransformPanel, setShowTransformPanel] = useState(false);
   const {
     attributes,
     listeners,
@@ -35,14 +318,89 @@ function SortableItem({ id, column, onRemove }) {
     transition,
   };
   
+  const getTransformationLabel = () => {
+    switch(column.transformation) {
+      case 'none': return 'Direct Mapping';
+      case 'uppercase': return 'UPPERCASE';
+      case 'lowercase': return 'lowercase';
+      case 'trim': return 'Trim';
+      case 'substring': return 'Substring';
+      case 'concat': return 'Concatenate';
+      case 'round': return 'Round';
+      case 'floor': return 'Floor';
+      case 'ceiling': return 'Ceiling';
+      case 'math': return 'Formula';
+      case 'dateFormat': return 'Date Format';
+      case 'conditional': return 'If-Then-Else';
+      default: return 'Transform';
+    }
+  };
+  
+  const getTransformIcon = () => {
+    switch(column.transformation) {
+      case 'none': return null;
+      case 'uppercase':
+      case 'lowercase':
+      case 'trim':
+      case 'substring':
+      case 'concat': return <FiType />;
+      case 'round':
+      case 'floor':
+      case 'ceiling':
+      case 'math': return <FiHash />;
+      case 'dateFormat': return <FiCalendar />;
+      case 'conditional': return <FiFilter />;
+      default: return <FiSettings />;
+    }
+  };
+  
   return (
-    <div ref={setNodeRef} style={style} className="mapping-column" {...attributes} {...listeners}>
-      <div className="mapping-column-name">{column.name}</div>
-      <div className="mapping-column-type">{column.type}</div>
-      <button className="mapping-column-remove" onClick={() => onRemove(id)}>
-        <FiTrash2 />
-      </button>
-    </div>
+    <>
+      <div ref={setNodeRef} style={style} className="mapping-column" {...attributes} {...listeners}>
+        <div className="mapping-column-info">
+          <div className="mapping-column-name">{column.name}</div>
+          <div className="mapping-column-type">{column.type}</div>
+          {column.transformation !== 'none' && (
+            <div className="mapping-column-transform">
+              {getTransformIcon()}
+              <span>{getTransformationLabel()}</span>
+            </div>
+          )}
+        </div>
+        <div className="mapping-column-actions">
+          <button 
+            className="mapping-column-edit" 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTransformPanel(true);
+            }}
+            title="Edit transformation"
+          >
+            <FiEdit />
+          </button>
+          <button 
+            className="mapping-column-remove" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(id);
+            }}
+            title="Remove column"
+          >
+            <FiTrash2 />
+          </button>
+        </div>
+      </div>
+      
+      {showTransformPanel && (
+        <div className="transform-panel-overlay">
+          <TransformationPanel 
+            column={column} 
+            onUpdate={(updatedColumn) => onUpdate(id, updatedColumn)}
+            onClose={() => setShowTransformPanel(false)}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -166,12 +524,19 @@ function Mappings() {
       sourceId: sourceColumn.id,
       name: sourceColumn.name,
       type: sourceColumn.type,
-      transformation: 'none'
+      transformation: 'none',
+      transformConfig: {}
     }]);
   };
   
   const handleRemoveColumnMapping = (columnId) => {
     setTargetColumns(targetColumns.filter(col => col.id !== columnId));
+  };
+  
+  const handleUpdateColumnMapping = (columnId, updatedColumn) => {
+    setTargetColumns(targetColumns.map(col => 
+      col.id === columnId ? updatedColumn : col
+    ));
   };
   
   const handleDragEnd = (event) => {
@@ -196,7 +561,8 @@ function Mappings() {
           sourceId: col.sourceId,
           name: col.name,
           type: col.type,
-          transformation: col.transformation || 'none'
+          transformation: col.transformation || 'none',
+          transformConfig: col.transformConfig || {}
         }))
       };
       
@@ -367,6 +733,7 @@ function Mappings() {
                                     id={column.id} 
                                     column={column}
                                     onRemove={handleRemoveColumnMapping}
+                                    onUpdate={handleUpdateColumnMapping}
                                   />
                                 ))}
                               </div>
