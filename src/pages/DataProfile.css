@@ -416,12 +416,35 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+.numeric-distribution {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.value-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  color: #2c3e50;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.min-label {
+  text-align: left;
+}
+
+.max-label {
+  text-align: right;
+}
+
 .bars {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  height: 100%;
-  padding: 0 10px;
+  height: 85%;
+  padding: 0 5px;
 }
 
 .bar {
