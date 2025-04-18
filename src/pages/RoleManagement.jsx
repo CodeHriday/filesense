@@ -1,37 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
+import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/RoleManagement.css';
 
-const FeaturePermission = ({ feature, permissions, onChange }) => {
-  const readPermission = permissions.find(p => p.feature === feature.name && p.action === 'read');
-  const writePermission = permissions.find(p => p.feature === feature.name && p.action === 'write');
+// Define application features for permission assignment
+const APP_FEATURES = [
+  { id: 'dashboard', name: 'Dashboard', category: 'Core' },
+  { id: 'file_upload', name: 'File Upload', category: 'Core' },
+  { id: 'file_profile', name: 'Data Profile', category: 'Core' },
+  { id: 'quality_checks', name: 'Quality Checks', category: 'Core' },
+  { id: 'alerts', name: 'Alerts', category: 'Core' },
+  { id: 'connections', name: 'Connections', category: 'Data Sources' },
+  { id: 'mappings', name: 'Data Mappings', category: 'Data Sources' },
+  { id: 'lineage', name: 'File Lineage', category: 'Data Sources' },
+  { id: 'monitor', name: 'Monitor', category: 'Monitoring' },
+  { id: 'scheduler', name: 'File Scheduler', category: 'Monitoring' },
+  { id: 'badges', name: 'Achievement Badges', category: 'Insights' },
+  { id: 'insights', name: 'AI Insights', category: 'Insights' },
+  { id: 'recommendations', name: 'Recommendations', category: 'Insights' },
+  { id: 'stories', name: 'Data Stories', category: 'Insights' },
+  { id: 'settings', name: 'Dashboard Settings', category: 'Administration' },
+  { id: 'users', name: 'User Management', category: 'Administration' },
+  { id: 'roles', name: 'Role Management', category: 'Administration' }
+];
 
-  return (
-    <div className="feature-permission">
-      <div className="feature-name">{feature.displayName}</div>
-      <div className="permission-controls">
-        <label>
-          <input
-            type="checkbox"
-            checked={!!readPermission}
-            onChange={() => onChange(feature.name, 'read', !readPermission)}
-          />
-          Read
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={!!writePermission}
-            onChange={() => onChange(feature.name, 'write', !writePermission)}
-          />
-          Write
-        </label>
-      </div>
-    </div>
-  );
-};
+// Group features by category
+const FEATURE_CATEGORIES = APP_FEATURES.reduce((acc, feature) => {
+  if (!acc[feature.category]) {
+    acc[feature.category] = [];
+  }
+  acc[feature.category].push(feature);
+  return acc;
+}, {});
 
 const RoleManagement = () => {
   const [roles, setRoles] = useState([]);
@@ -44,49 +46,39 @@ const RoleManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    permissions: []
+    permissions: {}
   });
-  
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
-  
-  // List of application features
-  const applicationFeatures = [
-    { name: 'dashboard', displayName: 'Dashboard' },
-    { name: 'file_upload', displayName: 'File Upload' },
-    { name: 'file_catalog', displayName: 'File Catalog' },
-    { name: 'data_profile', displayName: 'Data Profile' },
-    { name: 'quality_checks', displayName: 'Quality Checks' },
-    { name: 'monitor', displayName: 'Monitoring' },
-    { name: 'scheduler', displayName: 'Scheduler' },
-    { name: 'insights', displayName: 'AI Insights' },
-    { name: 'alerts', displayName: 'Alerts & Notifications' },
-    { name: 'lineage', displayName: 'Data Lineage' },
-    { name: 'user_management', displayName: 'User Management' },
-    { name: 'role_management', displayName: 'Role Management' },
-    { name: 'settings', displayName: 'System Settings' }
-  ];
 
-  // Check if user is logged in
+  const { currentUser, hasPermission } = useAuth();
+  const navigate = useNavigate();
+
+  // Check if user has permission to manage roles
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
-    
+
+    // For now, allow access to all logged-in users
+    // Later we can add proper permission checking when the roles are set up
+    // if (!hasPermission('role_view')) {
+    //   navigate('/');
+    //   return;
+    // }
+
     fetchData();
   }, [currentUser, navigate]);
-  
+
   const fetchData = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       const [rolesData, permissionsData] = await Promise.all([
         getRoles(),
         getPermissions()
       ]);
-      
+
       setRoles(rolesData);
       setAvailablePermissions(permissionsData);
     } catch (error) {
@@ -96,41 +88,56 @@ const RoleManagement = () => {
       setLoading(false);
     }
   };
-  
+
+  // Initialize empty permissions object with all features
+  const initializePermissions = () => {
+    const permissions = {};
+    APP_FEATURES.forEach(feature => {
+      permissions[feature.id] = { read: false, write: false };
+    });
+    return permissions;
+  };
+
   const openCreateModal = () => {
     setFormData({
       name: '',
       description: '',
-      permissions: []
+      permissions: initializePermissions()
     });
     setModalMode('create');
     setModalOpen(true);
   };
-  
+
   const openEditModal = (role) => {
     setSelectedRole(role);
     
-    // Map role permissions to our internal format
-    const rolePermissions = role.permissions.map(p => ({
-      feature: p.resource,
-      action: p.action,
-      id: p.id
-    }));
+    // Convert role.permissions array to our permissions object format
+    const permissionsObj = initializePermissions();
+    
+    if (role.permissions && Array.isArray(role.permissions)) {
+      role.permissions.forEach(perm => {
+        const [featureId, action] = perm.split(':');
+        if (permissionsObj[featureId] && (action === 'read' || action === 'write')) {
+          permissionsObj[featureId][action] = true;
+        }
+      });
+    }
     
     setFormData({
       name: role.name,
       description: role.description || '',
-      permissions: rolePermissions
+      permissions: permissionsObj
     });
+    
     setModalMode('edit');
     setModalOpen(true);
   };
-  
+
   const closeModal = () => {
     setModalOpen(false);
     setSelectedRole(null);
   };
-  
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -138,24 +145,25 @@ const RoleManagement = () => {
       [name]: value
     }));
   };
-  
-  const handlePermissionChange = (featureName, action, enabled) => {
+
+  const handlePermissionChange = (featureId, action, checked) => {
     setFormData(prev => {
-      let updatedPermissions = [...prev.permissions];
-      
-      if (enabled) {
-        // Add permission if it doesn't exist
-        if (!updatedPermissions.find(p => p.feature === featureName && p.action === action)) {
-          updatedPermissions.push({
-            feature: featureName,
-            action: action
-          });
+      const updatedPermissions = {
+        ...prev.permissions,
+        [featureId]: {
+          ...prev.permissions[featureId],
+          [action]: checked
         }
-      } else {
-        // Remove permission if it exists
-        updatedPermissions = updatedPermissions.filter(
-          p => !(p.feature === featureName && p.action === action)
-        );
+      };
+      
+      // If write permission is checked, also check read permission
+      if (action === 'write' && checked) {
+        updatedPermissions[featureId].read = true;
+      }
+      
+      // If read permission is unchecked, also uncheck write permission
+      if (action === 'read' && !checked) {
+        updatedPermissions[featureId].write = false;
       }
       
       return {
@@ -164,32 +172,56 @@ const RoleManagement = () => {
       };
     });
   };
-  
+
+  // Convert permissions object to array format for API
+  const formatPermissionsForAPI = (permissions) => {
+    const result = [];
+    
+    Object.entries(permissions).forEach(([featureId, actions]) => {
+      if (actions.read) {
+        result.push(`${featureId}:read`);
+      }
+      if (actions.write) {
+        result.push(`${featureId}:write`);
+      }
+    });
+    
+    return result;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.name) {
+    // Validate role name
+    if (!formData.name.trim()) {
       setError('Role name is required');
       return;
     }
     
+    // Format data for API
+    const roleData = {
+      name: formData.name,
+      description: formData.description,
+      permissions: formatPermissionsForAPI(formData.permissions)
+    };
+    
     try {
-      // Convert permissions to the format expected by the API
-      const apiPermissions = formData.permissions.map(p => ({
-        resource: p.feature,
-        action: p.action
-      }));
-      
-      const submitData = {
-        name: formData.name,
-        description: formData.description,
-        permissions: apiPermissions
-      };
-      
       if (modalMode === 'create') {
-        await createRole(submitData);
+        // Temporarily bypass permission checks
+        // if (!hasPermission('role_create')) {
+        //   setError("You don't have permission to create roles");
+        //   return;
+        // }
+        
+        await createRole(roleData);
       } else {
-        await updateRole(selectedRole.id, submitData);
+        // Temporarily bypass permission checks
+        // if (!hasPermission('role_edit')) {
+        //   setError("You don't have permission to edit roles");
+        //   return;
+        // }
+        
+        await updateRole(selectedRole.id, roleData);
       }
       
       closeModal();
@@ -199,13 +231,25 @@ const RoleManagement = () => {
       setError('Failed to save role: ' + (error.response?.data?.error || error.message));
     }
   };
-  
-  const handleDeleteRole = async (roleId) => {
-    if (!window.confirm('Are you sure you want to delete this role? Users with this role will lose associated permissions.')) {
+
+  const handleDeleteRole = async (roleId, roleName) => {
+    // Don't delete 'Admin' role
+    if (roleName.toLowerCase() === 'admin') {
+      setError("The Admin role cannot be deleted");
+      return;
+    }
+    
+    if (!window.confirm(`Are you sure you want to delete the role "${roleName}"?`)) {
       return;
     }
     
     try {
+      // Temporarily bypass permission checks
+      // if (!hasPermission('role_delete')) {
+      //   setError("You don't have permission to delete roles");
+      //   return;
+      // }
+      
       await deleteRole(roleId);
       fetchData();
     } catch (error) {
@@ -213,14 +257,53 @@ const RoleManagement = () => {
       setError('Failed to delete role: ' + (error.response?.data?.error || error.message));
     }
   };
-  
+
+  // Helper function to format permission display in the table
+  const formatPermissionsDisplay = (permissions) => {
+    if (!permissions || !Array.isArray(permissions)) {
+      return [];
+    }
+    
+    const permMap = {};
+    
+    permissions.forEach(perm => {
+      const [featureId, action] = perm.split(':');
+      if (!permMap[featureId]) {
+        permMap[featureId] = { read: false, write: false };
+      }
+      if (action === 'read' || action === 'write') {
+        permMap[featureId][action] = true;
+      }
+    });
+    
+    return Object.entries(permMap).map(([featureId, actions]) => {
+      const feature = APP_FEATURES.find(f => f.id === featureId);
+      return {
+        id: featureId,
+        name: feature ? feature.name : featureId,
+        read: actions.read,
+        write: actions.write
+      };
+    });
+  };
+
   if (loading) {
-    return <div className="role-management-loading">Loading role management...</div>;
+    return (
+      <div className="role-management-loading">
+        <LoadingSpinner />
+        <span>Loading role management...</span>
+      </div>
+    );
   }
-  
+
   return (
     <div className="role-management-container">
-      <h1>Role Management</h1>
+      <div className="role-management-header">
+        <h1>Role Management</h1>
+        <Link to="/users" className="user-management-link">
+          User Management
+        </Link>
+      </div>
       
       {error && (
         <div className="error-message" role="alert">
@@ -254,41 +337,53 @@ const RoleManagement = () => {
                 <td colSpan="5" className="no-roles-message">No roles found</td>
               </tr>
             ) : (
-              roles.map(role => (
-                <tr key={role.id}>
-                  <td>{role.name}</td>
-                  <td>{role.description || '-'}</td>
-                  <td>
-                    <div className="permission-summary">
-                      {role.permissions && role.permissions.length > 0 
-                        ? `${role.permissions.length} permission(s)` 
-                        : 'No permissions'
-                      }
-                    </div>
-                  </td>
-                  <td>{role.user_count || 0}</td>
-                  <td>
-                    <div className="role-actions">
-                      <button 
-                        className="edit-role-btn" 
-                        onClick={() => openEditModal(role)}
-                      >
-                        Edit
-                      </button>
-                      
-                      {/* Don't allow deleting the Admin role */}
-                      {role.name !== 'Admin' && (
+              roles.map(role => {
+                const permissions = formatPermissionsDisplay(role.permissions);
+                return (
+                  <tr key={role.id}>
+                    <td>{role.name}</td>
+                    <td>{role.description || '-'}</td>
+                    <td>
+                      <div className="permission-tags">
+                        {permissions.length > 0 ? 
+                          permissions.slice(0, 3).map(perm => (
+                            <div key={perm.id} className="permission-tag">
+                              {perm.name} {perm.write ? '(Edit)' : '(View)'}
+                            </div>
+                          )) : 
+                          '-'
+                        }
+                        {permissions.length > 3 && (
+                          <div className="permission-tag">
+                            +{permissions.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>{role.user_count || 0}</td>
+                    <td>
+                      <div className="role-actions">
                         <button 
-                          className="delete-role-btn" 
-                          onClick={() => handleDeleteRole(role.id)}
+                          className="edit-role-btn" 
+                          onClick={() => openEditModal(role)}
                         >
-                          Delete
+                          Edit
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        
+                        {/* Don't allow deleting the Admin role */}
+                        {role.name.toLowerCase() !== 'admin' && (
+                          <button 
+                            className="delete-role-btn" 
+                            onClick={() => handleDeleteRole(role.id, role.name)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -309,14 +404,14 @@ const RoleManagement = () => {
             
             <form onSubmit={handleSubmit} className="role-form">
               <div className="form-group">
-                <label htmlFor="name">Role Name</label>
+                <label htmlFor="name">Role Name <span className="required-field">*</span></label>
                 <input
                   type="text"
                   id="name"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  disabled={modalMode === 'edit' && selectedRole?.name === 'Admin'} // Can't change Admin role name
+                  disabled={modalMode === 'edit' && formData.name.toLowerCase() === 'admin'}
                   required
                 />
               </div>
@@ -328,22 +423,51 @@ const RoleManagement = () => {
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  rows="3"
+                  placeholder="Describe the purpose of this role"
                 />
               </div>
               
-              <div className="form-group">
-                <label>Feature Permissions</label>
-                <div className="permissions-grid">
-                  {applicationFeatures.map(feature => (
-                    <FeaturePermission
-                      key={feature.name}
-                      feature={feature}
-                      permissions={formData.permissions}
-                      onChange={handlePermissionChange}
-                    />
-                  ))}
-                </div>
+              <div className="permissions-section">
+                <h3 className="permissions-title">Feature Permissions</h3>
+                <p>Select which features this role can access and modify.</p>
+                
+                {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => (
+                  <div key={category} className="permission-category">
+                    <div className="permissions-grid">
+                      <div className="permission-header feature-name">{category}</div>
+                      <div className="permission-header">View</div>
+                      <div className="permission-header">Edit</div>
+                      
+                      <div className="section-divider"></div>
+                      
+                      {features.map(feature => (
+                        <React.Fragment key={feature.id}>
+                          <div className="feature-name">{feature.name}</div>
+                          <div className="permission-checkbox">
+                            <input
+                              type="checkbox"
+                              id={`${feature.id}-read`}
+                              checked={formData.permissions[feature.id]?.read || false}
+                              onChange={(e) => handlePermissionChange(feature.id, 'read', e.target.checked)}
+                              aria-label={`View permission for ${feature.name}`}
+                            />
+                          </div>
+                          <div className="permission-checkbox">
+                            <input
+                              type="checkbox"
+                              id={`${feature.id}-write`}
+                              checked={formData.permissions[feature.id]?.write || false}
+                              onChange={(e) => handlePermissionChange(feature.id, 'write', e.target.checked)}
+                              aria-label={`Edit permission for ${feature.name}`}
+                              disabled={!formData.permissions[feature.id]?.read}
+                            />
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <div className="section-divider"></div>
+                  </div>
+                ))}
               </div>
               
               <div className="modal-actions">
