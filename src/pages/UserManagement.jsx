@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import '../styles/UserManagement.css';
@@ -117,6 +117,12 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate that at least one role is selected
+    if (formData.roles.length === 0) {
+      setError('At least one role must be assigned to the user');
+      return;
+    }
+    
     try {
       if (modalMode === 'create') {
         // Temporarily bypass permission checks
@@ -176,7 +182,12 @@ const UserManagement = () => {
   
   return (
     <div className="user-management-container">
-      <h1>User Management</h1>
+      <div className="user-management-header">
+        <h1>User Management</h1>
+        <Link to="/roles" className="role-management-link">
+          Role Management
+        </Link>
+      </div>
       
       {error && (
         <div className="error-message" role="alert">
@@ -186,12 +197,12 @@ const UserManagement = () => {
       
       <div className="user-management-actions">
         {/* Temporarily enable Add New User button for all users */}
-      <button 
-        className="create-user-btn"
-        onClick={openCreateModal}
-      >
-        Add New User
-      </button>
+        <button 
+          className="create-user-btn"
+          onClick={openCreateModal}
+        >
+          Add New User
+        </button>
       </div>
       
       <div className="users-table-container">
@@ -322,7 +333,15 @@ const UserManagement = () => {
               </div>
               
               <div className="form-group">
-                <label>Roles</label>
+                <label>Roles <span className="required-field">*</span></label>
+                <div className="roles-info">
+                  At least one role must be assigned to each user.
+                  {roles.length === 0 && (
+                    <div className="no-roles-warning">
+                      No roles available. Please <Link to="/roles">create roles</Link> first.
+                    </div>
+                  )}
+                </div>
                 <div className="roles-checkboxes">
                   {roles.map(role => (
                     <div key={role.id} className="role-checkbox">

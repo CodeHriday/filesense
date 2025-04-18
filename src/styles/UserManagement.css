@@ -4,9 +4,31 @@
   margin: 0 auto;
 }
 
-.user-management-container h1 {
+.user-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+}
+
+.user-management-container h1 {
+  margin-bottom: 0;
   color: #1a73e8;
+}
+
+.role-management-link {
+  display: inline-block;
+  padding: 8px 15px;
+  background-color: #34a853;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.role-management-link:hover {
+  background-color: #2d964a;
 }
 
 .user-management-loading {
@@ -209,6 +231,23 @@
   outline: none;
   border-color: #1a73e8;
   box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.required-field {
+  color: #d93025;
+  margin-left: 4px;
+}
+
+.roles-info {
+  margin-bottom: 10px;
+  color: #5f6368;
+  font-size: 13px;
+}
+
+.no-roles-warning {
+  margin-top: 8px;
+  color: #d93025;
+  font-weight: 500;
 }
 
 .roles-checkboxes {

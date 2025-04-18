@@ -16,7 +16,9 @@ import {
   FiBookOpen,
   FiHelpCircle,
   FiPlay,
-  FiCalendar
+  FiCalendar,
+  FiUsers,
+  FiShield
 } from 'react-icons/fi';
 import OnboardingWizard from './OnboardingWizard';
 import './Sidebar.css';
@@ -88,7 +90,21 @@ function Sidebar() {
             </li>
             
             <li className="nav-divider">
-              <span>Insights & Badges</span>
+              <span>Administration</span>
+            </li>
+            
+            <li>
+              <NavLink to="/users" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiUsers className="icon" />
+                <span>User Management</span>
+              </NavLink>
+            </li>
+            
+            <li>
+              <NavLink to="/roles" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiShield className="icon" />
+                <span>Role Management</span>
+              </NavLink>
             </li>
             
             <li>
@@ -96,6 +112,10 @@ function Sidebar() {
                 <FiSettings className="icon" />
                 <span>Dashboard Settings</span>
               </NavLink>
+            </li>
+            
+            <li className="nav-divider">
+              <span>Insights & Badges</span>
             </li>
             
             <li>
