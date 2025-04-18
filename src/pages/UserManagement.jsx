@@ -343,20 +343,22 @@ const UserManagement = () => {
                   )}
                 </div>
                 <div className="roles-checkboxes">
-                  {roles.map(role => (
-                    <div key={role.id} className="role-checkbox">
-                      <input
-                        type="checkbox"
-                        id={`role-${role.id}`}
-                        value={role.name}
-                        checked={formData.roles.includes(role.name)}
-                        onChange={handleRoleChange}
-                      />
-                      <label htmlFor={`role-${role.id}`}>
-                        {role.name}
-                      </label>
-                    </div>
-                  ))}
+                  {roles
+                    .filter(role => role.name !== 'Viewer') // Filter out the Viewer role
+                    .map(role => (
+                      <div key={role.id} className="role-checkbox">
+                        <label htmlFor={`role-${role.id}`}>
+                          {role.name}
+                        </label>
+                        <input
+                          type="checkbox"
+                          id={`role-${role.id}`}
+                          value={role.name}
+                          checked={formData.roles.includes(role.name)}
+                          onChange={handleRoleChange}
+                        />
+                      </div>
+                    ))}
                 </div>
               </div>
               
