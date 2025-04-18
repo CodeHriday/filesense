@@ -24,6 +24,16 @@
   transform: translateY(-2px);
 }
 
+.lineage-node.root-node {
+  background-color: #e7f5ff;
+  border-color: #4dabf7;
+  box-shadow: 0 0 10px rgba(77, 171, 247, 0.2);
+}
+
+.lineage-node.root-node:hover {
+  box-shadow: 0 0 15px rgba(77, 171, 247, 0.3);
+}
+
 .node-header {
   display: flex;
   align-items: center;
@@ -79,7 +89,8 @@
 }
 
 .lineage-graph-loading,
-.lineage-graph-error {
+.lineage-graph-error,
+.empty-graph {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -92,6 +103,18 @@
 
 .lineage-graph-error {
   color: #e53e3e;
+}
+
+.empty-graph {
+  color: #adb5bd;
+  text-align: center;
+  padding: 20px;
+}
+
+.empty-graph .empty-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  opacity: 0.5;
 }
 
 .spinner {
