@@ -826,7 +826,7 @@ app.get('/api/lineage', async (req, res) => {
         source_file_id VARCHAR(255) NOT NULL,
         target_file_id VARCHAR(255) NOT NULL,
         relationship_type VARCHAR(50) NOT NULL,
-        transformation_details JSONB,
+        transformation_details JSON,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -894,7 +894,7 @@ app.get('/api/connections', async (req, res) => {
         id SERIAL PRIMARY KEY,
         connection_name VARCHAR(100) NOT NULL,
         connection_type VARCHAR(50) NOT NULL,
-        connection_details JSONB NOT NULL,
+        connection_details JSON NOT NULL,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -918,7 +918,7 @@ app.get('/api/mappings', async (req, res) => {
         mapping_name VARCHAR(100) NOT NULL,
         source_file_id VARCHAR(255) NOT NULL,
         target_file_id VARCHAR(255) NOT NULL,
-        mapping_rules JSONB NOT NULL,
+        mapping_rules JSON NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -939,7 +939,7 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
       CREATE TABLE IF NOT EXISTS user_dashboard_settings (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(50) DEFAULT 'default',
-        settings JSONB NOT NULL,
+        settings JSON NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
