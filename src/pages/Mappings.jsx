@@ -35,6 +35,172 @@ import Card from '../components/Card';
 import { formatDate } from '../utils/formatters';
 import './Mappings.css';
 
+function JoinPanel({ files, selectedFile, sourceFileId, onAddJoin, onClose }) {
+  const [joinType, setJoinType] = useState('inner');
+  const [joinFileId, setJoinFileId] = useState('');
+  const [leftKey, setLeftKey] = useState('');
+  const [rightKey, setRightKey] = useState('');
+  const [joinFileColumns, setJoinFileColumns] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [leftKeyCandidates, setLeftKeyCandidates] = useState([]);
+  const [rightKeyCandidates, setRightKeyCandidates] = useState([]);
+
+  useEffect(() => {
+    if (selectedFile && selectedFile.columns) {
+      setLeftKeyCandidates(selectedFile.columns.map(col => col.column_name));
+    }
+  }, [selectedFile]);
+
+  const handleJoinFileChange = async (fileId) => {
+    setJoinFileId(fileId);
+    setRightKey('');
+    
+    if (!fileId) {
+      setJoinFileColumns([]);
+      setRightKeyCandidates([]);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/files/${fileId}`);
+      
+      if (response.data && response.data.columns) {
+        setJoinFileColumns(response.data.columns);
+        setRightKeyCandidates(response.data.columns.map(col => col.column_name));
+      } else {
+        setJoinFileColumns([]);
+        setRightKeyCandidates([]);
+      }
+    } catch (err) {
+      console.error('Error fetching join file columns:', err);
+      setJoinFileColumns([]);
+      setRightKeyCandidates([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = () => {
+    if (!joinFileId || !leftKey || !rightKey) {
+      alert('Please select all required fields to create a join.');
+      return;
+    }
+    
+    const joinConfig = {
+      id: `join-${Date.now()}`,
+      joinType,
+      sourceFileId,
+      joinFileId,
+      leftKey,
+      rightKey,
+      joinName: files.find(f => f.file_id === joinFileId)?.filename || 'Unknown file'
+    };
+    
+    onAddJoin(joinConfig);
+    onClose();
+  };
+
+  return (
+    <div className="transform-panel">
+      <div className="transform-panel-header">
+        <h3>Configure File Join</h3>
+        <button type="button" className="close-button" onClick={onClose}>×</button>
+      </div>
+      
+      <div className="transform-panel-body">
+        <div className="transform-field">
+          <label>Join Type</label>
+          <select 
+            value={joinType}
+            onChange={(e) => setJoinType(e.target.value)}
+            className="form-control"
+          >
+            <option value="inner">Inner Join</option>
+            <option value="left">Left Outer Join</option>
+            <option value="right">Right Outer Join</option>
+            <option value="full">Full Outer Join</option>
+            <option value="lookup">Lookup (Value Replacement)</option>
+          </select>
+          <div className="field-help">
+            {joinType === 'inner' && 'Returns rows when there is a match in both tables.'}
+            {joinType === 'left' && 'Returns all rows from the left table, and matched rows from the right table.'}
+            {joinType === 'right' && 'Returns all rows from the right table, and matched rows from the left table.'}
+            {joinType === 'full' && 'Returns rows when there is a match in one of the tables.'}
+            {joinType === 'lookup' && 'Replaces values from the source with matching values from another file.'}
+          </div>
+        </div>
+        
+        <div className="transform-field">
+          <label>Join With File</label>
+          <select
+            value={joinFileId}
+            onChange={(e) => handleJoinFileChange(e.target.value)}
+            className="form-control"
+          >
+            <option value="">Select a file to join with...</option>
+            {files
+              .filter(file => file.file_id !== sourceFileId)
+              .map(file => (
+                <option key={file.file_id} value={file.file_id}>
+                  {file.filename}
+                </option>
+            ))}
+          </select>
+        </div>
+        
+        {loading ? (
+          <div className="loading-spinner">Loading join file details...</div>
+        ) : (
+          <>
+            <div className="transform-field">
+              <label>Join Key (Source File)</label>
+              <select
+                value={leftKey}
+                onChange={(e) => setLeftKey(e.target.value)}
+                className="form-control"
+                disabled={!leftKeyCandidates.length}
+              >
+                <option value="">Select source column...</option>
+                {leftKeyCandidates.map(colName => (
+                  <option key={colName} value={colName}>{colName}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="transform-field">
+              <label>Join Key (Join File)</label>
+              <select
+                value={rightKey}
+                onChange={(e) => setRightKey(e.target.value)}
+                className="form-control"
+                disabled={!rightKeyCandidates.length}
+              >
+                <option value="">Select join column...</option>
+                {rightKeyCandidates.map(colName => (
+                  <option key={colName} value={colName}>{colName}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+      </div>
+      
+      <div className="transform-panel-footer">
+        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+        <button 
+          type="button" 
+          className="btn btn-primary" 
+          onClick={handleSave}
+          disabled={!joinFileId || !leftKey || !rightKey}
+        >
+          Add Join
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TransformationPanel({ column, onUpdate, onClose }) {
   const [name, setName] = useState(column.name);
   const [type, setType] = useState(column.type);
@@ -419,6 +585,9 @@ function Mappings() {
   const [sourceColumns, setSourceColumns] = useState([]);
   const [targetColumns, setTargetColumns] = useState([]);
   const [sourceLoading, setSourceLoading] = useState(false);
+  const [joinFiles, setJoinFiles] = useState([]);
+  const [showJoinPanel, setShowJoinPanel] = useState(false);
+  const [selectedJoinFile, setSelectedJoinFile] = useState(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -457,6 +626,7 @@ function Mappings() {
     setTargetFileType('csv');
     setSourceColumns([]);
     setTargetColumns([]);
+    setJoinFiles([]);
     setShowForm(true);
   };
   
@@ -470,6 +640,12 @@ function Mappings() {
       setTargetColumns(mapping.mapping_config.columns);
     } else {
       setTargetColumns([]);
+    }
+    
+    if (mapping.mapping_config && mapping.mapping_config.joins) {
+      setJoinFiles(mapping.mapping_config.joins);
+    } else {
+      setJoinFiles([]);
     }
     
     // Fetch source file columns
@@ -552,6 +728,14 @@ function Mappings() {
     }
   };
   
+  const handleAddJoin = (joinConfig) => {
+    setJoinFiles([...joinFiles, joinConfig]);
+  };
+
+  const handleRemoveJoin = (joinId) => {
+    setJoinFiles(joinFiles.filter(join => join.id !== joinId));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -563,7 +747,8 @@ function Mappings() {
           type: col.type,
           transformation: col.transformation || 'none',
           transformConfig: col.transformConfig || {}
-        }))
+        })),
+        joins: joinFiles
       };
       
       const mappingData = {
@@ -679,70 +864,132 @@ function Mappings() {
                 </div>
                 
                 {sourceFileId && (
-                  <div className="mapping-builder">
-                    <div className="mapping-columns-container">
-                      <div className="mapping-source-columns">
-                        <h3>Source Columns</h3>
-                        {sourceLoading ? (
-                          <div className="column-loading">Loading columns...</div>
-                        ) : sourceColumns.length === 0 ? (
-                          <div className="column-empty">No columns available.</div>
-                        ) : (
-                          <div className="column-list">
-                            {sourceColumns.map(column => (
-                              <div key={column.id} className="source-column">
-                                <div className="source-column-name">{column.name}</div>
-                                <div className="source-column-type">{column.type}</div>
-                                <button 
-                                  className="source-column-add" 
-                                  onClick={() => handleAddColumnMapping(column)}
-                                  type="button"
-                                >
-                                  <FiPlus />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="mapping-arrow">
-                        <FiLink />
-                      </div>
-                      
-                      <div className="mapping-target-columns">
-                        <h3>Target Columns</h3>
-                        {targetColumns.length === 0 ? (
-                          <div className="column-empty">
-                            No columns mapped yet. Add columns from the source.
-                          </div>
-                        ) : (
-                          <DndContext 
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                          >
-                            <SortableContext 
-                              items={targetColumns.map(col => col.id)}
-                              strategy={verticalListSortingStrategy}
+                  <>
+                    <div className="mapping-builder">
+                      <div className="mapping-columns-container">
+                        <div className="mapping-source-columns">
+                          <h3>Source Columns</h3>
+                          {sourceLoading ? (
+                            <div className="column-loading">Loading columns...</div>
+                          ) : sourceColumns.length === 0 ? (
+                            <div className="column-empty">No columns available.</div>
+                          ) : (
+                            <div className="column-list">
+                              {sourceColumns.map(column => (
+                                <div key={column.id} className="source-column">
+                                  <div className="source-column-name">{column.name}</div>
+                                  <div className="source-column-type">{column.type}</div>
+                                  <button 
+                                    className="source-column-add" 
+                                    onClick={() => handleAddColumnMapping(column)}
+                                    type="button"
+                                  >
+                                    <FiPlus />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="mapping-arrow">
+                          <FiLink />
+                        </div>
+                        
+                        <div className="mapping-target-columns">
+                          <h3>Target Columns</h3>
+                          {targetColumns.length === 0 ? (
+                            <div className="column-empty">
+                              No columns mapped yet. Add columns from the source.
+                            </div>
+                          ) : (
+                            <DndContext 
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              onDragEnd={handleDragEnd}
                             >
-                              <div className="column-list">
-                                {targetColumns.map(column => (
-                                  <SortableItem 
-                                    key={column.id} 
-                                    id={column.id} 
-                                    column={column}
-                                    onRemove={handleRemoveColumnMapping}
-                                    onUpdate={handleUpdateColumnMapping}
-                                  />
-                                ))}
-                              </div>
-                            </SortableContext>
-                          </DndContext>
-                        )}
+                              <SortableContext 
+                                items={targetColumns.map(col => col.id)}
+                                strategy={verticalListSortingStrategy}
+                              >
+                                <div className="column-list">
+                                  {targetColumns.map(column => (
+                                    <SortableItem 
+                                      key={column.id} 
+                                      id={column.id} 
+                                      column={column}
+                                      onRemove={handleRemoveColumnMapping}
+                                      onUpdate={handleUpdateColumnMapping}
+                                    />
+                                  ))}
+                                </div>
+                              </SortableContext>
+                            </DndContext>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    
+                    <div className="mapping-joins">
+                      <div className="joins-header">
+                        <h3>File Joins</h3>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary"
+                          onClick={() => setShowJoinPanel(true)}
+                          disabled={sourceLoading}
+                        >
+                          <FiGrid className="btn-icon" />
+                          Add Join
+                        </button>
+                      </div>
+                      
+                      {joinFiles.length === 0 ? (
+                        <div className="joins-empty">
+                          No file joins configured. Click "Add Join" to join data from another file.
+                        </div>
+                      ) : (
+                        <div className="joins-list">
+                          {joinFiles.map(join => (
+                            <div key={join.id} className="join-item">
+                              <div className="join-info">
+                                <span className="join-type">{join.joinType.toUpperCase()} JOIN</span>
+                                <span className="join-details">
+                                  on <strong>{join.leftKey}</strong> = <strong>{join.rightKey}</strong>
+                                </span>
+                                <span className="join-file">
+                                  with <strong>{join.joinName}</strong>
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="join-remove"
+                                onClick={() => handleRemoveJoin(join.id)}
+                                title="Remove join"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {showJoinPanel && (
+                        <div className="transform-panel-overlay">
+                          <JoinPanel
+                            files={files}
+                            selectedFile={{
+                              file_id: sourceFileId,
+                              columns: sourceColumns
+                            }}
+                            sourceFileId={sourceFileId}
+                            onAddJoin={handleAddJoin}
+                            onClose={() => setShowJoinPanel(false)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
                 
                 <div className="form-actions">
@@ -829,6 +1076,22 @@ function Mappings() {
                           : 0}
                       </span>
                     </div>
+                    <div className="mapping-detail">
+                      <span className="detail-label">File Joins:</span>
+                      <span className="detail-value">
+                        {mapping.mapping_config && mapping.mapping_config.joins 
+                          ? mapping.mapping_config.joins.length 
+                          : 0}
+                      </span>
+                    </div>
+                    {mapping.mapping_config && mapping.mapping_config.joins && mapping.mapping_config.joins.length > 0 && (
+                      <div className="mapping-transforms">
+                        <span className="transform-badge" title="This mapping contains file joins">
+                          <FiGrid />
+                          Join/Lookup
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="mapping-footer">
                     Created: {formatDate(mapping.created_at)}

@@ -419,3 +419,119 @@
   color: #777;
   max-width: 500px;
 }
+
+/* File Joins Styles */
+.mapping-joins {
+  margin-top: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 20px;
+  background-color: #f9f9f9;
+}
+
+.joins-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.joins-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.joins-empty {
+  background-color: white;
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  padding: 20px;
+  text-align: center;
+  color: #777;
+}
+
+.joins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.join-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 12px 15px;
+}
+
+.join-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.join-type {
+  font-weight: 500;
+  font-size: 0.85rem;
+  background-color: rgba(52, 152, 219, 0.1);
+  color: var(--primary-color);
+  padding: 2px 8px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.join-details, .join-file {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.join-details strong, .join-file strong {
+  color: #333;
+}
+
+.join-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--error-color);
+  background-color: rgba(231, 76, 60, 0.1);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.join-remove:hover {
+  background-color: rgba(231, 76, 60, 0.2);
+}
+
+.btn-sm {
+  font-size: 0.85rem;
+  padding: 4px 12px;
+}
+
+.mapping-transforms {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.transform-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background-color: rgba(52, 152, 219, 0.1);
+  color: var(--primary-color);
+}
+
+.transform-badge svg {
+  margin-right: 4px;
+}
