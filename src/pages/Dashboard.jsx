@@ -403,54 +403,63 @@ const Dashboard = () => {
             <span>{minValue}%</span>
           </div>
           
-          <div className="chart-body">
-            <div className="chart-grid">
-              <div className="grid-line"></div>
-              <div className="grid-line"></div>
-              <div className="grid-line"></div>
-            </div>
-            
-            <div className="data-line">
-              {/* Connect points with a line */}
-              <svg className="line-svg" aria-hidden="true">
-                <path
-                  d={normalizedPoints.map((point, i) => {
-                    const x = (i / (normalizedPoints.length - 1)) * 100;
-                    const y = 100 - point.normalized;
-                    return i === 0 ? `M ${x},${y}` : `L ${x},${y}`;
-                  }).join(' ')}
-                  stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
-                  strokeWidth="3"
-                  fill="none"
-                />
-              </svg>
+          <div className="chart-area">
+            {/* Complete SVG chart with data points, lines and labels */}
+            <svg className="scatter-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {/* Horizontal grid lines */}
+              <line x1="0" y1="0" x2="100" y2="0" className="grid-line" />
+              <line x1="0" y1="50" x2="100" y2="50" className="grid-line" />
+              <line x1="0" y1="100" x2="100" y2="100" className="grid-line" />
               
-              {/* Display individual data points */}
-              {normalizedPoints.map((point, index) => (
-                <div 
-                  key={index} 
-                  className="data-point"
-                  style={{ 
-                    left: `${(index / (normalizedPoints.length - 1)) * 100}%`,
-                    bottom: `${point.normalized}%`
-                  }}
-                  title={`${point.date}: ${dataPoints[index].value}%`}
-                  aria-hidden="true"
-                >
-                  {index % 5 === 0 && (
-                    <span className="point-value">{dataPoints[index].value}%</span>
-                  )}
-                </div>
+              {/* Line connecting the points */}
+              <path
+                d={normalizedPoints.map((point, i) => {
+                  const x = (i / (normalizedPoints.length - 1)) * 100;
+                  const y = 100 - point.normalized;
+                  return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+                }).join(' ')}
+                stroke={getScoreColor(dataPoints[dataPoints.length - 1].value)}
+                strokeWidth="1.5"
+                fill="none"
+                className="trend-line"
+              />
+              
+              {/* Scatter points */}
+              {normalizedPoints.map((point, i) => (
+                <g key={i}>
+                  <circle 
+                    cx={(i / (normalizedPoints.length - 1)) * 100}
+                    cy={100 - point.normalized}
+                    r="2"
+                    className="data-point"
+                    fill="white"
+                    stroke={getScoreColor(dataPoints[i].value)}
+                    strokeWidth="1.5"
+                  >
+                    <title>{point.date}: {dataPoints[i].value}%</title>
+                  </circle>
+                </g>
               ))}
+            </svg>
+            
+            {/* Date labels below the chart */}
+            <div className="date-labels">
+              {labelIndices.map(i => {
+                const leftPos = (i / (normalizedPoints.length - 1)) * 100;
+                return (
+                  <div 
+                    key={i} 
+                    className="date-label" 
+                    style={{ left: `${leftPos}%` }}
+                  >
+                    <div className="date-tick"></div>
+                    <div className="date-text">
+                      {normalizedPoints[i].date}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-          
-          <div className="x-axis rotated-dates">
-            {labelIndices.map(i => (
-              <div key={i} className="date-column" style={{ left: `${(i / (normalizedPoints.length - 1)) * 100}%` }}>
-                <span className="rotated-date">{normalizedPoints[i].date}</span>
-              </div>
-            ))}
           </div>
         </div>
         
