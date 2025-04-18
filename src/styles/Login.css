@@ -1,0 +1,151 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  padding: 20px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 450px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-header h2 {
+  color: #1a73e8;
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+
+.login-header h3 {
+  font-size: 20px;
+  color: #202124;
+  margin: 0;
+  font-weight: 500;
+}
+
+.login-form {
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #5f6368;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #dadce0;
+  border-radius: 5px;
+  font-size: 16px;
+  color: #202124;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.login-button {
+  width: 100%;
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover {
+  background-color: #0d62cb;
+}
+
+.login-button:disabled {
+  background-color: #a1c4fd;
+  cursor: not-allowed;
+}
+
+.login-error {
+  background-color: #feeceb;
+  color: #d93025;
+  padding: 12px 16px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.login-help {
+  text-align: center;
+  color: #5f6368;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.login-help p {
+  margin: 8px 0;
+}
+
+/* Accessibility high contrast mode */
+body.high-contrast .login-container {
+  background-color: #000;
+}
+
+body.high-contrast .login-card {
+  background-color: #000;
+  border: 2px solid #fff;
+  box-shadow: none;
+}
+
+body.high-contrast .login-header h2,
+body.high-contrast .login-header h3,
+body.high-contrast .form-group label {
+  color: #fff;
+}
+
+body.high-contrast .form-group input {
+  background-color: #000;
+  color: #fff;
+  border-color: #fff;
+}
+
+body.high-contrast .login-button {
+  background-color: #fff;
+  color: #000;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .login-button:hover {
+  background-color: #ddd;
+}
+
+body.high-contrast .login-help {
+  color: #fff;
+}
+
+body.high-contrast .login-error {
+  background-color: #000;
+  color: #ff6b6b;
+  border: 1px solid #ff6b6b;
+}
