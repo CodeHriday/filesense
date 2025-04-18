@@ -348,37 +348,43 @@ const DashboardLayoutCreator = ({
   
   // Initialize from prop
   useEffect(() => {
-    if (initialLayout && initialLayout.length > 0) {
+    // Generate random ID for widgets
+    const generateLocalId = () => {
+      return `widget-${Math.random().toString(36).substr(2, 9)}`;
+    };
+
+    // Ensure initialLayout is always treated as an array
+    if (initialLayout && Array.isArray(initialLayout) && initialLayout.length > 0) {
       setWidgets(initialLayout.map(item => ({
         ...item,
-        id: item.id || generateId()
+        id: item.id || generateLocalId()
       })));
     } else {
       // Default layout if none provided
       setWidgets([
         { 
-          id: generateId(), 
+          id: generateLocalId(), 
           type: 'quality-score', 
           width: 1, 
           height: 1,
           position: 0
         },
         { 
-          id: generateId(), 
+          id: generateLocalId(), 
           type: 'recent-files', 
           width: 1, 
           height: 2,
           position: 1
         },
         { 
-          id: generateId(), 
+          id: generateLocalId(), 
           type: 'alerts', 
           width: 1, 
           height: 1,
           position: 2
         },
         { 
-          id: generateId(), 
+          id: generateLocalId(), 
           type: 'recommendations', 
           width: 1, 
           height: 1,

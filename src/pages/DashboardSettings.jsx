@@ -29,13 +29,20 @@ const DashboardSettings = () => {
         const response = await axios.get('/api/user/dashboard-settings');
         const settings = response.data;
         
-        if (settings.layout) {
+        if (settings.layout && Array.isArray(settings.layout)) {
           setDashboardLayout(settings.layout);
           setSavedLayout(settings.layout);
+        } else {
+          // Set empty array if layout is not an array
+          setDashboardLayout([]);
+          setSavedLayout([]);
         }
         
         if (settings.theme) {
-          setThemeSettings(settings.theme);
+          setThemeSettings({
+            ...themeSettings, // Keep default values as fallback
+            ...settings.theme // Override with saved settings
+          });
         }
       } catch (error) {
         console.warn('Failed to load dashboard settings from server, loading from localStorage');
@@ -44,20 +51,32 @@ const DashboardSettings = () => {
         const savedLayoutString = localStorage.getItem('dfo-dashboard-layout');
         const savedThemeString = localStorage.getItem('dfo-dashboard-theme');
         
+        // Default to empty array for layout
+        let loadedLayout = [];
+        
         if (savedLayoutString) {
           try {
-            const layout = JSON.parse(savedLayoutString);
-            setDashboardLayout(layout);
-            setSavedLayout(layout);
+            const parsedLayout = JSON.parse(savedLayoutString);
+            if (Array.isArray(parsedLayout)) {
+              loadedLayout = parsedLayout;
+            } else {
+              console.warn('Saved layout is not an array, using empty array');
+            }
           } catch (e) {
             console.error('Error parsing saved layout', e);
           }
         }
         
+        setDashboardLayout(loadedLayout);
+        setSavedLayout(loadedLayout);
+        
         if (savedThemeString) {
           try {
             const theme = JSON.parse(savedThemeString);
-            setThemeSettings(theme);
+            setThemeSettings({
+              ...themeSettings, // Keep default values as fallback
+              ...theme // Override with saved settings
+            });
           } catch (e) {
             console.error('Error parsing saved theme', e);
           }
@@ -273,7 +292,7 @@ const DashboardSettings = () => {
                     ))}
                     <input
                       type="color"
-                      value={themeSettings.accentColor}
+                      value={themeSettings.accentColor || '#2196f3'} 
                       onChange={(e) => handleThemeChange('accentColor', e.target.value)}
                       className="color-picker"
                     />
@@ -312,7 +331,7 @@ const DashboardSettings = () => {
                     <label className="toggle-label">
                       <input
                         type="checkbox"
-                        checked={themeSettings.compactMode}
+                        checked={!!themeSettings.compactMode}
                         onChange={(e) => handleThemeChange('compactMode', e.target.checked)}
                       />
                       <span className="toggle-slider"></span>
@@ -328,7 +347,7 @@ const DashboardSettings = () => {
                     <label className="toggle-label">
                       <input
                         type="checkbox"
-                        checked={themeSettings.animationsEnabled}
+                        checked={themeSettings.animationsEnabled !== false}
                         onChange={(e) => handleThemeChange('animationsEnabled', e.target.checked)}
                       />
                       <span className="toggle-slider"></span>
