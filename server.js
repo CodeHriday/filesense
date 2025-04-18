@@ -1515,6 +1515,10 @@ app.post('/api/roles', authenticateToken, async (req, res) => {
 // Update role
 app.put('/api/roles/:id', authenticateToken, async (req, res) => {
   try {
+    console.log('Role update endpoint called');
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    
     // Temporarily bypass permission checks for development
     // Check if user has permission to update roles
     // const hasPermission = req.user.permissions.some(p => p.name === 'role_edit');
@@ -1525,6 +1529,9 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     const roleId = req.params.id;
     const { name, description, permissions } = req.body;
     
+    console.log(`Updating role ${roleId} with name: ${name}, description: ${description}`);
+    console.log('Permissions:', permissions);
+    
     // Validate required fields
     if (!name) {
       return res.status(400).json({ error: 'Role name is required' });
@@ -1533,8 +1540,11 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     // Check if role exists
     const existingRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
     if (existingRole.rows.length === 0) {
+      console.log(`Role with ID ${roleId} not found`);
       return res.status(404).json({ error: 'Role not found' });
     }
+    
+    console.log('Existing role:', existingRole.rows[0]);
     
     // Don't allow changing Admin role name
     if (existingRole.rows[0].name.toLowerCase() === 'admin' && 
@@ -1560,6 +1570,7 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     
     // Update permissions
     if (permissions && Array.isArray(permissions)) {
+      console.log('Updating permissions for role:', permissions);
       // Update the permissions array
       await pool.query(
         'UPDATE roles SET permissions = $1 WHERE id = $2',
@@ -1569,6 +1580,7 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     
     // Return the updated role
     const updatedRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    console.log('Updated role:', updatedRole.rows[0]);
     res.json(updatedRole.rows[0]);
   } catch (err) {
     console.error('Error updating role:', err);

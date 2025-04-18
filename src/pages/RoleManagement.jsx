@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/RoleManagement.css';
+import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 // Define application features for permission assignment
 const APP_FEATURES = [
@@ -221,7 +223,29 @@ const RoleManagement = () => {
         //   return;
         // }
         
-        await updateRole(selectedRole.id, roleData);
+        console.log(`Attempting to update role ${selectedRole.id} with data:`, roleData);
+        
+        try {
+          // Try the service function first
+          await updateRole(selectedRole.id, roleData);
+        } catch (serviceError) {
+          console.error('Service updateRole failed:', serviceError);
+          
+          // If that fails, try direct API call as fallback
+          console.log('Attempting direct API call as fallback');
+          const token = localStorage.getItem('token');
+          const response = await axios.put(
+            `${API_BASE_URL}/api/roles/${selectedRole.id}`, 
+            roleData,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          );
+          console.log('Direct API call response:', response.data);
+        }
       }
       
       closeModal();

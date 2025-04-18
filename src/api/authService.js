@@ -152,10 +152,14 @@ export const createRole = async (roleData) => {
  */
 export const updateRole = async (roleId, roleData) => {
   try {
+    console.log(`Updating role with ID ${roleId}:`, roleData);
     const response = await axios.put(`${API_BASE_URL}/api/roles/${roleId}`, roleData);
+    console.log('Role update response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Update role error:', error);
+    console.error('Error details:', error.response?.data || 'No response data');
+    console.error('URL used:', `${API_BASE_URL}/api/roles/${roleId}`);
     throw error;
   }
 };
