@@ -46,12 +46,23 @@ export function AuthProvider({ children }) {
   const login = async (username, password) => {
     setError('');
     try {
+      // Force username to be case-insensitive (lowercase)
+      const usernameNormalized = username.toLowerCase();
+      
+      console.log('Attempting login with:', usernameNormalized);
+      
       const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
-        username,
+        username: usernameNormalized,
         password
       });
       
       const { token, user } = response.data;
+      
+      if (!token || !user) {
+        throw new Error('Invalid response format from server');
+      }
+      
+      console.log('Login successful:', user.username);
       
       // Save token to localStorage
       localStorage.setItem('token', token);
@@ -65,8 +76,10 @@ export function AuthProvider({ children }) {
       
       if (error.response && error.response.data && error.response.data.error) {
         setError(error.response.data.error);
+      } else if (error.message) {
+        setError(error.message);
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        setError('Invalid username or password. Please try again.');
       }
       
       return false;

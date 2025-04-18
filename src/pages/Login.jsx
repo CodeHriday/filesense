@@ -61,6 +61,10 @@ const Login = () => {
             src="/images/blumetra-logo.png" 
             alt="Blumetra" 
             className="login-logo" 
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.style.display = 'none';
+            }}
           />
           <h2>Data File Observatory</h2>
           <h3>Sign In</h3>

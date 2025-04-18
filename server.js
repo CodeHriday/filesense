@@ -1236,8 +1236,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
     
-    // Find user in database
-    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    // Convert username to lowercase for case-insensitive matching
+    const normalizedUsername = username.toLowerCase();
+    
+    // Find user in database (using LOWER() for case-insensitive matching)
+    const userResult = await pool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [normalizedUsername]);
     
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });

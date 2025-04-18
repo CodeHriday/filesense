@@ -41,7 +41,11 @@ function Header({ showAIInsights }) {
           <img 
             src="/images/blumetra-logo.png" 
             alt="Blumetra" 
-            className="header-logo" 
+            className="header-logo"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.style.display = 'none';
+            }}
           />
           <h1>Data File Observatory</h1>
         </Link>
