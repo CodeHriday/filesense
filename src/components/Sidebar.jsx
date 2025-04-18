@@ -51,14 +51,24 @@ function Sidebar() {
   // Admin users see all sections and menu items
   const isAdmin = hasRole('Admin');
   
-  // Check if the admin section should be displayed
-  const showAdminSection = isAdmin || 
-                         hasPermission('user_view') || 
-                         hasPermission('role_view') || 
-                         hasPermission('dashboard_edit');
+  // Admin section should always be shown for Admin users and for others with specific permissions
+  let showAdminSection = isAdmin || 
+                        hasPermission('user_view') || 
+                        hasPermission('role_view') || 
+                        hasPermission('dashboard_edit');
+                         
+  // Force visibility of admin section for Admin role
+  if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    showAdminSection = true;
+  }
   
   // Check if the insights section should be displayed
-  const showInsightsSection = isAdmin || hasPermission('insight_view');
+  let showInsightsSection = isAdmin || hasPermission('insight_view');
+  
+  // Force visibility of insights section for Admin role
+  if (currentUser.roles && currentUser.roles.includes('Admin')) {
+    showInsightsSection = true;
+  }
 
   return (
     <div>

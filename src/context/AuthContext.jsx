@@ -132,22 +132,7 @@ export function AuthProvider({ children }) {
   
   // Check if user has a specific permission
   const hasPermission = (permission) => {
-    if (!currentUser || !currentUser.permissions) {
-      return false;
-    }
-    
-    // Admin roles have all permissions
-    if (currentUser.roles && currentUser.roles.includes('Admin')) {
-      return true;
-    }
-    
-    // Check if the permission exists in the user's permissions
-    return currentUser.permissions.some(p => p.name === permission);
-  };
-  
-  // Check if user has permission to access a specific feature based on resource and action
-  const hasFeaturePermission = (resource, action = 'view') => {
-    if (!currentUser || !currentUser.permissions) {
+    if (!currentUser) {
       return false;
     }
     
@@ -156,11 +141,62 @@ export function AuthProvider({ children }) {
       return true;
     }
     
-    // Check if the user has a permission matching the resource and action
-    return currentUser.permissions.some(p => 
-      p.resource === resource && 
-      (p.action === action || p.action === '*')
-    );
+    // Creator role has access to all basic features
+    if (currentUser.roles && currentUser.roles.includes('Creator')) {
+      // Granting all basic permissions to Creator role
+      const creatorPermissions = [
+        'dashboard_view', 'file_upload', 'file_profile', 'quality_checks', 'alerts',
+        'connections', 'mappings', 'lineage', 'monitor', 'scheduler', 'badges',
+        'insights', 'recommendations', 'stories', 'file_view', 'insight_view',
+        'lineage_view', 'alert_view'
+      ];
+      
+      if (creatorPermissions.includes(permission)) {
+        return true;
+      }
+    }
+    
+    // Check permissions from the backend
+    if (currentUser.permissions) {
+      return currentUser.permissions.some(p => p.name === permission);
+    }
+    
+    return false;
+  };
+  
+  // Check if user has permission to access a specific feature based on resource and action
+  const hasFeaturePermission = (resource, action = 'view') => {
+    if (!currentUser) {
+      return false;
+    }
+    
+    // Admin role has access to everything
+    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+      return true;
+    }
+    
+    // Creator role has access to all basic features
+    if (currentUser.roles && currentUser.roles.includes('Creator')) {
+      const creatorResources = [
+        'dashboard', 'file', 'profile', 'quality', 'alert',
+        'connection', 'mapping', 'lineage', 'monitor', 'scheduler', 'badge',
+        'insight', 'recommendation', 'story'
+      ];
+      
+      if (creatorResources.includes(resource)) {
+        return true;
+      }
+    }
+    
+    // Check permissions from the backend
+    if (currentUser.permissions) {
+      return currentUser.permissions.some(p => 
+        p.resource === resource && 
+        (p.action === action || p.action === '*')
+      );
+    }
+    
+    return false;
   };
   
   // Check if user has any of the roles

@@ -88,7 +88,7 @@ function Header({ showAIInsights }) {
                     <FaChartBar /> Data Insights
                   </Link>
                   
-                  {hasPermission('user_view') && (
+                  {(currentUser.roles.includes('Admin') || hasPermission('user_view')) && (
                     <Link to="/users" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                       <FaUsers /> User Management
                     </Link>
