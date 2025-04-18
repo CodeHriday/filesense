@@ -35,7 +35,7 @@ export const testApiConnection = async () => {
   }
 };
 
-export const uploadFile = async (file) => {
+export const uploadFile = async (file, progressCallback) => {
   try {
     // First test the API connection
     const connectionTest = await testApiConnection();
@@ -51,19 +51,34 @@ export const uploadFile = async (file) => {
     
     console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
     
-    // Create a custom axios instance specifically for file uploads
-    // with even longer timeout for large files
-    const response = await axios.post(`${API_URL}/files/upload`, formData, {
+    // Upload configuration
+    const config = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       // Extended timeout for large files (30 minutes)
       timeout: 1800000, // 30 minutes
-      onUploadProgress: (progressEvent) => {
+    };
+    
+    // Add progress tracking if a callback was provided
+    if (progressCallback && typeof progressCallback === 'function') {
+      config.onUploadProgress = (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
         console.log(`Upload progress: ${percentCompleted}%`);
-      }
-    });
+        
+        // Call the provided progress callback
+        progressCallback(progressEvent);
+      };
+    } else {
+      // Default progress logging
+      config.onUploadProgress = (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        console.log(`Upload progress: ${percentCompleted}%`);
+      };
+    }
+    
+    // Make the API request with the progress tracking
+    const response = await axios.post(`${API_URL}/files/upload`, formData, config);
     
     console.log('Upload response:', response.data);
     return response.data;

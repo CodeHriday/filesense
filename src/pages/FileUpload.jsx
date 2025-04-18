@@ -86,13 +86,13 @@ function FileUpload() {
     }
   };
   
-  const handleFileDrop = async (file) => {
+  const handleFileDrop = async (file, progressHandler) => {
     try {
       setDiagnosticInfo(`Starting file upload for ${file.name} (${file.size} bytes, type: ${file.type})...\n`);
       setUploadStatus('uploading');
       
-      // Upload the file
-      const result = await uploadFile(file);
+      // Upload the file with progress tracking
+      const result = await uploadFile(file, progressHandler);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -109,7 +109,7 @@ function FileUpload() {
       // Automatically redirect to profile page after a short delay
       setTimeout(() => {
         navigate(`/profile/${result.fileId}`);
-      }, 500);
+      }, 1000); // Increased the delay slightly to show success state
       
       return result;
     } catch (error) {
