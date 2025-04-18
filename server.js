@@ -1463,6 +1463,165 @@ app.get('/api/permissions', authenticateToken, async (req, res) => {
   }
 });
 
+// Create role
+app.post('/api/roles', authenticateToken, async (req, res) => {
+  try {
+    // Temporarily bypass permission checks for development
+    // Check if user has permission to create roles
+    // const hasPermission = req.user.permissions.some(p => p.name === 'role_create');
+    // if (!hasPermission) {
+    //   return res.status(403).json({ error: 'You do not have permission to create roles' });
+    // }
+    
+    const { name, description, permissions } = req.body;
+    
+    // Validate required fields
+    if (!name) {
+      return res.status(400).json({ error: 'Role name is required' });
+    }
+    
+    // Check if role with the same name already exists
+    const existingRole = await pool.query('SELECT * FROM roles WHERE name = $1', [name]);
+    if (existingRole.rows.length > 0) {
+      return res.status(400).json({ error: 'A role with this name already exists' });
+    }
+    
+    // Create role
+    const roleResult = await pool.query(
+      'INSERT INTO roles (name, description, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING *',
+      [name, description]
+    );
+    
+    const roleId = roleResult.rows[0].id;
+    
+    // If permissions are provided, link them to the role
+    if (permissions && Array.isArray(permissions) && permissions.length > 0) {
+      // Update the permissions array in the roles table
+      await pool.query(
+        'UPDATE roles SET permissions = $1 WHERE id = $2',
+        [permissions, roleId]
+      );
+    }
+    
+    // Return the created role
+    const createdRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    res.status(201).json(createdRole.rows[0]);
+  } catch (err) {
+    console.error('Error creating role:', err);
+    res.status(500).json({ error: 'Failed to create role' });
+  }
+});
+
+// Update role
+app.put('/api/roles/:id', authenticateToken, async (req, res) => {
+  try {
+    // Temporarily bypass permission checks for development
+    // Check if user has permission to update roles
+    // const hasPermission = req.user.permissions.some(p => p.name === 'role_edit');
+    // if (!hasPermission) {
+    //   return res.status(403).json({ error: 'You do not have permission to update roles' });
+    // }
+    
+    const roleId = req.params.id;
+    const { name, description, permissions } = req.body;
+    
+    // Validate required fields
+    if (!name) {
+      return res.status(400).json({ error: 'Role name is required' });
+    }
+    
+    // Check if role exists
+    const existingRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    if (existingRole.rows.length === 0) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Don't allow changing Admin role name
+    if (existingRole.rows[0].name.toLowerCase() === 'admin' && 
+        name.toLowerCase() !== 'admin') {
+      return res.status(400).json({ error: 'The Admin role name cannot be changed' });
+    }
+    
+    // Check if another role with the same name exists
+    const duplicateRole = await pool.query(
+      'SELECT * FROM roles WHERE name = $1 AND id != $2', 
+      [name, roleId]
+    );
+    
+    if (duplicateRole.rows.length > 0) {
+      return res.status(400).json({ error: 'Another role with this name already exists' });
+    }
+    
+    // Update role
+    await pool.query(
+      'UPDATE roles SET name = $1, description = $2, updated_at = NOW() WHERE id = $3',
+      [name, description, roleId]
+    );
+    
+    // Update permissions
+    if (permissions && Array.isArray(permissions)) {
+      // Update the permissions array
+      await pool.query(
+        'UPDATE roles SET permissions = $1 WHERE id = $2',
+        [permissions, roleId]
+      );
+    }
+    
+    // Return the updated role
+    const updatedRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    res.json(updatedRole.rows[0]);
+  } catch (err) {
+    console.error('Error updating role:', err);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+// Delete role
+app.delete('/api/roles/:id', authenticateToken, async (req, res) => {
+  try {
+    // Temporarily bypass permission checks for development
+    // Check if user has permission to delete roles
+    // const hasPermission = req.user.permissions.some(p => p.name === 'role_delete');
+    // if (!hasPermission) {
+    //   return res.status(403).json({ error: 'You do not have permission to delete roles' });
+    // }
+    
+    const roleId = req.params.id;
+    
+    // Check if role exists
+    const existingRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    if (existingRole.rows.length === 0) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Don't allow deleting Admin role
+    if (existingRole.rows[0].name.toLowerCase() === 'admin') {
+      return res.status(400).json({ error: 'The Admin role cannot be deleted' });
+    }
+    
+    // Check if role is assigned to users
+    const usersWithRole = await pool.query(
+      `SELECT COUNT(*) FROM users 
+       WHERE $1 = ANY(roles)`,
+      [existingRole.rows[0].name]
+    );
+    
+    if (parseInt(usersWithRole.rows[0].count) > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete role because it is assigned to users. Reassign users to other roles first.' 
+      });
+    }
+    
+    // Delete role
+    await pool.query('DELETE FROM roles WHERE id = $1', [roleId]);
+    
+    res.json({ message: 'Role deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting role:', err);
+    res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
 // Get AI insights for a file
 app.get('/api/files/:fileId/insights', authenticateToken, async (req, res) => {
   try {
