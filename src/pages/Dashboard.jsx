@@ -320,7 +320,7 @@ const Dashboard = () => {
       );
     }
     
-    // Format dates and select key points for labels
+    // Format dates
     const formattedPoints = dataPoints.map(point => {
       const dateObj = new Date(point.date);
       return {
@@ -332,23 +332,33 @@ const Dashboard = () => {
       };
     });
     
-    // Select evenly spaced points for labels to avoid overcrowding
+    // Just pick 5 points evenly distributed for labels
     const totalPoints = formattedPoints.length;
-    const labelPoints = [0]; // Always include first point
+    const labelIndices = [];
     
-    // Add 3 evenly spaced points in the middle
-    const spacing = Math.floor(totalPoints / 4);
-    for (let i = 1; i <= 3; i++) {
-      labelPoints.push(Math.min(i * spacing, totalPoints - 1));
+    // Always include first and last point
+    labelIndices.push(0);
+    if (totalPoints > 1) {
+      labelIndices.push(totalPoints - 1);
     }
     
-    // Ensure the last point is included
-    if (labelPoints[labelPoints.length - 1] !== totalPoints - 1) {
-      labelPoints.push(totalPoints - 1);
+    // Add 3 points in between if we have enough data
+    if (totalPoints > 4) {
+      labelIndices.push(Math.floor(totalPoints / 4));
+      labelIndices.push(Math.floor(totalPoints / 2));
+      labelIndices.push(Math.floor(3 * totalPoints / 4));
+    } else if (totalPoints > 2) {
+      // Just add the middle point for small datasets
+      labelIndices.push(Math.floor(totalPoints / 2));
     }
     
-    // Remove duplicates and sort
-    const uniqueLabelPoints = [...new Set(labelPoints)].sort((a, b) => a - b);
+    // Sort indices
+    labelIndices.sort((a, b) => a - b);
+    
+    // Get min and max values for visual scaling
+    const values = formattedPoints.map(p => p.value);
+    const maxValue = Math.max(...values);
+    const minValue = Math.min(...values);
     
     // Create data table columns for accessibility
     const tableColumns = [
@@ -428,66 +438,78 @@ const Dashboard = () => {
         </div>
         
         <div className="chart-container">
-          <div className="pure-chart-area">
-            {/* Percentage labels along y-axis */}
-            <div className="pure-y-axis">
+          {/* Super simplified chart implementation */}
+          <div className="basic-chart">
+            <div className="y-axis-labels">
               {[100, 80, 60, 40, 20, 0].map(value => (
-                <div key={value} className="pure-y-label">
-                  <span>{value}%</span>
-                </div>
+                <div key={value} className="y-label">{value}%</div>
               ))}
             </div>
             
-            {/* Main chart area */}
-            <div className="pure-chart">
-              {/* Grid lines */}
+            <div className="chart-content">
+              {/* Horizontal grid lines */}
               {[100, 80, 60, 40, 20, 0].map(value => (
                 <div 
                   key={value} 
-                  className="pure-grid-line" 
+                  className="h-grid-line" 
                   style={{ bottom: `${value}%` }}
-                ></div>
-              ))}
-              
-              {/* Line chart */}
-              <svg className="pure-line-chart" viewBox={`0 0 ${totalPoints-1} 100`} preserveAspectRatio="none">
-                <path
-                  d={formattedPoints.map((point, i) => {
-                    const x = i;
-                    const y = 100 - point.value;
-                    return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-                  }).join(' ')}
-                  fill="none"
-                  stroke={getScoreColor(formattedPoints[formattedPoints.length - 1].value)}
-                  strokeWidth="2"
-                />
-              </svg>
-              
-              {/* Data points */}
-              {uniqueLabelPoints.map(idx => (
-                <div 
-                  key={idx}
-                  className="pure-data-point"
-                  style={{
-                    left: `${(idx / (totalPoints - 1)) * 100}%`,
-                    bottom: `${formattedPoints[idx].value}%`,
-                    backgroundColor: getScoreColor(formattedPoints[idx].value),
-                    borderColor: getScoreColor(formattedPoints[idx].value)
-                  }}
-                  title={`${formattedPoints[idx].formattedDate}: ${formattedPoints[idx].value}%`}
                 />
               ))}
+              
+              {/* Simplified line chart */}
+              <table className="data-line-chart">
+                <caption className="sr-only">
+                  Data values for {selectedMetric === 'all' ? 'Overall' : selectedMetric} health trend
+                </caption>
+                <tbody>
+                  <tr>
+                    {formattedPoints.map((point, index) => (
+                      <td 
+                        key={index} 
+                        style={{ 
+                          height: `${point.value}%`,
+                          width: `${100 / totalPoints}%`
+                        }}
+                      >
+                        {labelIndices.includes(index) && (
+                          <div 
+                            className="data-point"
+                            style={{
+                              backgroundColor: getScoreColor(point.value),
+                              borderColor: getScoreColor(point.value)
+                            }}
+                            title={`${point.formattedDate}: ${point.value}%`}
+                          >
+                            <span className="sr-only">
+                              {point.formattedDate}: {point.value}%
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div 
+                          className="data-line"
+                          style={{
+                            backgroundColor: getScoreColor(point.value)
+                          }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
             </div>
             
-            {/* Date labels on x-axis */}
-            <div className="pure-x-axis">
-              {uniqueLabelPoints.map(idx => (
+            {/* X-axis labels (dates) */}
+            <div className="x-axis-labels">
+              {labelIndices.map(index => (
                 <div 
-                  key={idx}
-                  className="pure-x-label"
-                  style={{ left: `${(idx / (totalPoints - 1)) * 100}%` }}
+                  key={index}
+                  className="x-label"
+                  style={{ 
+                    left: `${index * (100 / totalPoints) + (50 / totalPoints)}%`
+                  }}
                 >
-                  {formattedPoints[idx].formattedDate}
+                  {formattedPoints[index].formattedDate}
                 </div>
               ))}
             </div>

@@ -426,92 +426,113 @@
   color: #888;
 }
 
-/* Pure Chart Styling - Simplified, cleaner approach */
-.pure-chart-area {
+/* Super basic chart styling using table-based approach */
+.basic-chart {
   display: flex;
+  flex-direction: column;
   height: 300px;
+  margin-bottom: 40px;
   position: relative;
-  margin-bottom: 50px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  padding: 0 20px;
 }
 
-/* Y-axis with percentage labels */
-.pure-y-axis {
+.y-axis-labels {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 40px; /* Space for x-axis labels */
   width: 40px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding-right: 8px;
-  margin-right: 5px;
-  position: relative;
+  z-index: 1;
 }
 
-.pure-y-label {
-  font-size: 11px;
+.y-label {
+  font-size: 12px;
   color: #666;
-  position: relative;
   text-align: right;
+  padding-right: 8px;
   transform: translateY(-50%);
 }
 
-/* Main chart area */
-.pure-chart {
-  flex: 1;
-  height: 250px;
+.chart-content {
   position: relative;
+  height: 250px;
+  margin-left: 40px;
+  margin-bottom: 40px;
+  background-color: rgba(250, 250, 250, 0.7);
   border: 1px solid #eee;
   border-bottom: none;
-  background-color: rgba(250, 250, 250, 0.7);
-  overflow: hidden;
 }
 
-/* Horizontal grid lines */
-.pure-grid-line {
+.h-grid-line {
   position: absolute;
-  left: 0;
   width: 100%;
   height: 1px;
   background-color: #eee;
+  left: 0;
 }
 
-/* SVG line chart */
-.pure-line-chart {
-  position: absolute;
-  top: 0;
-  left: 0;
+.data-line-chart {
   width: 100%;
   height: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
 }
 
-/* Data points */
-.pure-data-point {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: white;
-  border: 2px solid;
-  transform: translate(-50%, 50%);
-  z-index: 5;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-/* X-axis with date labels */
-.pure-x-axis {
+.data-line-chart td {
   position: relative;
-  height: 50px;
-  width: 100%;
-  display: flex;
-  margin-left: 40px; /* Align with the chart (compensate for y-axis width) */
+  vertical-align: bottom;
+  padding: 0;
 }
 
-.pure-x-label {
+.data-line {
+  width: 100%;
+  height: 3px;
   position: absolute;
-  font-size: 11px;
+  bottom: 0;
+  left: 0;
+}
+
+.data-point {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+}
+
+.x-axis-labels {
+  position: relative;
+  height: 40px;
+  margin-left: 40px;
+}
+
+.x-label {
+  position: absolute;
+  font-size: 12px;
   color: #555;
   transform: translateX(-50%);
-  top: 10px;
   text-align: center;
+}
+
+/* Hide content for screen readers only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Date labels styling */
