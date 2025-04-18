@@ -1,0 +1,174 @@
+/* Base variables - default theme */
+:root {
+  /* Main colors */
+  --primary-color: #2196f3;
+  --primary-color-light: #e3f2fd;
+  --primary-color-dark: #1976d2;
+  --secondary-color: #ff9800;
+  --secondary-color-light: #fff3e0;
+  --secondary-color-dark: #f57c00;
+  
+  /* Background colors */
+  --background-color: #ffffff;
+  --background-color-alt: #f5f5f5;
+  --background-color-card: #ffffff;
+  
+  /* Text colors */
+  --text-color: #333333;
+  --text-color-secondary: #666666;
+  --text-color-tertiary: #999999;
+  --text-color-inverse: #ffffff;
+  
+  /* Border colors */
+  --border-color: #e0e0e0;
+  --divider-color: #eeeeee;
+  
+  /* Status colors */
+  --success-color: #4caf50;
+  --success-color-light: #e8f5e9;
+  --warning-color: #ff9800;
+  --warning-color-light: #fff3e0;
+  --error-color: #f44336;
+  --error-color-light: #ffebee;
+  --info-color: #2196f3;
+  --info-color-light: #e3f2fd;
+  
+  /* Chart colors */
+  --chart-color-1: #2196f3;
+  --chart-color-2: #4caf50;
+  --chart-color-3: #ff9800;
+  --chart-color-4: #f44336;
+  --chart-color-5: #9c27b0;
+  --chart-color-6: #00bcd4;
+  
+  /* Focus outline */
+  --focus-color: #ff9800;
+  
+  /* Standard spacing units */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* Font sizes */
+  --font-size-xs: 0.75rem;  /* 12px */
+  --font-size-sm: 0.875rem; /* 14px */
+  --font-size-md: 1rem;     /* 16px */
+  --font-size-lg: 1.25rem;  /* 20px */
+  --font-size-xl: 1.5rem;   /* 24px */
+  --font-size-xxl: 2rem;    /* 32px */
+  
+  /* Transition speeds */
+  --transition-speed-fast: 0.2s;
+  --transition-speed-normal: 0.3s;
+  --transition-speed-slow: 0.5s;
+  
+  /* Border radius */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --border-radius-round: 50%;
+  
+  /* Shadow levels */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* High Contrast Mode */
+.high-contrast-mode {
+  /* Main colors - high contrast */
+  --primary-color: #0078ff;
+  --primary-color-light: #000033;
+  --primary-color-dark: #66ccff;
+  --secondary-color: #ffaa00;
+  --secondary-color-light: #332200;
+  --secondary-color-dark: #ffcc66;
+  
+  /* Background colors */
+  --background-color: #000000;
+  --background-color-alt: #111111;
+  --background-color-card: #222222;
+  
+  /* Text colors */
+  --text-color: #ffffff;
+  --text-color-secondary: #eeeeee;
+  --text-color-tertiary: #cccccc;
+  --text-color-inverse: #000000;
+  
+  /* Border colors */
+  --border-color: #ffffff;
+  --divider-color: #444444;
+  
+  /* Status colors */
+  --success-color: #00ff00;
+  --success-color-light: #002200;
+  --warning-color: #ffff00;
+  --warning-color-light: #333300;
+  --error-color: #ff0000;
+  --error-color-light: #330000;
+  --info-color: #00ffff;
+  --info-color-light: #003333;
+  
+  /* Chart colors */
+  --chart-color-1: #00ccff;
+  --chart-color-2: #00ff00;
+  --chart-color-3: #ffcc00;
+  --chart-color-4: #ff3333;
+  --chart-color-5: #cc66ff;
+  --chart-color-6: #00ffcc;
+  
+  /* Focus outline */
+  --focus-color: #ffff00;
+  
+  /* Shadow levels */
+  --shadow-sm: 0 1px 3px rgba(255, 255, 255, 0.5);
+  --shadow-md: 0 4px 6px rgba(255, 255, 255, 0.4);
+  --shadow-lg: 0 10px 15px rgba(255, 255, 255, 0.3);
+  --shadow-xl: 0 20px 25px rgba(255, 255, 255, 0.25);
+}
+
+/* Large Text Mode */
+.large-text-mode {
+  /* Font sizes increased by ~25% */
+  --font-size-xs: 0.9375rem;   /* 15px */
+  --font-size-sm: 1.125rem;    /* 18px */
+  --font-size-md: 1.25rem;     /* 20px */
+  --font-size-lg: 1.5625rem;   /* 25px */
+  --font-size-xl: 1.875rem;    /* 30px */
+  --font-size-xxl: 2.5rem;     /* 40px */
+  
+  /* Increase line heights for readability */
+  --line-height-base: 1.8;
+  --line-height-heading: 1.5;
+}
+
+/* Screen Reader Optimized Mode */
+.screen-reader-mode [aria-hidden="true"] {
+  display: none !important;
+}
+
+.screen-reader-mode .sr-only {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: var(--spacing-sm) !important;
+  margin: var(--spacing-sm) 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+  border: 1px solid var(--border-color) !important;
+  background-color: var(--background-color-alt) !important;
+  color: var(--text-color) !important;
+  font-size: var(--font-size-sm) !important;
+  display: block !important;
+}
+
+/* Focus Styles - Enhance keyboard navigation */
+:focus {
+  outline: 3px solid var(--focus-color);
+  outline-offset: 2px;
+}
