@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
@@ -42,7 +42,19 @@ const Connections = () => {
     databricks_host: '',
     databricks_token: '',
     databricks_catalog: '',
-    databricks_schema: ''
+    databricks_schema: '',
+    // SharePoint credentials
+    sharepoint_tenant_id: '',
+    sharepoint_client_id: '',
+    sharepoint_client_secret: '',
+    sharepoint_site_url: '',
+    sharepoint_document_library: '',
+    // Outlook credentials
+    outlook_tenant_id: '',
+    outlook_client_id: '',
+    outlook_client_secret: '',
+    outlook_user_email: '',
+    outlook_folder_path: ''
   });
   
   // Fetch connections on component mount
@@ -117,6 +129,43 @@ const Connections = () => {
         container_name: connection.container_name || '',
         account_key: '' // Don't prefill account key for security
       };
+    } else if (connection_type === 'snowflake') {
+      newFormData = {
+        ...newFormData,
+        snowflake_account: connection.snowflake_account || '',
+        snowflake_username: connection.snowflake_username || '',
+        snowflake_password: '', // Don't prefill password for security
+        snowflake_warehouse: connection.snowflake_warehouse || '',
+        snowflake_database: connection.snowflake_database || '',
+        snowflake_schema: connection.snowflake_schema || '',
+        snowflake_role: connection.snowflake_role || ''
+      };
+    } else if (connection_type === 'databricks') {
+      newFormData = {
+        ...newFormData,
+        databricks_host: connection.databricks_host || '',
+        databricks_token: '', // Don't prefill token for security
+        databricks_catalog: connection.databricks_catalog || '',
+        databricks_schema: connection.databricks_schema || ''
+      };
+    } else if (connection_type === 'sharepoint') {
+      newFormData = {
+        ...newFormData,
+        sharepoint_tenant_id: connection.sharepoint_tenant_id || '',
+        sharepoint_client_id: connection.sharepoint_client_id || '',
+        sharepoint_client_secret: '', // Don't prefill secret for security
+        sharepoint_site_url: connection.sharepoint_site_url || '',
+        sharepoint_document_library: connection.sharepoint_document_library || ''
+      };
+    } else if (connection_type === 'outlook') {
+      newFormData = {
+        ...newFormData,
+        outlook_tenant_id: connection.outlook_tenant_id || '',
+        outlook_client_id: connection.outlook_client_id || '',
+        outlook_client_secret: '', // Don't prefill secret for security
+        outlook_user_email: connection.outlook_user_email || '',
+        outlook_folder_path: connection.outlook_folder_path || ''
+      };
     }
     
     setFormData(newFormData);
@@ -182,7 +231,21 @@ const Connections = () => {
       databricks_host: connectionType === 'databricks' ? formData.databricks_host : '',
       databricks_token: connectionType === 'databricks' ? formData.databricks_token : '',
       databricks_catalog: connectionType === 'databricks' ? formData.databricks_catalog : '',
-      databricks_schema: connectionType === 'databricks' ? formData.databricks_schema : ''
+      databricks_schema: connectionType === 'databricks' ? formData.databricks_schema : '',
+      
+      // SharePoint fields
+      sharepoint_tenant_id: connectionType === 'sharepoint' ? formData.sharepoint_tenant_id : '',
+      sharepoint_client_id: connectionType === 'sharepoint' ? formData.sharepoint_client_id : '',
+      sharepoint_client_secret: connectionType === 'sharepoint' ? formData.sharepoint_client_secret : '',
+      sharepoint_site_url: connectionType === 'sharepoint' ? formData.sharepoint_site_url : '',
+      sharepoint_document_library: connectionType === 'sharepoint' ? formData.sharepoint_document_library : '',
+      
+      // Outlook fields
+      outlook_tenant_id: connectionType === 'outlook' ? formData.outlook_tenant_id : '',
+      outlook_client_id: connectionType === 'outlook' ? formData.outlook_client_id : '',
+      outlook_client_secret: connectionType === 'outlook' ? formData.outlook_client_secret : '',
+      outlook_user_email: connectionType === 'outlook' ? formData.outlook_user_email : '',
+      outlook_folder_path: connectionType === 'outlook' ? formData.outlook_folder_path : ''
     });
   };
   
@@ -217,6 +280,10 @@ const Connections = () => {
         return <FiDatabase className="connection-icon snowflake" />;
       case 'databricks':
         return <FiDatabase className="connection-icon databricks" />;
+      case 'sharepoint':
+        return <FiFolder className="connection-icon sharepoint" />;
+      case 'outlook':
+        return <FiMail className="connection-icon outlook" />;
       default:
         return <FiDatabase className="connection-icon" />;
     }
@@ -256,6 +323,8 @@ const Connections = () => {
             <option value="azure">Azure Blob Storage</option>
             <option value="snowflake">Snowflake</option>
             <option value="databricks">Databricks</option>
+            <option value="sharepoint">SharePoint</option>
+            <option value="outlook">Outlook</option>
           </select>
         </div>
       </>
@@ -608,6 +677,180 @@ const Connections = () => {
           </div>
         </>
       );
+    } else if (connection_type === 'sharepoint') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="sharepoint_tenant_id">Microsoft Tenant ID</label>
+            <input
+              type="text"
+              id="sharepoint_tenant_id"
+              name="sharepoint_tenant_id"
+              className="form-control"
+              value={formData.sharepoint_tenant_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Your Microsoft 365 tenant ID
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_client_id">Application (Client) ID</label>
+            <input
+              type="text"
+              id="sharepoint_client_id"
+              name="sharepoint_client_id"
+              className="form-control"
+              value={formData.sharepoint_client_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Client ID from your Azure AD registered application
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_client_secret">Client Secret</label>
+            <input
+              type="password"
+              id="sharepoint_client_secret"
+              name="sharepoint_client_secret"
+              className="form-control"
+              value={formData.sharepoint_client_secret}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing client secret.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_site_url">SharePoint Site URL</label>
+            <input
+              type="text"
+              id="sharepoint_site_url"
+              name="sharepoint_site_url"
+              className="form-control"
+              value={formData.sharepoint_site_url}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The URL of your SharePoint site (e.g., https://contoso.sharepoint.com/sites/mysite)
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_document_library">Document Library</label>
+            <input
+              type="text"
+              id="sharepoint_document_library"
+              name="sharepoint_document_library"
+              className="form-control"
+              value={formData.sharepoint_document_library}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Name of the document library where your files are stored (e.g., "Documents" or "Shared Documents")
+            </small>
+          </div>
+        </>
+      );
+    } else if (connection_type === 'outlook') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="outlook_tenant_id">Microsoft Tenant ID</label>
+            <input
+              type="text"
+              id="outlook_tenant_id"
+              name="outlook_tenant_id"
+              className="form-control"
+              value={formData.outlook_tenant_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Your Microsoft 365 tenant ID
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_client_id">Application (Client) ID</label>
+            <input
+              type="text"
+              id="outlook_client_id"
+              name="outlook_client_id"
+              className="form-control"
+              value={formData.outlook_client_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Client ID from your Azure AD registered application
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_client_secret">Client Secret</label>
+            <input
+              type="password"
+              id="outlook_client_secret"
+              name="outlook_client_secret"
+              className="form-control"
+              value={formData.outlook_client_secret}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing client secret.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_user_email">User Email</label>
+            <input
+              type="email"
+              id="outlook_user_email"
+              name="outlook_user_email"
+              className="form-control"
+              value={formData.outlook_user_email}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The email address of the Outlook account to access
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_folder_path">Folder Path</label>
+            <input
+              type="text"
+              id="outlook_folder_path"
+              name="outlook_folder_path"
+              className="form-control"
+              value={formData.outlook_folder_path}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Path to the folder containing attachment files (e.g., "Inbox/Reports" or leave as "Inbox" for default)
+            </small>
+          </div>
+        </>
+      );
     }
     
     return (
@@ -659,6 +902,20 @@ const Connections = () => {
           <div><strong>Schema:</strong> {connection.databricks_schema}</div>
         </>
       );
+    } else if (connection_type === 'sharepoint') {
+      return (
+        <>
+          <div><strong>Site URL:</strong> {connection.sharepoint_site_url}</div>
+          <div><strong>Document Library:</strong> {connection.sharepoint_document_library}</div>
+        </>
+      );
+    } else if (connection_type === 'outlook') {
+      return (
+        <>
+          <div><strong>Email:</strong> {connection.outlook_user_email}</div>
+          <div><strong>Folder:</strong> {connection.outlook_folder_path}</div>
+        </>
+      );
     }
     
     return null;
@@ -672,6 +929,8 @@ const Connections = () => {
       case 'azure': return 'Azure Blob Storage';
       case 'snowflake': return 'Snowflake';
       case 'databricks': return 'Databricks';
+      case 'sharepoint': return 'SharePoint';
+      case 'outlook': return 'Outlook';
       default: return type;
     }
   };
