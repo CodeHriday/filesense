@@ -52,7 +52,7 @@ function DataProfile() {
               <FiFileText />
             </div>
             <div className="stat-details">
-              <h3>{formatNumber(basicInfo.row_count || 0)}</h3>
+              <h3>{formatNumber(file.row_count || basicInfo.rowCount || 0)}</h3>
               <p>Rows</p>
             </div>
           </Card>
@@ -62,7 +62,7 @@ function DataProfile() {
               <FiBarChart2 />
             </div>
             <div className="stat-details">
-              <h3>{basicInfo.column_count || columns.length || 0}</h3>
+              <h3>{file.column_count || columns.length || 0}</h3>
               <p>Columns</p>
             </div>
           </Card>
@@ -92,8 +92,8 @@ function DataProfile() {
           {columns && columns.length > 0 ? (
             <div className="completeness-bars">
               {columns.map((column) => {
-                const totalRows = basicInfo.row_count || 100;
-                const nullCount = column.null_count || 0;
+                const totalRows = basicInfo.rowCount || 100;
+                const nullCount = column.missing || 0;
                 const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
                 
                 return (
@@ -152,7 +152,7 @@ function DataProfile() {
     
     const columns = profile.columns;
     const basicInfo = profile.basic_info || {};
-    const totalRows = basicInfo.row_count || 100;
+    const totalRows = file.row_count || basicInfo.rowCount || 100;
     
     return (
       <div className="columns-tab">
@@ -170,20 +170,20 @@ function DataProfile() {
             </thead>
             <tbody>
               {columns.map((column) => {
-                const nullCount = column.null_count || 0;
+                const nullCount = column.missing || 0;
                 const missingPercentage = Math.round((nullCount / totalRows) * 100);
                 
                 return (
                   <tr key={column.name}>
                     <td>{column.name}</td>
                     <td>{column.type}</td>
-                    <td>{column.unique_count !== undefined && column.unique_count !== null ? column.unique_count.toLocaleString() : '0'}</td>
+                    <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? (column.min_value_decimal !== undefined && column.min_value_decimal !== null 
-                          ? parseFloat(column.min_value_decimal).toFixed(2) 
-                          : (column.min_value !== undefined && column.min_value !== null ? column.min_value : '0.00'))
+                      ? (column.min !== undefined && column.min !== null 
+                          ? column.min 
+                          : '0.00')
                       : (column.most_frequent_value || 'N/A')}
                     </td>
                     <td>
@@ -221,7 +221,7 @@ function DataProfile() {
                   </div>
                   <div className="column-stat-row">
                     <div className="column-stat-label">Unique Values:</div>
-                    <div className="column-stat-value">{column.unique_count !== undefined && column.unique_count !== null ? column.unique_count.toLocaleString() : '0'}</div>
+                    <div className="column-stat-value">{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</div>
                   </div>
                   {/* Only show min/max for numeric types */}
                   {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') && (
