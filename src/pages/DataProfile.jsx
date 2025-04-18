@@ -192,14 +192,18 @@ function DataProfile() {
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
                       ? (column.min !== undefined && column.min !== null 
-                          ? column.min 
+                          ? (typeof column.min === 'number' 
+                              ? Number(column.min).toFixed(2) 
+                              : column.min)
                           : '0.00')
                       : (column.most_frequent_value || 'N/A')}
                     </td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
                       ? (column.max !== undefined && column.max !== null 
-                          ? column.max 
+                          ? (typeof column.max === 'number' 
+                              ? Number(column.max).toFixed(2) 
+                              : column.max)
                           : '0.00')
                       : (column.least_frequent_value || 'N/A')}
                     </td>
@@ -239,13 +243,21 @@ function DataProfile() {
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
                         <div className="column-stat-value">
-                          {column.min !== undefined && column.min !== null ? column.min : '0.00'}
+                          {column.min !== undefined && column.min !== null 
+                          ? (typeof column.min === 'number' 
+                            ? Number(column.min).toFixed(2) 
+                            : column.min) 
+                          : '0.00'}
                         </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Max:</div>
                         <div className="column-stat-value">
-                          {column.max !== undefined && column.max !== null ? column.max : '0.00'}
+                          {column.max !== undefined && column.max !== null 
+                          ? (typeof column.max === 'number' 
+                            ? Number(column.max).toFixed(2) 
+                            : column.max) 
+                          : '0.00'}
                         </div>
                       </div>
                     </>
@@ -273,8 +285,20 @@ function DataProfile() {
                         // Create a data-based histogram for numeric data with min-max labels
                         <div className="numeric-distribution">
                           <div className="value-labels">
-                            <span className="min-label">{column.min || '0'}</span>
-                            <span className="max-label">{column.max || '0'}</span>
+                            <span className="min-label">
+                              {column.min !== undefined && column.min !== null 
+                                ? (typeof column.min === 'number' 
+                                  ? Number(column.min).toFixed(2) 
+                                  : column.min) 
+                                : '0.00'}
+                            </span>
+                            <span className="max-label">
+                              {column.max !== undefined && column.max !== null 
+                                ? (typeof column.max === 'number' 
+                                  ? Number(column.max).toFixed(2) 
+                                  : column.max) 
+                                : '0.00'}
+                            </span>
                           </div>
                           <div className="bars">
                             {/* Generate bars representing distribution between min and max */}
