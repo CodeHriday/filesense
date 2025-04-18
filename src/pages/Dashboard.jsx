@@ -457,7 +457,7 @@ const Dashboard = () => {
           <div className="basic-chart">
             <div className="y-axis-labels">
               {[100, 80, 60, 40, 20, 0].map(value => (
-                <div key={value} className="y-label">{value}%</div>
+                <div key={value} className="y-label">{value}</div>
               ))}
             </div>
             
