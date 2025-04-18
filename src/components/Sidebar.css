@@ -39,6 +39,29 @@
   border-left: 3px solid var(--primary-color);
 }
 
+.sidebar-nav .onboarding-button {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.sidebar-nav .onboarding-button:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.sidebar-nav .onboarding-button .icon {
+  color: #4caf50;
+}
+
 .sidebar-nav .icon {
   margin-right: 10px;
   font-size: 1.1rem;
