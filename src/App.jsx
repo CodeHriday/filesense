@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -17,9 +17,20 @@ import Badges from './pages/Badges';
 import DataInsights from './pages/DataInsights';
 import Recommendations from './pages/Recommendations';
 import DataStories from './pages/DataStories';
+import OnboardingWizard from './components/OnboardingWizard';
 import './App.css';
 
 function App() {
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  
+  // Check if this is a new user (no onboarding completed flag in localStorage)
+  useEffect(() => {
+    const hasCompletedOnboarding = localStorage.getItem('dfo-onboarding-completed');
+    if (hasCompletedOnboarding !== 'true') {
+      setShowOnboarding(true);
+    }
+  }, []);
+  
   return (
     <Router>
       <div className="app">
@@ -46,6 +57,11 @@ function App() {
             </Routes>
           </main>
         </div>
+        
+        {/* Onboarding Wizard */}
+        {showOnboarding && (
+          <OnboardingWizard onClose={() => setShowOnboarding(false)} />
+        )}
       </div>
     </Router>
   );
