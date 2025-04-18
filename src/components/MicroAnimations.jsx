@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiLoader, FiSave, FiUpload, FiDownload } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import './MicroAnimations.css';
 
 /**
@@ -130,5 +131,57 @@ export const AnimationContainer = ({
     >
       {children}
     </div>
+  );
+};
+
+/**
+ * Success Animation Component
+ * Displays a checkmark animation for successful operations
+ */
+export const SuccessAnimation = ({ show, message, duration = 2000, onComplete }) => {
+  useEffect(() => {
+    if (show && onComplete) {
+      const timer = setTimeout(() => {
+        onComplete();
+      }, duration);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [show, duration, onComplete]);
+  
+  if (!show) return null;
+  
+  return (
+    <div className="success-animation-container">
+      <div className="success-animation">
+        <div className="checkmark-circle">
+          <div className="checkmark-circle-bg"></div>
+          <div className="checkmark-stem"></div>
+          <div className="checkmark-kick"></div>
+        </div>
+        {message && <div className="success-message">{message}</div>}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Page Transition Component
+ * Adds smooth transitions between page changes
+ */
+export const PageTransition = ({ children, className = "" }) => {
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={window.location.pathname}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.3 }}
+        className={`page-transition ${className}`}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 };

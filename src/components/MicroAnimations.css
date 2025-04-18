@@ -185,3 +185,139 @@
 .animation-container.zoom.visible {
   transform: scale(1);
 }
+
+/* Success Animation */
+.success-animation-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.success-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.checkmark-circle {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  animation: scaleIn 0.3s ease-out;
+}
+
+.checkmark-circle-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #4caf50;
+  animation: circleIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.checkmark-stem {
+  position: absolute;
+  top: 43%;
+  left: 27%;
+  width: 25%;
+  height: 13%;
+  background-color: white;
+  opacity: 0;
+  transform: rotate(45deg);
+  transform-origin: left;
+  animation: stem 0.4s ease-out 0.4s forwards;
+}
+
+.checkmark-kick {
+  position: absolute;
+  top: 60%;
+  left: 28%;
+  width: 53%;
+  height: 13%;
+  background-color: white;
+  opacity: 0;
+  transform: rotate(-45deg);
+  transform-origin: left;
+  animation: kick 0.4s ease-out 0.4s forwards;
+}
+
+.success-message {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #333;
+  animation: messageIn 0.3s ease-out 0.5s both;
+}
+
+@keyframes circleIn {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes stem {
+  0% {
+    opacity: 0;
+    transform: rotate(45deg) scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(45deg) scaleX(1);
+  }
+}
+
+@keyframes kick {
+  0% {
+    opacity: 0;
+    transform: rotate(-45deg) scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-45deg) scaleX(1);
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes messageIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Page Transition */
+.page-transition {
+  width: 100%;
+}
