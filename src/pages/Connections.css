@@ -218,6 +218,14 @@
   border-left-color: #0078D4;
 }
 
+.cloud-provider-section.snowflake {
+  border-left-color: #29B5E8;
+}
+
+.cloud-provider-section.databricks {
+  border-left-color: #FF3621;
+}
+
 .cloud-provider-header {
   display: flex;
   align-items: center;
@@ -239,6 +247,14 @@
 
 .cloud-provider-icon.azure {
   color: #0078D4;
+}
+
+.cloud-provider-icon.snowflake {
+  color: #29B5E8;
+}
+
+.cloud-provider-icon.databricks {
+  color: #FF3621;
 }
 
 .cloud-provider-title {

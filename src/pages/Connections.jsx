@@ -29,7 +29,20 @@ const Connections = () => {
     private_key: '',
     account_name: '',
     account_key: '',
-    container_name: ''
+    container_name: '',
+    // Snowflake credentials
+    snowflake_account: '',
+    snowflake_username: '',
+    snowflake_password: '',
+    snowflake_warehouse: '',
+    snowflake_database: '',
+    snowflake_schema: '',
+    snowflake_role: '',
+    // Databricks credentials
+    databricks_host: '',
+    databricks_token: '',
+    databricks_catalog: '',
+    databricks_schema: ''
   });
   
   // Fetch connections on component mount
@@ -140,18 +153,36 @@ const Connections = () => {
       connection_type: connectionType,
       
       // Clear fields that aren't relevant to the new type
+      // AWS fields
       region: connectionType === 'aws' ? formData.region : '',
       bucket_name: ['aws', 'gcp'].includes(connectionType) ? formData.bucket_name : '',
       access_key: connectionType === 'aws' ? formData.access_key : '',
       secret_key: connectionType === 'aws' ? formData.secret_key : '',
       
+      // GCP fields
       project_id: connectionType === 'gcp' ? formData.project_id : '',
       client_email: connectionType === 'gcp' ? formData.client_email : '',
       private_key: connectionType === 'gcp' ? formData.private_key : '',
       
+      // Azure fields
       account_name: connectionType === 'azure' ? formData.account_name : '',
       account_key: connectionType === 'azure' ? formData.account_key : '',
-      container_name: connectionType === 'azure' ? formData.container_name : ''
+      container_name: connectionType === 'azure' ? formData.container_name : '',
+      
+      // Snowflake fields
+      snowflake_account: connectionType === 'snowflake' ? formData.snowflake_account : '',
+      snowflake_username: connectionType === 'snowflake' ? formData.snowflake_username : '',
+      snowflake_password: connectionType === 'snowflake' ? formData.snowflake_password : '',
+      snowflake_warehouse: connectionType === 'snowflake' ? formData.snowflake_warehouse : '',
+      snowflake_database: connectionType === 'snowflake' ? formData.snowflake_database : '',
+      snowflake_schema: connectionType === 'snowflake' ? formData.snowflake_schema : '',
+      snowflake_role: connectionType === 'snowflake' ? formData.snowflake_role : '',
+      
+      // Databricks fields
+      databricks_host: connectionType === 'databricks' ? formData.databricks_host : '',
+      databricks_token: connectionType === 'databricks' ? formData.databricks_token : '',
+      databricks_catalog: connectionType === 'databricks' ? formData.databricks_catalog : '',
+      databricks_schema: connectionType === 'databricks' ? formData.databricks_schema : ''
     });
   };
   
@@ -182,6 +213,10 @@ const Connections = () => {
         return <FiCloud className="connection-icon gcp" />;
       case 'azure':
         return <FiCloud className="connection-icon azure" />;
+      case 'snowflake':
+        return <FiDatabase className="connection-icon snowflake" />;
+      case 'databricks':
+        return <FiDatabase className="connection-icon databricks" />;
       default:
         return <FiDatabase className="connection-icon" />;
     }
@@ -219,6 +254,8 @@ const Connections = () => {
             <option value="aws">AWS S3</option>
             <option value="gcp">Google Cloud Storage</option>
             <option value="azure">Azure Blob Storage</option>
+            <option value="snowflake">Snowflake</option>
+            <option value="databricks">Databricks</option>
           </select>
         </div>
       </>
@@ -400,6 +437,177 @@ const Connections = () => {
           </div>
         </>
       );
+    } else if (connection_type === 'snowflake') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="snowflake_account">Snowflake Account</label>
+            <input
+              type="text"
+              id="snowflake_account"
+              name="snowflake_account"
+              className="form-control"
+              value={formData.snowflake_account}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The account identifier (e.g., xy12345.us-east-1)
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_username">Username</label>
+            <input
+              type="text"
+              id="snowflake_username"
+              name="snowflake_username"
+              className="form-control"
+              value={formData.snowflake_username}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_password">Password</label>
+            <input
+              type="password"
+              id="snowflake_password"
+              name="snowflake_password"
+              className="form-control"
+              value={formData.snowflake_password}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing password.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_warehouse">Warehouse</label>
+            <input
+              type="text"
+              id="snowflake_warehouse"
+              name="snowflake_warehouse"
+              className="form-control"
+              value={formData.snowflake_warehouse}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_database">Database</label>
+            <input
+              type="text"
+              id="snowflake_database"
+              name="snowflake_database"
+              className="form-control"
+              value={formData.snowflake_database}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_schema">Schema</label>
+            <input
+              type="text"
+              id="snowflake_schema"
+              name="snowflake_schema"
+              className="form-control"
+              value={formData.snowflake_schema}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_role">Role</label>
+            <input
+              type="text"
+              id="snowflake_role"
+              name="snowflake_role"
+              className="form-control"
+              value={formData.snowflake_role}
+              onChange={handleInputChange}
+            />
+            <small className="form-text text-muted">
+              Optional - leave blank to use the default role
+            </small>
+          </div>
+        </>
+      );
+    } else if (connection_type === 'databricks') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="databricks_host">Databricks Host</label>
+            <input
+              type="text"
+              id="databricks_host"
+              name="databricks_host"
+              className="form-control"
+              value={formData.databricks_host}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The Databricks workspace URL (e.g., https://dbc-abc123.cloud.databricks.com)
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="databricks_token">Access Token</label>
+            <input
+              type="password"
+              id="databricks_token"
+              name="databricks_token"
+              className="form-control"
+              value={formData.databricks_token}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing token.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="databricks_catalog">Catalog</label>
+            <input
+              type="text"
+              id="databricks_catalog"
+              name="databricks_catalog"
+              className="form-control"
+              value={formData.databricks_catalog}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="databricks_schema">Schema</label>
+            <input
+              type="text"
+              id="databricks_schema"
+              name="databricks_schema"
+              className="form-control"
+              value={formData.databricks_schema}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+        </>
+      );
     }
     
     return (
@@ -435,6 +643,22 @@ const Connections = () => {
           <div><strong>Container:</strong> {connection.container_name}</div>
         </>
       );
+    } else if (connection_type === 'snowflake') {
+      return (
+        <>
+          <div><strong>Account:</strong> {connection.snowflake_account}</div>
+          <div><strong>Database:</strong> {connection.snowflake_database}</div>
+          <div><strong>Schema:</strong> {connection.snowflake_schema}</div>
+        </>
+      );
+    } else if (connection_type === 'databricks') {
+      return (
+        <>
+          <div><strong>Host:</strong> {connection.databricks_host}</div>
+          <div><strong>Catalog:</strong> {connection.databricks_catalog}</div>
+          <div><strong>Schema:</strong> {connection.databricks_schema}</div>
+        </>
+      );
     }
     
     return null;
@@ -446,6 +670,8 @@ const Connections = () => {
       case 'aws': return 'AWS S3';
       case 'gcp': return 'Google Cloud Storage';
       case 'azure': return 'Azure Blob Storage';
+      case 'snowflake': return 'Snowflake';
+      case 'databricks': return 'Databricks';
       default: return type;
     }
   };
