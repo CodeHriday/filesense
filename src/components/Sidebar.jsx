@@ -49,12 +49,13 @@ function Sidebar() {
   }
   
   // Check if the admin section should be displayed
-  const showAdminSection = hasPermission('user_view') || 
+  const showAdminSection = hasRole('Admin') || 
+                         hasPermission('user_view') || 
                          hasPermission('role_view') || 
                          hasPermission('dashboard_edit');
   
   // Check if the insights section should be displayed
-  const showInsightsSection = hasPermission('insight_view');
+  const showInsightsSection = hasRole('Admin') || hasPermission('insight_view');
 
   return (
     <div>
