@@ -156,12 +156,11 @@ export function AuthProvider({ children }) {
       }
     }
     
-    // Executor role has access to viewing and analyzing features
+    // Executor role has limited access to viewing features only
     if (currentUser.roles && currentUser.roles.includes('Executor')) {
-      // Granting viewing permissions to Executor role
+      // Granting limited viewing permissions to Executor role
       const executorPermissions = [
-        'dashboard_view', 'file_profile', 'quality_checks', 'monitor', 
-        'connections', 'mappings', 'lineage', 'scheduler', 'file_view',
+        'dashboard_view', 'file_profile', 'file_view',
         'lineage_view'
       ];
       
@@ -202,11 +201,10 @@ export function AuthProvider({ children }) {
       }
     }
     
-    // Executor role has read-only access to basic features
+    // Executor role has very limited read-only access to basic features
     if (currentUser.roles && currentUser.roles.includes('Executor')) {
       const executorResources = [
-        'dashboard', 'file', 'profile', 'quality', 'connection', 
-        'mapping', 'lineage', 'monitor', 'scheduler'
+        'dashboard', 'file', 'profile'
       ];
       
       if (executorResources.includes(resource) && action === 'view') {

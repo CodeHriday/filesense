@@ -94,16 +94,18 @@ function Sidebar() {
               </li>
             )}
             
-            {/* Onboarding wizard available to all logged-in users */}
-            <li>
-              <button
-                className="onboarding-button"
-                onClick={() => setShowOnboarding(true)}
-              >
-                <FiHelpCircle className="icon" />
-                <span>Onboarding Wizard</span>
-              </button>
-            </li>
+            {/* Onboarding wizard available only to Admin and Creator roles */}
+            {(isAdmin || hasRole('Creator') || hasPermission('onboarding_wizard')) && (
+              <li>
+                <button
+                  className="onboarding-button"
+                  onClick={() => setShowOnboarding(true)}
+                >
+                  <FiHelpCircle className="icon" />
+                  <span>Onboarding Wizard</span>
+                </button>
+              </li>
+            )}
             
             {/* Monitoring section */}
             {(isAdmin || hasPermission('file_view')) && (

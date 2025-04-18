@@ -14,6 +14,7 @@ const APP_FEATURES = [
   { id: 'file_profile', name: 'Data Profile', category: 'Core' },
   { id: 'quality_checks', name: 'Quality Checks', category: 'Core' },
   { id: 'alerts', name: 'Alerts', category: 'Core' },
+  { id: 'onboarding_wizard', name: 'Onboarding Wizard', category: 'Core' },
   { id: 'connections', name: 'Connections', category: 'Data Sources' },
   { id: 'mappings', name: 'Data Mappings', category: 'Data Sources' },
   { id: 'lineage', name: 'File Lineage', category: 'Data Sources' },
