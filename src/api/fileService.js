@@ -72,10 +72,28 @@ export const uploadFile = async (file) => {
 
 export const getFileCatalog = async () => {
   try {
-    const response = await axios.get(`${API_URL}/files`);
+    console.log('Fetching file catalog...');
+    const connectionTest = await testApiConnection();
+    if (!connectionTest.success) {
+      console.error('API connection test failed before fetching files:', connectionTest);
+      throw new Error('API connection test failed: ' + (connectionTest.error || 'Unknown error'));
+    }
+    
+    console.log('API connection successful, proceeding with file catalog fetch');
+    const response = await axios.get(`${API_URL}/files`, {
+      timeout: 10000 // 10 seconds timeout
+    });
+    
+    console.log('File catalog fetch successful:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching file catalog:', error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+    } else if (error.request) {
+      console.error('Error request (no response received):', error.request);
+    }
     throw error;
   }
 };

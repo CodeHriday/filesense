@@ -600,16 +600,29 @@ function Mappings() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [mappingsRes, filesRes] = await Promise.all([
-          axios.get('/api/mappings'),
-          axios.get('/api/files')
-        ]);
+        console.log('Fetching mappings and files data...');
         
-        setMappings(mappingsRes.data || []);
-        setFiles(filesRes.data || []);
+        try {
+          console.log('Fetching mappings...');
+          const mappingsRes = await axios.get('/api/mappings');
+          console.log('Mappings response:', mappingsRes.data);
+          setMappings(mappingsRes.data || []);
+        } catch (mappingsErr) {
+          console.error('Error fetching mappings:', mappingsErr);
+        }
+        
+        try {
+          console.log('Fetching files...');
+          const filesRes = await axios.get('/api/files');
+          console.log('Files response:', filesRes.data);
+          setFiles(filesRes.data || []);
+        } catch (filesErr) {
+          console.error('Error fetching files:', filesErr);
+        }
+        
         setError(null);
       } catch (err) {
-        console.error('Error fetching mappings data:', err);
+        console.error('Error in fetchData:', err);
         setError('Failed to load mappings data. Please try again later.');
       } finally {
         setLoading(false);
