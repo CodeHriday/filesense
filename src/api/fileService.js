@@ -112,7 +112,11 @@ export const getFileQuality = async (fileId) => {
 
 export const runQualityCheck = async (fileId, rules = []) => {
   try {
-    const response = await axios.post(`${API_URL}/files/${fileId}/quality-check`, { rules });
+    const response = await axios.post(`${API_URL}/files/${fileId}/quality-check`, { 
+      rules,
+      anomalyDetection: true,
+      calculateReliabilityScore: true
+    });
     return response.data;
   } catch (error) {
     console.error('Error running quality check:', error);

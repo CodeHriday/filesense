@@ -1,13 +1,12 @@
 import React from 'react';
 import './Card.css';
 
-function Card({ title, children, className }) {
+const Card = ({ children, className = '' }) => {
   return (
-    <div className={`card ${className || ''}`}>
-      {title && <div className="card-header">{title}</div>}
-      <div className="card-body">{children}</div>
+    <div className={`card ${className}`}>
+      {children}
     </div>
   );
-}
+};
 
 export default Card;

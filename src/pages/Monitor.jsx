@@ -84,6 +84,12 @@ function Monitor() {
     }
   };
   
+  const handleGenerateReport = () => {
+    if (selectedFile) {
+      navigate(`/report/${selectedFile.file_id}`);
+    }
+  };
+  
   const getQualityBadgeClass = (score) => {
     if (score >= 80) return 'quality-badge high';
     if (score >= 60) return 'quality-badge medium';
@@ -159,6 +165,12 @@ function Monitor() {
                           onClick={handleViewQuality}
                         >
                           View Quality Details
+                        </button>
+                        <button 
+                          className="btn btn-success"
+                          onClick={handleGenerateReport}
+                        >
+                          Generate Quality Report
                         </button>
                       </div>
                     </div>

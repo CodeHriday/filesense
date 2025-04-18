@@ -1,19 +1,12 @@
 .card {
-  background-color: var(--card-bg-color);
+  background-color: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.card-header {
-  padding: 15px 20px;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
-  font-size: 1.1rem;
-  background-color: rgba(0, 0, 0, 0.02);
-}
-
-.card-body {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   padding: 20px;
+  margin-bottom: 20px;
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
