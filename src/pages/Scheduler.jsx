@@ -416,12 +416,14 @@ const Scheduler = () => {
           subtitle="Schedule automatic file profiling and analysis"
           icon={<FiCalendar className="page-header-icon-svg" />}
           actions={
-            <AnimatedButton
-              icon={<FiPlusCircle />}
-              onClick={openCreateModal}
-            >
-              New Schedule
-            </AnimatedButton>
+            hasWritePermission('schedule') ? (
+              <AnimatedButton
+                icon={<FiPlusCircle />}
+                onClick={openCreateModal}
+              >
+                New Schedule
+              </AnimatedButton>
+            ) : null
           }
         />
         
@@ -460,7 +462,7 @@ const Scheduler = () => {
               <p className="empty-state-description">
                 {searchTerm ? 'No schedules match your search criteria.' : 'Create your first schedule to automate file profiling.'}
               </p>
-              {!searchTerm && (
+              {!searchTerm && hasWritePermission('schedule') && (
                 <AnimatedButton
                   icon={<FiPlusCircle />}
                   onClick={openCreateModal}
@@ -496,27 +498,33 @@ const Scheduler = () => {
                       </span>
                     </div>
                     <div className="schedule-cell actions-cell">
-                      <button
-                        className="action-button"
-                        onClick={() => handleRunNow(schedule.id)}
-                        title="Run now"
-                      >
-                        <FiPlay />
-                      </button>
-                      <button
-                        className="action-button"
-                        onClick={() => openEditModal(schedule)}
-                        title="Edit"
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        className="action-button"
-                        onClick={() => openDeleteModal(schedule)}
-                        title="Delete"
-                      >
-                        <FiTrash2 />
-                      </button>
+                      {hasWritePermission('schedule') ? (
+                        <>
+                          <button
+                            className="action-button"
+                            onClick={() => handleRunNow(schedule.id)}
+                            title="Run now"
+                          >
+                            <FiPlay />
+                          </button>
+                          <button
+                            className="action-button"
+                            onClick={() => openEditModal(schedule)}
+                            title="Edit"
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            className="action-button"
+                            onClick={() => openDeleteModal(schedule)}
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="action-restricted">No actions available</span>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -20,6 +20,22 @@
   line-height: 1.5;
 }
 
+.access-denied-message {
+  background-color: #f8f9fa;
+  border: 1px dashed #ccc;
+  border-radius: 5px;
+  padding: 30px;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.access-denied-message p {
+  color: #721c24;
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .upload-success-actions {
   display: flex;
   justify-content: center;
