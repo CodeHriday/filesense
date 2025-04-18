@@ -35,7 +35,9 @@ const authenticateToken = async (req, res, next) => {
     
     // Get permissions for the user based on roles
     if (verified.roles && verified.roles.length > 0) {
-      // Get all permissions for the user's roles
+      let allPermissions = [];
+      
+      // 1. Get all permissions from the permissions and role_permissions tables (old system)
       const permissionsQuery = `
         SELECT DISTINCT p.name, p.resource, p.action
         FROM permissions p
@@ -46,12 +48,39 @@ const authenticateToken = async (req, res, next) => {
       
       const permissionsResult = await pool.query(permissionsQuery, [verified.roles]);
       
-      // Add permissions to the request object
-      req.user.permissions = permissionsResult.rows.map(p => ({
+      // Store the permissions from the old system
+      const oldSystemPermissions = permissionsResult.rows.map(p => ({
         name: p.name,
         resource: p.resource,
         action: p.action
       }));
+      
+      allPermissions = [...oldSystemPermissions];
+      
+      // 2. Get permissions from the JSON array in the roles table (new system)
+      const rolesWithPermissionsQuery = `
+        SELECT name, permissions 
+        FROM roles 
+        WHERE name = ANY($1::varchar[])
+      `;
+      
+      const rolesResult = await pool.query(rolesWithPermissionsQuery, [verified.roles]);
+      
+      // Process each role's JSON permissions
+      for (const role of rolesResult.rows) {
+        if (role.permissions && Array.isArray(role.permissions)) {
+          // These are already in string format like "resource:action"
+          const stringPermissions = role.permissions.map(p => p);
+          allPermissions = [...allPermissions, ...stringPermissions];
+        } else if (role.permissions && typeof role.permissions === 'object') {
+          // The permissions is a JSON object, convert to array
+          const permissionsArray = Object.values(role.permissions);
+          allPermissions = [...allPermissions, ...permissionsArray];
+        }
+      }
+      
+      // Set the combined permissions on the user object
+      req.user.permissions = allPermissions;
     } else {
       req.user.permissions = [];
     }
