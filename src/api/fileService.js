@@ -3,6 +3,15 @@ import axios from 'axios';
 // Use relative URL for API calls in the same domain
 const API_URL = '/api';
 
+// Create a custom axios instance with increased timeout for large file uploads
+const api = axios.create({
+  baseURL: API_URL,
+  timeout: 300000, // 5 minutes timeout
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
 // Test ping function to check API connectivity
 export const testApiConnection = async () => {
   try {
@@ -42,12 +51,14 @@ export const uploadFile = async (file) => {
     
     console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
     
+    // Create a custom axios instance specifically for file uploads
+    // with even longer timeout for large files
     const response = await axios.post(`${API_URL}/files/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      // Add timeout and show upload progress
-      timeout: 30000, // 30 seconds
+      // Extended timeout for large files (30 minutes)
+      timeout: 1800000, // 30 minutes
       onUploadProgress: (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
         console.log(`Upload progress: ${percentCompleted}%`);

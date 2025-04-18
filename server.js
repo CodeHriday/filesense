@@ -816,6 +816,158 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// Lineage endpoints
+app.get('/api/lineage', async (req, res) => {
+  try {
+    // Create lineage table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS file_lineage (
+        id SERIAL PRIMARY KEY,
+        source_file_id VARCHAR(255) NOT NULL,
+        target_file_id VARCHAR(255) NOT NULL,
+        relationship_type VARCHAR(50) NOT NULL,
+        transformation_details JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const result = await pool.query('SELECT * FROM file_lineage');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching lineage data:', err);
+    res.status(500).json({ error: 'Failed to fetch lineage data' });
+  }
+});
+
+// Badges endpoint
+app.get('/api/badges', async (req, res) => {
+  try {
+    // Create badges table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_badges (
+        id SERIAL PRIMARY KEY,
+        badge_id VARCHAR(50) NOT NULL,
+        badge_name VARCHAR(100) NOT NULL,
+        badge_description TEXT,
+        icon_url VARCHAR(255),
+        earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const result = await pool.query('SELECT * FROM user_badges');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching badges:', err);
+    res.status(500).json({ error: 'Failed to fetch badges' });
+  }
+});
+
+// Alert history endpoint
+app.get('/api/alerts/history', async (req, res) => {
+  try {
+    // Create alerts history table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS alert_history (
+        id SERIAL PRIMARY KEY,
+        file_id VARCHAR(255) NOT NULL,
+        alert_type VARCHAR(50) NOT NULL,
+        alert_severity VARCHAR(20) NOT NULL,
+        alert_message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const result = await pool.query('SELECT * FROM alert_history');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching alert history:', err);
+    res.status(500).json({ error: 'Failed to fetch alert history' });
+  }
+});
+
+// Connections endpoint
+app.get('/api/connections', async (req, res) => {
+  try {
+    // Create connections table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS storage_connections (
+        id SERIAL PRIMARY KEY,
+        connection_name VARCHAR(100) NOT NULL,
+        connection_type VARCHAR(50) NOT NULL,
+        connection_details JSONB NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const result = await pool.query('SELECT * FROM storage_connections');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching connections:', err);
+    res.status(500).json({ error: 'Failed to fetch connections' });
+  }
+});
+
+// Mappings endpoint
+app.get('/api/mappings', async (req, res) => {
+  try {
+    // Create mappings table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS file_mappings (
+        id SERIAL PRIMARY KEY,
+        mapping_name VARCHAR(100) NOT NULL,
+        source_file_id VARCHAR(255) NOT NULL,
+        target_file_id VARCHAR(255) NOT NULL,
+        mapping_rules JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const result = await pool.query('SELECT * FROM file_mappings');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching mappings:', err);
+    res.status(500).json({ error: 'Failed to fetch mappings' });
+  }
+});
+
+// Dashboard settings endpoint
+app.get('/api/user/dashboard-settings', async (req, res) => {
+  try {
+    // Create dashboard settings table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_dashboard_settings (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(50) DEFAULT 'default',
+        settings JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const result = await pool.query("SELECT * FROM user_dashboard_settings WHERE user_id = 'default'");
+    
+    if (result.rows.length === 0) {
+      // Return default settings if none exist
+      res.json({
+        layout: 'grid',
+        widgets: [
+          { id: 'recent-files', position: 1, visible: true },
+          { id: 'data-quality', position: 2, visible: true },
+          { id: 'data-volume', position: 3, visible: true },
+          { id: 'alerts', position: 4, visible: true }
+        ],
+        theme: 'light'
+      });
+    } else {
+      res.json(result.rows[0].settings);
+    }
+  } catch (err) {
+    console.error('Error fetching dashboard settings:', err);
+    res.status(500).json({ error: 'Failed to fetch dashboard settings' });
+  }
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

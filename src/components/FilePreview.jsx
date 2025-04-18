@@ -19,7 +19,9 @@ const FilePreview = ({ fileId, maxRows = 100 }) => {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get(`/api/files/${fileId}/preview?limit=${maxRows}`);
+      const response = await axios.get(`/api/files/${fileId}/preview?limit=${maxRows}`, {
+        timeout: 60000 // 60 second timeout for preview loading
+      });
       setPreviewData(response.data);
     } catch (err) {
       console.error('Error fetching file preview:', err);
@@ -58,8 +60,12 @@ const FilePreview = ({ fileId, maxRows = 100 }) => {
     );
   }
   
-  // Extract column names from the first data row
-  const columns = Object.keys(previewData.data[0]);
+  // Check the structure of the data
+  const rows = previewData.rows || previewData.data || [];
+  const totalRows = previewData.totalRows || previewData.total_rows || rows.length;
+  const columnNames = previewData.columns ? 
+                      previewData.columns.map(col => col.name) : 
+                      (rows.length > 0 ? Object.keys(rows[0]) : []);
   
   return (
     <div className="file-preview-container">
@@ -67,7 +73,7 @@ const FilePreview = ({ fileId, maxRows = 100 }) => {
         <div className="preview-info">
           <h3>File Preview</h3>
           <span className="preview-count">
-            Showing {previewData.data.length} of {previewData.total_rows} rows
+            Showing {rows.length} of {totalRows} rows
           </span>
         </div>
         <div className="preview-actions">
@@ -81,15 +87,15 @@ const FilePreview = ({ fileId, maxRows = 100 }) => {
         <table className="preview-table">
           <thead>
             <tr>
-              {columns.map((column, index) => (
+              {columnNames.map((column, index) => (
                 <th key={index}>{column}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {previewData.data.map((row, rowIndex) => (
+            {rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
-                {columns.map((column, colIndex) => (
+                {columnNames.map((column, colIndex) => (
                   <td key={colIndex}>
                     {row[column] !== null && row[column] !== undefined 
                       ? String(row[column]) 
@@ -104,13 +110,13 @@ const FilePreview = ({ fileId, maxRows = 100 }) => {
       
       <div className="file-preview-footer">
         <div className="file-details">
-          <span className="file-name">{previewData.filename}</span>
-          <span className="file-type">{previewData.file_type.toUpperCase()}</span>
+          <span className="file-name">{previewData.filename || previewData.fileId}</span>
+          <span className="file-type">{previewData.file_type ? previewData.file_type.toUpperCase() : 'FILE'}</span>
         </div>
         
         <div className="preview-notice">
-          {previewData.data.length < previewData.total_rows && (
-            <span>Only showing first {previewData.data.length} records</span>
+          {rows.length < totalRows && (
+            <span>Only showing first {rows.length} records</span>
           )}
         </div>
       </div>
