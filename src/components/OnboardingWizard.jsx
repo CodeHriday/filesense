@@ -15,12 +15,9 @@ const OnboardingWizard = ({ onClose }) => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Check if this is the first time the user is visiting
+  // Always show wizard when component is mounted (controlled by parent)
   useEffect(() => {
-    const hasCompletedOnboarding = localStorage.getItem('dfo-onboarding-completed');
-    if (hasCompletedOnboarding === 'true') {
-      setShowWizard(false);
-    }
+    setShowWizard(true);
   }, []);
 
   const steps = [

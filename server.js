@@ -22,7 +22,7 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Configure file upload
+// Configure file upload with support for large files
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = path.join(__dirname, 'uploads');
@@ -36,7 +36,14 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage });
+// Configure multer with increased file size limits to handle files up to 1GB
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 1024 * 1024 * 1024, // 1GB in bytes
+    fieldSize: 1024 * 1024 * 1024 // 1GB for form fields
+  }
+});
 
 // Configure PostgreSQL connection with better error handling
 const pool = new Pool({
@@ -121,15 +128,99 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     try {
       // Extract basic file metrics based on file type
       if (fileType === 'csv') {
-        // Read the CSV file to extract schema and basic statistics
-        const fileContent = fs.readFileSync(file.path, 'utf8');
-        const lines = fileContent.split('\n').filter(line => line.trim());
+        // For large files, use streaming to process only the first 1000 rows for analysis
+        // This prevents loading the entire file into memory
+        const MAX_ANALYZE_ROWS = 1000;
         
-        if (lines.length > 0) {
-          // Extract header row for column names
-          const header = lines[0].split(',').map(h => h.trim());
-          columnCount = header.length;
-          rowCount = lines.length - 1; // Subtract header row
+        // Create a read stream to process the file efficiently
+        const fileStream = fs.createReadStream(file.path, { encoding: 'utf8' });
+        let buffer = '';
+        let lineCount = 0;
+        let header = [];
+        let lineAnalyzed = 0;
+        let isFirstChunk = true;
+        const sampleLines = [];
+        
+        // Count total lines in file using a separate stream
+        const lineCountStream = fs.createReadStream(file.path, { encoding: 'utf8' });
+        let totalLineCount = 0;
+        
+        lineCountStream.on('data', (chunk) => {
+          for (let i = 0; i < chunk.length; i++) {
+            if (chunk[i] === '\n') {
+              totalLineCount++;
+            }
+          }
+        });
+        
+        // Process file content in chunks
+        await new Promise((resolve, reject) => {
+          fileStream.on('data', (chunk) => {
+            buffer += chunk;
+            const lines = buffer.split('\n');
+            
+            // Keep the last partial line in the buffer
+            buffer = lines.pop();
+            
+            if (isFirstChunk && lines.length > 0) {
+              // Process header on first chunk
+              header = lines[0].split(',').map(h => h.trim());
+              columnCount = header.length;
+              isFirstChunk = false;
+              
+              // Start from second line (after header)
+              for (let i = 1; i < lines.length && lineAnalyzed < MAX_ANALYZE_ROWS; i++) {
+                sampleLines.push(lines[i]);
+                lineAnalyzed++;
+              }
+            } else {
+              // Process subsequent chunks
+              for (let i = 0; i < lines.length && lineAnalyzed < MAX_ANALYZE_ROWS; i++) {
+                sampleLines.push(lines[i]);
+                lineAnalyzed++;
+              }
+            }
+            
+            lineCount += lines.length;
+            
+            // If we've processed enough lines, end the stream early
+            if (lineAnalyzed >= MAX_ANALYZE_ROWS) {
+              fileStream.destroy();
+            }
+          });
+          
+          fileStream.on('end', () => {
+            // Process any remaining buffer content
+            if (buffer.trim().length > 0) {
+              sampleLines.push(buffer);
+              lineCount++;
+            }
+            resolve();
+          });
+          
+          fileStream.on('error', (err) => {
+            reject(err);
+          });
+        });
+        
+        // Wait for line counting to complete
+        await new Promise((resolve) => {
+          lineCountStream.on('end', () => {
+            resolve();
+          });
+          
+          lineCountStream.on('error', () => {
+            // On error, fall back to the sampled line count
+            resolve();
+          });
+        });
+        
+        // Use total line count if it's greater than the sampled count
+        // Otherwise fall back to sampled count
+        rowCount = Math.max(totalLineCount - 1, lineCount - 1); // Subtract header row
+        
+        if (header.length > 0) {
+          // Use header and sample lines for analysis
           
           // Create column entries
           columns = header.map((colName, index) => {
@@ -142,14 +233,14 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             let uniqueCount = 0;
             let nullCount = 0;
             
-            if (lines.length > 1) {
-              // Get the column values from all data rows
+            if (sampleLines.length > 0) {
+              // Get the column values from all sample data rows
               const columnValues = [];
               const valueCounts = {};
               nullCount = 0; // Reset nullCount
               
-              for (let i = 1; i < lines.length; i++) {
-                const rowValues = lines[i].split(',');
+              for (let i = 0; i < sampleLines.length; i++) {
+                const rowValues = sampleLines[i].split(',');
                 if (index < rowValues.length) {
                   const value = rowValues[index].trim();
                   columnValues.push(value);
