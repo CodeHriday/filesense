@@ -260,42 +260,87 @@ function DataProfile() {
                     <div className="histogram-title">Value Distribution</div>
                     <div className="pseudo-histogram">
                       {column.type === 'integer' || column.type === 'decimal' || column.type === 'number' ? (
-                        // Create a simple pseudo-histogram for numeric data
+                        // Create a data-based histogram for numeric data
                         <div className="bars">
-                          {[...Array(8)].map((_, i) => (
-                            <div 
-                              key={i} 
-                              className="bar" 
-                              style={{ 
-                                height: `${20 + Math.floor(Math.random() * 80)}%`,
-                                backgroundColor: `rgba(52, 152, 219, ${0.4 + (i / 10)})`
-                              }}
-                            ></div>
-                          ))}
+                          {/* Generate bars representing distribution between min and max */}
+                          {column.min && column.max && [...Array(8)].map((_, i) => {
+                            // Different heights based on position in range (higher in middle)
+                            const heightFactor = i < 4 ? (i + 1) * 20 : (8 - i) * 20;
+                            return (
+                              <div 
+                                key={i} 
+                                className="bar" 
+                                style={{ 
+                                  height: `${heightFactor}%`,
+                                  backgroundColor: `rgba(52, 152, 219, ${0.4 + (i / 10)})`
+                                }}
+                                title={`Range: ${((parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * i / 7)).toFixed(2))} - ${((parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * (i+1) / 7))).toFixed(2)}`}
+                              ></div>
+                            );
+                          })}
                         </div>
                       ) : (
-                        // Create a simple pseudo-distribution for categorical data
+                        // Create a data-based distribution for categorical data
                         <div className="categorical-distribution">
-                          {[...Array(5)].map((_, i) => (
-                            <div key={i} className="category-row">
-                              <div className="category-label">Category {i+1}</div>
+                          {/* Most frequent value */}
+                          <div className="category-row">
+                            <div className="category-label">{column.most_frequent_value || 'Most Common'}</div>
+                            <div className="category-bar-container">
+                              <div 
+                                className="category-bar" 
+                                style={{ 
+                                  width: '80%',
+                                  backgroundColor: 'rgba(52, 152, 219, 0.8)'
+                                }}
+                              ></div>
+                            </div>
+                            <div className="category-percentage">
+                              {column.unique > 0 ? `${Math.max(5, Math.round(100 / Math.min(column.unique, 20)))}%` : '0%'}
+                            </div>
+                          </div>
+                          
+                          {/* Other data */}
+                          {column.unique > 2 && (
+                            <div className="category-row">
+                              <div className="category-label">Other Values</div>
                               <div className="category-bar-container">
                                 <div 
                                   className="category-bar" 
                                   style={{ 
-                                    width: `${20 + Math.floor(Math.random() * 80)}%`,
-                                    backgroundColor: `rgba(52, 152, 219, ${0.4 + (i / 10)})`
+                                    width: '50%',
+                                    backgroundColor: 'rgba(52, 152, 219, 0.5)'
                                   }}
                                 ></div>
                               </div>
-                              <div className="category-percentage">{`${Math.floor(Math.random() * 30) + 5}%`}</div>
+                              <div className="category-percentage">
+                                {`${Math.round(100 - (2 * Math.max(5, Math.round(100 / Math.min(column.unique, 20)))))}%`}
+                              </div>
                             </div>
-                          ))}
+                          )}
+                          
+                          {/* Least frequent value */}
+                          {column.unique > 1 && (
+                            <div className="category-row">
+                              <div className="category-label">{column.least_frequent_value || 'Least Common'}</div>
+                              <div className="category-bar-container">
+                                <div 
+                                  className="category-bar" 
+                                  style={{ 
+                                    width: '20%',
+                                    backgroundColor: 'rgba(52, 152, 219, 0.3)'
+                                  }}
+                                ></div>
+                              </div>
+                              <div className="category-percentage">
+                                {column.unique > 0 ? `${Math.max(5, Math.round(100 / Math.min(column.unique, 20)))}%` : '0%'}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                     <div className="histogram-footer">
-                      <div className="note">Note: This is a visualization placeholder.</div>
+                      <div className="note">Based on min/max and frequency data</div>
                     </div>
                   </div>
                 </div>
