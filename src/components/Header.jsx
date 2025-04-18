@@ -51,19 +51,6 @@ function Header({ showAIInsights }) {
         </Link>
       </div>
       <div className="header-actions">
-        <Link to="/upload" className="btn btn-primary" aria-label="Upload file">
-          Upload File
-        </Link>
-        
-        {showAIInsights && (
-          <button 
-            className="btn btn-secondary ai-insights-btn"
-            onClick={() => showAIInsights()}
-            aria-label="Show AI insights"
-          >
-            <FaLightbulb /> AI Insights
-          </button>
-        )}
         
         {currentUser && (
           <div className="user-menu" ref={dropdownRef}>
