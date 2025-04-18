@@ -138,8 +138,25 @@ function QualityChecks() {
                   <Card className="metric-card">
                     <div className="metric-header">
                       <h3>Best Column</h3>
-                      <div className="metric-score">N/A</div>
+                      {file?.columns ? (
+                        <>
+                          <div className="metric-score good">
+                            {formatDecimal(100, 1)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="metric-score">N/A</div>
+                      )}
                     </div>
+                    {file?.columns && (
+                      <p>
+                        {file.columns
+                          .filter(col => col.null_count === 0)
+                          .slice(0, 1)
+                          .map(col => col.column_name)
+                          .join(', ') || 'No completely filled columns'}
+                      </p>
+                    )}
                     <p>Column with highest completeness score.</p>
                   </Card>
                   
@@ -147,8 +164,44 @@ function QualityChecks() {
                   <Card className="metric-card">
                     <div className="metric-header">
                       <h3>Worst Column</h3>
-                      <div className="metric-score">N/A</div>
+                      {file?.columns ? (
+                        <>
+                          {(() => {
+                            if (!file.columns || file.columns.length === 0) return <div className="metric-score">N/A</div>;
+                            
+                            // Sort columns by null_count (descending)
+                            const sortedColumns = [...file.columns].sort((a, b) => b.null_count - a.null_count);
+                            const worstColumn = sortedColumns[0];
+                            
+                            if (!worstColumn || worstColumn.null_count === 0) {
+                              return (
+                                <div className="metric-score good">
+                                  100.0%
+                                </div>
+                              );
+                            } else {
+                              const completenessScore = 100 - (worstColumn.null_count / file.row_count * 100);
+                              return (
+                                <div className={`metric-score ${completenessScore >= 80 ? 'good' : completenessScore >= 60 ? 'medium' : 'poor'}`}>
+                                  {formatDecimal(completenessScore, 1)}%
+                                </div>
+                              );
+                            }
+                          })()}
+                        </>
+                      ) : (
+                        <div className="metric-score">N/A</div>
+                      )}
                     </div>
+                    {file?.columns && file.columns.length > 0 && (
+                      <p>
+                        {(() => {
+                          // Get the column with the most null values
+                          const sortedColumns = [...file.columns].sort((a, b) => b.null_count - a.null_count);
+                          return sortedColumns[0].column_name;
+                        })()}
+                      </p>
+                    )}
                     <p>Column with lowest completeness score.</p>
                   </Card>
                 </div>
