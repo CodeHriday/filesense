@@ -2003,6 +2003,151 @@ app.post('/api/schedules/:id/run', async (req, res) => {
   }
 });
 
+// Update a schedule
+app.patch('/api/schedules/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { file_id, frequency, time, day, is_active } = req.body;
+    
+    // First, check if the schedule exists
+    const checkResult = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    // Validate inputs
+    if (file_id && typeof file_id !== 'string') {
+      return res.status(400).json({ error: 'Invalid file_id format' });
+    }
+    
+    if (frequency && !['hourly', 'daily', 'weekly', 'monthly'].includes(frequency)) {
+      return res.status(400).json({ error: 'Invalid frequency value' });
+    }
+    
+    // Calculate next run time if frequency is changing
+    let nextRun = null;
+    if (frequency) {
+      const now = new Date();
+      nextRun = new Date(now);
+      
+      switch (frequency) {
+        case 'hourly':
+          nextRun.setHours(nextRun.getHours() + 1, 0, 0, 0);
+          break;
+        case 'daily':
+          const [hours, minutes] = time ? time.split(':').map(Number) : [0, 0];
+          nextRun.setDate(nextRun.getDate() + 1);
+          nextRun.setHours(hours, minutes, 0, 0);
+          break;
+        case 'weekly':
+          const dayOfWeek = day || 0;
+          const daysToAdd = (dayOfWeek + 7 - now.getDay()) % 7;
+          nextRun.setDate(nextRun.getDate() + (daysToAdd === 0 ? 7 : daysToAdd));
+          const [weekHours, weekMinutes] = time ? time.split(':').map(Number) : [0, 0];
+          nextRun.setHours(weekHours, weekMinutes, 0, 0);
+          break;
+        case 'monthly':
+          const dayOfMonth = day || 1;
+          nextRun.setMonth(nextRun.getMonth() + 1);
+          nextRun.setDate(dayOfMonth);
+          const [monthHours, monthMinutes] = time ? time.split(':').map(Number) : [0, 0];
+          nextRun.setHours(monthHours, monthMinutes, 0, 0);
+          break;
+        default:
+          nextRun.setDate(nextRun.getDate() + 1);
+      }
+    }
+    
+    // Build the update query dynamically
+    let updateFields = [];
+    let queryParams = [];
+    let paramCount = 1;
+    
+    if (file_id !== undefined) {
+      updateFields.push(`file_id = $${paramCount}`);
+      queryParams.push(file_id);
+      paramCount++;
+    }
+    
+    if (frequency !== undefined) {
+      updateFields.push(`frequency = $${paramCount}`);
+      queryParams.push(frequency);
+      paramCount++;
+    }
+    
+    if (time !== undefined) {
+      updateFields.push(`time = $${paramCount}`);
+      queryParams.push(time);
+      paramCount++;
+    }
+    
+    if (day !== undefined) {
+      updateFields.push(`day = $${paramCount}`);
+      queryParams.push(day);
+      paramCount++;
+    }
+    
+    if (is_active !== undefined) {
+      updateFields.push(`is_active = $${paramCount}`);
+      queryParams.push(is_active);
+      paramCount++;
+    }
+    
+    if (nextRun !== null) {
+      updateFields.push(`next_run = $${paramCount}`);
+      queryParams.push(nextRun);
+      paramCount++;
+    }
+    
+    // Always update the updated_at timestamp
+    updateFields.push(`updated_at = $${paramCount}`);
+    queryParams.push(new Date());
+    paramCount++;
+    
+    // Add the id as the last parameter
+    queryParams.push(id);
+    
+    // If no fields to update, return early
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    // Execute the update query
+    const result = await pool.query(
+      `UPDATE file_schedules SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      queryParams
+    );
+    
+    res.json({ schedule: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating schedule:', error);
+    res.status(500).json({ error: 'Failed to update schedule', details: error.message });
+  }
+});
+
+// Delete a schedule
+app.delete('/api/schedules/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, check if the schedule exists
+    const checkResult = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    // Delete the schedule
+    await pool.query('DELETE FROM file_schedules WHERE id = $1', [id]);
+    
+    res.json({ message: 'Schedule deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting schedule:', error);
+    res.status(500).json({ error: 'Failed to delete schedule', details: error.message });
+  }
+});
+
 // Get schedules for a specific file
 app.get('/api/files/:fileId/schedules', async (req, res) => {
   try {
