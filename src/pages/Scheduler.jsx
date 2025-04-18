@@ -6,10 +6,12 @@ import Modal from '../components/Modal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { AnimatedButton } from '../components/MicroAnimations';
 import { getSchedules, createSchedule, updateSchedule, deleteSchedule, runScheduleNow } from '../api/schedulerService';
+import { useAuth } from '../context/AuthContext';
 import '../components/styles/Scheduler.css';
 import { formatRelativeTime } from '../utils/formatters';
 
 const Scheduler = () => {
+  const { hasWritePermission } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [filteredSchedules, setFilteredSchedules] = useState([]);
   const [loading, setLoading] = useState(true);

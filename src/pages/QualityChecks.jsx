@@ -4,6 +4,7 @@ import { FiCheck, FiX, FiAlertTriangle, FiBarChart2 } from 'react-icons/fi';
 import Card from '../components/Card';
 import { getFileDetails, getFileQuality, runQualityCheck } from '../api/fileService';
 import { formatDate, getTimeSince, formatDecimal } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import './QualityChecks.css';
 
 function QualityChecks() {
@@ -13,6 +14,7 @@ function QualityChecks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [runningCheck, setRunningCheck] = useState(false);
+  const { hasWritePermission } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,13 +83,23 @@ function QualityChecks() {
             </div>
             
             <div className="quality-actions">
-              <button 
-                className="btn btn-primary"
-                onClick={handleRunQualityCheck}
-                disabled={runningCheck}
-              >
-                {runningCheck ? 'Running Check...' : 'Run Quality Check'}
-              </button>
+              {hasWritePermission('quality') ? (
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleRunQualityCheck}
+                  disabled={runningCheck}
+                >
+                  {runningCheck ? 'Running Check...' : 'Run Quality Check'}
+                </button>
+              ) : (
+                <button 
+                  className="btn btn-primary disabled"
+                  disabled={true}
+                  title="You don't have permission to run quality checks"
+                >
+                  Run Quality Check
+                </button>
+              )}
               <Link to={`/profile/${fileId}`} className="btn btn-secondary">
                 <FiBarChart2 className="btn-icon" />
                 View Profile
@@ -261,13 +273,23 @@ function QualityChecks() {
                 <FiAlertTriangle className="empty-icon" />
                 <h2>No Quality Data Available</h2>
                 <p>Quality checks have not been run on this file yet.</p>
-                <button 
-                  className="btn btn-primary"
-                  onClick={handleRunQualityCheck}
-                  disabled={runningCheck}
-                >
-                  {runningCheck ? 'Running Check...' : 'Run Quality Check Now'}
-                </button>
+                {hasWritePermission('quality') ? (
+                  <button 
+                    className="btn btn-primary"
+                    onClick={handleRunQualityCheck}
+                    disabled={runningCheck}
+                  >
+                    {runningCheck ? 'Running Check...' : 'Run Quality Check Now'}
+                  </button>
+                ) : (
+                  <button 
+                    className="btn btn-primary disabled"
+                    disabled={true}
+                    title="You don't have permission to run quality checks"
+                  >
+                    Run Quality Check Now
+                  </button>
+                )}
               </div>
             </Card>
           )}
