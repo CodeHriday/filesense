@@ -1414,7 +1414,7 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
   }
 });
 
-// Get current user info
+// Get current user info - with complete role and permission information
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1426,6 +1426,72 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
+    // Get the complete role information from the database
+    const userRoles = req.user.roles || [];
+    let permissions = [];
+    
+    // Get roles directly from database to ensure we have the correct permissions
+    if (userRoles.length > 0) {
+      // Get all permissions from the permissions table for this user's roles
+      // 1. Get permissions from the old system (role_permissions)
+      const permissionsQuery = `
+        SELECT DISTINCT p.name, p.resource, p.action
+        FROM permissions p
+        JOIN role_permissions rp ON p.id = rp.permission_id
+        JOIN roles r ON rp.role_id = r.id
+        WHERE r.name = ANY($1::varchar[])
+      `;
+      
+      const permissionsResult = await pool.query(permissionsQuery, [userRoles]);
+      
+      // Convert permissions to the format expected by the frontend
+      const oldSystemPermissions = permissionsResult.rows.map(p => ({
+        name: p.name,
+        resource: p.resource,
+        action: p.action
+      }));
+      
+      permissions = [...oldSystemPermissions];
+      
+      // 2. Get permissions from the roles table JSON array (new system)
+      const rolesQuery = `SELECT id, name, permissions FROM roles WHERE name = ANY($1::varchar[])`;
+      const rolesResult = await pool.query(rolesQuery, [userRoles]);
+      
+      // Process each role's JSON permissions
+      for (const role of rolesResult.rows) {
+        console.log(`Processing role ${role.name} with permissions:`, role.permissions);
+        
+        // Special hardcoded permissions for Executor role to ensure proper sidebar
+        if (role.name === 'Executor') {
+          // These are the permissions that Executor should always have
+          const executorMappingPermissions = [
+            'mappings:read',  // Ensure mappings is included
+          ];
+          permissions = [...permissions, ...executorMappingPermissions];
+        }
+        
+        // Process the permissions from the database (could be in several formats)
+        if (role.permissions) {
+          // Handle array format
+          if (Array.isArray(role.permissions)) {
+            permissions = [...permissions, ...role.permissions];
+          } 
+          // Handle object format from PostgreSQL
+          else if (typeof role.permissions === 'object') {
+            // Check if it's PostgreSQL's numeric key format
+            if (Object.keys(role.permissions).some(key => !isNaN(parseInt(key)))) {
+              const stringPermissions = Object.values(role.permissions);
+              permissions = [...permissions, ...stringPermissions];
+            } else {
+              // Regular object format
+              const permissionsArray = Object.values(role.permissions);
+              permissions = [...permissions, ...permissionsArray];
+            }
+          }
+        }
+      }
+    }
+    
     const user = userResult.rows[0];
     
     // Return user info (excluding password)
@@ -1433,8 +1499,9 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     
     res.json({
       ...userWithoutPassword,
-      roles: req.user.roles,
-      permissions: req.user.permissions
+      roles: userRoles,
+      permissions: [...new Set(permissions)], // Remove duplicate permissions
+      roleDetails: rolesResult ? rolesResult.rows : []
     });
   } catch (err) {
     console.error('Error fetching user info:', err);

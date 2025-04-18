@@ -74,8 +74,21 @@ export const AuthProvider = ({ children }) => {
       // Save token to localStorage
       localStorage.setItem('token', token);
       
-      // Set current user
-      setCurrentUser(user);
+      // Immediately fetch complete user data with permissions from /api/auth/me
+      try {
+        const userResponse = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        // This will include all the user's permissions directly from the database
+        setCurrentUser(userResponse.data);
+      } catch (userError) {
+        console.error('Error fetching complete user data:', userError);
+        // Fall back to basic user data if /me endpoint fails
+        setCurrentUser(user);
+      }
       
       return true;
     } catch (error) {
