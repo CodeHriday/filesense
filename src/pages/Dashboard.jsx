@@ -4,9 +4,15 @@ import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getFileCatalog } from '../api/fileService';
 import { getFileAlerts, getAlertHistory } from '../api/alertService';
+import { ChartAccessibleWrapper, DataTableAccessible, useAnnouncement } from '../components/accessibility';
+import { useAccessibility } from '../context/AccessibilityContext';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  // Get accessibility context and announcement hook
+  const { screenReaderOptimized, highContrast } = useAccessibility();
+  const { announce } = useAnnouncement();
+  
   const [loading, setLoading] = useState(true);
   const [fileStats, setFileStats] = useState({
     totalFiles: 0,
@@ -194,44 +200,87 @@ const Dashboard = () => {
     // Take only a subset of labels for display to avoid overcrowding
     const labelIndices = [0, 10, 20, 30];
     
-    return (
+    // When metric changes, announce it to screen readers
+    useEffect(() => {
+      if (trendData.length > 0) {
+        const currentValue = dataPoints[dataPoints.length - 1].value;
+        const metricName = selectedMetric === 'all' ? 'Overall Health' : selectedMetric;
+        const status = getScoreLabel(currentValue);
+        announce(`Now showing ${metricName} trend. Current value is ${currentValue}%. Status: ${status}.`);
+      }
+    }, [selectedMetric, trendData]);
+    
+    // Create data table columns for accessibility
+    const tableColumns = [
+      { header: 'Date', accessor: 'date' },
+      { header: `${selectedMetric === 'all' ? 'Overall' : selectedMetric} Value (%)`, accessor: 'value' }
+    ];
+    
+    // Create summary text for screen readers
+    const getSummaryText = () => {
+      if (dataPoints.length === 0) return '';
+      
+      const currentValue = dataPoints[dataPoints.length - 1].value;
+      const startValue = dataPoints[0].value;
+      const change = (currentValue - startValue).toFixed(1);
+      const trend = change >= 0 ? 'improved' : 'declined';
+      
+      return `This chart shows the ${selectedMetric === 'all' ? 'Overall' : selectedMetric} Health trend over the last 30 days. 
+        The current value is ${currentValue}%, which is rated as ${getScoreLabel(currentValue)}. 
+        Over the past 30 days, this metric has ${trend} by ${Math.abs(change)}%.`;
+    };
+    
+    // Render chart content
+    const chartContent = (
       <div className="trend-chart">
         <div className="trend-header">
-          <h3>Data Health Trend - Last 30 Days</h3>
-          <div className="trend-selector">
+          <h3 id="trend-chart-title">Data Health Trend - Last 30 Days</h3>
+          <div className="trend-selector" role="radiogroup" aria-labelledby="trend-chart-title">
             <button 
               className={selectedMetric === 'all' ? 'active' : ''} 
               onClick={() => setSelectedMetric('all')}
+              aria-pressed={selectedMetric === 'all'}
+              aria-label="Show Overall Health metric"
             >
               Overall
             </button>
             <button 
               className={selectedMetric === 'completeness' ? 'active' : ''} 
               onClick={() => setSelectedMetric('completeness')}
+              aria-pressed={selectedMetric === 'completeness'}
+              aria-label="Show Completeness metric"
             >
               Completeness
             </button>
             <button 
               className={selectedMetric === 'consistency' ? 'active' : ''} 
               onClick={() => setSelectedMetric('consistency')}
+              aria-pressed={selectedMetric === 'consistency'}
+              aria-label="Show Consistency metric"
             >
               Consistency
             </button>
             <button 
               className={selectedMetric === 'accuracy' ? 'active' : ''} 
               onClick={() => setSelectedMetric('accuracy')}
+              aria-pressed={selectedMetric === 'accuracy'}
+              aria-label="Show Accuracy metric"
             >
               Accuracy
             </button>
             <button 
               className={selectedMetric === 'validity' ? 'active' : ''} 
               onClick={() => setSelectedMetric('validity')}
+              aria-pressed={selectedMetric === 'validity'}
+              aria-label="Show Validity metric"
             >
               Validity
             </button>
             <button 
               className={selectedMetric === 'timeliness' ? 'active' : ''} 
               onClick={() => setSelectedMetric('timeliness')}
+              aria-pressed={selectedMetric === 'timeliness'}
+              aria-label="Show Timeliness metric"
             >
               Timeliness
             </button>
@@ -262,12 +311,13 @@ const Dashboard = () => {
                     bottom: `${point.normalized}%`
                   }}
                   title={`${point.date}: ${point.value}%`}
+                  aria-hidden="true" // Hide from screen readers, they'll get the table representation
                 >
                   <span className="point-value">{point.value}%</span>
                 </div>
               ))}
               {/* Generate the smooth line connecting points */}
-              <svg className="line-svg">
+              <svg className="line-svg" aria-hidden="true">
                 <path
                   d={normalizedPoints.map((point, i) => {
                     const x = (i / (normalizedPoints.length - 1)) * 100;
@@ -304,11 +354,13 @@ const Dashboard = () => {
             <span className="stat-label">30-Day Change</span>
             {dataPoints[dataPoints.length - 1].value > dataPoints[0].value ? (
               <span className="stat-value positive">
-                <FiTrendingUp /> +{(dataPoints[dataPoints.length - 1].value - dataPoints[0].value).toFixed(1)}%
+                <FiTrendingUp aria-hidden="true" /> +{(dataPoints[dataPoints.length - 1].value - dataPoints[0].value).toFixed(1)}%
+                <span className="sr-only">positive change</span>
               </span>
             ) : (
               <span className="stat-value negative">
-                <FiTrendingUp className="down" /> {(dataPoints[dataPoints.length - 1].value - dataPoints[0].value).toFixed(1)}%
+                <FiTrendingUp className="down" aria-hidden="true" /> {(dataPoints[dataPoints.length - 1].value - dataPoints[0].value).toFixed(1)}%
+                <span className="sr-only">negative change</span>
               </span>
             )}
           </div>
@@ -318,12 +370,28 @@ const Dashboard = () => {
             <span 
               className="stat-value"
               style={{ color: getScoreColor(dataPoints[dataPoints.length - 1].value) }}
+              role="status"
             >
               {getScoreLabel(dataPoints[dataPoints.length - 1].value)}
             </span>
           </div>
         </div>
       </div>
+    );
+    
+    return (
+      <ChartAccessibleWrapper
+        title={`${selectedMetric === 'all' ? 'Overall' : selectedMetric} Health Trend - Last 30 Days`}
+        description={`This line chart shows the trend of ${selectedMetric === 'all' ? 'Overall' : selectedMetric} health score over the last 30 days.`}
+        data={dataPoints}
+        chartType="line"
+        xAxisLabel="Date"
+        yAxisLabel="Health Score Percentage"
+        dataTableColumns={tableColumns}
+        summaryText={getSummaryText()}
+      >
+        {chartContent}
+      </ChartAccessibleWrapper>
     );
   };
   
@@ -333,30 +401,69 @@ const Dashboard = () => {
     
     if (fileTypes.length === 0) return null;
     
+    // Prepare data for accessible table view
+    const distributionData = fileTypes.map(([type, count]) => {
+      const percentage = Math.round((count / total) * 100);
+      return {
+        fileType: type,
+        count: count,
+        percentage: percentage
+      };
+    });
+    
+    // Configure columns for the data table
+    const columns = [
+      { header: 'File Type', key: 'fileType' },
+      { header: 'Count', key: 'count', formatter: value => `${value} files` },
+      { header: 'Percentage', key: 'percentage', formatter: value => `${value}%` }
+    ];
+    
+    // Create chart with screen reader and high contrast support
     return (
-      <div className="file-type-distribution">
-        <h3>File Type Distribution</h3>
-        <div className="distribution-bars">
-          {fileTypes.map(([type, count]) => {
-            const percentage = Math.round((count / total) * 100);
-            return (
-              <div key={type} className="distribution-item">
-                <div className="distribution-label">
-                  <span className="type-name">{type}</span>
-                  <span className="type-count">{count} files</span>
+      <ChartAccessibleWrapper
+        title="File Type Distribution"
+        description="Distribution of files by type in the system"
+        chartType="bar"
+        data={distributionData}
+        dataTableColumns={columns}
+        summaryText={`There are ${total} files in the system across ${fileTypes.length} different file types.`}
+      >
+        <div className="file-type-distribution">
+          <h3 id="file-distribution-title">File Type Distribution</h3>
+          <div className="distribution-bars" role="group" aria-labelledby="file-distribution-title">
+            {fileTypes.map(([type, count]) => {
+              const percentage = Math.round((count / total) * 100);
+              // Get the color in a way that respects high contrast mode
+              const barColor = highContrast ? 'var(--primary-color)' : getTypeColor(type);
+              
+              return (
+                <div 
+                  key={type} 
+                  className="distribution-item"
+                  role="figure"
+                  aria-label={`${type} files: ${count} files, ${percentage}% of total`}
+                >
+                  <div className="distribution-label">
+                    <span className="type-name">{type}</span>
+                    <span className="type-count">{count} files</span>
+                  </div>
+                  <div 
+                    className="distribution-bar-container"
+                    role="presentation"
+                  >
+                    <div
+                      className="distribution-bar"
+                      style={{ width: `${percentage}%`, backgroundColor: barColor }}
+                      aria-hidden="true"
+                    ></div>
+                  </div>
+                  <span className="type-percentage">{percentage}%</span>
                 </div>
-                <div className="distribution-bar-container">
-                  <div
-                    className="distribution-bar"
-                    style={{ width: `${percentage}%`, backgroundColor: getTypeColor(type) }}
-                  ></div>
-                </div>
-                <span className="type-percentage">{percentage}%</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </ChartAccessibleWrapper>
     );
   };
   
@@ -451,50 +558,144 @@ const Dashboard = () => {
               {renderFileTypeDistribution()}
               
               <div className="recent-files">
-                <h3>Recent Files</h3>
-                <ul className="recent-files-list">
-                  {recentFiles.map(file => (
-                    <li key={file.file_id} className="recent-file-item">
-                      <div className="recent-file-type" style={{ backgroundColor: getTypeColor(file.file_type) }}>
-                        {file.file_type.substring(0, 3).toUpperCase()}
-                      </div>
-                      <div className="recent-file-details">
-                        <div className="recent-file-name">{file.filename}</div>
-                        <div className="recent-file-meta">
-                          <span className="recent-file-date">
-                            <FiCalendar />
-                            {new Date(file.last_updated || file.created_at).toLocaleDateString()}
-                          </span>
-                          {file.quality_score && (
-                            <span 
-                              className="recent-file-score" 
-                              style={{ color: getScoreColor(file.quality_score) }}
-                            >
-                              {file.quality_score}%
-                            </span>
-                          )}
+                <h3 id="recent-files-heading">Recent Files</h3>
+                
+                {/* Screen reader optimized version */}
+                {screenReaderOptimized ? (
+                  <DataTableAccessible
+                    data={recentFiles}
+                    columns={[
+                      { 
+                        header: 'File Name', 
+                        key: 'filename',
+                        description: 'Name of the file'
+                      },
+                      { 
+                        header: 'Type', 
+                        key: 'file_type',
+                        description: 'File format'
+                      },
+                      { 
+                        header: 'Last Updated', 
+                        key: 'last_updated',
+                        formatter: (value, row) => new Date(row.last_updated || row.created_at).toLocaleDateString()
+                      },
+                      { 
+                        header: 'Quality Score', 
+                        key: 'quality_score',
+                        formatter: value => value ? `${value}%` : 'N/A',
+                        screenReaderInfo: (value, row) => value ? `${value}% - ${getScoreLabel(value)}` : 'Not available'
+                      }
+                    ]}
+                    caption="Recent Files"
+                    summary="A list of the 5 most recently updated files in the system"
+                    onRowClick={(file) => {
+                      // Navigate to the file profile page
+                      window.location.href = `/profile/${file.file_id}`;
+                    }}
+                  />
+                ) : (
+                  // Visual version for non-screen reader users
+                  <ul 
+                    className="recent-files-list" 
+                    aria-labelledby="recent-files-heading"
+                  >
+                    {recentFiles.map(file => (
+                      <li 
+                        key={file.file_id} 
+                        className="recent-file-item"
+                        tabIndex="0"
+                        role="link"
+                        onClick={() => window.location.href = `/profile/${file.file_id}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            window.location.href = `/profile/${file.file_id}`;
+                          }
+                        }}
+                        aria-label={`${file.filename}, type: ${file.file_type}, last updated: ${new Date(file.last_updated || file.created_at).toLocaleDateString()}, quality score: ${file.quality_score ? `${file.quality_score}%` : 'not available'}`}
+                      >
+                        <div 
+                          className="recent-file-type" 
+                          style={{ backgroundColor: highContrast ? 'var(--primary-color)' : getTypeColor(file.file_type) }}
+                          aria-hidden="true"
+                        >
+                          {file.file_type.substring(0, 3).toUpperCase()}
                         </div>
-                      </div>
-                      <Link to={`/profile/${file.file_id}`} className="recent-file-link">
-                        <FiExternalLink />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                        <div className="recent-file-details">
+                          <div className="recent-file-name">{file.filename}</div>
+                          <div className="recent-file-meta">
+                            <span className="recent-file-date">
+                              <FiCalendar aria-hidden="true" />
+                              {new Date(file.last_updated || file.created_at).toLocaleDateString()}
+                            </span>
+                            {file.quality_score && (
+                              <span 
+                                className="recent-file-score" 
+                                style={{ color: highContrast ? 'var(--primary-color)' : getScoreColor(file.quality_score) }}
+                              >
+                                {file.quality_score}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="recent-file-link">
+                          <FiExternalLink aria-hidden="true" />
+                          <span className="sr-only">View file details</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               
               <div className="recent-alerts">
-                <h3>Recent Alerts</h3>
+                <h3 id="recent-alerts-heading">Recent Alerts</h3>
                 {alerts.length === 0 ? (
-                  <div className="no-alerts">
-                    <FiCheckCircle />
+                  <div className="no-alerts" role="status">
+                    <FiCheckCircle aria-hidden="true" />
                     <p>No active alerts</p>
                   </div>
+                ) : screenReaderOptimized ? (
+                  // Screen reader optimized version
+                  <DataTableAccessible
+                    data={alerts}
+                    columns={[
+                      { 
+                        header: 'Alert', 
+                        key: 'title',
+                        description: 'Alert description'
+                      },
+                      { 
+                        header: 'Severity', 
+                        key: 'severity',
+                        formatter: value => value.charAt(0).toUpperCase() + value.slice(1)
+                      },
+                      { 
+                        header: 'File', 
+                        key: 'file_name'
+                      },
+                      { 
+                        header: 'Date', 
+                        key: 'created_at',
+                        formatter: value => new Date(value).toLocaleDateString()
+                      }
+                    ]}
+                    caption="Recent Alerts"
+                    summary={`There are ${alerts.length} recent alerts in the system.`}
+                  />
                 ) : (
-                  <ul className="alerts-list">
+                  // Visual version
+                  <ul 
+                    className="alerts-list" 
+                    aria-labelledby="recent-alerts-heading"
+                  >
                     {alerts.map(alert => (
-                      <li key={alert.id} className={`alert-item ${alert.severity}`}>
-                        <div className="alert-icon">
+                      <li 
+                        key={alert.id} 
+                        className={`alert-item ${alert.severity}`}
+                        aria-label={`${alert.severity} alert: ${alert.title} for file ${alert.file_name}, created on ${new Date(alert.created_at).toLocaleDateString()}`}
+                      >
+                        <div className="alert-icon" aria-hidden="true">
                           <FiAlertTriangle />
                         </div>
                         <div className="alert-content">
@@ -509,25 +710,45 @@ const Dashboard = () => {
                   </ul>
                 )}
                 {alerts.length > 0 && (
-                  <Link to="/alerts" className="view-all-link">
-                    View all alerts <FiExternalLink />
+                  <Link 
+                    to="/alerts" 
+                    className="view-all-link"
+                    aria-label="View all alerts in the system"
+                  >
+                    View all alerts <FiExternalLink aria-hidden="true" />
                   </Link>
                 )}
               </div>
             </div>
           </div>
           
-          <div className="dashboard-actions">
-            <Link to="/upload" className="dashboard-action-button">
+          <div className="dashboard-actions" role="navigation" aria-label="Quick actions">
+            <Link 
+              to="/upload" 
+              className="dashboard-action-button"
+              aria-label="Upload New File to the system"
+            >
               Upload New File
             </Link>
-            <Link to="/monitor" className="dashboard-action-button">
+            <Link 
+              to="/monitor" 
+              className="dashboard-action-button"
+              aria-label="View Data Monitor dashboard with real-time file status"
+            >
               View Data Monitor
             </Link>
-            <Link to="/badges" className="dashboard-action-button">
+            <Link 
+              to="/badges" 
+              className="dashboard-action-button"
+              aria-label="View Achievement Badges earned for data quality"
+            >
               Achievement Badges
             </Link>
-            <Link to="/recommendations" className="dashboard-action-button">
+            <Link 
+              to="/recommendations" 
+              className="dashboard-action-button"
+              aria-label="View Recommendations for improving data quality"
+            >
               View Recommendations
             </Link>
           </div>
