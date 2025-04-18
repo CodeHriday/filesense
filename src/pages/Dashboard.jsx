@@ -399,7 +399,7 @@ const Dashboard = () => {
     const chartContent = (
       <div className="trend-chart">
         <div className="trend-header">
-          <h3 id="trend-chart-title">Data Health Trend - Last 30 Days</h3>
+          <h3 id="trend-chart-title">Data Health Metrics</h3>
           <div className="trend-selector" role="radiogroup" aria-labelledby="trend-chart-title">
             <button 
               className={selectedMetric === 'all' ? 'active' : ''} 
@@ -461,7 +461,7 @@ const Dashboard = () => {
               ))}
             </div>
             
-            <div className="chart-content">
+            <div className="chart-content no-left-border">
               {/* Horizontal grid lines */}
               {[100, 80, 60, 40, 20, 0].map(value => (
                 <div 
@@ -587,7 +587,7 @@ const Dashboard = () => {
     
     return (
       <ChartAccessibleWrapper
-        title={`${selectedMetric === 'all' ? 'Overall' : selectedMetric} Health Trend - Last 30 Days`}
+        title={`${selectedMetric === 'all' ? 'Overall' : selectedMetric} Health Metrics`}
         description={`This line chart shows the trend of ${selectedMetric === 'all' ? 'Overall' : selectedMetric} health score over the last 30 days.`}
         data={formattedPoints}
         chartType="line"

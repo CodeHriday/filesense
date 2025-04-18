@@ -463,10 +463,14 @@
   margin-left: 40px;
   margin-bottom: 40px;
   background-color: rgba(250, 250, 250, 0.7);
+  border: none; /* Remove all borders */
   border-top: 1px solid #eee;
   border-right: 1px solid #eee;
-  border-bottom: none;
   margin-top: 10px; /* Add some spacing on top */
+}
+
+.no-left-border {
+  border-left: none !important;
 }
 
 .h-grid-line {
