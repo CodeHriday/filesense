@@ -33,6 +33,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import Card from '../components/Card';
 import { formatDate } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import './Mappings.css';
 
 function JoinPanel({ files, selectedFile, sourceFileId, onAddJoin, onClose }) {
@@ -571,6 +572,7 @@ function SortableItem({ id, column, onRemove, onUpdate }) {
 }
 
 function Mappings() {
+  const { hasWritePermission } = useAuth();
   const [mappings, setMappings] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -811,10 +813,16 @@ function Mappings() {
     <div className="mappings-container">
       <div className="mappings-header">
         <h1>File Mappings</h1>
-        <button className="btn btn-primary" onClick={handleAddMapping}>
-          <FiPlus className="btn-icon" />
-          Add Mapping
-        </button>
+        {hasWritePermission('mappings') ? (
+          <button className="btn btn-primary" onClick={handleAddMapping}>
+            <FiPlus className="btn-icon" />
+            Add Mapping
+          </button>
+        ) : (
+          <div className="permission-notice">
+            You don't have permission to create mappings
+          </div>
+        )}
       </div>
       
       {loading ? (
@@ -1036,10 +1044,16 @@ function Mappings() {
                   Create mappings to convert your data files between formats
                   and transform data during conversion.
                 </p>
-                <button className="btn btn-primary" onClick={handleAddMapping}>
-                  <FiPlus className="btn-icon" />
-                  Create Your First Mapping
-                </button>
+                {hasWritePermission('mappings') ? (
+                  <button className="btn btn-primary" onClick={handleAddMapping}>
+                    <FiPlus className="btn-icon" />
+                    Create Your First Mapping
+                  </button>
+                ) : (
+                  <div className="permission-notice">
+                    You don't have permission to create mappings
+                  </div>
+                )}
               </div>
             </Card>
           ) : (
@@ -1055,23 +1069,28 @@ function Mappings() {
                         className="action-button" 
                         title="Run Conversion"
                         onClick={() => handleRunConversion(mapping.id)}
+                        disabled={!hasWritePermission('mappings')}
                       >
                         <FiDownload />
                       </button>
-                      <button 
-                        className="action-button" 
-                        title="Edit Mapping"
-                        onClick={() => handleEditMapping(mapping)}
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button 
-                        className="action-button delete-button" 
-                        title="Delete Mapping"
-                        onClick={() => handleDeleteMapping(mapping.id)}
-                      >
-                        <FiTrash2 />
-                      </button>
+                      {hasWritePermission('mappings') && (
+                        <>
+                          <button 
+                            className="action-button" 
+                            title="Edit Mapping"
+                            onClick={() => handleEditMapping(mapping)}
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button 
+                            className="action-button delete-button" 
+                            title="Delete Mapping"
+                            onClick={() => handleDeleteMapping(mapping.id)}
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="mapping-content">
