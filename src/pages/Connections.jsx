@@ -3,12 +3,14 @@ import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, 
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import './Connections.css';
 
 // Use relative URL for API calls in the same domain
 const API_URL = '/api';
 
 const Connections = () => {
+  const { hasWritePermission } = useAuth();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -939,9 +941,15 @@ const Connections = () => {
     <div className="connections-container">
       <div className="connections-header">
         <h1>Cloud Storage Connections</h1>
-        <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
-          <FiPlus /> Add Connection
-        </button>
+        {hasWritePermission('connections') ? (
+          <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
+            <FiPlus /> Add Connection
+          </button>
+        ) : (
+          <div className="permission-notice">
+            You don't have permission to create connections
+          </div>
+        )}
       </div>
       
       {error && <div className="alert alert-error">{error}</div>}
@@ -977,9 +985,15 @@ const Connections = () => {
                     <FiServer className="empty-icon" />
                     <p>No cloud storage connections configured yet.</p>
                     <p>Add a connection to start importing files from cloud storage.</p>
-                    <button className="btn btn-primary" onClick={handleAddNew}>
-                      Add Your First Connection
-                    </button>
+                    {hasWritePermission('connections') ? (
+                      <button className="btn btn-primary" onClick={handleAddNew}>
+                        Add Your First Connection
+                      </button>
+                    ) : (
+                      <div className="permission-notice">
+                        You don't have permission to create connections
+                      </div>
+                    )}
                   </div>
                   
                   {/* Cloud provider options */}
@@ -999,12 +1013,18 @@ const Connections = () => {
                         Connect to Amazon Simple Storage Service (S3) to access your object storage data. 
                         Supports importing CSV, JSON, and Parquet files directly from any S3 bucket.
                       </p>
-                      <button className="btn btn-outline" onClick={() => {
-                        setFormData({...formData, connection_type: 'aws'});
-                        handleAddNew();
-                      }}>
-                        Connect to AWS S3
-                      </button>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'aws'});
+                          handleAddNew();
+                        }}>
+                          Connect to AWS S3
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
                     </div>
                     
                     <div className="cloud-provider-section gcp">
@@ -1153,20 +1173,24 @@ const Connections = () => {
                           </span>
                         </div>
                         <div className="connection-actions">
-                          <button 
-                            className="action-btn edit-btn" 
-                            onClick={() => handleEdit(connection)}
-                            title="Edit connection"
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button 
-                            className="action-btn delete-btn" 
-                            onClick={() => handleDelete(connection.id)}
-                            title="Delete connection"
-                          >
-                            <FiTrash2 />
-                          </button>
+                          {hasWritePermission('connections') && (
+                            <>
+                              <button 
+                                className="action-btn edit-btn" 
+                                onClick={() => handleEdit(connection)}
+                                title="Edit connection"
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button 
+                                className="action-btn delete-btn" 
+                                onClick={() => handleDelete(connection.id)}
+                                title="Delete connection"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                       

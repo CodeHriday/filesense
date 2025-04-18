@@ -17,6 +17,16 @@
   margin-right: 5px;
 }
 
+.permission-notice {
+  background-color: #f8f9fa;
+  border: 1px dashed #ccc;
+  border-radius: 5px;
+  padding: 10px 15px;
+  color: #721c24;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .mappings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
