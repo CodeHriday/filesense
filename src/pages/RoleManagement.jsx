@@ -162,6 +162,11 @@ const RoleManagement = () => {
       // If write permission is checked, also check read permission
       if (action === 'write' && checked) {
         updatedPermissions[featureId].read = true;
+        // Add visual feedback if needed
+        const readCheckbox = document.getElementById(`${featureId}-read`);
+        if (readCheckbox && !readCheckbox.checked) {
+          readCheckbox.checked = true;
+        }
       }
       
       // If read permission is unchecked, also uncheck write permission
