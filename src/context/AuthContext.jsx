@@ -156,6 +156,20 @@ export function AuthProvider({ children }) {
       }
     }
     
+    // Executor role has access to viewing and analyzing features
+    if (currentUser.roles && currentUser.roles.includes('Executor')) {
+      // Granting viewing permissions to Executor role
+      const executorPermissions = [
+        'dashboard_view', 'file_profile', 'quality_checks', 'monitor', 
+        'connections', 'mappings', 'lineage', 'scheduler', 'file_view',
+        'lineage_view'
+      ];
+      
+      if (executorPermissions.includes(permission)) {
+        return true;
+      }
+    }
+    
     // Check permissions from the backend
     if (currentUser.permissions) {
       return currentUser.permissions.some(p => p.name === permission);
@@ -184,6 +198,18 @@ export function AuthProvider({ children }) {
       ];
       
       if (creatorResources.includes(resource)) {
+        return true;
+      }
+    }
+    
+    // Executor role has read-only access to basic features
+    if (currentUser.roles && currentUser.roles.includes('Executor')) {
+      const executorResources = [
+        'dashboard', 'file', 'profile', 'quality', 'connection', 
+        'mapping', 'lineage', 'monitor', 'scheduler'
+      ];
+      
+      if (executorResources.includes(resource) && action === 'view') {
         return true;
       }
     }
