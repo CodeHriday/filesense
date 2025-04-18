@@ -25,7 +25,7 @@ import RoleManagement from './pages/RoleManagement';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import AuthProvider, { useAuth } from './context/AuthContext';
 import { AnnouncementProvider } from './components/accessibility';
 import './App.css';
 import './styles/accessibility.css';
