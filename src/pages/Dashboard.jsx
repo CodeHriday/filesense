@@ -33,6 +33,21 @@ const Dashboard = () => {
   const [trendData, setTrendData] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState('all');
   
+  // This effect announces metric changes to screen readers  
+  useEffect(() => {
+    if (trendData.length > 0) {
+      const dataPoints = trendData.map(point => ({
+        date: point.date,
+        value: selectedMetric === 'all' ? point.overall : point[selectedMetric]
+      }));
+      
+      const currentValue = dataPoints[dataPoints.length - 1].value;
+      const metricName = selectedMetric === 'all' ? 'Overall Health' : selectedMetric;
+      const status = getScoreLabel(currentValue);
+      announce(`Now showing ${metricName} trend. Current value is ${currentValue}%. Status: ${status}.`);
+    }
+  }, [selectedMetric, trendData, announce]);
+  
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -199,16 +214,6 @@ const Dashboard = () => {
     
     // Take only a subset of labels for display to avoid overcrowding
     const labelIndices = [0, 10, 20, 30];
-    
-    // When metric changes, announce it to screen readers
-    useEffect(() => {
-      if (trendData.length > 0) {
-        const currentValue = dataPoints[dataPoints.length - 1].value;
-        const metricName = selectedMetric === 'all' ? 'Overall Health' : selectedMetric;
-        const status = getScoreLabel(currentValue);
-        announce(`Now showing ${metricName} trend. Current value is ${currentValue}%. Status: ${status}.`);
-      }
-    }, [selectedMetric, trendData]);
     
     // Create data table columns for accessibility
     const tableColumns = [
