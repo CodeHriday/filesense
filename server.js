@@ -1226,8 +1226,11 @@ app.get('/api/mappings', async (req, res) => {
         id SERIAL PRIMARY KEY,
         mapping_name VARCHAR(100) NOT NULL,
         source_file_id VARCHAR(255) NOT NULL,
-        target_file_id VARCHAR(255) NOT NULL,
+        target_file_id VARCHAR(255),
         mapping_rules JSON NOT NULL,
+        target_file_type VARCHAR(20) DEFAULT 'csv',
+        mapping_config JSON,
+        source_filename VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -1237,6 +1240,49 @@ app.get('/api/mappings', async (req, res) => {
   } catch (err) {
     console.error('Error fetching mappings:', err);
     res.status(500).json({ error: 'Failed to fetch mappings' });
+  }
+});
+
+// Create a new mapping
+app.post('/api/mappings', async (req, res) => {
+  try {
+    const { 
+      mapping_name, 
+      source_file_id, 
+      target_file_type, 
+      mapping_config,
+      source_filename
+    } = req.body;
+    
+    if (!mapping_name || !source_file_id) {
+      return res.status(400).json({ error: 'Mapping name and source file ID are required' });
+    }
+    
+    // Insert the new mapping
+    const result = await pool.query(`
+      INSERT INTO file_mappings (
+        mapping_name, 
+        source_file_id, 
+        target_file_type,
+        mapping_rules, 
+        mapping_config,
+        source_filename
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6) 
+      RETURNING *
+    `, [
+      mapping_name, 
+      source_file_id, 
+      target_file_type || 'csv', 
+      JSON.stringify({}), 
+      JSON.stringify(mapping_config || {}),
+      source_filename
+    ]);
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating mapping:', err);
+    res.status(500).json({ error: 'Failed to create mapping' });
   }
 });
 
