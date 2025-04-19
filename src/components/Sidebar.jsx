@@ -304,39 +304,7 @@ function Sidebar() {
               </>
             )}
             
-            {/* Business Process Management section */}
-            {hasFeaturePermission('business_process', 'read') && (
-              <>
-                <li className="nav-divider">
-                  <span>Process Management</span>
-                </li>
-                
-                {hasFeaturePermission('job_group', 'read') && (
-                  <li>
-                    <NavLink to="/job-groups" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiLayers className="icon" />
-                      <span>Groups</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                <li>
-                  <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiBriefcase className="icon" />
-                    <span>Business Processes</span>
-                  </NavLink>
-                </li>
-                
-                {hasFeaturePermission('job', 'read') && (
-                  <li>
-                    <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiCpu className="icon" />
-                      <span>Jobs</span>
-                    </NavLink>
-                  </li>
-                )}
-              </>
-            )}
+            {/* Process Management section removed as requested */}
             
             {/* Insights section */}
             {showInsightsSection && (
