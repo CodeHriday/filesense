@@ -15,6 +15,7 @@ import {
   FiFilter
 } from 'react-icons/fi';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import {
   DndContext,
   closestCenter,
@@ -606,7 +607,7 @@ function Mappings() {
         
         try {
           console.log('Fetching mappings...');
-          const mappingsRes = await axios.get('/api/mappings');
+          const mappingsRes = await axios.get(`${API_BASE_URL}/api/mappings`);
           console.log('Mappings response:', mappingsRes.data);
           setMappings(mappingsRes.data || []);
         } catch (mappingsErr) {
@@ -615,7 +616,7 @@ function Mappings() {
         
         try {
           console.log('Fetching files...');
-          const filesRes = await axios.get('/api/files');
+          const filesRes = await axios.get(`${API_BASE_URL}/api/files`);
           console.log('Files response:', filesRes.data);
           setFiles(filesRes.data || []);
         } catch (filesErr) {
@@ -793,7 +794,7 @@ function Mappings() {
         ));
       } else {
         // Create new mapping
-        response = await axios.post('/api/mappings', mappingData);
+        response = await axios.post(`${API_BASE_URL}/api/mappings`, mappingData);
         setMappings([...mappings, response.data]);
       }
       
