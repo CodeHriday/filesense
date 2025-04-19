@@ -82,8 +82,7 @@ const BusinessProcesses = () => {
   const [formData, setFormData] = useState({ 
     name: '', 
     description: '', 
-    group_id: '',
-    status: 'active'
+    group_id: ''
   });
 
   useEffect(() => {
@@ -122,8 +121,7 @@ const BusinessProcesses = () => {
       setFormData({ 
         name: process.name, 
         description: process.description || '', 
-        group_id: process.group_id,
-        status: process.status || 'active'
+        group_id: process.group_id
       });
     } else {
       setCurrentProcess(null);
@@ -131,8 +129,7 @@ const BusinessProcesses = () => {
       setFormData({ 
         name: '', 
         description: '', 
-        group_id: userGroups.length > 0 ? userGroups[0].id : '',
-        status: 'active'
+        group_id: userGroups.length > 0 ? userGroups[0].id : ''
       });
     }
     setShowModal(true);
@@ -303,17 +300,6 @@ const BusinessProcesses = () => {
                     borderBottom: '1px solid #f0f0f0'
                   }}>
                     <h3 style={{ margin: 0, fontSize: '18px' }}>{process.name}</h3>
-                    <span style={{ 
-                      display: 'inline-block',
-                      padding: '4px 8px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      backgroundColor: (process.status || 'active') === 'active' ? '#e6f7ff' : '#f9f9f9',
-                      color: (process.status || 'active') === 'active' ? '#1890ff' : '#666'
-                    }}>
-                      {process.status || 'Active'}
-                    </span>
                   </div>
                   
                   {process.description && (
