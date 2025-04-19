@@ -1243,6 +1243,31 @@ app.get('/api/mappings', async (req, res) => {
   }
 });
 
+// Create file_mappings table if it doesn't exist
+const initFileMappingsTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS file_mappings (
+        id SERIAL PRIMARY KEY,
+        mapping_name VARCHAR(255) NOT NULL,
+        source_file_id VARCHAR(255) NOT NULL,
+        source_filename VARCHAR(255),
+        target_file_type VARCHAR(50) DEFAULT 'csv',
+        mapping_rules JSON DEFAULT '{}',
+        mapping_config JSON DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('File mappings table initialized');
+  } catch (err) {
+    console.error('Error initializing file_mappings table:', err);
+  }
+};
+
+// Initialize file_mappings table on startup
+initFileMappingsTable();
+
 // Create a new mapping
 app.post('/api/mappings', async (req, res) => {
   try {
