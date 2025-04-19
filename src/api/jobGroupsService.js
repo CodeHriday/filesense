@@ -60,7 +60,7 @@ export const deleteJobGroup = async (id) => {
 // Get jobs in a specific group
 export const getJobsInGroup = async (groupId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/job-groups/${groupId}/jobs`);
+    const response = await axios.get(`${API_BASE_URL}/api/job-groups/${groupId}/jobs`);
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
@@ -71,7 +71,7 @@ export const getJobsInGroup = async (groupId) => {
 // Add a job to a group
 export const addJobToGroup = async (groupId, jobId) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/job-groups/${groupId}/jobs`, { job_id: jobId });
+    const response = await axios.post(`${API_BASE_URL}/api/job-groups/${groupId}/jobs`, { job_id: jobId });
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
@@ -82,7 +82,7 @@ export const addJobToGroup = async (groupId, jobId) => {
 // Remove a job from a group
 export const removeJobFromGroup = async (groupId, jobId) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/job-groups/${groupId}/jobs/${jobId}`);
+    const response = await axios.delete(`${API_BASE_URL}/api/job-groups/${groupId}/jobs/${jobId}`);
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
