@@ -18,9 +18,9 @@ export const getBusinessProcesses = async () => {
 };
 
 /**
- * Get a single business process by ID
- * @param {string|number} id - Business process ID
- * @returns {Promise<Object>} Business process with jobs
+ * Get a business process by ID
+ * @param {string} id - Business process ID
+ * @returns {Promise<Object>} Business process details
  */
 export const getBusinessProcessById = async (id) => {
   try {
@@ -47,7 +47,7 @@ export const createBusinessProcess = async (processData) => {
 
 /**
  * Update a business process
- * @param {string|number} id - Business process ID
+ * @param {string} id - Business process ID
  * @param {Object} processData - Updated business process data
  * @returns {Promise<Object>} Updated business process
  */
@@ -62,8 +62,8 @@ export const updateBusinessProcess = async (id, processData) => {
 
 /**
  * Delete a business process
- * @param {string|number} id - Business process ID
- * @returns {Promise<Object>} Response message
+ * @param {string} id - Business process ID
+ * @returns {Promise<Object>} Result of deletion
  */
 export const deleteBusinessProcess = async (id) => {
   try {

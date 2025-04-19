@@ -18,7 +18,10 @@ import {
   FiPlay,
   FiCalendar,
   FiUsers,
-  FiShield
+  FiShield,
+  FiBriefcase,
+  FiCpu,
+  FiLayers
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import OnboardingWizard from './OnboardingWizard';
@@ -295,6 +298,40 @@ function Sidebar() {
                     <NavLink to="/dashboard-settings" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiSettings className="icon" />
                       <span>Dashboard Settings</span>
+                    </NavLink>
+                  </li>
+                )}
+              </>
+            )}
+            
+            {/* Business Process Management section */}
+            {hasFeaturePermission('business_process', 'read') && (
+              <>
+                <li className="nav-divider">
+                  <span>Process Management</span>
+                </li>
+                
+                <li>
+                  <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiBriefcase className="icon" />
+                    <span>Business Processes</span>
+                  </NavLink>
+                </li>
+                
+                {hasFeaturePermission('job', 'read') && (
+                  <li>
+                    <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiCpu className="icon" />
+                      <span>Jobs</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {hasFeaturePermission('job_group', 'read') && (
+                  <li>
+                    <NavLink to="/job-groups" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiLayers className="icon" />
+                      <span>Job Groups</span>
                     </NavLink>
                   </li>
                 )}
