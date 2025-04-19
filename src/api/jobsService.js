@@ -6,11 +6,12 @@ import { handleApiError, handleApiSuccess } from './apiUtils';
 
 /**
  * Get all jobs
+ * @param {Object} params - Query parameters
  * @returns {Promise<Array>} List of jobs
  */
-export const getJobs = async () => {
+export const getJobs = async (params = {}) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs`);
+    const response = await axios.get(`${API_BASE_URL}/api/jobs`, { params });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
@@ -18,9 +19,23 @@ export const getJobs = async () => {
 };
 
 /**
- * Get a single job by ID
- * @param {string|number} id - Job ID
- * @returns {Promise<Object>} Job with history
+ * Get jobs by business process ID
+ * @param {string} processId - Business process ID
+ * @returns {Promise<Array>} List of jobs
+ */
+export const getJobsByProcessId = async (processId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/business-processes/${processId}/jobs`);
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Get a job by ID
+ * @param {string} id - Job ID
+ * @returns {Promise<Object>} Job details
  */
 export const getJobById = async (id) => {
   try {
@@ -47,7 +62,7 @@ export const createJob = async (jobData) => {
 
 /**
  * Update a job
- * @param {string|number} id - Job ID
+ * @param {string} id - Job ID
  * @param {Object} jobData - Updated job data
  * @returns {Promise<Object>} Updated job
  */
@@ -62,8 +77,8 @@ export const updateJob = async (id, jobData) => {
 
 /**
  * Delete a job
- * @param {string|number} id - Job ID
- * @returns {Promise<Object>} Response message
+ * @param {string} id - Job ID
+ * @returns {Promise<Object>} Result of deletion
  */
 export const deleteJob = async (id) => {
   try {
@@ -75,13 +90,42 @@ export const deleteJob = async (id) => {
 };
 
 /**
- * Run a job manually
- * @param {string|number} id - Job ID
- * @returns {Promise<Object>} Response with job history ID
+ * Run a job
+ * @param {string} id - Job ID
+ * @param {Object} options - Run options
+ * @returns {Promise<Object>} Job run result
  */
-export const runJob = async (id) => {
+export const runJob = async (id, options = {}) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/jobs/${id}/run`);
+    const response = await axios.post(`${API_BASE_URL}/api/jobs/${id}/run`, options);
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Get job run history
+ * @param {string} id - Job ID
+ * @returns {Promise<Array>} Job run history
+ */
+export const getJobRunHistory = async (id) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/jobs/${id}/history`);
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Get job status
+ * @param {string} id - Job ID
+ * @returns {Promise<Object>} Job status
+ */
+export const getJobStatus = async (id) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/jobs/${id}/status`);
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);

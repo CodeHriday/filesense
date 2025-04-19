@@ -22,6 +22,9 @@ import DashboardSettings from './pages/DashboardSettings';
 import Login from './pages/Login';
 import UserManagement from './pages/UserManagement';
 import RoleManagement from './pages/RoleManagement';
+import BusinessProcesses from './pages/BusinessProcesses';
+import BusinessProcessDetail from './pages/BusinessProcessDetail';
+import JobCreate from './pages/JobCreate';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -33,6 +36,9 @@ import './styles/Login.css';
 import './styles/UserManagement.css';
 import './styles/RoleManagement.css';
 import './styles/AIPredictiveInsights.css';
+import './styles/BusinessProcesses.css';
+import './styles/BusinessProcessDetail.css';
+import './styles/JobCreate.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -117,6 +123,10 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                 <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
+                <Route path="/business-processes" element={<ProtectedRoute><BusinessProcesses /></ProtectedRoute>} />
+                <Route path="/business-processes/:id" element={<ProtectedRoute><BusinessProcessDetail /></ProtectedRoute>} />
+                <Route path="/business-processes/:id/edit" element={<ProtectedRoute><BusinessProcessDetail /></ProtectedRoute>} />
+                <Route path="/jobs/create" element={<ProtectedRoute><JobCreate /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

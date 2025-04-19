@@ -357,7 +357,10 @@ export const AuthProvider = ({ children }) => {
         'file_profile', 'quality', 'monitor', 'dashboard',
         'badges', 'badge', 'insights', 'insight',
         'recommendations', 'recommendation',
-        'stories', 'story'
+        'stories', 'story',
+        // Business Process Management resources
+        'business_process', 'business_processes', 'business-process', 'business-processes',
+        'job', 'jobs', 'job_group', 'job_groups', 'job-group', 'job-groups'
       ];
       
       if (creatorResources.includes(resource)) {
