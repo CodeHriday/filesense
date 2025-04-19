@@ -64,16 +64,16 @@ const JobGroups = () => {
       const response = await createJobGroup(formData);
       
       if (response.success) {
-        addToast('success', 'Success', 'Job group created successfully');
+        addToast('success', 'Success', 'Group created successfully');
         setJobGroups([...jobGroups, response.data]);
         setIsCreateModalOpen(false);
         setFormData({ name: '', description: '' });
         await fetchData(); // Refresh data
       } else {
-        addToast('error', 'Error', response.message || 'Failed to create job group');
+        addToast('error', 'Error', response.message || 'Failed to create group');
       }
     } catch (err) {
-      console.error('Error creating job group:', err);
+      console.error('Error creating group:', err);
       addToast('error', 'Error', 'An unexpected error occurred');
     }
   };
@@ -87,10 +87,10 @@ const JobGroups = () => {
           addToast('success', 'Success', 'Group deleted successfully');
           setJobGroups(jobGroups.filter(group => group.id !== id));
         } else {
-          addToast('error', 'Error', response.message || 'Failed to delete job group');
+          addToast('error', 'Error', response.message || 'Failed to delete group');
         }
       } catch (err) {
-        console.error('Error deleting job group:', err);
+        console.error('Error deleting group:', err);
         addToast('error', 'Error', 'An unexpected error occurred');
       }
     }
@@ -192,7 +192,7 @@ const JobGroups = () => {
         </div>
       )}
       
-      {/* Create Job Group Modal */}
+      {/* Create Group Modal */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
