@@ -455,32 +455,7 @@ const BusinessProcesses = () => {
             </select>
           </div>
           
-          {currentProcess && (
-            <div style={{ marginBottom: '20px' }}>
-              <label htmlFor="status" style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>
-                Status
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #ddd',
-                  fontSize: '14px',
-                  backgroundColor: 'white'
-                }}
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-          )}
+
           
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '30px' }}>
             <button
