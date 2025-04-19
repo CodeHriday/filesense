@@ -3183,16 +3183,25 @@ app.get('/api/job-groups', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
+    // Create mapping table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_uuid_mapping (
+        user_id INTEGER NOT NULL,
+        uuid UUID NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id)
+      )
+    `);
+    
     // First, generate a list of job groups
     const jobGroupsQuery = `
       SELECT jg.*, 
         COALESCE(COUNT(jgj.job_id), 0) as job_count,
-        u.username as created_by_name
+        COALESCE(u.username, 'Unknown') as created_by_name
       FROM job_groups jg
       LEFT JOIN job_group_jobs jgj ON jg.id = jgj.group_id
-      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
-        SELECT id::text FROM users WHERE created_by_user_id = u.id
-      ))
+      LEFT JOIN user_uuid_mapping map ON map.uuid = jg.created_by
+      LEFT JOIN users u ON u.id = map.user_id
       GROUP BY jg.id, u.username
       ORDER BY jg.updated_at DESC
     `;
@@ -3212,11 +3221,10 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
     
     // Get the job group
     const jobGroupQuery = `
-      SELECT jg.*, u.username as created_by_name
+      SELECT jg.*, COALESCE(u.username, 'Unknown') as created_by_name
       FROM job_groups jg
-      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
-        SELECT id::text FROM users WHERE created_by_user_id = u.id
-      ))
+      LEFT JOIN user_uuid_mapping map ON map.uuid = jg.created_by
+      LEFT JOIN users u ON u.id = map.user_id
       WHERE jg.id = $1
     `;
     const jobGroupResult = await pool.query(jobGroupQuery, [id]);
@@ -3285,17 +3293,42 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
       )
     `);
     
-    // Convert integer userId to UUID format or create a new UUID if needed
-    // This is a workaround for the type mismatch between integer IDs and UUIDs
-    const userIdAsUUID = await pool.query('SELECT gen_random_uuid() AS uuid');
-    const userUUID = userIdAsUUID.rows[0].uuid;
+    // Create user UUID mapping table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_uuid_mapping (
+        user_id INTEGER NOT NULL,
+        uuid UUID NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id)
+      )
+    `);
     
+    // Check if the user exists in UUID format
+    let userUUID;
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id::text = $1::text', [userId]);
+    
+    if (userCheckResult.rows.length > 0) {
+      // Use the existing UUID
+      userUUID = userCheckResult.rows[0].id;
+    } else {
+      // Create a new UUID for this user
+      const userIdAsUUID = await pool.query('SELECT gen_random_uuid() AS uuid');
+      userUUID = userIdAsUUID.rows[0].uuid;
+      
+      // Insert a mapping for future reference
+      await pool.query(
+        'INSERT INTO user_uuid_mapping (user_id, uuid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [userId, userUUID]
+      );
+    }
+    
+    // Create the group
     const result = await pool.query(
       'INSERT INTO job_groups (name, description, created_by) VALUES ($1, $2, $3) RETURNING *',
       [name, description, userUUID]
     );
     
-    // Add creator to group - use the same UUID for consistency
+    // Add creator to group
     await pool.query(
       'INSERT INTO user_job_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [userUUID, result.rows[0].id]

@@ -282,7 +282,7 @@ const JobGroupDetail = () => {
         onClose={() => setIsEditModalOpen(false)}
         className="job-group-modal"
       >
-        <h2>Edit Job Group</h2>
+        <h2>Edit Group</h2>
         <div className="job-group-form">
           <div>
             <label htmlFor="name">Group Name *</label>
