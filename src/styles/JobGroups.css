@@ -1,0 +1,278 @@
+.job-groups-container {
+  padding: 20px;
+}
+
+.job-groups-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.job-groups-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+.job-groups-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.job-groups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.job-group-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.job-group-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.job-group-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #2c3e50;
+}
+
+.job-group-card p {
+  color: #7f8c8d;
+  font-size: 14px;
+  margin-bottom: 15px;
+  min-height: 40px;
+}
+
+.job-group-stats {
+  display: flex;
+  gap: 15px;
+  margin-top: 15px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 15px;
+}
+
+.job-group-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.job-group-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #3498db;
+}
+
+.job-group-stat-label {
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.job-group-actions {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.job-group-created-by {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #7f8c8d;
+  margin-top: 10px;
+}
+
+.empty-job-groups {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.empty-job-groups i {
+  font-size: 50px;
+  margin-bottom: 15px;
+  color: #bdc3c7;
+}
+
+.empty-job-groups p {
+  font-size: 16px;
+  color: #7f8c8d;
+  margin-bottom: 20px;
+}
+
+/* Create/Edit Modal Styles */
+.job-group-modal h2 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.job-group-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.job-group-form input,
+.job-group-form textarea {
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.job-group-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.job-group-form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Job Group Detail Styles */
+.job-group-detail {
+  padding: 20px;
+}
+
+.job-group-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.job-group-description {
+  color: #7f8c8d;
+  margin-bottom: 30px;
+}
+
+.job-list-section h3 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.job-search-filter {
+  margin-bottom: 20px;
+}
+
+.job-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* Tabs styles */
+.job-group-tabs {
+  margin-bottom: 20px;
+}
+
+.tab-list {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0;
+  margin: 0 0 20px 0;
+}
+
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 500;
+  transition: all 0.3s;
+  border-bottom: 2px solid transparent;
+}
+
+.tab.active {
+  border-bottom: 2px solid #3498db;
+  color: #3498db;
+}
+
+/* Add Job to Group Modal */
+.add-job-modal h2 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.job-selection-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 15px 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.job-selection-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.job-selection-item:last-child {
+  border-bottom: none;
+}
+
+.job-selection-item-checkbox {
+  margin-right: 10px;
+}
+
+.job-selection-item-name {
+  font-weight: 500;
+  flex-grow: 1;
+}
+
+.job-selection-search {
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.job-selection-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .job-groups-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .job-groups-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .job-group-actions {
+    position: static;
+    margin-top: 15px;
+  }
+}

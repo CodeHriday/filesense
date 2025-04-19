@@ -3129,7 +3129,7 @@ app.get('/api/user/groups', authenticateToken, async (req, res) => {
       SELECT g.*
       FROM groups g
       JOIN user_groups ug ON g.id = ug.group_id
-      WHERE ug.user_id = $1
+      WHERE ug.user_id::text = $1::text
       ORDER BY g.name
     `;
     
@@ -3174,6 +3174,239 @@ app.get('/api/user/groups', authenticateToken, async (req, res) => {
     console.error('Error ensuring users have default group:', error);
   }
 })();
+
+// Job Groups API
+
+// Get all job groups
+app.get('/api/job-groups', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get all job groups that the user can access
+    const jobGroupsQuery = `
+      SELECT jg.*, 
+        COUNT(jgj.job_id) as job_count, 
+        u.username as created_by_name
+      FROM job_groups jg
+      LEFT JOIN job_group_jobs jgj ON jg.id = jgj.group_id
+      LEFT JOIN users u ON jg.created_by = u.id
+      WHERE jg.created_by::text = $1::text OR jg.id IN (
+        SELECT group_id FROM user_job_groups WHERE user_id::text = $1::text
+      )
+      GROUP BY jg.id, u.username
+      ORDER BY jg.updated_at DESC
+    `;
+    
+    const jobGroupsResult = await pool.query(jobGroupsQuery, [userId]);
+    res.json(jobGroupsResult.rows);
+  } catch (err) {
+    console.error('Error fetching job groups:', err);
+    res.status(500).json({ error: 'Failed to fetch job groups' });
+  }
+});
+
+// Get a single job group with its jobs
+app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the job group
+    const jobGroupQuery = `
+      SELECT jg.*, u.username as created_by_name
+      FROM job_groups jg
+      JOIN users u ON jg.created_by = u.id
+      WHERE jg.id = $1
+    `;
+    const jobGroupResult = await pool.query(jobGroupQuery, [id]);
+    
+    if (jobGroupResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job group not found' });
+    }
+    
+    // Get all jobs in this group
+    const jobsQuery = `
+      SELECT j.*
+      FROM jobs j
+      JOIN job_group_jobs jgj ON j.id = jgj.job_id
+      WHERE jgj.group_id = $1
+      ORDER BY j.updated_at DESC
+    `;
+    const jobsResult = await pool.query(jobsQuery, [id]);
+    
+    // Combine job group and jobs
+    const jobGroup = jobGroupResult.rows[0];
+    jobGroup.jobs = jobsResult.rows;
+    
+    res.json(jobGroup);
+  } catch (err) {
+    console.error('Error fetching job group:', err);
+    res.status(500).json({ error: 'Failed to fetch job group' });
+  }
+});
+
+// Create a job group
+app.post('/api/job-groups', authenticateToken, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const userId = req.user.id;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Job group name is required' });
+    }
+    
+    // First check if tables exist, create if not
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS job_groups (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        description TEXT,
+        created_by UUID NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS job_group_jobs (
+        group_id UUID NOT NULL,
+        job_id UUID NOT NULL,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (group_id, job_id)
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_job_groups (
+        user_id UUID NOT NULL,
+        group_id UUID NOT NULL,
+        PRIMARY KEY (user_id, group_id)
+      )
+    `);
+    
+    const result = await pool.query(
+      'INSERT INTO job_groups (name, description, created_by) VALUES ($1, $2, $3) RETURNING *',
+      [name, description, userId]
+    );
+    
+    // Add creator to group
+    await pool.query(
+      'INSERT INTO user_job_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [userId, result.rows[0].id]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating job group:', err);
+    res.status(500).json({ error: 'Failed to create job group' });
+  }
+});
+
+// Update a job group
+app.put('/api/job-groups/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    
+    // Check if the job group exists
+    const existingGroup = await pool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
+    
+    if (existingGroup.rows.length === 0) {
+      return res.status(404).json({ error: 'Job group not found' });
+    }
+    
+    // Update the job group
+    const result = await pool.query(
+      'UPDATE job_groups SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+      [name, description, id]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating job group:', err);
+    res.status(500).json({ error: 'Failed to update job group' });
+  }
+});
+
+// Delete a job group
+app.delete('/api/job-groups/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if the job group exists
+    const existingGroup = await pool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
+    
+    if (existingGroup.rows.length === 0) {
+      return res.status(404).json({ error: 'Job group not found' });
+    }
+    
+    // Delete associations first
+    await pool.query('DELETE FROM job_group_jobs WHERE group_id = $1', [id]);
+    await pool.query('DELETE FROM user_job_groups WHERE group_id = $1', [id]);
+    
+    // Delete the job group
+    await pool.query('DELETE FROM job_groups WHERE id = $1', [id]);
+    
+    res.json({ message: 'Job group deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting job group:', err);
+    res.status(500).json({ error: 'Failed to delete job group' });
+  }
+});
+
+// Add job to group
+app.post('/api/job-groups/:id/jobs', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { job_id } = req.body;
+    
+    if (!job_id) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+    
+    // Check if job group exists
+    const groupResult = await pool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
+    
+    if (groupResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job group not found' });
+    }
+    
+    // Check if job exists
+    const jobResult = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
+    
+    if (jobResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Add job to group
+    await pool.query(
+      'INSERT INTO job_group_jobs (group_id, job_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [id, job_id]
+    );
+    
+    res.json({ message: 'Job added to group successfully' });
+  } catch (err) {
+    console.error('Error adding job to group:', err);
+    res.status(500).json({ error: 'Failed to add job to group' });
+  }
+});
+
+// Remove job from group
+app.delete('/api/job-groups/:id/jobs/:jobId', authenticateToken, async (req, res) => {
+  try {
+    const { id, jobId } = req.params;
+    
+    // Remove job from group
+    await pool.query(
+      'DELETE FROM job_group_jobs WHERE group_id = $1 AND job_id = $2',
+      [id, jobId]
+    );
+    
+    res.json({ message: 'Job removed from group successfully' });
+  } catch (err) {
+    console.error('Error removing job from group:', err);
+    res.status(500).json({ error: 'Failed to remove job from group' });
+  }
+});
 
 // Start the server
 app.listen(port, () => {
