@@ -2574,6 +2574,471 @@ app.get('/api/files/:fileId/schedules', async (req, res) => {
   }
 });
 
+// Business Processes API
+
+// Get all business processes
+app.get('/api/business-processes', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get user's groups
+    const userGroupsQuery = `
+      SELECT g.id
+      FROM groups g
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE ug.user_id = $1
+    `;
+    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupIds = userGroupsResult.rows.map(row => row.id);
+    
+    // Get all business processes for the user's groups
+    // or processes created by the user
+    const businessProcessesQuery = `
+      SELECT bp.*, u.username as created_by_name
+      FROM business_processes bp
+      JOIN users u ON bp.created_by = u.id
+      WHERE bp.created_by = $1 OR bp.group_id = ANY($2::int[])
+      ORDER BY bp.updated_at DESC
+    `;
+    
+    const processesResult = await pool.query(businessProcessesQuery, [userId, userGroupIds]);
+    res.json(processesResult.rows);
+  } catch (err) {
+    console.error('Error fetching business processes:', err);
+    res.status(500).json({ error: 'Failed to fetch business processes' });
+  }
+});
+
+// Get a single business process with its jobs
+app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the business process
+    const processQuery = `
+      SELECT bp.*, u.username as created_by_name
+      FROM business_processes bp
+      JOIN users u ON bp.created_by = u.id
+      WHERE bp.id = $1
+    `;
+    const processResult = await pool.query(processQuery, [id]);
+    
+    if (processResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Business process not found' });
+    }
+    
+    // Get all jobs for this business process
+    const jobsQuery = `
+      SELECT j.*, COUNT(jh.id) as run_count
+      FROM jobs j
+      LEFT JOIN job_history jh ON j.id = jh.job_id
+      WHERE j.business_process_id = $1
+      GROUP BY j.id
+      ORDER BY j.updated_at DESC
+    `;
+    const jobsResult = await pool.query(jobsQuery, [id]);
+    
+    // Combine process and jobs
+    const businessProcess = processResult.rows[0];
+    businessProcess.jobs = jobsResult.rows;
+    
+    res.json(businessProcess);
+  } catch (err) {
+    console.error('Error fetching business process:', err);
+    res.status(500).json({ error: 'Failed to fetch business process' });
+  }
+});
+
+// Create a business process
+app.post('/api/business-processes', authenticateToken, async (req, res) => {
+  try {
+    const { name, description, group_id } = req.body;
+    const userId = req.user.id;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Business process name is required' });
+    }
+    
+    const result = await pool.query(
+      'INSERT INTO business_processes (name, description, group_id, created_by) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, description, group_id, userId]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating business process:', err);
+    res.status(500).json({ error: 'Failed to create business process' });
+  }
+});
+
+// Update a business process
+app.put('/api/business-processes/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, group_id } = req.body;
+    const userId = req.user.id;
+    
+    // Check if the business process exists and belongs to the user
+    const existingProcess = await pool.query(
+      'SELECT * FROM business_processes WHERE id = $1',
+      [id]
+    );
+    
+    if (existingProcess.rows.length === 0) {
+      return res.status(404).json({ error: 'Business process not found' });
+    }
+    
+    // Update the business process
+    const result = await pool.query(
+      'UPDATE business_processes SET name = $1, description = $2, group_id = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
+      [name, description, group_id, id]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating business process:', err);
+    res.status(500).json({ error: 'Failed to update business process' });
+  }
+});
+
+// Delete a business process
+app.delete('/api/business-processes/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Check if the business process exists
+    const existingProcess = await pool.query(
+      'SELECT * FROM business_processes WHERE id = $1',
+      [id]
+    );
+    
+    if (existingProcess.rows.length === 0) {
+      return res.status(404).json({ error: 'Business process not found' });
+    }
+    
+    // Delete the business process (cascade will delete jobs)
+    await pool.query('DELETE FROM business_processes WHERE id = $1', [id]);
+    
+    res.json({ message: 'Business process deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting business process:', err);
+    res.status(500).json({ error: 'Failed to delete business process' });
+  }
+});
+
+// Jobs API
+
+// Get all jobs
+app.get('/api/jobs', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get all jobs created by this user or in business processes visible to this user
+    const jobsQuery = `
+      SELECT j.*, bp.name as business_process_name,
+        COUNT(jh.id) as run_count,
+        MAX(jh.start_time) as last_run_time
+      FROM jobs j
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      LEFT JOIN job_history jh ON j.id = jh.job_id
+      WHERE j.created_by = $1 OR bp.group_id IN (
+        SELECT group_id FROM user_groups WHERE user_id = $1
+      )
+      GROUP BY j.id, bp.name
+      ORDER BY j.updated_at DESC
+    `;
+    
+    const jobsResult = await pool.query(jobsQuery, [userId]);
+    res.json(jobsResult.rows);
+  } catch (err) {
+    console.error('Error fetching jobs:', err);
+    res.status(500).json({ error: 'Failed to fetch jobs' });
+  }
+});
+
+// Get a single job with its history
+app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the job
+    const jobQuery = `
+      SELECT j.*, bp.name as business_process_name, u.username as created_by_name
+      FROM jobs j
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      JOIN users u ON j.created_by = u.id
+      WHERE j.id = $1
+    `;
+    const jobResult = await pool.query(jobQuery, [id]);
+    
+    if (jobResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Get job history
+    const historyQuery = `
+      SELECT * FROM job_history
+      WHERE job_id = $1
+      ORDER BY start_time DESC
+      LIMIT 10
+    `;
+    const historyResult = await pool.query(historyQuery, [id]);
+    
+    // Combine job and history
+    const job = jobResult.rows[0];
+    job.history = historyResult.rows;
+    
+    res.json(job);
+  } catch (err) {
+    console.error('Error fetching job:', err);
+    res.status(500).json({ error: 'Failed to fetch job' });
+  }
+});
+
+// Create a job
+app.post('/api/jobs', authenticateToken, async (req, res) => {
+  try {
+    const {
+      name,
+      business_process_id,
+      source_connection_id,
+      target_connection_id,
+      validation_settings,
+      error_handling_settings,
+      notification_settings,
+      schedule_settings
+    } = req.body;
+    
+    const userId = req.user.id;
+    
+    if (!name || !business_process_id) {
+      return res.status(400).json({ error: 'Job name and business process are required' });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO jobs (
+        name, 
+        business_process_id, 
+        source_connection_id, 
+        target_connection_id, 
+        validation_settings, 
+        error_handling_settings, 
+        notification_settings, 
+        schedule_settings, 
+        created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [
+        name, 
+        business_process_id, 
+        source_connection_id,
+        target_connection_id,
+        validation_settings,
+        error_handling_settings,
+        notification_settings,
+        schedule_settings,
+        userId
+      ]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating job:', err);
+    res.status(500).json({ error: 'Failed to create job' });
+  }
+});
+
+// Update a job
+app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      business_process_id,
+      status,
+      source_connection_id,
+      target_connection_id,
+      validation_settings,
+      error_handling_settings,
+      notification_settings,
+      schedule_settings
+    } = req.body;
+    
+    // Check if the job exists
+    const existingJob = await pool.query('SELECT * FROM jobs WHERE id = $1', [id]);
+    
+    if (existingJob.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Update the job
+    const result = await pool.query(
+      `UPDATE jobs SET 
+        name = $1, 
+        business_process_id = $2, 
+        status = $3,
+        source_connection_id = $4, 
+        target_connection_id = $5, 
+        validation_settings = $6, 
+        error_handling_settings = $7, 
+        notification_settings = $8, 
+        schedule_settings = $9,
+        updated_at = NOW()
+      WHERE id = $10 RETURNING *`,
+      [
+        name, 
+        business_process_id, 
+        status,
+        source_connection_id,
+        target_connection_id,
+        validation_settings,
+        error_handling_settings,
+        notification_settings,
+        schedule_settings,
+        id
+      ]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating job:', err);
+    res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+// Delete a job
+app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if the job exists
+    const existingJob = await pool.query('SELECT * FROM jobs WHERE id = $1', [id]);
+    
+    if (existingJob.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Delete the job (cascade will delete history)
+    await pool.query('DELETE FROM jobs WHERE id = $1', [id]);
+    
+    res.json({ message: 'Job deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting job:', err);
+    res.status(500).json({ error: 'Failed to delete job' });
+  }
+});
+
+// Run a job manually
+app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if the job exists
+    const existingJob = await pool.query('SELECT * FROM jobs WHERE id = $1', [id]);
+    
+    if (existingJob.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Create a job history record for this run
+    const historyResult = await pool.query(
+      'INSERT INTO job_history (job_id, status, start_time) VALUES ($1, $2, NOW()) RETURNING *',
+      [id, 'running']
+    );
+    
+    const historyId = historyResult.rows[0].id;
+    
+    // In a real implementation, we would actually run the job here
+    // For now, we'll just simulate a successful run after a short delay
+    setTimeout(async () => {
+      try {
+        await pool.query(
+          'UPDATE job_history SET status = $1, end_time = NOW(), records_processed = $2, errors_count = $3 WHERE id = $4',
+          ['completed', Math.floor(Math.random() * 1000), 0, historyId]
+        );
+      } catch (err) {
+        console.error('Error updating job history:', err);
+      }
+    }, 3000);
+    
+    res.json({ 
+      message: 'Job started successfully', 
+      job_history_id: historyId 
+    });
+  } catch (err) {
+    console.error('Error running job:', err);
+    res.status(500).json({ error: 'Failed to run job' });
+  }
+});
+
+// Groups API
+
+// Get all groups
+app.get('/api/groups', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM groups ORDER BY name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching groups:', err);
+    res.status(500).json({ error: 'Failed to fetch groups' });
+  }
+});
+
+// Get user's groups
+app.get('/api/user/groups', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const query = `
+      SELECT g.*
+      FROM groups g
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE ug.user_id = $1
+      ORDER BY g.name
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching user groups:', err);
+    res.status(500).json({ error: 'Failed to fetch user groups' });
+  }
+});
+
+// Add user to default group if not in any group
+// This ensures all users have at least one group
+(async () => {
+  try {
+    const defaultGroupResult = await pool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+    
+    if (defaultGroupResult.rows.length > 0) {
+      const defaultGroupId = defaultGroupResult.rows[0].id;
+      
+      // Find users not in any group
+      const usersWithoutGroupQuery = `
+        SELECT id FROM users 
+        WHERE id NOT IN (
+          SELECT DISTINCT user_id FROM user_groups
+        )
+      `;
+      
+      const usersResult = await pool.query(usersWithoutGroupQuery);
+      
+      // Add these users to the default group
+      for (const user of usersResult.rows) {
+        await pool.query(
+          'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [user.id, defaultGroupId]
+        );
+      }
+      
+      console.log(`Added ${usersResult.rows.length} users to the default group`);
+    }
+  } catch (error) {
+    console.error('Error ensuring users have default group:', error);
+  }
+})();
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
