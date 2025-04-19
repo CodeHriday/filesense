@@ -225,6 +225,134 @@ pool.query('SELECT NOW()', (err, res) => {
   }
 });
 
+// Initialize file schedules table (if not exists)
+pool.query(`
+  CREATE TABLE IF NOT EXISTS file_schedules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    file_id TEXT NOT NULL,
+    schedule TEXT NOT NULL,
+    last_run TIMESTAMP,
+    next_run TIMESTAMP,
+    enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`).then(() => {
+  console.log('File schedules table initialized');
+}).catch(err => {
+  console.error('Error initializing file schedules table:', err);
+});
+
+// Initialize business process management tables (if not exist)
+const initBusinessProcessTables = async () => {
+  try {
+    // Create groups table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS groups (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        description TEXT,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    
+    // Create user_groups table for many-to-many relationship
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_groups (
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+        PRIMARY KEY (user_id, group_id)
+      );
+    `);
+    
+    // Create business_processes table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS business_processes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        description TEXT,
+        group_id UUID REFERENCES groups(id),
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'active'
+      );
+    `);
+    
+    // Create jobs table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS jobs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        description TEXT,
+        business_process_id UUID REFERENCES business_processes(id) ON DELETE CASCADE,
+        source_connection_id UUID,
+        target_connection_id UUID,
+        validation_settings JSONB DEFAULT '{"rules": [], "enabled": true}'::jsonb,
+        error_handling_settings JSONB DEFAULT '{"stop_on_error": false, "max_errors": 100, "log_level": "warning"}'::jsonb,
+        notification_settings JSONB DEFAULT '{"email_on_success": false, "email_on_failure": true, "recipients": []}'::jsonb,
+        schedule_settings JSONB DEFAULT '{"type": "manual", "cron_expression": "", "start_date": null, "enabled": false}'::jsonb,
+        status TEXT DEFAULT 'draft',
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_run_time TIMESTAMP,
+        last_run_status TEXT
+      );
+    `);
+    
+    // Create job_runs table to track job execution history
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS job_runs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
+        status TEXT NOT NULL,
+        start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        end_time TIMESTAMP,
+        records_processed INTEGER DEFAULT 0,
+        records_succeeded INTEGER DEFAULT 0,
+        records_failed INTEGER DEFAULT 0,
+        error_details JSONB,
+        triggered_by UUID REFERENCES users(id),
+        run_details JSONB
+      );
+    `);
+    
+    // Check if default group exists, if not create it
+    const defaultGroup = await pool.query('SELECT * FROM groups WHERE name = $1', ['Default']);
+    
+    if (defaultGroup.rows.length === 0) {
+      const newGroup = await pool.query(
+        'INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING id',
+        ['Default', 'Default group for all users']
+      );
+      
+      // Add all users to default group
+      const users = await pool.query('SELECT id FROM users');
+      let usersAdded = 0;
+      
+      for (const user of users.rows) {
+        await pool.query(
+          'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [user.id, newGroup.rows[0].id]
+        );
+        usersAdded++;
+      }
+      
+      console.log(`Added ${usersAdded} users to the default group`);
+    }
+    
+    console.log('Business process management tables initialized');
+  } catch (err) {
+    console.error('Error initializing business process tables:', err);
+  }
+};
+
+// Run table initialization
+initBusinessProcessTables();
+
 // API Routes
 // Health Check
 app.get('/api/health', (req, res) => {
