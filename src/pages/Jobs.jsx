@@ -354,7 +354,10 @@ const Jobs = () => {
                 id="business_process_id"
                 name="business_process_id"
                 value={formData.business_process_id}
-                onChange={handleInputChange}
+                onChange={(e) => {
+                  console.log("Selected process ID:", e.target.value);
+                  handleInputChange(e);
+                }}
                 required
               >
                 <option value="">Select a business process</option>

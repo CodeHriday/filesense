@@ -3040,7 +3040,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       JOIN business_processes bp ON j.business_process_id = bp.id
       JOIN groups g ON bp.group_id = g.id
       LEFT JOIN job_runs jr ON j.id = jr.job_id
-      WHERE bp.group_id = ANY($1)
+      WHERE bp.group_id = ANY($1::integer[])
       GROUP BY j.id, bp.name, g.name
       ORDER BY j.updated_at DESC
     `;
@@ -3079,7 +3079,7 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
       FROM jobs j
       JOIN business_processes bp ON j.business_process_id = bp.id
       JOIN groups g ON bp.group_id = g.id
-      WHERE j.id = $1 AND bp.group_id = ANY($2)
+      WHERE j.id = $1 AND bp.group_id = ANY($2::integer[])
     `;
     const jobResult = await pool.query(jobQuery, [id, userGroupIds]);
     
