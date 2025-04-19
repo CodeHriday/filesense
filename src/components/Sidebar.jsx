@@ -311,13 +311,6 @@ function Sidebar() {
                   <span>Process Management</span>
                 </li>
                 
-                <li>
-                  <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiBriefcase className="icon" />
-                    <span>Business Processes</span>
-                  </NavLink>
-                </li>
-                
                 {hasFeaturePermission('job_group', 'read') && (
                   <li>
                     <NavLink to="/job-groups" className={({ isActive }) => isActive ? 'active' : ''}>
@@ -326,6 +319,13 @@ function Sidebar() {
                     </NavLink>
                   </li>
                 )}
+                
+                <li>
+                  <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiBriefcase className="icon" />
+                    <span>Business Processes</span>
+                  </NavLink>
+                </li>
                 
                 {hasFeaturePermission('job', 'read') && (
                   <li>

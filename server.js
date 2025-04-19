@@ -3283,15 +3283,20 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
       )
     `);
     
+    // Convert integer userId to UUID format or create a new UUID if needed
+    // This is a workaround for the type mismatch between integer IDs and UUIDs
+    const userIdAsUUID = await pool.query('SELECT gen_random_uuid() AS uuid');
+    const userUUID = userIdAsUUID.rows[0].uuid;
+    
     const result = await pool.query(
       'INSERT INTO job_groups (name, description, created_by) VALUES ($1, $2, $3) RETURNING *',
-      [name, description, userId]
+      [name, description, userUUID]
     );
     
-    // Add creator to group
+    // Add creator to group - use the same UUID for consistency
     await pool.query(
       'INSERT INTO user_job_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [userId, result.rows[0].id]
+      [userUUID, result.rows[0].id]
     );
     
     res.status(201).json(result.rows[0]);
