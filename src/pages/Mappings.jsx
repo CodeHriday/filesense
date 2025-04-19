@@ -673,7 +673,7 @@ function Mappings() {
   const handleDeleteMapping = async (id) => {
     if (window.confirm('Are you sure you want to delete this mapping?')) {
       try {
-        await axios.delete(`/api/mappings/${id}`);
+        await axios.delete(`${API_BASE_URL}/api/mappings/${id}`);
         setMappings(mappings.filter(mapping => mapping.id !== id));
       } catch (err) {
         console.error('Error deleting mapping:', err);
@@ -694,7 +694,7 @@ function Mappings() {
     try {
       setSourceLoading(true);
       console.log('Fetching source file columns for fileId:', fileId);
-      const response = await axios.get(`/api/files/${fileId}`);
+      const response = await axios.get(`${API_BASE_URL}/api/files/${fileId}`);
       
       if (response.data && response.data.columns) {
         console.log('Received columns:', response.data.columns);
@@ -785,7 +785,7 @@ function Mappings() {
       if (currentMapping) {
         // Update existing mapping
         response = await axios.put(
-          `/api/mappings/${currentMapping.id}`,
+          `${API_BASE_URL}/api/mappings/${currentMapping.id}`,
           mappingData
         );
         

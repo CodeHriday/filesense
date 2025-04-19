@@ -1286,6 +1286,74 @@ app.post('/api/mappings', async (req, res) => {
   }
 });
 
+// Update an existing mapping
+app.put('/api/mappings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      mapping_name, 
+      source_file_id, 
+      target_file_type, 
+      mapping_config,
+      source_filename
+    } = req.body;
+    
+    if (!mapping_name || !source_file_id) {
+      return res.status(400).json({ error: 'Mapping name and source file ID are required' });
+    }
+    
+    // Update the mapping
+    const result = await pool.query(`
+      UPDATE file_mappings 
+      SET 
+        mapping_name = $1, 
+        source_file_id = $2, 
+        target_file_type = $3,
+        mapping_rules = $4, 
+        mapping_config = $5,
+        source_filename = $6,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $7
+      RETURNING *
+    `, [
+      mapping_name, 
+      source_file_id, 
+      target_file_type || 'csv', 
+      JSON.stringify({}), 
+      JSON.stringify(mapping_config || {}),
+      source_filename,
+      id
+    ]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Mapping not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating mapping:', err);
+    res.status(500).json({ error: 'Failed to update mapping' });
+  }
+});
+
+// Delete a mapping
+app.delete('/api/mappings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM file_mappings WHERE id = $1 RETURNING id', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Mapping not found' });
+    }
+    
+    res.json({ message: 'Mapping deleted successfully', id: result.rows[0].id });
+  } catch (err) {
+    console.error('Error deleting mapping:', err);
+    res.status(500).json({ error: 'Failed to delete mapping' });
+  }
+});
+
 // Dashboard settings endpoint
 app.get('/api/user/dashboard-settings', async (req, res) => {
   try {
