@@ -124,7 +124,11 @@ const Groups = () => {
       />
       
       <div className="groups-actions">
-        <Button primary onClick={() => handleOpenModal()} icon={<FiPlus />}>
+        <Button 
+          primary={true} 
+          onClick={() => handleOpenModal()}
+          icon={<FiPlus />}
+        >
           Create Group
         </Button>
       </div>
@@ -140,7 +144,7 @@ const Groups = () => {
               <FiUsers size={48} />
               <h3>No Groups Found</h3>
               <p>Create your first group to organize your business processes</p>
-              <Button primary onClick={() => handleOpenModal()}>Create Group</Button>
+              <Button primary={true} onClick={() => handleOpenModal()}>Create Group</Button>
             </div>
           ) : (
             groups.map((group) => (
@@ -223,8 +227,8 @@ const Groups = () => {
             </div>
             
             <div className="form-actions">
-              <Button secondary onClick={handleCloseModal}>Cancel</Button>
-              <Button primary type="submit">
+              <Button secondary={true} onClick={handleCloseModal}>Cancel</Button>
+              <Button primary={true} type="submit">
                 {currentGroup ? 'Update Group' : 'Create Group'}
               </Button>
             </div>

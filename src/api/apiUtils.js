@@ -38,10 +38,19 @@ export const handleApiError = (error) => {
  * @param {Object} response - The axios response object
  * @returns {Object} Standardized success response
  */
-export const handleApiSuccess = (response) => {
-  return {
-    success: true,
-    status: response.status,
-    data: response.data
-  };
+export const handleApiSuccess = async (response) => {
+  try {
+    const data = await response.json();
+    return {
+      success: response.ok,
+      status: response.status,
+      data: data
+    };
+  } catch (error) {
+    return {
+      success: response.ok,
+      status: response.status,
+      data: {}
+    };
+  }
 };

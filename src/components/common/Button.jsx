@@ -15,12 +15,12 @@ const Button = ({
 }) => {
   const buttonClass = `
     btn 
-    ${primary ? 'btn-primary' : ''} 
-    ${secondary ? 'btn-secondary' : ''} 
-    ${small ? 'btn-small' : ''} 
-    ${large ? 'btn-large' : ''} 
+    ${primary === true ? 'btn-primary' : ''} 
+    ${secondary === true ? 'btn-secondary' : ''} 
+    ${small === true ? 'btn-small' : ''} 
+    ${large === true ? 'btn-large' : ''} 
     ${icon ? 'btn-with-icon' : ''}
-  `.trim();
+  `.trim().replace(/\s+/g, ' ');
 
   return (
     <button
