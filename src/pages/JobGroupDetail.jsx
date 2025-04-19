@@ -187,14 +187,14 @@ const JobGroupDetail = () => {
   }
   
   return (
-    <div className="job-group-detail">
-      <div className="job-group-detail-header">
+    <div className="group-detail">
+      <div className="group-detail-header">
         <Button variant="secondary" onClick={() => navigate('/job-groups')}>
           <FiArrowLeft /> Back to Groups
         </Button>
         
         {canEdit && (
-          <div className="job-group-actions">
+          <div className="group-actions">
             <Button 
               variant="primary" 
               onClick={() => setIsEditModalOpen(true)}
@@ -206,9 +206,9 @@ const JobGroupDetail = () => {
       </div>
       
       <h1>{jobGroup.name}</h1>
-      <p className="job-group-description">{jobGroup.description || 'No description provided'}</p>
+      <p className="group-description">{jobGroup.description || 'No description provided'}</p>
       
-      <div className="job-group-created-by">
+      <div className="group-created-by">
         <small>Created by {jobGroup.created_by_name || 'Unknown'} at {formatDate(jobGroup.created_at)}</small>
       </div>
       
@@ -280,10 +280,10 @@ const JobGroupDetail = () => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        className="job-group-modal"
+        className="group-modal"
       >
         <h2>Edit Group</h2>
-        <div className="job-group-form">
+        <div className="group-form">
           <div>
             <label htmlFor="name">Group Name *</label>
             <input
@@ -306,7 +306,7 @@ const JobGroupDetail = () => {
               placeholder="Enter group description"
             />
           </div>
-          <div className="job-group-form-buttons">
+          <div className="group-form-buttons">
             <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>
               Cancel
             </Button>
