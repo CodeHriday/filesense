@@ -2900,7 +2900,7 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
       SELECT j.*, bp.name as business_process_name, u.username as created_by_name
       FROM jobs j
       JOIN business_processes bp ON j.business_process_id = bp.id
-      JOIN users u ON j.created_by = u.id
+      JOIN users u ON j.created_by::text = u.id::text
       WHERE j.id = $1
     `;
     const jobResult = await pool.query(jobQuery, [id]);
@@ -2970,7 +2970,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
         error_handling_settings,
         notification_settings,
         schedule_settings,
-        userId
+        userId.toString()
       ]
     );
     
