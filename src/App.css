@@ -13,6 +13,10 @@
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  margin-left: 250px; /* Width of sidebar */
+  width: calc(100% - 250px);
+  position: relative;
+  top: 0;
 }
 
 .btn {

@@ -2879,7 +2879,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       JOIN business_processes bp ON j.business_process_id = bp.id
       LEFT JOIN job_runs jr ON j.id = jr.job_id
       WHERE j.created_by::text = $1::text OR bp.group_id IN (
-        SELECT group_id FROM user_groups WHERE user_id = $1
+        SELECT group_id FROM user_groups WHERE user_id::text = $1::text
       )
       GROUP BY j.id, bp.name
       ORDER BY j.updated_at DESC
