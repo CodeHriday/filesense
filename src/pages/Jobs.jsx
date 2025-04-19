@@ -108,15 +108,18 @@ const Jobs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("==================== JOB FORM SUBMISSION ====================");
     console.log("Form submitted with data:", formData);
     
     if (!formData.name.trim()) {
       setError('Job name is required');
+      console.error("Validation error: Job name is required");
       return;
     }
     
     if (!formData.business_process_id) {
       setError('Business process is required');
+      console.error("Validation error: Business process is required");
       return;
     }
     
@@ -128,10 +131,17 @@ const Jobs = () => {
         ...formData,
         business_process_id: parseInt(formData.business_process_id, 10),
         // Set created_by field (this is required by the server)
-        created_by: 2  // Using the admin user ID
+        created_by: 2,  // Using the admin user ID
+        // Add default values for required fields
+        status: formData.status || 'active',
+        validation_settings: formData.validation_settings || {},
+        error_handling_settings: formData.error_handling_settings || {},
+        notification_settings: formData.notification_settings || {},
+        schedule_settings: formData.schedule_settings || {}
       };
       
-      console.log("Sending job data to API:", jobData);
+      console.log("Sending job data to API:", JSON.stringify(jobData, null, 2));
+      console.log("Business process ID:", jobData.business_process_id, "Type:", typeof jobData.business_process_id);
       
       if (currentJob) {
         // Update existing job
@@ -139,24 +149,31 @@ const Jobs = () => {
         response = await updateJob(currentJob.id, jobData);
       } else {
         // Create new job
-        console.log('Creating new job');
+        console.log('Creating new job via createJob API call');
         response = await createJob(jobData);
       }
       
       console.log("API response:", response);
       
-      if (response.success) {
+      if (response && response.success) {
         console.log("Job saved successfully!");
         fetchData();
         handleCloseModal();
       } else {
-        console.error("Failed to save job:", response);
-        setError(response.message || 'Failed to save job');
+        console.error("Failed to save job. Response:", response);
+        if (response && response.status === 401) {
+          console.error("Authentication error - token may be invalid or expired");
+          setError('Authentication error. Please refresh the page and try again.');
+        } else {
+          setError((response && response.message) || 'Failed to save job');
+        }
       }
     } catch (err) {
       console.error("Caught exception while saving job:", err);
+      console.error("Error details:", err.stack || 'No stack trace available');
       setError('An error occurred while saving the job');
     }
+    console.log("==================== END JOB FORM SUBMISSION ====================");
   };
 
   const handleDeleteJob = async (jobId) => {
