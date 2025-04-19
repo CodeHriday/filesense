@@ -322,7 +322,10 @@ const Jobs = () => {
           title={currentJob ? `Edit Job: ${currentJob.name}` : 'Create New Job'}
           onClose={handleCloseModal}
         >
-          <form onSubmit={handleSubmit} className="job-form">
+          <form onSubmit={(e) => {
+            console.log("Form submitted!");
+            handleSubmit(e);
+          }} className="job-form">
             <div className="form-group">
               <label htmlFor="name">Job Name*</label>
               <input

@@ -3141,6 +3141,13 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'You do not have access to the specified business process' });
     }
     
+    // Ensure business_process_id is an integer
+    const processId = parseInt(business_process_id, 10);
+    if (isNaN(processId)) {
+      return res.status(400).json({ error: 'Invalid business process ID' });
+    }
+    console.log('Creating job with business_process_id:', processId, 'Type:', typeof processId);
+    
     // Create the job
     const result = await pool.query(
       `INSERT INTO jobs (
@@ -3157,7 +3164,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
         name, 
-        business_process_id, 
+        processId, 
         source_connection_id,
         target_connection_id,
         validation_settings,
@@ -3229,6 +3236,16 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       }
     }
     
+    // Ensure business_process_id is an integer if provided
+    let processId = jobAccessResult.rows[0].business_process_id;
+    if (business_process_id) {
+      processId = parseInt(business_process_id, 10);
+      if (isNaN(processId)) {
+        return res.status(400).json({ error: 'Invalid business process ID' });
+      }
+    }
+    console.log('Updating job with business_process_id:', processId, 'Type:', typeof processId);
+    
     // Update the job
     const result = await pool.query(
       `UPDATE jobs SET 
@@ -3245,7 +3262,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       WHERE id = $10 RETURNING *`,
       [
         name, 
-        business_process_id || jobAccessResult.rows[0].business_process_id, 
+        processId, 
         status || jobAccessResult.rows[0].status || 'active',
         source_connection_id,
         target_connection_id,

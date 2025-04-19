@@ -99,12 +99,17 @@ const initBusinessProcessTables = async (pool) => {
       );
     `);
 
-    // Create a default group
-    await pool.query(`
-      INSERT INTO groups (name, description)
-      VALUES ('Default Group', 'Default group for all users')
-      ON CONFLICT DO NOTHING;
-    `);
+    // Create a default group only if no groups exist
+    const existingGroups = await pool.query('SELECT COUNT(*) FROM groups');
+    if (parseInt(existingGroups.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO groups (name, description)
+        VALUES ('Default Group', 'Default group for all users');
+      `);
+      console.log('Created default group');
+    } else {
+      console.log('Default group already exists, skipping creation');
+    }
 
     console.log('Business process management tables initialized');
   } catch (error) {
