@@ -8,11 +8,69 @@ import {
   deleteBusinessProcess 
 } from '../api/businessProcessesService';
 import { getUserGroups } from '../api/groupsService';
-import Modal from '../components/Modal';
-import Button from '../components/common/Button';
 import Loader from '../components/Loader';
 import PageHeader from '../components/PageHeader';
 import '../styles/BusinessProcesses.css';
+
+// Simple inline modal component to avoid component issues
+const SimpleModal = ({ show, title, onClose, children }) => {
+  if (!show) return null;
+  
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    }}>
+      <div 
+        onClick={e => e.stopPropagation()}
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '90vh',
+          width: '100%',
+          maxWidth: '600px'
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 20px',
+          borderBottom: '1px solid #e0e0e0'
+        }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h2>
+          <button 
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '20px',
+              padding: '4px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ padding: '20px', overflowY: 'auto' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const BusinessProcesses = () => {
   const [processes, setProcesses] = useState([]);
@@ -157,77 +215,169 @@ const BusinessProcesses = () => {
         description="Create and manage business processes to organize your data workflows"
       />
       
-      <div className="process-actions">
-        <Button 
-          primary 
+      <div style={{ marginBottom: '20px' }}>
+        <button 
           onClick={() => handleOpenModal()} 
-          icon={<FiPlus />}
           disabled={userGroups.length === 0}
+          style={{
+            backgroundColor: '#3366FF',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: userGroups.length === 0 ? 'not-allowed' : 'pointer',
+            opacity: userGroups.length === 0 ? 0.5 : 1,
+            fontWeight: 500,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
         >
-          Create Business Process
-        </Button>
+          <FiPlus /> Create Business Process
+        </button>
       </div>
       
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div style={{ color: 'red', padding: '12px', marginBottom: '20px', backgroundColor: '#ffeeee', borderRadius: '4px' }}>{error}</div>}
       
       {loading ? (
         <Loader />
       ) : (
-        <div className="processes-list">
+        <div>
           {processes.length === 0 ? (
-            <div className="empty-state">
-              <FiBriefcase size={48} />
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '50px 20px',
+              backgroundColor: '#f9f9f9',
+              borderRadius: '8px'
+            }}>
+              <FiBriefcase size={48} style={{ marginBottom: '16px', color: '#999' }} />
               <h3>No Business Processes Found</h3>
               <p>Create your first business process to organize your data workflows</p>
               {userGroups.length === 0 ? (
-                <div className="alert alert-warning">
+                <div style={{ 
+                  color: '#856404', 
+                  backgroundColor: '#fff3cd', 
+                  padding: '12px', 
+                  borderRadius: '4px', 
+                  marginTop: '16px'
+                }}>
                   You need to create a group first before you can create a business process
                 </div>
               ) : (
-                <Button primary onClick={() => handleOpenModal()}>Create Business Process</Button>
+                <button 
+                  onClick={() => handleOpenModal()}
+                  style={{
+                    backgroundColor: '#3366FF',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginTop: '16px'
+                  }}
+                >
+                  Create Business Process
+                </button>
               )}
             </div>
           ) : (
-            <div className="process-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
               {processes.map((process) => (
-                <div className="process-card" key={process.id}>
-                  <div className="process-card-header">
-                    <h3>{process.name}</h3>
-                    <span className={`status-badge status-${process.status || 'active'}`}>
+                <div key={process.id} style={{ 
+                  border: '1px solid #e0e0e0', 
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  backgroundColor: 'white',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    borderBottom: '1px solid #f0f0f0'
+                  }}>
+                    <h3 style={{ margin: 0, fontSize: '18px' }}>{process.name}</h3>
+                    <span style={{ 
+                      display: 'inline-block',
+                      padding: '4px 8px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      backgroundColor: (process.status || 'active') === 'active' ? '#e6f7ff' : '#f9f9f9',
+                      color: (process.status || 'active') === 'active' ? '#1890ff' : '#666'
+                    }}>
                       {process.status || 'Active'}
                     </span>
                   </div>
                   
-                  {process.description && <p className="process-description">{process.description}</p>}
+                  {process.description && (
+                    <p style={{ padding: '0 16px', color: '#666' }}>{process.description}</p>
+                  )}
                   
-                  <div className="process-info">
-                    <div className="info-item">
-                      <span className="info-label">Group:</span>
-                      <span className="info-value">{getGroupName(process.group_id)}</span>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '14px', color: '#888', width: '80px' }}>Group:</span>
+                      <span style={{ fontSize: '14px', fontWeight: 500 }}>{getGroupName(process.group_id)}</span>
                     </div>
-                    <div className="info-item">
-                      <span className="info-label">Jobs:</span>
-                      <span className="info-value">{process.job_count || 0}</span>
+                    <div style={{ display: 'flex' }}>
+                      <span style={{ fontSize: '14px', color: '#888', width: '80px' }}>Jobs:</span>
+                      <span style={{ fontSize: '14px', fontWeight: 500 }}>{process.job_count || 0}</span>
                     </div>
                   </div>
                   
-                  <div className="process-actions">
+                  <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    padding: '12px 16px',
+                    gap: '12px',
+                    backgroundColor: '#f9f9f9'
+                  }}>
                     <Link 
-                      to={`/business-processes/${process.id}`} 
-                      className="icon-button"
+                      to={`/business-processes/${process.id}`}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#3366FF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '20px'
+                      }}
                       title="View Jobs"
                     >
                       <FiPlay />
                     </Link>
                     <button 
-                      className="icon-button" 
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#666',
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '20px'
+                      }}
                       onClick={() => handleOpenModal(process)}
                       title="Edit Process"
                     >
                       <FiEdit />
                     </button>
                     <button 
-                      className="icon-button" 
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#ff4d4f',
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '20px'
+                      }}
                       onClick={() => handleDeleteProcess(process.id)}
                       title="Delete Process"
                     >
@@ -241,81 +391,143 @@ const BusinessProcesses = () => {
         </div>
       )}
       
-      {showModal && (
-        <Modal
-          title={currentProcess ? `Edit Process: ${currentProcess.name}` : 'Create New Business Process'}
-          onClose={handleCloseModal}
-        >
-          <form onSubmit={handleSubmit} className="process-form">
-            <div className="form-group">
-              <label htmlFor="name">Process Name*</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                placeholder="Enter process name"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="description">Description</label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={4}
-                placeholder="Enter process description (optional)"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="group_id">Group*</label>
+      <SimpleModal
+        show={showModal}
+        title={currentProcess ? `Edit Process: ${currentProcess.name}` : 'Create New Business Process'}
+        onClose={handleCloseModal}
+      >
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="name" style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>
+              Process Name*
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              placeholder="Enter process name"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="description" style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>
+              Description
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={4}
+              placeholder="Enter process description (optional)"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="group_id" style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>
+              Group*
+            </label>
+            <select
+              id="group_id"
+              name="group_id"
+              value={formData.group_id}
+              onChange={handleInputChange}
+              required
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="">Select a group</option>
+              {userGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {currentProcess && (
+            <div style={{ marginBottom: '20px' }}>
+              <label htmlFor="status" style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>
+                Status
+              </label>
               <select
-                id="group_id"
-                name="group_id"
-                value={formData.group_id}
+                id="status"
+                name="status"
+                value={formData.status}
                 onChange={handleInputChange}
-                required
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px',
+                  backgroundColor: 'white'
+                }}
               >
-                <option value="">Select a group</option>
-                {userGroups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
               </select>
             </div>
+          )}
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '30px' }}>
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              style={{
+                backgroundColor: '#f0f0f0',
+                color: '#333',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
             
-            {currentProcess && (
-              <div className="form-group">
-                <label htmlFor="status">Status</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-            )}
-            
-            <div className="form-actions">
-              <Button secondary onClick={handleCloseModal}>Cancel</Button>
-              <Button primary type="submit">
-                {currentProcess ? 'Update Process' : 'Create Process'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
+            <button
+              type="submit"
+              style={{
+                backgroundColor: '#3366FF',
+                color: 'white',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {currentProcess ? 'Update Process' : 'Create Process'}
+            </button>
+          </div>
+        </form>
+      </SimpleModal>
     </div>
   );
 };

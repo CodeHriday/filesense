@@ -2,11 +2,104 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash, FiUsers, FiArrowRight, FiList } from 'react-icons/fi';
 import { getGroups, createGroup, updateGroup, deleteGroup } from '../api/groupsService';
-import Modal from '../components/Modal';
-import Button from '../components/common/Button';
 import Loader from '../components/Loader';
 import PageHeader from '../components/PageHeader';
 import '../styles/Groups.css';
+
+// Simple inline modal component to avoid component issues
+const SimpleModal = ({ show, title, onClose, children }) => {
+  if (!show) return null;
+  
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    }}>
+      <div 
+        onClick={e => e.stopPropagation()}
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '90vh',
+          width: '100%',
+          maxWidth: '600px'
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 20px',
+          borderBottom: '1px solid #e0e0e0'
+        }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h2>
+          <button 
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '20px',
+              padding: '4px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ padding: '20px', overflowY: 'auto' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Simple button component
+const SimpleButton = ({ primary, secondary, onClick, type = 'button', children }) => {
+  const buttonStyle = {
+    padding: '8px 16px',
+    borderRadius: '4px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 500,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    transition: 'background-color 0.2s'
+  };
+  
+  if (primary) {
+    buttonStyle.backgroundColor = '#3366FF';
+    buttonStyle.color = 'white';
+  } else if (secondary) {
+    buttonStyle.backgroundColor = '#f0f0f0';
+    buttonStyle.color = '#333';
+  }
+  
+  return (
+    <button 
+      style={buttonStyle} 
+      onClick={onClick}
+      type={type}
+    >
+      {children}
+    </button>
+  );
+};
 
 const Groups = () => {
   const [groups, setGroups] = useState([]);
@@ -18,8 +111,6 @@ const Groups = () => {
     name: '',
     description: ''
   });
-  
-  console.log("Groups component rendering, showModal:", showModal);
 
   useEffect(() => {
     fetchGroups();
@@ -42,39 +133,37 @@ const Groups = () => {
     }
   };
 
-  const handleOpenModal = (group = null) => {
-    console.log("handleOpenModal called!", { group });
-    
-    if (group) {
-      setCurrentGroup(group);
-      setFormData({
-        name: group.name,
-        description: group.description || ''
-      });
-    } else {
-      setCurrentGroup(null);
-      setFormData({
-        name: '',
-        description: ''
-      });
-    }
-    
-    console.log("Setting showModal to true");
+  const openCreateModal = () => {
+    console.log("Opening create modal");
+    setCurrentGroup(null);
+    setFormData({
+      name: '',
+      description: ''
+    });
     setShowModal(true);
-    // Force a re-render to ensure the modal opens
-    setTimeout(() => {
-      console.log("After setting showModal, value is:", showModal);
-    }, 0);
   };
 
-  const handleCloseModal = () => {
+  const openEditModal = (group) => {
+    console.log("Opening edit modal for", group.name);
+    setCurrentGroup(group);
+    setFormData({
+      name: group.name,
+      description: group.description || ''
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    console.log("Closing modal");
     setShowModal(false);
-    setCurrentGroup(null);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -98,7 +187,7 @@ const Groups = () => {
       
       if (response.success) {
         fetchGroups();
-        handleCloseModal();
+        closeModal();
       } else {
         setError(response.message || 'Failed to save group');
       }
@@ -133,118 +222,232 @@ const Groups = () => {
         description="Create and manage groups to organize your business processes"
       />
       
-      <div className="groups-actions">
-        <Button 
-          primary={true} 
-          onClick={() => handleOpenModal()}
-          icon={<FiPlus />}
+      <div className="groups-actions" style={{ marginBottom: '20px' }}>
+        <button 
+          onClick={openCreateModal}
+          style={{
+            backgroundColor: '#3366FF',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: 500,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
         >
-          Create Group
-        </Button>
+          <FiPlus /> Create Group
+        </button>
       </div>
       
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <div className="alert alert-error" style={{ color: 'red', marginBottom: '20px' }}>{error}</div>}
       
       {loading ? (
         <Loader />
       ) : (
         <div className="groups-list">
           {groups.length === 0 ? (
-            <div className="empty-state">
-              <FiUsers size={48} />
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '50px 20px',
+              backgroundColor: '#f9f9f9',
+              borderRadius: '8px'
+            }}>
+              <FiUsers size={48} style={{ marginBottom: '16px', color: '#999' }} />
               <h3>No Groups Found</h3>
               <p>Create your first group to organize your business processes</p>
-              <Button primary={true} onClick={() => handleOpenModal()}>Create Group</Button>
+              <button 
+                onClick={openCreateModal}
+                style={{
+                  backgroundColor: '#3366FF',
+                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  marginTop: '16px'
+                }}
+              >
+                Create Group
+              </button>
             </div>
           ) : (
-            groups.map((group) => (
-              <div key={group.id} className="group-card">
-                <div className="group-card-header">
-                  <h3 className="group-card-title">{group.name}</h3>
-                  <div className="group-card-actions">
-                    <button
-                      className="icon-button"
-                      onClick={() => handleOpenModal(group)}
-                      title="Edit Group"
-                    >
-                      <FiEdit />
-                    </button>
-                    <button
-                      className="icon-button"
-                      onClick={() => handleDeleteGroup(group.id)}
-                      title="Delete Group"
-                    >
-                      <FiTrash />
-                    </button>
-                  </div>
-                </div>
-                
-                {group.description && (
-                  <p className="group-card-description">{group.description}</p>
-                )}
-                
-                <div className="group-card-footer">
-                  <div className="group-card-stats">
-                    <div className="group-card-stat">
-                      <FiUsers size={14} />
-                      <span>{group.user_count || 0} Users</span>
-                    </div>
-                    <div className="group-card-stat">
-                      <FiList size={14} />
-                      <span>{group.process_count || 0} Processes</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+              {groups.map((group) => (
+                <div key={group.id} style={{ 
+                  border: '1px solid #e0e0e0', 
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  backgroundColor: 'white',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    borderBottom: '1px solid #f0f0f0'
+                  }}>
+                    <h3 style={{ margin: 0, fontSize: '18px' }}>{group.name}</h3>
+                    <div>
+                      <button
+                        onClick={() => openEditModal(group)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '5px',
+                          marginRight: '5px'
+                        }}
+                        title="Edit Group"
+                      >
+                        <FiEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGroup(group.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '5px'
+                        }}
+                        title="Delete Group"
+                      >
+                        <FiTrash />
+                      </button>
                     </div>
                   </div>
                   
-                  <Link to={`/groups/${group.id}/processes`} className="group-card-link">
-                    View Processes <FiArrowRight size={14} />
-                  </Link>
+                  {group.description && (
+                    <p style={{ padding: '0 16px', color: '#666' }}>{group.description}</p>
+                  )}
+                  
+                  <div style={{ 
+                    padding: '16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderTop: '1px solid #f0f0f0',
+                    backgroundColor: '#f9f9f9'
+                  }}>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <FiUsers size={14} />
+                        <span>{group.user_count || 0} Users</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <FiList size={14} />
+                        <span>{group.process_count || 0} Processes</span>
+                      </div>
+                    </div>
+                    
+                    <Link to={`/groups/${group.id}/processes`} style={{ 
+                      textDecoration: 'none',
+                      color: '#3366FF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontSize: '14px'
+                    }}>
+                      View Processes <FiArrowRight size={14} />
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       )}
       
-      {showModal && (
-        <Modal
-          title={currentGroup ? `Edit Group: ${currentGroup.name}` : 'Create New Group'}
-          onClose={handleCloseModal}
-        >
-          <form onSubmit={handleSubmit} className="group-form">
-            <div className="form-group">
-              <label htmlFor="name">Group Name*</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                placeholder="Enter group name"
-              />
-            </div>
+      <SimpleModal
+        show={showModal}
+        title={currentGroup ? `Edit Group: ${currentGroup.name}` : 'Create New Group'}
+        onClose={closeModal}
+      >
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="name" style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>
+              Group Name*
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              placeholder="Enter group name"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="description" style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>
+              Description
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={3}
+              placeholder="Enter group description (optional)"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                fontSize: '14px',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={closeModal}
+              style={{
+                backgroundColor: '#f0f0f0',
+                color: '#333',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
             
-            <div className="form-group">
-              <label htmlFor="description">Description</label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-                placeholder="Enter group description (optional)"
-              />
-            </div>
-            
-            <div className="form-actions">
-              <Button secondary={true} onClick={handleCloseModal}>Cancel</Button>
-              <Button primary={true} type="submit">
-                {currentGroup ? 'Update Group' : 'Create Group'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
+            <button
+              type="submit"
+              style={{
+                backgroundColor: '#3366FF',
+                color: 'white',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {currentGroup ? 'Update Group' : 'Create Group'}
+            </button>
+          </div>
+        </form>
+      </SimpleModal>
     </div>
   );
 };
