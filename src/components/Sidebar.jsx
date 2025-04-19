@@ -304,7 +304,34 @@ function Sidebar() {
               </>
             )}
             
-            {/* Process Management section removed as requested */}
+            {/* Business Process Management section */}
+            <li className="nav-divider">
+              <span>Process Management</span>
+            </li>
+            
+            {/* Groups */}
+            <li>
+              <NavLink to="/groups" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiUsers className="icon" />
+                <span>Groups</span>
+              </NavLink>
+            </li>
+            
+            {/* Business Processes */}
+            <li>
+              <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiBriefcase className="icon" />
+                <span>Business Processes</span>
+              </NavLink>
+            </li>
+            
+            {/* Jobs */}
+            <li>
+              <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiPlay className="icon" />
+                <span>Jobs</span>
+              </NavLink>
+            </li>
             
             {/* Insights section */}
             {showInsightsSection && (

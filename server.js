@@ -2845,19 +2845,35 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Get all jobs - explicitly cast types to avoid UUID/integer comparison issues
+    // Get user's groups
+    const userGroupsQuery = `
+      SELECT g.id
+      FROM groups g
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE ug.user_id = $1
+    `;
+    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupIds = userGroupsResult.rows.map(row => row.id);
+    
+    if (userGroupIds.length === 0) {
+      return res.json([]);
+    }
+    
+    // Get all jobs for the business processes in user's groups
     const jobsQuery = `
-      SELECT j.*, bp.name as business_process_name,
-        COUNT(jr.id) as run_count,
+      SELECT j.*, bp.name as business_process_name, g.name as group_name,
+        COALESCE(COUNT(jr.id), 0) as run_count,
         MAX(jr.start_time) as last_run_time
       FROM jobs j
-      JOIN business_processes bp ON j.business_process_id::text = bp.id::text
-      LEFT JOIN job_runs jr ON j.id::text = jr.job_id::text
-      GROUP BY j.id, bp.name
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      JOIN groups g ON bp.group_id = g.id
+      LEFT JOIN job_runs jr ON j.id = jr.job_id
+      WHERE bp.group_id = ANY($1)
+      GROUP BY j.id, bp.name, g.name
       ORDER BY j.updated_at DESC
     `;
     
-    const jobsResult = await pool.query(jobsQuery);
+    const jobsResult = await pool.query(jobsQuery, [userGroupIds]);
     res.json(jobsResult.rows);
   } catch (err) {
     console.error('Error fetching jobs:', err);
@@ -2869,22 +2885,37 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
 app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
     
-    // Get the job
-    const jobQuery = `
-      SELECT j.*, bp.name as business_process_name, u.username as created_by_name
-      FROM jobs j
-      JOIN business_processes bp ON j.business_process_id = bp.id
-      JOIN users u ON j.created_by::text = u.id::text
-      WHERE j.id = $1
+    // Get user's groups
+    const userGroupsQuery = `
+      SELECT g.id
+      FROM groups g
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE ug.user_id = $1
     `;
-    const jobResult = await pool.query(jobQuery, [id]);
+    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupIds = userGroupsResult.rows.map(row => row.id);
     
-    if (jobResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found' });
+    if (userGroupIds.length === 0) {
+      return res.status(403).json({ error: 'You do not have access to this job' });
     }
     
-    // Get job history
+    // Get the job with access control
+    const jobQuery = `
+      SELECT j.*, bp.name as business_process_name, g.name as group_name
+      FROM jobs j
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      JOIN groups g ON bp.group_id = g.id
+      WHERE j.id = $1 AND bp.group_id = ANY($2)
+    `;
+    const jobResult = await pool.query(jobQuery, [id, userGroupIds]);
+    
+    if (jobResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or you do not have access to it' });
+    }
+    
+    // Get job run history
     const historyQuery = `
       SELECT * FROM job_runs
       WHERE job_id = $1
@@ -2924,6 +2955,21 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Job name and business process are required' });
     }
     
+    // Verify access to the business process
+    const processAccessQuery = `
+      SELECT bp.* FROM business_processes bp
+      JOIN groups g ON bp.group_id = g.id
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE bp.id = $1 AND ug.user_id = $2
+    `;
+    
+    const processAccessResult = await pool.query(processAccessQuery, [business_process_id, userId]);
+    
+    if (processAccessResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You do not have access to the specified business process' });
+    }
+    
+    // Create the job
     const result = await pool.query(
       `INSERT INTO jobs (
         name, 
@@ -2934,8 +2980,9 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
         error_handling_settings, 
         notification_settings, 
         schedule_settings, 
-        created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        created_by,
+        status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
         name, 
         business_process_id, 
@@ -2945,7 +2992,8 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
         error_handling_settings,
         notification_settings,
         schedule_settings,
-        userId.toString()
+        userId,
+        'active' // Default status
       ]
     );
     
@@ -2972,11 +3020,41 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       schedule_settings
     } = req.body;
     
-    // Check if the job exists
-    const existingJob = await pool.query('SELECT * FROM jobs WHERE id = $1', [id]);
+    const userId = req.user.id;
     
-    if (existingJob.rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found' });
+    if (!name) {
+      return res.status(400).json({ error: 'Job name is required' });
+    }
+    
+    // Check if the job exists and user has access to it
+    const jobAccessQuery = `
+      SELECT j.* FROM jobs j
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      JOIN groups g ON bp.group_id = g.id
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE j.id = $1 AND ug.user_id = $2
+    `;
+    
+    const jobAccessResult = await pool.query(jobAccessQuery, [id, userId]);
+    
+    if (jobAccessResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or you do not have access to it' });
+    }
+    
+    // If business_process_id is changing, verify access to the new business process
+    if (business_process_id && business_process_id !== jobAccessResult.rows[0].business_process_id) {
+      const processAccessQuery = `
+        SELECT bp.* FROM business_processes bp
+        JOIN groups g ON bp.group_id = g.id
+        JOIN user_groups ug ON g.id = ug.group_id
+        WHERE bp.id = $1 AND ug.user_id = $2
+      `;
+      
+      const processAccessResult = await pool.query(processAccessQuery, [business_process_id, userId]);
+      
+      if (processAccessResult.rows.length === 0) {
+        return res.status(403).json({ error: 'You do not have access to the specified business process' });
+      }
     }
     
     // Update the job
@@ -2995,8 +3073,8 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       WHERE id = $10 RETURNING *`,
       [
         name, 
-        business_process_id, 
-        status,
+        business_process_id || jobAccessResult.rows[0].business_process_id, 
+        status || jobAccessResult.rows[0].status || 'active',
         source_connection_id,
         target_connection_id,
         validation_settings,
@@ -3018,12 +3096,21 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
 app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
     
-    // Check if the job exists
-    const existingJob = await pool.query('SELECT * FROM jobs WHERE id = $1', [id]);
+    // Check if the job exists and user has access to it
+    const jobAccessQuery = `
+      SELECT j.* FROM jobs j
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      JOIN groups g ON bp.group_id = g.id
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE j.id = $1 AND ug.user_id = $2
+    `;
     
-    if (existingJob.rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found' });
+    const jobAccessResult = await pool.query(jobAccessQuery, [id, userId]);
+    
+    if (jobAccessResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or you do not have access to it' });
     }
     
     // Delete the job (cascade will delete history)
@@ -3040,12 +3127,21 @@ app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
 app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
     
-    // Check if the job exists
-    const existingJob = await pool.query('SELECT * FROM jobs WHERE id = $1', [id]);
+    // Check if the job exists and user has access to it
+    const jobAccessQuery = `
+      SELECT j.* FROM jobs j
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      JOIN groups g ON bp.group_id = g.id
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE j.id = $1 AND ug.user_id = $2
+    `;
     
-    if (existingJob.rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found' });
+    const jobAccessResult = await pool.query(jobAccessQuery, [id, userId]);
+    
+    if (jobAccessResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or you do not have access to it' });
     }
     
     // Create a job run record for this run

@@ -1,222 +1,385 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getJobs, runJob, deleteJob } from '../api/jobsService';
+import { Link } from 'react-router-dom';
+import { FiPlus, FiEdit, FiTrash, FiPlay, FiClock, FiCheck, FiX } from 'react-icons/fi';
+import { getJobs, createJob, updateJob, deleteJob, runJob } from '../api/jobsService';
 import { getBusinessProcesses } from '../api/businessProcessesService';
-import { useAuth } from '../context/AuthContext';
+import Modal from '../components/Modal';
+import Button from '../components/Button';
+import Loader from '../components/Loader';
+import PageHeader from '../components/PageHeader';
 import '../styles/Jobs.css';
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
-  const [processes, setProcesses] = useState([]);
+  const [businessProcesses, setBusinessProcesses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [selectedProcess, setSelectedProcess] = useState('all');
-  const { hasFeaturePermission } = useAuth();
-  const navigate = useNavigate();
-  
-  const fetchJobs = async () => {
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [currentJob, setCurrentJob] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    business_process_id: '',
+    status: 'active',
+    source_connection_id: null,
+    target_connection_id: null,
+    validation_settings: {},
+    error_handling_settings: {},
+    notification_settings: {},
+    schedule_settings: {}
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await getJobs();
-      if (response.success) {
-        setJobs(response.data);
+      // Fetch jobs
+      const jobsResponse = await getJobs();
+      if (jobsResponse.success) {
+        setJobs(jobsResponse.data || []);
       } else {
-        setError(response.error || 'Failed to fetch jobs');
+        setError(jobsResponse.message || 'Failed to fetch jobs');
+      }
+      
+      // Fetch business processes for dropdown
+      const processesResponse = await getBusinessProcesses();
+      if (processesResponse.success) {
+        setBusinessProcesses(processesResponse.data || []);
+      } else {
+        console.error('Failed to fetch business processes');
       }
     } catch (err) {
-      setError('An error occurred while fetching jobs');
+      setError('An error occurred while fetching data');
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
-  
-  const fetchBusinessProcesses = async () => {
-    try {
-      const response = await getBusinessProcesses();
-      if (response.success) {
-        setProcesses(response.data);
-      }
-    } catch (err) {
-      console.error('Error fetching business processes:', err);
+
+  const handleOpenModal = (job = null) => {
+    if (job) {
+      setCurrentJob(job);
+      setFormData({
+        name: job.name,
+        description: job.description || '',
+        business_process_id: job.business_process_id,
+        status: job.status || 'active',
+        source_connection_id: job.source_connection_id || null,
+        target_connection_id: job.target_connection_id || null,
+        validation_settings: job.validation_settings || {},
+        error_handling_settings: job.error_handling_settings || {},
+        notification_settings: job.notification_settings || {},
+        schedule_settings: job.schedule_settings || {}
+      });
+    } else {
+      setCurrentJob(null);
+      // Set default business_process_id to first available process if exists
+      setFormData({
+        name: '',
+        description: '',
+        business_process_id: businessProcesses.length > 0 ? businessProcesses[0].id : '',
+        status: 'active',
+        source_connection_id: null,
+        target_connection_id: null,
+        validation_settings: {},
+        error_handling_settings: {},
+        notification_settings: {},
+        schedule_settings: {}
+      });
     }
+    setShowModal(true);
   };
-  
-  useEffect(() => {
-    fetchJobs();
-    fetchBusinessProcesses();
-  }, []);
-  
-  const handleRunJob = async (jobId) => {
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setCurrentJob(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      setError('Job name is required');
+      return;
+    }
+    
+    if (!formData.business_process_id) {
+      setError('Business process is required');
+      return;
+    }
+    
     try {
-      const response = await runJob(jobId);
-      if (response.success) {
-        // Show success message
-        alert('Job started successfully!');
-        // Refresh job list to show updated status
-        fetchJobs();
+      let response;
+      
+      if (currentJob) {
+        // Update existing job
+        response = await updateJob(currentJob.id, formData);
       } else {
-        setError(response.error || 'Failed to run job');
+        // Create new job
+        response = await createJob(formData);
+      }
+      
+      if (response.success) {
+        fetchData();
+        handleCloseModal();
+      } else {
+        setError(response.message || 'Failed to save job');
       }
     } catch (err) {
-      setError('An error occurred while running job');
+      setError('An error occurred while saving the job');
       console.error(err);
     }
   };
-  
+
   const handleDeleteJob = async (jobId) => {
-    if (window.confirm('Are you sure you want to delete this job? All job history will also be deleted.')) {
+    if (window.confirm('Are you sure you want to delete this job?')) {
       try {
         const response = await deleteJob(jobId);
+        
         if (response.success) {
-          fetchJobs();
+          fetchData();
         } else {
-          setError(response.error || 'Failed to delete job');
+          setError(response.message || 'Failed to delete job');
         }
       } catch (err) {
-        setError('An error occurred while deleting job');
+        setError('An error occurred while deleting the job');
         console.error(err);
       }
     }
   };
-  
-  // Filter jobs by selected business process
-  const filteredJobs = selectedProcess === 'all'
-    ? jobs
-    : jobs.filter(job => job.business_process_id === selectedProcess);
-  
-  if (loading) {
-    return <div className="loading">Loading jobs...</div>;
-  }
-  
+
+  const handleRunJob = async (jobId) => {
+    try {
+      setLoading(true);
+      const response = await runJob(jobId);
+      
+      if (response.success) {
+        // Show success message
+        alert('Job started successfully');
+        // Refresh job data after a short delay
+        setTimeout(() => {
+          fetchData();
+        }, 1000);
+      } else {
+        setError(response.message || 'Failed to run job');
+      }
+    } catch (err) {
+      setError('An error occurred while running the job');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper to get business process name from ID
+  const getProcessName = (processId) => {
+    const process = businessProcesses.find(p => p.id === processId);
+    return process ? process.name : 'Unknown Process';
+  };
+
+  // Format last run time
+  const formatLastRunTime = (timestamp) => {
+    if (!timestamp) return 'Never';
+    
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+  };
+
   return (
     <div className="jobs-container">
-      <div className="page-header">
-        <h1>Jobs</h1>
-        <div className="header-actions">
-          <div className="filter-group">
-            <label htmlFor="process-filter">Business Process:</label>
-            <select
-              id="process-filter"
-              value={selectedProcess}
-              onChange={(e) => setSelectedProcess(e.target.value)}
-            >
-              <option value="all">All Processes</option>
-              {processes.map(process => (
-                <option key={process.id} value={process.id}>
-                  {process.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {hasFeaturePermission('job', 'write') && (
-            <button 
-              className="primary-button create-button"
-              onClick={() => navigate('/jobs/create')}
-            >
-              <i className="fas fa-plus"></i> Create Job
-            </button>
-          )}
-        </div>
+      <PageHeader
+        title="Jobs"
+        icon={<FiPlay />}
+        description="Create and manage jobs for your business processes"
+      />
+      
+      <div className="jobs-actions">
+        <Button 
+          primary 
+          onClick={() => handleOpenModal()} 
+          icon={<FiPlus />}
+          disabled={businessProcesses.length === 0}
+        >
+          Create Job
+        </Button>
       </div>
       
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
       
-      {filteredJobs.length === 0 ? (
-        <div className="no-data">
-          <p>No jobs found.</p>
-          {hasFeaturePermission('job', 'write') && (
-            <button 
-              className="primary-button"
-              onClick={() => navigate('/jobs/create')}
-            >
-              Create your first job
-            </button>
-          )}
-        </div>
+      {loading ? (
+        <Loader />
       ) : (
-        <div className="jobs-table-container">
-          <table className="jobs-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Business Process</th>
-                <th>Status</th>
-                <th>Source</th>
-                <th>Target</th>
-                <th>Runs</th>
-                <th>Last Run</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredJobs.map(job => (
-                <tr key={job.id}>
-                  <td>
-                    <Link to={`/jobs/${job.id}`} className="job-name-link">
-                      {job.name}
-                    </Link>
-                  </td>
-                  <td>
-                    <Link to={`/business-processes/${job.business_process_id}`}>
-                      {job.business_process_name}
-                    </Link>
-                  </td>
-                  <td>
-                    <span className={`status-badge status-${job.status}`}>
-                      {job.status || 'draft'}
-                    </span>
-                  </td>
-                  <td>{job.source_connection_id ? 'Configured' : 'Not configured'}</td>
-                  <td>{job.target_connection_id ? 'Configured' : 'Not configured'}</td>
-                  <td>{job.run_count || 0}</td>
-                  <td>
-                    {job.last_run_time 
-                      ? new Date(job.last_run_time).toLocaleString() 
-                      : 'Never run'}
-                  </td>
-                  <td>
-                    <div className="table-actions">
-                      <button 
-                        className="icon-button view"
-                        onClick={() => navigate(`/jobs/${job.id}`)}
-                        title="View Job"
-                      >
-                        <i className="fas fa-eye"></i>
-                      </button>
-                      {hasFeaturePermission('job', 'write') && (
-                        <>
-                          <button 
-                            className="icon-button edit"
-                            onClick={() => navigate(`/jobs/${job.id}/edit`)}
-                            title="Edit Job"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </button>
-                          <button 
-                            className="icon-button run"
+        <div className="jobs-list">
+          {jobs.length === 0 ? (
+            <div className="empty-state">
+              <FiPlay size={48} />
+              <h3>No Jobs Found</h3>
+              <p>Create your first job to start processing data</p>
+              {businessProcesses.length === 0 ? (
+                <div className="alert alert-warning">
+                  You need to create a business process first before you can create a job
+                </div>
+              ) : (
+                <Button primary onClick={() => handleOpenModal()}>Create Job</Button>
+              )}
+            </div>
+          ) : (
+            <div className="jobs-table-container">
+              <table className="jobs-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Business Process</th>
+                    <th>Status</th>
+                    <th>Last Run</th>
+                    <th>Run Count</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobs.map((job) => (
+                    <tr key={job.id}>
+                      <td>
+                        <Link to={`/jobs/${job.id}`} className="job-name-link">
+                          {job.name}
+                        </Link>
+                        {job.description && (
+                          <div className="job-description">{job.description}</div>
+                        )}
+                      </td>
+                      <td>{getProcessName(job.business_process_id)}</td>
+                      <td>
+                        <span className={`status-badge status-${job.status || 'active'}`}>
+                          {job.status || 'Active'}
+                        </span>
+                      </td>
+                      <td>{formatLastRunTime(job.last_run_time)}</td>
+                      <td>{job.run_count || 0}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            className="icon-button"
                             onClick={() => handleRunJob(job.id)}
                             title="Run Job"
-                            disabled={job.status === 'running'}
+                            disabled={job.status === 'inactive'}
                           >
-                            <i className="fas fa-play"></i>
+                            <FiPlay />
                           </button>
-                          <button 
-                            className="icon-button delete"
+                          <button
+                            className="icon-button"
+                            onClick={() => handleOpenModal(job)}
+                            title="Edit Job"
+                          >
+                            <FiEdit />
+                          </button>
+                          <button
+                            className="icon-button"
                             onClick={() => handleDeleteJob(job.id)}
                             title="Delete Job"
                           >
-                            <i className="fas fa-trash"></i>
+                            <FiTrash />
                           </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
+      )}
+      
+      {showModal && (
+        <Modal
+          title={currentJob ? `Edit Job: ${currentJob.name}` : 'Create New Job'}
+          onClose={handleCloseModal}
+        >
+          <form onSubmit={handleSubmit} className="job-form">
+            <div className="form-group">
+              <label htmlFor="name">Job Name*</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+                placeholder="Enter job name"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="description">Description</label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows={3}
+                placeholder="Enter job description (optional)"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="business_process_id">Business Process*</label>
+              <select
+                id="business_process_id"
+                name="business_process_id"
+                value={formData.business_process_id}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select a business process</option>
+                {businessProcesses.map((process) => (
+                  <option key={process.id} value={process.id}>
+                    {process.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {currentJob && (
+              <div className="form-group">
+                <label htmlFor="status">Status</label>
+                <select
+                  id="status"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            )}
+            
+            {/* In a full implementation, we would add fields for:
+                - Source and target connections
+                - Validation settings
+                - Error handling
+                - Notifications
+                - Schedule settings
+            */}
+            
+            <div className="form-actions">
+              <Button secondary onClick={handleCloseModal}>Cancel</Button>
+              <Button primary type="submit">
+                {currentJob ? 'Update Job' : 'Create Job'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
