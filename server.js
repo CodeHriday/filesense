@@ -2870,14 +2870,14 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Get all jobs
+    // Get all jobs - explicitly cast types to avoid UUID/integer comparison issues
     const jobsQuery = `
       SELECT j.*, bp.name as business_process_name,
         COUNT(jr.id) as run_count,
         MAX(jr.start_time) as last_run_time
       FROM jobs j
-      JOIN business_processes bp ON j.business_process_id = bp.id
-      LEFT JOIN job_runs jr ON j.id = jr.job_id
+      JOIN business_processes bp ON j.business_process_id::text = bp.id::text
+      LEFT JOIN job_runs jr ON j.id::text = jr.job_id::text
       GROUP BY j.id, bp.name
       ORDER BY j.updated_at DESC
     `;
@@ -3321,7 +3321,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
     // Get user info for display purposes
     let userName = 'Unknown';
     try {
-      const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+      const userResult = await pool.query('SELECT username FROM users WHERE id::text = $1', [userId.toString()]);
       if (userResult.rows.length > 0) {
         userName = userResult.rows[0].username;
       }
@@ -3330,16 +3330,23 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
       // Continue anyway with default name
     }
     
-    // Create the group - store user ID directly as text to avoid UUID conversion issues
+    // Convert schema and handle user_id as text explicitly
+    const text_user_id = String(userId);
+    console.log('Creating job group with user ID (as text):', text_user_id);
+    
+    // Create the group with user ID as text
     const result = await pool.query(
       'INSERT INTO job_groups (name, description, created_by) VALUES ($1, $2, $3) RETURNING *',
-      [name, description, userId.toString()]
+      [name, description, text_user_id]
     );
+    
+    const new_group_id = result.rows[0].id;
+    console.log('Created new job group with ID:', new_group_id, 'and user ID:', text_user_id);
     
     // Add creator to group
     await pool.query(
       'INSERT INTO user_job_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [userId.toString(), result.rows[0].id]
+      [text_user_id, new_group_id]
     );
     
     // Add username to the response for display
