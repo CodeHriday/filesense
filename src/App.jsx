@@ -24,7 +24,9 @@ import UserManagement from './pages/UserManagement';
 import RoleManagement from './pages/RoleManagement';
 import BusinessProcesses from './pages/BusinessProcesses';
 import BusinessProcessDetail from './pages/BusinessProcessDetail';
+import Jobs from './pages/Jobs';
 import JobCreate from './pages/JobCreate';
+import JobDetail from './pages/JobDetail';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -38,7 +40,9 @@ import './styles/RoleManagement.css';
 import './styles/AIPredictiveInsights.css';
 import './styles/BusinessProcesses.css';
 import './styles/BusinessProcessDetail.css';
+import './styles/Jobs.css';
 import './styles/JobCreate.css';
+import './styles/JobDetail.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -126,7 +130,10 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/business-processes" element={<ProtectedRoute><BusinessProcesses /></ProtectedRoute>} />
                 <Route path="/business-processes/:id" element={<ProtectedRoute><BusinessProcessDetail /></ProtectedRoute>} />
                 <Route path="/business-processes/:id/edit" element={<ProtectedRoute><BusinessProcessDetail /></ProtectedRoute>} />
+                <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs/create" element={<ProtectedRoute><JobCreate /></ProtectedRoute>} />
+                <Route path="/jobs/:id" element={<ProtectedRoute><JobDetail /></ProtectedRoute>} />
+                <Route path="/jobs/:id/edit" element={<ProtectedRoute><JobDetail /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
