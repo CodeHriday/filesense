@@ -92,7 +92,7 @@ export const deleteJob = async (jobId) => {
  */
 export const startJob = async (jobId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/start`, {
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/run`, {
       method: 'POST',
     });
     return handleApiSuccess(response);
