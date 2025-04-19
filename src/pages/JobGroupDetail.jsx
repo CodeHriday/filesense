@@ -45,7 +45,7 @@ const JobGroupDetail = () => {
           description: response.data.description || ''
         });
       } else {
-        setError('Failed to fetch job group details');
+        setError('Failed to fetch group details');
         addToast('error', 'Error', 'Failed to fetch job group details');
       }
     } catch (err) {
@@ -86,10 +86,10 @@ const JobGroupDetail = () => {
       
       if (response.success) {
         setJobGroup({ ...jobGroup, ...formData });
-        addToast('success', 'Success', 'Job group updated successfully');
+        addToast('success', 'Success', 'Group updated successfully');
         setIsEditModalOpen(false);
       } else {
-        addToast('error', 'Error', response.message || 'Failed to update job group');
+        addToast('error', 'Error', response.message || 'Failed to update group');
       }
     } catch (err) {
       console.error('Error updating job group:', err);
@@ -177,10 +177,10 @@ const JobGroupDetail = () => {
     return (
       <div className="job-group-detail">
         <div className="error-message">
-          {error || 'Job group not found'}
+          {error || 'Group not found'}
         </div>
         <Button variant="secondary" onClick={() => navigate('/job-groups')}>
-          <FiArrowLeft /> Back to Job Groups
+          <FiArrowLeft /> Back to Groups
         </Button>
       </div>
     );
@@ -190,7 +190,7 @@ const JobGroupDetail = () => {
     <div className="job-group-detail">
       <div className="job-group-detail-header">
         <Button variant="secondary" onClick={() => navigate('/job-groups')}>
-          <FiArrowLeft /> Back to Job Groups
+          <FiArrowLeft /> Back to Groups
         </Button>
         
         {canEdit && (
