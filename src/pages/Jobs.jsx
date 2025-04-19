@@ -266,15 +266,7 @@ const Jobs = () => {
       if (businessProcesses.length === 0) {
         console.log("No business processes found, creating a default process");
         
-        const defaultProcess = {
-          name: "Default Process",
-          description: "Automatically created default business process",
-          group_id: 1, // Default group ID
-          created_by: 2, // Admin user ID
-          status: "active"
-        };
-        
-        // Import directly to avoid circular dependency
+        // First, get the default group ID
         const { API_BASE_URL } = await import('../config');
         const token = localStorage.getItem('token');
         
@@ -284,7 +276,45 @@ const Jobs = () => {
           return false;
         }
         
-        console.log("Sending API request to create business process");
+        // Get groups to find the default group
+        console.log("Fetching available groups");
+        const groupsResponse = await fetch(`${API_BASE_URL}/api/groups/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!groupsResponse.ok) {
+          console.error("Failed to fetch groups", groupsResponse.status);
+          const errorText = await groupsResponse.text();
+          console.error("Error response:", errorText);
+          setError("Failed to fetch groups for business process");
+          return false;
+        }
+        
+        const groups = await groupsResponse.json();
+        console.log("Available groups:", groups);
+        
+        // Find the "Default Group" or use the first available group
+        const defaultGroup = groups.find(g => g.name === "Default Group") || groups[0];
+        
+        if (!defaultGroup) {
+          console.error("No groups available to create business process");
+          setError("No groups available to create business process");
+          return false;
+        }
+        
+        console.log("Using group for business process:", defaultGroup);
+        
+        const defaultProcess = {
+          name: "Default Process",
+          description: "Automatically created default business process",
+          group_id: defaultGroup.id,
+          created_by: 2, // Admin user ID
+          status: "active"
+        };
+        
+        console.log("Sending API request to create business process with data:", defaultProcess);
         const response = await fetch(`${API_BASE_URL}/api/business-processes`, {
           method: 'POST',
           headers: {
@@ -298,7 +328,24 @@ const Jobs = () => {
           console.error("Failed to create default business process", response.status);
           const text = await response.text();
           console.error("Error response:", text);
-          setError("Failed to create default business process");
+          
+          // If we're still having issues, try to diagnose them
+          if (response.status === 500) {
+            try {
+              // Try to get more detailed error info from the server
+              const serverError = JSON.parse(text);
+              if (serverError.details) {
+                console.error("Server error details:", serverError.details);
+                setError(`Failed to create business process: ${serverError.details}`);
+              } else {
+                setError("Server error creating business process. Check console for details.");
+              }
+            } catch (e) {
+              setError("Failed to create default business process");
+            }
+          } else {
+            setError("Failed to create default business process");
+          }
           return false;
         }
         
@@ -313,7 +360,7 @@ const Jobs = () => {
       return true; // Business processes already exist
     } catch (err) {
       console.error("Error ensuring business process exists:", err);
-      setError("Failed to check or create business process");
+      setError(`Failed to create business process: ${err.message}`);
       return false;
     }
   };

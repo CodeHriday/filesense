@@ -259,9 +259,26 @@ const initBusinessProcessTables = require('./initBusinessProcessTables');
 initBusinessProcessTables(pool);
 
 // Business Process Management API Routes
-// Groups API
-app.get('/api/groups', async (req, res) => {
+// Groups API - with stats (public)
+app.get('/api/groups/stats', async (req, res) => {
   try {
+    // First check if we need to create a default group
+    const checkDefaultGroup = await pool.query("SELECT COUNT(*) FROM groups WHERE name = 'Default Group'");
+    if (parseInt(checkDefaultGroup.rows[0].count) === 0) {
+      console.log('No default group found, creating one');
+      try {
+        await pool.query(`
+          INSERT INTO groups (name, description)
+          VALUES ('Default Group', 'Default group for all users');
+        `);
+        console.log('Created default group');
+      } catch (err) {
+        if (err.code !== '23505') { // Not a unique violation
+          console.error('Error creating default group:', err);
+        }
+      }
+    }
+  
     const groupsQuery = `
       SELECT g.*, COUNT(DISTINCT ug.user_id) as user_count, COUNT(DISTINCT bp.id) as process_count
       FROM groups g
@@ -3332,9 +3349,26 @@ app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
 
 // Groups API
 
-// Get all groups
+// Get all groups (authenticated)
 app.get('/api/groups', authenticateToken, async (req, res) => {
   try {
+    // First check if we need to create a default group
+    const checkDefaultGroup = await pool.query("SELECT COUNT(*) FROM groups WHERE name = 'Default Group'");
+    if (parseInt(checkDefaultGroup.rows[0].count) === 0) {
+      console.log('No default group found, creating one from authenticated endpoint');
+      try {
+        await pool.query(`
+          INSERT INTO groups (name, description)
+          VALUES ('Default Group', 'Default group for all users');
+        `);
+        console.log('Created default group from authenticated endpoint');
+      } catch (err) {
+        if (err.code !== '23505') { // Not a unique violation
+          console.error('Error creating default group from authenticated endpoint:', err);
+        }
+      }
+    }
+
     const result = await pool.query('SELECT * FROM groups ORDER BY name');
     res.json(result.rows);
   } catch (err) {
