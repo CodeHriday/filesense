@@ -3304,11 +3304,10 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
     const notificationSettingsValue = notification_settings || {};
     const scheduleSettingsValue = schedule_settings || {};
     
-    // Create the job
+    // Create the job (note: there's no description column in the table)
     const result = await pool.query(
       `INSERT INTO jobs (
-        name, 
-        description,
+        name,
         business_process_id, 
         source_connection_id, 
         target_connection_id, 
@@ -3318,10 +3317,9 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
         schedule_settings, 
         created_by,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
-        name, 
-        description || '',
+        name,
         processId, 
         source_connection_id || null,
         target_connection_id || null,
