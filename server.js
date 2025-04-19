@@ -2844,7 +2844,7 @@ app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
 // Create a business process
 app.post('/api/business-processes', authenticateToken, async (req, res) => {
   try {
-    const { name, description, group_id } = req.body;
+    let { name, description, group_id } = req.body;
     // Use a default user ID if authentication is skipped
     const userId = req.user ? req.user.id : 2; // Default to admin user (ID 2)
     
@@ -2854,28 +2854,48 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Business process name is required' });
     }
     
+    // If no group_id provided, find or create default group
     if (!group_id) {
-      return res.status(400).json({ error: 'Group ID is required' });
+      console.log("No group_id provided, looking for default group");
+      
+      // Check if default group exists
+      const defaultGroupResult = await pool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+      
+      if (defaultGroupResult.rows.length > 0) {
+        // Use existing default group
+        group_id = defaultGroupResult.rows[0].id;
+        console.log("Using existing default group ID:", group_id);
+      } else {
+        // Create a default group
+        console.log("Creating default group");
+        try {
+          const newGroupResult = await pool.query(
+            "INSERT INTO groups (name, description) VALUES ('Default Group', 'Default group for all users') RETURNING id"
+          );
+          group_id = newGroupResult.rows[0].id;
+          console.log("Created new default group with ID:", group_id);
+        } catch (groupErr) {
+          console.error("Error creating default group:", groupErr);
+          return res.status(500).json({ error: 'Failed to create default group', details: groupErr.message });
+        }
+      }
+    } else {
+      // Verify the specified group exists
+      console.log("Verifying group exists:", group_id);
+      const groupCheck = await pool.query("SELECT id FROM groups WHERE id = $1", [group_id]);
+      
+      if (groupCheck.rows.length === 0) {
+        console.error("Specified group ID does not exist:", group_id);
+        return res.status(400).json({ error: 'Specified group does not exist' });
+      }
+      
+      console.log("Group exists:", groupCheck.rows[0]);
     }
     
     // For now, skip the group verification since we're
     // implementing a simplified auth model for business process management
     // This allows any user to create in any group
     const skipGroupVerification = true;
-    
-    if (!skipGroupVerification) {
-      // Verify user is a member of the specified group
-      const userGroupQuery = `
-        SELECT 1 FROM user_groups 
-        WHERE user_id = $1 AND group_id = $2
-      `;
-      
-      const userGroupResult = await pool.query(userGroupQuery, [userId, group_id]);
-      
-      if (userGroupResult.rows.length === 0) {
-        return res.status(403).json({ error: 'You are not a member of the specified group' });
-      }
-    }
     
     // Create the business process
     const insertQuery = `

@@ -276,40 +276,12 @@ const Jobs = () => {
           return false;
         }
         
-        // Get groups to find the default group
-        console.log("Fetching available groups");
-        const groupsResponse = await fetch(`${API_BASE_URL}/api/groups/stats`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!groupsResponse.ok) {
-          console.error("Failed to fetch groups", groupsResponse.status);
-          const errorText = await groupsResponse.text();
-          console.error("Error response:", errorText);
-          setError("Failed to fetch groups for business process");
-          return false;
-        }
-        
-        const groups = await groupsResponse.json();
-        console.log("Available groups:", groups);
-        
-        // Find the "Default Group" or use the first available group
-        const defaultGroup = groups.find(g => g.name === "Default Group") || groups[0];
-        
-        if (!defaultGroup) {
-          console.error("No groups available to create business process");
-          setError("No groups available to create business process");
-          return false;
-        }
-        
-        console.log("Using group for business process:", defaultGroup);
+        // The server will now handle finding/creating the default group
+        console.log("Creating default business process without specific group_id");
         
         const defaultProcess = {
           name: "Default Process",
           description: "Automatically created default business process",
-          group_id: defaultGroup.id,
           created_by: 2, // Admin user ID
           status: "active"
         };
