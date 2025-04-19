@@ -387,29 +387,7 @@ app.get('/api/business-processes', async (req, res) => {
   }
 });
 
-// Jobs API
-app.get('/api/jobs', async (req, res) => {
-  try {
-    const jobsQuery = `
-      SELECT j.*, bp.name as business_process_name, g.name as group_name,
-        COALESCE(COUNT(jr.id), 0) as run_count,
-        MAX(jr.start_time) as last_run_time
-      FROM jobs j
-      JOIN business_processes bp ON j.business_process_id::uuid = bp.id::uuid
-      JOIN groups g ON bp.group_id::uuid = g.id::uuid
-      LEFT JOIN job_runs jr ON j.id::uuid = jr.job_id::uuid
-      GROUP BY j.id, bp.name, g.name
-      ORDER BY j.updated_at DESC
-    `;
-    
-    const jobsResult = await pool.query(jobsQuery);
-    res.json(jobsResult.rows);
-  } catch (err) {
-    console.error('Error fetching jobs:', err);
-    // Return empty array instead of error to avoid breaking the frontend
-    res.json([]);
-  }
-});
+// Jobs API - Replaced by authenticated endpoint below
 
 // API Routes
 // Health Check
