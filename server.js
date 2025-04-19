@@ -2732,7 +2732,7 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
       LEFT JOIN users u ON bp.created_by = u.id
       LEFT JOIN jobs j ON bp.id = j.business_process_id
       LEFT JOIN groups g ON bp.group_id = g.id
-      WHERE bp.created_by = $1 OR bp.group_id = ANY($2::uuid[])
+      WHERE bp.created_by::text = $1::text OR bp.group_id = ANY($2::uuid[])
       GROUP BY bp.id, u.username, g.name
       ORDER BY bp.updated_at DESC
     `;
@@ -2878,7 +2878,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       FROM jobs j
       JOIN business_processes bp ON j.business_process_id = bp.id
       LEFT JOIN job_runs jr ON j.id = jr.job_id
-      WHERE j.created_by = $1 OR bp.group_id IN (
+      WHERE j.created_by::text = $1::text OR bp.group_id IN (
         SELECT group_id FROM user_groups WHERE user_id = $1
       )
       GROUP BY j.id, bp.name
