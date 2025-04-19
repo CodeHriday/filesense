@@ -60,6 +60,9 @@ const Jobs = () => {
   };
 
   const handleOpenModal = (job = null) => {
+    console.log("Opening modal for job:", job);
+    console.log("Available business processes:", businessProcesses);
+    
     if (job) {
       setCurrentJob(job);
       setFormData({
@@ -105,6 +108,7 @@ const Jobs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Form submitted with data:", formData);
     
     if (!formData.name.trim()) {
       setError('Job name is required');
@@ -119,13 +123,23 @@ const Jobs = () => {
     try {
       let response;
       
+      // Ensure business_process_id is an integer (not UUID)
+      const jobData = {
+        ...formData,
+        business_process_id: parseInt(formData.business_process_id, 10)
+      };
+      
+      console.log("Sending job data to API:", jobData);
+      
       if (currentJob) {
         // Update existing job
-        response = await updateJob(currentJob.id, formData);
+        response = await updateJob(currentJob.id, jobData);
       } else {
         // Create new job
-        response = await createJob(formData);
+        response = await createJob(jobData);
       }
+      
+      console.log("API response:", response);
       
       if (response.success) {
         fetchData();
@@ -135,7 +149,7 @@ const Jobs = () => {
       }
     } catch (err) {
       setError('An error occurred while saving the job');
-      console.error(err);
+      console.error("Error saving job:", err);
     }
   };
 
@@ -181,7 +195,12 @@ const Jobs = () => {
 
   // Helper to get business process name from ID
   const getProcessName = (processId) => {
-    const process = businessProcesses.find(p => p.id === processId);
+    // Ensure processId is treated as a number for comparison
+    const numericId = typeof processId === 'string' ? parseInt(processId, 10) : processId;
+    console.log("Looking for process with ID:", numericId, "Type:", typeof numericId);
+    console.log("Available processes:", businessProcesses);
+    
+    const process = businessProcesses.find(p => p.id === numericId);
     return process ? process.name : 'Unknown Process';
   };
 
