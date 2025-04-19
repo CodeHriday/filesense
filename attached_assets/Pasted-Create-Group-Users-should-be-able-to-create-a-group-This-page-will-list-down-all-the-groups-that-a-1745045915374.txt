@@ -1,0 +1,38 @@
+Create Group:
+Users should be able to create a group. This page will list down all the groups that are currently created.
+
+Business Process Management Flow
+	1. Enter the Business Processes ModuleFrom the Left Navigation pane, the user clicks “Business Processes.”
+	2. List ViewThe system shows all Business Processes for the user’s group.
+	3. Create a New Business Process
+			o Click “Create Business Process.”
+			o Enter a Business Process Name.
+			o Select the Group this Business Process belongs to.
+			o Click “Save.”
+	4. View or Edit an Existing Business Process
+			o Click the Business Process name.
+			o The detail page lists all jobs in that Business Process.
+			o To add a job, click “Add Job to this Business Process.”
+			o To rename or delete, use the “Edit” or “Delete” buttons.
+Job Creation and Configuration Flow
+	1. Start a New Job
+			o From the Left Navigation pane (Jobs tile) or from within a Business Process, click “Create Job.”
+	2. Step 1: Job Details
+			o Enter Job Name.
+			o Select which Business Process this job will belong to.
+	3. Step 2: Source Configuration
+			o Choose an existing connection (or create a new one).
+			o Preview the first ten rows of sample data.
+			o Review the source data schema.
+	4. Step 3: Target Configuration (Optional)
+			o If a target is required, choose an existing connection(or create one).
+			o Initiate the mapping page to map source to target or apply transformations
+	5. Step 4: Validation and Error Handling
+			o Select which data validations to apply (for example, data type checks or range checks).
+			o Define error‑handling settings (for example, stop on first error or continue and log).
+			o Configure email notifications for success, partial failures, or complete failures.
+	6. Step 5: Scheduling
+			o Initiate the scheduler to choose whether this job will run on a schedule (for example, cron expression) or only on manual or ad‑hoc invocation.
+	7. Review and Save
+			o Review all settings in a summary view.
+			o Click “Save Job.”

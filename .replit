@@ -52,7 +52,6 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node server.js"
-waitForPort = 3000
 
 [[ports]]
 localPort = 3000
