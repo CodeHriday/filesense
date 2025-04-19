@@ -126,30 +126,36 @@ const Jobs = () => {
       // Ensure business_process_id is an integer (not UUID)
       const jobData = {
         ...formData,
-        business_process_id: parseInt(formData.business_process_id, 10)
+        business_process_id: parseInt(formData.business_process_id, 10),
+        // Set created_by field (this is required by the server)
+        created_by: 2  // Using the admin user ID
       };
       
       console.log("Sending job data to API:", jobData);
       
       if (currentJob) {
         // Update existing job
+        console.log(`Updating job with ID: ${currentJob.id}`);
         response = await updateJob(currentJob.id, jobData);
       } else {
         // Create new job
+        console.log('Creating new job');
         response = await createJob(jobData);
       }
       
       console.log("API response:", response);
       
       if (response.success) {
+        console.log("Job saved successfully!");
         fetchData();
         handleCloseModal();
       } else {
+        console.error("Failed to save job:", response);
         setError(response.message || 'Failed to save job');
       }
     } catch (err) {
+      console.error("Caught exception while saving job:", err);
       setError('An error occurred while saving the job');
-      console.error("Error saving job:", err);
     }
   };
 
