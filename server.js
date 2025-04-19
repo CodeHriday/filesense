@@ -3018,7 +3018,7 @@ app.get('/api/user/groups', authenticateToken, async (req, res) => {
       SELECT g.*
       FROM groups g
       JOIN user_groups ug ON g.id = ug.group_id
-      WHERE ug.user_id::text = $1::text
+      WHERE ug.user_id = $1
       ORDER BY g.name
     `;
     
@@ -3027,6 +3027,165 @@ app.get('/api/user/groups', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error fetching user groups:', err);
     res.status(500).json({ error: 'Failed to fetch user groups' });
+  }
+});
+
+// Create a new group
+app.post('/api/groups', authenticateToken, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+    
+    const query = `
+      INSERT INTO groups (name, description)
+      VALUES ($1, $2)
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [name, description]);
+    const newGroup = result.rows[0];
+    
+    // Add the creator to the group automatically
+    await pool.query(
+      'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2)',
+      [req.user.id, newGroup.id]
+    );
+    
+    res.status(201).json(newGroup);
+  } catch (err) {
+    console.error('Error creating group:', err);
+    res.status(500).json({ error: 'Failed to create group' });
+  }
+});
+
+// Update a group
+app.put('/api/groups/:id', authenticateToken, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    const { name, description } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+    
+    const query = `
+      UPDATE groups
+      SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [name, description, groupId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating group:', err);
+    res.status(500).json({ error: 'Failed to update group' });
+  }
+});
+
+// Delete a group
+app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    
+    // First check if it's the default group
+    const defaultGroup = await pool.query('SELECT * FROM groups WHERE name = $1', ['Default Group']);
+    
+    if (defaultGroup.rows.length > 0 && defaultGroup.rows[0].id == groupId) {
+      return res.status(403).json({ error: 'Cannot delete the default group' });
+    }
+    
+    // Delete the group (cascade will remove user_groups entries)
+    const result = await pool.query('DELETE FROM groups WHERE id = $1 RETURNING *', [groupId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    res.json({ message: 'Group deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting group:', err);
+    res.status(500).json({ error: 'Failed to delete group' });
+  }
+});
+
+// Add users to a group
+app.post('/api/groups/:id/users', authenticateToken, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    const { userIds } = req.body;
+    
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs are required' });
+    }
+    
+    // Check if the group exists
+    const groupResult = await pool.query('SELECT * FROM groups WHERE id = $1', [groupId]);
+    
+    if (groupResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    // Add users to the group
+    const addedUsers = [];
+    for (const userId of userIds) {
+      try {
+        await pool.query(
+          'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [userId, groupId]
+        );
+        addedUsers.push(userId);
+      } catch (err) {
+        console.error(`Error adding user ${userId} to group:`, err);
+      }
+    }
+    
+    res.json({ message: 'Users added to group successfully', addedUsers });
+  } catch (err) {
+    console.error('Error adding users to group:', err);
+    res.status(500).json({ error: 'Failed to add users to group' });
+  }
+});
+
+// Remove a user from a group
+app.delete('/api/groups/:groupId/users/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { groupId, userId } = req.params;
+    
+    // Check if the group exists
+    const groupResult = await pool.query('SELECT * FROM groups WHERE id = $1', [groupId]);
+    
+    if (groupResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    // Check if it's the default group
+    if (groupResult.rows[0].name === 'Default Group') {
+      return res.status(403).json({ error: 'Cannot remove users from the default group' });
+    }
+    
+    // Remove the user from the group
+    const result = await pool.query(
+      'DELETE FROM user_groups WHERE user_id = $1 AND group_id = $2 RETURNING *',
+      [userId, groupId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User is not a member of this group' });
+    }
+    
+    res.json({ message: 'User removed from group successfully' });
+  } catch (err) {
+    console.error('Error removing user from group:', err);
+    res.status(500).json({ error: 'Failed to remove user from group' });
   }
 });
 

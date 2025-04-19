@@ -2,72 +2,112 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { handleApiError, handleApiSuccess } from './apiUtils';
 
-// Business Processes API
-
-/**
- * Get all business processes
- * @returns {Promise<Array>} List of business processes
- */
+// Get all business processes accessible to the user
 export const getBusinessProcesses = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/business-processes`);
+    const response = await axios.get(`${API_BASE_URL}/api/business-processes`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Get a business process by ID
- * @param {string} id - Business process ID
- * @returns {Promise<Object>} Business process details
- */
-export const getBusinessProcessById = async (id) => {
+// Get a specific business process by ID
+export const getBusinessProcessById = async (processId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/business-processes/${id}`);
+    const response = await axios.get(`${API_BASE_URL}/api/business-processes/${processId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Create a new business process
- * @param {Object} processData - Business process data
- * @returns {Promise<Object>} Created business process
- */
+// Create a new business process
 export const createBusinessProcess = async (processData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/business-processes`, processData);
+    const response = await axios.post(`${API_BASE_URL}/api/business-processes`, processData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Update a business process
- * @param {string} id - Business process ID
- * @param {Object} processData - Updated business process data
- * @returns {Promise<Object>} Updated business process
- */
-export const updateBusinessProcess = async (id, processData) => {
+// Update an existing business process
+export const updateBusinessProcess = async (processId, processData) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/api/business-processes/${id}`, processData);
+    const response = await axios.put(`${API_BASE_URL}/api/business-processes/${processId}`, processData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Delete a business process
- * @param {string} id - Business process ID
- * @returns {Promise<Object>} Result of deletion
- */
-export const deleteBusinessProcess = async (id) => {
+// Delete a business process
+export const deleteBusinessProcess = async (processId) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/api/business-processes/${id}`);
+    const response = await axios.delete(`${API_BASE_URL}/api/business-processes/${processId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+// Get jobs for a specific business process
+export const getBusinessProcessJobs = async (processId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/business-processes/${processId}/jobs`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+// Add a job to a business process
+export const addJobToBusinessProcess = async (processId, jobData) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/business-processes/${processId}/jobs`, jobData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+// Remove a job from a business process
+export const removeJobFromBusinessProcess = async (processId, jobId) => {
+  try {
+    const response = await axios.delete(`${API_BASE_URL}/api/business-processes/${processId}/jobs/${jobId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);

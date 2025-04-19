@@ -2,130 +2,126 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { handleApiError, handleApiSuccess } from './apiUtils';
 
-// Jobs API
-
-/**
- * Get all jobs
- * @param {Object} params - Query parameters
- * @returns {Promise<Array>} List of jobs
- */
-export const getJobs = async (params = {}) => {
+// Get all jobs accessible to the user
+export const getJobs = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs`, { params });
+    const response = await axios.get(`${API_BASE_URL}/api/jobs`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Get jobs by business process ID
- * @param {string} processId - Business process ID
- * @returns {Promise<Array>} List of jobs
- */
-export const getJobsByProcessId = async (processId) => {
+// Get a specific job by ID
+export const getJobById = async (jobId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/business-processes/${processId}/jobs`);
+    const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Get a job by ID
- * @param {string} id - Job ID
- * @returns {Promise<Object>} Job details
- */
-export const getJobById = async (id) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs/${id}`);
-    return handleApiSuccess(response);
-  } catch (error) {
-    return handleApiError(error);
-  }
-};
-
-/**
- * Create a new job
- * @param {Object} jobData - Job data
- * @returns {Promise<Object>} Created job
- */
+// Create a new job
 export const createJob = async (jobData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/jobs`, jobData);
+    const response = await axios.post(`${API_BASE_URL}/api/jobs`, jobData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Update a job
- * @param {string} id - Job ID
- * @param {Object} jobData - Updated job data
- * @returns {Promise<Object>} Updated job
- */
-export const updateJob = async (id, jobData) => {
+// Update an existing job
+export const updateJob = async (jobId, jobData) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/api/jobs/${id}`, jobData);
+    const response = await axios.put(`${API_BASE_URL}/api/jobs/${jobId}`, jobData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Delete a job
- * @param {string} id - Job ID
- * @returns {Promise<Object>} Result of deletion
- */
-export const deleteJob = async (id) => {
+// Delete a job
+export const deleteJob = async (jobId) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/api/jobs/${id}`);
+    const response = await axios.delete(`${API_BASE_URL}/api/jobs/${jobId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Run a job
- * @param {string} id - Job ID
- * @param {Object} options - Run options
- * @returns {Promise<Object>} Job run result
- */
-export const runJob = async (id, options = {}) => {
+// Run a job manually
+export const runJob = async (jobId, runParams = {}) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/jobs/${id}/run`, options);
+    const response = await axios.post(`${API_BASE_URL}/api/jobs/${jobId}/run`, runParams, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Get job run history
- * @param {string} id - Job ID
- * @returns {Promise<Array>} Job run history
- */
-export const getJobRunHistory = async (id) => {
+// Get job run history
+export const getJobRunHistory = async (jobId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs/${id}/history`);
+    const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/runs`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-/**
- * Get job status
- * @param {string} id - Job ID
- * @returns {Promise<Object>} Job status
- */
-export const getJobStatus = async (id) => {
+// Get job run details
+export const getJobRunDetails = async (jobId, runId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs/${id}/status`);
+    const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/runs/${runId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+// Update job schedule
+export const updateJobSchedule = async (jobId, scheduleSettings) => {
+  try {
+    const response = await axios.put(`${API_BASE_URL}/api/jobs/${jobId}/schedule`, scheduleSettings, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
