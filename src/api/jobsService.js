@@ -60,57 +60,88 @@ export const getBusinessProcessJobs = async (processId) => {
  */
 export const createJob = async (jobData) => {
   try {
-    console.log('Creating job with data:', jobData);
+    console.log('============== CREATING JOB ==============');
+    console.log('Job data:', JSON.stringify(jobData, null, 2));
+    
     const token = localStorage.getItem('token');
     if (!token) {
       console.error('No authentication token found');
+      console.log('============== CREATE JOB FAILED (AUTH) ==============');
       return { 
         success: false, 
         message: 'Authentication required' 
       };
     }
     
-    const response = await fetch(`${API_BASE_URL}/api/jobs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(jobData),
-    });
+    console.log('Token available, proceeding with request');
+    console.log('API URL:', `${API_BASE_URL}/api/jobs`);
     
-    console.log('Create job response status:', response.status);
-    
-    // For debugging: log the response text directly if there's an error
-    if (!response.ok) {
-      try {
-        const errorText = await response.text();
-        console.error('Error response from server:', errorText);
-        
-        // Try to parse JSON if possible, otherwise return the text
-        try {
-          const errorJson = JSON.parse(errorText);
-          return {
-            success: false,
-            status: response.status,
-            message: errorJson.error || 'Failed to create job',
-            details: errorJson
-          };
-        } catch (e) {
-          return {
-            success: false,
-            status: response.status,
-            message: errorText || 'Failed to create job'
-          };
-        }
-      } catch (e) {
-        console.error('Error reading error response:', e);
+    // Ensure business_process_id is a number, not a string
+    let processedData = {...jobData};
+    if (typeof processedData.business_process_id === 'string') {
+      const numericId = parseInt(processedData.business_process_id, 10);
+      if (!isNaN(numericId)) {
+        processedData.business_process_id = numericId;
+        console.log('Converted business_process_id from string to number:', numericId);
       }
     }
     
-    return handleApiSuccess(response);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/jobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(processedData),
+      });
+      
+      console.log('Create job response status:', response.status);
+      
+      // For debugging: log the response text directly if there's an error
+      if (!response.ok) {
+        console.log('Response not OK, status:', response.status);
+        try {
+          const errorText = await response.text();
+          console.error('Error response from server:', errorText);
+          
+          console.log('============== CREATE JOB FAILED (API ERROR) ==============');
+          // Try to parse JSON if possible, otherwise return the text
+          try {
+            const errorJson = JSON.parse(errorText);
+            return {
+              success: false,
+              status: response.status,
+              message: errorJson.error || 'Failed to create job',
+              details: errorJson
+            };
+          } catch (e) {
+            return {
+              success: false,
+              status: response.status,
+              message: errorText || 'Failed to create job'
+            };
+          }
+        } catch (e) {
+          console.error('Error reading error response:', e);
+        }
+      }
+      
+      const result = await handleApiSuccess(response);
+      console.log('Job created successfully:', result);
+      console.log('============== CREATE JOB SUCCEEDED ==============');
+      return result;
+    } catch (fetchError) {
+      console.error('Fetch error in createJob:', fetchError);
+      console.log('============== CREATE JOB FAILED (FETCH ERROR) ==============');
+      return {
+        success: false,
+        message: `Network error: ${fetchError.message}`
+      };
+    }
   } catch (error) {
     console.error('Exception in createJob:', error);
+    console.log('============== CREATE JOB FAILED (EXCEPTION) ==============');
     return handleApiError(error);
   }
 };
