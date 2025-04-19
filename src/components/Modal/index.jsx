@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { FiX } from 'react-icons/fi';
 import './Modal.css';
 
@@ -35,7 +36,7 @@ const Modal = ({
     e.stopPropagation();
   };
 
-  return (
+  const modalContent = (
     <div className="modal-overlay" onClick={onClose}>
       <div 
         className={`modal-container modal-${size}`}
@@ -56,6 +57,14 @@ const Modal = ({
         </div>
       </div>
     </div>
+  );
+  
+  console.log("Modal is rendering", { title });
+  
+  // Use React Portal to render modal at the document body level
+  return ReactDOM.createPortal(
+    modalContent,
+    document.body
   );
 };
 

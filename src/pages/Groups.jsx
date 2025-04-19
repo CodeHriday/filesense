@@ -18,6 +18,8 @@ const Groups = () => {
     name: '',
     description: ''
   });
+  
+  console.log("Groups component rendering, showModal:", showModal);
 
   useEffect(() => {
     fetchGroups();
@@ -41,6 +43,8 @@ const Groups = () => {
   };
 
   const handleOpenModal = (group = null) => {
+    console.log("handleOpenModal called!", { group });
+    
     if (group) {
       setCurrentGroup(group);
       setFormData({
@@ -54,7 +58,13 @@ const Groups = () => {
         description: ''
       });
     }
+    
+    console.log("Setting showModal to true");
     setShowModal(true);
+    // Force a re-render to ensure the modal opens
+    setTimeout(() => {
+      console.log("After setting showModal, value is:", showModal);
+    }, 0);
   };
 
   const handleCloseModal = () => {

@@ -22,10 +22,17 @@ const Button = ({
     ${icon ? 'btn-with-icon' : ''}
   `.trim().replace(/\s+/g, ' ');
 
+  const handleClick = (e) => {
+    console.log("Button clicked!");
+    if (onClick) {
+      onClick(e);
+    }
+  };
+  
   return (
     <button
       className={buttonClass}
-      onClick={onClick}
+      onClick={handleClick}
       disabled={disabled}
       type={type}
       {...rest}
