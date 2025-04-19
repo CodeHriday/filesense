@@ -1,0 +1,71 @@
+.tooltip-container {
+  display: inline-block;
+  position: relative;
+}
+
+.tooltip {
+  background-color: #2c3e50;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-width: 200px;
+  text-align: center;
+  z-index: 1000;
+  word-wrap: break-word;
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  animation: tooltipFadeIn 0.2s ease-in-out forwards;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  border-width: 5px;
+  border-style: solid;
+}
+
+.tooltip-top::after {
+  border-color: #2c3e50 transparent transparent transparent;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+}
+
+.tooltip-bottom::after {
+  border-color: transparent transparent #2c3e50 transparent;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -5px;
+}
+
+.tooltip-left::after {
+  border-color: transparent transparent transparent #2c3e50;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+}
+
+.tooltip-right::after {
+  border-color: transparent #2c3e50 transparent transparent;
+  top: 50%;
+  right: 100%;
+  margin-top: -5px;
+}
+
+/* For triggers that are block elements */
+.tooltip-trigger {
+  display: inline-flex;
+}

@@ -27,11 +27,14 @@ import BusinessProcessDetail from './pages/BusinessProcessDetail';
 import Jobs from './pages/Jobs';
 import JobCreate from './pages/JobCreate';
 import JobDetail from './pages/JobDetail';
+import JobGroups from './pages/JobGroups';
+import JobGroupDetail from './pages/JobGroupDetail';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
 import AuthProvider, { useAuth } from './context/AuthContext';
 import { AnnouncementProvider } from './components/accessibility';
+import { ToastProvider } from './context/ToastContext';
 import './App.css';
 import './styles/accessibility.css';
 import './styles/Login.css';
@@ -43,6 +46,7 @@ import './styles/BusinessProcessDetail.css';
 import './styles/Jobs.css';
 import './styles/JobCreate.css';
 import './styles/JobDetail.css';
+import './styles/JobGroups.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -74,9 +78,11 @@ function App() {
     <AccessibilityProvider>
       <AuthProvider>
         <AnnouncementProvider>
-          <Router>
-            <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
-          </Router>
+          <ToastProvider>
+            <Router>
+              <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
+            </Router>
+          </ToastProvider>
         </AnnouncementProvider>
       </AuthProvider>
     </AccessibilityProvider>
@@ -134,6 +140,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/jobs/create" element={<ProtectedRoute><JobCreate /></ProtectedRoute>} />
                 <Route path="/jobs/:id" element={<ProtectedRoute><JobDetail /></ProtectedRoute>} />
                 <Route path="/jobs/:id/edit" element={<ProtectedRoute><JobDetail /></ProtectedRoute>} />
+                <Route path="/job-groups" element={<ProtectedRoute><JobGroups /></ProtectedRoute>} />
+                <Route path="/job-groups/:id" element={<ProtectedRoute><JobGroupDetail /></ProtectedRoute>} />
+                <Route path="/job-groups/:id/edit" element={<ProtectedRoute><JobGroupDetail /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
