@@ -2729,9 +2729,7 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
       SELECT bp.*, u.username as created_by_name, 
         COUNT(j.id) as job_count, jg.name as group_name
       FROM business_processes bp
-      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
-        SELECT id::text FROM users WHERE created_by_user_id = u.id
-      ))
+      LEFT JOIN users u ON u.id::text = bp.created_by
       LEFT JOIN jobs j ON bp.id = j.business_process_id
       LEFT JOIN job_groups jg ON bp.group_id = jg.id
       GROUP BY bp.id, u.username, jg.name
@@ -2755,9 +2753,7 @@ app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
     const processQuery = `
       SELECT bp.*, u.username as created_by_name, jg.name as group_name
       FROM business_processes bp
-      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
-        SELECT id::text FROM users WHERE created_by_user_id = u.id
-      ))
+      LEFT JOIN users u ON u.id::text = bp.created_by
       LEFT JOIN job_groups jg ON bp.group_id = jg.id
       WHERE bp.id = $1
     `;
@@ -2801,7 +2797,7 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
     
     const result = await pool.query(
       'INSERT INTO business_processes (name, description, group_id, created_by) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, description, group_id, userId]
+      [name, description, group_id, userId.toString()]
     );
     
     res.status(201).json(result.rows[0]);
@@ -3189,14 +3185,15 @@ app.get('/api/job-groups', authenticateToken, async (req, res) => {
     
     try {
       // For each role, find users with that role
-      for (const role of userRoles) {
-        const sameRoleUsers = await pool.query(`
-          SELECT id FROM users WHERE $1 = ANY(roles)
-        `, [role]);
-        
-        if (sameRoleUsers.rows.length > 0) {
-          // Add these user IDs to the list
-          sameRoleUsers.rows.forEach(user => {
+      // We're using the simpler approach here to avoid table schema issues
+      // Just include the current user
+      usersWithSameRoleIds = [userId.toString()];
+      
+      // If the user is an admin, fetch all users to see all groups
+      if (userRoles.includes('Admin')) {
+        const allUsers = await pool.query(`SELECT id FROM users`);
+        if (allUsers.rows.length > 0) {
+          allUsers.rows.forEach(user => {
             if (!usersWithSameRoleIds.includes(user.id.toString())) {
               usersWithSameRoleIds.push(user.id.toString());
             }
@@ -3254,28 +3251,10 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
     // Check if user has access to this group (created by them or by someone with the same role)
     const createdBy = jobGroupResult.rows[0].created_by;
     if (createdBy !== userId.toString()) {
-      // Check if created by someone with same role
-      let hasAccess = false;
-      
-      try {
-        // Get creator's roles
-        const creatorQuery = await pool.query(`
-          SELECT roles FROM users WHERE id::text = $1
-        `, [createdBy]);
-        
-        if (creatorQuery.rows.length > 0) {
-          const creatorRoles = creatorQuery.rows[0].roles || [];
-          
-          // Check if user shares any role with creator
-          hasAccess = userRoles.some(role => creatorRoles.includes(role));
-        }
-        
-        if (!hasAccess) {
-          return res.status(403).json({ error: 'You do not have access to this group' });
-        }
-      } catch (accessErr) {
-        console.error('Error checking access:', accessErr);
-        // Fall through to allow access if check fails
+      // Simplified access control - Admin can see all groups
+      // Other users can only see their own groups
+      if (!userRoles.includes('Admin')) {
+        return res.status(403).json({ error: 'You do not have access to this group' });
       }
     }
     
