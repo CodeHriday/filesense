@@ -2738,7 +2738,7 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
       ORDER BY bp.updated_at DESC
     `;
     
-    const processesResult = await pool.query(businessProcessesQuery, [userId, userGroupIds]);
+    const processesResult = await pool.query(businessProcessesQuery);
     res.json(processesResult.rows);
   } catch (err) {
     console.error('Error fetching business processes:', err);
@@ -2753,9 +2753,12 @@ app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
     
     // Get the business process
     const processQuery = `
-      SELECT bp.*, u.username as created_by_name
+      SELECT bp.*, u.username as created_by_name, jg.name as group_name
       FROM business_processes bp
-      JOIN users u ON bp.created_by = u.id
+      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
+        SELECT id::text FROM users WHERE created_by_user_id = u.id
+      ))
+      LEFT JOIN job_groups jg ON bp.group_id = jg.id
       WHERE bp.id = $1
     `;
     const processResult = await pool.query(processQuery, [id]);
@@ -2871,7 +2874,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Get all jobs created by this user or in business processes visible to this user
+    // Get all jobs
     const jobsQuery = `
       SELECT j.*, bp.name as business_process_name,
         COUNT(jr.id) as run_count,
@@ -2879,14 +2882,11 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       FROM jobs j
       JOIN business_processes bp ON j.business_process_id = bp.id
       LEFT JOIN job_runs jr ON j.id = jr.job_id
-      WHERE j.created_by::text = $1::text OR bp.group_id IN (
-        SELECT group_id FROM user_groups WHERE user_id::text = $1::text
-      )
       GROUP BY j.id, bp.name
       ORDER BY j.updated_at DESC
     `;
     
-    const jobsResult = await pool.query(jobsQuery, [userId]);
+    const jobsResult = await pool.query(jobsQuery);
     res.json(jobsResult.rows);
   } catch (err) {
     console.error('Error fetching jobs:', err);
