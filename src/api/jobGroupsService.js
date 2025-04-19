@@ -5,7 +5,7 @@ import { handleApiError, handleApiSuccess } from './apiUtils';
 // Get all job groups
 export const getJobGroups = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/job-groups`);
+    const response = await axios.get(`${API_BASE_URL}/api/job-groups`);
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
@@ -16,7 +16,7 @@ export const getJobGroups = async () => {
 // Get job group by ID
 export const getJobGroupById = async (id) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/job-groups/${id}`);
+    const response = await axios.get(`${API_BASE_URL}/api/job-groups/${id}`);
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
@@ -27,7 +27,7 @@ export const getJobGroupById = async (id) => {
 // Create a new job group
 export const createJobGroup = async (groupData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/job-groups`, groupData);
+    const response = await axios.post(`${API_BASE_URL}/api/job-groups`, groupData);
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
@@ -38,7 +38,7 @@ export const createJobGroup = async (groupData) => {
 // Update an existing job group
 export const updateJobGroup = async (id, groupData) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/job-groups/${id}`, groupData);
+    const response = await axios.put(`${API_BASE_URL}/api/job-groups/${id}`, groupData);
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
@@ -49,7 +49,7 @@ export const updateJobGroup = async (id, groupData) => {
 // Delete a job group
 export const deleteJobGroup = async (id) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/job-groups/${id}`);
+    const response = await axios.delete(`${API_BASE_URL}/api/job-groups/${id}`);
     return handleApiSuccess(response);
   } catch (error) {
     console.error("API Error:", error);
