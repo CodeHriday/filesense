@@ -252,7 +252,7 @@ const initBusinessProcessTables = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
         description TEXT,
-        created_by UUID REFERENCES users(id),
+        created_by UUID,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -261,8 +261,8 @@ const initBusinessProcessTables = async () => {
     // Create user_groups table for many-to-many relationship
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_groups (
-        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+        user_id UUID,
+        group_id UUID,
         PRIMARY KEY (user_id, group_id)
       );
     `);
@@ -273,8 +273,8 @@ const initBusinessProcessTables = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
         description TEXT,
-        group_id UUID REFERENCES groups(id),
-        created_by UUID REFERENCES users(id),
+        group_id UUID,
+        created_by UUID,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status TEXT DEFAULT 'active'
@@ -287,15 +287,15 @@ const initBusinessProcessTables = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
         description TEXT,
-        business_process_id UUID REFERENCES business_processes(id) ON DELETE CASCADE,
-        source_connection_id UUID,
-        target_connection_id UUID,
+        business_process_id UUID,
+        source_connection_id TEXT,
+        target_connection_id TEXT,
         validation_settings JSONB DEFAULT '{"rules": [], "enabled": true}'::jsonb,
         error_handling_settings JSONB DEFAULT '{"stop_on_error": false, "max_errors": 100, "log_level": "warning"}'::jsonb,
         notification_settings JSONB DEFAULT '{"email_on_success": false, "email_on_failure": true, "recipients": []}'::jsonb,
         schedule_settings JSONB DEFAULT '{"type": "manual", "cron_expression": "", "start_date": null, "enabled": false}'::jsonb,
         status TEXT DEFAULT 'draft',
-        created_by UUID REFERENCES users(id),
+        created_by UUID,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_run_time TIMESTAMP,
@@ -307,7 +307,7 @@ const initBusinessProcessTables = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS job_runs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
+        job_id UUID,
         status TEXT NOT NULL,
         start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         end_time TIMESTAMP,
@@ -315,7 +315,7 @@ const initBusinessProcessTables = async () => {
         records_succeeded INTEGER DEFAULT 0,
         records_failed INTEGER DEFAULT 0,
         error_details JSONB,
-        triggered_by UUID REFERENCES users(id),
+        triggered_by UUID,
         run_details JSONB
       );
     `);
@@ -334,11 +334,15 @@ const initBusinessProcessTables = async () => {
       let usersAdded = 0;
       
       for (const user of users.rows) {
-        await pool.query(
-          'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-          [user.id, newGroup.rows[0].id]
-        );
-        usersAdded++;
+        try {
+          await pool.query(
+            'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [user.id, newGroup.rows[0].id]
+          );
+          usersAdded++;
+        } catch (e) {
+          console.error('Error adding user to default group:', e);
+        }
       }
       
       console.log(`Added ${usersAdded} users to the default group`);
@@ -2722,10 +2726,14 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
     // Get all business processes for the user's groups
     // or processes created by the user
     const businessProcessesQuery = `
-      SELECT bp.*, u.username as created_by_name
+      SELECT bp.*, u.username as created_by_name, 
+        COUNT(j.id) as job_count, g.name as group_name
       FROM business_processes bp
-      JOIN users u ON bp.created_by = u.id
-      WHERE bp.created_by = $1 OR bp.group_id = ANY($2::int[])
+      LEFT JOIN users u ON bp.created_by = u.id
+      LEFT JOIN jobs j ON bp.id = j.business_process_id
+      LEFT JOIN groups g ON bp.group_id = g.id
+      WHERE bp.created_by = $1 OR bp.group_id = ANY($2::uuid[])
+      GROUP BY bp.id, u.username, g.name
       ORDER BY bp.updated_at DESC
     `;
     
@@ -2865,11 +2873,11 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
     // Get all jobs created by this user or in business processes visible to this user
     const jobsQuery = `
       SELECT j.*, bp.name as business_process_name,
-        COUNT(jh.id) as run_count,
-        MAX(jh.start_time) as last_run_time
+        COUNT(jr.id) as run_count,
+        MAX(jr.start_time) as last_run_time
       FROM jobs j
       JOIN business_processes bp ON j.business_process_id = bp.id
-      LEFT JOIN job_history jh ON j.id = jh.job_id
+      LEFT JOIN job_runs jr ON j.id = jr.job_id
       WHERE j.created_by = $1 OR bp.group_id IN (
         SELECT group_id FROM user_groups WHERE user_id = $1
       )
@@ -2906,7 +2914,7 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
     
     // Get job history
     const historyQuery = `
-      SELECT * FROM job_history
+      SELECT * FROM job_runs
       WHERE job_id = $1
       ORDER BY start_time DESC
       LIMIT 10
@@ -3068,9 +3076,9 @@ app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
     
-    // Create a job history record for this run
+    // Create a job run record for this run
     const historyResult = await pool.query(
-      'INSERT INTO job_history (job_id, status, start_time) VALUES ($1, $2, NOW()) RETURNING *',
+      'INSERT INTO job_runs (job_id, status, start_time) VALUES ($1, $2, NOW()) RETURNING *',
       [id, 'running']
     );
     
@@ -3081,11 +3089,11 @@ app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
     setTimeout(async () => {
       try {
         await pool.query(
-          'UPDATE job_history SET status = $1, end_time = NOW(), records_processed = $2, errors_count = $3 WHERE id = $4',
+          'UPDATE job_runs SET status = $1, end_time = NOW(), records_processed = $2, records_failed = $3 WHERE id = $4',
           ['completed', Math.floor(Math.random() * 1000), 0, historyId]
         );
       } catch (err) {
-        console.error('Error updating job history:', err);
+        console.error('Error updating job run history:', err);
       }
     }, 3000);
     
