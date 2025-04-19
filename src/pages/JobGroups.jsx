@@ -79,12 +79,12 @@ const JobGroups = () => {
   };
   
   const handleDeleteJobGroup = async (id) => {
-    if (window.confirm('Are you sure you want to delete this job group?')) {
+    if (window.confirm('Are you sure you want to delete this group?')) {
       try {
         const response = await deleteJobGroup(id);
         
         if (response.success) {
-          addToast('success', 'Success', 'Job group deleted successfully');
+          addToast('success', 'Success', 'Group deleted successfully');
           setJobGroups(jobGroups.filter(group => group.id !== id));
         } else {
           addToast('error', 'Error', response.message || 'Failed to delete job group');

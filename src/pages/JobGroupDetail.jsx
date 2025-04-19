@@ -46,10 +46,10 @@ const JobGroupDetail = () => {
         });
       } else {
         setError('Failed to fetch group details');
-        addToast('error', 'Error', 'Failed to fetch job group details');
+        addToast('error', 'Error', 'Failed to fetch group details');
       }
     } catch (err) {
-      console.error('Error fetching job group details:', err);
+      console.error('Error fetching group details:', err);
       setError('An unexpected error occurred');
       addToast('error', 'Error', 'An unexpected error occurred');
     } finally {
@@ -92,7 +92,7 @@ const JobGroupDetail = () => {
         addToast('error', 'Error', response.message || 'Failed to update group');
       }
     } catch (err) {
-      console.error('Error updating job group:', err);
+      console.error('Error updating group:', err);
       addToast('error', 'Error', 'An unexpected error occurred');
     }
   };
@@ -276,7 +276,7 @@ const JobGroupDetail = () => {
         )}
       </div>
       
-      {/* Edit Job Group Modal */}
+      {/* Edit Group Modal */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
