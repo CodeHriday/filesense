@@ -2615,20 +2615,23 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
     const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
     const userGroupIds = userGroupsResult.rows.map(row => row.id);
     
+    if (userGroupIds.length === 0) {
+      return res.json([]);
+    }
+    
     // Get all business processes for the user's groups
-    // or processes created by the user
     const businessProcessesQuery = `
-      SELECT bp.*, u.username as created_by_name, 
-        COUNT(j.id) as job_count, jg.name as group_name
+      SELECT bp.*, g.name as group_name, 
+        COALESCE(COUNT(j.id), 0) as job_count
       FROM business_processes bp
-      LEFT JOIN users u ON u.id::text = bp.created_by
+      LEFT JOIN groups g ON bp.group_id = g.id
       LEFT JOIN jobs j ON bp.id = j.business_process_id
-      LEFT JOIN job_groups jg ON bp.group_id = jg.id
-      GROUP BY bp.id, u.username, jg.name
+      WHERE bp.group_id = ANY($1)
+      GROUP BY bp.id, g.name
       ORDER BY bp.updated_at DESC
     `;
     
-    const processesResult = await pool.query(businessProcessesQuery);
+    const processesResult = await pool.query(businessProcessesQuery, [userGroupIds]);
     res.json(processesResult.rows);
   } catch (err) {
     console.error('Error fetching business processes:', err);
@@ -2640,13 +2643,27 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
 app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Get user's groups
+    const userGroupsQuery = `
+      SELECT g.id
+      FROM groups g
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE ug.user_id = $1
+    `;
+    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupIds = userGroupsResult.rows.map(row => row.id);
+    
+    if (userGroupIds.length === 0) {
+      return res.status(403).json({ error: 'You do not have access to this business process' });
+    }
     
     // Get the business process
     const processQuery = `
-      SELECT bp.*, u.username as created_by_name, jg.name as group_name
+      SELECT bp.*, g.name as group_name
       FROM business_processes bp
-      LEFT JOIN users u ON u.id::text = bp.created_by
-      LEFT JOIN job_groups jg ON bp.group_id = jg.id
+      LEFT JOIN groups g ON bp.group_id = g.id
       WHERE bp.id = $1
     `;
     const processResult = await pool.query(processQuery, [id]);
@@ -2655,11 +2672,19 @@ app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Business process not found' });
     }
     
+    const process = processResult.rows[0];
+    
+    // Check if user has access to this process through their groups
+    if (!userGroupIds.includes(process.group_id)) {
+      return res.status(403).json({ error: 'You do not have access to this business process' });
+    }
+    
     // Get all jobs for this business process
     const jobsQuery = `
-      SELECT j.*, COUNT(jh.id) as run_count
+      SELECT j.*, COALESCE(COUNT(jr.id), 0) as run_count,
+        MAX(jr.start_time) as last_run_time
       FROM jobs j
-      LEFT JOIN job_history jh ON j.id = jh.job_id
+      LEFT JOIN job_runs jr ON j.id = jr.job_id
       WHERE j.business_process_id = $1
       GROUP BY j.id
       ORDER BY j.updated_at DESC
@@ -2687,10 +2712,30 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Business process name is required' });
     }
     
-    const result = await pool.query(
-      'INSERT INTO business_processes (name, description, group_id, created_by) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, description, group_id, userId.toString()]
-    );
+    if (!group_id) {
+      return res.status(400).json({ error: 'Group ID is required' });
+    }
+    
+    // Verify user is a member of the specified group
+    const userGroupQuery = `
+      SELECT 1 FROM user_groups 
+      WHERE user_id = $1 AND group_id = $2
+    `;
+    
+    const userGroupResult = await pool.query(userGroupQuery, [userId, group_id]);
+    
+    if (userGroupResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You are not a member of the specified group' });
+    }
+    
+    // Create the business process
+    const insertQuery = `
+      INSERT INTO business_processes (name, description, group_id, created_by, status)
+      VALUES ($1, $2, $3, $4, 'active')
+      RETURNING *
+    `;
+    
+    const result = await pool.query(insertQuery, [name, description, group_id, userId]);
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -2703,24 +2748,57 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
 app.put('/api/business-processes/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, group_id } = req.body;
+    const { name, description, group_id, status } = req.body;
     const userId = req.user.id;
     
-    // Check if the business process exists and belongs to the user
-    const existingProcess = await pool.query(
-      'SELECT * FROM business_processes WHERE id = $1',
-      [id]
-    );
+    if (!name) {
+      return res.status(400).json({ error: 'Business process name is required' });
+    }
     
-    if (existingProcess.rows.length === 0) {
-      return res.status(404).json({ error: 'Business process not found' });
+    // Check if process exists and user has access
+    const checkQuery = `
+      SELECT bp.* FROM business_processes bp
+      JOIN groups g ON bp.group_id = g.id
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE bp.id = $1 AND ug.user_id = $2
+    `;
+    
+    const checkResult = await pool.query(checkQuery, [id, userId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Business process not found or you do not have access to it' });
+    }
+    
+    // If group_id is being changed, verify user is a member of the new group
+    if (group_id && group_id !== checkResult.rows[0].group_id) {
+      const userGroupQuery = `
+        SELECT 1 FROM user_groups 
+        WHERE user_id = $1 AND group_id = $2
+      `;
+      
+      const userGroupResult = await pool.query(userGroupQuery, [userId, group_id]);
+      
+      if (userGroupResult.rows.length === 0) {
+        return res.status(403).json({ error: 'You are not a member of the specified group' });
+      }
     }
     
     // Update the business process
-    const result = await pool.query(
-      'UPDATE business_processes SET name = $1, description = $2, group_id = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
-      [name, description, group_id, id]
-    );
+    const updateQuery = `
+      UPDATE business_processes
+      SET name = $1, 
+          description = $2, 
+          group_id = $3,
+          status = $4,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+      RETURNING *
+    `;
+    
+    const finalGroupId = group_id || checkResult.rows[0].group_id;
+    const finalStatus = status || checkResult.rows[0].status || 'active';
+    
+    const result = await pool.query(updateQuery, [name, description, finalGroupId, finalStatus, id]);
     
     res.json(result.rows[0]);
   } catch (err) {
@@ -2735,18 +2813,23 @@ app.delete('/api/business-processes/:id', authenticateToken, async (req, res) =>
     const { id } = req.params;
     const userId = req.user.id;
     
-    // Check if the business process exists
-    const existingProcess = await pool.query(
-      'SELECT * FROM business_processes WHERE id = $1',
-      [id]
-    );
+    // Check if process exists and user has access
+    const checkQuery = `
+      SELECT bp.* FROM business_processes bp
+      JOIN groups g ON bp.group_id = g.id
+      JOIN user_groups ug ON g.id = ug.group_id
+      WHERE bp.id = $1 AND ug.user_id = $2
+    `;
     
-    if (existingProcess.rows.length === 0) {
-      return res.status(404).json({ error: 'Business process not found' });
+    const checkResult = await pool.query(checkQuery, [id, userId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Business process not found or you do not have access to it' });
     }
     
-    // Delete the business process (cascade will delete jobs)
-    await pool.query('DELETE FROM business_processes WHERE id = $1', [id]);
+    // Delete the business process (cascade will delete related jobs)
+    const deleteQuery = 'DELETE FROM business_processes WHERE id = $1';
+    await pool.query(deleteQuery, [id]);
     
     res.json({ message: 'Business process deleted successfully' });
   } catch (err) {
