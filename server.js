@@ -367,25 +367,7 @@ app.delete('/api/groups/:id', async (req, res) => {
 });
 
 // Business Processes API
-app.get('/api/business-processes', async (req, res) => {
-  try {
-    const businessProcessesQuery = `
-      SELECT bp.*, g.name as group_name, 
-        COALESCE(COUNT(j.id), 0) as job_count
-      FROM business_processes bp
-      LEFT JOIN groups g ON bp.group_id = g.id
-      LEFT JOIN jobs j ON bp.id = j.business_process_id
-      GROUP BY bp.id, g.name
-      ORDER BY bp.updated_at DESC
-    `;
-    
-    const processesResult = await pool.query(businessProcessesQuery);
-    res.json(processesResult.rows);
-  } catch (err) {
-    console.error('Error fetching business processes:', err);
-    res.status(500).json({ error: 'Failed to fetch business processes' });
-  }
-});
+// NOTE: Primary implementation is at line ~2744, this duplicate has been removed
 
 // Jobs API - Replaced by authenticated endpoint below
 

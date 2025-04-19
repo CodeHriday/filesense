@@ -6,9 +6,43 @@ import { API_BASE_URL } from '../config';
  */
 export const getBusinessProcesses = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/business-processes`);
+    console.log('Fetching business processes from API');
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No authentication token found');
+      return { 
+        success: false, 
+        message: 'Authentication required', 
+        data: [] // Return empty array to avoid breaking UI
+      };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/business-processes`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    console.log('Get business processes response status:', response.status);
+    
+    if (!response.ok) {
+      try {
+        const errorText = await response.text();
+        console.error('Error response from server:', errorText);
+        return {
+          success: false,
+          status: response.status,
+          message: 'Failed to fetch business processes',
+          data: [] // Return empty array to avoid breaking UI
+        };
+      } catch (e) {
+        console.error('Error reading error response:', e);
+      }
+    }
+    
     return handleApiSuccess(response);
   } catch (error) {
+    console.error('Exception in getBusinessProcesses:', error);
     return handleApiError(error);
   }
 };
