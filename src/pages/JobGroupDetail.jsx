@@ -35,7 +35,7 @@ const JobGroupDetail = () => {
     setError(null);
     
     try {
-      // Get job group details
+      // Get group details
       const response = await getJobGroupById(id);
       
       if (response.success) {
@@ -75,7 +75,7 @@ const JobGroupDetail = () => {
     }
   };
   
-  const handleUpdateJobGroup = async () => {
+  const handleUpdateGroup = async () => {
     if (!formData.name.trim()) {
       addToast('error', 'Validation Error', 'Group name is required');
       return;
@@ -310,7 +310,7 @@ const JobGroupDetail = () => {
             <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleUpdateJobGroup}>
+            <Button variant="primary" onClick={handleUpdateGroup}>
               Save Changes
             </Button>
           </div>
