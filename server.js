@@ -3031,22 +3031,29 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       return res.json([]);
     }
     
-    // Get all jobs for the business processes in user's groups
+    // Get all jobs for the business processes in user's groups WITHOUT job_runs
     const jobsQuery = `
-      SELECT j.*, bp.name as business_process_name, g.name as group_name,
-        COALESCE(COUNT(jr.id), 0) as run_count,
-        MAX(jr.start_time) as last_run_time
+      SELECT j.*, bp.name as business_process_name, g.name as group_name
       FROM jobs j
       JOIN business_processes bp ON j.business_process_id = bp.id
       JOIN groups g ON bp.group_id = g.id
-      LEFT JOIN job_runs jr ON j.id = jr.job_id
       WHERE bp.group_id = ANY($1::integer[])
-      GROUP BY j.id, bp.name, g.name
       ORDER BY j.updated_at DESC
     `;
     
     const jobsResult = await pool.query(jobsQuery, [userGroupIds]);
-    res.json(jobsResult.rows);
+    
+    // Add empty placeholders for run_count and last_run_time
+    const jobsWithRunInfo = jobsResult.rows.map(job => {
+      return {
+        ...job,
+        run_count: 0,
+        last_run_time: null
+      };
+    });
+    
+    console.log('Jobs fetched successfully, returned count:', jobsWithRunInfo.length);
+    res.json(jobsWithRunInfo);
   } catch (err) {
     console.error('Error fetching jobs:', err);
     res.status(500).json({ error: 'Failed to fetch jobs' });
