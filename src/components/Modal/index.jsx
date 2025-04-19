@@ -60,6 +60,7 @@ const Modal = ({
   );
   
   console.log("Modal is rendering", { title });
+  console.log("Modal children:", children);
   
   // Use React Portal to render modal at the document body level
   return ReactDOM.createPortal(

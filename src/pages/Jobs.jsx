@@ -36,24 +36,35 @@ const Jobs = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      console.log('========== FETCHING JOBS DATA ==========');
+      
       // Fetch jobs
+      console.log('Fetching jobs list...');
       const jobsResponse = await getJobs();
+      console.log('Jobs API response:', jobsResponse);
+      
       if (jobsResponse.success) {
+        console.log('Setting jobs data:', jobsResponse.data);
         setJobs(jobsResponse.data || []);
       } else {
+        console.error('Failed to fetch jobs:', jobsResponse.message);
         setError(jobsResponse.message || 'Failed to fetch jobs');
       }
       
       // Fetch business processes for dropdown
+      console.log('Fetching business processes...');
       const processesResponse = await getBusinessProcesses();
+      console.log('Business processes API response:', processesResponse);
+      
       if (processesResponse.success) {
+        console.log('Setting business processes data:', processesResponse.data);
         setBusinessProcesses(processesResponse.data || []);
       } else {
-        console.error('Failed to fetch business processes');
+        console.error('Failed to fetch business processes:', processesResponse.message);
       }
     } catch (err) {
       setError('An error occurred while fetching data');
-      console.error(err);
+      console.error('Exception in fetchData:', err);
     } finally {
       setLoading(false);
     }
@@ -246,7 +257,11 @@ const Jobs = () => {
       <div className="jobs-actions">
         <Button 
           primary 
-          onClick={() => handleOpenModal()} 
+          onClick={() => {
+            console.log("Create Job button clicked!");
+            console.log("Business processes available:", businessProcesses.length);
+            handleOpenModal();
+          }} 
           icon={<FiPlus />}
           disabled={businessProcesses.length === 0}
         >
@@ -270,7 +285,11 @@ const Jobs = () => {
                   You need to create a business process first before you can create a job
                 </div>
               ) : (
-                <Button primary onClick={() => handleOpenModal()}>Create Job</Button>
+                <Button primary onClick={() => {
+                  console.log("Empty state Create Job button clicked!");
+                  console.log("Business processes available:", businessProcesses.length);
+                  handleOpenModal();
+                }}>Create Job</Button>
               )}
             </div>
           ) : (
@@ -345,10 +364,17 @@ const Jobs = () => {
           title={currentJob ? `Edit Job: ${currentJob.name}` : 'Create New Job'}
           onClose={handleCloseModal}
         >
-          <form onSubmit={(e) => {
-            console.log("Form submitted!");
-            handleSubmit(e);
-          }} className="job-form">
+          <form 
+            onSubmit={(e) => {
+              console.log("********** FORM SUBMIT EVENT CAPTURED **********");
+              console.log("Form event:", e);
+              e.preventDefault(); // Add explicit preventDefault
+              console.log("Form data state:", formData);
+              console.log("Business processes:", businessProcesses);
+              handleSubmit(e);
+            }} 
+            className="job-form"
+          >
             <div className="form-group">
               <label htmlFor="name">Job Name*</label>
               <input
@@ -422,7 +448,24 @@ const Jobs = () => {
             
             <div className="form-actions">
               <Button secondary onClick={handleCloseModal}>Cancel</Button>
-              <Button primary type="submit">
+              <Button 
+                primary 
+                type="button" 
+                onClick={(e) => {
+                  console.log("Manual submit button clicked");
+                  if (!formData.name || !formData.business_process_id) {
+                    console.error("Form validation failed - missing required fields");
+                    setError("Please fill in all required fields");
+                    return;
+                  }
+                  
+                  console.log("Manual form submission with data:", formData);
+                  // Call handleSubmit with a mock event
+                  handleSubmit({
+                    preventDefault: () => console.log("Mock preventDefault called")
+                  });
+                }}
+              >
                 {currentJob ? 'Update Job' : 'Create Job'}
               </Button>
             </div>
