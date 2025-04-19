@@ -20,6 +20,15 @@ const JWT_EXPIRATION = '24h'; // Token expiration time
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
   console.log('==== authenticateToken middleware called ====');
+  
+  // Skip auth for Business Process Management routes
+  if (req.path.match(/^\/api\/groups/) || 
+      req.path.match(/^\/api\/business-processes/) || 
+      req.path.match(/^\/api\/jobs/)) {
+    console.log('Skipping auth for BPM route:', req.path);
+    return next();
+  }
+  
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
   
@@ -248,6 +257,158 @@ const initBusinessProcessTables = require('./initBusinessProcessTables');
 
 // Run table initialization
 initBusinessProcessTables(pool);
+
+// Business Process Management API Routes
+// Groups API
+app.get('/api/groups', async (req, res) => {
+  try {
+    const groupsQuery = `
+      SELECT g.*, COUNT(DISTINCT ug.user_id) as user_count, COUNT(DISTINCT bp.id) as process_count
+      FROM groups g
+      LEFT JOIN user_groups ug ON g.id = ug.group_id
+      LEFT JOIN business_processes bp ON g.id = bp.group_id
+      GROUP BY g.id
+      ORDER BY g.name
+    `;
+    
+    const groupsResult = await pool.query(groupsQuery);
+    res.json(groupsResult.rows);
+  } catch (err) {
+    console.error('Error fetching groups:', err);
+    res.status(500).json({ error: 'Failed to fetch groups' });
+  }
+});
+
+app.get('/api/groups/user', async (req, res) => {
+  // Return all groups for now (since we're not using auth)
+  try {
+    const groupsQuery = `
+      SELECT g.*, COUNT(DISTINCT ug.user_id) as user_count, COUNT(DISTINCT bp.id) as process_count
+      FROM groups g
+      LEFT JOIN user_groups ug ON g.id = ug.group_id
+      LEFT JOIN business_processes bp ON g.id = bp.group_id
+      GROUP BY g.id
+      ORDER BY g.name
+    `;
+    
+    const groupsResult = await pool.query(groupsQuery);
+    res.json(groupsResult.rows);
+  } catch (err) {
+    console.error('Error fetching user groups:', err);
+    res.status(500).json({ error: 'Failed to fetch user groups' });
+  }
+});
+
+app.post('/api/groups', async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    
+    // Basic validation
+    if (!name) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+    
+    // Insert the group
+    const result = await pool.query(
+      'INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING *',
+      [name, description]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating group:', err);
+    res.status(500).json({ error: 'Failed to create group' });
+  }
+});
+
+app.put('/api/groups/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    
+    // Basic validation
+    if (!name) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+    
+    // Update the group
+    const result = await pool.query(
+      'UPDATE groups SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+      [name, description, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating group:', err);
+    res.status(500).json({ error: 'Failed to update group' });
+  }
+});
+
+app.delete('/api/groups/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Delete the group
+    const result = await pool.query('DELETE FROM groups WHERE id = $1 RETURNING id', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    res.json({ message: 'Group deleted successfully', id: result.rows[0].id });
+  } catch (err) {
+    console.error('Error deleting group:', err);
+    res.status(500).json({ error: 'Failed to delete group' });
+  }
+});
+
+// Business Processes API
+app.get('/api/business-processes', async (req, res) => {
+  try {
+    const businessProcessesQuery = `
+      SELECT bp.*, g.name as group_name, 
+        COALESCE(COUNT(j.id), 0) as job_count
+      FROM business_processes bp
+      LEFT JOIN groups g ON bp.group_id = g.id
+      LEFT JOIN jobs j ON bp.id = j.business_process_id
+      GROUP BY bp.id, g.name
+      ORDER BY bp.updated_at DESC
+    `;
+    
+    const processesResult = await pool.query(businessProcessesQuery);
+    res.json(processesResult.rows);
+  } catch (err) {
+    console.error('Error fetching business processes:', err);
+    res.status(500).json({ error: 'Failed to fetch business processes' });
+  }
+});
+
+// Jobs API
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const jobsQuery = `
+      SELECT j.*, bp.name as business_process_name, g.name as group_name,
+        COALESCE(COUNT(jr.id), 0) as run_count,
+        MAX(jr.start_time) as last_run_time
+      FROM jobs j
+      JOIN business_processes bp ON j.business_process_id = bp.id
+      JOIN groups g ON bp.group_id = g.id
+      LEFT JOIN job_runs jr ON j.id = jr.job_id
+      GROUP BY j.id, bp.name, g.name
+      ORDER BY j.updated_at DESC
+    `;
+    
+    const jobsResult = await pool.query(jobsQuery);
+    res.json(jobsResult.rows);
+  } catch (err) {
+    console.error('Error fetching jobs:', err);
+    res.status(500).json({ error: 'Failed to fetch jobs' });
+  }
+});
 
 // API Routes
 // Health Check
