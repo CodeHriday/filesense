@@ -3261,7 +3261,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     
     if (!name) {
-      return res.status(400).json({ error: 'Job group name is required' });
+      return res.status(400).json({ error: 'Group name is required' });
     }
     
     // First check if tables exist, create if not
@@ -3270,7 +3270,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
         description TEXT,
-        created_by UUID NOT NULL,
+        created_by TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -3287,57 +3287,46 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
     
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_job_groups (
-        user_id UUID NOT NULL,
+        user_id TEXT NOT NULL,
         group_id UUID NOT NULL,
         PRIMARY KEY (user_id, group_id)
       )
     `);
     
-    // Create user UUID mapping table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_uuid_mapping (
-        user_id INTEGER NOT NULL,
-        uuid UUID NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (user_id)
-      )
-    `);
-    
-    // Check if the user exists in UUID format
-    let userUUID;
-    const userCheckResult = await pool.query('SELECT id FROM users WHERE id::text = $1::text', [userId]);
-    
-    if (userCheckResult.rows.length > 0) {
-      // Use the existing UUID
-      userUUID = userCheckResult.rows[0].id;
-    } else {
-      // Create a new UUID for this user
-      const userIdAsUUID = await pool.query('SELECT gen_random_uuid() AS uuid');
-      userUUID = userIdAsUUID.rows[0].uuid;
-      
-      // Insert a mapping for future reference
-      await pool.query(
-        'INSERT INTO user_uuid_mapping (user_id, uuid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [userId, userUUID]
-      );
+    // Get user info for display purposes
+    let userName = 'Unknown';
+    try {
+      const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length > 0) {
+        userName = userResult.rows[0].username;
+      }
+    } catch (userErr) {
+      console.error('Error fetching username:', userErr);
+      // Continue anyway with default name
     }
     
-    // Create the group
+    // Create the group - store user ID directly as text to avoid UUID conversion issues
     const result = await pool.query(
       'INSERT INTO job_groups (name, description, created_by) VALUES ($1, $2, $3) RETURNING *',
-      [name, description, userUUID]
+      [name, description, userId.toString()]
     );
     
     // Add creator to group
     await pool.query(
       'INSERT INTO user_job_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [userUUID, result.rows[0].id]
+      [userId.toString(), result.rows[0].id]
     );
     
-    res.status(201).json(result.rows[0]);
+    // Add username to the response for display
+    const responseGroup = {
+      ...result.rows[0],
+      created_by_name: userName
+    };
+    
+    res.status(201).json(responseGroup);
   } catch (err) {
-    console.error('Error creating job group:', err);
-    res.status(500).json({ error: 'Failed to create job group' });
+    console.error('Error creating group:', err);
+    res.status(500).json({ error: 'Failed to create group' });
   }
 });
 
