@@ -99,14 +99,23 @@ const initBusinessProcessTables = async (pool) => {
       );
     `);
 
-    // Create a default group only if no groups exist
-    const existingGroups = await pool.query('SELECT COUNT(*) FROM groups');
-    if (parseInt(existingGroups.rows[0].count) === 0) {
-      await pool.query(`
-        INSERT INTO groups (name, description)
-        VALUES ('Default Group', 'Default group for all users');
-      `);
-      console.log('Created default group');
+    // Check for default group existence specifically, not just any group
+    const existingDefaultGroup = await pool.query("SELECT COUNT(*) FROM groups WHERE name = 'Default Group'");
+    if (parseInt(existingDefaultGroup.rows[0].count) === 0) {
+      try {
+        await pool.query(`
+          INSERT INTO groups (name, description)
+          VALUES ('Default Group', 'Default group for all users');
+        `);
+        console.log('Created default group');
+      } catch (err) {
+        // Handle potential race condition - another process might have created the Default Group
+        if (err.code === '23505') { // Unique violation
+          console.log('Default group already created by another process, skipping');
+        } else {
+          throw err;
+        }
+      }
     } else {
       console.log('Default group already exists, skipping creation');
     }
