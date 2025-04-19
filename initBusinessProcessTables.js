@@ -1,0 +1,116 @@
+// Function to initialize business process-related tables
+const initBusinessProcessTables = async (pool) => {
+  try {
+    // Create the uuid-ossp extension if it doesn't exist (for UUID generation)
+    await pool.query(`
+      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    `);
+
+    // Create groups table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS groups (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create user_groups table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_groups (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, group_id)
+      );
+    `);
+
+    // Create business_processes table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS business_processes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
+        created_by TEXT NOT NULL,
+        status VARCHAR(50) DEFAULT 'active',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create jobs table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS jobs (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name VARCHAR(255) NOT NULL,
+        business_process_id UUID NOT NULL REFERENCES business_processes(id) ON DELETE CASCADE,
+        source_connection_id INTEGER REFERENCES connections(id) ON DELETE SET NULL,
+        target_connection_id INTEGER REFERENCES connections(id) ON DELETE SET NULL,
+        validation_settings JSONB,
+        error_handling_settings JSONB,
+        notification_settings JSONB,
+        schedule_settings JSONB,
+        created_by TEXT NOT NULL,
+        status VARCHAR(50) DEFAULT 'draft',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create job_runs table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS job_runs (
+        id SERIAL PRIMARY KEY,
+        job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        status VARCHAR(50) NOT NULL,
+        start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        end_time TIMESTAMP WITH TIME ZONE,
+        records_processed INTEGER,
+        records_failed INTEGER,
+        error_details JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create job_groups table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS job_groups (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create job_group_jobs table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS job_group_jobs (
+        id SERIAL PRIMARY KEY,
+        group_id UUID NOT NULL REFERENCES job_groups(id) ON DELETE CASCADE,
+        job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, job_id)
+      );
+    `);
+
+    // Create a default group
+    await pool.query(`
+      INSERT INTO groups (name, description, created_by)
+      VALUES ('Default Group', 'Default group for all users', 'system')
+      ON CONFLICT DO NOTHING;
+    `);
+
+    console.log('Business process management tables initialized');
+  } catch (error) {
+    console.error('Error initializing business process tables:', error);
+  }
+};
+
+module.exports = initBusinessProcessTables;
