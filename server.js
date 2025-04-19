@@ -2902,8 +2902,8 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
     
     // Create the business process
     const insertQuery = `
-      INSERT INTO business_processes (name, description, group_id, created_by, status)
-      VALUES ($1, $2, $3, $4, 'active')
+      INSERT INTO business_processes (name, description, group_id, created_by)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
     
@@ -2962,16 +2962,14 @@ app.put('/api/business-processes/:id', authenticateToken, async (req, res) => {
       SET name = $1, 
           description = $2, 
           group_id = $3,
-          status = $4,
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
+      WHERE id = $4
       RETURNING *
     `;
     
     const finalGroupId = group_id || checkResult.rows[0].group_id;
-    const finalStatus = status || checkResult.rows[0].status || 'active';
     
-    const result = await pool.query(updateQuery, [name, description, finalGroupId, finalStatus, id]);
+    const result = await pool.query(updateQuery, [name, description, finalGroupId, id]);
     
     res.json(result.rows[0]);
   } catch (err) {
