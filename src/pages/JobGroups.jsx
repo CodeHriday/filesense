@@ -112,14 +112,14 @@ const JobGroups = () => {
   return (
     <div className="job-groups-container">
       <div className="job-groups-header">
-        <h1 className="job-groups-title">Job Groups</h1>
+        <h1 className="job-groups-title">Groups</h1>
         <div className="job-groups-actions">
           {canCreate && (
             <Button 
               variant="primary" 
               onClick={() => setIsCreateModalOpen(true)}
             >
-              <FiPlus /> Create Job Group
+              <FiPlus /> Create Group
             </Button>
           )}
         </div>
@@ -130,13 +130,13 @@ const JobGroups = () => {
       {!loading && jobGroups.length === 0 ? (
         <div className="empty-job-groups">
           <FiClipboard size={48} />
-          <p>No job groups found</p>
+          <p>No groups found</p>
           {canCreate && (
             <Button 
               variant="primary" 
               onClick={() => setIsCreateModalOpen(true)}
             >
-              <FiPlus /> Create Your First Job Group
+              <FiPlus /> Create Your First Group
             </Button>
           )}
         </div>
@@ -198,7 +198,7 @@ const JobGroups = () => {
         onClose={() => setIsCreateModalOpen(false)}
         className="job-group-modal"
       >
-        <h2>Create Job Group</h2>
+        <h2>Create Group</h2>
         <div className="job-group-form">
           <div>
             <label htmlFor="name">Group Name *</label>

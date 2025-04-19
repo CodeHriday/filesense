@@ -315,7 +315,7 @@ function Sidebar() {
                   <li>
                     <NavLink to="/job-groups" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiLayers className="icon" />
-                      <span>Job Groups</span>
+                      <span>Groups</span>
                     </NavLink>
                   </li>
                 )}
