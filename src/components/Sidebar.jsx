@@ -318,20 +318,20 @@ function Sidebar() {
                   </NavLink>
                 </li>
                 
-                {hasFeaturePermission('job', 'read') && (
-                  <li>
-                    <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiCpu className="icon" />
-                      <span>Jobs</span>
-                    </NavLink>
-                  </li>
-                )}
-                
                 {hasFeaturePermission('job_group', 'read') && (
                   <li>
                     <NavLink to="/job-groups" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiLayers className="icon" />
                       <span>Job Groups</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {hasFeaturePermission('job', 'read') && (
+                  <li>
+                    <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiCpu className="icon" />
+                      <span>Jobs</span>
                     </NavLink>
                   </li>
                 )}
