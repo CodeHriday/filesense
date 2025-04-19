@@ -1,42 +1,41 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
 import { handleApiError, handleApiSuccess } from './apiUtils';
+import { API_BASE_URL } from '../config';
 
-// Get all groups available to the user
+/**
+ * Get all groups
+ */
 export const getGroups = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/groups`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    const response = await fetch(`${API_BASE_URL}/api/groups`);
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-// Get groups that the current user is a member of
+/**
+ * Get groups for current user
+ */
 export const getUserGroups = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/user/groups`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    const response = await fetch(`${API_BASE_URL}/api/groups/user`);
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-// Create a new group
+/**
+ * Create a new group
+ */
 export const createGroup = async (groupData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/groups`, groupData, {
+    const response = await fetch(`${API_BASE_URL}/api/groups`, {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(groupData),
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -44,13 +43,17 @@ export const createGroup = async (groupData) => {
   }
 };
 
-// Update an existing group
+/**
+ * Update an existing group
+ */
 export const updateGroup = async (groupId, groupData) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/api/groups/${groupId}`, groupData, {
+    const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}`, {
+      method: 'PUT',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(groupData),
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -58,13 +61,13 @@ export const updateGroup = async (groupId, groupData) => {
   }
 };
 
-// Delete a group
+/**
+ * Delete a group
+ */
 export const deleteGroup = async (groupId) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/api/groups/${groupId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+    const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}`, {
+      method: 'DELETE',
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -72,13 +75,17 @@ export const deleteGroup = async (groupId) => {
   }
 };
 
-// Add users to a group
-export const addUsersToGroup = async (groupId, userIds) => {
+/**
+ * Add user to group
+ */
+export const addUserToGroup = async (groupId, userId) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/groups/${groupId}/users`, { userIds }, {
+    const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/users`, {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -86,14 +93,26 @@ export const addUsersToGroup = async (groupId, userIds) => {
   }
 };
 
-// Remove a user from a group
+/**
+ * Remove user from group
+ */
 export const removeUserFromGroup = async (groupId, userId) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/api/groups/${groupId}/users/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+    const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/users/${userId}`, {
+      method: 'DELETE',
     });
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Get users in a group
+ */
+export const getGroupUsers = async (groupId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/users`);
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);

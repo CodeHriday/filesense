@@ -1,42 +1,53 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
 import { handleApiError, handleApiSuccess } from './apiUtils';
+import { API_BASE_URL } from '../config';
 
-// Get all jobs accessible to the user
+/**
+ * Get all jobs
+ */
 export const getJobs = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    const response = await fetch(`${API_BASE_URL}/api/jobs`);
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-// Get a specific job by ID
-export const getJobById = async (jobId) => {
+/**
+ * Get a specific job
+ */
+export const getJob = async (jobId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
-// Create a new job
+/**
+ * Get jobs for a specific business process
+ */
+export const getBusinessProcessJobs = async (processId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/business-processes/${processId}/jobs`);
+    return handleApiSuccess(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Create a new job
+ */
 export const createJob = async (jobData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/jobs`, jobData, {
+    const response = await fetch(`${API_BASE_URL}/api/jobs`, {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(jobData),
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -44,13 +55,17 @@ export const createJob = async (jobData) => {
   }
 };
 
-// Update an existing job
+/**
+ * Update an existing job
+ */
 export const updateJob = async (jobId, jobData) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/api/jobs/${jobId}`, jobData, {
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
+      method: 'PUT',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(jobData),
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -58,13 +73,13 @@ export const updateJob = async (jobId, jobData) => {
   }
 };
 
-// Delete a job
+/**
+ * Delete a job
+ */
 export const deleteJob = async (jobId) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/api/jobs/${jobId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
+      method: 'DELETE',
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -72,13 +87,13 @@ export const deleteJob = async (jobId) => {
   }
 };
 
-// Run a job manually
-export const runJob = async (jobId, runParams = {}) => {
+/**
+ * Start a job
+ */
+export const startJob = async (jobId) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/jobs/${jobId}/run`, runParams, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/start`, {
+      method: 'POST',
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -86,13 +101,13 @@ export const runJob = async (jobId, runParams = {}) => {
   }
 };
 
-// Get job run history
-export const getJobRunHistory = async (jobId) => {
+/**
+ * Stop a job
+ */
+export const stopJob = async (jobId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/runs`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/stop`, {
+      method: 'POST',
     });
     return handleApiSuccess(response);
   } catch (error) {
@@ -100,28 +115,12 @@ export const getJobRunHistory = async (jobId) => {
   }
 };
 
-// Get job run details
-export const getJobRunDetails = async (jobId, runId) => {
+/**
+ * Get job logs
+ */
+export const getJobLogs = async (jobId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/runs/${runId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    return handleApiSuccess(response);
-  } catch (error) {
-    return handleApiError(error);
-  }
-};
-
-// Update job schedule
-export const updateJobSchedule = async (jobId, scheduleSettings) => {
-  try {
-    const response = await axios.put(`${API_BASE_URL}/api/jobs/${jobId}/schedule`, scheduleSettings, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/logs`);
     return handleApiSuccess(response);
   } catch (error) {
     return handleApiError(error);

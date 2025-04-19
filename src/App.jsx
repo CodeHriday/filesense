@@ -22,7 +22,10 @@ import DashboardSettings from './pages/DashboardSettings';
 import Login from './pages/Login';
 import UserManagement from './pages/UserManagement';
 import RoleManagement from './pages/RoleManagement';
-// Process Management imports removed
+// Business Process Management imports
+import Groups from './pages/Groups';
+import BusinessProcesses from './pages/BusinessProcesses';
+import Jobs from './pages/Jobs';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -35,7 +38,10 @@ import './styles/Login.css';
 import './styles/UserManagement.css';
 import './styles/RoleManagement.css';
 import './styles/AIPredictiveInsights.css';
-// Process Management styles removed
+// Business Process Management styles
+import './styles/Groups.css';
+import './styles/BusinessProcesses.css';
+import './styles/Jobs.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -122,7 +128,12 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                 <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
-                {/* Process Management routes removed as requested */}
+                {/* Business Process Management routes */}
+                <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+                <Route path="/business-processes" element={<ProtectedRoute><BusinessProcesses /></ProtectedRoute>} />
+                <Route path="/business-processes/:processId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+                <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+                <Route path="/jobs/:jobId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

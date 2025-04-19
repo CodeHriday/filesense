@@ -4,7 +4,7 @@ import { FiPlus, FiEdit, FiTrash, FiPlay, FiClock, FiCheck, FiX } from 'react-ic
 import { getJobs, createJob, updateJob, deleteJob, runJob } from '../api/jobsService';
 import { getBusinessProcesses } from '../api/businessProcessesService';
 import Modal from '../components/Modal';
-import Button from '../components/Button';
+import Button from '../components/common/Button';
 import Loader from '../components/Loader';
 import PageHeader from '../components/PageHeader';
 import '../styles/Jobs.css';

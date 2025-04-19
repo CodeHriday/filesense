@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiTrash, FiUsers } from 'react-icons/fi';
 import { getGroups, createGroup, updateGroup, deleteGroup } from '../api/groupsService';
 import Modal from '../components/Modal';
-import Button from '../components/Button';
+import Button from '../components/common/Button';
 import Loader from '../components/Loader';
 import PageHeader from '../components/PageHeader';
 import '../styles/Groups.css';

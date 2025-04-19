@@ -9,7 +9,7 @@ import {
 } from '../api/businessProcessesService';
 import { getUserGroups } from '../api/groupsService';
 import Modal from '../components/Modal';
-import Button from '../components/Button';
+import Button from '../components/common/Button';
 import Loader from '../components/Loader';
 import PageHeader from '../components/PageHeader';
 import '../styles/BusinessProcesses.css';
