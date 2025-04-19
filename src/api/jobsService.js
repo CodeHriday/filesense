@@ -42,15 +42,57 @@ export const getBusinessProcessJobs = async (processId) => {
  */
 export const createJob = async (jobData) => {
   try {
+    console.log('Creating job with data:', jobData);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No authentication token found');
+      return { 
+        success: false, 
+        message: 'Authentication required' 
+      };
+    }
+    
     const response = await fetch(`${API_BASE_URL}/api/jobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(jobData),
     });
+    
+    console.log('Create job response status:', response.status);
+    
+    // For debugging: log the response text directly if there's an error
+    if (!response.ok) {
+      try {
+        const errorText = await response.text();
+        console.error('Error response from server:', errorText);
+        
+        // Try to parse JSON if possible, otherwise return the text
+        try {
+          const errorJson = JSON.parse(errorText);
+          return {
+            success: false,
+            status: response.status,
+            message: errorJson.error || 'Failed to create job',
+            details: errorJson
+          };
+        } catch (e) {
+          return {
+            success: false,
+            status: response.status,
+            message: errorText || 'Failed to create job'
+          };
+        }
+      } catch (e) {
+        console.error('Error reading error response:', e);
+      }
+    }
+    
     return handleApiSuccess(response);
   } catch (error) {
+    console.error('Exception in createJob:', error);
     return handleApiError(error);
   }
 };
