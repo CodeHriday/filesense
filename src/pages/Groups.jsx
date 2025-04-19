@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit, FiTrash, FiUsers } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import { FiPlus, FiEdit, FiTrash, FiUsers, FiArrowRight, FiList } from 'react-icons/fi';
 import { getGroups, createGroup, updateGroup, deleteGroup } from '../api/groupsService';
 import Modal from '../components/Modal';
 import Button from '../components/common/Button';
@@ -13,7 +14,10 @@ const Groups = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentGroup, setCurrentGroup] = useState(null);
-  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    description: ''
+  });
 
   useEffect(() => {
     fetchGroups();
@@ -24,7 +28,7 @@ const Groups = () => {
     try {
       const response = await getGroups();
       if (response.success) {
-        setGroups(response.data);
+        setGroups(response.data || []);
       } else {
         setError(response.message || 'Failed to fetch groups');
       }
@@ -39,10 +43,16 @@ const Groups = () => {
   const handleOpenModal = (group = null) => {
     if (group) {
       setCurrentGroup(group);
-      setFormData({ name: group.name, description: group.description || '' });
+      setFormData({
+        name: group.name,
+        description: group.description || ''
+      });
     } else {
       setCurrentGroup(null);
-      setFormData({ name: '', description: '' });
+      setFormData({
+        name: '',
+        description: ''
+      });
     }
     setShowModal(true);
   };
@@ -110,15 +120,11 @@ const Groups = () => {
       <PageHeader
         title="Groups"
         icon={<FiUsers />}
-        description="Manage groups to organize users and control access to business processes"
+        description="Create and manage groups to organize your business processes"
       />
       
       <div className="groups-actions">
-        <Button 
-          primary 
-          onClick={() => handleOpenModal()} 
-          icon={<FiPlus />}
-        >
+        <Button primary onClick={() => handleOpenModal()} icon={<FiPlus />}>
           Create Group
         </Button>
       </div>
@@ -133,35 +139,54 @@ const Groups = () => {
             <div className="empty-state">
               <FiUsers size={48} />
               <h3>No Groups Found</h3>
-              <p>Create your first group to organize users and control access</p>
+              <p>Create your first group to organize your business processes</p>
               <Button primary onClick={() => handleOpenModal()}>Create Group</Button>
             </div>
           ) : (
-            <div className="groups-grid">
-              {groups.map((group) => (
-                <div className="group-card" key={group.id}>
-                  <h3>{group.name}</h3>
-                  {group.description && <p>{group.description}</p>}
-                  <div className="group-actions">
-                    <button 
-                      className="icon-button" 
+            groups.map((group) => (
+              <div key={group.id} className="group-card">
+                <div className="group-card-header">
+                  <h3 className="group-card-title">{group.name}</h3>
+                  <div className="group-card-actions">
+                    <button
+                      className="icon-button"
                       onClick={() => handleOpenModal(group)}
                       title="Edit Group"
                     >
                       <FiEdit />
                     </button>
-                    <button 
-                      className="icon-button" 
+                    <button
+                      className="icon-button"
                       onClick={() => handleDeleteGroup(group.id)}
                       title="Delete Group"
-                      disabled={group.name === 'Default Group'}
                     >
                       <FiTrash />
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+                
+                {group.description && (
+                  <p className="group-card-description">{group.description}</p>
+                )}
+                
+                <div className="group-card-footer">
+                  <div className="group-card-stats">
+                    <div className="group-card-stat">
+                      <FiUsers size={14} />
+                      <span>{group.user_count || 0} Users</span>
+                    </div>
+                    <div className="group-card-stat">
+                      <FiList size={14} />
+                      <span>{group.process_count || 0} Processes</span>
+                    </div>
+                  </div>
+                  
+                  <Link to={`/groups/${group.id}/processes`} className="group-card-link">
+                    View Processes <FiArrowRight size={14} />
+                  </Link>
+                </div>
+              </div>
+            ))
           )}
         </div>
       )}
@@ -192,7 +217,7 @@ const Groups = () => {
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                rows={4}
+                rows={3}
                 placeholder="Enter group description (optional)"
               />
             </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash, FiPlay, FiClock, FiCheck, FiX } from 'react-icons/fi';
-import { getJobs, createJob, updateJob, deleteJob, runJob } from '../api/jobsService';
+import { getJobs, createJob, updateJob, deleteJob, startJob } from '../api/jobsService';
 import { getBusinessProcesses } from '../api/businessProcessesService';
 import Modal from '../components/Modal';
 import Button from '../components/common/Button';
@@ -159,7 +159,7 @@ const Jobs = () => {
   const handleRunJob = async (jobId) => {
     try {
       setLoading(true);
-      const response = await runJob(jobId);
+      const response = await startJob(jobId);
       
       if (response.success) {
         // Show success message

@@ -3,18 +3,15 @@
   align-items: center;
   justify-content: center;
   padding: 8px 16px;
-  border-radius: 4px;
-  border: none;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  gap: 8px;
-}
-
-.btn:focus {
-  outline: 2px solid #3498db;
-  outline-offset: 2px;
+  border: none;
+  outline: none;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .btn:disabled {
@@ -22,114 +19,44 @@
   cursor: not-allowed;
 }
 
-/* Primary button */
+/* Button variants */
 .btn-primary {
-  background-color: #3498db;
+  background-color: var(--primary-color, #3498db);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #2980b9;
+  background-color: var(--primary-color-dark, #2980b9);
 }
 
-.btn-primary:active:not(:disabled) {
-  background-color: #1f6aa7;
-}
-
-/* Secondary button */
 .btn-secondary {
-  background-color: #f1f3f5;
-  color: #343a40;
+  background-color: #f8f9fa;
+  color: var(--text-color, #444);
+  border: 1px solid #ddd;
 }
 
 .btn-secondary:hover:not(:disabled) {
   background-color: #e9ecef;
 }
 
-.btn-secondary:active:not(:disabled) {
-  background-color: #dee2e6;
-}
-
-/* Success button */
-.btn-success {
-  background-color: #2ecc71;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background-color: #27ae60;
-}
-
-.btn-success:active:not(:disabled) {
-  background-color: #219a52;
-}
-
-/* Danger button */
-.btn-danger {
-  background-color: #e74c3c;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background-color: #c0392b;
-}
-
-.btn-danger:active:not(:disabled) {
-  background-color: #a33025;
-}
-
-/* Warning button */
-.btn-warning {
-  background-color: #f39c12;
-  color: white;
-}
-
-.btn-warning:hover:not(:disabled) {
-  background-color: #d35400;
-}
-
-.btn-warning:active:not(:disabled) {
-  background-color: #b34900;
-}
-
-/* Icon button (circular) */
-.btn-icon {
-  padding: 8px;
-  border-radius: 50%;
-  min-width: 36px;
-  height: 36px;
-  background-color: transparent;
-  color: #6c757d;
-}
-
-.btn-icon:hover:not(:disabled) {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: #343a40;
-}
-
-.btn-icon:active:not(:disabled) {
-  background-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Link button */
-.btn-link {
-  background-color: transparent;
-  color: #3498db;
-  padding: 4px 8px;
-}
-
-.btn-link:hover:not(:disabled) {
-  text-decoration: underline;
-  background-color: transparent;
-}
-
 /* Button sizes */
-.btn-sm {
-  padding: 5px 10px;
-  font-size: 12px;
+.btn-small {
+  padding: 6px 12px;
+  font-size: 0.85rem;
 }
 
-.btn-lg {
+.btn-large {
   padding: 10px 20px;
-  font-size: 16px;
+  font-size: 1rem;
+}
+
+/* Button with icon */
+.btn-with-icon {
+  gap: 8px;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  font-size: 1em;
 }

@@ -1,26 +1,37 @@
 import React from 'react';
 import './Button.css';
 
-const Button = ({ 
-  children, 
-  onClick, 
-  variant = 'primary', 
-  disabled = false,
+const Button = ({
+  children,
+  primary,
+  secondary,
+  small,
+  large,
+  icon,
+  onClick,
+  disabled,
   type = 'button',
-  className = '',
-  title = '',
-  ...props 
+  ...rest
 }) => {
+  const buttonClass = `
+    btn 
+    ${primary ? 'btn-primary' : ''} 
+    ${secondary ? 'btn-secondary' : ''} 
+    ${small ? 'btn-small' : ''} 
+    ${large ? 'btn-large' : ''} 
+    ${icon ? 'btn-with-icon' : ''}
+  `.trim();
+
   return (
     <button
-      className={`btn btn-${variant} ${className}`}
+      className={buttonClass}
       onClick={onClick}
       disabled={disabled}
       type={type}
-      title={title}
-      {...props}
+      {...rest}
     >
-      {children}
+      {icon && <span className="btn-icon">{icon}</span>}
+      <span className="btn-text">{children}</span>
     </button>
   );
 };
