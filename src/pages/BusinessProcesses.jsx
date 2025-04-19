@@ -5,7 +5,7 @@ import {
   createBusinessProcess,
   deleteBusinessProcess 
 } from '../api/businessProcessesService';
-import { getUserGroups } from '../api/groupsService';
+import { getJobGroups } from '../api/jobGroupsService';
 import { useAuth } from '../context/AuthContext';
 import '../styles/BusinessProcesses.css';
 
@@ -42,7 +42,7 @@ const BusinessProcesses = () => {
   
   const fetchUserGroups = async () => {
     try {
-      const response = await getUserGroups();
+      const response = await getJobGroups();
       if (response.success) {
         setUserGroups(response.data);
         
@@ -55,7 +55,7 @@ const BusinessProcesses = () => {
         }
       }
     } catch (err) {
-      console.error('Error fetching user groups:', err);
+      console.error('Error fetching job groups:', err);
     }
   };
   

@@ -2727,13 +2727,14 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
     // or processes created by the user
     const businessProcessesQuery = `
       SELECT bp.*, u.username as created_by_name, 
-        COUNT(j.id) as job_count, g.name as group_name
+        COUNT(j.id) as job_count, jg.name as group_name
       FROM business_processes bp
-      LEFT JOIN users u ON bp.created_by = u.id
+      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
+        SELECT id::text FROM users WHERE created_by_user_id = u.id
+      ))
       LEFT JOIN jobs j ON bp.id = j.business_process_id
-      LEFT JOIN groups g ON bp.group_id = g.id
-      WHERE bp.created_by::text = $1::text OR bp.group_id = ANY($2::uuid[])
-      GROUP BY bp.id, u.username, g.name
+      LEFT JOIN job_groups jg ON bp.group_id = jg.id
+      GROUP BY bp.id, u.username, jg.name
       ORDER BY bp.updated_at DESC
     `;
     
@@ -3182,22 +3183,21 @@ app.get('/api/job-groups', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Get all job groups that the user can access
+    // First, generate a list of job groups
     const jobGroupsQuery = `
       SELECT jg.*, 
-        COUNT(jgj.job_id) as job_count, 
+        COALESCE(COUNT(jgj.job_id), 0) as job_count,
         u.username as created_by_name
       FROM job_groups jg
       LEFT JOIN job_group_jobs jgj ON jg.id = jgj.group_id
-      LEFT JOIN users u ON jg.created_by = u.id
-      WHERE jg.created_by::text = $1::text OR jg.id IN (
-        SELECT group_id FROM user_job_groups WHERE user_id::text = $1::text
-      )
+      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
+        SELECT id::text FROM users WHERE created_by_user_id = u.id
+      ))
       GROUP BY jg.id, u.username
       ORDER BY jg.updated_at DESC
     `;
     
-    const jobGroupsResult = await pool.query(jobGroupsQuery, [userId]);
+    const jobGroupsResult = await pool.query(jobGroupsQuery);
     res.json(jobGroupsResult.rows);
   } catch (err) {
     console.error('Error fetching job groups:', err);
@@ -3214,7 +3214,9 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
     const jobGroupQuery = `
       SELECT jg.*, u.username as created_by_name
       FROM job_groups jg
-      JOIN users u ON jg.created_by = u.id
+      LEFT JOIN users u ON u.id::text = ANY(ARRAY(
+        SELECT id::text FROM users WHERE created_by_user_id = u.id
+      ))
       WHERE jg.id = $1
     `;
     const jobGroupResult = await pool.query(jobGroupQuery, [id]);
