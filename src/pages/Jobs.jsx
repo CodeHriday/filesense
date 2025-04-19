@@ -70,9 +70,19 @@ const Jobs = () => {
     }
   };
 
-  const handleOpenModal = (job = null) => {
+  const handleOpenModal = async (job = null) => {
     console.log("Opening modal for job:", job);
     console.log("Available business processes:", businessProcesses);
+    
+    // If no business processes, try to create a default one
+    if (businessProcesses.length === 0) {
+      console.log("No business processes available, attempting to create default");
+      const success = await ensureBusinessProcessExists();
+      if (!success) {
+        setError("Couldn't create a business process. Please create one manually before creating jobs.");
+        return;
+      }
+    }
     
     if (job) {
       setCurrentJob(job);
@@ -104,7 +114,9 @@ const Jobs = () => {
         schedule_settings: {}
       });
     }
+    
     setShowModal(true);
+    console.log("Modal opened with form data:", formData);
   };
 
   const handleCloseModal = () => {
@@ -245,6 +257,66 @@ const Jobs = () => {
     const date = new Date(timestamp);
     return date.toLocaleString();
   };
+  
+  // Create business process as needed
+  const ensureBusinessProcessExists = async () => {
+    try {
+      console.log("Checking if we need to create a default business process");
+      // If no business processes exist, create a default one
+      if (businessProcesses.length === 0) {
+        console.log("No business processes found, creating a default process");
+        
+        const defaultProcess = {
+          name: "Default Process",
+          description: "Automatically created default business process",
+          group_id: 1, // Default group ID
+          created_by: 2, // Admin user ID
+          status: "active"
+        };
+        
+        // Import directly to avoid circular dependency
+        const { API_BASE_URL } = await import('../config');
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error("No token available for creating business process");
+          setError("Authentication required to create business process");
+          return false;
+        }
+        
+        console.log("Sending API request to create business process");
+        const response = await fetch(`${API_BASE_URL}/api/business-processes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(defaultProcess)
+        });
+        
+        if (!response.ok) {
+          console.error("Failed to create default business process", response.status);
+          const text = await response.text();
+          console.error("Error response:", text);
+          setError("Failed to create default business process");
+          return false;
+        }
+        
+        const result = await response.json();
+        console.log("Created default business process:", result);
+        
+        // Update business processes state with the new process
+        setBusinessProcesses([result]);
+        return true;
+      }
+      
+      return true; // Business processes already exist
+    } catch (err) {
+      console.error("Error ensuring business process exists:", err);
+      setError("Failed to check or create business process");
+      return false;
+    }
+  };
 
   return (
     <div className="jobs-container">
@@ -257,13 +329,12 @@ const Jobs = () => {
       <div className="jobs-actions">
         <Button 
           primary 
-          onClick={() => {
+          onClick={async () => {
             console.log("Create Job button clicked!");
             console.log("Business processes available:", businessProcesses.length);
-            handleOpenModal();
+            await handleOpenModal();
           }} 
           icon={<FiPlus />}
-          disabled={businessProcesses.length === 0}
         >
           Create Job
         </Button>
@@ -281,14 +352,20 @@ const Jobs = () => {
               <h3>No Jobs Found</h3>
               <p>Create your first job to start processing data</p>
               {businessProcesses.length === 0 ? (
-                <div className="alert alert-warning">
-                  You need to create a business process first before you can create a job
+                <div>
+                  <div className="alert alert-info">
+                    Click the Create Job button to set up your first job. A default business process will be created automatically.
+                  </div>
+                  <Button primary onClick={async () => {
+                    console.log("Empty state Create Job button clicked (no process)!");
+                    await handleOpenModal();
+                  }}>Create Job with Default Process</Button>
                 </div>
               ) : (
-                <Button primary onClick={() => {
+                <Button primary onClick={async () => {
                   console.log("Empty state Create Job button clicked!");
                   console.log("Business processes available:", businessProcesses.length);
-                  handleOpenModal();
+                  await handleOpenModal();
                 }}>Create Job</Button>
               )}
             </div>
