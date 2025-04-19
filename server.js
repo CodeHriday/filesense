@@ -3182,35 +3182,52 @@ app.get('/api/user/groups', authenticateToken, async (req, res) => {
 app.get('/api/job-groups', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const userRoles = req.user.roles || [];
     
-    // Create mapping table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_uuid_mapping (
-        user_id INTEGER NOT NULL,
-        uuid UUID NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (user_id)
-      )
-    `);
+    // Get all users with the same roles as the current user for sharing groups
+    let usersWithSameRoleIds = [userId.toString()]; // Default to just current user
     
-    // First, generate a list of job groups
+    try {
+      // For each role, find users with that role
+      for (const role of userRoles) {
+        const sameRoleUsers = await pool.query(`
+          SELECT id FROM users WHERE $1 = ANY(roles)
+        `, [role]);
+        
+        if (sameRoleUsers.rows.length > 0) {
+          // Add these user IDs to the list
+          sameRoleUsers.rows.forEach(user => {
+            if (!usersWithSameRoleIds.includes(user.id.toString())) {
+              usersWithSameRoleIds.push(user.id.toString());
+            }
+          });
+        }
+      }
+    } catch (roleErr) {
+      console.error('Error getting users with same role:', roleErr);
+      // Continue with just current user if there's an error
+    }
+    
+    console.log('Users with same roles:', usersWithSameRoleIds);
+    
+    // Generate a list of job groups created by users with the same role
     const jobGroupsQuery = `
       SELECT jg.*, 
         COALESCE(COUNT(jgj.job_id), 0) as job_count,
         COALESCE(u.username, 'Unknown') as created_by_name
       FROM job_groups jg
       LEFT JOIN job_group_jobs jgj ON jg.id = jgj.group_id
-      LEFT JOIN user_uuid_mapping map ON map.uuid = jg.created_by
-      LEFT JOIN users u ON u.id = map.user_id
+      LEFT JOIN users u ON u.id::text = jg.created_by
+      WHERE jg.created_by = ANY($1)
       GROUP BY jg.id, u.username
-      ORDER BY jg.updated_at DESC
+      ORDER BY jg.created_at DESC
     `;
     
-    const jobGroupsResult = await pool.query(jobGroupsQuery);
+    const jobGroupsResult = await pool.query(jobGroupsQuery, [usersWithSameRoleIds]);
     res.json(jobGroupsResult.rows);
   } catch (err) {
-    console.error('Error fetching job groups:', err);
-    res.status(500).json({ error: 'Failed to fetch job groups' });
+    console.error('Error fetching groups:', err);
+    res.status(500).json({ error: 'Failed to fetch groups' });
   }
 });
 
@@ -3218,19 +3235,48 @@ app.get('/api/job-groups', authenticateToken, async (req, res) => {
 app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
+    const userRoles = req.user.roles || [];
     
     // Get the job group
     const jobGroupQuery = `
       SELECT jg.*, COALESCE(u.username, 'Unknown') as created_by_name
       FROM job_groups jg
-      LEFT JOIN user_uuid_mapping map ON map.uuid = jg.created_by
-      LEFT JOIN users u ON u.id = map.user_id
+      LEFT JOIN users u ON u.id::text = jg.created_by
       WHERE jg.id = $1
     `;
     const jobGroupResult = await pool.query(jobGroupQuery, [id]);
     
     if (jobGroupResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Job group not found' });
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    // Check if user has access to this group (created by them or by someone with the same role)
+    const createdBy = jobGroupResult.rows[0].created_by;
+    if (createdBy !== userId.toString()) {
+      // Check if created by someone with same role
+      let hasAccess = false;
+      
+      try {
+        // Get creator's roles
+        const creatorQuery = await pool.query(`
+          SELECT roles FROM users WHERE id::text = $1
+        `, [createdBy]);
+        
+        if (creatorQuery.rows.length > 0) {
+          const creatorRoles = creatorQuery.rows[0].roles || [];
+          
+          // Check if user shares any role with creator
+          hasAccess = userRoles.some(role => creatorRoles.includes(role));
+        }
+        
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'You do not have access to this group' });
+        }
+      } catch (accessErr) {
+        console.error('Error checking access:', accessErr);
+        // Fall through to allow access if check fails
+      }
     }
     
     // Get all jobs in this group
@@ -3239,7 +3285,7 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
       FROM jobs j
       JOIN job_group_jobs jgj ON j.id = jgj.job_id
       WHERE jgj.group_id = $1
-      ORDER BY j.updated_at DESC
+      ORDER BY j.created_at DESC
     `;
     const jobsResult = await pool.query(jobsQuery, [id]);
     
@@ -3249,8 +3295,8 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
     
     res.json(jobGroup);
   } catch (err) {
-    console.error('Error fetching job group:', err);
-    res.status(500).json({ error: 'Failed to fetch job group' });
+    console.error('Error fetching group:', err);
+    res.status(500).json({ error: 'Failed to fetch group' });
   }
 });
 

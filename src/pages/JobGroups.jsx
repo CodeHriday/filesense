@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEdit2, FiTrash2, FiClipboard, FiUsers, FiClock } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiClipboard, FiUsers } from 'react-icons/fi';
 import { Modal, Button, Tooltip } from '../components/common';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -35,8 +35,8 @@ const JobGroups = () => {
       if (jobGroupsResponse.success) {
         setJobGroups(jobGroupsResponse.data);
       } else {
-        setError('Failed to fetch job groups');
-        addToast('error', 'Error', 'Failed to fetch job groups');
+        setError('Failed to fetch groups');
+        addToast('error', 'Error', 'Failed to fetch groups');
       }
       
       // Get all jobs
@@ -54,7 +54,7 @@ const JobGroups = () => {
     }
   };
   
-  const handleCreateJobGroup = async () => {
+  const handleCreateGroup = async () => {
     if (!formData.name.trim()) {
       addToast('error', 'Validation Error', 'Group name is required');
       return;
@@ -78,7 +78,7 @@ const JobGroups = () => {
     }
   };
   
-  const handleDeleteJobGroup = async (id) => {
+  const handleDeleteGroup = async (id) => {
     if (window.confirm('Are you sure you want to delete this group?')) {
       try {
         const response = await deleteJobGroup(id);
@@ -113,16 +113,16 @@ const JobGroups = () => {
     <div className="job-groups-container">
       <div className="job-groups-header">
         <h1 className="job-groups-title">Groups</h1>
-        <div className="job-groups-actions">
-          {canCreate && (
+        {canCreate && (
+          <div className="job-groups-actions">
             <Button 
               variant="primary" 
               onClick={() => setIsCreateModalOpen(true)}
             >
               <FiPlus /> Create Group
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       
       {error && <div className="error-message">{error}</div>}
@@ -141,54 +141,61 @@ const JobGroups = () => {
           )}
         </div>
       ) : (
-        <div className="job-groups-grid">
-          {jobGroups.map(group => (
-            <div key={group.id} className="job-group-card">
-              <h3 onClick={() => handleGroupClick(group.id)} style={{ cursor: 'pointer' }}>
-                {group.name}
-              </h3>
-              <p>{group.description || 'No description'}</p>
-              
-              <div className="job-group-stats">
-                <div className="job-group-stat">
-                  <span className="job-group-stat-value">{group.job_count || 0}</span>
-                  <span className="job-group-stat-label">Jobs</span>
-                </div>
-              </div>
-              
-              <div className="job-group-created-by">
-                <FiUsers size={12} />
-                <span>Created by {group.created_by_name || 'Unknown'}</span>
-              </div>
-              
-              {canCreate && (
-                <div className="job-group-actions">
-                  <Tooltip content="Edit">
-                    <Button 
-                      variant="icon" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/job-groups/${group.id}/edit`);
-                      }}
-                    >
-                      <FiEdit2 />
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Delete">
-                    <Button 
-                      variant="icon" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteJobGroup(group.id);
-                      }}
-                    >
-                      <FiTrash2 />
-                    </Button>
-                  </Tooltip>
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th className="group-name-column">Group Name</th>
+                <th className="description-column">Description</th>
+                <th className="jobs-column">Jobs</th>
+                <th className="created-by-column">Created By</th>
+                {canCreate && <th className="actions-column">Actions</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {jobGroups.map(group => (
+                <tr key={group.id} onClick={() => handleGroupClick(group.id)}>
+                  <td className="group-name-cell">{group.name}</td>
+                  <td>{group.description || 'No description'}</td>
+                  <td className="jobs-cell">{group.job_count || 0}</td>
+                  <td>
+                    <div className="created-by-cell">
+                      <FiUsers size={14} />
+                      <span>{group.created_by_name || 'Unknown'}</span>
+                    </div>
+                  </td>
+                  {canCreate && (
+                    <td>
+                      <div className="table-actions">
+                        <Tooltip content="Edit">
+                          <Button 
+                            variant="icon" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/job-groups/${group.id}/edit`);
+                            }}
+                          >
+                            <FiEdit2 />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content="Delete">
+                          <Button 
+                            variant="icon" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteGroup(group.id);
+                            }}
+                          >
+                            <FiTrash2 />
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
       
@@ -196,10 +203,10 @@ const JobGroups = () => {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        className="job-group-modal"
+        className="group-modal"
       >
         <h2>Create Group</h2>
-        <div className="job-group-form">
+        <div className="group-form">
           <div>
             <label htmlFor="name">Group Name *</label>
             <input
@@ -222,11 +229,11 @@ const JobGroups = () => {
               placeholder="Enter group description"
             />
           </div>
-          <div className="job-group-form-buttons">
+          <div className="group-form-buttons">
             <Button variant="secondary" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleCreateJobGroup}>
+            <Button variant="primary" onClick={handleCreateGroup}>
               Create
             </Button>
           </div>
