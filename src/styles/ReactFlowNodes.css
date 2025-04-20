@@ -8,6 +8,9 @@
   border: 1px solid #ccc;
   width: 180px;
   font-size: 12px;
+  cursor: move;
+  user-select: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .source-node {
@@ -253,10 +256,19 @@
 
 /* Transformation Flow Tools */
 .transformation-flow-tools {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 15px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.io-tools {
+  grid-template-columns: repeat(2, 150px);
+  justify-content: center;
 }
 
 .transform-tool {
@@ -268,7 +280,10 @@
   align-items: center;
   cursor: grab;
   transition: all 0.2s;
-  width: 100px;
+  min-height: 80px;
+  justify-content: center;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .transform-tool:hover {
@@ -309,6 +324,16 @@
 .transform-tool.calculate {
   background-color: #fff0f6;
   border-color: #ffadd2;
+}
+
+.transform-tool.source-tool {
+  background-color: #e6f7ff;
+  border-color: #1890ff;
+}
+
+.transform-tool.target-tool {
+  background-color: #f6ffed;
+  border-color: #52c41a;
 }
 
 .transform-tool-name {
