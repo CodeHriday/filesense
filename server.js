@@ -1269,8 +1269,33 @@ const initFileMappingsTable = async () => {
   }
 };
 
+// Create schedules table if it doesn't exist
+const initSchedulesTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS job_schedules (
+        id SERIAL PRIMARY KEY,
+        job_id INTEGER NOT NULL,
+        type VARCHAR(50) NOT NULL DEFAULT 'one-time',
+        one_time_date TIMESTAMP,
+        cron_expression VARCHAR(100),
+        enabled BOOLEAN DEFAULT true,
+        next_run_time TIMESTAMP,
+        last_run_time TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('File schedules table initialized');
+  } catch (err) {
+    console.error('Error initializing schedules table:', err);
+  }
+};
+
 // Initialize file_mappings table on startup
 initFileMappingsTable();
+// Initialize schedules table on startup
+initSchedulesTable();
 
 // Create a new mapping
 app.post('/api/mappings', async (req, res) => {
@@ -3485,6 +3510,203 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
       details: err.message,
       code: err.code
     });
+  }
+});
+
+// Schedule endpoints
+app.get('/api/schedules', authenticateToken, async (req, res) => {
+  try {
+    const schedules = await pool.query(`
+      SELECT js.*, j.name as job_name 
+      FROM job_schedules js
+      JOIN jobs j ON js.job_id = j.id
+      ORDER BY js.created_at DESC
+    `);
+    res.json(schedules.rows);
+  } catch (err) {
+    console.error('Error fetching schedules:', err);
+    res.status(500).json({ error: 'Failed to fetch schedules' });
+  }
+});
+
+app.get('/api/jobs/:jobId/schedules', authenticateToken, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const schedules = await pool.query('SELECT * FROM job_schedules WHERE job_id = $1', [jobId]);
+    res.json(schedules.rows);
+  } catch (err) {
+    console.error('Error fetching job schedules:', err);
+    res.status(500).json({ error: 'Failed to fetch job schedules' });
+  }
+});
+
+app.post('/api/schedules', authenticateToken, async (req, res) => {
+  try {
+    const { 
+      job_id, 
+      type, 
+      one_time_date, 
+      cron_expression, 
+      enabled 
+    } = req.body;
+    
+    // Validate required fields
+    if (!job_id) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+    
+    if (type === 'one-time' && !one_time_date) {
+      return res.status(400).json({ error: 'One-time date is required for one-time schedules' });
+    }
+    
+    if (type === 'recurring' && !cron_expression) {
+      return res.status(400).json({ error: 'Cron expression is required for recurring schedules' });
+    }
+    
+    // Calculate next run time (just for demonstration - in production this would be more complex)
+    let nextRunTime = null;
+    if (type === 'one-time') {
+      nextRunTime = one_time_date;
+    } else {
+      // For recurring jobs, we would parse the cron expression and calculate the next run time
+      // For simplicity, just setting it to 1 day from now
+      nextRunTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    }
+    
+    // Insert the schedule
+    const result = await pool.query(`
+      INSERT INTO job_schedules (
+        job_id, 
+        type, 
+        one_time_date, 
+        cron_expression, 
+        enabled, 
+        next_run_time
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6) 
+      RETURNING *
+    `, [
+      job_id,
+      type || 'one-time',
+      one_time_date,
+      cron_expression,
+      enabled !== false, // Default to true if not provided
+      nextRunTime
+    ]);
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating schedule:', err);
+    res.status(500).json({ error: 'Failed to create schedule' });
+  }
+});
+
+app.put('/api/schedules/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      type, 
+      one_time_date, 
+      cron_expression, 
+      enabled 
+    } = req.body;
+    
+    // Calculate next run time based on updated values
+    let nextRunTime = null;
+    if (type === 'one-time') {
+      nextRunTime = one_time_date;
+    } else {
+      // For recurring jobs, we would parse the cron expression and calculate the next run time
+      // For simplicity, just setting it to 1 day from now
+      nextRunTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    }
+    
+    // Update the schedule
+    const result = await pool.query(`
+      UPDATE job_schedules 
+      SET 
+        type = $1, 
+        one_time_date = $2, 
+        cron_expression = $3, 
+        enabled = $4, 
+        next_run_time = $5,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $6
+      RETURNING *
+    `, [
+      type,
+      one_time_date,
+      cron_expression,
+      enabled,
+      nextRunTime,
+      id
+    ]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating schedule:', err);
+    res.status(500).json({ error: 'Failed to update schedule' });
+  }
+});
+
+app.delete('/api/schedules/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM job_schedules WHERE id = $1 RETURNING id', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    res.json({ message: 'Schedule deleted successfully', id: result.rows[0].id });
+  } catch (err) {
+    console.error('Error deleting schedule:', err);
+    res.status(500).json({ error: 'Failed to delete schedule' });
+  }
+});
+
+app.post('/api/schedules/:id/enable', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      'UPDATE job_schedules SET enabled = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error enabling schedule:', err);
+    res.status(500).json({ error: 'Failed to enable schedule' });
+  }
+});
+
+app.post('/api/schedules/:id/disable', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      'UPDATE job_schedules SET enabled = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error disabling schedule:', err);
+    res.status(500).json({ error: 'Failed to disable schedule' });
   }
 });
 

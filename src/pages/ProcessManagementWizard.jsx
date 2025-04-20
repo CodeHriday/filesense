@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSave, FiChevronLeft, FiChevronRight, FiCheck, FiList, FiFile, FiGrid, FiSliders, FiCalendar } from 'react-icons/fi';
+import { 
+  FiSave, 
+  FiChevronLeft, 
+  FiChevronRight, 
+  FiCheck, 
+  FiList, 
+  FiFile, 
+  FiGrid, 
+  FiSliders, 
+  FiCalendar, 
+  FiUsers, 
+  FiDatabase,
+  FiLink,
+  FiArrowRight,
+  FiPlus,
+  FiTrash,
+  FiAlertTriangle,
+  FiCheckCircle,
+  FiTable
+} from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
