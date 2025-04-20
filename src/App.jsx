@@ -26,6 +26,7 @@ import RoleManagement from './pages/RoleManagement';
 import Groups from './pages/Groups';
 import BusinessProcesses from './pages/BusinessProcesses';
 import Jobs from './pages/Jobs';
+import ProcessManagementWizard from './pages/ProcessManagementWizard';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -42,6 +43,7 @@ import './styles/AIPredictiveInsights.css';
 import './styles/Groups.css';
 import './styles/BusinessProcesses.css';
 import './styles/Jobs.css';
+import './styles/ProcessManagementWizard.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -134,6 +136,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/business-processes/:processId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs/:jobId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+                <Route path="/process-management-wizard" element={<ProtectedRoute><ProcessManagementWizard /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

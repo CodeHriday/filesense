@@ -1246,8 +1246,12 @@ app.get('/api/mappings', async (req, res) => {
 // Create file_mappings table if it doesn't exist
 const initFileMappingsTable = async () => {
   try {
+    // Drop existing table if it has issues
+    await pool.query(`DROP TABLE IF EXISTS file_mappings`);
+    
+    // Create a new table with the correct schema
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS file_mappings (
+      CREATE TABLE file_mappings (
         id SERIAL PRIMARY KEY,
         mapping_name VARCHAR(255) NOT NULL,
         source_file_id VARCHAR(255) NOT NULL,

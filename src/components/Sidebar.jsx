@@ -21,7 +21,10 @@ import {
   FiShield,
   FiBriefcase,
   FiCpu,
-  FiLayers
+  FiLayers,
+  FiMapPin,
+  FiFilter,
+  FiPlusCircle
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import OnboardingWizard from './OnboardingWizard';
@@ -330,6 +333,14 @@ function Sidebar() {
               <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiPlay className="icon" />
                 <span>Jobs</span>
+              </NavLink>
+            </li>
+            
+            {/* Process Management Wizard */}
+            <li>
+              <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiFilter className="icon" />
+                <span>Process Wizard</span>
               </NavLink>
             </li>
             
