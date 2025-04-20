@@ -66,6 +66,9 @@ const ProcessManagementWizard = () => {
   const [targetConnection, setTargetConnection] = useState(null);
   const [files, setFiles] = useState([]);
   const [selectedSourceFile, setSelectedSourceFile] = useState(null);
+  const [targetFileName, setTargetFileName] = useState('');
+  const [selectedTargetFile, setSelectedTargetFile] = useState(null);
+  const [isNewTargetFile, setIsNewTargetFile] = useState(true);
   const [selectedTargetType, setSelectedTargetType] = useState('csv');
   
   // Step 5: Column Mapping
@@ -291,6 +294,21 @@ const ProcessManagementWizard = () => {
   };
   
   // Step 4: Source and Target file selection
+  // Connection handling
+  const handleSourceConnectionChange = (connectionId) => {
+    const selected = connections.find(conn => conn.id === connectionId);
+    setSourceConnection(selected);
+    setSelectedSourceFile(null); // Reset selected file when connection changes
+  };
+  
+  const handleTargetConnectionChange = (connectionId) => {
+    const selected = connections.find(conn => conn.id === connectionId);
+    setTargetConnection(selected);
+    setSelectedTargetFile(null); // Reset selected file when connection changes
+    setIsNewTargetFile(true); // Default to creating a new file
+  };
+  
+  // Source file handling
   const handleSourceFileChange = async (fileId) => {
     try {
       setLoading(true);
@@ -316,6 +334,27 @@ const ProcessManagementWizard = () => {
       setSourceColumns([]);
       setLoading(false);
     }
+  };
+  
+  // Target file handling
+  const handleTargetFileTypeChange = (type) => {
+    setSelectedTargetType(type);
+  };
+  
+  const handleTargetFileNameChange = (e) => {
+    setTargetFileName(e.target.value);
+  };
+  
+  const handleExistingTargetFileChange = (fileId) => {
+    const selectedFile = files.find(file => file.file_id === fileId);
+    setSelectedTargetFile(selectedFile);
+  };
+  
+  const toggleTargetFileMode = () => {
+    setIsNewTargetFile(!isNewTargetFile);
+    // Reset selection when toggling
+    setSelectedTargetFile(null);
+    setTargetFileName('');
   };
   
   // Step 5: Column Mapping
@@ -682,66 +721,179 @@ const ProcessManagementWizard = () => {
     <div className="step-container">
       <h3>Step 4: Select Source and Target</h3>
       
-      <div className="form-row">
+      <div className="form-section">
+        <h4>Source</h4>
         <div className="form-group">
-          <label>Source File</label>
+          <label>1. Select Source Connection</label>
           <select 
-            value={selectedSourceFile ? selectedSourceFile.file_id : ''} 
-            onChange={(e) => handleSourceFileChange(e.target.value)}
+            onChange={(e) => handleSourceConnectionChange(e.target.value)}
             className="form-control"
+            value={sourceConnection ? sourceConnection.id : ''}
           >
-            <option value="">Select source file...</option>
-            {files.map(file => (
-              <option key={file.file_id} value={file.file_id}>
-                {file.filename} ({file.file_type})
+            <option value="">-- Select Source Connection --</option>
+            <option value="internal">Internal Database</option>
+            {connections.map(conn => (
+              <option key={conn.id} value={conn.id}>
+                {conn.name} ({conn.type})
               </option>
             ))}
           </select>
+          {!sourceConnection && (
+            <div className="form-hint">
+              <small>Select a connection first or use the default Internal Database</small>
+            </div>
+          )}
         </div>
         
-        <div className="form-group">
-          <label>Target File Type</label>
-          <select 
-            value={selectedTargetType} 
-            onChange={(e) => setSelectedTargetType(e.target.value)}
-            className="form-control"
-          >
-            <option value="csv">CSV</option>
-            <option value="json">JSON</option>
-            <option value="parquet">Parquet</option>
-            <option value="avro">Avro</option>
-            <option value="orc">ORC</option>
-          </select>
-        </div>
-      </div>
-      
-      {selectedSourceFile && (
-        <div className="file-preview">
-          <h4>Source File Preview</h4>
-          <div className="file-meta">
-            <div className="meta-item">
-              <span>Filename:</span>
-              <strong>{selectedSourceFile.filename}</strong>
-            </div>
-            <div className="meta-item">
-              <span>Type:</span>
-              <strong>{selectedSourceFile.file_type}</strong>
-            </div>
-            <div className="meta-item">
-              <span>Size:</span>
-              <strong>{selectedSourceFile.file_size} bytes</strong>
-            </div>
-            <div className="meta-item">
-              <span>Rows:</span>
-              <strong>{selectedSourceFile.row_count}</strong>
-            </div>
-            <div className="meta-item">
-              <span>Columns:</span>
-              <strong>{selectedSourceFile.column_count}</strong>
+        {(sourceConnection || sourceConnection === 'internal') && (
+          <div className="form-group">
+            <label>2. Select Source File</label>
+            <select 
+              onChange={(e) => handleSourceFileChange(e.target.value)}
+              className="form-control"
+              value={selectedSourceFile ? selectedSourceFile.file_id : ''}
+            >
+              <option value="">-- Select Source File --</option>
+              {files.map(file => (
+                <option key={file.file_id} value={file.file_id}>
+                  {file.filename} ({file.file_type})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        
+        {selectedSourceFile && (
+          <div className="file-preview">
+            <h4>Source File Preview</h4>
+            <div className="file-meta">
+              <div className="meta-item">
+                <span>Filename:</span>
+                <strong>{selectedSourceFile.filename}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Type:</span>
+                <strong>{selectedSourceFile.file_type}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Size:</span>
+                <strong>{selectedSourceFile.file_size} bytes</strong>
+              </div>
+              <div className="meta-item">
+                <span>Rows:</span>
+                <strong>{selectedSourceFile.row_count}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Columns:</span>
+                <strong>{selectedSourceFile.column_count}</strong>
+              </div>
             </div>
           </div>
+        )}
+      </div>
+      
+      <div className="form-section">
+        <h4>Target</h4>
+        <div className="form-group">
+          <label>1. Select Target Connection</label>
+          <select 
+            onChange={(e) => handleTargetConnectionChange(e.target.value)}
+            className="form-control"
+            value={targetConnection ? targetConnection.id : ''}
+          >
+            <option value="">-- Select Target Connection --</option>
+            <option value="internal">Internal Database</option>
+            {connections.map(conn => (
+              <option key={conn.id} value={conn.id}>
+                {conn.name} ({conn.type})
+              </option>
+            ))}
+          </select>
+          {!targetConnection && (
+            <div className="form-hint">
+              <small>Select a connection first or use the default Internal Database</small>
+            </div>
+          )}
         </div>
-      )}
+        
+        {(targetConnection || targetConnection === 'internal') && (
+          <>
+            <div className="target-file-toggle">
+              <label className="toggle-container">
+                <input
+                  type="checkbox"
+                  checked={!isNewTargetFile}
+                  onChange={toggleTargetFileMode}
+                />
+                <span className="toggle-text">
+                  {isNewTargetFile ? 'Create New File' : 'Overwrite Existing File'}
+                </span>
+              </label>
+            </div>
+            
+            {isNewTargetFile ? (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>2. New Target File Name</label>
+                  <input
+                    type="text"
+                    value={targetFileName}
+                    onChange={handleTargetFileNameChange}
+                    className="form-control"
+                    placeholder="Enter file name (e.g., output.csv)"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Output File Format</label>
+                  <select 
+                    value={selectedTargetType} 
+                    onChange={(e) => handleTargetFileTypeChange(e.target.value)}
+                    className="form-control"
+                  >
+                    <option value="csv">CSV</option>
+                    <option value="json">JSON</option>
+                    <option value="parquet">Parquet</option>
+                    <option value="avro">Avro</option>
+                    <option value="orc">ORC</option>
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div className="form-group">
+                <label>2. Select Existing Target File to Overwrite</label>
+                <select 
+                  onChange={(e) => handleExistingTargetFileChange(e.target.value)}
+                  className="form-control"
+                  value={selectedTargetFile ? selectedTargetFile.file_id : ''}
+                >
+                  <option value="">-- Select Target File --</option>
+                  {files.map(file => (
+                    <option key={file.file_id} value={file.file_id}>
+                      {file.filename} ({file.file_type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
+        )}
+        
+        {selectedTargetFile && !isNewTargetFile && (
+          <div className="file-preview">
+            <h4>Target File Preview</h4>
+            <div className="file-meta">
+              <div className="meta-item">
+                <span>Filename:</span>
+                <strong>{selectedTargetFile.filename}</strong>
+              </div>
+              <div className="meta-item">
+                <span>Type:</span>
+                <strong>{selectedTargetFile.file_type}</strong>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
   
@@ -821,41 +973,129 @@ const ProcessManagementWizard = () => {
     <div className="step-container">
       <h3>Step 6: Apply Transformations</h3>
       
+      <div className="transform-instructions">
+        <p>
+          <strong>Drag and drop</strong> transformation tools into the workflow area to build your data pipeline.
+          Connect source columns to transformations and then to target columns by clicking and dragging between nodes.
+        </p>
+      </div>
+      
+      <div className="transformation-flow-tools">
+        <div className="transform-tool filter">
+          <div className="transform-tool-icon">
+            <FiFilter />
+          </div>
+          <div className="transform-tool-name">Filter</div>
+        </div>
+        
+        <div className="transform-tool join">
+          <div className="transform-tool-icon">
+            <FiGitMerge />
+          </div>
+          <div className="transform-tool-name">Join</div>
+        </div>
+        
+        <div className="transform-tool aggregate">
+          <div className="transform-tool-icon">
+            <FiBarChart2 />
+          </div>
+          <div className="transform-tool-name">Aggregate</div>
+        </div>
+        
+        <div className="transform-tool lookup">
+          <div className="transform-tool-icon">
+            <FiSearch />
+          </div>
+          <div className="transform-tool-name">Lookup</div>
+        </div>
+        
+        <div className="transform-tool">
+          <div className="transform-tool-icon">
+            <FiEdit2 />
+          </div>
+          <div className="transform-tool-name">Format</div>
+        </div>
+        
+        <div className="transform-tool">
+          <div className="transform-tool-icon">
+            <FiCpu />
+          </div>
+          <div className="transform-tool-name">Calculate</div>
+        </div>
+      </div>
+      
       <div className="transformation-flow-container" style={{ height: '500px' }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onConnect={onConnect}
-          fitView
-        >
-          <Controls />
-          <Background color="#aaa" gap={16} />
-        </ReactFlow>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onConnect={onConnect}
+            fitView
+            nodesDraggable={true}
+            nodesConnectable={true}
+          >
+            <Controls />
+            <Background color="#aaa" gap={16} />
+          </ReactFlow>
+        </DndContext>
       </div>
       
       <div className="transformations-info">
-        <h4>Available Transformations:</h4>
+        <h4>About Transformations:</h4>
         <ul className="transformations-list">
           <li>
-            <strong>Filter</strong> - Filter rows based on conditions
+            <strong>Filter</strong> - Filter rows based on conditions (Example: WHERE column is greater than value)
           </li>
           <li>
-            <strong>Join</strong> - Join data with another dataset
+            <strong>Join</strong> - Join data with another dataset (Example: LEFT JOIN, INNER JOIN)
           </li>
           <li>
-            <strong>Aggregate</strong> - Group by and aggregate data
+            <strong>Aggregate</strong> - Group by and aggregate data (Example: SUM, COUNT, AVG)
           </li>
           <li>
             <strong>Lookup</strong> - Lookup values from another dataset
           </li>
+          <li>
+            <strong>Format</strong> - Change data formats (Example: Date formatting, string operations)
+          </li>
+          <li>
+            <strong>Calculate</strong> - Perform calculations on columns (Example: mathematical operations)
+          </li>
         </ul>
-        <p className="note">
-          Drag and drop transformations between source and target columns, then connect 
-          them to create your data transformation pipeline.
-        </p>
       </div>
     </div>
   );
+  
+  // Handle drag end for transformation tools
+  const handleDragEnd = (event) => {
+    const {active, over} = event;
+    
+    if (over && active.id !== over.id) {
+      // Add transformation to the flow
+      const newNode = {
+        id: `transform-${Date.now()}`,
+        type: 'default',
+        data: { label: active.id, type: 'transformation' },
+        position: { x: Math.random() * 300 + 200, y: Math.random() * 300 + 100 },
+        style: { background: getNodeColorByType(active.id) }
+      };
+      
+      setNodes(nodes => [...nodes, newNode]);
+    }
+  };
+  
+  // Get node background color based on transformation type
+  const getNodeColorByType = (type) => {
+    switch(type) {
+      case 'filter': return '#fee2e2';
+      case 'join': return '#dcfce7';
+      case 'aggregate': return '#fef3c7';
+      case 'lookup': return '#ede9fe';
+      case 'format': return '#e0f2fe';
+      case 'calculate': return '#fae8ff';
+      default: return '#f3f4f6';
+    }
+  };
   
   const renderTargetColumnsStep = () => (
     <div className="step-container">
