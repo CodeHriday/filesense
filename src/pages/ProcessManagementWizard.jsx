@@ -225,6 +225,13 @@ const ProcessManagementWizard = () => {
     }
   };
   
+  // Fetch business processes when a group is selected
+  useEffect(() => {
+    if (selectedGroup?.id) {
+      fetchBusinessProcesses(selectedGroup.id);
+    }
+  }, [selectedGroup]);
+  
   const createBusinessProcess = async () => {
     if (!newProcessName.trim()) {
       setError('Process name is required');
@@ -699,6 +706,55 @@ const ProcessManagementWizard = () => {
   
   // Handle connections between nodes
   const onConnect = useCallback((params) => {
+    // Get source and target nodes
+    const sourceNode = nodes.find(node => node.id === params.source);
+    const targetNode = nodes.find(node => node.id === params.target);
+    
+    if (!sourceNode || !targetNode) return;
+    
+    // Validation rules:
+    // 1. Source nodes can only have one output connection
+    // 2. Target nodes can only have one input connection
+    // 3. Transformation nodes can have only one input and one output (except Join)
+    
+    // Check existing connections
+    const existingEdges = edges;
+    
+    // Check if source node already has an outgoing connection
+    if (sourceNode.type === 'source') {
+      const sourceHasConnection = existingEdges.some(edge => edge.source === params.source);
+      if (sourceHasConnection) {
+        setError('Source nodes can only have one outgoing connection.');
+        return;
+      }
+    }
+    
+    // Check if target node already has an incoming connection
+    if (targetNode.type === 'target') {
+      const targetHasConnection = existingEdges.some(edge => edge.target === params.target);
+      if (targetHasConnection) {
+        setError('Target nodes can only have one incoming connection.');
+        return;
+      }
+    }
+    
+    // Check transformation nodes (except Join)
+    if (sourceNode.type !== 'source' && sourceNode.type !== 'join' && sourceNode.type !== 'target') {
+      const sourceHasOutput = existingEdges.some(edge => edge.source === params.source);
+      if (sourceHasOutput) {
+        setError(`${sourceNode.type.charAt(0).toUpperCase() + sourceNode.type.slice(1)} nodes can only have one output connection.`);
+        return;
+      }
+    }
+    
+    if (targetNode.type !== 'source' && targetNode.type !== 'target') {
+      const targetHasInput = existingEdges.some(edge => edge.target === params.target);
+      if (targetHasInput && targetNode.type !== 'join') {
+        setError(`${targetNode.type.charAt(0).toUpperCase() + targetNode.type.slice(1)} nodes can only have one input connection.`);
+        return;
+      }
+    }
+    
     // Create a styled edge with arrow marker
     const newEdge = {
       ...params,
@@ -711,8 +767,11 @@ const ProcessManagementWizard = () => {
         color: '#3b82f6',
       },
     };
+    
     setEdges((eds) => addEdge(newEdge, eds));
-  }, [setEdges]);
+    // Clear any error after successful connection
+    setError(null);
+  }, [nodes, edges, setEdges]);
   
   // Get node background color based on transformation type
   const getNodeColorByType = (type) => {
@@ -1316,6 +1375,24 @@ const ProcessManagementWizard = () => {
           <span>Group:</span>
           <strong>{selectedGroup ? selectedGroup.name : 'None selected'}</strong>
         </div>
+        
+        {selectedBusinessProcess && (
+          <>
+            <h4>Selected Business Process</h4>
+            <div className="summary-item">
+              <span>Process:</span>
+              <strong>{selectedBusinessProcess.name}</strong>
+            </div>
+            <div className="form-actions">
+              <button 
+                className="btn btn-primary"
+                onClick={() => setCurrentStep(currentStep + 1)}
+              >
+                Continue with Selected Process
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1479,17 +1556,38 @@ const ProcessManagementWizard = () => {
         
         {targetConnection && (
           <>
-            <div className="target-file-toggle">
-              <label className="toggle-container">
-                <input
-                  type="checkbox"
-                  checked={!isNewTargetFile}
-                  onChange={toggleTargetFileMode}
-                />
-                <span className="toggle-text">
-                  {isNewTargetFile ? 'Create New File' : 'Overwrite Existing File'}
-                </span>
-              </label>
+            <div className="target-file-options">
+              <div className="form-group">
+                <label className="checkbox-container">
+                  <input
+                    type="checkbox"
+                    checked={isNewTargetFile}
+                    onChange={() => {
+                      if (!isNewTargetFile) {
+                        setIsNewTargetFile(true);
+                        setSelectedTargetFile(null);
+                      }
+                    }}
+                  />
+                  <span className="checkbox-text">Create New File</span>
+                </label>
+              </div>
+              
+              <div className="form-group">
+                <label className="checkbox-container">
+                  <input
+                    type="checkbox"
+                    checked={!isNewTargetFile}
+                    onChange={() => {
+                      if (isNewTargetFile) {
+                        setIsNewTargetFile(false);
+                        setTargetFileName('');
+                      }
+                    }}
+                  />
+                  <span className="checkbox-text">Overwrite Existing File</span>
+                </label>
+              </div>
             </div>
             
             {isNewTargetFile ? (
