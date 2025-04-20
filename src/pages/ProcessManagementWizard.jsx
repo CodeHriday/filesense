@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiSave, 
@@ -18,22 +18,28 @@ import {
   FiTrash,
   FiAlertTriangle,
   FiCheckCircle,
-  FiTable
+  FiTable,
+  FiCode,
+  FiFilter,
+  FiGitMerge,
+  FiBarChart2,
+  FiSearch,
+  FiEdit2,
+  FiCpu,
+  FiSettings
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import ReactFlow, { 
+  Background, 
   Controls, 
-  Background,
-  useNodesState,
-  useEdgesState,
-  addEdge
+  useNodesState, 
+  useEdgesState, 
+  addEdge,
+  MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 const ProcessManagementWizard = () => {
   const navigate = useNavigate();
@@ -79,8 +85,9 @@ const ProcessManagementWizard = () => {
   // Step 6: Transformations
   const [transformationNodes, setTransformationNodes] = useState([]);
   const [transformationEdges, setTransformationEdges] = useState([]);
-  const [nodes, setNodes] = useNodesState([]);
-  const [edges, setEdges] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const reactFlowWrapper = useRef(null);
   
   // Step 7: Target Column Settings
   const [targetColumnSettings, setTargetColumnSettings] = useState([]);
@@ -91,15 +98,6 @@ const ProcessManagementWizard = () => {
   const [scheduleTime, setScheduleTime] = useState('');
   const [scheduleCron, setScheduleCron] = useState('');
   const [scheduleEnabled, setScheduleEnabled] = useState(true);
-  
-  // Sensors for drag and drop functionality
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
   
   useEffect(() => {
     fetchInitialData();
@@ -159,13 +157,13 @@ const ProcessManagementWizard = () => {
       case 3: // Job creation
         return jobName.trim() !== '';
       case 4: // Connections
-        return selectedSourceFile !== null;
+        return sourceConnection !== null;
       case 5: // Column mapping
-        return columnMappings.length > 0;
+        return true; // Always valid for now
       case 6: // Transformations
         return true; // Always valid, as transformations are optional
       case 7: // Target columns
-        return targetColumnSettings.length > 0;
+        return true; // Always valid for now
       case 8: // Scheduling
         if (scheduleType === 'one-time') {
           return scheduleDate && scheduleTime;
@@ -404,88 +402,110 @@ const ProcessManagementWizard = () => {
     setColumnMappings(columnMappings.filter(mapping => mapping.id !== mappingId));
   };
   
-  // Step 6: Transformations
-  const initializeTransformationFlow = () => {
-    // Create nodes for source columns
-    const sourceNodes = sourceColumns.map((column, index) => ({
-      id: `source-${column.id}`,
-      type: 'input',
-      data: { label: column.name, type: column.type },
-      position: { x: 0, y: index * 100 }
-    }));
-    
-    // Create nodes for transformations
-    const transformNodes = [
-      {
-        id: 'transform-filter',
-        type: 'default',
-        data: { label: 'Filter', type: 'transformation' },
-        position: { x: 250, y: 50 }
-      },
-      {
-        id: 'transform-join',
-        type: 'default',
-        data: { label: 'Join', type: 'transformation' },
-        position: { x: 250, y: 150 }
-      },
-      {
-        id: 'transform-aggregate',
-        type: 'default',
-        data: { label: 'Aggregate', type: 'transformation' },
-        position: { x: 250, y: 250 }
-      },
-      {
-        id: 'transform-lookup',
-        type: 'default',
-        data: { label: 'Lookup', type: 'transformation' },
-        position: { x: 250, y: 350 }
-      }
-    ];
-    
-    // Create nodes for target columns
-    const targetNodes = targetColumns.map((column, index) => ({
-      id: `target-${column.id}`,
-      type: 'output',
-      data: { label: column.name, type: column.type },
-      position: { x: 500, y: index * 100 }
-    }));
-    
-    setNodes([...sourceNodes, ...transformNodes, ...targetNodes]);
+  // Step 6: Transformations - ReactFlow Implementation
+  // Handle drag over for the React Flow container
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
   };
   
-  const onConnect = (params) => {
-    setEdges((eds) => addEdge(params, eds));
+  // Handle drop for React Flow
+  const handleDrop = (event) => {
+    event.preventDefault();
+    
+    if (!reactFlowWrapper.current) return;
+    
+    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+    const type = event.dataTransfer.getData('application/reactflow');
+    
+    if (!type) return;
+
+    const position = {
+      x: event.clientX - reactFlowBounds.left,
+      y: event.clientY - reactFlowBounds.top,
+    };
+    
+    const newNode = {
+      id: `transform-${Date.now()}`,
+      type: 'default',
+      position,
+      data: { 
+        label: type.charAt(0).toUpperCase() + type.slice(1),  // Capitalize the first letter
+        type: 'transformation' 
+      },
+      style: { 
+        background: getNodeColorByType(type),
+        padding: '10px',
+        borderRadius: '5px',
+        border: '1px solid #ddd'
+      }
+    };
+    
+    setNodes((nds) => nds.concat(newNode));
+  };
+  
+  // Handle connections between nodes
+  const onConnect = useCallback((params) => {
+    // Create a styled edge with arrow marker
+    const newEdge = {
+      ...params,
+      animated: true,
+      style: { stroke: '#3b82f6' },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 20,
+        height: 20,
+        color: '#3b82f6',
+      },
+    };
+    setEdges((eds) => addEdge(newEdge, eds));
+  }, [setEdges]);
+  
+  // Get node background color based on transformation type
+  const getNodeColorByType = (type) => {
+    switch(type) {
+      case 'filter': return '#fee2e2';
+      case 'join': return '#dcfce7';
+      case 'aggregate': return '#fef3c7';
+      case 'lookup': return '#ede9fe';
+      case 'format': return '#e0f2fe';
+      case 'calculate': return '#fae8ff';
+      default: return '#f3f4f6';
+    }
   };
   
   // Step 7: Target Column Settings
-  const initializeTargetColumnSettings = () => {
-    // Initialize target column settings from the mapping
-    setTargetColumnSettings(targetColumns.map(col => ({
-      id: col.id,
-      originalName: col.name,
-      name: col.name, // Can be changed by user
-      originalType: col.type,
-      type: col.type, // Can be changed by user
-      sourceId: col.sourceId,
-      nullable: true,
-      defaultValue: null,
-      description: ''
-    })));
-  };
-  
-  const updateTargetColumnSetting = (id, field, value) => {
-    setTargetColumnSettings(
-      targetColumnSettings.map(col => 
-        col.id === id ? { ...col, [field]: value } : col
+  const updateTargetColumnSetting = (columnId, field, value) => {
+    setTargetColumnSettings(prevSettings => 
+      prevSettings.map(setting => 
+        setting.id === columnId 
+          ? { ...setting, [field]: value }
+          : setting
       )
     );
   };
   
-  // Step 8: Scheduling
+  // Initialize target column settings
+  useEffect(() => {
+    if (columnMappings.length > 0 && targetColumnSettings.length === 0) {
+      setTargetColumnSettings(columnMappings.map(mapping => ({
+        id: mapping.id,
+        originalName: mapping.sourceColumn.name,
+        name: mapping.targetColumn.name,
+        type: mapping.targetColumn.type,
+        nullable: true,
+        defaultValue: '',
+        description: ''
+      })));
+    }
+  }, [columnMappings, targetColumnSettings]);
+
+  // Step 8: Create Schedule
   const createSchedule = async () => {
     const jobId = sessionStorage.getItem('currentJobId');
+    
     if (!jobId) {
-      setError('Job ID not found. Please start over.');
+      setError('Job ID not found. Please create a job first.');
       return;
     }
     
@@ -493,24 +513,25 @@ const ProcessManagementWizard = () => {
       setLoading(true);
       
       let scheduleData = {
-        job_id: jobId,
-        type: scheduleType,
-        enabled: scheduleEnabled
+        job_id: parseInt(jobId),
+        enabled: scheduleEnabled,
+        type: scheduleType
       };
       
       if (scheduleType === 'one-time') {
-        scheduleData.one_time_date = `${scheduleDate}T${scheduleTime}:00`;
+        const scheduleDateTimeStr = `${scheduleDate}T${scheduleTime}`;
+        scheduleData.one_time_date = new Date(scheduleDateTimeStr).toISOString();
       } else {
         scheduleData.cron_expression = scheduleCron;
       }
       
       const response = await axios.post(`${API_BASE_URL}/api/schedules`, scheduleData);
       
-      setSuccess('Job schedule created successfully');
+      setSuccess('Job scheduled successfully');
       setLoading(false);
       
-      // Job creation process complete
-      completeWizard();
+      // Navigate to jobs list
+      navigate('/jobs');
     } catch (err) {
       console.error('Error creating schedule:', err);
       setError('Failed to create schedule. Please try again.');
@@ -518,128 +539,26 @@ const ProcessManagementWizard = () => {
     }
   };
   
-  // Complete the wizard
-  const completeWizard = async () => {
-    try {
-      // Save final job configuration
-      const jobId = sessionStorage.getItem('currentJobId');
-      
-      // Update job with all our configurations
-      await axios.put(`${API_BASE_URL}/api/jobs/${jobId}`, {
-        source_file_id: selectedSourceFile ? selectedSourceFile.file_id : null,
-        target_file_type: selectedTargetType,
-        column_mappings: columnMappings,
-        target_column_settings: targetColumnSettings
-      });
-      
-      // Clear session storage
-      sessionStorage.removeItem('currentJobId');
-      
-      // Show success message and redirect to jobs page
-      setSuccess('Process Management Wizard completed successfully!');
-      setTimeout(() => {
-        navigate('/jobs');
-      }, 2000);
-    } catch (err) {
-      console.error('Error completing wizard:', err);
-      setError('Failed to complete the wizard. Please try again.');
-    }
-  };
-  
-  // Handle step transitions and initialize data for steps
-  useEffect(() => {
-    // Reset error and success messages on step change
-    setError(null);
-    setSuccess(null);
-    
-    // Initialize data for specific steps
-    if (currentStep === 2 && selectedGroup) {
-      fetchBusinessProcesses(selectedGroup.id);
-    } else if (currentStep === 6) {
-      initializeTransformationFlow();
-    } else if (currentStep === 7) {
-      initializeTargetColumnSettings();
-    }
-  }, [currentStep, selectedGroup]);
-  
-  // Step components
+  // Render functions for each step
   const renderGroupStep = () => (
     <div className="step-container">
-      <h3>Step 1: Select or Create a Group</h3>
+      <h3>Step 1: Select or Create Group</h3>
       
       {groups.length > 0 && (
         <div className="existing-items">
-          <h4>Select an Existing Group</h4>
+          <h4>Select Existing Group</h4>
           <div className="items-grid">
             {groups.map(group => (
               <div 
                 key={group.id} 
-                className={`item-card ${selectedGroup && selectedGroup.id === group.id ? 'selected' : ''}`}
+                className={`item-card ${selectedGroup?.id === group.id ? 'selected' : ''}`}
                 onClick={() => setSelectedGroup(group)}
               >
                 <h4>{group.name}</h4>
                 <p>{group.description || 'No description'}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      <div className="create-new-item">
-        <h4>Or Create a New Group</h4>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Group Name</label>
-            <input 
-              type="text" 
-              value={newGroupName} 
-              onChange={(e) => setNewGroupName(e.target.value)}
-              className="form-control"
-              placeholder="Enter group name"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>Description (Optional)</label>
-            <textarea 
-              value={newGroupDesc} 
-              onChange={(e) => setNewGroupDesc(e.target.value)}
-              className="form-control"
-              placeholder="Enter description"
-            />
-          </div>
-        </div>
-        
-        <button 
-          className="btn btn-primary" 
-          onClick={createGroup}
-          disabled={loading || !newGroupName.trim()}
-        >
-          Create Group
-        </button>
-      </div>
-    </div>
-  );
-  
-  const renderBusinessProcessStep = () => (
-    <div className="step-container">
-      <h3>Step 2: Select or Create a Business Process</h3>
-      
-      {businessProcesses.length > 0 && (
-        <div className="existing-items">
-          <h4>Select an Existing Business Process</h4>
-          <div className="items-grid">
-            {businessProcesses.map(process => (
-              <div 
-                key={process.id} 
-                className={`item-card ${selectedBusinessProcess && selectedBusinessProcess.id === process.id ? 'selected' : ''}`}
-                onClick={() => setSelectedBusinessProcess(process)}
-              >
-                <h4>{process.name}</h4>
-                <p>{process.description || 'No description'}</p>
                 <div className="item-meta">
-                  <span>Group: {process.group_name}</span>
-                  <span>Jobs: {process.job_count}</span>
+                  <span>{group.processes_count || 0} processes</span>
+                  <span>{group.jobs_count || 0} jobs</span>
                 </div>
               </div>
             ))}
@@ -648,90 +567,151 @@ const ProcessManagementWizard = () => {
       )}
       
       <div className="create-new-item">
-        <h4>Or Create a New Business Process</h4>
+        <h4>Create New Group</h4>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Group Name</label>
+            <input
+              type="text"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              className="form-control"
+              placeholder="Enter group name"
+            />
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <input
+              type="text"
+              value={newGroupDesc}
+              onChange={(e) => setNewGroupDesc(e.target.value)}
+              className="form-control"
+              placeholder="Group description"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  
+  const renderBusinessProcessStep = () => (
+    <div className="step-container">
+      <h3>Step 2: Select or Create Business Process</h3>
+      
+      {/* Show business processes if a group is selected */}
+      {selectedGroup && businessProcesses.length > 0 && (
+        <div className="existing-items">
+          <h4>Select Existing Business Process</h4>
+          <div className="items-grid">
+            {businessProcesses
+              .filter(process => process.group_id === selectedGroup.id)
+              .map(process => (
+                <div 
+                  key={process.id} 
+                  className={`item-card ${selectedBusinessProcess?.id === process.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedBusinessProcess(process)}
+                >
+                  <h4>{process.name}</h4>
+                  <p>{process.description || 'No description'}</p>
+                  <div className="item-meta">
+                    <span>{process.jobs_count || 0} jobs</span>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      )}
+      
+      <div className="create-new-item">
+        <h4>Create New Business Process</h4>
         <div className="form-row">
           <div className="form-group">
             <label>Process Name</label>
-            <input 
-              type="text" 
-              value={newProcessName} 
+            <input
+              type="text"
+              value={newProcessName}
               onChange={(e) => setNewProcessName(e.target.value)}
               className="form-control"
               placeholder="Enter process name"
             />
           </div>
-          
           <div className="form-group">
-            <label>Description (Optional)</label>
-            <textarea 
-              value={newProcessDesc} 
+            <label>Description</label>
+            <input
+              type="text"
+              value={newProcessDesc}
               onChange={(e) => setNewProcessDesc(e.target.value)}
               className="form-control"
-              placeholder="Enter description"
+              placeholder="Process description"
             />
           </div>
         </div>
-        
-        <button 
-          className="btn btn-primary" 
-          onClick={createBusinessProcess}
-          disabled={loading || !newProcessName.trim() || !selectedGroup}
-        >
-          Create Business Process
-        </button>
+      </div>
+      
+      <div className="form-summary">
+        <h4>Selected Group</h4>
+        <div className="summary-item">
+          <span>Group:</span>
+          <strong>{selectedGroup ? selectedGroup.name : 'None selected'}</strong>
+        </div>
       </div>
     </div>
   );
   
   const renderJobStep = () => (
     <div className="step-container">
-      <h3>Step 3: Create a Job</h3>
+      <h3>Step 3: Create Job</h3>
       
-      <div className="form-row">
-        <div className="form-group">
-          <label>Job Name</label>
-          <input 
-            type="text" 
-            value={jobName} 
-            onChange={(e) => setJobName(e.target.value)}
-            className="form-control"
-            placeholder="Enter job name"
-          />
+      <div className="create-new-item">
+        <div className="form-row">
+          <div className="form-group">
+            <label>Job Name</label>
+            <input
+              type="text"
+              value={jobName}
+              onChange={(e) => setJobName(e.target.value)}
+              className="form-control"
+              placeholder="Enter job name"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <input
+              type="text"
+              value={jobDesc}
+              onChange={(e) => setJobDesc(e.target.value)}
+              className="form-control"
+              placeholder="Job description"
+            />
+          </div>
         </div>
-        
-        <div className="form-group">
-          <label>Description (Optional)</label>
-          <textarea 
-            value={jobDesc} 
-            onChange={(e) => setJobDesc(e.target.value)}
-            className="form-control"
-            placeholder="Enter description"
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Status</label>
-          <select 
-            value={jobStatus} 
-            onChange={(e) => setJobStatus(e.target.value)}
-            className="form-control"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="draft">Draft</option>
-          </select>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Status</label>
+            <select 
+              value={jobStatus} 
+              onChange={(e) => setJobStatus(e.target.value)}
+              className="form-control"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="draft">Draft</option>
+            </select>
+          </div>
         </div>
       </div>
       
       <div className="form-summary">
-        <h4>Summary</h4>
+        <h4>Job Details</h4>
         <div className="summary-item">
           <span>Group:</span>
-          <strong>{selectedGroup ? selectedGroup.name : 'None selected'}</strong>
+          <strong>{selectedGroup ? selectedGroup.name : 'None'}</strong>
         </div>
         <div className="summary-item">
           <span>Business Process:</span>
-          <strong>{selectedBusinessProcess ? selectedBusinessProcess.name : 'None selected'}</strong>
+          <strong>{selectedBusinessProcess ? selectedBusinessProcess.name : 'None'}</strong>
         </div>
       </div>
     </div>
@@ -739,7 +719,7 @@ const ProcessManagementWizard = () => {
   
   const renderConnectionsStep = () => (
     <div className="step-container">
-      <h3>Step 4: Select Source and Target</h3>
+      <h3>Step 4: Select Source and Target Connections</h3>
       
       <div className="form-section">
         <h4>Source</h4>
@@ -1001,42 +981,84 @@ const ProcessManagementWizard = () => {
       </div>
       
       <div className="transformation-flow-tools">
-        <div className="transform-tool filter">
+        <div 
+          className="transform-tool filter" 
+          draggable 
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/reactflow', 'filter');
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+        >
           <div className="transform-tool-icon">
             <FiFilter />
           </div>
           <div className="transform-tool-name">Filter</div>
         </div>
         
-        <div className="transform-tool join">
+        <div 
+          className="transform-tool join"
+          draggable 
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/reactflow', 'join');
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+        >
           <div className="transform-tool-icon">
             <FiGitMerge />
           </div>
           <div className="transform-tool-name">Join</div>
         </div>
         
-        <div className="transform-tool aggregate">
+        <div 
+          className="transform-tool aggregate"
+          draggable 
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/reactflow', 'aggregate');
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+        >
           <div className="transform-tool-icon">
             <FiBarChart2 />
           </div>
           <div className="transform-tool-name">Aggregate</div>
         </div>
         
-        <div className="transform-tool lookup">
+        <div 
+          className="transform-tool lookup"
+          draggable 
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/reactflow', 'lookup');
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+        >
           <div className="transform-tool-icon">
             <FiSearch />
           </div>
           <div className="transform-tool-name">Lookup</div>
         </div>
         
-        <div className="transform-tool">
+        <div 
+          className="transform-tool format"
+          draggable 
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/reactflow', 'format');
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+        >
           <div className="transform-tool-icon">
             <FiEdit2 />
           </div>
           <div className="transform-tool-name">Format</div>
         </div>
         
-        <div className="transform-tool">
+        <div 
+          className="transform-tool calculate"
+          draggable 
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/reactflow', 'calculate');
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+        >
           <div className="transform-tool-icon">
             <FiCpu />
           </div>
@@ -1044,20 +1066,24 @@ const ProcessManagementWizard = () => {
         </div>
       </div>
       
-      <div className="transformation-flow-container" style={{ height: '500px' }}>
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onConnect={onConnect}
-            fitView
-            nodesDraggable={true}
-            nodesConnectable={true}
-          >
-            <Controls />
-            <Background color="#aaa" gap={16} />
-          </ReactFlow>
-        </DndContext>
+      <div 
+        className="transformation-flow-container" 
+        style={{ height: '500px' }}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        ref={reactFlowWrapper}
+      >
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          fitView
+        >
+          <Controls />
+          <Background color="#aaa" gap={16} />
+        </ReactFlow>
       </div>
       
       <div className="transformations-info">
@@ -1085,37 +1111,6 @@ const ProcessManagementWizard = () => {
       </div>
     </div>
   );
-  
-  // Handle drag end for transformation tools
-  const handleDragEnd = (event) => {
-    const {active, over} = event;
-    
-    if (over && active.id !== over.id) {
-      // Add transformation to the flow
-      const newNode = {
-        id: `transform-${Date.now()}`,
-        type: 'default',
-        data: { label: active.id, type: 'transformation' },
-        position: { x: Math.random() * 300 + 200, y: Math.random() * 300 + 100 },
-        style: { background: getNodeColorByType(active.id) }
-      };
-      
-      setNodes(nodes => [...nodes, newNode]);
-    }
-  };
-  
-  // Get node background color based on transformation type
-  const getNodeColorByType = (type) => {
-    switch(type) {
-      case 'filter': return '#fee2e2';
-      case 'join': return '#dcfce7';
-      case 'aggregate': return '#fef3c7';
-      case 'lookup': return '#ede9fe';
-      case 'format': return '#e0f2fe';
-      case 'calculate': return '#fae8ff';
-      default: return '#f3f4f6';
-    }
-  };
   
   const renderTargetColumnsStep = () => (
     <div className="step-container">
@@ -1419,18 +1414,25 @@ const ProcessManagementWizard = () => {
         >
           <FiChevronLeft /> Previous
         </button>
-        
         <button
           className="btn btn-primary"
           onClick={handleFinalSubmit}
           disabled={loading || !validateCurrentStep()}
         >
-          {currentStep === 8 ? (
-            <>Complete <FiCheck /></>
+          {loading ? (
+            'Loading...'
+          ) : currentStep === 8 ? (
+            <>
+              <FiSave /> Finish
+            </>
           ) : currentStep === 3 ? (
-            <>Create Job <FiSave /></>
+            <>
+              <FiSave /> Create Job & Continue
+            </>
           ) : (
-            <>Next <FiChevronRight /></>
+            <>
+              Next <FiChevronRight />
+            </>
           )}
         </button>
       </div>
