@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiSave, 
@@ -26,7 +26,9 @@ import {
   FiSearch,
   FiEdit2,
   FiCpu,
-  FiSettings
+  FiSettings,
+  FiX,
+  FiSave as FiSaveIcon
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -37,9 +39,12 @@ import ReactFlow, {
   useNodesState, 
   useEdgesState, 
   addEdge,
-  MarkerType
+  MarkerType,
+  Panel,
+  Handle
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import '../styles/ReactFlowNodes.css';
 
 const ProcessManagementWizard = () => {
   const navigate = useNavigate();
@@ -402,6 +407,257 @@ const ProcessManagementWizard = () => {
     setColumnMappings(columnMappings.filter(mapping => mapping.id !== mappingId));
   };
   
+  // Step 6: Transformations - Custom Node Components
+  // Configuration modal for transformation nodes
+  const [showConfig, setShowConfig] = useState(false);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [nodeConfig, setNodeConfig] = useState({});
+  
+  // Custom Node Components
+  const SourceNode = ({ data }) => {
+    return (
+      <div className="source-node">
+        <div className="node-header">Source: {data.label}</div>
+        <div className="node-content">
+          <div className="node-type">{data.type}</div>
+        </div>
+        <Handle type="source" position="right" id="source-right" />
+      </div>
+    );
+  };
+  
+  const TargetNode = ({ data }) => {
+    return (
+      <div className="target-node">
+        <Handle type="target" position="left" id="target-left" />
+        <div className="node-header">Target: {data.label}</div>
+        <div className="node-content">
+          <div className="node-type">{data.type}</div>
+        </div>
+      </div>
+    );
+  };
+  
+  const FilterNode = ({ data, id }) => {
+    return (
+      <div className="transform-node filter-node">
+        <Handle type="target" position="left" id="filter-target" />
+        <div className="node-header">
+          <FiFilter className="node-icon" />
+          <span>Filter</span>
+        </div>
+        <div className="node-content">
+          {data.condition ? 
+            <div className="node-condition">{data.condition}</div> : 
+            <div className="node-placeholder">Click to configure</div>
+          }
+        </div>
+        <button 
+          className="node-config-btn" 
+          onClick={() => openNodeConfig(id, 'filter', data)}
+        >
+          <FiSettings />
+        </button>
+        <Handle type="source" position="right" id="filter-source" />
+      </div>
+    );
+  };
+  
+  const JoinNode = ({ data, id }) => {
+    return (
+      <div className="transform-node join-node">
+        <Handle type="target" position="left" id="join-target-left" />
+        <Handle type="target" position="top" id="join-target-top" />
+        <div className="node-header">
+          <FiGitMerge className="node-icon" />
+          <span>Join</span>
+        </div>
+        <div className="node-content">
+          {data.joinType ? 
+            <div className="node-condition">{data.joinType} Join</div> : 
+            <div className="node-placeholder">Click to configure</div>
+          }
+        </div>
+        <button 
+          className="node-config-btn" 
+          onClick={() => openNodeConfig(id, 'join', data)}
+        >
+          <FiSettings />
+        </button>
+        <Handle type="source" position="right" id="join-source" />
+      </div>
+    );
+  };
+  
+  const AggregateNode = ({ data, id }) => {
+    return (
+      <div className="transform-node aggregate-node">
+        <Handle type="target" position="left" id="aggregate-target" />
+        <div className="node-header">
+          <FiBarChart2 className="node-icon" />
+          <span>Aggregate</span>
+        </div>
+        <div className="node-content">
+          {data.aggregation ? 
+            <div className="node-condition">{data.aggregation}</div> : 
+            <div className="node-placeholder">Click to configure</div>
+          }
+        </div>
+        <button 
+          className="node-config-btn" 
+          onClick={() => openNodeConfig(id, 'aggregate', data)}
+        >
+          <FiSettings />
+        </button>
+        <Handle type="source" position="right" id="aggregate-source" />
+      </div>
+    );
+  };
+  
+  const LookupNode = ({ data, id }) => {
+    return (
+      <div className="transform-node lookup-node">
+        <Handle type="target" position="left" id="lookup-target" />
+        <div className="node-header">
+          <FiSearch className="node-icon" />
+          <span>Lookup</span>
+        </div>
+        <div className="node-content">
+          {data.lookupTable ? 
+            <div className="node-condition">From: {data.lookupTable}</div> : 
+            <div className="node-placeholder">Click to configure</div>
+          }
+        </div>
+        <button 
+          className="node-config-btn" 
+          onClick={() => openNodeConfig(id, 'lookup', data)}
+        >
+          <FiSettings />
+        </button>
+        <Handle type="source" position="right" id="lookup-source" />
+      </div>
+    );
+  };
+  
+  const FormatNode = ({ data, id }) => {
+    return (
+      <div className="transform-node format-node">
+        <Handle type="target" position="left" id="format-target" />
+        <div className="node-header">
+          <FiEdit2 className="node-icon" />
+          <span>Format</span>
+        </div>
+        <div className="node-content">
+          {data.formatType ? 
+            <div className="node-condition">{data.formatType}</div> : 
+            <div className="node-placeholder">Click to configure</div>
+          }
+        </div>
+        <button 
+          className="node-config-btn" 
+          onClick={() => openNodeConfig(id, 'format', data)}
+        >
+          <FiSettings />
+        </button>
+        <Handle type="source" position="right" id="format-source" />
+      </div>
+    );
+  };
+  
+  const CalculateNode = ({ data, id }) => {
+    return (
+      <div className="transform-node calculate-node">
+        <Handle type="target" position="left" id="calculate-target" />
+        <div className="node-header">
+          <FiCpu className="node-icon" />
+          <span>Calculate</span>
+        </div>
+        <div className="node-content">
+          {data.formula ? 
+            <div className="node-condition">{data.formula}</div> : 
+            <div className="node-placeholder">Click to configure</div>
+          }
+        </div>
+        <button 
+          className="node-config-btn" 
+          onClick={() => openNodeConfig(id, 'calculate', data)}
+        >
+          <FiSettings />
+        </button>
+        <Handle type="source" position="right" id="calculate-source" />
+      </div>
+    );
+  };
+  
+  // Define node types
+  const nodeTypes = useMemo(() => ({
+    source: SourceNode,
+    target: TargetNode,
+    filter: FilterNode,
+    join: JoinNode,
+    aggregate: AggregateNode,
+    lookup: LookupNode,
+    format: FormatNode,
+    calculate: CalculateNode
+  }), []);
+  
+  // Configuration modal functions
+  const openNodeConfig = (id, nodeType, data) => {
+    setSelectedNode({ id, type: nodeType });
+    setNodeConfig(data || {});
+    setShowConfig(true);
+  };
+  
+  const saveNodeConfig = () => {
+    if (!selectedNode) return;
+    
+    setNodes(nodes => 
+      nodes.map(node => 
+        node.id === selectedNode.id 
+          ? { ...node, data: { ...node.data, ...nodeConfig } }
+          : node
+      )
+    );
+    
+    setShowConfig(false);
+  };
+  
+  const closeNodeConfig = () => {
+    setShowConfig(false);
+    setSelectedNode(null);
+    setNodeConfig({});
+  };
+  
+  // Create initial source and target nodes from mapping data
+  useEffect(() => {
+    if (currentStep === 6 && columnMappings.length > 0 && nodes.length === 0) {
+      // Create source and target nodes based on columnMappings
+      const sourceNodes = columnMappings.map((mapping, index) => ({
+        id: `source-${mapping.sourceColumn.id}`,
+        type: 'source',
+        position: { x: 50, y: 50 + index * 80 },
+        data: { 
+          label: mapping.sourceColumn.name,
+          type: mapping.sourceColumn.type,
+          sourceId: mapping.sourceColumn.id
+        }
+      }));
+      
+      const targetNodes = columnMappings.map((mapping, index) => ({
+        id: `target-${mapping.id}`,
+        type: 'target',
+        position: { x: 800, y: 50 + index * 80 },
+        data: { 
+          label: mapping.targetColumn.name,
+          type: mapping.targetColumn.type,
+          mappingId: mapping.id
+        }
+      }));
+      
+      setNodes([...sourceNodes, ...targetNodes]);
+    }
+  }, [currentStep, columnMappings, nodes.length, setNodes]);
+  
   // Step 6: Transformations - ReactFlow Implementation
   // Handle drag over for the React Flow container
   const handleDragOver = (event) => {
@@ -425,23 +681,20 @@ const ProcessManagementWizard = () => {
       y: event.clientY - reactFlowBounds.top,
     };
     
+    const id = `${type}-${Date.now()}`;
     const newNode = {
-      id: `transform-${Date.now()}`,
-      type: 'default',
+      id,
+      type,
       position,
-      data: { 
-        label: type.charAt(0).toUpperCase() + type.slice(1),  // Capitalize the first letter
-        type: 'transformation' 
-      },
-      style: { 
-        background: getNodeColorByType(type),
-        padding: '10px',
-        borderRadius: '5px',
-        border: '1px solid #ddd'
-      }
+      data: { label: type.charAt(0).toUpperCase() + type.slice(1) }
     };
     
     setNodes((nds) => nds.concat(newNode));
+    
+    // Automatically open configuration for the new node
+    setTimeout(() => {
+      openNodeConfig(id, type, {});
+    }, 100);
   };
   
   // Handle connections between nodes
@@ -471,6 +724,414 @@ const ProcessManagementWizard = () => {
       case 'format': return '#e0f2fe';
       case 'calculate': return '#fae8ff';
       default: return '#f3f4f6';
+    }
+  };
+  
+  // Render configuration form based on node type
+  const renderConfigForm = () => {
+    if (!selectedNode) return null;
+    
+    switch (selectedNode.type) {
+      case 'filter':
+        return (
+          <div className="node-config-form">
+            <h3>Filter Configuration</h3>
+            <div className="form-group">
+              <label>Column</label>
+              <select 
+                value={nodeConfig.column || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Column</option>
+                {sourceColumns.map(col => (
+                  <option key={col.id} value={col.name}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Operator</label>
+              <select 
+                value={nodeConfig.operator || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, operator: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Operator</option>
+                <option value="=">=</option>
+                <option value="!=">!=</option>
+                <option value=">">{`>`}</option>
+                <option value="<">{`<`}</option>
+                <option value=">=">{`>=`}</option>
+                <option value="<=">{`<=`}</option>
+                <option value="LIKE">LIKE</option>
+                <option value="IN">IN</option>
+                <option value="NOT IN">NOT IN</option>
+                <option value="IS NULL">IS NULL</option>
+                <option value="IS NOT NULL">IS NOT NULL</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Value</label>
+              <input 
+                type="text" 
+                value={nodeConfig.value || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, value: e.target.value})}
+                className="form-control"
+                placeholder="Enter value"
+              />
+            </div>
+            {/* Update the condition display */}
+            {nodeConfig.column && nodeConfig.operator && (
+              <div className="form-group">
+                <label>Generated Condition</label>
+                <div className="condition-display">
+                  {`${nodeConfig.column} ${nodeConfig.operator} ${nodeConfig.value || ''}`}
+                </div>
+                <button 
+                  className="btn btn-outline-primary"
+                  onClick={() => setNodeConfig({
+                    ...nodeConfig,
+                    condition: `${nodeConfig.column} ${nodeConfig.operator} ${nodeConfig.value || ''}`
+                  })}
+                >
+                  Update Condition
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      case 'join':
+        return (
+          <div className="node-config-form">
+            <h3>Join Configuration</h3>
+            <div className="form-group">
+              <label>Join Type</label>
+              <select 
+                value={nodeConfig.joinType || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, joinType: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Join Type</option>
+                <option value="INNER">INNER</option>
+                <option value="LEFT">LEFT</option>
+                <option value="RIGHT">RIGHT</option>
+                <option value="FULL">FULL</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Right Table</label>
+              <select 
+                value={nodeConfig.rightTable || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, rightTable: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Table</option>
+                {files.map(file => (
+                  <option key={file.file_id} value={file.filename}>{file.filename}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Left Column</label>
+              <select 
+                value={nodeConfig.leftColumn || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, leftColumn: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Left Column</option>
+                {sourceColumns.map(col => (
+                  <option key={col.id} value={col.name}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Right Column</label>
+              <input 
+                type="text" 
+                value={nodeConfig.rightColumn || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, rightColumn: e.target.value})}
+                className="form-control"
+                placeholder="Enter right table column"
+              />
+            </div>
+          </div>
+        );
+      case 'aggregate':
+        return (
+          <div className="node-config-form">
+            <h3>Aggregate Configuration</h3>
+            <div className="form-group">
+              <label>Aggregation Function</label>
+              <select 
+                value={nodeConfig.function || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, function: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Function</option>
+                <option value="SUM">SUM</option>
+                <option value="AVG">AVG</option>
+                <option value="MIN">MIN</option>
+                <option value="MAX">MAX</option>
+                <option value="COUNT">COUNT</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Column</label>
+              <select 
+                value={nodeConfig.column || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Column</option>
+                {sourceColumns.map(col => (
+                  <option key={col.id} value={col.name}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Group By Column</label>
+              <select 
+                value={nodeConfig.groupBy || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, groupBy: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Group By Column</option>
+                {sourceColumns.map(col => (
+                  <option key={col.id} value={col.name}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            {/* Update the aggregation display */}
+            {nodeConfig.function && nodeConfig.column && (
+              <div className="form-group">
+                <label>Generated Aggregation</label>
+                <div className="condition-display">
+                  {`${nodeConfig.function}(${nodeConfig.column})${nodeConfig.groupBy ? ` GROUP BY ${nodeConfig.groupBy}` : ''}`}
+                </div>
+                <button 
+                  className="btn btn-outline-primary"
+                  onClick={() => setNodeConfig({
+                    ...nodeConfig,
+                    aggregation: `${nodeConfig.function}(${nodeConfig.column})${nodeConfig.groupBy ? ` GROUP BY ${nodeConfig.groupBy}` : ''}`
+                  })}
+                >
+                  Update Aggregation
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      case 'lookup':
+        return (
+          <div className="node-config-form">
+            <h3>Lookup Configuration</h3>
+            <div className="form-group">
+              <label>Lookup Table</label>
+              <select 
+                value={nodeConfig.lookupTable || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, lookupTable: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Lookup Table</option>
+                {files.map(file => (
+                  <option key={file.file_id} value={file.filename}>{file.filename}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Key Column (Source)</label>
+              <select 
+                value={nodeConfig.keyColumn || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, keyColumn: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Source Column</option>
+                {sourceColumns.map(col => (
+                  <option key={col.id} value={col.name}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Lookup Column</label>
+              <input 
+                type="text" 
+                value={nodeConfig.lookupColumn || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, lookupColumn: e.target.value})}
+                className="form-control"
+                placeholder="Enter lookup column name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Return Column</label>
+              <input 
+                type="text" 
+                value={nodeConfig.returnColumn || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, returnColumn: e.target.value})}
+                className="form-control"
+                placeholder="Enter return column name"
+              />
+            </div>
+          </div>
+        );
+      case 'format':
+        return (
+          <div className="node-config-form">
+            <h3>Format Configuration</h3>
+            <div className="form-group">
+              <label>Format Type</label>
+              <select 
+                value={nodeConfig.formatType || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, formatType: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Format Type</option>
+                <option value="DATE">Date Format</option>
+                <option value="NUMBER">Number Format</option>
+                <option value="TEXT">Text Transformation</option>
+                <option value="CASE">Case Transformation</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Column</label>
+              <select 
+                value={nodeConfig.column || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, column: e.target.value})}
+                className="form-control"
+              >
+                <option value="">Select Column</option>
+                {sourceColumns.map(col => (
+                  <option key={col.id} value={col.name}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+            {nodeConfig.formatType === 'DATE' && (
+              <div className="form-group">
+                <label>Date Format</label>
+                <select 
+                  value={nodeConfig.dateFormat || ''}
+                  onChange={(e) => setNodeConfig({...nodeConfig, dateFormat: e.target.value})}
+                  className="form-control"
+                >
+                  <option value="">Select Format</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="DD-MMM-YYYY">DD-MMM-YYYY</option>
+                  <option value="YYYY-MM-DD HH:MM:SS">YYYY-MM-DD HH:MM:SS</option>
+                </select>
+              </div>
+            )}
+            {nodeConfig.formatType === 'NUMBER' && (
+              <div className="form-group">
+                <label>Decimal Places</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  max="10"
+                  value={nodeConfig.decimalPlaces || 2}
+                  onChange={(e) => setNodeConfig({...nodeConfig, decimalPlaces: e.target.value})}
+                  className="form-control"
+                />
+              </div>
+            )}
+            {nodeConfig.formatType === 'TEXT' && (
+              <div className="form-group">
+                <label>Text Operation</label>
+                <select 
+                  value={nodeConfig.textOperation || ''}
+                  onChange={(e) => setNodeConfig({...nodeConfig, textOperation: e.target.value})}
+                  className="form-control"
+                >
+                  <option value="">Select Operation</option>
+                  <option value="TRIM">Trim</option>
+                  <option value="SUBSTRING">Substring</option>
+                  <option value="REPLACE">Replace</option>
+                  <option value="CONCAT">Concatenate</option>
+                </select>
+              </div>
+            )}
+            {nodeConfig.formatType === 'CASE' && (
+              <div className="form-group">
+                <label>Case Operation</label>
+                <select 
+                  value={nodeConfig.caseOperation || ''}
+                  onChange={(e) => setNodeConfig({...nodeConfig, caseOperation: e.target.value})}
+                  className="form-control"
+                >
+                  <option value="">Select Operation</option>
+                  <option value="UPPER">UPPERCASE</option>
+                  <option value="LOWER">lowercase</option>
+                  <option value="TITLE">Title Case</option>
+                </select>
+              </div>
+            )}
+          </div>
+        );
+      case 'calculate':
+        return (
+          <div className="node-config-form">
+            <h3>Calculate Configuration</h3>
+            <div className="form-group">
+              <label>Output Column</label>
+              <input 
+                type="text" 
+                value={nodeConfig.outputColumn || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, outputColumn: e.target.value})}
+                className="form-control"
+                placeholder="Enter output column name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Formula</label>
+              <textarea 
+                value={nodeConfig.formula || ''}
+                onChange={(e) => setNodeConfig({...nodeConfig, formula: e.target.value})}
+                className="form-control"
+                placeholder="Enter calculation formula"
+                rows="4"
+              />
+            </div>
+            <div className="form-group">
+              <label>Available Columns</label>
+              <div className="available-columns">
+                {sourceColumns.map(col => (
+                  <div key={col.id} className="available-column-chip">
+                    {col.name}
+                    <button 
+                      type="button" 
+                      className="chip-add-btn"
+                      onClick={() => setNodeConfig({
+                        ...nodeConfig,
+                        formula: (nodeConfig.formula || '') + ` ${col.name}`
+                      })}
+                    >
+                      +
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Operators</label>
+              <div className="operator-buttons">
+                {['+', '-', '*', '/', '(', ')', '>', '<', '=', 'AND', 'OR', 'NOT'].map(op => (
+                  <button 
+                    type="button" 
+                    key={op}
+                    className="operator-btn"
+                    onClick={() => setNodeConfig({
+                      ...nodeConfig,
+                      formula: (nodeConfig.formula || '') + ` ${op}`
+                    })}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
     }
   };
   
@@ -1079,12 +1740,59 @@ const ProcessManagementWizard = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          nodeTypes={nodeTypes}
           fitView
+          nodesDraggable={true}
+          nodesConnectable={true}
         >
           <Controls />
           <Background color="#aaa" gap={16} />
+          <Panel position="top-right">
+            <button 
+              className="btn btn-sm btn-secondary" 
+              onClick={() => console.log('Nodes:', nodes, 'Edges:', edges)}
+            >
+              Debug
+            </button>
+          </Panel>
         </ReactFlow>
       </div>
+      
+      {/* Configuration Modal */}
+      {showConfig && (
+        <div className="node-config-modal">
+          <div className="node-config-overlay" onClick={closeNodeConfig}></div>
+          <div className="node-config-content">
+            <div className="node-config-header">
+              <h3>
+                Configure {selectedNode?.type.charAt(0).toUpperCase() + selectedNode?.type.slice(1)}
+              </h3>
+              <button className="node-config-close" onClick={closeNodeConfig}>
+                <FiX />
+              </button>
+            </div>
+            
+            <div className="node-config-body">
+              {renderConfigForm()}
+            </div>
+            
+            <div className="node-config-footer">
+              <button 
+                className="btn btn-secondary" 
+                onClick={closeNodeConfig}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={saveNodeConfig}
+              >
+                <FiSaveIcon /> Save Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="transformations-info">
         <h4>About Transformations:</h4>
