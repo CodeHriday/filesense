@@ -295,16 +295,36 @@ const ProcessManagementWizard = () => {
   
   // Step 4: Source and Target file selection
   // Connection handling
-  const handleSourceConnectionChange = (connectionId) => {
-    const selected = connections.find(conn => conn.id === connectionId);
-    setSourceConnection(selected);
-    setSelectedSourceFile(null); // Reset selected file when connection changes
+  const handleSourceConnectionChange = (e) => {
+    const connectionId = e.target.value;
+    
+    if (connectionId === "internal") {
+      // Handle internal database selection
+      setSourceConnection("internal");
+    } else {
+      // Handle external connection selection
+      const selected = connections.find(conn => conn.id === connectionId);
+      setSourceConnection(selected);
+    }
+    
+    // Reset selected file when connection changes
+    setSelectedSourceFile(null);
   };
   
-  const handleTargetConnectionChange = (connectionId) => {
-    const selected = connections.find(conn => conn.id === connectionId);
-    setTargetConnection(selected);
-    setSelectedTargetFile(null); // Reset selected file when connection changes
+  const handleTargetConnectionChange = (e) => {
+    const connectionId = e.target.value;
+    
+    if (connectionId === "internal") {
+      // Handle internal database selection
+      setTargetConnection("internal");
+    } else {
+      // Handle external connection selection
+      const selected = connections.find(conn => conn.id === connectionId);
+      setTargetConnection(selected);
+    }
+    
+    // Reset selected file when connection changes
+    setSelectedTargetFile(null);
     setIsNewTargetFile(true); // Default to creating a new file
   };
   
@@ -726,9 +746,9 @@ const ProcessManagementWizard = () => {
         <div className="form-group">
           <label>1. Select Source Connection</label>
           <select 
-            onChange={(e) => handleSourceConnectionChange(e.target.value)}
+            onChange={handleSourceConnectionChange}
             className="form-control"
-            value={sourceConnection ? sourceConnection.id : ''}
+            value={sourceConnection === "internal" ? "internal" : (sourceConnection ? sourceConnection.id : '')}
           >
             <option value="">-- Select Source Connection --</option>
             <option value="internal">Internal Database</option>
@@ -745,7 +765,7 @@ const ProcessManagementWizard = () => {
           )}
         </div>
         
-        {(sourceConnection || sourceConnection === 'internal') && (
+        {(sourceConnection) && (
           <div className="form-group">
             <label>2. Select Source File</label>
             <select 
@@ -797,9 +817,9 @@ const ProcessManagementWizard = () => {
         <div className="form-group">
           <label>1. Select Target Connection</label>
           <select 
-            onChange={(e) => handleTargetConnectionChange(e.target.value)}
+            onChange={handleTargetConnectionChange}
             className="form-control"
-            value={targetConnection ? targetConnection.id : ''}
+            value={targetConnection === "internal" ? "internal" : (targetConnection ? targetConnection.id : '')}
           >
             <option value="">-- Select Target Connection --</option>
             <option value="internal">Internal Database</option>
@@ -816,7 +836,7 @@ const ProcessManagementWizard = () => {
           )}
         </div>
         
-        {(targetConnection || targetConnection === 'internal') && (
+        {targetConnection && (
           <>
             <div className="target-file-toggle">
               <label className="toggle-container">
