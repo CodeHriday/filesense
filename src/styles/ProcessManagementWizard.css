@@ -654,16 +654,34 @@
 }
 
 /* Enhanced transformation flow */
+.transformation-tool-sections {
+  margin-bottom: 20px;
+}
+
+.tool-section {
+  margin-bottom: 20px;
+}
+
+.tool-section h4 {
+  margin-bottom: 10px;
+  color: #334155;
+  font-weight: 600;
+}
+
 .transformation-flow-tools {
   display: grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 15px;
-  margin-bottom: 20px;
   padding: 15px;
   background-color: #f8fafc;
   border-radius: 8px;
   border: 1px dashed #cbd5e1;
   overflow-x: auto;
+}
+
+.io-tools {
+  grid-template-columns: repeat(2, 180px);
+  justify-content: center;
 }
 
 .transform-tool {

@@ -267,39 +267,78 @@ const ProcessManagementWizard = () => {
     }
   };
   
-  // Step 3: Job creation
-  const createJob = async () => {
-    if (!jobName.trim()) {
-      setError('Job name is required');
-      return;
-    }
-    
-    if (!selectedBusinessProcess) {
-      setError('Please select a business process first');
-      return;
-    }
-    
+  // Step 3: Job selection and creation
+  const [existingJobs, setExistingJobs] = useState([]);
+  const [isNewJob, setIsNewJob] = useState(true);
+  const [selectedJob, setSelectedJob] = useState(null);
+  
+  // Fetch existing jobs for the selected business process
+  const fetchJobsForProcess = async (processId) => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/api/jobs`, {
-        name: jobName,
-        description: jobDesc,
-        business_process_id: selectedBusinessProcess.id,
-        status: jobStatus
-      });
-      
-      setSuccess('Job created successfully');
+      const response = await axios.get(`${API_BASE_URL}/api/jobs?business_process_id=${processId}`);
+      setExistingJobs(response.data || []);
       setLoading(false);
+    } catch (err) {
+      console.error('Error fetching jobs for process:', err);
+      setExistingJobs([]);
+      setLoading(false);
+    }
+  };
+  
+  // Fetch jobs when business process is selected
+  useEffect(() => {
+    if (selectedBusinessProcess?.id) {
+      fetchJobsForProcess(selectedBusinessProcess.id);
+    }
+  }, [selectedBusinessProcess]);
+  
+  const createJob = async () => {
+    if (isNewJob) {
+      if (!jobName.trim()) {
+        setError('Job name is required');
+        return;
+      }
+      
+      if (!selectedBusinessProcess) {
+        setError('Please select a business process first');
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const response = await axios.post(`${API_BASE_URL}/api/jobs`, {
+          name: jobName,
+          description: jobDesc,
+          business_process_id: selectedBusinessProcess.id,
+          status: jobStatus
+        });
+        
+        setSuccess('Job created successfully');
+        setLoading(false);
+        
+        // Save job ID for later steps
+        sessionStorage.setItem('currentJobId', response.data.id);
+        
+        // Move to next step
+        setCurrentStep(currentStep + 1);
+      } catch (err) {
+        console.error('Error creating job:', err);
+        setError('Failed to create job. Please try again.');
+        setLoading(false);
+      }
+    } else {
+      // Use selected existing job
+      if (!selectedJob) {
+        setError('Please select a job');
+        return;
+      }
       
       // Save job ID for later steps
-      sessionStorage.setItem('currentJobId', response.data.id);
+      sessionStorage.setItem('currentJobId', selectedJob.id);
       
       // Move to next step
       setCurrentStep(currentStep + 1);
-    } catch (err) {
-      console.error('Error creating job:', err);
-      setError('Failed to create job. Please try again.');
-      setLoading(false);
     }
   };
   
@@ -688,20 +727,53 @@ const ProcessManagementWizard = () => {
       y: event.clientY - reactFlowBounds.top,
     };
     
-    const id = `${type}-${Date.now()}`;
-    const newNode = {
-      id,
-      type,
-      position,
-      data: { label: type.charAt(0).toUpperCase() + type.slice(1) }
-    };
+    let id, newNode;
+    
+    // Special handling for custom source and target nodes
+    if (type === 'custom-source') {
+      id = `source-${Date.now()}`;
+      newNode = {
+        id,
+        type: 'source', // Use the existing source node type
+        position,
+        data: { 
+          label: 'Source Data',
+          type: 'custom', 
+          sourceId: id
+        },
+        draggable: true
+      };
+    } else if (type === 'custom-target') {
+      id = `target-${Date.now()}`;
+      newNode = {
+        id,
+        type: 'target', // Use the existing target node type
+        position,
+        data: { 
+          label: 'Target Output',
+          type: 'custom',
+          mappingId: `mapping-${Date.now()}`
+        },
+        draggable: true
+      };
+    } else {
+      // Regular transformation nodes
+      id = `${type}-${Date.now()}`;
+      newNode = {
+        id,
+        type,
+        position,
+        data: { label: type.charAt(0).toUpperCase() + type.slice(1) },
+        draggable: true
+      };
+      
+      // Automatically open configuration for transformation nodes only
+      setTimeout(() => {
+        openNodeConfig(id, type, {});
+      }, 100);
+    }
     
     setNodes((nds) => nds.concat(newNode));
-    
-    // Automatically open configuration for the new node
-    setTimeout(() => {
-      openNodeConfig(id, type, {});
-    }, 100);
   };
   
   // Handle connections between nodes
@@ -1399,46 +1471,112 @@ const ProcessManagementWizard = () => {
   
   const renderJobStep = () => (
     <div className="step-container">
-      <h3>Step 3: Create Job</h3>
+      <h3>Step 3: Select or Create Job</h3>
+      
+      {existingJobs.length > 0 && (
+        <div className="existing-items">
+          <h4>Select Existing Job</h4>
+          <div className="form-group">
+            <div className="job-selection-toggle">
+              <label className="checkbox-container">
+                <input
+                  type="checkbox"
+                  checked={!isNewJob}
+                  onChange={() => {
+                    setIsNewJob(false);
+                    if (selectedJob) {
+                      setJobName(selectedJob.name);
+                      setJobDesc(selectedJob.description || '');
+                      setJobStatus(selectedJob.status || 'active');
+                    }
+                  }}
+                />
+                <span className="checkbox-text">Use Existing Job</span>
+              </label>
+            </div>
+          </div>
+          
+          {!isNewJob && (
+            <div className="items-grid">
+              {existingJobs.map(job => (
+                <div 
+                  key={job.id} 
+                  className={`item-card ${selectedJob?.id === job.id ? 'selected' : ''}`}
+                  onClick={() => {
+                    setSelectedJob(job);
+                    setJobName(job.name);
+                    setJobDesc(job.description || '');
+                    setJobStatus(job.status || 'active');
+                  }}
+                >
+                  <h4>{job.name}</h4>
+                  <p>{job.description || 'No description'}</p>
+                  <div className="item-meta">
+                    <span>Status: {job.status || 'active'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
       <div className="create-new-item">
-        <div className="form-row">
-          <div className="form-group">
-            <label>Job Name</label>
+        <div className="form-group">
+          <label className="checkbox-container">
             <input
-              type="text"
-              value={jobName}
-              onChange={(e) => setJobName(e.target.value)}
-              className="form-control"
-              placeholder="Enter job name"
-              required
+              type="checkbox"
+              checked={isNewJob}
+              onChange={() => {
+                setIsNewJob(true);
+                setSelectedJob(null);
+              }}
             />
-          </div>
-          <div className="form-group">
-            <label>Description</label>
-            <input
-              type="text"
-              value={jobDesc}
-              onChange={(e) => setJobDesc(e.target.value)}
-              className="form-control"
-              placeholder="Job description"
-            />
-          </div>
+            <span className="checkbox-text">Create New Job</span>
+          </label>
         </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Status</label>
-            <select 
-              value={jobStatus} 
-              onChange={(e) => setJobStatus(e.target.value)}
-              className="form-control"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="draft">Draft</option>
-            </select>
-          </div>
-        </div>
+        
+        {isNewJob && (
+          <>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Job Name</label>
+                <input
+                  type="text"
+                  value={jobName}
+                  onChange={(e) => setJobName(e.target.value)}
+                  className="form-control"
+                  placeholder="Enter job name"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <input
+                  type="text"
+                  value={jobDesc}
+                  onChange={(e) => setJobDesc(e.target.value)}
+                  className="form-control"
+                  placeholder="Job description"
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Status</label>
+                <select 
+                  value={jobStatus} 
+                  onChange={(e) => setJobStatus(e.target.value)}
+                  className="form-control"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+            </div>
+          </>
+        )}
       </div>
       
       <div className="form-summary">
@@ -1450,6 +1588,23 @@ const ProcessManagementWizard = () => {
         <div className="summary-item">
           <span>Business Process:</span>
           <strong>{selectedBusinessProcess ? selectedBusinessProcess.name : 'None'}</strong>
+        </div>
+        {selectedJob && !isNewJob && (
+          <div className="summary-item">
+            <span>Selected Job:</span>
+            <strong>{selectedJob.name}</strong>
+          </div>
+        )}
+        <div className="form-actions">
+          <button 
+            className="btn btn-primary"
+            onClick={createJob}
+            disabled={
+              isNewJob ? (!jobName.trim() || !selectedBusinessProcess) : !selectedJob
+            }
+          >
+            {loading ? 'Processing...' : isNewJob ? 'Create Job and Continue' : 'Use Selected Job'}
+          </button>
         </div>
       </div>
     </div>
@@ -1739,89 +1894,127 @@ const ProcessManagementWizard = () => {
         </p>
       </div>
       
-      <div className="transformation-flow-tools">
-        <div 
-          className="transform-tool filter" 
-          draggable 
-          onDragStart={(e) => {
-            e.dataTransfer.setData('application/reactflow', 'filter');
-            e.dataTransfer.effectAllowed = 'move';
-          }}
-        >
-          <div className="transform-tool-icon">
-            <FiFilter />
+      <div className="transformation-tool-sections">
+        <div className="tool-section">
+          <h4>Input/Output</h4>
+          <div className="transformation-flow-tools io-tools">
+            <div 
+              className="transform-tool source-tool" 
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'custom-source');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiDatabase />
+              </div>
+              <div className="transform-tool-name">Source</div>
+            </div>
+            
+            <div 
+              className="transform-tool target-tool"
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'custom-target');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiSave />
+              </div>
+              <div className="transform-tool-name">Target</div>
+            </div>
           </div>
-          <div className="transform-tool-name">Filter</div>
         </div>
         
-        <div 
-          className="transform-tool join"
-          draggable 
-          onDragStart={(e) => {
-            e.dataTransfer.setData('application/reactflow', 'join');
-            e.dataTransfer.effectAllowed = 'move';
-          }}
-        >
-          <div className="transform-tool-icon">
-            <FiGitMerge />
+        <div className="tool-section">
+          <h4>Transformations</h4>
+          <div className="transformation-flow-tools">
+            <div 
+              className="transform-tool filter" 
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'filter');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiFilter />
+              </div>
+              <div className="transform-tool-name">Filter</div>
+            </div>
+            
+            <div 
+              className="transform-tool join"
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'join');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiGitMerge />
+              </div>
+              <div className="transform-tool-name">Join</div>
+            </div>
+            
+            <div 
+              className="transform-tool aggregate"
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'aggregate');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiBarChart2 />
+              </div>
+              <div className="transform-tool-name">Aggregate</div>
+            </div>
+            
+            <div 
+              className="transform-tool lookup"
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'lookup');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiSearch />
+              </div>
+              <div className="transform-tool-name">Lookup</div>
+            </div>
+            
+            <div 
+              className="transform-tool format"
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'format');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiEdit2 />
+              </div>
+              <div className="transform-tool-name">Format</div>
+            </div>
+            
+            <div 
+              className="transform-tool calculate"
+              draggable 
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'calculate');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <div className="transform-tool-icon">
+                <FiCpu />
+              </div>
+              <div className="transform-tool-name">Calculate</div>
+            </div>
           </div>
-          <div className="transform-tool-name">Join</div>
-        </div>
-        
-        <div 
-          className="transform-tool aggregate"
-          draggable 
-          onDragStart={(e) => {
-            e.dataTransfer.setData('application/reactflow', 'aggregate');
-            e.dataTransfer.effectAllowed = 'move';
-          }}
-        >
-          <div className="transform-tool-icon">
-            <FiBarChart2 />
-          </div>
-          <div className="transform-tool-name">Aggregate</div>
-        </div>
-        
-        <div 
-          className="transform-tool lookup"
-          draggable 
-          onDragStart={(e) => {
-            e.dataTransfer.setData('application/reactflow', 'lookup');
-            e.dataTransfer.effectAllowed = 'move';
-          }}
-        >
-          <div className="transform-tool-icon">
-            <FiSearch />
-          </div>
-          <div className="transform-tool-name">Lookup</div>
-        </div>
-        
-        <div 
-          className="transform-tool format"
-          draggable 
-          onDragStart={(e) => {
-            e.dataTransfer.setData('application/reactflow', 'format');
-            e.dataTransfer.effectAllowed = 'move';
-          }}
-        >
-          <div className="transform-tool-icon">
-            <FiEdit2 />
-          </div>
-          <div className="transform-tool-name">Format</div>
-        </div>
-        
-        <div 
-          className="transform-tool calculate"
-          draggable 
-          onDragStart={(e) => {
-            e.dataTransfer.setData('application/reactflow', 'calculate');
-            e.dataTransfer.effectAllowed = 'move';
-          }}
-        >
-          <div className="transform-tool-icon">
-            <FiCpu />
-          </div>
-          <div className="transform-tool-name">Calculate</div>
         </div>
       </div>
       
