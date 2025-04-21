@@ -1036,111 +1036,130 @@ const ProcessManagementWizard = () => {
     setError(null);
   }, [nodes, edges, setEdges]);
   
-  // Auto-arrange nodes in a logical layout
+  // Auto-arrange nodes in a logical layout using topological sort
   const autoArrangeNodes = () => {
     if (nodes.length === 0) return;
     
-    // Group nodes by type
-    const sourceNodes = nodes.filter(node => node.type === 'source');
-    const targetNodes = nodes.filter(node => node.type === 'target');
-    const transformNodes = nodes.filter(node => 
-      node.type !== 'source' && node.type !== 'target');
-    
-    // Create a map of node connections
-    const nodeConnections = {};
-    edges.forEach(edge => {
-      if (!nodeConnections[edge.source]) {
-        nodeConnections[edge.source] = [];
-      }
-      nodeConnections[edge.source].push(edge.target);
-    });
-    
-    // Calculate node positions
-    const newNodePositions = {};
-    const flowWidth = 1200;
-    const flowHeight = 800;
+    // Define spacing constants
     const nodeWidth = 180;
     const nodeHeight = 100;
     const horizontalSpacing = 250;
     const verticalSpacing = 120;
     
-    // Position source nodes on the left
-    sourceNodes.forEach((node, index) => {
-      newNodePositions[node.id] = {
-        x: 50,
-        y: 50 + index * verticalSpacing
-      };
+    // Build a dependency graph of nodes
+    const nodeMap = new Map();
+    nodes.forEach((node) => {
+      nodeMap.set(node.id, { 
+        ...node, 
+        inEdges: [], 
+        outEdges: [],
+        // Store node type for better arrangement
+        nodeType: node.type
+      });
     });
     
-    // Position target nodes on the right
-    targetNodes.forEach((node, index) => {
-      newNodePositions[node.id] = {
-        x: flowWidth - nodeWidth - 50,
-        y: 50 + index * verticalSpacing
-      };
+    // Build graph relationships based on edges
+    edges.forEach(({ source, target }) => {
+      nodeMap.get(source).outEdges.push(target);
+      nodeMap.get(target).inEdges.push(source);
     });
     
-    // Determine node levels based on connections
-    const nodeLevels = {};
+    // Calculate levels (depth) for each node using DFS
+    const levels = new Map(); // nodeId -> level
     const visited = new Set();
     
-    // Helper function to determine node level in the flow
-    const determineNodeLevel = (nodeId, level = 0) => {
+    function dfs(nodeId, depth = 0) {
       if (visited.has(nodeId)) return;
       visited.add(nodeId);
       
-      // Update node level to the maximum level found
-      nodeLevels[nodeId] = Math.max(level, nodeLevels[nodeId] || 0);
+      // Set this node's level to the maximum of current and calculated depth
+      levels.set(nodeId, Math.max(levels.get(nodeId) || 0, depth));
       
-      // Process connections
-      if (nodeConnections[nodeId]) {
-        nodeConnections[nodeId].forEach(targetId => {
-          determineNodeLevel(targetId, level + 1);
-        });
+      // Traverse outgoing edges
+      for (const targetId of nodeMap.get(nodeId).outEdges) {
+        dfs(targetId, depth + 1);
       }
-    };
+    }
     
-    // Start from source nodes
-    sourceNodes.forEach(node => {
-      determineNodeLevel(node.id);
-    });
-    
-    // Position transformation nodes based on levels
-    const levelCounts = {};
-    const levelPositions = {};
-    
-    // Count nodes per level and initialize positions
-    Object.entries(nodeLevels).forEach(([nodeId, level]) => {
-      if (!levelCounts[level]) {
-        levelCounts[level] = 0;
-        levelPositions[level] = 0;
+    // Start DFS from source nodes (nodes with no incoming edges or source type)
+    // This ensures proper left-to-right flow
+    nodes.forEach((node) => {
+      const nodeData = nodeMap.get(node.id);
+      if (nodeData.inEdges.length === 0 || node.type === 'source') {
+        // If it's a source node or has no incoming edges, start DFS from here
+        dfs(node.id);
       }
-      levelCounts[level]++;
     });
     
-    // Position nodes by level
-    Object.entries(nodeLevels).forEach(([nodeId, level]) => {
-      // Skip source and target nodes - they're already positioned
-      const node = nodes.find(n => n.id === nodeId);
-      if (node.type === 'source' || node.type === 'target') return;
-      
-      // Calculate horizontal position based on level
-      const x = 50 + horizontalSpacing + (level * horizontalSpacing);
-      
-      // Calculate vertical position
-      const maxNodesInLevel = levelCounts[level];
-      const nodeIndex = levelPositions[level]++;
-      const totalHeight = (maxNodesInLevel - 1) * verticalSpacing;
-      const startY = (flowHeight - totalHeight) / 2;
-      const y = startY + (nodeIndex * verticalSpacing);
-      
-      newNodePositions[nodeId] = { x, y };
+    // If there are nodes not visited (isolated), default to level 0
+    nodes.forEach(node => {
+      if (!levels.has(node.id)) {
+        // Favor specific node types for positioning:
+        // - Source nodes: far left (level 0)
+        // - Target nodes: far right (max level + 1)
+        // - Other nodes: intermediate (level 1)
+        if (node.type === 'source') {
+          levels.set(node.id, 0);
+        } else if (node.type === 'target') {
+          // Find max level and place target nodes one level further
+          const maxLevel = Math.max(...Array.from(levels.values(), 0)) + 1;
+          levels.set(node.id, maxLevel);
+        } else {
+          levels.set(node.id, 1); // Default intermediate level
+        }
+      }
     });
     
-    // Update node positions
+    // Calculate vertical positions within each level
+    const levelGroups = new Map(); // level -> array of node IDs
+    
+    // Group nodes by level
+    for (const [nodeId, level] of levels.entries()) {
+      if (!levelGroups.has(level)) {
+        levelGroups.set(level, []);
+      }
+      levelGroups.get(level).push(nodeId);
+    }
+    
+    // Calculate positions based on levels and vertical index
+    const newPositions = {};
+    
+    // Process each level
+    for (const [level, nodeIds] of levelGroups.entries()) {
+      // Sort nodes within level by type (source first, target last)
+      nodeIds.sort((a, b) => {
+        const nodeA = nodeMap.get(a);
+        const nodeB = nodeMap.get(b);
+        
+        // Source nodes should be first
+        if (nodeA.nodeType === 'source') return -1;
+        if (nodeB.nodeType === 'source') return 1;
+        
+        // Target nodes should be last
+        if (nodeA.nodeType === 'target') return 1;
+        if (nodeB.nodeType === 'target') return -1;
+        
+        return 0;
+      });
+      
+      // Calculate vertical positions for nodes at this level
+      const levelNodeCount = nodeIds.length;
+      const totalHeight = (levelNodeCount - 1) * verticalSpacing;
+      const startY = Math.max(30, (800 - totalHeight) / 2); // Center vertically in canvas
+      
+      // Position each node within its level
+      nodeIds.forEach((nodeId, index) => {
+        const xPos = 50 + (level * horizontalSpacing);
+        const yPos = startY + (index * verticalSpacing);
+        
+        newPositions[nodeId] = { x: xPos, y: yPos };
+      });
+    }
+    
+    // Apply new positions to nodes
     const updatedNodes = nodes.map(node => ({
       ...node,
-      position: newNodePositions[node.id] || node.position
+      position: newPositions[node.id] || node.position
     }));
     
     setNodes(updatedNodes);
