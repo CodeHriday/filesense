@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -726,21 +726,51 @@ function Transformations() {
     }, 100);
   };
 
+  // Function to get and log the canvas size
+  const logCanvasSize = () => {
+    if (reactFlowWrapper.current) {
+      const bounds = reactFlowWrapper.current.getBoundingClientRect();
+      console.log('Current canvas dimensions:', {
+        width: bounds.width,
+        height: bounds.height
+      });
+      return { width: bounds.width, height: bounds.height };
+    }
+    return { width: 0, height: 0 };
+  };
+
+  // Add effect to log canvas size when component mounts
+  useEffect(() => {
+    logCanvasSize();
+    // Set up a resize observer to track canvas size changes
+    const resizeObserver = new ResizeObserver(() => {
+      logCanvasSize();
+    });
+    
+    if (reactFlowWrapper.current) {
+      resizeObserver.observe(reactFlowWrapper.current);
+    }
+    
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   const autoArrangeNodes = () => {
     if (nodes.length === 0) return;
     
-    // Get the canvas dimensions from the wrapper element
-    const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect() || { width: 1600, height: 900 };
-    const canvasWidth = reactFlowBounds.width;
-    const canvasHeight = reactFlowBounds.height;
+    // Get the canvas dimensions from the wrapper element and log them
+    const { width: canvasWidth, height: canvasHeight } = logCanvasSize();
     
-    console.log('Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+    // Use fallback values if dimensions are zero
+    const effectiveWidth = canvasWidth || 1600; 
+    const effectiveHeight = canvasHeight || 900;
     
     // Define spacing constants - larger spacing for better visibility
     const nodeWidth = 200;
     const nodeHeight = 100;
-    const horizontalSpacing = Math.max(350, canvasWidth / 5); // Scales with canvas width
-    const verticalSpacing = Math.max(200, canvasHeight / 5); // Scales with canvas height
+    const horizontalSpacing = Math.max(350, effectiveWidth / 5); // Scales with canvas width
+    const verticalSpacing = Math.max(200, effectiveHeight / 5); // Scales with canvas height
     
     // Build a dependency graph of nodes
     const nodeMap = new Map();
