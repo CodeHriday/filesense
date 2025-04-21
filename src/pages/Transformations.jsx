@@ -39,10 +39,44 @@ import { Handle, Position } from 'reactflow';
 // Using React.memo for each custom node component to prevent unnecessary rerendering
 const SourceNode = React.memo(({ data }) => {
   return (
-    <div className="node-source draggable-node">
-      <div className="node-header">
-        <h4 className="node-title">
-          <FiDatabase className="node-icon" />
+    <div 
+      className="node-source draggable-node"
+      style={{
+        backgroundColor: '#e6f7ff',
+        borderColor: '#1890ff',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderRadius: '5px',
+        padding: '10px',
+        width: '180px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+      }}
+    >
+      <div 
+        className="node-header" 
+        style={{
+          fontWeight: 'bold',
+          borderBottom: '1px solid #eee',
+          paddingBottom: '5px',
+          marginBottom: '5px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <h4 
+          className="node-title"
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            fontWeight: 600
+          }}
+        >
+          <FiDatabase 
+            className="node-icon" 
+            style={{ marginRight: '5px' }}
+          />
           <span>{data.label}</span>
         </h4>
         {data.actions && (
@@ -51,7 +85,14 @@ const SourceNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
-      <div className="node-content">
+      <div 
+        className="node-content"
+        style={{
+          fontSize: '11px',
+          color: '#666',
+          padding: '5px 0'
+        }}
+      >
         <div>{data.description || 'Source data'}</div>
         {data.metadata && (
           <div className="node-metadata">
@@ -72,10 +113,44 @@ const SourceNode = React.memo(({ data }) => {
 
 const TargetNode = React.memo(({ data }) => {
   return (
-    <div className="node-target draggable-node">
-      <div className="node-header">
-        <h4 className="node-title">
-          <FiFileText className="node-icon" />
+    <div 
+      className="node-target draggable-node"
+      style={{
+        backgroundColor: '#f6ffed',
+        borderColor: '#52c41a',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderRadius: '5px',
+        padding: '10px',
+        width: '180px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+      }}
+    >
+      <div 
+        className="node-header"
+        style={{
+          fontWeight: 'bold',
+          borderBottom: '1px solid #eee',
+          paddingBottom: '5px',
+          marginBottom: '5px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <h4 
+          className="node-title"
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            fontWeight: 600
+          }}
+        >
+          <FiFileText 
+            className="node-icon" 
+            style={{ marginRight: '5px' }}
+          />
           <span>{data.label}</span>
         </h4>
         {data.actions && (
@@ -84,7 +159,14 @@ const TargetNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
-      <div className="node-content">
+      <div 
+        className="node-content"
+        style={{
+          fontSize: '11px',
+          color: '#666',
+          padding: '5px 0'
+        }}
+      >
         <div>{data.description || 'Target destination'}</div>
         {data.metadata && (
           <div className="node-metadata">
@@ -105,10 +187,44 @@ const TargetNode = React.memo(({ data }) => {
 
 const FilterNode = React.memo(({ data }) => {
   return (
-    <div className="node-filter draggable-node">
-      <div className="node-header">
-        <h4 className="node-title">
-          <FiFilter className="node-icon" />
+    <div 
+      className="node-filter draggable-node"
+      style={{
+        backgroundColor: '#fff2f0',
+        borderColor: '#ff7875',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderRadius: '5px',
+        padding: '10px',
+        width: '180px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+      }}
+    >
+      <div 
+        className="node-header"
+        style={{
+          fontWeight: 'bold',
+          borderBottom: '1px solid #eee',
+          paddingBottom: '5px',
+          marginBottom: '5px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <h4 
+          className="node-title"
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            fontWeight: 600
+          }}
+        >
+          <FiFilter 
+            className="node-icon" 
+            style={{ marginRight: '5px' }}
+          />
           <span>{data.label}</span>
         </h4>
         {data.actions && (
@@ -117,10 +233,27 @@ const FilterNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
-      <div className="node-content">
+      <div 
+        className="node-content"
+        style={{
+          fontSize: '11px',
+          color: '#666',
+          padding: '5px 0'
+        }}
+      >
         <div>{data.description || 'Filter data'}</div>
         {data.condition && (
-          <div className="node-condition">
+          <div 
+            className="node-condition"
+            style={{
+              background: 'rgba(0, 0, 0, 0.05)',
+              padding: '3px 5px',
+              borderRadius: '3px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
             <code>{data.condition}</code>
           </div>
         )}
@@ -144,10 +277,44 @@ const FilterNode = React.memo(({ data }) => {
 
 const JoinNode = React.memo(({ data }) => {
   return (
-    <div className="node-join draggable-node">
-      <div className="node-header">
-        <h4 className="node-title">
-          <FiShare2 className="node-icon" />
+    <div 
+      className="node-join draggable-node"
+      style={{
+        backgroundColor: '#f0f5ff',
+        borderColor: '#85a5ff',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderRadius: '5px',
+        padding: '10px',
+        width: '180px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+      }}
+    >
+      <div 
+        className="node-header"
+        style={{
+          fontWeight: 'bold',
+          borderBottom: '1px solid #eee',
+          paddingBottom: '5px',
+          marginBottom: '5px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <h4 
+          className="node-title"
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            fontWeight: 600
+          }}
+        >
+          <FiShare2 
+            className="node-icon" 
+            style={{ marginRight: '5px' }}
+          />
           <span>{data.label}</span>
         </h4>
         {data.actions && (
@@ -156,10 +323,25 @@ const JoinNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
-      <div className="node-content">
+      <div 
+        className="node-content"
+        style={{
+          fontSize: '11px',
+          color: '#666',
+          padding: '5px 0'
+        }}
+      >
         <div>{data.description || 'Join data'}</div>
         {data.joinInfo && (
-          <div className="node-join-info">
+          <div 
+            className="node-join-info"
+            style={{
+              fontSize: '10px',
+              fontStyle: 'italic',
+              color: '#888',
+              marginTop: '3px'
+            }}
+          >
             <small>{data.joinInfo}</small>
           </div>
         )}
@@ -190,10 +372,44 @@ const JoinNode = React.memo(({ data }) => {
 
 const AggregateNode = React.memo(({ data }) => {
   return (
-    <div className="node-aggregate draggable-node">
-      <div className="node-header">
-        <h4 className="node-title">
-          <FiBarChart2 className="node-icon" />
+    <div 
+      className="node-aggregate draggable-node"
+      style={{
+        backgroundColor: '#fcffe6',
+        borderColor: '#d3f261',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderRadius: '5px',
+        padding: '10px',
+        width: '180px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+      }}
+    >
+      <div 
+        className="node-header"
+        style={{
+          fontWeight: 'bold',
+          borderBottom: '1px solid #eee',
+          paddingBottom: '5px',
+          marginBottom: '5px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <h4 
+          className="node-title"
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            fontWeight: 600
+          }}
+        >
+          <FiBarChart2 
+            className="node-icon" 
+            style={{ marginRight: '5px' }}
+          />
           <span>{data.label}</span>
         </h4>
         {data.actions && (
@@ -202,10 +418,25 @@ const AggregateNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
-      <div className="node-content">
+      <div 
+        className="node-content"
+        style={{
+          fontSize: '11px',
+          color: '#666',
+          padding: '5px 0'
+        }}
+      >
         <div>{data.description || 'Aggregate data'}</div>
         {data.aggregateInfo && (
-          <div className="node-aggregate-info">
+          <div 
+            className="node-aggregate-info"
+            style={{
+              fontSize: '10px',
+              fontStyle: 'italic',
+              color: '#888',
+              marginTop: '3px'
+            }}
+          >
             <small>{data.aggregateInfo}</small>
           </div>
         )}
@@ -229,10 +460,44 @@ const AggregateNode = React.memo(({ data }) => {
 
 const TransformNode = React.memo(({ data }) => {
   return (
-    <div className="node-transform draggable-node">
-      <div className="node-header">
-        <h4 className="node-title">
-          <FiLayers className="node-icon" />
+    <div 
+      className="node-transform draggable-node"
+      style={{
+        backgroundColor: '#fce4ec',
+        borderColor: '#f06292',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderRadius: '5px',
+        padding: '10px',
+        width: '180px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+      }}
+    >
+      <div 
+        className="node-header"
+        style={{
+          fontWeight: 'bold',
+          borderBottom: '1px solid #eee',
+          paddingBottom: '5px',
+          marginBottom: '5px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <h4 
+          className="node-title"
+          style={{
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            fontWeight: 600
+          }}
+        >
+          <FiLayers 
+            className="node-icon" 
+            style={{ marginRight: '5px' }}
+          />
           <span>{data.label}</span>
         </h4>
         {data.actions && (
@@ -241,10 +506,25 @@ const TransformNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
-      <div className="node-content">
+      <div 
+        className="node-content"
+        style={{
+          fontSize: '11px',
+          color: '#666',
+          padding: '5px 0'
+        }}
+      >
         <div>{data.description || 'Transform data'}</div>
         {data.transformInfo && (
-          <div className="node-transform-info">
+          <div 
+            className="node-transform-info"
+            style={{
+              fontSize: '10px',
+              fontStyle: 'italic',
+              color: '#888',
+              marginTop: '3px'
+            }}
+          >
             <small>{data.transformInfo}</small>
           </div>
         )}
