@@ -621,14 +621,16 @@ function Transformations() {
       // Use non-overlapping position logic with current nodes
       const finalPosition = findNonOverlappingPosition(position, nodes);
 
+      // Create id first to avoid self-reference issues
+      const newId = `${type}-${uuidv4()}`;
       const newNode = {
-        id: `${type}-${uuidv4()}`,
+        id: newId,
         type,
         position: finalPosition,
         data: { 
           label,
           ...nodeData,
-          onConfigure: () => openNodeConfig(newNode.id)
+          onConfigure: () => openNodeConfig(newId)
         },
       };
 
@@ -642,9 +644,19 @@ function Transformations() {
         newNode.targetPosition = 'left';
       }
 
-      setNodes((nds) => nds.concat(newNode));
+      setNodes((nds) => {
+        const updatedNodes = nds.concat(newNode);
+        
+        // Schedule a layout fix to ensure no overlaps after adding the new node
+        setTimeout(() => {
+          const adjusted = findOptimalPositions(updatedNodes);
+          if (adjusted) setNodes(adjusted);
+        }, 0);
+        
+        return updatedNodes;
+      });
     },
-    [setNodes, nodes]
+    [setNodes, nodes, findOptimalPositions]
   );
 
   // Function to find a position where the node won't overlap with existing nodes
@@ -816,8 +828,8 @@ function Transformations() {
     setShowConfig(false);
   };
 
-  // Function to find optimal positions for nodes to avoid overlaps
-  const findOptimalPositions = (currentNodes) => {
+  // Function to find optimal positions for nodes to avoid overlaps (memoized to prevent recreation)
+  const findOptimalPositions = useCallback((currentNodes) => {
     if (!currentNodes || currentNodes.length <= 1) return null;
     
     // Define node dimensions and padding 
@@ -923,7 +935,7 @@ function Transformations() {
     }
     
     return null; // No adjustments needed
-  };
+  }, []);
 
   // Auto-arrange nodes in a logical layout using topological sort
   // Create a simple sample ETL flow
