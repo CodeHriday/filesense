@@ -34,13 +34,12 @@ import { useToast } from '../context/ToastContext';
 // Custom Node Types
 // Using React.memo for each custom node component to prevent unnecessary rerendering
 const SourceNode = React.memo(({ data }) => {
-  console.log('Rendering SourceNode with draggable support');
   return (
     <div className="node-source draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiDatabase className="node-icon" />
-          {data.label}
+          <span>{data.label}</span>
         </h4>
         {data.actions && (
           <div className="node-actions">
@@ -61,13 +60,12 @@ const SourceNode = React.memo(({ data }) => {
 });
 
 const TargetNode = React.memo(({ data }) => {
-  console.log('Rendering TargetNode with draggable support');
   return (
     <div className="node-target draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiFileText className="node-icon" />
-          {data.label}
+          <span>{data.label}</span>
         </h4>
         {data.actions && (
           <div className="node-actions">
