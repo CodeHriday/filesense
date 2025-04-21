@@ -729,11 +729,18 @@ function Transformations() {
   const autoArrangeNodes = () => {
     if (nodes.length === 0) return;
     
-    // Define spacing constants
-    const nodeWidth = 180;
+    // Get the canvas dimensions from the wrapper element
+    const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect() || { width: 1600, height: 900 };
+    const canvasWidth = reactFlowBounds.width;
+    const canvasHeight = reactFlowBounds.height;
+    
+    console.log('Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+    
+    // Define spacing constants - larger spacing for better visibility
+    const nodeWidth = 200;
     const nodeHeight = 100;
-    const horizontalSpacing = 250;
-    const verticalSpacing = 120;
+    const horizontalSpacing = Math.max(350, canvasWidth / 5); // Scales with canvas width
+    const verticalSpacing = Math.max(200, canvasHeight / 5); // Scales with canvas height
     
     // Build a dependency graph of nodes
     const nodeMap = new Map();
@@ -813,6 +820,9 @@ function Transformations() {
     // Calculate positions based on levels and vertical index
     const newPositions = {};
     
+    // Find the maximum level
+    const maxLevel = Math.max(...Array.from(levels.values(), 0));
+    
     // Process each level
     for (const [level, nodeIds] of levelGroups.entries()) {
       // Sort nodes within level by type (source first, target last)
@@ -834,14 +844,20 @@ function Transformations() {
       // Calculate vertical positions for nodes at this level
       const levelNodeCount = nodeIds.length;
       const totalHeight = (levelNodeCount - 1) * verticalSpacing;
-      const startY = Math.max(30, (800 - totalHeight) / 2); // Center vertically in canvas
+      
+      // Center vertically within the canvas
+      const startY = Math.max(50, (canvasHeight - totalHeight) / 2);
       
       // Position each node within its level
       nodeIds.forEach((nodeId, index) => {
-        const xPos = 50 + (level * horizontalSpacing);
+        // Calculate the x position: space nodes horizontally across the canvas width
+        const xPos = 50 + (level * (canvasWidth - 100) / (maxLevel + 1));
+        
+        // Adjust vertical position
         const yPos = startY + (index * verticalSpacing);
         
         newPositions[nodeId] = { x: xPos, y: yPos };
+        console.log(`Node ${nodeId} position:`, { x: xPos, y: yPos });
       });
     }
     
