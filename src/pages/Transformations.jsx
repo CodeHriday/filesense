@@ -770,8 +770,8 @@ function Transformations() {
     // Define spacing constants - larger spacing for better visibility
     const nodeWidth = 200;
     const nodeHeight = 100;
-    const horizontalSpacing = Math.max(350, effectiveWidth / 5); // Scales with canvas width
-    const verticalSpacing = Math.max(200, effectiveHeight / 5); // Scales with canvas height
+    const horizontalSpacing = Math.max(500, effectiveWidth / 4); // Doubled spacing, scales with canvas width
+    const verticalSpacing = Math.max(300, effectiveHeight / 4); // Increased spacing, scales with canvas height
     
     // Build a dependency graph of nodes
     const nodeMap = new Map();
@@ -883,7 +883,8 @@ function Transformations() {
       nodeIds.forEach((nodeId, index) => {
         // Calculate the x position: space nodes horizontally across the canvas width
         // Use the full available width with better distribution
-        const xPos = 100 + (level * (effectiveWidth - 250) / Math.max(1, maxLevel));
+        // More aggressive horizontal spacing to utilize wider canvas
+        const xPos = 150 + (level * (effectiveWidth - 300) / Math.max(1, maxLevel));
         
         // Adjust vertical position
         const yPos = startY + (index * verticalSpacing);

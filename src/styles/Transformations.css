@@ -36,7 +36,7 @@
   flex: 1;
   display: flex;
   height: calc(100vh - 120px); /* Adjusted for better viewport usage */
-  min-height: 600px; /* Ensure minimum height */
+  min-height: 800px; /* Increased minimum height */
 }
 
 .transformation-sidebar {
@@ -129,7 +129,7 @@
   width: 100%;
   height: 100%; /* Fill parent */
   flex: 1; /* Grow to fill available space */
-  min-height: 500px; /* Minimum fallback height */
+  min-height: 1000px; /* Doubled minimum height */
 }
 
 .react-flow__node {
@@ -378,6 +378,6 @@
   }
   
   .canvas-container {
-    height: 500px;
+    height: 700px;
   }
 }
