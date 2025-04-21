@@ -711,6 +711,52 @@ const ProcessManagementWizard = () => {
     event.dataTransfer.dropEffect = 'move';
   };
   
+  // Helper function to find the next available position without overlapping
+  const findNonOverlappingPosition = (x, y, existingNodes) => {
+    // Define node dimensions
+    const nodeWidth = 180;
+    const nodeHeight = 100;
+    // Define spacing between nodes
+    const horizontalSpacing = 50;
+    const verticalSpacing = 50;
+    
+    let newX = x;
+    let newY = y;
+    let overlapping = true;
+    let attempts = 0;
+    const maxAttempts = 20; // Prevent infinite loops
+    
+    while (overlapping && attempts < maxAttempts) {
+      overlapping = false;
+      
+      // Check for overlap with existing nodes
+      for (const node of existingNodes) {
+        const nodePos = node.position;
+        // Check if the new position would overlap with this node
+        if (
+          Math.abs(newX - nodePos.x) < nodeWidth + horizontalSpacing &&
+          Math.abs(newY - nodePos.y) < nodeHeight + verticalSpacing
+        ) {
+          overlapping = true;
+          // Try a different position - move diagonally down and right
+          newX += nodeWidth + horizontalSpacing;
+          
+          // If we've moved too far to the right, reset X and move down
+          if (newX > x + 500) {
+            newX = x;
+            newY += nodeHeight + verticalSpacing;
+          }
+          
+          break;
+        }
+      }
+      
+      attempts++;
+    }
+    
+    return { x: newX, y: newY };
+  };
+  
   // Handle drop for React Flow
   const handleDrop = (event) => {
     event.preventDefault();
@@ -722,10 +768,18 @@ const ProcessManagementWizard = () => {
     
     if (!type) return;
 
-    const position = {
+    // Initial position based on drop location
+    const initialPosition = {
       x: event.clientX - reactFlowBounds.left,
       y: event.clientY - reactFlowBounds.top,
     };
+    
+    // Find a position that doesn't overlap with existing nodes
+    const position = findNonOverlappingPosition(
+      initialPosition.x, 
+      initialPosition.y, 
+      nodes
+    );
     
     let id, newNode;
     
@@ -741,7 +795,8 @@ const ProcessManagementWizard = () => {
           type: 'custom', 
           sourceId: id
         },
-        draggable: true
+        draggable: true,
+        style: { width: 180, height: 100 } // Explicit dimensions to help with positioning
       };
     } else if (type === 'custom-target') {
       id = `target-${Date.now()}`;
@@ -754,7 +809,8 @@ const ProcessManagementWizard = () => {
           type: 'custom',
           mappingId: `mapping-${Date.now()}`
         },
-        draggable: true
+        draggable: true,
+        style: { width: 180, height: 100 } // Explicit dimensions to help with positioning
       };
     } else {
       // Regular transformation nodes
@@ -764,7 +820,8 @@ const ProcessManagementWizard = () => {
         type,
         position,
         data: { label: type.charAt(0).toUpperCase() + type.slice(1) },
-        draggable: true
+        draggable: true,
+        style: { width: 180, height: 100 } // Explicit dimensions to help with positioning
       };
       
       // Automatically open configuration for transformation nodes only
