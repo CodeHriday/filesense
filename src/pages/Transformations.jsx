@@ -1379,28 +1379,12 @@ function Transformations() {
               nodesConnectable={true}
               nodesFocusable={true}
               fitView
-              connectionLineType={ConnectionLineType.SmoothStep}>
-              
-              {/* Canvas size indicator overlay - only visible in development */}
-              {process.env.NODE_ENV !== 'production' && (
-                <Panel position="top-right" className="canvas-size-indicator">
-                  <div style={{ 
-                    background: 'rgba(255,255,255,0.8)', 
-                    padding: '5px 8px', 
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    border: '1px solid #ddd',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                  }}>
-                    Canvas: {logCanvasSize().width.toFixed(0)} × {logCanvasSize().height.toFixed(0)}
-                  </div>
-                </Panel>
-              )}
+              connectionLineType={ConnectionLineType.SmoothStep}
               defaultEdgeOptions={{
                 type: 'smoothstep',
                 animated: true,
                 markerEnd: {
-                  type: MarkerType.ArrowClosed,
+                  type: MarkerType.ArrowClosed
                 }
               }}
               panOnScroll
@@ -1410,11 +1394,9 @@ function Transformations() {
               onNodeDragStart={(event, node) => {
                 console.log('Node drag start:', node.id);
                 setIsDragging(true);
-                // Add a CSS class to the document body to disable text selection during drag
                 document.body.classList.add('node-dragging');
               }}
               onNodeDrag={(event, node) => {
-                // Log position for debugging
                 console.log(`Node ${node.id} position:`, node.position);
               }}
               onNodeDragStop={(event, node) => {
@@ -1422,8 +1404,6 @@ function Transformations() {
                 setIsDragging(false);
                 document.body.classList.remove('node-dragging');
                 
-                // After dragging stops, ensure nodes don't overlap
-                // by adjusting positions if needed
                 const adjustedNodes = findOptimalPositions(nodes);
                 if (adjustedNodes) {
                   setNodes(adjustedNodes);
@@ -1448,6 +1428,20 @@ function Transformations() {
                   return '#fff';
                 }}
               />
+              
+              <Panel position="top-left" className="canvas-size-indicator">
+                <div style={{ 
+                  background: 'rgba(255,255,255,0.8)', 
+                  padding: '5px 8px', 
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  border: '1px solid #ddd',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Canvas: {logCanvasSize().width.toFixed(0)} × {logCanvasSize().height.toFixed(0)}
+                </div>
+              </Panel>
+              
               <Panel position="top-right">
                 <div className="flow-buttons">
                   <button 
