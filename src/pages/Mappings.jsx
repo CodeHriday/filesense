@@ -861,17 +861,14 @@ function Mappings() {
   return (
     <div className="mappings-container">
       <div className="mappings-header">
-        <h1>File Mappings</h1>
-        {hasWritePermission('mappings') ? (
-          <button className="btn btn-primary" onClick={handleAddMapping}>
+        <h1>Data Transformations</h1>
+        <div className="d-flex" style={{ visibility: 'hidden' }}>
+          {/* Hidden placeholder for header alignment */}
+          <button className="btn btn-primary">
             <FiPlus className="btn-icon" />
             Add Mapping
           </button>
-        ) : (
-          <div className="permission-notice">
-            You don't have permission to create mappings
-          </div>
-        )}
+        </div>
       </div>
       
       {loading ? (

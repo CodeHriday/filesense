@@ -193,6 +193,11 @@ function Sidebar() {
               </li>
             )}
             
+            {/* Ad Hoc Process section */}
+            <li className="nav-divider">
+              <span>Ad Hoc Process</span>
+            </li>
+            
             {checkPermissions(['file_upload', 'file_upload:write']) && (
               <li>
                 <NavLink to="/upload" className={({ isActive }) => isActive ? 'active' : ''}>

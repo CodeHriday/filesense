@@ -2541,6 +2541,107 @@ app.get('/api/debug/hash-password/:password', async (req, res) => {
   }
 })();
 
+// Create the transformations table if it doesn't exist
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transformations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        config JSON NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER REFERENCES users(id)
+      )
+    `);
+    console.log('Transformations table initialized');
+  } catch (error) {
+    console.error('Error creating transformations table:', error);
+  }
+})();
+
+// Transformations endpoints
+app.get('/api/transformations', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM transformations ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching transformations:', err);
+    res.status(500).json({ error: 'Failed to fetch transformations' });
+  }
+});
+
+app.get('/api/transformations/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM transformations WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Transformation not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching transformation:', err);
+    res.status(500).json({ error: 'Failed to fetch transformation' });
+  }
+});
+
+app.post('/api/transformations', authenticateToken, async (req, res) => {
+  try {
+    const { name, description, config } = req.body;
+    const userId = req.user.id;
+    
+    const result = await pool.query(
+      'INSERT INTO transformations (name, description, config, created_by) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, description, config, userId]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating transformation:', err);
+    res.status(500).json({ error: 'Failed to create transformation' });
+  }
+});
+
+app.put('/api/transformations/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, config } = req.body;
+    
+    const result = await pool.query(
+      'UPDATE transformations SET name = $1, description = $2, config = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
+      [name, description, config, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Transformation not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating transformation:', err);
+    res.status(500).json({ error: 'Failed to update transformation' });
+  }
+});
+
+app.delete('/api/transformations/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM transformations WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Transformation not found' });
+    }
+    
+    res.json({ message: 'Transformation deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting transformation:', err);
+    res.status(500).json({ error: 'Failed to delete transformation' });
+  }
+});
+
 // Schedule endpoints
 
 // Get all schedules
