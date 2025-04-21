@@ -108,20 +108,45 @@ const ProcessManagementWizard = () => {
           const nodeElement = document.querySelector(`[data-id="${change.id}"]`);
           if (nodeElement) {
             nodeElement.classList.add('dragging');
+            
+            // Ensure the z-index is higher than other nodes while dragging
+            const style = nodeElement.style;
+            style.zIndex = '1000'; // Temporary high z-index during drag
           }
         } else if (change.type === 'position' && !change.dragging) {
           // Reset dragging styling when node is dropped
           const nodeElement = document.querySelector(`[data-id="${change.id}"]`);
           if (nodeElement) {
             nodeElement.classList.remove('dragging');
+            
+            // Reset z-index to the node's original value based on its order
+            const nodeIndex = nodes.findIndex(n => n.id === change.id);
+            const style = nodeElement.style;
+            style.zIndex = (nodeIndex + 1).toString(); // Restore based on node order
           }
+          
+          // When a node is dropped, explicitly ensure it has no parent
+          setNodes(nds => {
+            const updatedNodes = nds.map(n => {
+              if (n.id === change.id) {
+                return {
+                  ...n,
+                  parentNode: null,
+                  extent: undefined,
+                  expandParent: false
+                };
+              }
+              return n;
+            });
+            return updatedNodes;
+          });
         }
       });
       
       // Apply all changes to nodes
       setNodes(nds => applyNodeChanges(changes, nds));
     },
-    []
+    [nodes]
   );
   const reactFlowWrapper = useRef(null);
   
@@ -827,7 +852,10 @@ const ProcessManagementWizard = () => {
           sourceId: id
         },
         draggable: true,
-        style: { width: 180, height: 100 } // Explicit dimensions to help with positioning
+        parentNode: null, // Explicitly set to null to ensure it's a top-level node
+        extent: undefined, // Remove any extent constraints
+        expandParent: false, // Don't expand any parent
+        style: { width: 180, height: 100, zIndex: nodes.length + 1 } // Add z-index for proper layering
       };
     } else if (type === 'custom-target') {
       id = `target-${Date.now()}`;
@@ -841,7 +869,10 @@ const ProcessManagementWizard = () => {
           mappingId: `mapping-${Date.now()}`
         },
         draggable: true,
-        style: { width: 180, height: 100 } // Explicit dimensions to help with positioning
+        parentNode: null, // Explicitly set to null to ensure it's a top-level node
+        extent: undefined, // Remove any extent constraints
+        expandParent: false, // Don't expand any parent
+        style: { width: 180, height: 100, zIndex: nodes.length + 1 } // Add z-index for proper layering
       };
     } else {
       // Regular transformation nodes
@@ -852,7 +883,10 @@ const ProcessManagementWizard = () => {
         position,
         data: { label: type.charAt(0).toUpperCase() + type.slice(1) },
         draggable: true,
-        style: { width: 180, height: 100 } // Explicit dimensions to help with positioning
+        parentNode: null, // Explicitly set to null to ensure it's a top-level node
+        extent: undefined, // Remove any extent constraints
+        expandParent: false, // Don't expand any parent
+        style: { width: 180, height: 100, zIndex: nodes.length + 1 } // Add z-index for proper layering
       };
       
       // Automatically open configuration for transformation nodes only
@@ -861,7 +895,9 @@ const ProcessManagementWizard = () => {
       }, 100);
     }
     
-    setNodes((nds) => nds.concat(newNode));
+    // Add the node as a completely new independent node in the flow
+    const updatedNodes = [...nodes, newNode];
+    setNodes(updatedNodes);
   };
   
   // Handle connections between nodes
@@ -1992,6 +2028,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'custom-source');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
@@ -2006,6 +2048,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'custom-target');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
@@ -2025,6 +2073,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'filter');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
@@ -2039,6 +2093,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'join');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
@@ -2053,6 +2113,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'aggregate');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
@@ -2067,6 +2133,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'lookup');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
@@ -2081,6 +2153,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'format');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
@@ -2095,6 +2173,12 @@ const ProcessManagementWizard = () => {
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/reactflow', 'calculate');
                 e.dataTransfer.effectAllowed = 'move';
+                // Visual feedback during drag
+                e.target.style.opacity = '0.4';
+              }}
+              onDragEnd={(e) => {
+                // Reset opacity after drag
+                e.target.style.opacity = '1';
               }}
             >
               <div className="transform-tool-icon">
