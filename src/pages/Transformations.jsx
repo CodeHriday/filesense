@@ -8,6 +8,7 @@ import ReactFlow, {
   Panel,
   MarkerType,
   MiniMap,
+  ConnectionLineType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../styles/Transformations.css';
@@ -187,8 +188,9 @@ const TransformNode = ({ data }) => {
   );
 };
 
-// Node type mapping - use definition outside the component to prevent recreation on each render
-const nodeTypes = {
+// Node type mapping defined outside the component to prevent reactflow warning message
+// Using object literal with constant reference that won't change across renders
+const NODE_TYPES = {
   source: SourceNode,
   target: TargetNode,
   filter: FilterNode,
@@ -1047,11 +1049,19 @@ function Transformations() {
               onDrop={onDrop}
               onDragOver={onDragOver}
               onNodeClick={onNodeClick}
-              nodeTypes={nodeTypes}
+              nodeTypes={NODE_TYPES}
               nodesDraggable={true}
               snapToGrid={true}
               snapGrid={[20, 20]}
               fitView
+              connectionLineType={ConnectionLineType.SmoothStep}
+              defaultEdgeOptions={{
+                type: 'smoothstep',
+                animated: true,
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                }
+              }}
               panOnScroll
               panOnDrag={true}
               minZoom={0.5}
