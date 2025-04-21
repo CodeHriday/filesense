@@ -22,7 +22,6 @@ import {
   FiTrash2,
   FiSettings,
   FiX,
-  FiCalculator,
   FiSliders,
   FiBarChart2,
   FiEdit

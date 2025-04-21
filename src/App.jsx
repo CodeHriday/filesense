@@ -45,6 +45,7 @@ import './styles/Groups.css';
 import './styles/BusinessProcesses.css';
 import './styles/Jobs.css';
 import './styles/ProcessManagementWizard.css';
+import './styles/Transformations.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
