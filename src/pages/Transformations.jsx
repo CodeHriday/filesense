@@ -17,6 +17,7 @@ import {
   FiFilter, 
   FiGrid, 
   FiLayers,
+  FiPlay,
   FiShare2, 
   FiFileText, 
   FiPlus,
@@ -1388,8 +1389,15 @@ function Transformations() {
                   <button 
                     className="btn btn-sm btn-primary" 
                     onClick={autoArrangeNodes}
+                    style={{ marginRight: '10px' }}
                   >
                     <FiGrid className="icon-left" /> Auto-Arrange
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-success" 
+                    onClick={createSampleETLFlow}
+                  >
+                    <FiPlay className="icon-left" /> Create Sample ETL
                   </button>
                 </div>
               </Panel>
