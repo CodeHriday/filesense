@@ -1036,6 +1036,116 @@ const ProcessManagementWizard = () => {
     setError(null);
   }, [nodes, edges, setEdges]);
   
+  // Auto-arrange nodes in a logical layout
+  const autoArrangeNodes = () => {
+    if (nodes.length === 0) return;
+    
+    // Group nodes by type
+    const sourceNodes = nodes.filter(node => node.type === 'source');
+    const targetNodes = nodes.filter(node => node.type === 'target');
+    const transformNodes = nodes.filter(node => 
+      node.type !== 'source' && node.type !== 'target');
+    
+    // Create a map of node connections
+    const nodeConnections = {};
+    edges.forEach(edge => {
+      if (!nodeConnections[edge.source]) {
+        nodeConnections[edge.source] = [];
+      }
+      nodeConnections[edge.source].push(edge.target);
+    });
+    
+    // Calculate node positions
+    const newNodePositions = {};
+    const flowWidth = 1200;
+    const flowHeight = 800;
+    const nodeWidth = 180;
+    const nodeHeight = 100;
+    const horizontalSpacing = 250;
+    const verticalSpacing = 120;
+    
+    // Position source nodes on the left
+    sourceNodes.forEach((node, index) => {
+      newNodePositions[node.id] = {
+        x: 50,
+        y: 50 + index * verticalSpacing
+      };
+    });
+    
+    // Position target nodes on the right
+    targetNodes.forEach((node, index) => {
+      newNodePositions[node.id] = {
+        x: flowWidth - nodeWidth - 50,
+        y: 50 + index * verticalSpacing
+      };
+    });
+    
+    // Determine node levels based on connections
+    const nodeLevels = {};
+    const visited = new Set();
+    
+    // Helper function to determine node level in the flow
+    const determineNodeLevel = (nodeId, level = 0) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+      
+      // Update node level to the maximum level found
+      nodeLevels[nodeId] = Math.max(level, nodeLevels[nodeId] || 0);
+      
+      // Process connections
+      if (nodeConnections[nodeId]) {
+        nodeConnections[nodeId].forEach(targetId => {
+          determineNodeLevel(targetId, level + 1);
+        });
+      }
+    };
+    
+    // Start from source nodes
+    sourceNodes.forEach(node => {
+      determineNodeLevel(node.id);
+    });
+    
+    // Position transformation nodes based on levels
+    const levelCounts = {};
+    const levelPositions = {};
+    
+    // Count nodes per level and initialize positions
+    Object.entries(nodeLevels).forEach(([nodeId, level]) => {
+      if (!levelCounts[level]) {
+        levelCounts[level] = 0;
+        levelPositions[level] = 0;
+      }
+      levelCounts[level]++;
+    });
+    
+    // Position nodes by level
+    Object.entries(nodeLevels).forEach(([nodeId, level]) => {
+      // Skip source and target nodes - they're already positioned
+      const node = nodes.find(n => n.id === nodeId);
+      if (node.type === 'source' || node.type === 'target') return;
+      
+      // Calculate horizontal position based on level
+      const x = 50 + horizontalSpacing + (level * horizontalSpacing);
+      
+      // Calculate vertical position
+      const maxNodesInLevel = levelCounts[level];
+      const nodeIndex = levelPositions[level]++;
+      const totalHeight = (maxNodesInLevel - 1) * verticalSpacing;
+      const startY = (flowHeight - totalHeight) / 2;
+      const y = startY + (nodeIndex * verticalSpacing);
+      
+      newNodePositions[nodeId] = { x, y };
+    });
+    
+    // Update node positions
+    const updatedNodes = nodes.map(node => ({
+      ...node,
+      position: newNodePositions[node.id] || node.position
+    }));
+    
+    setNodes(updatedNodes);
+  };
+  
   // Get node background color based on transformation type
   const getNodeColorByType = (type) => {
     switch(type) {
