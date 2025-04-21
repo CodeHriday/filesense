@@ -776,38 +776,105 @@ const ProcessManagementWizard = () => {
     const horizontalSpacing = 50;
     const verticalSpacing = 50;
     
-    let newX = x;
-    let newY = y;
-    let overlapping = true;
-    let attempts = 0;
-    const maxAttempts = 20; // Prevent infinite loops
+    // First attempt to snap to a grid
+    const gridSize = 50; // Grid cell size
+    const gridX = Math.round(x / gridSize) * gridSize;
+    const gridY = Math.round(y / gridSize) * gridSize;
     
-    while (overlapping && attempts < maxAttempts) {
-      overlapping = false;
+    let initialX = gridX;
+    let initialY = gridY;
+    
+    // Check if the initial position is already good
+    const initialOverlap = existingNodes.some(node => {
+      const nodePos = node.position;
+      return (
+        Math.abs(initialX - nodePos.x) < nodeWidth + horizontalSpacing &&
+        Math.abs(initialY - nodePos.y) < nodeHeight + verticalSpacing
+      );
+    });
+    
+    if (!initialOverlap) {
+      return { x: initialX, y: initialY };
+    }
+    
+    // If initial position doesn't work, use a spiral pattern to find a position
+    let newX = initialX;
+    let newY = initialY;
+    let overlapping = true;
+    let layer = 1;
+    let segment = 0;
+    let segmentStep = 0;
+    const maxLayers = 10; // Maximum spiral layers
+    
+    // Directions: right, down, left, up
+    const directions = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+    
+    while (overlapping && layer <= maxLayers) {
+      // Move in the current direction
+      newX += directions[segment][0] * gridSize;
+      newY += directions[segment][1] * gridSize;
       
-      // Check for overlap with existing nodes
-      for (const node of existingNodes) {
-        const nodePos = node.position;
-        // Check if the new position would overlap with this node
-        if (
-          Math.abs(newX - nodePos.x) < nodeWidth + horizontalSpacing &&
-          Math.abs(newY - nodePos.y) < nodeHeight + verticalSpacing
-        ) {
-          overlapping = true;
-          // Try a different position - move diagonally down and right
-          newX += nodeWidth + horizontalSpacing;
-          
-          // If we've moved too far to the right, reset X and move down
-          if (newX > x + 500) {
-            newX = x;
-            newY += nodeHeight + verticalSpacing;
-          }
-          
-          break;
+      segmentStep++;
+      
+      // Check if we need to change direction
+      if (segmentStep === layer) {
+        segment = (segment + 1) % 4;
+        segmentStep = 0;
+        
+        // Increase the layer size after completing a full circle
+        if (segment === 0 || segment === 2) {
+          layer++;
         }
       }
       
-      attempts++;
+      // Check for overlap with existing nodes
+      overlapping = existingNodes.some(node => {
+        const nodePos = node.position;
+        return (
+          Math.abs(newX - nodePos.x) < nodeWidth + horizontalSpacing &&
+          Math.abs(newY - nodePos.y) < nodeHeight + verticalSpacing
+        );
+      });
+      
+      // If we found a non-overlapping position, break
+      if (!overlapping) {
+        break;
+      }
+    }
+    
+    // If spiral search failed, try one more approach with random offset
+    if (overlapping) {
+      for (let i = 0; i < 10; i++) {
+        // Use a slightly randomized position but still based on a grid
+        const randomOffsetX = Math.floor(Math.random() * 5) * gridSize;
+        const randomOffsetY = Math.floor(Math.random() * 5) * gridSize;
+        
+        newX = initialX + randomOffsetX;
+        newY = initialY + randomOffsetY;
+        
+        // Ensure we're not placing too far from the visible area
+        newX = Math.max(0, Math.min(newX, 1600));
+        newY = Math.max(0, Math.min(newY, 800));
+        
+        // Check for overlap with existing nodes
+        overlapping = existingNodes.some(node => {
+          const nodePos = node.position;
+          return (
+            Math.abs(newX - nodePos.x) < nodeWidth + horizontalSpacing &&
+            Math.abs(newY - nodePos.y) < nodeHeight + verticalSpacing
+          );
+        });
+        
+        if (!overlapping) {
+          break;
+        }
+      }
+    }
+    
+    // If all attempts fail, default to a position that at least ensures visibility
+    if (overlapping) {
+      newX = Math.max(20, Math.min(initialX, 1600));
+      newY = Math.max(20, Math.min(initialY + 200, 800));
     }
     
     return { x: newX, y: newY };
