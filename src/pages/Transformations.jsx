@@ -546,17 +546,17 @@ const TransformNode = React.memo(({ data }) => {
   );
 });
 
+// Define nodeTypes outside the component to prevent recreation on each render
+const NODE_TYPES = {
+  source: SourceNode,
+  target: TargetNode,
+  filter: FilterNode,
+  join: JoinNode,
+  aggregate: AggregateNode,
+  transform: TransformNode,
+};
+
 function Transformations() {
-  // Memoize the nodeTypes to prevent recreation on each render
-  // This addresses the React Flow warning about creating new nodeTypes object
-  const NODE_TYPES = useMemo(() => ({
-    source: SourceNode,
-    target: TargetNode,
-    filter: FilterNode,
-    join: JoinNode,
-    aggregate: AggregateNode,
-    transform: TransformNode,
-  }), []);
   const { showToast } = useToast();
   const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
