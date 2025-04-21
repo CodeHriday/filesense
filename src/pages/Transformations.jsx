@@ -32,6 +32,9 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../context/ToastContext';
 
+// Import required handles from ReactFlow
+import { Handle, Position } from 'reactflow';
+
 // Custom Node Types
 // Using React.memo for each custom node component to prevent unnecessary rerendering
 const SourceNode = React.memo(({ data }) => {
@@ -56,13 +59,12 @@ const SourceNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
-      {/* Adding explicit handle for connections */}
-      <div 
-        className="react-flow__handle react-flow__handle-right" 
-        style={{ right: '-8px', top: '50%', transform: 'translateY(-50%)' }}
-        data-handleid="right"
-        data-nodeid={data.id}
-        data-handlepos="right"
+      {/* Using ReactFlow's Handle component for proper dragging */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source"
+        style={{ background: '#4CAF50', width: '12px', height: '12px' }}
       />
     </div>
   );
@@ -198,20 +200,17 @@ const TransformNode = React.memo(({ data }) => {
   );
 });
 
-// Define nodeTypes outside the component
-const nodeTypes = {
-  source: SourceNode,
-  target: TargetNode,
-  filter: FilterNode,
-  join: JoinNode,
-  aggregate: AggregateNode,
-  transform: TransformNode,
-};
-
 function Transformations() {
   // Memoize the nodeTypes to prevent recreation on each render
   // This addresses the React Flow warning about creating new nodeTypes object
-  const NODE_TYPES = useMemo(() => nodeTypes, []);
+  const NODE_TYPES = useMemo(() => ({
+    source: SourceNode,
+    target: TargetNode,
+    filter: FilterNode,
+    join: JoinNode,
+    aggregate: AggregateNode,
+    transform: TransformNode,
+  }), []);
   const { showToast } = useToast();
   const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -884,9 +883,10 @@ function Transformations() {
         // Calculate the x position: space nodes horizontally across the canvas width
         // Use the full available width with better distribution
         // More aggressive horizontal spacing to utilize wider canvas
-        const xPos = 150 + (level * (effectiveWidth - 300) / Math.max(1, maxLevel));
+        // Make sure we're using the actual canvas width for calculation
+        const xPos = 150 + (level * horizontalSpacing);
         
-        // Adjust vertical position
+        // Adjust vertical position - use vertical spacing to create rows
         const yPos = startY + (index * verticalSpacing);
         
         newPositions[nodeId] = { x: xPos, y: yPos };
