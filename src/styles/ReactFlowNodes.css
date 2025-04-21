@@ -361,3 +361,38 @@
 .react-flow__handle-right {
   right: -4px;
 }
+
+/* Enhanced node dragging capabilities for superimposed nodes */
+.react-flow__node {
+  cursor: grab;
+  pointer-events: all !important;
+  z-index: 1;
+  transition: z-index 0s, transform 0.2s, filter 0.2s;
+}
+
+/* Make nodes rise to the top when active */
+.react-flow__node:hover,
+.react-flow__node.selected,
+.react-flow__node:active {
+  z-index: 1000 !important;
+  filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.2));
+  transform: scale(1.01);
+}
+
+.react-flow__node.dragging {
+  z-index: 2000 !important;
+  cursor: grabbing;
+}
+
+/* Make sure all parts of the node are interactive */
+.source-node *,
+.target-node *,
+.transform-node *,
+.filter-node *,
+.join-node *,
+.aggregate-node *,
+.lookup-node *,
+.format-node *,
+.calculate-node * {
+  pointer-events: none;
+}

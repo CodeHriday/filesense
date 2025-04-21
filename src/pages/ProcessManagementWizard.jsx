@@ -90,8 +90,37 @@ const ProcessManagementWizard = () => {
   // Step 6: Transformations
   const [transformationNodes, setTransformationNodes] = useState([]);
   const [transformationEdges, setTransformationEdges] = useState([]);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  // Initialize nodes and edges with React Flow's useNodesState hook
+  const [nodes, setNodes] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // Enhanced onNodesChange handler for better dragging behavior
+  const onNodesChange = useCallback(
+    (changes) => {
+      // Process each change in the batch
+      changes.forEach(change => {
+        // For dragging operations, log and make sure nodes get proper class
+        if (change.type === 'position' && change.dragging) {
+          console.log(`Dragging node ${change.id} to position: `, change.position);
+          // This allows for styling nodes differently while being dragged
+          const nodeElement = document.querySelector(`[data-id="${change.id}"]`);
+          if (nodeElement) {
+            nodeElement.classList.add('dragging');
+          }
+        } else if (change.type === 'position' && !change.dragging) {
+          // Reset dragging styling when node is dropped
+          const nodeElement = document.querySelector(`[data-id="${change.id}"]`);
+          if (nodeElement) {
+            nodeElement.classList.remove('dragging');
+          }
+        }
+      });
+      
+      // Apply all changes to nodes
+      setNodes(nds => applyNodeChanges(changes, nds));
+    },
+    []
+  );
   const reactFlowWrapper = useRef(null);
   
   // Step 7: Target Column Settings
@@ -2101,6 +2130,13 @@ const ProcessManagementWizard = () => {
           nodesConnectable={true}
           snapToGrid={true}
           snapGrid={[15, 15]}
+          selectNodesOnDrag={false}
+          multiSelectionKeyCode="Shift"
+          zoomOnScroll={true}
+          zoomOnPinch={true}
+          panOnDrag={true}
+          minZoom={0.5}
+          maxZoom={2}
         >
           <Controls />
           <Background color="#aaa" gap={16} />
