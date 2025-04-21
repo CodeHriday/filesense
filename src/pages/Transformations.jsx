@@ -92,6 +92,13 @@ const TargetNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
+      {/* Using ReactFlow's Handle component for proper dragging */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target"
+        style={{ background: '#2196F3', width: '12px', height: '12px' }}
+      />
     </div>
   );
 });
@@ -118,6 +125,19 @@ const FilterNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
+      {/* Input and output handles */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target"
+        style={{ background: '#2196F3', width: '12px', height: '12px' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source"
+        style={{ background: '#4CAF50', width: '12px', height: '12px' }}
+      />
     </div>
   );
 });
@@ -144,6 +164,26 @@ const JoinNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
+      {/* Input and output handles */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target"
+        style={{ background: '#2196F3', width: '12px', height: '12px' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source"
+        style={{ background: '#4CAF50', width: '12px', height: '12px' }}
+      />
+      {/* Additional input handle at top-left for second data source */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="target2"
+        style={{ background: '#FFC107', width: '12px', height: '12px' }}
+      />
     </div>
   );
 });
@@ -170,6 +210,19 @@ const AggregateNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
+      {/* Input and output handles */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target"
+        style={{ background: '#2196F3', width: '12px', height: '12px' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source"
+        style={{ background: '#4CAF50', width: '12px', height: '12px' }}
+      />
     </div>
   );
 });
@@ -196,6 +249,19 @@ const TransformNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
+      {/* Input and output handles */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target"
+        style={{ background: '#2196F3', width: '12px', height: '12px' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source"
+        style={{ background: '#4CAF50', width: '12px', height: '12px' }}
+      />
     </div>
   );
 });
