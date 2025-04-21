@@ -754,6 +754,23 @@
   color: #0c4a6e;
 }
 
+/* Flow controls style */
+.flow-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.flow-buttons .btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.icon-left {
+  margin-right: 4px;
+}
+
 /* For mobile responsiveness */
 @media (max-width: 768px) {
   .form-row {

@@ -2088,20 +2088,72 @@ const ProcessManagementWizard = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onInit={reactFlowInstance => {
+            console.log('ReactFlow initialized');
+            // Store the instance in the ref for later use
+            if (reactFlowWrapper.current) {
+              reactFlowWrapper.current.reactFlowInstance = reactFlowInstance;
+            }
+          }}
           nodeTypes={nodeTypes}
           fitView
           nodesDraggable={true}
           nodesConnectable={true}
+          snapToGrid={true}
+          snapGrid={[15, 15]}
         >
           <Controls />
           <Background color="#aaa" gap={16} />
           <Panel position="top-right">
-            <button 
-              className="btn btn-sm btn-secondary" 
-              onClick={() => console.log('Nodes:', nodes, 'Edges:', edges)}
-            >
-              Debug
-            </button>
+            <div className="flow-buttons">
+              <button 
+                className="btn btn-sm btn-primary" 
+                onClick={() => {
+                  // Auto-arrange the nodes in a grid layout
+                  const nodeWidth = 180;
+                  const nodeHeight = 100;
+                  const horizontalSpacing = 100;
+                  const verticalSpacing = 80;
+                  const columnsPerRow = 3;
+                  
+                  // Create a copy of the nodes array
+                  const updatedNodes = [...nodes];
+                  
+                  // Sort nodes by type, putting source first and target last
+                  updatedNodes.sort((a, b) => {
+                    if (a.type === 'source') return -1;
+                    if (b.type === 'source') return 1;
+                    if (a.type === 'target') return 1;
+                    if (b.type === 'target') return -1;
+                    return 0;
+                  });
+                  
+                  // Position nodes in a grid
+                  updatedNodes.forEach((node, index) => {
+                    const row = Math.floor(index / columnsPerRow);
+                    const col = index % columnsPerRow;
+                    
+                    // Calculate position
+                    const x = 50 + col * (nodeWidth + horizontalSpacing);
+                    const y = 50 + row * (nodeHeight + verticalSpacing);
+                    
+                    // Update node position
+                    node.position = { x, y };
+                  });
+                  
+                  // Update the nodes array
+                  setNodes(updatedNodes);
+                }}
+              >
+                <FiGrid className="icon-left" /> Auto-Arrange
+              </button>
+              <button 
+                className="btn btn-sm btn-secondary" 
+                onClick={() => console.log('Nodes:', nodes, 'Edges:', edges)}
+              >
+                Debug
+              </button>
+            </div>
           </Panel>
         </ReactFlow>
       </div>
