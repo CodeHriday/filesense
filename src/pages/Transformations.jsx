@@ -894,7 +894,8 @@ function Transformations() {
           levels.set(node.id, 0);
         } else if (node.type === 'target') {
           // Find max level and place target nodes one level further
-          const maxLevel = Math.max(...Array.from(levels.values(), 0)) + 1;
+          const levelValues = Array.from(levels.values());
+          const maxLevel = levelValues.length > 0 ? Math.max(...levelValues) + 1 : 1;
           levels.set(node.id, maxLevel);
         } else {
           levels.set(node.id, 1); // Default intermediate level
@@ -917,7 +918,8 @@ function Transformations() {
     const newPositions = {};
     
     // Find the maximum level
-    const maxLevel = Math.max(...Array.from(levels.values(), 0));
+    const levelValues = Array.from(levels.values());
+    const maxLevel = levelValues.length > 0 ? Math.max(...levelValues) : 0;
     
     // Process each level
     for (const [level, nodeIds] of levelGroups.entries()) {
