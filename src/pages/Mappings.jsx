@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FiPlus, 
   FiEdit2, 
@@ -12,7 +13,11 @@ import {
   FiType, 
   FiServer,
   FiGrid,
-  FiFilter
+  FiFilter,
+  FiLayers,
+  FiArrowRight,
+  FiXCircle,
+  FiCode
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -574,6 +579,7 @@ function SortableItem({ id, column, onRemove, onUpdate }) {
 
 function Mappings() {
   const { hasWritePermission } = useAuth();
+  const navigate = useNavigate();
   const [mappings, setMappings] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -599,6 +605,9 @@ function Mappings() {
     })
   );
   
+  // Added transformations state to store transformation data
+  const [transformations, setTransformations] = useState([]);
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -621,6 +630,17 @@ function Mappings() {
           setFiles(filesRes.data || []);
         } catch (filesErr) {
           console.error('Error fetching files:', filesErr);
+        }
+        
+        try {
+          console.log('Fetching transformations...');
+          const transformationsRes = await axios.get(`${API_BASE_URL}/api/transformations`);
+          console.log('Transformations response:', transformationsRes.data);
+          setTransformations(transformationsRes.data || []);
+        } catch (transformationsErr) {
+          console.error('Error fetching transformations:', transformationsErr);
+          // Continue even if transformations fail to load
+          setTransformations([]);
         }
         
         setError(null);
@@ -808,6 +828,34 @@ function Mappings() {
   const handleRunConversion = (mappingId) => {
     // In a real app, this would trigger a conversion job using the mapping
     alert(`Conversion started for mapping ID: ${mappingId}`);
+  };
+
+  // Handler for opening a transformation in the Transformations page
+  const handleOpenTransformation = (transformation) => {
+    navigate(`/transformations?id=${transformation.id}`);
+  };
+  
+  // Handler for editing a transformation
+  const handleEditTransformation = (transformation) => {
+    navigate(`/transformations?id=${transformation.id}&edit=true`);
+  };
+  
+  // Handler for deleting a transformation
+  const handleDeleteTransformation = async (id) => {
+    if (window.confirm('Are you sure you want to delete this transformation?')) {
+      try {
+        await axios.delete(`${API_BASE_URL}/api/transformations/${id}`);
+        setTransformations(transformations.filter(transformation => transformation.id !== id));
+      } catch (err) {
+        console.error('Error deleting transformation:', err);
+        alert('Failed to delete transformation. Please try again.');
+      }
+    }
+  };
+  
+  // Handler for creating a new transformation
+  const handleCreateTransformation = () => {
+    navigate('/transformations?new=true');
   };
 
   return (
@@ -1036,108 +1084,226 @@ function Mappings() {
             </Card>
           )}
           
-          {mappings.length === 0 && !showForm ? (
-            <Card>
-              <div className="empty-state">
-                <FiLink className="empty-icon" />
-                <h2>No Mappings Configured</h2>
-                <p>
-                  Create mappings to convert your data files between formats
-                  and transform data during conversion.
-                </p>
-                {hasWritePermission('mappings') ? (
-                  <button className="btn btn-primary" onClick={handleAddMapping}>
+          {!showForm && (
+            <>
+              {/* File Mappings Section */}
+              <div className="section-header">
+                <h2>File Mappings</h2>
+                {hasWritePermission('mappings') && (
+                  <button className="btn btn-sm btn-primary" onClick={handleAddMapping}>
                     <FiPlus className="btn-icon" />
-                    Create Your First Mapping
+                    Add Mapping
                   </button>
-                ) : (
-                  <div className="permission-notice">
-                    You don't have permission to create mappings
-                  </div>
                 )}
               </div>
-            </Card>
-          ) : (
-            <div className="mappings-grid">
-              {mappings.map(mapping => (
-                <Card key={mapping.id} className="mapping-card">
-                  <div className="mapping-header">
-                    <div className="mapping-title">
-                      <h3>{mapping.mapping_name}</h3>
-                    </div>
-                    <div className="mapping-actions">
-                      <button 
-                        className="action-button" 
-                        title="Run Conversion"
-                        onClick={() => handleRunConversion(mapping.id)}
-                        disabled={!hasWritePermission('mappings')}
-                      >
-                        <FiDownload />
+              
+              {mappings.length === 0 ? (
+                <Card>
+                  <div className="empty-state">
+                    <FiLink className="empty-icon" />
+                    <h2>No Mappings Configured</h2>
+                    <p>
+                      Create mappings to convert your data files between formats
+                      and transform data during conversion.
+                    </p>
+                    {hasWritePermission('mappings') ? (
+                      <button className="btn btn-primary" onClick={handleAddMapping}>
+                        <FiPlus className="btn-icon" />
+                        Create Your First Mapping
                       </button>
-                      {hasWritePermission('mappings') && (
-                        <>
-                          <button 
-                            className="action-button" 
-                            title="Edit Mapping"
-                            onClick={() => handleEditMapping(mapping)}
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button 
-                            className="action-button delete-button" 
-                            title="Delete Mapping"
-                            onClick={() => handleDeleteMapping(mapping.id)}
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mapping-content">
-                    <div className="mapping-detail">
-                      <span className="detail-label">Source:</span>
-                      <span className="detail-value">
-                        {mapping.source_filename || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="mapping-detail">
-                      <span className="detail-label">Target Type:</span>
-                      <span className="detail-value">
-                        {mapping.target_file_type.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="mapping-detail">
-                      <span className="detail-label">Columns Mapped:</span>
-                      <span className="detail-value">
-                        {mapping.mapping_config && mapping.mapping_config.columns 
-                          ? mapping.mapping_config.columns.length 
-                          : 0}
-                      </span>
-                    </div>
-                    <div className="mapping-detail">
-                      <span className="detail-label">File Joins:</span>
-                      <span className="detail-value">
-                        {mapping.mapping_config && mapping.mapping_config.joins 
-                          ? mapping.mapping_config.joins.length 
-                          : 0}
-                      </span>
-                    </div>
-                    {mapping.mapping_config && mapping.mapping_config.joins && mapping.mapping_config.joins.length > 0 && (
-                      <div className="mapping-transforms">
-                        <span className="transform-badge" title="This mapping contains file joins">
-                          <FiGrid />
-                          Join/Lookup
-                        </span>
+                    ) : (
+                      <div className="permission-notice">
+                        You don't have permission to create mappings
                       </div>
                     )}
                   </div>
-                  <div className="mapping-footer">
-                    Created: {formatDate(mapping.created_at)}
+                </Card>
+              ) : (
+                <div className="mappings-grid">
+                  {mappings.map(mapping => (
+                    <Card key={mapping.id} className="mapping-card">
+                      <div className="mapping-header">
+                        <div className="mapping-title">
+                          <h3>{mapping.mapping_name}</h3>
+                        </div>
+                        <div className="mapping-actions">
+                          <button 
+                            className="action-button" 
+                            title="Run Conversion"
+                            onClick={() => handleRunConversion(mapping.id)}
+                            disabled={!hasWritePermission('mappings')}
+                          >
+                            <FiDownload />
+                          </button>
+                          {hasWritePermission('mappings') && (
+                            <>
+                              <button 
+                                className="action-button" 
+                                title="Edit Mapping"
+                                onClick={() => handleEditMapping(mapping)}
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button 
+                                className="action-button delete-button" 
+                                title="Delete Mapping"
+                                onClick={() => handleDeleteMapping(mapping.id)}
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mapping-content">
+                        <div className="mapping-detail">
+                          <span className="detail-label">Source:</span>
+                          <span className="detail-value">
+                            {mapping.source_filename || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="mapping-detail">
+                          <span className="detail-label">Target Type:</span>
+                          <span className="detail-value">
+                            {mapping.target_file_type.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="mapping-detail">
+                          <span className="detail-label">Columns Mapped:</span>
+                          <span className="detail-value">
+                            {mapping.mapping_config && mapping.mapping_config.columns 
+                              ? mapping.mapping_config.columns.length 
+                              : 0}
+                          </span>
+                        </div>
+                        <div className="mapping-detail">
+                          <span className="detail-label">File Joins:</span>
+                          <span className="detail-value">
+                            {mapping.mapping_config && mapping.mapping_config.joins 
+                              ? mapping.mapping_config.joins.length 
+                              : 0}
+                          </span>
+                        </div>
+                        {mapping.mapping_config && mapping.mapping_config.joins && mapping.mapping_config.joins.length > 0 && (
+                          <div className="mapping-transforms">
+                            <span className="transform-badge" title="This mapping contains file joins">
+                              <FiGrid />
+                              Join/Lookup
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mapping-footer">
+                        Created: {formatDate(mapping.created_at)}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
+              {/* Transformations Section */}
+              <div className="section-header transformations-header">
+                <h2>Transformations</h2>
+                {hasWritePermission('mappings') && (
+                  <button className="btn btn-sm btn-primary" onClick={handleCreateTransformation}>
+                    <FiPlus className="btn-icon" />
+                    Add Transformation
+                  </button>
+                )}
+              </div>
+              
+              {transformations.length === 0 ? (
+                <Card>
+                  <div className="empty-state">
+                    <FiLayers className="empty-icon" />
+                    <h2>No Transformations Created</h2>
+                    <p>
+                      Create advanced data transformations with our visual editor to automate your ETL processes.
+                    </p>
+                    {hasWritePermission('mappings') ? (
+                      <button className="btn btn-primary" onClick={handleCreateTransformation}>
+                        <FiPlus className="btn-icon" />
+                        Create Your First Transformation
+                      </button>
+                    ) : (
+                      <div className="permission-notice">
+                        You don't have permission to create transformations
+                      </div>
+                    )}
                   </div>
                 </Card>
-              ))}
-            </div>
+              ) : (
+                <div className="mappings-grid">
+                  {transformations.map(transformation => (
+                    <Card key={transformation.id} className="mapping-card transformation-card">
+                      <div className="mapping-header">
+                        <div className="mapping-title">
+                          <h3>{transformation.name}</h3>
+                        </div>
+                        <div className="mapping-actions">
+                          <button 
+                            className="action-button" 
+                            title="Open Transformation"
+                            onClick={() => handleOpenTransformation(transformation)}
+                          >
+                            <FiCode />
+                          </button>
+                          {hasWritePermission('mappings') && (
+                            <>
+                              <button 
+                                className="action-button" 
+                                title="Edit Transformation"
+                                onClick={() => handleEditTransformation(transformation)}
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button 
+                                className="action-button delete-button" 
+                                title="Delete Transformation"
+                                onClick={() => handleDeleteTransformation(transformation.id)}
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mapping-content">
+                        <div className="mapping-detail">
+                          <span className="detail-label">Sources:</span>
+                          <span className="detail-value">
+                            {transformation.sourceCount || 0}
+                          </span>
+                        </div>
+                        <div className="mapping-detail">
+                          <span className="detail-label">Targets:</span>
+                          <span className="detail-value">
+                            {transformation.targetCount || 0}
+                          </span>
+                        </div>
+                        <div className="mapping-detail">
+                          <span className="detail-label">Transformations:</span>
+                          <span className="detail-value">
+                            {transformation.transformationCount || 0}
+                          </span>
+                        </div>
+                        <div className="mapping-detail">
+                          <span className="detail-label">Status:</span>
+                          <span className="detail-value">
+                            <span className={`status-badge ${transformation.status?.toLowerCase() || 'draft'}`}>
+                              {transformation.status || 'Draft'}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mapping-footer">
+                        Updated: {formatDate(transformation.updated_at || transformation.created_at)}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}

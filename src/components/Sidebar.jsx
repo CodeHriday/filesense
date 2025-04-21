@@ -215,32 +215,61 @@ function Sidebar() {
               </li>
             )}
             
-            {/* Monitoring section */}
-            {checkPermissions(['file_view', 'monitor:read', 'monitor']) && (
-              <li>
-                <NavLink to="/monitor" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiMonitor className="icon" />
+            {/* Monitor section */}
+            {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 
+              checkPermissions(['alerts', 'alerts:read', 'alert_view']) || 
+              checkPermissions(['scheduler', 'scheduler:read']) || 
+              checkPermissions(['mappings', 'mappings:read'])) && (
+              <>
+                <li className="nav-divider">
                   <span>Monitor</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {checkPermissions(['alerts', 'alerts:read', 'alert_view']) && (
-              <li>
-                <NavLink to="/alerts" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiAlertTriangle className="icon" />
-                  <span>Alerts</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {checkPermissions(['scheduler', 'scheduler:read']) && (
-              <li>
-                <NavLink to="/scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiCalendar className="icon" />
-                  <span>File Scheduler</span>
-                </NavLink>
-              </li>
+                </li>
+                
+                {checkPermissions(['file_view', 'monitor:read', 'monitor']) && (
+                  <li>
+                    <NavLink to="/monitor" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiMonitor className="icon" />
+                      <span>Dashboard</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {checkPermissions(['alerts', 'alerts:read', 'alert_view']) && (
+                  <li>
+                    <NavLink to="/alerts" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiAlertTriangle className="icon" />
+                      <span>Alerts</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {checkPermissions(['scheduler', 'scheduler:read']) && (
+                  <li>
+                    <NavLink to="/scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiCalendar className="icon" />
+                      <span>File Scheduler</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {checkPermissions(['mappings', 'mappings:read']) && (
+                  <li>
+                    <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiLink className="icon" />
+                      <span>Mappings</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {checkPermissions(['mappings', 'mappings:read']) && (
+                  <li>
+                    <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiLayers className="icon" />
+                      <span>Transformations</span>
+                    </NavLink>
+                  </li>
+                )}
+              </>
             )}
             
             {/* Data sources section */}
@@ -253,31 +282,20 @@ function Sidebar() {
               </li>
             )}
             
-            {checkPermissions(['mappings', 'mappings:read']) && (
-              <li>
-                <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiLink className="icon" />
-                  <span>Mappings</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {checkPermissions(['mappings', 'mappings:read']) && (
-              <li>
-                <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiLayers className="icon" />
-                  <span>Transformations</span>
-                </NavLink>
-              </li>
-            )}
-            
+            {/* Governance section */}
             {checkPermissions(['lineage', 'lineage:read', 'lineage_view']) && (
-              <li>
-                <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiGitBranch className="icon" />
-                  <span>File Lineage</span>
-                </NavLink>
-              </li>
+              <>
+                <li className="nav-divider">
+                  <span>Governance</span>
+                </li>
+                
+                <li>
+                  <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiGitBranch className="icon" />
+                    <span>File Lineage</span>
+                  </NavLink>
+                </li>
+              </>
             )}
             
             {/* Administration section */}
