@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -7,6 +7,7 @@ import ReactFlow, {
   useEdgesState,
   Panel,
   MarkerType,
+  MiniMap,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../styles/Transformations.css';
@@ -186,7 +187,7 @@ const TransformNode = ({ data }) => {
   );
 };
 
-// Node type mapping
+// Node type mapping - use definition outside the component to prevent recreation on each render
 const nodeTypes = {
   source: SourceNode,
   target: TargetNode,
@@ -1047,9 +1048,10 @@ function Transformations() {
               onDragOver={onDragOver}
               onNodeClick={onNodeClick}
               nodeTypes={nodeTypes}
-              fitView
-              snapToGrid
+              nodesDraggable={true}
+              snapToGrid={true}
               snapGrid={[20, 20]}
+              fitView
               panOnScroll
               panOnDrag={true}
               minZoom={0.5}
@@ -1057,6 +1059,22 @@ function Transformations() {
             >
               <Controls />
               <Background color="#aaa" gap={16} />
+              <MiniMap
+                nodeStrokeColor={(n) => {
+                  if (n.type === 'source') return '#0041d0';
+                  if (n.type === 'target') return '#10761E';
+                  return '#555';
+                }}
+                nodeColor={(n) => {
+                  if (n.type === 'source') return '#e3f2fd';
+                  if (n.type === 'target') return '#e8f5e9'; 
+                  if (n.type === 'filter') return '#fff3e0';
+                  if (n.type === 'join') return '#e0f7fa';
+                  if (n.type === 'aggregate') return '#f3e5f5';
+                  if (n.type === 'transform') return '#fce4ec';
+                  return '#fff';
+                }}
+              />
               <Panel position="top-right">
                 <div className="flow-buttons">
                   <button 
