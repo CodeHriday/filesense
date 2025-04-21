@@ -215,21 +215,21 @@ function Sidebar() {
               </li>
             )}
             
-            {/* Monitor section */}
+            {/* Jobs and Monitoring section */}
             {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 
               checkPermissions(['alerts', 'alerts:read', 'alert_view']) || 
               checkPermissions(['scheduler', 'scheduler:read']) || 
               checkPermissions(['mappings', 'mappings:read'])) && (
               <>
                 <li className="nav-divider">
-                  <span>Monitor</span>
+                  <span>Jobs and Monitoring</span>
                 </li>
                 
                 {checkPermissions(['file_view', 'monitor:read', 'monitor']) && (
                   <li>
                     <NavLink to="/monitor" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiMonitor className="icon" />
-                      <span>Dashboard</span>
+                      <span>Monitor</span>
                     </NavLink>
                   </li>
                 )}
