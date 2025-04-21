@@ -86,13 +86,12 @@ const TargetNode = React.memo(({ data }) => {
 });
 
 const FilterNode = React.memo(({ data }) => {
-  console.log('Rendering FilterNode with draggable support');
   return (
     <div className="node-filter draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiFilter className="node-icon" />
-          {data.label}
+          <span>{data.label}</span>
         </h4>
         {data.actions && (
           <div className="node-actions">
@@ -113,13 +112,12 @@ const FilterNode = React.memo(({ data }) => {
 });
 
 const JoinNode = React.memo(({ data }) => {
-  console.log('Rendering JoinNode with draggable support');
   return (
     <div className="node-join draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiShare2 className="node-icon" />
-          {data.label}
+          <span>{data.label}</span>
         </h4>
         {data.actions && (
           <div className="node-actions">
@@ -140,13 +138,12 @@ const JoinNode = React.memo(({ data }) => {
 });
 
 const AggregateNode = React.memo(({ data }) => {
-  console.log('Rendering AggregateNode with draggable support');
   return (
     <div className="node-aggregate draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiBarChart2 className="node-icon" />
-          {data.label}
+          <span>{data.label}</span>
         </h4>
         {data.actions && (
           <div className="node-actions">
@@ -167,13 +164,12 @@ const AggregateNode = React.memo(({ data }) => {
 });
 
 const TransformNode = React.memo(({ data }) => {
-  console.log('Rendering TransformNode with draggable support');
   return (
     <div className="node-transform draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiLayers className="node-icon" />
-          {data.label}
+          <span>{data.label}</span>
         </h4>
         {data.actions && (
           <div className="node-actions">
@@ -193,9 +189,8 @@ const TransformNode = React.memo(({ data }) => {
   );
 });
 
-// Node type mapping defined outside the component to prevent reactflow warning message
-// Using object literal with constant reference that won't change across renders
-const NODE_TYPES = {
+// Define nodeTypes outside the component
+const nodeTypes = {
   source: SourceNode,
   target: TargetNode,
   filter: FilterNode,
@@ -205,6 +200,8 @@ const NODE_TYPES = {
 };
 
 function Transformations() {
+  // Memoize the nodeTypes to prevent recreation on each render
+  const NODE_TYPES = useMemo(() => nodeTypes, []);
   const { showToast } = useToast();
   const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
