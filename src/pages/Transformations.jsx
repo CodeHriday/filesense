@@ -210,6 +210,7 @@ const nodeTypes = {
 
 function Transformations() {
   // Memoize the nodeTypes to prevent recreation on each render
+  // This addresses the React Flow warning about creating new nodeTypes object
   const NODE_TYPES = useMemo(() => nodeTypes, []);
   const { showToast } = useToast();
   const reactFlowWrapper = useRef(null);
@@ -876,18 +877,20 @@ function Transformations() {
       const totalHeight = (levelNodeCount - 1) * verticalSpacing;
       
       // Center vertically within the canvas
-      const startY = Math.max(50, (canvasHeight - totalHeight) / 2);
+      const startY = Math.max(50, (effectiveHeight - totalHeight) / 2);
       
       // Position each node within its level
       nodeIds.forEach((nodeId, index) => {
         // Calculate the x position: space nodes horizontally across the canvas width
-        const xPos = 50 + (level * (canvasWidth - 100) / (maxLevel + 1));
+        // Use the full available width with better distribution
+        const xPos = 100 + (level * (effectiveWidth - 250) / Math.max(1, maxLevel));
         
         // Adjust vertical position
         const yPos = startY + (index * verticalSpacing);
         
         newPositions[nodeId] = { x: xPos, y: yPos };
-        console.log(`Node ${nodeId} position:`, { x: xPos, y: yPos });
+        console.log(`Node ${nodeId} position:`, { x: xPos, y: yPos }, 
+                    `Canvas size: ${effectiveWidth}x${effectiveHeight}`);
       });
     }
     
@@ -1376,7 +1379,23 @@ function Transformations() {
               nodesConnectable={true}
               nodesFocusable={true}
               fitView
-              connectionLineType={ConnectionLineType.SmoothStep}
+              connectionLineType={ConnectionLineType.SmoothStep}>
+              
+              {/* Canvas size indicator overlay - only visible in development */}
+              {process.env.NODE_ENV !== 'production' && (
+                <Panel position="top-right" className="canvas-size-indicator">
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.8)', 
+                    padding: '5px 8px', 
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    border: '1px solid #ddd',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                  }}>
+                    Canvas: {logCanvasSize().width.toFixed(0)} × {logCanvasSize().height.toFixed(0)}
+                  </div>
+                </Panel>
+              )}
               defaultEdgeOptions={{
                 type: 'smoothstep',
                 animated: true,
