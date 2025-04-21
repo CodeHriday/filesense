@@ -32,9 +32,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../context/ToastContext';
 
 // Custom Node Types
-const SourceNode = ({ data }) => {
+// Using React.memo for each custom node component to prevent unnecessary rerendering
+const SourceNode = React.memo(({ data }) => {
+  console.log('Rendering SourceNode with draggable support');
   return (
-    <div className="node-source">
+    <div className="node-source draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiDatabase className="node-icon" />
@@ -56,11 +58,12 @@ const SourceNode = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
-const TargetNode = ({ data }) => {
+const TargetNode = React.memo(({ data }) => {
+  console.log('Rendering TargetNode with draggable support');
   return (
-    <div className="node-target">
+    <div className="node-target draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiFileText className="node-icon" />
@@ -82,11 +85,12 @@ const TargetNode = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
-const FilterNode = ({ data }) => {
+const FilterNode = React.memo(({ data }) => {
+  console.log('Rendering FilterNode with draggable support');
   return (
-    <div className="node-filter">
+    <div className="node-filter draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiFilter className="node-icon" />
@@ -108,11 +112,12 @@ const FilterNode = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
-const JoinNode = ({ data }) => {
+const JoinNode = React.memo(({ data }) => {
+  console.log('Rendering JoinNode with draggable support');
   return (
-    <div className="node-join">
+    <div className="node-join draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiShare2 className="node-icon" />
@@ -134,11 +139,12 @@ const JoinNode = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
-const AggregateNode = ({ data }) => {
+const AggregateNode = React.memo(({ data }) => {
+  console.log('Rendering AggregateNode with draggable support');
   return (
-    <div className="node-aggregate">
+    <div className="node-aggregate draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiBarChart2 className="node-icon" />
@@ -160,11 +166,12 @@ const AggregateNode = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
-const TransformNode = ({ data }) => {
+const TransformNode = React.memo(({ data }) => {
+  console.log('Rendering TransformNode with draggable support');
   return (
-    <div className="node-transform">
+    <div className="node-transform draggable-node">
       <div className="node-header">
         <h4 className="node-title">
           <FiLayers className="node-icon" />
@@ -186,7 +193,7 @@ const TransformNode = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
 // Node type mapping defined outside the component to prevent reactflow warning message
 // Using object literal with constant reference that won't change across renders

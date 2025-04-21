@@ -396,3 +396,16 @@
 .calculate-node * {
   pointer-events: none;
 }
+
+/* Special class for draggable nodes to enhance draggability */
+.draggable-node {
+  cursor: grab !important;
+  touch-action: none !important; /* Disable touch actions to prevent conflicts */
+  user-select: none !important; /* Prevent text selection while dragging */
+  z-index: 10 !important; /* Ensure draggable nodes are above other elements */
+}
+
+.draggable-node:active {
+  cursor: grabbing !important; /* Change cursor while actively dragging */
+  z-index: 3000 !important; /* Extra high z-index when being dragged */
+}
