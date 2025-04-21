@@ -824,93 +824,119 @@ function Transformations() {
   };
 
   // Function to find optimal positions for nodes to avoid overlaps (memoized to prevent recreation)
+  // Enhanced optimal position finder with improved overlap detection and resolution
+  // Memoized with an empty dependency array to avoid recreation on every render
   const findOptimalPositions = useCallback((currentNodes) => {
     if (!currentNodes || currentNodes.length <= 1) return null;
     
     // Define node dimensions and padding 
     const nodeWidth = 180;
     const nodeHeight = 100;
-    const padding = 20; // Increased padding for more space between nodes
+    const padding = 30; // Increased padding for better spacing between nodes
     
     // Track which nodes need adjustment
     let needsAdjustment = false;
     
-    // Create a copy of the nodes array to work with
-    const newNodes = [...currentNodes];
+    // Create a deep copy of the nodes array to work with
+    const newNodes = JSON.parse(JSON.stringify(currentNodes));
     
-    // Check for overlaps and adjust positions
-    // We'll use a simple greedy approach for now - check each node against all others
-    for (let i = 0; i < newNodes.length; i++) {
-      for (let j = i + 1; j < newNodes.length; j++) {
-        const node1 = newNodes[i];
-        const node2 = newNodes[j];
-        
-        // Calculate boundaries
-        const n1Left = node1.position.x;
-        const n1Right = node1.position.x + nodeWidth;
-        const n1Top = node1.position.y;
-        const n1Bottom = node1.position.y + nodeHeight;
-        
-        const n2Left = node2.position.x;
-        const n2Right = node2.position.x + nodeWidth;
-        const n2Top = node2.position.y;
-        const n2Bottom = node2.position.y + nodeHeight;
-        
-        // Check for overlap
-        if (
-          n1Left < n2Right + padding &&
-          n1Right + padding > n2Left &&
-          n1Top < n2Bottom + padding &&
-          n1Bottom + padding > n2Top
-        ) {
-          needsAdjustment = true;
+    // Sort nodes by ID for consistent processing (prevents oscillation)
+    newNodes.sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Track nodes that have already been processed
+    const processedNodes = new Set();
+    
+    // Process node positioning with multiple passes for better convergence
+    for (let pass = 0; pass < 3; pass++) {
+      // Reset adjustment flag for this pass
+      let passAdjustment = false;
+      
+      // Check for overlaps and adjust positions
+      for (let i = 0; i < newNodes.length; i++) {
+        for (let j = 0; j < newNodes.length; j++) {
+          if (i === j) continue; // Skip self
           
-          // Calculate overlap amount in each direction
-          const overlapLeft = n2Right + padding - n1Left;
-          const overlapRight = n1Right + padding - n2Left;
-          const overlapTop = n2Bottom + padding - n1Top;
-          const overlapBottom = n1Bottom + padding - n2Top;
+          const node1 = newNodes[i];
+          const node2 = newNodes[j];
           
-          // Find the smallest overlap direction
-          const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+          // Calculate boundaries with a safety margin
+          const n1Left = node1.position.x;
+          const n1Right = node1.position.x + nodeWidth;
+          const n1Top = node1.position.y;
+          const n1Bottom = node1.position.y + nodeHeight;
           
-          // Move the second node in the direction of least overlap
-          // We're moving the second node because it's likely the one that was most recently added
-          if (minOverlap === overlapLeft) {
-            newNodes[j] = {
-              ...node2,
-              position: {
-                ...node2.position,
-                x: node2.position.x + overlapLeft
-              }
-            };
-          } else if (minOverlap === overlapRight) {
-            newNodes[j] = {
-              ...node2,
-              position: {
-                ...node2.position,
-                x: node2.position.x - overlapRight
-              }
-            };
-          } else if (minOverlap === overlapTop) {
-            newNodes[j] = {
-              ...node2,
-              position: {
-                ...node2.position,
-                y: node2.position.y + overlapTop
-              }
-            };
-          } else {
-            newNodes[j] = {
-              ...node2,
-              position: {
-                ...node2.position,
-                y: node2.position.y - overlapBottom
-              }
-            };
+          const n2Left = node2.position.x;
+          const n2Right = node2.position.x + nodeWidth;
+          const n2Top = node2.position.y;
+          const n2Bottom = node2.position.y + nodeHeight;
+          
+          // Check for overlap with improved padding
+          if (
+            n1Left < n2Right + padding &&
+            n1Right + padding > n2Left &&
+            n1Top < n2Bottom + padding &&
+            n1Bottom + padding > n2Top
+          ) {
+            passAdjustment = true;
+            needsAdjustment = true;
+            
+            // Calculate overlap amounts in each direction
+            const overlapLeft = n2Right + padding - n1Left;
+            const overlapRight = n1Right + padding - n2Left;
+            const overlapTop = n2Bottom + padding - n1Top;
+            const overlapBottom = n1Bottom + padding - n2Top;
+            
+            // Find the smallest overlap direction
+            const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+            
+            // Determine which node to move based on fixed types and priority
+            // Source nodes should stay left, target nodes should stay right
+            let moveNode2 = true;
+            
+            if (node1.type === 'source' && node2.type !== 'source') {
+              moveNode2 = true; // Always move non-source nodes
+            } else if (node1.type !== 'target' && node2.type === 'target') {
+              moveNode2 = true; // Always move target nodes to the right
+            } else if (node1.type === 'target' && node2.type !== 'target') {
+              moveNode2 = false; // Don't move target nodes left
+            } else if (processedNodes.has(node1.id) && !processedNodes.has(node2.id)) {
+              moveNode2 = true; // Prefer moving unprocessed nodes
+            } else if (!processedNodes.has(node1.id) && processedNodes.has(node2.id)) {
+              moveNode2 = false; // Prefer moving unprocessed nodes
+            }
+            
+            // Apply the movement with a slight additional offset to prevent exact boundary cases
+            const offset = 5;
+            const targetNodeIndex = moveNode2 ? j : i;
+            const targetNode = newNodes[targetNodeIndex];
+            const originalPosition = { ...targetNode.position };
+            
+            if (minOverlap === overlapLeft) {
+              newNodes[targetNodeIndex].position.x = moveNode2 
+                ? targetNode.position.x + overlapLeft + offset 
+                : targetNode.position.x - overlapLeft - offset;
+            } else if (minOverlap === overlapRight) {
+              newNodes[targetNodeIndex].position.x = moveNode2 
+                ? targetNode.position.x - overlapRight - offset 
+                : targetNode.position.x + overlapRight + offset;
+            } else if (minOverlap === overlapTop) {
+              newNodes[targetNodeIndex].position.y = moveNode2 
+                ? targetNode.position.y + overlapTop + offset 
+                : targetNode.position.y - overlapTop - offset;
+            } else {
+              newNodes[targetNodeIndex].position.y = moveNode2 
+                ? targetNode.position.y - overlapBottom - offset 
+                : targetNode.position.y + overlapBottom + offset;
+            }
+            
+            // Mark this node as processed
+            processedNodes.add(newNodes[targetNodeIndex].id);
           }
         }
       }
+      
+      // If no adjustments were made in this pass, we're done
+      if (!passAdjustment) break;
     }
     
     // Apply grid snapping to all adjusted nodes
@@ -933,8 +959,12 @@ function Transformations() {
   }, []);
 
   // Auto-arrange nodes in a logical layout using topological sort
-  // Create a simple sample ETL flow
+  // Create a simple sample ETL flow with enhanced styling and zIndex values
   const createSampleETLFlow = () => {
+    // Track if we're already creating a flow to prevent duplicates
+    if (nodeChangeRef.current.isCreatingFlow) return;
+    nodeChangeRef.current.isCreatingFlow = true;
+    
     // We'll use regular node positions and then auto-arrange them for better visualization
     // First clear any existing nodes
     setNodes([]);
@@ -942,17 +972,22 @@ function Transformations() {
     
     // Give it a brief moment to clear before adding new nodes
     setTimeout(() => {
-      // Create nodes with evenly distributed positions
+      // Create nodes with evenly distributed positions and proper zIndex values
+      // zIndex values follow our standardized scale (1-9 for base elements)
       const sourceNode = {
         id: `source-${uuidv4()}`,
         type: 'source',
         position: { x: 100, y: 250 },
+        zIndex: 2, // Base zIndex for nodes 
+        style: { zIndex: 2 }, // Also set in style for React Flow
         data: { 
           label: 'Sales Data Source',
           description: 'CSV input data source',
           config: { sourceFile: 'sales_data.csv' },
           onConfigure: () => {},
-          id: `source-${uuidv4()}` // Pass ID to the node data for handle identification
+          // Add metadata for layout algorithm optimization
+          isSource: true,
+          nodeType: 'source'
         }
       };
       
@@ -960,13 +995,15 @@ function Transformations() {
         id: `filter-${uuidv4()}`,
         type: 'filter',
         position: { x: 350, y: 150 },
+        zIndex: 2,
+        style: { zIndex: 2 },
         data: { 
           label: 'Filter Transactions',
           description: 'Filter: amount > 1000',
           condition: 'amount > 1000',
           config: { column: 'amount', operator: '>', value: '1000' },
           onConfigure: () => {},
-          id: `filter-${uuidv4()}` // Pass ID to the node data for handle identification
+          nodeType: 'filter'
         }
       };
       
@@ -974,6 +1011,8 @@ function Transformations() {
         id: `join-${uuidv4()}`,
         type: 'join',
         position: { x: 350, y: 350 },
+        zIndex: 2,
+        style: { zIndex: 2 },
         data: { 
           label: 'Join Customer Data',
           description: 'Join: INNER JOIN customer_data.csv ON customer = customer_id',
@@ -985,7 +1024,7 @@ function Transformations() {
             rightColumn: 'customer_id'
           },
           onConfigure: () => {},
-          id: `join-${uuidv4()}` // Pass ID to the node data for handle identification
+          nodeType: 'join'
         }
       };
       
@@ -993,6 +1032,8 @@ function Transformations() {
         id: `transform-${uuidv4()}`,
         type: 'transform',
         position: { x: 600, y: 250 },
+        zIndex: 2,
+        style: { zIndex: 2 },
         data: { 
           label: 'Calculate Total',
           description: 'Transform: SUM(amount)',
@@ -1003,7 +1044,7 @@ function Transformations() {
             alias: 'total_amount'
           },
           onConfigure: () => {},
-          id: `transform-${uuidv4()}` // Pass ID to the node data for handle identification
+          nodeType: 'transform'
         }
       };
       
@@ -1011,21 +1052,25 @@ function Transformations() {
         id: `target-${uuidv4()}`,
         type: 'target',
         position: { x: 850, y: 250 },
+        zIndex: 2,
+        style: { zIndex: 2 },
         data: { 
           label: 'Sales Summary Output',
           description: 'Output data warehouse',
           config: { targetFile: 'sales_summary.csv' },
           onConfigure: () => {},
-          id: `target-${uuidv4()}` // Pass ID to the node data for handle identification
+          isTarget: true,
+          nodeType: 'target'
         }
       };
       
       // Add all nodes at once
-      setNodes([sourceNode, filterNode, joinNode, transformNode, targetNode]);
+      const initialNodes = [sourceNode, filterNode, joinNode, transformNode, targetNode];
+      setNodes(initialNodes);
       
       // Create edges after a brief delay to ensure nodes are properly rendered
       setTimeout(() => {
-        // Create connections between nodes (simplified)
+        // Create connections between nodes with improved styling
         const newEdges = [
           { 
             id: `e-${uuidv4()}`, 
@@ -1033,7 +1078,13 @@ function Transformations() {
             target: filterNode.id, 
             type: 'smoothstep', 
             animated: true,
-            markerEnd: { type: MarkerType.ArrowClosed }
+            style: { strokeWidth: 2, stroke: '#4CAF50' },
+            markerEnd: { 
+              type: MarkerType.ArrowClosed,
+              width: 15,
+              height: 15,
+              color: '#4CAF50'
+            }
           },
           { 
             id: `e-${uuidv4()}`, 
@@ -1041,7 +1092,13 @@ function Transformations() {
             target: joinNode.id, 
             type: 'smoothstep', 
             animated: true,
-            markerEnd: { type: MarkerType.ArrowClosed }
+            style: { strokeWidth: 2, stroke: '#2196F3' },
+            markerEnd: { 
+              type: MarkerType.ArrowClosed,
+              width: 15,
+              height: 15,
+              color: '#2196F3'
+            }
           },
           { 
             id: `e-${uuidv4()}`, 
@@ -1049,7 +1106,13 @@ function Transformations() {
             target: transformNode.id, 
             type: 'smoothstep', 
             animated: true,
-            markerEnd: { type: MarkerType.ArrowClosed }
+            style: { strokeWidth: 2, stroke: '#FF9800' },
+            markerEnd: { 
+              type: MarkerType.ArrowClosed,
+              width: 15,
+              height: 15,
+              color: '#FF9800'
+            }
           },
           { 
             id: `e-${uuidv4()}`, 
@@ -1057,7 +1120,13 @@ function Transformations() {
             target: transformNode.id, 
             type: 'smoothstep', 
             animated: true,
-            markerEnd: { type: MarkerType.ArrowClosed }
+            style: { strokeWidth: 2, stroke: '#9C27B0' },
+            markerEnd: { 
+              type: MarkerType.ArrowClosed,
+              width: 15,
+              height: 15,
+              color: '#9C27B0'
+            }
           },
           { 
             id: `e-${uuidv4()}`, 
@@ -1065,7 +1134,13 @@ function Transformations() {
             target: targetNode.id, 
             type: 'smoothstep', 
             animated: true,
-            markerEnd: { type: MarkerType.ArrowClosed }
+            style: { strokeWidth: 2, stroke: '#F44336' },
+            markerEnd: { 
+              type: MarkerType.ArrowClosed,
+              width: 15,
+              height: 15,
+              color: '#F44336'
+            }
           }
         ];
         
@@ -1074,6 +1149,8 @@ function Transformations() {
         // After a brief delay, auto-arrange the layout for optimal visualization
         setTimeout(() => {
           autoArrangeNodes();
+          // Reset the creating flow flag
+          nodeChangeRef.current.isCreatingFlow = false;
         }, 200);
       }, 200);
     }, 100);
@@ -1109,21 +1186,61 @@ function Transformations() {
     };
   }, []);
   
-  // Track node count for position optimization
+  // Track node count and structure for smart position optimization
   const prevNodeCountRef = useRef(0);
+  const nodeChangeRef = useRef({ 
+    lastUpdate: 0, 
+    lastNodeIds: [],
+    isCreatingFlow: false 
+  });
   
-  // Add effect to optimize node positions only when nodes are added
+  // Enhanced effect to optimize node positions only when actually needed
   useEffect(() => {
-    if (nodes.length > 1 && nodes.length > prevNodeCountRef.current) {
-      // Only run position optimization when nodes are added
+    // Skip empty states
+    if (nodes.length === 0) {
+      prevNodeCountRef.current = 0;
+      nodeChangeRef.current.lastNodeIds = [];
+      return;
+    }
+    
+    // Check if nodes were actually added (not just moved or updated)
+    const currentNodeIds = nodes.map(node => node.id).sort();
+    const prevNodeIds = nodeChangeRef.current.lastNodeIds;
+    
+    // Detect if new nodes were added by comparing arrays
+    const nodesAdded = 
+      nodes.length > prevNodeCountRef.current || 
+      (nodes.length > 0 && !arraysEqual(currentNodeIds, prevNodeIds));
+      
+    // Only run position optimization when nodes are added, not on every position change
+    if (nodes.length > 1 && nodesAdded) {
+      console.log('Nodes added/changed, optimizing positions');
       const adjusted = findOptimalPositions(nodes);
       if (adjusted) {
-        setNodes(adjusted);
+        // Apply the changes with a minimal delay to help React batch updates
+        setTimeout(() => {
+          setNodes(adjusted);
+        }, 10);
       }
     }
-    // Update the reference count
+    
+    // Update the tracking references, preserve other properties like isCreatingFlow
     prevNodeCountRef.current = nodes.length;
+    nodeChangeRef.current = {
+      ...nodeChangeRef.current,
+      lastUpdate: Date.now(),
+      lastNodeIds: currentNodeIds
+    };
   }, [nodes, findOptimalPositions, setNodes]);
+  
+  // Helper function to compare arrays for node tracking
+  const arraysEqual = (a, b) => {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  };
 
   const autoArrangeNodes = () => {
     if (nodes.length === 0) return;
@@ -1135,19 +1252,29 @@ function Transformations() {
     const effectiveWidth = canvasWidth || 1600; 
     const effectiveHeight = canvasHeight || 900;
     
-    // Define spacing constants - larger spacing for better visibility
+    // Define spacing constants with improved dynamic sizing
     const nodeWidth = 200;
     const nodeHeight = 100;
-    const horizontalSpacing = Math.max(500, effectiveWidth / 4); // Doubled spacing, scales with canvas width
-    const verticalSpacing = Math.max(300, effectiveHeight / 4); // Increased spacing, scales with canvas height
     
-    // Build a dependency graph of nodes
+    // Calculate spacings based on canvas size and node count for better utilization
+    const horizontalSpacing = Math.min(
+      Math.max(300, effectiveWidth / 4), // Don't make spacing too small
+      Math.max(500, effectiveWidth / (nodes.length > 5 ? 5 : nodes.length)) // Scale with node count
+    );
+    
+    const verticalSpacing = Math.min(
+      Math.max(150, effectiveHeight / 4), // Don't make spacing too small
+      Math.max(250, effectiveHeight / (nodes.length > 3 ? 3 : nodes.length)) // Scale with node count
+    );
+    
+    // Build a dependency graph of nodes with enhanced metadata
     const nodeMap = new Map();
     nodes.forEach((node) => {
       nodeMap.set(node.id, { 
         ...node, 
         inEdges: [], 
         outEdges: [],
+        weight: 0, // For balancing node positioning
         // Store node type for better arrangement
         nodeType: node.type
       });
@@ -1155,58 +1282,116 @@ function Transformations() {
     
     // Build graph relationships based on edges
     edges.forEach(({ source, target }) => {
-      nodeMap.get(source).outEdges.push(target);
-      nodeMap.get(target).inEdges.push(source);
+      const sourceNode = nodeMap.get(source);
+      const targetNode = nodeMap.get(target);
+      
+      if (sourceNode && targetNode) {
+        sourceNode.outEdges.push(target);
+        targetNode.inEdges.push(source);
+        
+        // Increase weight based on connections
+        sourceNode.weight += 1;
+        targetNode.weight += 1;
+      }
     });
     
-    // Calculate levels (depth) for each node using DFS
+    // Calculate levels (depth) for each node using enhanced topological sort
     const levels = new Map(); // nodeId -> level
     const visited = new Set();
+    const visiting = new Set(); // For cycle detection
     
-    function dfs(nodeId, depth = 0) {
-      if (visited.has(nodeId)) return;
-      visited.add(nodeId);
+    // Enhanced DFS with cycle detection and best-path finding
+    function dfs(nodeId, depth = 0, path = []) {
+      // Skip if already fully processed
+      if (visited.has(nodeId)) {
+        // If revisiting a node, consider updating its level to maximize distance from source
+        if (depth > (levels.get(nodeId) || 0)) {
+          levels.set(nodeId, depth);
+        }
+        return true;
+      }
+      
+      // Detect cycles - skip and don't fail
+      if (visiting.has(nodeId)) {
+        return true; // Continue with other paths
+      }
+      
+      // Mark as being visited (for cycle detection)
+      visiting.add(nodeId);
+      path.push(nodeId);
       
       // Set this node's level to the maximum of current and calculated depth
       levels.set(nodeId, Math.max(levels.get(nodeId) || 0, depth));
       
-      // Traverse outgoing edges
-      for (const targetId of nodeMap.get(nodeId).outEdges) {
-        dfs(targetId, depth + 1);
+      // Traverse outgoing edges in a consistent order
+      const outEdges = [...nodeMap.get(nodeId).outEdges];
+      
+      // Sort outgoing edges by target node type for better flow
+      // Sources → transforms/filters/joins → targets
+      outEdges.sort((a, b) => {
+        const nodeA = nodeMap.get(a);
+        const nodeB = nodeMap.get(b);
+        
+        if (!nodeA || !nodeB) return 0;
+        
+        if (nodeA.type === 'target' && nodeB.type !== 'target') return 1;
+        if (nodeA.type !== 'target' && nodeB.type === 'target') return -1;
+        
+        return nodeA.weight - nodeB.weight; // Process higher weight nodes first
+      });
+      
+      // Process all outgoing edges
+      let allSuccessful = true;
+      for (const targetId of outEdges) {
+        if (!dfs(targetId, depth + 1, [...path])) {
+          allSuccessful = false;
+        }
       }
+      
+      // Mark as fully visited
+      visited.add(nodeId);
+      visiting.delete(nodeId); // Remove from visiting set
+      
+      return allSuccessful;
     }
     
-    // Start DFS from source nodes (nodes with no incoming edges or source type)
-    // This ensures proper left-to-right flow
-    nodes.forEach((node) => {
-      const nodeData = nodeMap.get(node.id);
-      if (nodeData.inEdges.length === 0 || node.type === 'source') {
-        // If it's a source node or has no incoming edges, start DFS from here
-        dfs(node.id);
-      }
+    // Find start nodes: prioritize source nodes, then nodes with no incoming edges
+    const startNodes = nodes
+      .filter(node => node.type === 'source' || nodeMap.get(node.id).inEdges.length === 0)
+      .map(node => node.id);
+    
+    // If no clear start nodes, use any node as a starting point
+    if (startNodes.length === 0 && nodes.length > 0) {
+      startNodes.push(nodes[0].id);
+    }
+    
+    // Run DFS from each start node
+    startNodes.forEach(nodeId => {
+      dfs(nodeId);
     });
     
-    // If there are nodes not visited (isolated), default to level 0
+    // Handle isolated nodes and special node types not covered by DFS
     nodes.forEach(node => {
       if (!levels.has(node.id)) {
-        // Favor specific node types for positioning:
-        // - Source nodes: far left (level 0)
-        // - Target nodes: far right (max level + 1)
-        // - Other nodes: intermediate (level 1)
+        // Apply special positioning logic based on node type
         if (node.type === 'source') {
-          levels.set(node.id, 0);
+          levels.set(node.id, 0); // Sources always at level 0
         } else if (node.type === 'target') {
           // Find max level and place target nodes one level further
           const levelValues = Array.from(levels.values());
           const maxLevel = levelValues.length > 0 ? Math.max(...levelValues) + 1 : 1;
           levels.set(node.id, maxLevel);
+        } else if (node.type === 'join' || node.type === 'aggregate') {
+          // Joins and aggregates tend to be in the middle of the flow
+          levels.set(node.id, 1); 
         } else {
-          levels.set(node.id, 1); // Default intermediate level
+          // Default: place at level 1
+          levels.set(node.id, 1);
         }
       }
     });
     
-    // Calculate vertical positions within each level
+    // Group nodes by level for vertical arrangement
     const levelGroups = new Map(); // level -> array of node IDs
     
     // Group nodes by level
@@ -1220,59 +1405,89 @@ function Transformations() {
     // Calculate positions based on levels and vertical index
     const newPositions = {};
     
-    // Find the maximum level
+    // Find the maximum level for scaling
     const levelValues = Array.from(levels.values());
     const maxLevel = levelValues.length > 0 ? Math.max(...levelValues) : 0;
     
-    // Process each level
+    // Scale horizontally to fit all levels
+    const horizScale = maxLevel > 0 ? 
+      Math.min(horizontalSpacing, (effectiveWidth - 300) / (maxLevel + 1)) : 
+      horizontalSpacing;
+    
+    // Process each level - improved sorting and positioning
     for (const [level, nodeIds] of levelGroups.entries()) {
-      // Sort nodes within level by type (source first, target last)
+      // Enhanced sort within level:
+      // 1. First by node type (source first, transforms in middle, target last)
+      // 2. Then by connection weight (more connected nodes centered)
+      // 3. Consider input/output connection patterns
       nodeIds.sort((a, b) => {
         const nodeA = nodeMap.get(a);
         const nodeB = nodeMap.get(b);
         
-        // Source nodes should be first
-        if (nodeA.nodeType === 'source') return -1;
-        if (nodeB.nodeType === 'source') return 1;
+        if (!nodeA || !nodeB) return 0;
         
-        // Target nodes should be last
-        if (nodeA.nodeType === 'target') return 1;
-        if (nodeB.nodeType === 'target') return -1;
+        // First priority: node type
+        if (nodeA.type === 'source' && nodeB.type !== 'source') return -1;
+        if (nodeA.type !== 'source' && nodeB.type === 'source') return 1;
+        if (nodeA.type === 'target' && nodeB.type !== 'target') return 1;
+        if (nodeA.type !== 'target' && nodeB.type === 'target') return -1;
         
-        return 0;
+        // Second priority: examine connection patterns
+        // Nodes with many connections should be more centered
+        return nodeB.weight - nodeA.weight;
       });
       
-      // Calculate vertical positions for nodes at this level
+      // Apply vertical distribution - use multiple columns if many nodes at one level
       const levelNodeCount = nodeIds.length;
-      const totalHeight = (levelNodeCount - 1) * verticalSpacing;
       
-      // Center vertically within the canvas
-      const startY = Math.max(50, (effectiveHeight - totalHeight) / 2);
+      // If many nodes at one level, create a balanced grid
+      const maxNodesInColumn = Math.ceil(Math.sqrt(levelNodeCount));
+      const columns = Math.ceil(levelNodeCount / maxNodesInColumn);
       
       // Position each node within its level
       nodeIds.forEach((nodeId, index) => {
-        // Calculate the x position: space nodes horizontally across the canvas width
-        // Use the full available width with better distribution
-        // More aggressive horizontal spacing to utilize wider canvas
-        // Make sure we're using the actual canvas width for calculation
-        const xPos = 150 + (level * horizontalSpacing);
+        // Determine column and position within column
+        const column = Math.floor(index / maxNodesInColumn);
+        const posInColumn = index % maxNodesInColumn;
         
-        // Adjust vertical position - use vertical spacing to create rows
-        const yPos = startY + (index * verticalSpacing);
+        // Total nodes in this column
+        const nodesInThisColumn = Math.min(
+          maxNodesInColumn,
+          levelNodeCount - column * maxNodesInColumn
+        );
         
+        // Calculate the x position with level and column offset
+        const xPos = 150 + (level * horizScale) + (column * 220);
+        
+        // Calculate vertical distribution to center nodes in their column
+        const columnHeight = (nodesInThisColumn - 1) * verticalSpacing;
+        const startY = Math.max(50, (effectiveHeight - columnHeight) / 2);
+        const yPos = startY + (posInColumn * verticalSpacing);
+        
+        // Store the new position
         newPositions[nodeId] = { x: xPos, y: yPos };
         console.log(`Node ${nodeId} position:`, { x: xPos, y: yPos }, 
                     `Canvas size: ${effectiveWidth}x${effectiveHeight}`);
       });
     }
     
-    // Apply new positions to nodes
+    // Apply new positions to nodes with a smooth transition
     const updatedNodes = nodes.map(node => ({
       ...node,
+      // Apply new position if available, otherwise keep current position
       position: newPositions[node.id] || node.position
     }));
     
+    // Update nodes with the new positions
     setNodes(updatedNodes);
+    
+    // Apply findOptimalPositions as a final pass to clean up any remaining overlaps
+    setTimeout(() => {
+      const adjusted = findOptimalPositions(updatedNodes);
+      if (adjusted) {
+        setNodes(adjusted);
+      }
+    }, 50);
   };
 
   // Render configuration form based on node type
