@@ -545,3 +545,57 @@
 .transform-badge svg {
   margin-right: 4px;
 }
+
+/* New styles for sections and transformations */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  margin-top: 30px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-color);
+}
+
+.transformations-header {
+  margin-top: 40px;
+}
+
+.transformation-card {
+  border-left: 3px solid var(--primary-color);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.draft {
+  background-color: rgba(189, 195, 199, 0.2);
+  color: #7f8c8d;
+}
+
+.status-badge.active {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #27ae60;
+}
+
+.status-badge.paused {
+  background-color: rgba(241, 196, 15, 0.2);
+  color: #f39c12;
+}
+
+.status-badge.error {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: #c0392b;
+}

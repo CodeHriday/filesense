@@ -10,6 +10,9 @@ import ReactFlow, {
   MiniMap,
   ConnectionLineType,
 } from 'reactflow';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import 'reactflow/dist/style.css';
 import '../styles/Transformations.css';
 import { 
@@ -27,7 +30,9 @@ import {
   FiX,
   FiSliders,
   FiBarChart2,
-  FiEdit
+  FiEdit,
+  FiArrowLeft,
+  FiCheck
 } from 'react-icons/fi';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../context/ToastContext';
@@ -560,6 +565,8 @@ const NODE_TYPES = {
 
 function Transformations() {
   const { showToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -572,6 +579,108 @@ function Transformations() {
   const [isDragging, setIsDragging] = useState(false);
   // Store the base distance between nodes for spacing
   const nodeBaseDistance = { x: 250, y: 120 };
+  
+  // State for loading and transformation details
+  const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [transformationId, setTransformationId] = useState(null);
+  const [transformationData, setTransformationData] = useState(null);
+  
+  // Use the URL query params to determine if we're editing or viewing a transformation
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const isEditing = params.get('edit') === 'true';
+    const isNew = params.get('new') === 'true';
+    
+    if (id) {
+      setTransformationId(id);
+      setEditing(isEditing);
+      fetchTransformation(id);
+    } else if (isNew) {
+      // Create a new transformation
+      setTransformationName('New Transformation');
+      setEditing(true);
+    }
+  }, [location.search]);
+  
+  // Fetch transformation details
+  const fetchTransformation = async (id) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/transformations/${id}`);
+      setTransformationData(response.data);
+      setTransformationName(response.data.name);
+      
+      if (response.data.flow_data) {
+        // Load the nodes and edges from the saved transformation
+        const flowData = JSON.parse(response.data.flow_data);
+        if (flowData.nodes) setNodes(flowData.nodes);
+        if (flowData.edges) setEdges(flowData.edges);
+      }
+    } catch (error) {
+      console.error('Error fetching transformation:', error);
+      showToast('error', 'Failed to load transformation. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handler to save the transformation
+  const saveTransformation = async () => {
+    if (!transformationName.trim()) {
+      showToast('error', 'Please provide a name for the transformation.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const flowData = JSON.stringify({
+        nodes,
+        edges
+      });
+      
+      const transformationPayload = {
+        name: transformationName,
+        flow_data: flowData,
+        status: 'draft',
+        sourceCount: nodes.filter(node => node.type === 'source').length,
+        targetCount: nodes.filter(node => node.type === 'target').length,
+        transformationCount: nodes.filter(node => !['source', 'target'].includes(node.type)).length
+      };
+      
+      let response;
+      if (transformationId) {
+        // Update existing transformation
+        response = await axios.put(
+          `${API_BASE_URL}/api/transformations/${transformationId}`,
+          transformationPayload
+        );
+        showToast('success', 'Transformation updated successfully!');
+      } else {
+        // Create new transformation
+        response = await axios.post(
+          `${API_BASE_URL}/api/transformations`,
+          transformationPayload
+        );
+        setTransformationId(response.data.id);
+        showToast('success', 'Transformation created successfully!');
+      }
+      
+      setTransformationData(response.data);
+      setEditing(false);
+    } catch (error) {
+      console.error('Error saving transformation:', error);
+      showToast('error', 'Failed to save transformation. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handler to return to mappings page
+  const handleBackToMappings = () => {
+    navigate('/mappings');
+  };
 
   // Reference to available files (simulated data for now)
   const [files, setFiles] = useState([
@@ -1835,42 +1944,54 @@ function Transformations() {
     }
   };
 
-  // Save the transformation
-  const saveTransformation = () => {
-    if (nodes.length === 0) {
-      showToast('warning', 'Cannot save an empty transformation. Add at least one node.');
-      return;
-    }
-    
-    // In a real implementation, this would save to the backend
-    showToast('success', `Transformation "${transformationName}" saved successfully!`);
-  };
+  // This is now handled by the saveTransformation function defined earlier
 
   return (
     <div className="transformations-page">
       <div className="transformations-header">
-        <h1 className="transformations-title">
-          <input
-            type="text"
-            value={transformationName}
-            onChange={(e) => setTransformationName(e.target.value)}
-            className="inline-edit-title"
-            style={{
-              fontSize: 'inherit',
-              fontWeight: 'inherit',
-              color: 'inherit',
-              border: 'none',
-              background: 'transparent',
-              width: '400px',
-              padding: '5px',
-              borderBottom: '1px dashed #ccc'
-            }}
-          />
-        </h1>
-        <div className="transformations-actions">
-          <button className="btn btn-primary" onClick={saveTransformation}>
-            <FiSave className="icon-left" /> Save Transformation
+        <div className="transformations-header-left">
+          <button 
+            className="btn btn-text" 
+            onClick={handleBackToMappings}
+            title="Back to Mappings"
+          >
+            <FiArrowLeft className="icon-left" /> Back
           </button>
+          <h1 className="transformations-title">
+            {editing ? (
+              <input
+                type="text"
+                value={transformationName}
+                onChange={(e) => setTransformationName(e.target.value)}
+                className="inline-edit-title"
+                style={{
+                  fontSize: 'inherit',
+                  fontWeight: 'inherit',
+                  color: 'inherit',
+                  border: 'none',
+                  background: 'transparent',
+                  width: '400px',
+                  padding: '5px',
+                  borderBottom: '1px dashed #ccc'
+                }}
+              />
+            ) : (
+              <span>{transformationName}</span>
+            )}
+          </h1>
+        </div>
+        <div className="transformations-actions">
+          {loading ? (
+            <div className="loading-indicator">Loading...</div>
+          ) : editing ? (
+            <button className="btn btn-primary" onClick={saveTransformation}>
+              <FiSave className="icon-left" /> Save Transformation
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={() => setEditing(true)}>
+              <FiEdit className="icon-left" /> Edit Transformation
+            </button>
+          )}
         </div>
       </div>
       
