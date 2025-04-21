@@ -219,8 +219,8 @@ function Transformations() {
   // Reference to available files (simulated data for now)
   const [files, setFiles] = useState([
     { file_id: 'file_1', filename: 'sales_data.csv', columns: ['id', 'date', 'product', 'amount', 'customer'] },
-    { file_id: 'file_2', filename: 'customer_data.csv', columns: ['customer_id', 'name', 'email', 'region'] },
-    { file_id: 'file_3', filename: 'product_data.csv', columns: ['product_id', 'name', 'category', 'price'] },
+    { file_id: 'file_2', filename: 'customer_data.csv', columns: ['customer_id', 'customer_name', 'email', 'region'] },
+    { file_id: 'file_3', filename: 'product_data.csv', columns: ['product_id', 'product_name', 'category', 'price'] },
   ]);
 
   // Function to add a new component to the canvas
