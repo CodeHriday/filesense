@@ -409,3 +409,32 @@
   cursor: grabbing !important; /* Change cursor while actively dragging */
   z-index: 3000 !important; /* Extra high z-index when being dragged */
 }
+
+/* Style for the body when a node is being dragged */
+body.node-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+/* Make sure the node remains visible during drag */
+.react-flow__node.dragging {
+  opacity: 0.8;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3) !important;
+  z-index: 5000 !important;
+}
+
+/* Improved handle styles for better connection points */
+.react-flow__handle {
+  background: #4a87f8;
+  width: 10px;
+  height: 10px;
+  border: 2px solid white;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.1s ease;
+}
+
+.react-flow__handle:hover {
+  width: 14px;
+  height: 14px;
+  transform: translate(-2px, -2px);
+}

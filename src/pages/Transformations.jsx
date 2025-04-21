@@ -215,6 +215,11 @@ function Transformations() {
   const [nodeConfig, setNodeConfig] = useState({});
   const [showConfig, setShowConfig] = useState(false);
   const [transformationName, setTransformationName] = useState('New Transformation');
+  
+  // Track if dragging is happening
+  const [isDragging, setIsDragging] = useState(false);
+  // Store the base distance between nodes for spacing
+  const nodeBaseDistance = { x: 250, y: 120 };
 
   // Reference to available files (simulated data for now)
   const [files, setFiles] = useState([
@@ -459,6 +464,115 @@ function Transformations() {
     
     setNodes(updatedNodes);
     setShowConfig(false);
+  };
+
+  // Function to find optimal positions for nodes to avoid overlaps
+  const findOptimalPositions = (currentNodes) => {
+    if (!currentNodes || currentNodes.length <= 1) return null;
+    
+    // Define node dimensions and padding 
+    const nodeWidth = 180;
+    const nodeHeight = 100;
+    const padding = 20; // Increased padding for more space between nodes
+    
+    // Track which nodes need adjustment
+    let needsAdjustment = false;
+    
+    // Create a copy of the nodes array to work with
+    const newNodes = [...currentNodes];
+    
+    // Check for overlaps and adjust positions
+    // We'll use a simple greedy approach for now - check each node against all others
+    for (let i = 0; i < newNodes.length; i++) {
+      for (let j = i + 1; j < newNodes.length; j++) {
+        const node1 = newNodes[i];
+        const node2 = newNodes[j];
+        
+        // Calculate boundaries
+        const n1Left = node1.position.x;
+        const n1Right = node1.position.x + nodeWidth;
+        const n1Top = node1.position.y;
+        const n1Bottom = node1.position.y + nodeHeight;
+        
+        const n2Left = node2.position.x;
+        const n2Right = node2.position.x + nodeWidth;
+        const n2Top = node2.position.y;
+        const n2Bottom = node2.position.y + nodeHeight;
+        
+        // Check for overlap
+        if (
+          n1Left < n2Right + padding &&
+          n1Right + padding > n2Left &&
+          n1Top < n2Bottom + padding &&
+          n1Bottom + padding > n2Top
+        ) {
+          needsAdjustment = true;
+          
+          // Calculate overlap amount in each direction
+          const overlapLeft = n2Right + padding - n1Left;
+          const overlapRight = n1Right + padding - n2Left;
+          const overlapTop = n2Bottom + padding - n1Top;
+          const overlapBottom = n1Bottom + padding - n2Top;
+          
+          // Find the smallest overlap direction
+          const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+          
+          // Move the second node in the direction of least overlap
+          // We're moving the second node because it's likely the one that was most recently added
+          if (minOverlap === overlapLeft) {
+            newNodes[j] = {
+              ...node2,
+              position: {
+                ...node2.position,
+                x: node2.position.x + overlapLeft
+              }
+            };
+          } else if (minOverlap === overlapRight) {
+            newNodes[j] = {
+              ...node2,
+              position: {
+                ...node2.position,
+                x: node2.position.x - overlapRight
+              }
+            };
+          } else if (minOverlap === overlapTop) {
+            newNodes[j] = {
+              ...node2,
+              position: {
+                ...node2.position,
+                y: node2.position.y + overlapTop
+              }
+            };
+          } else {
+            newNodes[j] = {
+              ...node2,
+              position: {
+                ...node2.position,
+                y: node2.position.y - overlapBottom
+              }
+            };
+          }
+        }
+      }
+    }
+    
+    // Apply grid snapping to all adjusted nodes
+    if (needsAdjustment) {
+      for (let i = 0; i < newNodes.length; i++) {
+        const node = newNodes[i];
+        const gridSize = 20;
+        newNodes[i] = {
+          ...node,
+          position: {
+            x: Math.round(node.position.x / gridSize) * gridSize,
+            y: Math.round(node.position.y / gridSize) * gridSize
+          }
+        };
+      }
+      return newNodes;
+    }
+    
+    return null; // No adjustments needed
   };
 
   // Auto-arrange nodes in a logical layout using topological sort
@@ -1058,8 +1172,13 @@ function Transformations() {
               onNodeClick={onNodeClick}
               nodeTypes={NODE_TYPES}
               nodesDraggable={true}
+              draggable={true}
               snapToGrid={true}
               snapGrid={[20, 20]}
+              selectNodesOnDrag={false}
+              elementsSelectable={true}
+              nodesConnectable={true}
+              nodesFocusable={true}
               fitView
               connectionLineType={ConnectionLineType.SmoothStep}
               defaultEdgeOptions={{
@@ -1073,6 +1192,28 @@ function Transformations() {
               panOnDrag={true}
               minZoom={0.5}
               maxZoom={2}
+              onNodeDragStart={(event, node) => {
+                console.log('Node drag start:', node.id);
+                setIsDragging(true);
+                // Add a CSS class to the document body to disable text selection during drag
+                document.body.classList.add('node-dragging');
+              }}
+              onNodeDrag={(event, node) => {
+                // Log position for debugging
+                console.log(`Node ${node.id} position:`, node.position);
+              }}
+              onNodeDragStop={(event, node) => {
+                console.log('Node drag stop:', node.id);
+                setIsDragging(false);
+                document.body.classList.remove('node-dragging');
+                
+                // After dragging stops, ensure nodes don't overlap
+                // by adjusting positions if needed
+                const adjustedNodes = findOptimalPositions(nodes);
+                if (adjustedNodes) {
+                  setNodes(adjustedNodes);
+                }
+              }}
             >
               <Controls />
               <Background color="#aaa" gap={16} />
