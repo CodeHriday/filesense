@@ -56,6 +56,14 @@ const SourceNode = React.memo(({ data }) => {
           </div>
         )}
       </div>
+      {/* Adding explicit handle for connections */}
+      <div 
+        className="react-flow__handle react-flow__handle-right" 
+        style={{ right: '-8px', top: '50%', transform: 'translateY(-50%)' }}
+        data-handleid="right"
+        data-nodeid={data.id}
+        data-handlepos="right"
+      />
     </div>
   );
 });
@@ -572,40 +580,47 @@ function Transformations() {
   };
 
   // Auto-arrange nodes in a logical layout using topological sort
-  // Create a sample ETL flow with 5 nodes
+  // Create a simple sample ETL flow
   const createSampleETLFlow = () => {
-    // Create 5 nodes with proper spacing
-    const sampleNodes = [
-      {
+    // We'll use regular node positions and then auto-arrange them for better visualization
+    // First clear any existing nodes
+    setNodes([]);
+    setEdges([]);
+    
+    // Give it a brief moment to clear before adding new nodes
+    setTimeout(() => {
+      // Create nodes with evenly distributed positions
+      const sourceNode = {
         id: `source-${uuidv4()}`,
         type: 'source',
-        position: { x: 100, y: 150 },
+        position: { x: 100, y: 250 },
         data: { 
           label: 'Sales Data Source',
           description: 'CSV input data source',
           config: { sourceFile: 'sales_data.csv' },
-          onConfigure: () => {} 
-        },
-        sourcePosition: 'right',
-      },
-      {
+          onConfigure: () => {},
+          id: `source-${uuidv4()}` // Pass ID to the node data for handle identification
+        }
+      };
+      
+      const filterNode = {
         id: `filter-${uuidv4()}`,
         type: 'filter',
-        position: { x: 350, y: 50 },
+        position: { x: 350, y: 150 },
         data: { 
           label: 'Filter Transactions',
           description: 'Filter: amount > 1000',
           condition: 'amount > 1000',
           config: { column: 'amount', operator: '>', value: '1000' },
-          onConfigure: () => {} 
-        },
-        sourcePosition: 'right',
-        targetPosition: 'left',
-      },
-      {
+          onConfigure: () => {},
+          id: `filter-${uuidv4()}` // Pass ID to the node data for handle identification
+        }
+      };
+      
+      const joinNode = {
         id: `join-${uuidv4()}`,
         type: 'join',
-        position: { x: 350, y: 200 },
+        position: { x: 350, y: 350 },
         data: { 
           label: 'Join Customer Data',
           description: 'Join: INNER JOIN customer_data.csv ON customer = customer_id',
@@ -616,15 +631,15 @@ function Transformations() {
             leftColumn: 'customer',
             rightColumn: 'customer_id'
           },
-          onConfigure: () => {} 
-        },
-        sourcePosition: 'right',
-        targetPosition: 'left',
-      },
-      {
+          onConfigure: () => {},
+          id: `join-${uuidv4()}` // Pass ID to the node data for handle identification
+        }
+      };
+      
+      const transformNode = {
         id: `transform-${uuidv4()}`,
         type: 'transform',
-        position: { x: 600, y: 150 },
+        position: { x: 600, y: 250 },
         data: { 
           label: 'Calculate Total',
           description: 'Transform: SUM(amount)',
@@ -634,97 +649,81 @@ function Transformations() {
             column: 'amount',
             alias: 'total_amount'
           },
-          onConfigure: () => {} 
-        },
-        sourcePosition: 'right',
-        targetPosition: 'left',
-      },
-      {
+          onConfigure: () => {},
+          id: `transform-${uuidv4()}` // Pass ID to the node data for handle identification
+        }
+      };
+      
+      const targetNode = {
         id: `target-${uuidv4()}`,
         type: 'target',
-        position: { x: 850, y: 150 },
+        position: { x: 850, y: 250 },
         data: { 
           label: 'Sales Summary Output',
           description: 'Output data warehouse',
           config: { targetFile: 'sales_summary.csv' },
-          onConfigure: () => {} 
-        },
-        targetPosition: 'left',
-      }
-    ];
-    
-    // Create edges connecting the nodes
-    const sourceId = sampleNodes[0].id;
-    const filterId = sampleNodes[1].id;
-    const joinId = sampleNodes[2].id;
-    const transformId = sampleNodes[3].id;
-    const targetId = sampleNodes[4].id;
-    
-    const sampleEdges = [
-      {
-        id: `e-${uuidv4()}`,
-        source: sourceId,
-        target: filterId,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-        },
-      },
-      {
-        id: `e-${uuidv4()}`,
-        source: sourceId,
-        target: joinId,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-        },
-      },
-      {
-        id: `e-${uuidv4()}`,
-        source: filterId,
-        target: transformId,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-        },
-      },
-      {
-        id: `e-${uuidv4()}`,
-        source: joinId,
-        target: transformId,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-        },
-      },
-      {
-        id: `e-${uuidv4()}`,
-        source: transformId,
-        target: targetId,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-        },
-      }
-    ];
-    
-    setNodes(sampleNodes);
-    setEdges(sampleEdges);
+          onConfigure: () => {},
+          id: `target-${uuidv4()}` // Pass ID to the node data for handle identification
+        }
+      };
+      
+      // Add all nodes at once
+      setNodes([sourceNode, filterNode, joinNode, transformNode, targetNode]);
+      
+      // Create edges after a brief delay to ensure nodes are properly rendered
+      setTimeout(() => {
+        // Create connections between nodes (simplified)
+        const newEdges = [
+          { 
+            id: `e-${uuidv4()}`, 
+            source: sourceNode.id, 
+            target: filterNode.id, 
+            type: 'smoothstep', 
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed }
+          },
+          { 
+            id: `e-${uuidv4()}`, 
+            source: sourceNode.id, 
+            target: joinNode.id, 
+            type: 'smoothstep', 
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed }
+          },
+          { 
+            id: `e-${uuidv4()}`, 
+            source: filterNode.id, 
+            target: transformNode.id, 
+            type: 'smoothstep', 
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed }
+          },
+          { 
+            id: `e-${uuidv4()}`, 
+            source: joinNode.id, 
+            target: transformNode.id, 
+            type: 'smoothstep', 
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed }
+          },
+          { 
+            id: `e-${uuidv4()}`, 
+            source: transformNode.id, 
+            target: targetNode.id, 
+            type: 'smoothstep', 
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed }
+          }
+        ];
+        
+        setEdges(newEdges);
+        
+        // After a brief delay, auto-arrange the layout for optimal visualization
+        setTimeout(() => {
+          autoArrangeNodes();
+        }, 200);
+      }, 200);
+    }, 100);
   };
 
   const autoArrangeNodes = () => {
