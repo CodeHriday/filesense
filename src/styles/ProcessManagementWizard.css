@@ -818,6 +818,107 @@
   margin-right: 4px;
 }
 
+/* Mapping/Transformation Selection Step */
+.mapping-transformation-step {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mapping-transformation-step h2 {
+  margin-bottom: 20px;
+  color: #334155;
+  font-size: 1.25rem;
+}
+
+.selection-tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 1rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button.active {
+  border-bottom-color: #3b82f6;
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.tab-button:hover {
+  color: #334155;
+}
+
+.items-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.items-list .item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.items-list .item:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.items-list .item.selected {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.items-list .item-icon {
+  font-size: 1.5rem;
+  margin-right: 15px;
+  color: #3b82f6;
+}
+
+.items-list .item-details h4 {
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+  color: #334155;
+}
+
+.items-list .item-details p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.no-items {
+  padding: 30px;
+  text-align: center;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+}
+
+.no-items p {
+  margin-bottom: 15px;
+  color: #64748b;
+}
+
 /* For mobile responsiveness */
 @media (max-width: 768px) {
   .form-row {
@@ -844,5 +945,16 @@
   
   .transform-tool {
     min-width: 80px;
+  }
+  
+  .selection-tabs {
+    flex-direction: column;
+    border-bottom: none;
+  }
+  
+  .tab-button {
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    margin-bottom: 8px;
   }
 }

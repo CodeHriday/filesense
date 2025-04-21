@@ -56,6 +56,13 @@ const ProcessManagementWizard = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
+  // Step 4: Mapping/Transformation Selection
+  const [selectedMapping, setSelectedMapping] = useState(null);
+  const [mappings, setMappings] = useState([]);
+  const [selectedTransformation, setSelectedTransformation] = useState(null);
+  const [transformations, setTransformations] = useState([]);
+  const [showMappingsTab, setShowMappingsTab] = useState(true);
+  
   // Step 1: Create Group
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -188,6 +195,34 @@ const ProcessManagementWizard = () => {
     }
   };
   
+  // Fetch mappings and transformations for step 4
+  const fetchMappingsAndTransformations = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch mappings
+      const mappingsRes = await axios.get(`${API_BASE_URL}/api/mappings`);
+      setMappings(mappingsRes.data || []);
+      
+      // Fetch transformations
+      const transformationsRes = await axios.get(`${API_BASE_URL}/api/transformations`);
+      setTransformations(transformationsRes.data || []);
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching mappings and transformations:', err);
+      setError('Failed to load mappings and transformations. Please try again.');
+      setLoading(false);
+    }
+  };
+  
+  // Load mappings and transformations when step 4 becomes active
+  useEffect(() => {
+    if (currentStep === 4) {
+      fetchMappingsAndTransformations();
+    }
+  }, [currentStep]);
+  
   // Handle step navigation
   const goToNextStep = () => {
     // Validate current step before proceeding
@@ -217,15 +252,9 @@ const ProcessManagementWizard = () => {
         return selectedBusinessProcess || (newProcessName.trim() !== '');
       case 3: // Job creation
         return jobName.trim() !== '';
-      case 4: // Connections
-        return sourceConnection !== null;
-      case 5: // Column mapping
-        return true; // Always valid for now
-      case 6: // Transformations
-        return true; // Always valid, as transformations are optional
-      case 7: // Target columns
-        return true; // Always valid for now
-      case 8: // Scheduling
+      case 4: // Mapping/Transformation selection
+        return selectedMapping || selectedTransformation; // Require either a mapping or transformation to be selected
+      case 5: // Scheduling
         if (scheduleType === 'one-time') {
           return scheduleDate && scheduleTime;
         } else if (scheduleType === 'recurring') {
@@ -235,6 +264,19 @@ const ProcessManagementWizard = () => {
       default:
         return true;
     }
+  };
+  
+  // Step 4: Mapping/Transformation handlers
+  const handleMappingSelection = (mappingId) => {
+    const selected = mappings.find(mapping => mapping.id === mappingId);
+    setSelectedMapping(selected);
+    setSelectedTransformation(null);
+  };
+  
+  const handleTransformationSelection = (transformationId) => {
+    const selected = transformations.find(transformation => transformation.id === transformationId);
+    setSelectedTransformation(selected);
+    setSelectedMapping(null);
   };
   
   // Step 1: Group functions
@@ -2703,14 +2745,8 @@ const ProcessManagementWizard = () => {
       case 3:
         return renderJobStep();
       case 4:
-        return renderConnectionsStep();
+        return renderMappingTransformationStep();
       case 5:
-        return renderColumnMappingStep();
-      case 6:
-        return renderTransformationsStep();
-      case 7:
-        return renderTargetColumnsStep();
-      case 8:
         return renderSchedulingStep();
       default:
         return null;
@@ -2719,7 +2755,7 @@ const ProcessManagementWizard = () => {
   
   // Handle final submission
   const handleFinalSubmit = () => {
-    if (currentStep === 8) {
+    if (currentStep === 5) {
       createSchedule();
     } else if (currentStep === 3) {
       createJob();
@@ -2738,14 +2774,8 @@ const ProcessManagementWizard = () => {
       case 3:
         return <FiSettings />;
       case 4:
-        return <FiDatabase />;
+        return <FiLayers />;
       case 5:
-        return <FiLink />;
-      case 6:
-        return <FiCode />;
-      case 7:
-        return <FiTable />;
-      case 8:
         return <FiCalendar />;
       default:
         return null;
@@ -2757,7 +2787,7 @@ const ProcessManagementWizard = () => {
       <div className="wizard-header">
         <h1>Process Management Wizard</h1>
         <div className="wizard-breadcrumbs">
-          {Array.from({ length: 8 }, (_, i) => i + 1).map(step => (
+          {Array.from({ length: 5 }, (_, i) => i + 1).map(step => (
             <div 
               key={step}
               className={`breadcrumb-item ${currentStep === step ? 'active' : ''} ${currentStep > step ? 'completed' : ''}`}
@@ -2770,11 +2800,8 @@ const ProcessManagementWizard = () => {
                 {step === 1 && 'Group'}
                 {step === 2 && 'Process'}
                 {step === 3 && 'Job'}
-                {step === 4 && 'Source/Target'}
-                {step === 5 && 'Mapping'}
-                {step === 6 && 'Transform'}
-                {step === 7 && 'Columns'}
-                {step === 8 && 'Schedule'}
+                {step === 4 && 'Mapping/Transformation'}
+                {step === 5 && 'Schedule'}
               </div>
             </div>
           ))}
@@ -2812,7 +2839,7 @@ const ProcessManagementWizard = () => {
         >
           {loading ? (
             'Loading...'
-          ) : currentStep === 8 ? (
+          ) : currentStep === 5 ? (
             <>
               <FiSave /> Finish
             </>
@@ -2830,5 +2857,7 @@ const ProcessManagementWizard = () => {
     </div>
   );
 };
+
+
 
 export default ProcessManagementWizard;
