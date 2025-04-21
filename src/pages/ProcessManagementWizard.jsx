@@ -2626,6 +2626,104 @@ const ProcessManagementWizard = () => {
     </div>
   );
   
+  // Render step 4 - Mapping/Transformation Selection
+  const renderMappingTransformationStep = () => {
+    return (
+      <div className="mapping-transformation-step">
+        <h2>Select Mapping or Transformation</h2>
+        
+        {error && (
+          <div className="alert alert-danger">
+            <FiAlertTriangle /> {error}
+          </div>
+        )}
+        
+        <div className="selection-tabs">
+          <button 
+            className={`tab-button ${showMappingsTab ? 'active' : ''}`}
+            onClick={() => setShowMappingsTab(true)}
+          >
+            Mappings
+          </button>
+          <button 
+            className={`tab-button ${!showMappingsTab ? 'active' : ''}`}
+            onClick={() => setShowMappingsTab(false)}
+          >
+            Transformations
+          </button>
+        </div>
+        
+        {showMappingsTab ? (
+          <div className="mappings-list">
+            <h3>Available Mappings</h3>
+            {loading ? (
+              <p>Loading mappings...</p>
+            ) : mappings.length === 0 ? (
+              <div className="no-items">
+                <p>No mappings available. Create a mapping first.</p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => navigate('/mappings')}
+                >
+                  Create Mapping
+                </button>
+              </div>
+            ) : (
+              <ul className="items-list">
+                {mappings.map(mapping => (
+                  <li 
+                    key={mapping.id}
+                    className={`item ${selectedMapping?.id === mapping.id ? 'selected' : ''}`}
+                    onClick={() => handleMappingSelection(mapping.id)}
+                  >
+                    <FiLink className="item-icon" />
+                    <div className="item-details">
+                      <h4>{mapping.name}</h4>
+                      <p>{mapping.description || 'No description'}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <div className="transformations-list">
+            <h3>Available Transformations</h3>
+            {loading ? (
+              <p>Loading transformations...</p>
+            ) : transformations.length === 0 ? (
+              <div className="no-items">
+                <p>No transformations available. Create a transformation first.</p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => navigate('/transformations')}
+                >
+                  Create Transformation
+                </button>
+              </div>
+            ) : (
+              <ul className="items-list">
+                {transformations.map(transformation => (
+                  <li 
+                    key={transformation.id}
+                    className={`item ${selectedTransformation?.id === transformation.id ? 'selected' : ''}`}
+                    onClick={() => handleTransformationSelection(transformation.id)}
+                  >
+                    <FiLayers className="item-icon" />
+                    <div className="item-details">
+                      <h4>{transformation.name}</h4>
+                      <p>{transformation.description || 'No description'}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSchedulingStep = () => (
     <div className="step-container">
       <h3>Step 8: Schedule Job</h3>
