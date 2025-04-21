@@ -215,6 +215,51 @@ function Sidebar() {
               </li>
             )}
             
+            {/* Business Process Management section */}
+            <li className="nav-divider">
+              <span>Process Management</span>
+            </li>
+            
+            {/* Groups */}
+            <li>
+              <NavLink to="/groups" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiUsers className="icon" />
+                <span>Groups</span>
+              </NavLink>
+            </li>
+            
+            {/* Business Processes */}
+            <li>
+              <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiBriefcase className="icon" />
+                <span>Business Processes</span>
+              </NavLink>
+            </li>
+            
+            {/* Jobs */}
+            <li>
+              <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiPlay className="icon" />
+                <span>Jobs</span>
+              </NavLink>
+            </li>
+            
+            {/* Process Management Wizard */}
+            <li>
+              <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiFilter className="icon" />
+                <span>Process Wizard</span>
+              </NavLink>
+            </li>
+            
+            {/* Transformations (moved from Monitor section) */}
+            <li>
+              <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiLayers className="icon" />
+                <span>Transformations</span>
+              </NavLink>
+            </li>
+            
             {/* Jobs and Monitoring section */}
             {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 
               checkPermissions(['alerts', 'alerts:read', 'alert_view']) || 
@@ -326,51 +371,6 @@ function Sidebar() {
                 )}
               </>
             )}
-            
-            {/* Business Process Management section */}
-            <li className="nav-divider">
-              <span>Process Management</span>
-            </li>
-            
-            {/* Groups */}
-            <li>
-              <NavLink to="/groups" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiUsers className="icon" />
-                <span>Groups</span>
-              </NavLink>
-            </li>
-            
-            {/* Business Processes */}
-            <li>
-              <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiBriefcase className="icon" />
-                <span>Business Processes</span>
-              </NavLink>
-            </li>
-            
-            {/* Jobs */}
-            <li>
-              <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiPlay className="icon" />
-                <span>Jobs</span>
-              </NavLink>
-            </li>
-            
-            {/* Process Management Wizard */}
-            <li>
-              <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiFilter className="icon" />
-                <span>Process Wizard</span>
-              </NavLink>
-            </li>
-            
-            {/* Transformations (moved from Monitor section) */}
-            <li>
-              <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiLayers className="icon" />
-                <span>Transformations</span>
-              </NavLink>
-            </li>
             
             {/* Insights section */}
             {showInsightsSection && (
