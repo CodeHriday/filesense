@@ -618,8 +618,8 @@ function Transformations() {
         y: event.clientY - reactFlowBounds.top,
       };
 
-      // Use non-overlapping position logic
-      const finalPosition = findNonOverlappingPosition(position);
+      // Use non-overlapping position logic with current nodes
+      const finalPosition = findNonOverlappingPosition(position, nodes);
 
       const newNode = {
         id: `${type}-${uuidv4()}`,
@@ -644,11 +644,11 @@ function Transformations() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [setNodes]
+    [setNodes, nodes]
   );
 
   // Function to find a position where the node won't overlap with existing nodes
-  const findNonOverlappingPosition = (initialPosition) => {
+  const findNonOverlappingPosition = (initialPosition, existingNodes) => {
     const nodeWidth = 180;
     const nodeHeight = 100;
     const padding = 10;
@@ -666,7 +666,7 @@ function Transformations() {
     
     // Check if there's an overlap with any existing node
     const hasOverlap = (pos) => {
-      return nodes.some(node => {
+      return existingNodes.some(node => {
         return (
           pos.x < node.position.x + nodeWidth + padding &&
           pos.x + nodeWidth + padding > node.position.x &&
