@@ -41,7 +41,9 @@ import ReactFlow, {
   addEdge,
   MarkerType,
   Panel,
-  Handle
+  Handle,
+  applyNodeChanges,
+  applyEdgeChanges
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../styles/ReactFlowNodes.css';
