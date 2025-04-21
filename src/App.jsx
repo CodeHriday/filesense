@@ -10,6 +10,7 @@ import QualityReport from './pages/QualityReport';
 import Alerts from './pages/Alerts';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
+import Transformations from './pages/Transformations';
 import FileLineage from './pages/FileLineage';
 import LineageImpact from './pages/LineageImpact';
 import Monitor from './pages/Monitor';
@@ -119,6 +120,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
                 <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
                 <Route path="/mappings" element={<ProtectedRoute><Mappings /></ProtectedRoute>} />
+                <Route path="/transformations" element={<ProtectedRoute><Transformations /></ProtectedRoute>} />
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
                 <Route path="/lineage/impact/:fileId" element={<ProtectedRoute><LineageImpact /></ProtectedRoute>} />
                 <Route path="/monitor" element={<ProtectedRoute><Monitor /></ProtectedRoute>} />

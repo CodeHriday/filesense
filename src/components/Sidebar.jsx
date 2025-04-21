@@ -262,6 +262,15 @@ function Sidebar() {
               </li>
             )}
             
+            {checkPermissions(['mappings', 'mappings:read']) && (
+              <li>
+                <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
+                  <FiLayers className="icon" />
+                  <span>Transformations</span>
+                </NavLink>
+              </li>
+            )}
+            
             {checkPermissions(['lineage', 'lineage:read', 'lineage_view']) && (
               <li>
                 <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
