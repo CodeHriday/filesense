@@ -261,14 +261,7 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {checkPermissions(['mappings', 'mappings:read']) && (
-                  <li>
-                    <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiLayers className="icon" />
-                      <span>Transformations</span>
-                    </NavLink>
-                  </li>
-                )}
+                {/* Transformations moved to Process Management section */}
               </>
             )}
             
@@ -368,6 +361,14 @@ function Sidebar() {
               <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiFilter className="icon" />
                 <span>Process Wizard</span>
+              </NavLink>
+            </li>
+            
+            {/* Transformations (moved from Monitor section) */}
+            <li>
+              <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiLayers className="icon" />
+                <span>Transformations</span>
               </NavLink>
             </li>
             
