@@ -1,8 +1,11 @@
 /* React Flow Node Styles */
 
-.source-node,
-.target-node,
-.transform-node {
+.node-source,
+.node-target,
+.node-transform,
+.node-filter,
+.node-join,
+.node-aggregate {
   border-radius: 5px;
   padding: 10px;
   border: 1px solid #ccc;
@@ -11,14 +14,15 @@
   cursor: move;
   user-select: none;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  background-color: white;
 }
 
-.source-node {
+.node-source {
   background-color: #e6f7ff;
   border-color: #1890ff;
 }
 
-.target-node {
+.node-target {
   background-color: #f6ffed;
   border-color: #52c41a;
 }
@@ -77,21 +81,27 @@
 }
 
 /* Filter Node */
-.filter-node {
+.node-filter {
   background-color: #fff2f0;
   border-color: #ff7875;
 }
 
 /* Join Node */
-.join-node {
+.node-join {
   background-color: #f0f5ff;
   border-color: #85a5ff;
 }
 
 /* Aggregate Node */
-.aggregate-node {
+.node-aggregate {
   background-color: #fcffe6;
   border-color: #d3f261;
+}
+
+/* Transform Node */
+.node-transform {
+  background-color: #fce4ec;
+  border-color: #f06292;
 }
 
 /* Lookup Node */
@@ -385,15 +395,15 @@
 }
 
 /* Make sure all parts of the node are interactive */
-.source-node *,
-.target-node *,
-.transform-node *,
-.filter-node *,
-.join-node *,
-.aggregate-node *,
-.lookup-node *,
-.format-node *,
-.calculate-node * {
+.node-source *,
+.node-target *,
+.node-transform *,
+.node-filter *,
+.node-join *,
+.node-aggregate *,
+.node-lookup *,
+.node-format *,
+.node-calculate * {
   pointer-events: none;
 }
 
