@@ -2630,7 +2630,7 @@ const ProcessManagementWizard = () => {
   const renderMappingTransformationStep = () => {
     return (
       <div className="mapping-transformation-step">
-        <h2>Select Mapping or Transformation</h2>
+        <h3>Step 4: Select Mapping or Transformation</h3>
         
         {error && (
           <div className="alert alert-danger">
@@ -2726,7 +2726,7 @@ const ProcessManagementWizard = () => {
 
   const renderSchedulingStep = () => (
     <div className="step-container">
-      <h3>Step 8: Schedule Job</h3>
+      <h3>Step 5: Schedule Job</h3>
       
       <div className="form-row">
         <div className="form-group">
