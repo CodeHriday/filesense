@@ -48,6 +48,7 @@ const SourceNode = React.memo(({ data }) => {
         borderStyle: 'solid',
         borderRadius: '5px',
         padding: '10px',
+        zIndex: 1, // Add zIndex for consistent stacking
         width: '180px',
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
       }}
@@ -123,7 +124,8 @@ const TargetNode = React.memo(({ data }) => {
         borderRadius: '5px',
         padding: '10px',
         width: '180px',
-        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+        zIndex: 1 // Add zIndex for consistent stacking
       }}
     >
       <div 
@@ -646,17 +648,10 @@ function Transformations() {
 
       setNodes((nds) => {
         const updatedNodes = nds.concat(newNode);
-        
-        // Schedule a layout fix to ensure no overlaps after adding the new node
-        setTimeout(() => {
-          const adjusted = findOptimalPositions(updatedNodes);
-          if (adjusted) setNodes(adjusted);
-        }, 0);
-        
         return updatedNodes;
       });
     },
-    [setNodes, nodes, findOptimalPositions]
+    [setNodes, nodes]
   );
 
   // Function to find a position where the node won't overlap with existing nodes
@@ -1113,6 +1108,22 @@ function Transformations() {
       resizeObserver.disconnect();
     };
   }, []);
+  
+  // Track node count for position optimization
+  const prevNodeCountRef = useRef(0);
+  
+  // Add effect to optimize node positions only when nodes are added
+  useEffect(() => {
+    if (nodes.length > 1 && nodes.length > prevNodeCountRef.current) {
+      // Only run position optimization when nodes are added
+      const adjusted = findOptimalPositions(nodes);
+      if (adjusted) {
+        setNodes(adjusted);
+      }
+    }
+    // Update the reference count
+    prevNodeCountRef.current = nodes.length;
+  }, [nodes, findOptimalPositions, setNodes]);
 
   const autoArrangeNodes = () => {
     if (nodes.length === 0) return;
