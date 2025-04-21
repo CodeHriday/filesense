@@ -1,3 +1,16 @@
+/* Global box-sizing for consistent layouts */
+* {
+  box-sizing: border-box;
+}
+
+/* Z-index scale for consistent stacking:
+ * - Base Flow UI: 0-9
+ * - Sticky Panel Elements: 10-19
+ * - Canvas Controls / MiniMap: 20-29
+ * - Modal Overlay: 1000-1009
+ * - Modal Content: 1010+ 
+ */
+
 .transformations-page {
   padding: 20px;
   height: 100%;
@@ -57,7 +70,7 @@
   position: sticky;
   top: 0;
   background-color: #f0f0f0;
-  z-index: 1;
+  z-index: 10; /* Updated to match our z-index scale */
 }
 
 .component-group {
@@ -73,7 +86,7 @@
   top: 43px;
   background-color: #f0f0f0;
   padding: 5px 0;
-  z-index: 1;
+  z-index: 10; /* Updated to match our z-index scale */
 }
 
 .component-list {
@@ -91,8 +104,10 @@
   flex-direction: column;
   align-items: center;
   cursor: move;
-  transition: all 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   user-select: none;
+  position: relative;
+  overflow: hidden;
 }
 
 .component-item.dragging {
@@ -102,7 +117,13 @@
 .component-item:hover {
   background-color: #f5f5f5;
   transform: translateY(-2px);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Add focus style for accessibility */
+.component-item:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .component-icon {
@@ -178,7 +199,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1000;
+  z-index: 1000; /* Modal overlay layer */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -203,7 +224,7 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  z-index: 1001;
+  z-index: 1010; /* Modal content layer - above overlay */
 }
 
 .node-config-header {
@@ -226,6 +247,19 @@
   font-size: 20px;
   cursor: pointer;
   color: #777;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.node-config-close:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.node-config-close:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .node-config-body {
@@ -327,7 +361,7 @@
   right: 20px;
   display: flex;
   gap: 10px;
-  z-index: 10;
+  z-index: 20; /* Canvas controls layer */
 }
 
 .control-button {
@@ -341,12 +375,19 @@
   border-radius: 50%;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .control-button:hover {
   background-color: #f0f0f0;
   transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Add focus styles for accessibility */
+.control-button:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .minimap {
@@ -358,6 +399,7 @@
   overflow: hidden;
   background-color: white;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  z-index: 20; /* Match canvas controls */
 }
 
 /* Responsive adjustments */
@@ -374,10 +416,19 @@
   }
   
   .component-list {
+    display: grid; /* Explicitly set display to grid */
     grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
   }
   
   .canvas-container {
     height: 700px;
+  }
+  
+  /* Improve component layout on tiny screens */
+  @media (max-width: 480px) {
+    .component-list {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 }
