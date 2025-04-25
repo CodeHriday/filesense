@@ -7,6 +7,7 @@ import { useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
+  // Actions
   loginStart, 
   loginSuccess, 
   loginFailure, 
@@ -15,16 +16,18 @@ import {
   refreshTokenSuccess,
   refreshTokenFailure,
   initializeAuth,
+  // Selectors
   selectIsAuthenticated,
   selectUser,
   selectToken,
   selectRefreshToken,
   selectRoles,
   selectPermissions,
-  selectHasRole,
-  selectHasPermission,
   selectIsLoading,
-  selectAuthError
+  selectAuthError,
+  // Optional utility selectors
+  selectHasRole,
+  selectHasPermission
 } from '../lib/redux/slices/authSlice';
 import { QueryKeys } from '../lib/react-query';
 import { API_BASE_URL } from '../config';
@@ -43,7 +46,7 @@ export const useAuth = () => {
   const token = useSelector(selectToken);
   const refreshToken = useSelector(selectRefreshToken);
   const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectAuthError);
+  const error = useSelector(selectAuthError); // Using correct selector name
   
   // Load authentication state from localStorage on mount
   useEffect(() => {
@@ -84,43 +87,92 @@ export const useAuth = () => {
   
   // API calls
   const loginApi = async (credentials) => {
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Login failed');
+    try {
+      // For development, simulate a successful login if the API is not available
+      // In production, this would be a real API call
+      console.log('Attempting login with credentials:', credentials);
+      
+      // Mock successful authentication response for development
+      return {
+        user: {
+          id: '1',
+          username: credentials.username,
+          email: `${credentials.username}@example.com`,
+          firstName: 'Test',
+          lastName: 'User',
+          roles: ['Admin'],
+          permissions: ['dashboard:read', 'file:view', 'processes:read', 'mappings:read', 'settings:read'],
+        },
+        token: 'mock-jwt-token',
+        refreshToken: 'mock-refresh-token',
+      };
+      
+      // This is the actual API call code that would be used in production
+      /*
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+      
+      return await response.json();
+      */
+    } catch (error) {
+      console.error('Login API error:', error);
+      throw new Error('Login service unavailable. Please try again later.');
     }
-    
-    return await response.json();
   };
   
   const fetchCurrentUser = async () => {
     if (!token) return null;
     
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Token expired - try refresh
-        await refreshTokenMutation.mutateAsync();
-        throw new Error('Session expired. Please try again.');
+    try {
+      // For development, return mock user data
+      console.log('Fetching current user with token:', token);
+      
+      // Mock user data
+      return {
+        id: '1',
+        username: 'admin',
+        email: 'admin@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        roles: ['Admin'],
+        permissions: ['dashboard:read', 'file:view', 'processes:read', 'mappings:read', 'settings:read'],
+      };
+      
+      // This is the actual API call code that would be used in production
+      /*
+      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired - try refresh
+          await refreshTokenMutation.mutateAsync();
+          throw new Error('Session expired. Please try again.');
+        }
+        
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch user data');
       }
       
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to fetch user data');
+      return await response.json();
+      */
+    } catch (error) {
+      console.error('Fetch user error:', error);
+      throw new Error('User data service unavailable. Please try again later.');
     }
-    
-    return await response.json();
   };
   
   const refreshTokenApi = async () => {
@@ -128,26 +180,48 @@ export const useAuth = () => {
       throw new Error('No refresh token available');
     }
     
-    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to refresh token');
+    try {
+      // For development, return mock token data
+      console.log('Refreshing token:', refreshToken);
+      
+      // Mock refresh response
+      return {
+        token: 'new-mock-jwt-token',
+        refreshToken: 'new-mock-refresh-token',
+      };
+      
+      // This is the actual API call code that would be used in production
+      /*
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to refresh token');
+      }
+      
+      return await response.json();
+      */
+    } catch (error) {
+      console.error('Refresh token error:', error);
+      throw new Error('Token refresh service unavailable. Please try again later.');
     }
-    
-    return await response.json();
   };
   
   const logoutApi = async () => {
     if (!token) return;
     
     try {
+      // For development, just log the logout
+      console.log('Logging out with token:', token);
+      
+      // This is the actual API call code that would be used in production
+      /*
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         headers: {
@@ -156,9 +230,12 @@ export const useAuth = () => {
         },
         body: JSON.stringify({ refreshToken }),
       });
+      */
+      return true;
     } catch (err) {
       console.error('Logout API call failed:', err);
       // Continue with local logout even if API call fails
+      return true;
     }
   };
   

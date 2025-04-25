@@ -63,18 +63,26 @@ const Login = () => {
     if (!validate()) return;
     
     try {
+      console.log('Attempting to log in with:', credentials);
       await login(credentials);
+      
       // Only show success toast if toast is properly initialized
       if (toast && typeof toast.showSuccess === 'function') {
         toast.showSuccess('Logged in successfully');
+      } else {
+        console.log('Login successful!');
       }
+      
+      // Navigate to dashboard after successful login
       navigate('/dashboard');
     } catch (error) {
+      console.error('Login attempt failed:', error);
+      
       // Only show error toast if toast is properly initialized
       if (toast && typeof toast.showError === 'function') {
-        toast.showError(error.message || 'Login failed');
+        toast.showError(error.message || 'Login failed. Please try again.');
       } else {
-        console.error('Login failed:', error);
+        alert('Login failed: ' + (error.message || 'Please try again.'));
       }
     }
   };
