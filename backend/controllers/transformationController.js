@@ -154,7 +154,7 @@ async function executeTransformation(req, res) {
   try {
     const transformationId = req.params.id;
     const options = {
-      parameters: req.body.parameters || {},
+      parameters: (req.body && req.body.parameters) ? req.body.parameters : {},
       userId: req.user?.id || 2, // Default to admin if no user
     };
     
