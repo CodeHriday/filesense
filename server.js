@@ -431,10 +431,16 @@ app.get('/api/test-di', (req, res) => {
 // Files API
 app.get('/api/files', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM files ORDER BY created_at DESC');
-    res.json(result.rows);
+    // Use the FileService from the DI container
+    const fileService = diContainer.get('fileService');
+    const files = await fileService.getAllFiles({
+      sortBy: 'created_at',
+      sortOrder: 'DESC'
+    });
+    
+    res.json(files);
   } catch (err) {
-    console.error('Error fetching files:', err);
+    logger.error('Error fetching files', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch files' });
   }
 });
@@ -442,23 +448,18 @@ app.get('/api/files', async (req, res) => {
 app.get('/api/files/:fileId', async (req, res) => {
   try {
     const { fileId } = req.params;
-    const result = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
-    if (result.rows.length === 0) {
+    // Use the FileService from the DI container
+    const fileService = diContainer.get('fileService');
+    const file = await fileService.getFileById(fileId);
+    
+    if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
     
-    const columnsResult = await pool.query(
-      'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
-      [fileId]
-    );
-    
-    const file = result.rows[0];
-    file.columns = columnsResult.rows;
-    
     res.json(file);
   } catch (err) {
-    console.error('Error fetching file details:', err);
+    logger.error('Error fetching file details', { error: err.message, fileId: req.params.fileId });
     res.status(500).json({ error: 'Failed to fetch file details' });
   }
 });
@@ -674,17 +675,34 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
+    // Use the FileService from the DI container
+    const fileService = diContainer.get('fileService');
+    logger.info('Processing file upload', { 
+      filename: req.file.originalname, 
+      size: req.file.size 
+    });
+    
+    // Use the service to save the file
+    const fileRecord = await fileService.saveFile(req.file);
+    
+    // Return the saved file record
+    res.json({
+      success: true,
+      file: fileRecord
+    });
+    
+    /* 
+    // Legacy implementation for reference
     const file = req.file;
     const fileId = `file_${Date.now()}`;
     const fileType = path.extname(file.originalname).substring(1).toLowerCase();
-    
-    console.log('Attempting to save file:', file.originalname, 'Size:', file.size);
     
     // Process file based on type
     let rowCount = 0;
     let columnCount = 0;
     let columns = [];
     let qualityScore = 85; // Default quality score
+    */
     
     try {
       // Extract basic file metrics based on file type
