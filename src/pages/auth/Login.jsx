@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/atoms/buttons/Button';
 import { Input } from '../../components/ui/atoms/inputs/Input';
 import { Typography, TYPOGRAPHY_VARIANTS } from '../../components/ui/atoms/typography/Typography';
 import { Form } from '../../components/ui/molecules/forms/Form';
+import '../../styles/Login.css';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -88,55 +89,57 @@ const Login = () => {
   };
   
   return (
-    <div>
-      <Typography variant={TYPOGRAPHY_VARIANTS.H2} className="text-center mb-6">
-        Log In
-      </Typography>
-      
-      <Form onSubmit={handleSubmit}>
-        <Input
-          id="username"
-          name="username"
-          label="Username"
-          value={credentials.username}
-          onChange={handleChange}
-          error={errors.username}
-          required
-          className="mb-4 w-full"
-        />
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <img src="/logo.svg" alt="Data File Observatory" className="login-logo" />
+          <h2>Data File Observatory</h2>
+          <h3>Welcome back!</h3>
+        </div>
         
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          label="Password"
-          value={credentials.password}
-          onChange={handleChange}
-          error={errors.password}
-          required
-          className="mb-6 w-full"
-        />
+        <form className="login-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              value={credentials.username}
+              onChange={handleChange}
+              required
+            />
+            {errors.username && <div className="login-error">{errors.username}</div>}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={credentials.password}
+              onChange={handleChange}
+              required
+            />
+            {errors.password && <div className="login-error">{errors.password}</div>}
+          </div>
+          
+          <button
+            type="submit"
+            className="login-button"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Logging in...' : 'Log In'}
+          </button>
+        </form>
         
-        <Button
-          type="submit"
-          isLoading={isLoading}
-          className="mb-4 w-full"
-        >
-          Log In
-        </Button>
-      </Form>
-      
-      <div className="mt-6 text-center">
-        <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-800">
-          Forgot password?
-        </Link>
-        <div className="mt-4">
-          <Typography variant={TYPOGRAPHY_VARIANTS.BODY2}>
-            Don't have an account?{' '}
-            <Link to="/register" className="text-blue-600 hover:text-blue-800">
-              Sign up
-            </Link>
-          </Typography>
+        <div className="login-help">
+          <p>
+            <Link to="/forgot-password">Forgot your password?</Link>
+          </p>
+          <p>
+            Don't have an account? <Link to="/register"><strong>Sign up</strong></Link>
+          </p>
         </div>
       </div>
     </div>
