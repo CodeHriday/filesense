@@ -75,19 +75,21 @@ const Form = forwardRef(({
   
   // Handle form submission
   const handleSubmit = async (event) => {
-    event.preventDefault();
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
     
     // Set submitting state
     setFormState(prev => ({ ...prev, isSubmitting: true }));
     
     try {
-      // Call submit handler with form values
+      // Call submit handler with event first, then form values
       if (onSubmit) {
-        await onSubmit(formState.values, event);
+        await onSubmit(event);
       }
       
       // Reset form if resetOnSubmit is true
-      if (resetOnSubmit) {
+      if (resetOnSubmit && event && event.target) {
         event.target.reset();
         setFormState({
           values: {},
@@ -113,8 +115,14 @@ const Form = forwardRef(({
   
   // Handle form reset
   const handleReset = (event) => {
-    event.preventDefault();
-    event.target.reset();
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
+    
+    if (event && event.target && typeof event.target.reset === 'function') {
+      event.target.reset();
+    }
+    
     setFormState({
       values: {},
       touched: {},

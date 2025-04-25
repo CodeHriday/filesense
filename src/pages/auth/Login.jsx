@@ -55,16 +55,27 @@ const Login = () => {
   };
   
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    // Make sure we safely prevent the default form action
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     
     if (!validate()) return;
     
     try {
       await login(credentials);
-      toast.showSuccess('Logged in successfully');
+      // Only show success toast if toast is properly initialized
+      if (toast && typeof toast.showSuccess === 'function') {
+        toast.showSuccess('Logged in successfully');
+      }
       navigate('/dashboard');
     } catch (error) {
-      toast.showError(error.message || 'Login failed');
+      // Only show error toast if toast is properly initialized
+      if (toast && typeof toast.showError === 'function') {
+        toast.showError(error.message || 'Login failed');
+      } else {
+        console.error('Login failed:', error);
+      }
     }
   };
   
