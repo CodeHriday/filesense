@@ -425,6 +425,29 @@ function Sidebar() {
                 )}
               </>
             )}
+            
+            {/* Developer Tools Section - only for Admins */}
+            {isAdmin && (
+              <>
+                <li className="nav-divider">
+                  <span>Developer Tools</span>
+                </li>
+                
+                <li>
+                  <NavLink to="/hooks-demo" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiCpu className="icon" />
+                    <span>Hooks Demo</span>
+                  </NavLink>
+                </li>
+                
+                <li>
+                  <NavLink to="/performance-optimizations" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiTrendingUp className="icon" />
+                    <span>Performance Optimizations</span>
+                  </NavLink>
+                </li>
+              </>
+            )}
           </ul>
         </nav>
       </aside>
