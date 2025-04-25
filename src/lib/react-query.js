@@ -1,93 +1,53 @@
-/**
- * React Query Client Configuration
- * 
- * This file sets up the React Query client with optimized configurations
- * for caching, retries, and error handling.
- */
 import { QueryClient } from '@tanstack/react-query';
 
-// Default options for react-query
-const defaultQueryOptions = {
-  queries: {
-    retry: (failureCount, error) => {
-      // Don't retry on 404s
-      if (error?.response?.status === 404) return false;
-      // Don't retry on 401 or 403 (auth issues)
-      if (error?.response?.status === 401 || error?.response?.status === 403) return false;
-      // Retry 3 times on other errors
-      return failureCount < 3;
+/**
+ * Create and configure the QueryClient instance
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,                     // Only retry failed queries once by default
+      staleTime: 1000 * 60 * 5,     // Consider data fresh for 5 minutes
+      cacheTime: 1000 * 60 * 30,    // Cache data for 30 minutes
+      refetchOnWindowFocus: false,  // Don't refetch when window regains focus
+      refetchOnMount: true,         // Refetch data when component mounts
+      refetchOnReconnect: true,     // Refetch when reconnecting
+      suspense: false,              // Don't use React Suspense for queries
     },
-    refetchOnWindowFocus: process.env.NODE_ENV === 'production',
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-    onError: (error) => {
-      console.error('Query Error:', error);
-    }
+    mutations: {
+      retry: 0,                     // Don't retry failed mutations by default
+    },
   },
-  mutations: {
-    retry: false,
-    onError: (error) => {
-      console.error('Mutation Error:', error);
-    }
-  }
-};
-
-// Create the client with default options
-export const queryClient = new QueryClient({
-  defaultOptions: defaultQueryOptions
 });
 
-// Common query keys for caching
+/**
+ * Define query key factory functions to maintain consistent query keys
+ * throughout the application.
+ * 
+ * Using a structured approach to query keys helps with:
+ * 1. Consistent cache invalidation
+ * 2. Proper relationship between queries
+ * 3. Easier debugging with React Query DevTools
+ */
 export const QueryKeys = {
-  // Auth
-  auth: {
-    currentUser: ['currentUser'],
-    permissions: ['permissions']
-  },
-  // Files
+  // File-related query keys
   files: {
     all: ['files'],
     byId: (id) => ['files', id],
     profile: (id) => ['files', id, 'profile'],
-    quality: (id) => ['files', id, 'quality'],
-    lineage: (id) => ['files', id, 'lineage']
+    quality: (id) => ['files', id, 'quality']
   },
-  // Transformations
+  
+  // Transformation-related query keys
   transformations: {
     all: ['transformations'],
-    byId: (id) => ['transformations', id]
+    byId: (id) => ['transformations', id],
+    executions: (id) => ['transformations', id, 'executions'],
+    execution: (execId) => ['transformations', 'executions', execId]
   },
-  // Business Processes
-  businessProcesses: {
-    all: ['businessProcesses'],
-    byId: (id) => ['businessProcesses', id]
-  },
-  // Groups
-  groups: {
-    all: ['groups'],
-    byId: (id) => ['groups', id]
-  },
-  // Jobs
-  jobs: {
-    all: ['jobs'],
-    byId: (id) => ['jobs', id],
-    byProcess: (processId) => ['jobs', 'process', processId]
-  },
-  // Dashboard
-  dashboard: {
-    stats: ['dashboard', 'stats'],
-    charts: ['dashboard', 'charts']
-  }
-};
-
-// Helper for invalidating query caches
-export const invalidateQueries = async (queryKey) => {
-  return await queryClient.invalidateQueries({ queryKey });
-};
-
-// Helper for refreshing query data
-export const refetchQueries = async (queryKey) => {
-  return await queryClient.refetchQueries({ queryKey });
+  
+  // API status
+  apiStatus: ['apiStatus']
 };
 
 export default queryClient;

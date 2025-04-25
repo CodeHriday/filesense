@@ -1,108 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card } from '../components/Card';
+import { useFileCatalog } from '../hooks';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedType, setSelectedType] = useState('all');
-
-  useEffect(() => {
-    fetchFiles();
-  }, []);
-
-  const fetchFiles = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // In a real app, this would be an API call
-      // For example: const response = await api.getFileCatalog();
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock file catalog data
-      const mockFiles = [
-        {
-          id: 'file_1',
-          fileName: 'sales_data.csv',
-          fileType: 'csv',
-          fileSize: 2450000,
-          rows: 15250,
-          columns: 12,
-          uploadedAt: '2025-04-10T14:30:00Z',
-          lastProcessedAt: '2025-04-10T14:32:10Z',
-          qualityScore: 92.5,
-          tags: ['sales', 'quarterly'],
-          owner: 'john.doe@example.com'
-        },
-        {
-          id: 'file_2',
-          fileName: 'customer_data.csv',
-          fileType: 'csv',
-          fileSize: 5250000,
-          rows: 42000,
-          columns: 18,
-          uploadedAt: '2025-04-08T10:15:00Z',
-          lastProcessedAt: '2025-04-08T10:20:30Z',
-          qualityScore: 87.2,
-          tags: ['customers', 'master-data'],
-          owner: 'jane.smith@example.com'
-        },
-        {
-          id: 'file_3',
-          fileName: 'inventory.json',
-          fileType: 'json',
-          fileSize: 1240000,
-          rows: 8500,
-          columns: 9,
-          uploadedAt: '2025-04-15T09:45:00Z',
-          lastProcessedAt: '2025-04-15T09:47:20Z',
-          qualityScore: 95.0,
-          tags: ['inventory', 'daily'],
-          owner: 'john.doe@example.com'
-        },
-        {
-          id: 'file_4',
-          fileName: 'transactions.parquet',
-          fileType: 'parquet',
-          fileSize: 4800000,
-          rows: 125000,
-          columns: 15,
-          uploadedAt: '2025-04-16T16:20:00Z',
-          lastProcessedAt: '2025-04-16T16:25:40Z',
-          qualityScore: 79.8,
-          tags: ['transactions', 'financial'],
-          owner: 'sarah.johnson@example.com'
-        },
-        {
-          id: 'file_5',
-          fileName: 'product_catalog.json',
-          fileType: 'json',
-          fileSize: 980000,
-          rows: 5200,
-          columns: 24,
-          uploadedAt: '2025-04-02T11:10:00Z',
-          lastProcessedAt: '2025-04-02T11:12:15Z',
-          qualityScore: 88.3,
-          tags: ['products', 'master-data'],
-          owner: 'jane.smith@example.com'
-        }
-      ];
-      
-      setFiles(mockFiles);
-      setLoading(false);
-    } catch (err) {
-      setError('Failed to fetch file catalog. Please try again.');
-      console.error('Error fetching files:', err);
-      setLoading(false);
-    }
-  };
+  
+  // Using React Query to fetch file catalog
+  const { 
+    data: fileData, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useFileCatalog({
+    // Refetching options
+    refetchOnWindowFocus: false,  // Don't refetch when window regains focus
+    staleTime: 5 * 60 * 1000,     // Consider data fresh for 5 minutes
+  });
+  
+  // Properly handle the file data format from the API
+  const files = fileData || [];
 
   const handleFileSelect = (file) => {
     onFileSelect && onFileSelect(file);
@@ -209,7 +129,7 @@ export const FileCatalog = ({ onFileSelect }) => {
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="file-catalog-container">
         <h1 className="page-title">File Catalog</h1>
@@ -222,7 +142,15 @@ export const FileCatalog = ({ onFileSelect }) => {
     return (
       <div className="file-catalog-container">
         <h1 className="page-title">File Catalog</h1>
-        <div className="alert alert-error">{error}</div>
+        <div className="alert alert-error">
+          <p>Failed to fetch file catalog: {error.message}</p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => refetch()}
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
