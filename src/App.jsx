@@ -149,6 +149,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/process-management-wizard" element={<ProtectedRoute><ProcessManagementWizard /></ProtectedRoute>} />
                 {/* Development Routes */}
                 <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
+                <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
