@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
+import PerformanceOptimizations from './pages/PerformanceOptimizations';
 import Dashboard from './pages/Dashboard';
 import FileUpload from './pages/FileUpload';
 import DataProfile from './pages/DataProfile';
