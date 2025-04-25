@@ -41,9 +41,17 @@ const ProtectedRoute = ({ children }) => {
     }
   }, [isLoading, loading]);
   
-  // Show a simple loading indicator or null while checking authentication
+  // Show spinner while checking authentication
   if (isLoading) {
-    return <div>Loading...</div>; // Or return null for no visual indicator
+    // Simple loading indicator until Spinner component is properly integrated
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" 
+             role="status" aria-label="loading">
+          <span className="sr-only">Loading...</span>
+        </div>
+      </div>
+    );
   }
   
   // Redirect to login if not authenticated
