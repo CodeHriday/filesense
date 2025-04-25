@@ -131,21 +131,29 @@ def _merge_chunk_results(chunk_results):
     
     # Initialize with the first chunk's columns
     for col, stats in chunk_results[0]["column_stats"].items():
+        # Initialize with safe values if None
+        min_val = stats["min"] if stats["min"] is not None else 0
+        max_val = stats["max"] if stats["max"] is not None else 0
+        mean_val = stats["mean"] if stats["mean"] is not None else 0
+        null_count = stats["null_count"] if stats["null_count"] is not None else 0
+        
         merged["column_stats"][col] = {
             "type": stats["type"],
-            "null_count": stats["null_count"],
+            "null_count": null_count,
             "unique_values": set(stats["sample_values"]),
             "min": stats["min"],
             "max": stats["max"],
-            "sum": stats["mean"] * stats["null_count"] if stats["mean"] is not None else None,
-            "count": stats["null_count"]
+            "sum": mean_val * null_count if stats["mean"] is not None else None,
+            "count": null_count
         }
     
     # Merge in other chunks
     for chunk in chunk_results[1:]:
         for col, stats in chunk["column_stats"].items():
             if col in merged["column_stats"]:
-                merged["column_stats"][col]["null_count"] += stats["null_count"]
+                # Handle null_count safely
+                null_count = stats["null_count"] if stats["null_count"] is not None else 0
+                merged["column_stats"][col]["null_count"] += null_count
                 merged["column_stats"][col]["unique_values"].update(stats["sample_values"])
                 
                 if stats["min"] is not None:
@@ -160,13 +168,16 @@ def _merge_chunk_results(chunk_results):
                     else:
                         merged["column_stats"][col]["max"] = max(merged["column_stats"][col]["max"], stats["max"])
                 
+                # Handle mean calculation safely
                 if stats["mean"] is not None:
+                    mean_val = stats["mean"]
                     if merged["column_stats"][col]["sum"] is None:
-                        merged["column_stats"][col]["sum"] = stats["mean"] * stats["null_count"]
+                        merged["column_stats"][col]["sum"] = mean_val * null_count
                     else:
-                        merged["column_stats"][col]["sum"] += stats["mean"] * stats["null_count"]
+                        if merged["column_stats"][col]["sum"] is not None:
+                            merged["column_stats"][col]["sum"] += mean_val * null_count
                     
-                    merged["column_stats"][col]["count"] += stats["null_count"]
+                    merged["column_stats"][col]["count"] += null_count
     
     # Calculate final statistics
     for col, stats in merged["column_stats"].items():

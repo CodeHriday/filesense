@@ -172,8 +172,10 @@ def setup_structured_logging(log_to_file=True, log_level=logging.INFO):
 setup_structured_logging()
         
 
-def get_logger(name):
+def get_logger(name=None):
     """Get a logger with the specified name."""
+    if name is None:
+        return root_logger
     return logging.getLogger(name)
 
 
