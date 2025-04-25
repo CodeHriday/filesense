@@ -3,11 +3,17 @@
  * 
  * This is the foundation for all domain-specific services.
  * It provides common functionality like logging, database access,
- * transaction management, and event emitting.
+ * transaction management, and error handling.
  */
 
 const { systemLogger } = require('../utils/logger');
 const { Pool } = require('pg');
+const {
+  createDatabaseError,
+  createNotFoundError,
+  createValidationError,
+  createBusinessLogicError
+} = require('../utils/errorHelpers');
 
 class ServiceBase {
   /**
@@ -38,9 +44,10 @@ class ServiceBase {
    * @param {Array} params - Query parameters
    * @param {Object} options - Additional options
    * @returns {Promise<Object>} Query result
+   * @throws {DatabaseError} When the query fails
    */
   async executeQuery(query, params = [], options = {}) {
-    const { traceId, shouldLog = true } = options;
+    const { traceId, shouldLog = true, operation = 'query' } = options;
     
     if (shouldLog) {
       this.logger.debug('Executing database query', { 
@@ -60,7 +67,9 @@ class ServiceBase {
         paramsCount: params.length,
         traceId
       });
-      throw error;
+      
+      // Throw a standardized database error
+      throw createDatabaseError(operation, error);
     }
   }
 
@@ -70,6 +79,7 @@ class ServiceBase {
    * @param {Function} callback - Function that receives a client and executes queries
    * @param {Object} options - Additional options
    * @returns {Promise<any>} Transaction result
+   * @throws {DatabaseError} When the transaction fails
    */
   async executeTransaction(callback, options = {}) {
     const { 
@@ -77,7 +87,8 @@ class ServiceBase {
       isolationLevel = 'READ COMMITTED', // Default isolation level
       readOnly = false,
       maxRetries = 3,
-      retryDelay = 100 // ms
+      retryDelay = 100, // ms
+      operation = 'transaction'
     } = options;
     
     const client = await this.dbPool.connect();
@@ -152,7 +163,13 @@ class ServiceBase {
           continue;
         }
         
-        throw error;
+        // If it's already our custom error type, just re-throw
+        if (error.name && error.name !== 'Error') {
+          throw error;
+        }
+        
+        // For other errors, convert to our standardized database error
+        throw createDatabaseError(operation, error);
       } finally {
         if (retryCount >= maxRetries) {
           this.logger.error('Transaction failed after max retries', {
@@ -209,6 +226,41 @@ class ServiceBase {
    */
   generateTraceId() {
     return `svc_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  }
+  
+  /**
+   * Create a not found error for a resource
+   * 
+   * @param {string} resource - Resource type
+   * @param {string|number} id - Resource identifier
+   * @param {string} [customMessage] - Optional custom message
+   * @returns {NotFoundError} Not found error
+   */
+  createNotFoundError(resource, id, customMessage) {
+    return createNotFoundError(resource, id, customMessage);
+  }
+  
+  /**
+   * Create a validation error
+   * 
+   * @param {Object} validationErrors - Validation errors by field
+   * @param {string} [customMessage] - Optional custom message
+   * @returns {ValidationError} Validation error
+   */
+  createValidationError(validationErrors, customMessage) {
+    return createValidationError(validationErrors, customMessage);
+  }
+  
+  /**
+   * Create a business logic error
+   * 
+   * @param {string} rule - Business rule that was violated
+   * @param {string} message - Error message
+   * @param {Object} context - Additional context
+   * @returns {BusinessLogicError} Business logic error
+   */
+  createBusinessLogicError(rule, message, context) {
+    return createBusinessLogicError(rule, message, context);
   }
 }
 

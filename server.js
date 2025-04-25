@@ -205,6 +205,12 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Attach logger to request for use in error handler
+app.use((req, res, next) => {
+  req.logger = logger;
+  next();
+});
+
 // Configure file upload with support for large files
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
