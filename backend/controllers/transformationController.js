@@ -102,83 +102,48 @@ const deleteTransformation = asyncHandler(async (req, res) => {
 /**
  * Execute a transformation
  */
-async function executeTransformation(req, res) {
-  try {
-    const transformationId = req.params.id;
-    const options = {
-      parameters: (req.body && req.body.parameters) ? req.body.parameters : {},
-      userId: req.user?.id || 2, // Default to admin if no user
-    };
-    
-    const result = await transformationService.executeTransformation(transformationId, options);
-    res.json(result);
-  } catch (error) {
-    systemLogger.error('Error in executeTransformation controller', { 
-      error: error.message,
-      stack: error.stack,
-      transformationId: req.params.id
-    });
-    
-    res.status(500).json({ 
-      error: 'Failed to execute transformation',
-      message: error.message
-    });
-  }
-}
+const executeTransformation = asyncHandler(async (req, res) => {
+  const transformationId = req.params.id;
+  const options = {
+    parameters: (req.body && req.body.parameters) ? req.body.parameters : {},
+    userId: req.user?.id || 2, // Default to admin if no user
+  };
+  
+  const result = await transformationService.executeTransformation(transformationId, options);
+  res.json(result);
+});
 
 /**
  * Get execution history for a transformation
  */
-async function getExecutionHistory(req, res) {
-  try {
-    const transformationId = req.params.id;
-    const options = {
-      limit: parseInt(req.query.limit) || 20,
-      offset: parseInt(req.query.offset) || 0
-    };
-    
-    const history = await transformationService.getExecutionHistory(transformationId, options);
-    res.json(history);
-  } catch (error) {
-    systemLogger.error('Error in getExecutionHistory controller', { 
-      error: error.message,
-      stack: error.stack,
-      transformationId: req.params.id
-    });
-    
-    res.status(500).json({ 
-      error: 'Failed to fetch execution history',
-      message: error.message
-    });
-  }
-}
+const getExecutionHistory = asyncHandler(async (req, res) => {
+  const transformationId = req.params.id;
+  const options = {
+    limit: parseInt(req.query.limit) || 20,
+    offset: parseInt(req.query.offset) || 0
+  };
+  
+  const history = await transformationService.getExecutionHistory(transformationId, options);
+  res.json(history);
+});
 
 /**
  * Get execution details
  */
-async function getExecutionDetails(req, res) {
-  try {
-    const executionId = req.params.executionId;
-    const details = await transformationService.getExecutionDetails(executionId);
-    
-    if (!details) {
-      return res.status(404).json({ error: 'Execution not found' });
-    }
-    
-    res.json(details);
-  } catch (error) {
-    systemLogger.error('Error in getExecutionDetails controller', { 
-      error: error.message,
-      stack: error.stack,
-      executionId: req.params.executionId
-    });
-    
-    res.status(500).json({ 
-      error: 'Failed to fetch execution details',
-      message: error.message
-    });
+const getExecutionDetails = asyncHandler(async (req, res) => {
+  const executionId = req.params.executionId;
+  const details = await transformationService.getExecutionDetails(executionId);
+  
+  if (!details) {
+    throw new NotFoundError(
+      'Execution not found',
+      'transformation_execution',
+      executionId
+    );
   }
-}
+  
+  res.json(details);
+});
 
 module.exports = {
   createTransformation,
