@@ -146,12 +146,30 @@ class TransformationService extends ServiceBase {
     const traceId = this.generateTraceId();
     this.logger.info('Fetching transformation by ID', { transformationId, traceId });
     
-    const query = `
-      SELECT * FROM transformations WHERE transformation_id = $1 OR id = $1
-    `;
+    let query;
+    let params = [];
+    
+    // Check if transformationId can be converted to a number
+    const idAsNumber = parseInt(transformationId);
+    
+    if (!isNaN(idAsNumber)) {
+      // If it can be parsed as a number, search by both id and transformation_id
+      query = `
+        SELECT * FROM transformations 
+        WHERE id = $1 OR transformation_id = $2
+      `;
+      params = [idAsNumber, transformationId];
+    } else {
+      // Otherwise just search by transformation_id
+      query = `
+        SELECT * FROM transformations 
+        WHERE transformation_id = $1
+      `;
+      params = [transformationId];
+    }
     
     try {
-      const result = await this.executeQuery(query, [transformationId]);
+      const result = await this.executeQuery(query, params);
       
       if (result.rows.length === 0) {
         this.logger.warn('Transformation not found', { transformationId, traceId });
@@ -226,13 +244,26 @@ class TransformationService extends ServiceBase {
       // Add updated_at
       setClauses.push('updated_at = NOW()');
       
-      // Add transformationId as the last parameter
-      queryParams.push(transformationId);
+      // Handle numeric or string transformationId
+      const idAsNumber = parseInt(transformationId);
+      let whereClause;
+      
+      if (!isNaN(idAsNumber)) {
+        // If it can be parsed as a number, search by both
+        whereClause = `WHERE transformation_id = $${paramCounter} OR id = $${paramCounter + 1}`;
+        queryParams.push(transformationId, idAsNumber);
+        paramCounter += 2;
+      } else {
+        // Otherwise just search by transformation_id
+        whereClause = `WHERE transformation_id = $${paramCounter}`;
+        queryParams.push(transformationId);
+        paramCounter += 1;
+      }
       
       const query = `
         UPDATE transformations
         SET ${setClauses.join(', ')}
-        WHERE transformation_id = $${paramCounter} OR id = $${paramCounter}
+        ${whereClause}
         RETURNING *
       `;
       
@@ -269,10 +300,20 @@ class TransformationService extends ServiceBase {
         );
         
         // Then delete the transformation itself
-        await client.query(
-          'DELETE FROM transformations WHERE transformation_id = $1 OR id = $1',
-          [transformationId]
-        );
+        // Handle numeric or string ID
+        const idAsNumber = parseInt(transformationId);
+        
+        if (!isNaN(idAsNumber)) {
+          await client.query(
+            'DELETE FROM transformations WHERE transformation_id = $1 OR id = $2',
+            [transformationId, idAsNumber]
+          );
+        } else {
+          await client.query(
+            'DELETE FROM transformations WHERE transformation_id = $1',
+            [transformationId]
+          );
+        }
       });
       
       return true;
