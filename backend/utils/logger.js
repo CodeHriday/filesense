@@ -1,156 +1,151 @@
 /**
- * Advanced Logging Utility for Node.js Backend
+ * Enhanced Logging Module
  * 
- * This module provides structured logging capabilities for server operations
- * with support for different log levels, contextual logging, and various outputs.
+ * Provides structured logging with different log levels, performance tracking,
+ * and file/console output options.
  */
 
-const winston = require('winston');
-const path = require('path');
 const fs = require('fs');
-const { format } = winston;
+const path = require('path');
+const { createLogger, format, transports } = require('winston');
+const { combine, timestamp, printf, colorize, json } = format;
 
-// Ensure logs directory exists
-const logsDir = path.join(__dirname, '../../logs');
+// Create logs directory if it doesn't exist
+const logsDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-// Define custom format for console
-const consoleFormat = format.printf(({ level, message, timestamp, context, ...meta }) => {
-  const contextStr = context ? `[${context}] ` : '';
-  const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
-  return `${timestamp} ${level}: ${contextStr}${message}${metaStr}`;
+// Custom format for console output
+const consoleFormat = printf(({ level, message, timestamp, ...meta }) => {
+  const metaStr = Object.keys(meta).length 
+    ? JSON.stringify(meta, null, 0)
+    : '';
+  
+  return `${timestamp} ${level}: ${message} ${metaStr}`;
 });
 
-// Create the logger
-const logger = winston.createLogger({
+// Configure system logger for application events
+const systemLogger = createLogger({
   level: process.env.LOG_LEVEL || 'info',
-  format: format.combine(
-    format.timestamp(),
-    format.json()
+  format: combine(
+    timestamp(),
+    json()
   ),
   defaultMeta: { service: 'data-observatory-api' },
   transports: [
-    // Write to all logs with level 'info' and below to combined.log
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'combined.log'),
-      level: 'info',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
+    // Console output with colors (for development)
+    new transports.Console({
+      format: combine(
+        colorize(),
+        timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        consoleFormat
+      )
     }),
-    // Write all logs error (and below) to error.log
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
+    // File output (JSON format for machine processing)
+    new transports.File({ 
+      filename: path.join(logsDir, 'system.log'),
       maxsize: 5242880, // 5MB
-      maxFiles: 5
+      maxFiles: 5,
+      tailable: true
     })
   ]
 });
 
-// Add console transport in development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: format.combine(
-      format.colorize(),
-      format.timestamp(),
-      consoleFormat
-    )
-  }));
-}
+// Configure audit logger for security and user actions
+const auditLogger = createLogger({
+  level: 'info',
+  format: combine(
+    timestamp(),
+    json()
+  ),
+  defaultMeta: { service: 'data-observatory-audit' },
+  transports: [
+    // Separate file for audit logs (for compliance)
+    new transports.File({ 
+      filename: path.join(logsDir, 'audit.log'),
+      maxsize: 10485760, // 10MB
+      maxFiles: 10,
+      tailable: true
+    })
+  ]
+});
 
-// Create a context-aware logger generator
-const createContextLogger = (context) => {
-  return {
-    error: (message, meta = {}) => logger.error(message, { context, ...meta }),
-    warn: (message, meta = {}) => logger.warn(message, { context, ...meta }),
-    info: (message, meta = {}) => logger.info(message, { context, ...meta }),
-    http: (message, meta = {}) => logger.http(message, { context, ...meta }),
-    debug: (message, meta = {}) => logger.debug(message, { context, ...meta }),
-    silly: (message, meta = {}) => logger.silly(message, { context, ...meta })
-  };
-};
-
-// Performance logging middleware
+// Performance monitoring middleware
 const performanceLogger = (req, res, next) => {
   const start = Date.now();
   
-  // Add response listener to log when the request is complete
+  // Add request ID for correlation
+  req.requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 15);
+  
+  // Log at completion
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const logLevel = res.statusCode >= 400 ? 'warn' : 'info';
     
-    logger[logLevel](`${req.method} ${req.originalUrl || req.url} ${res.statusCode} - ${duration}ms`, {
-      context: 'http',
-      method: req.method,
-      url: req.originalUrl || req.url,
-      statusCode: res.statusCode,
-      duration,
-      userAgent: req.get('user-agent'),
-      ip: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress
-    });
+    // Only log performance for non-static resources
+    if (!req.url.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg)$/)) {
+      systemLogger.debug('API Request completed', {
+        method: req.method,
+        url: req.url,
+        statusCode: res.statusCode,
+        duration: duration,
+        requestId: req.requestId,
+        userAgent: req.get('user-agent'),
+        apiCategory: 'performance'
+      });
+      
+      // Log detailed performance for slow responses
+      if (duration > 1000) {
+        systemLogger.warn('Slow API response detected', {
+          method: req.method,
+          url: req.url,
+          statusCode: res.statusCode,
+          duration: duration,
+          requestId: req.requestId,
+          threshold: 1000,
+          apiCategory: 'performance'
+        });
+      }
+    }
   });
   
   next();
 };
 
-// Log execution time for async functions
-const logExecutionTime = (context = 'performance') => {
-  return function(target, propertyKey, descriptor) {
-    const originalMethod = descriptor.value;
-    
-    descriptor.value = async function(...args) {
-      const start = Date.now();
-      try {
-        const result = await originalMethod.apply(this, args);
-        const duration = Date.now() - start;
-        
-        logger.debug(`${propertyKey} executed in ${duration}ms`, {
-          context,
-          method: propertyKey,
-          duration,
-          args: args.map(arg => typeof arg === 'object' ? '[Object]' : arg).join(', ')
-        });
-        
-        return result;
-      } catch (error) {
-        const duration = Date.now() - start;
-        
-        logger.error(`${propertyKey} failed after ${duration}ms: ${error.message}`, {
-          context,
-          method: propertyKey,
-          duration,
-          error: error.stack
-        });
-        
-        throw error;
-      }
-    };
-    
-    return descriptor;
-  };
-};
+// Log user actions (for audit trail)
+function logUserAction(userId, action, details) {
+  auditLogger.info('User action', {
+    userId,
+    action,
+    details,
+    timestamp: new Date().toISOString()
+  });
+}
 
-// Common loggers
-const systemLogger = createContextLogger('system');
-const apiLogger = createContextLogger('api');
-const databaseLogger = createContextLogger('database');
-const authLogger = createContextLogger('auth');
-const transformLogger = createContextLogger('transformations');
-const fileLogger = createContextLogger('files');
-const schedulerLogger = createContextLogger('scheduler');
+// Log security events
+function logSecurityEvent(event, details, severity = 'info') {
+  auditLogger.log(severity, 'Security event', {
+    event,
+    details,
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Log database operations
+function logDatabaseOperation(operation, details, duration) {
+  systemLogger.debug('Database operation', {
+    operation,
+    details,
+    duration,
+    category: 'database'
+  });
+}
 
 module.exports = {
-  logger,
-  createContextLogger,
-  performanceLogger,
-  logExecutionTime,
   systemLogger,
-  apiLogger,
-  databaseLogger,
-  authLogger,
-  transformLogger,
-  fileLogger,
-  schedulerLogger
+  auditLogger,
+  performanceLogger,
+  logUserAction,
+  logSecurityEvent,
+  logDatabaseOperation
 };

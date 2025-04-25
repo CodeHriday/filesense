@@ -1,141 +1,240 @@
 /**
  * Transformation Controller
  * 
- * Handles API endpoints for managing data transformations
+ * Handles HTTP requests for transformation operations
+ * and delegates business logic to the transformation service.
  */
 
-const asyncTransformationService = require('../services/asyncTransformationService');
-const { apiLogger } = require('../utils/logger');
-const { validationResult } = require('express-validator');
+const transformationService = require('../services/TransformationService');
+const { systemLogger } = require('../utils/logger');
 
 /**
  * Create a new transformation
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  */
 async function createTransformation(req, res) {
   try {
-    // Validate request
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      apiLogger.warn('Validation error in create transformation', { errors: errors.array() });
-      return res.status(400).json({ errors: errors.array() });
-    }
+    const transformationData = req.body;
     
-    const { body: transformationConfig } = req;
-    const userId = req.user.id;
+    // Add audit information
+    transformationData.createdBy = req.user?.id || 2; // Default to admin if no user
     
-    apiLogger.info('Creating transformation', { userId, transformName: transformationConfig.name });
-    
-    // Create transformation
-    const result = await asyncTransformationService.createTransformation(transformationConfig, userId);
-    
-    res.status(201).json({
-      message: 'Transformation created successfully',
-      ...result
-    });
+    const result = await transformationService.createTransformation(transformationData);
+    res.status(201).json(result);
   } catch (error) {
-    apiLogger.error('Error creating transformation', { error: error.message });
-    res.status(500).json({ error: 'Failed to create transformation', message: error.message });
+    systemLogger.error('Error in createTransformation controller', { 
+      error: error.message,
+      stack: error.stack,
+      user: req.user?.id
+    });
+    
+    res.status(400).json({ 
+      error: 'Failed to create transformation',
+      message: error.message
+    });
   }
 }
 
 /**
- * Get transformation status
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * Get all transformations
  */
-async function getTransformationStatus(req, res) {
+async function getAllTransformations(req, res) {
   try {
-    const { id } = req.params;
+    const options = {
+      sortBy: req.query.sortBy || 'created_at',
+      sortOrder: req.query.sortOrder || 'DESC',
+      limit: parseInt(req.query.limit) || 100,
+      offset: parseInt(req.query.offset) || 0
+    };
     
-    apiLogger.info('Getting transformation status', { transformationId: id });
-    
-    // Get transformation status
-    const status = await asyncTransformationService.getTransformationStatus(id);
-    
-    res.json(status);
+    const transformations = await transformationService.getAllTransformations(options);
+    res.json(transformations);
   } catch (error) {
-    apiLogger.error('Error getting transformation status', { 
-      transformationId: req.params.id,
-      error: error.message 
+    systemLogger.error('Error in getAllTransformations controller', { 
+      error: error.message,
+      stack: error.stack
     });
     
-    if (error.message.includes('not found')) {
+    res.status(500).json({ 
+      error: 'Failed to fetch transformations',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Get a transformation by ID
+ */
+async function getTransformationById(req, res) {
+  try {
+    const transformationId = req.params.id;
+    const transformation = await transformationService.getTransformationById(transformationId);
+    
+    if (!transformation) {
       return res.status(404).json({ error: 'Transformation not found' });
     }
     
-    res.status(500).json({ error: 'Failed to get transformation status', message: error.message });
+    res.json(transformation);
+  } catch (error) {
+    systemLogger.error('Error in getTransformationById controller', { 
+      error: error.message,
+      stack: error.stack,
+      transformationId: req.params.id
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch transformation',
+      message: error.message
+    });
   }
 }
 
 /**
- * List user's transformations
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * Update a transformation
  */
-async function listTransformations(req, res) {
+async function updateTransformation(req, res) {
   try {
-    const userId = req.user.id;
-    const { limit, offset, status } = req.query;
+    const transformationId = req.params.id;
+    const updates = req.body;
     
-    apiLogger.info('Listing transformations', { userId, limit, offset, status });
+    const updatedTransformation = await transformationService.updateTransformation(
+      transformationId,
+      updates
+    );
     
-    // List transformations
-    const transformations = await asyncTransformationService.listTransformations(userId, {
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
-      status
+    if (!updatedTransformation) {
+      return res.status(404).json({ error: 'Transformation not found' });
+    }
+    
+    res.json(updatedTransformation);
+  } catch (error) {
+    systemLogger.error('Error in updateTransformation controller', { 
+      error: error.message,
+      stack: error.stack,
+      transformationId: req.params.id
     });
     
-    res.json(transformations);
-  } catch (error) {
-    apiLogger.error('Error listing transformations', { error: error.message });
-    res.status(500).json({ error: 'Failed to list transformations', message: error.message });
+    res.status(400).json({ 
+      error: 'Failed to update transformation',
+      message: error.message
+    });
   }
 }
 
 /**
  * Delete a transformation
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  */
 async function deleteTransformation(req, res) {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
+    const transformationId = req.params.id;
+    const success = await transformationService.deleteTransformation(transformationId);
     
-    apiLogger.info('Deleting transformation', { transformationId: id, userId });
-    
-    // Delete transformation
-    await asyncTransformationService.deleteTransformation(id, userId);
-    
-    res.json({ message: 'Transformation deleted successfully' });
-  } catch (error) {
-    apiLogger.error('Error deleting transformation', { 
-      transformationId: req.params.id,
-      error: error.message 
-    });
-    
-    if (error.message.includes('not found')) {
+    if (!success) {
       return res.status(404).json({ error: 'Transformation not found' });
     }
     
-    if (error.message.includes('permission')) {
-      return res.status(403).json({ error: 'Permission denied' });
+    res.json({ message: 'Transformation deleted successfully' });
+  } catch (error) {
+    systemLogger.error('Error in deleteTransformation controller', { 
+      error: error.message,
+      stack: error.stack,
+      transformationId: req.params.id
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to delete transformation',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Execute a transformation
+ */
+async function executeTransformation(req, res) {
+  try {
+    const transformationId = req.params.id;
+    const options = {
+      parameters: req.body.parameters || {},
+      userId: req.user?.id || 2, // Default to admin if no user
+    };
+    
+    const result = await transformationService.executeTransformation(transformationId, options);
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error in executeTransformation controller', { 
+      error: error.message,
+      stack: error.stack,
+      transformationId: req.params.id
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to execute transformation',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Get execution history for a transformation
+ */
+async function getExecutionHistory(req, res) {
+  try {
+    const transformationId = req.params.id;
+    const options = {
+      limit: parseInt(req.query.limit) || 20,
+      offset: parseInt(req.query.offset) || 0
+    };
+    
+    const history = await transformationService.getExecutionHistory(transformationId, options);
+    res.json(history);
+  } catch (error) {
+    systemLogger.error('Error in getExecutionHistory controller', { 
+      error: error.message,
+      stack: error.stack,
+      transformationId: req.params.id
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch execution history',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Get execution details
+ */
+async function getExecutionDetails(req, res) {
+  try {
+    const executionId = req.params.executionId;
+    const details = await transformationService.getExecutionDetails(executionId);
+    
+    if (!details) {
+      return res.status(404).json({ error: 'Execution not found' });
     }
     
-    res.status(500).json({ error: 'Failed to delete transformation', message: error.message });
+    res.json(details);
+  } catch (error) {
+    systemLogger.error('Error in getExecutionDetails controller', { 
+      error: error.message,
+      stack: error.stack,
+      executionId: req.params.executionId
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch execution details',
+      message: error.message
+    });
   }
 }
 
 module.exports = {
   createTransformation,
-  getTransformationStatus,
-  listTransformations,
-  deleteTransformation
+  getAllTransformations,
+  getTransformationById,
+  updateTransformation,
+  deleteTransformation,
+  executeTransformation,
+  getExecutionHistory,
+  getExecutionDetails
 };
