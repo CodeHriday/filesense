@@ -31,13 +31,20 @@ const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const { loading } = useUI();
   
-  // Show loading state while checking authentication
-  if (isLoading) {
-    loading.setGlobalLoading(true);
-    return null;
-  }
+  // Use useEffect to handle loading state changes
+  // This prevents setting state during render
+  React.useEffect(() => {
+    if (isLoading) {
+      loading.setGlobalLoading(true);
+    } else {
+      loading.setGlobalLoading(false);
+    }
+  }, [isLoading, loading]);
   
-  loading.setGlobalLoading(false);
+  // Show a simple loading indicator or null while checking authentication
+  if (isLoading) {
+    return <div>Loading...</div>; // Or return null for no visual indicator
+  }
   
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
