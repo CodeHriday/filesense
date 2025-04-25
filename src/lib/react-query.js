@@ -1,141 +1,93 @@
 /**
- * React Query Configuration
+ * React Query Client Configuration
  * 
- * This file configures React Query for managing server state.
- * It sets up the QueryClient with default options for all queries and mutations.
+ * This file sets up the React Query client with optimized configurations
+ * for caching, retries, and error handling.
  */
 import { QueryClient } from '@tanstack/react-query';
 
-// Default options for all queries
+// Default options for react-query
 const defaultQueryOptions = {
-  refetchOnWindowFocus: false,
-  refetchOnMount: true,
-  refetchOnReconnect: true,
-  retry: 1,
-  staleTime: 5 * 60 * 1000, // 5 minutes
-  gcTime: 10 * 60 * 1000, // 10 minutes (replaces cacheTime in React Query v4)
+  queries: {
+    retry: (failureCount, error) => {
+      // Don't retry on 404s
+      if (error?.response?.status === 404) return false;
+      // Don't retry on 401 or 403 (auth issues)
+      if (error?.response?.status === 401 || error?.response?.status === 403) return false;
+      // Retry 3 times on other errors
+      return failureCount < 3;
+    },
+    refetchOnWindowFocus: process.env.NODE_ENV === 'production',
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    onError: (error) => {
+      console.error('Query Error:', error);
+    }
+  },
+  mutations: {
+    retry: false,
+    onError: (error) => {
+      console.error('Mutation Error:', error);
+    }
+  }
 };
 
-// Default options for all mutations
-const defaultMutationOptions = {
-  retry: 1,
-  onError: (error) => {
-    // Global error handling for mutations
-    console.error('Mutation error:', error);
-  },
-};
-
-// Create and configure QueryClient
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: defaultQueryOptions,
-    mutations: defaultMutationOptions,
-  },
+// Create the client with default options
+export const queryClient = new QueryClient({
+  defaultOptions: defaultQueryOptions
 });
 
-export default queryClient;
-
-// Query keys for better organization and type safety
+// Common query keys for caching
 export const QueryKeys = {
-  // User and authentication related keys
+  // Auth
   auth: {
-    user: ['auth', 'user'],
-    permissions: ['auth', 'permissions'],
-    roles: ['auth', 'roles'],
+    currentUser: ['currentUser'],
+    permissions: ['permissions']
   },
-  
-  // File related keys
+  // Files
   files: {
     all: ['files'],
-    detail: (fileId) => ['files', fileId],
-    preview: (fileId) => ['files', fileId, 'preview'],
-    recent: ['files', 'recent'],
-    byType: (type) => ['files', 'type', type],
-    history: (fileId) => ['files', fileId, 'history'],
-    quality: (fileId) => ['files', fileId, 'quality'],
+    byId: (id) => ['files', id],
+    profile: (id) => ['files', id, 'profile'],
+    quality: (id) => ['files', id, 'quality'],
+    lineage: (id) => ['files', id, 'lineage']
   },
-  
-  // Process related keys
-  processes: {
-    all: ['processes'],
-    detail: (processId) => ['processes', processId],
-    templates: ['processes', 'templates'],
-    active: ['processes', 'active'],
-    history: ['processes', 'history'],
-  },
-  
-  // Transformation related keys
+  // Transformations
   transformations: {
     all: ['transformations'],
-    detail: (transformId) => ['transformations', transformId],
-    templates: ['transformations', 'templates'],
+    byId: (id) => ['transformations', id]
   },
-  
-  // Dashboard related keys
+  // Business Processes
+  businessProcesses: {
+    all: ['businessProcesses'],
+    byId: (id) => ['businessProcesses', id]
+  },
+  // Groups
+  groups: {
+    all: ['groups'],
+    byId: (id) => ['groups', id]
+  },
+  // Jobs
+  jobs: {
+    all: ['jobs'],
+    byId: (id) => ['jobs', id],
+    byProcess: (processId) => ['jobs', 'process', processId]
+  },
+  // Dashboard
   dashboard: {
     stats: ['dashboard', 'stats'],
-    alerts: ['dashboard', 'alerts'],
-    recentActivity: ['dashboard', 'recentActivity'],
-  },
-  
-  // Statistics related keys
-  stats: {
-    filesByType: ['stats', 'filesByType'],
-    qualityTrends: ['stats', 'qualityTrends'],
-    processPerformance: ['stats', 'processPerformance'],
-  },
-  
-  // Settings related keys
-  settings: {
-    all: ['settings'],
-    user: ['settings', 'user'],
-    system: ['settings', 'system'],
-  },
+    charts: ['dashboard', 'charts']
+  }
 };
 
-// Custom hooks for common React Query patterns
-export const QueryUtils = {
-  // Helper to invalidate cache for files
-  invalidateFiles: () => {
-    return queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
-  },
-  
-  // Helper to invalidate cache for a specific file
-  invalidateFile: (fileId) => {
-    return queryClient.invalidateQueries({ queryKey: QueryKeys.files.detail(fileId) });
-  },
-  
-  // Helper to invalidate all process-related queries
-  invalidateProcesses: () => {
-    return queryClient.invalidateQueries({ queryKey: QueryKeys.processes.all });
-  },
-  
-  // Helper to invalidate all dashboard stats
-  invalidateDashboard: () => {
-    return queryClient.invalidateQueries({ queryKey: QueryKeys.dashboard.stats });
-  },
-  
-  // Helper to update file cache after mutation
-  updateFileCache: (fileId, newData) => {
-    queryClient.setQueryData(
-      QueryKeys.files.detail(fileId),
-      (oldData) => {
-        // Handle the case where oldData might be undefined
-        if (!oldData) return newData;
-        return { ...oldData, ...newData };
-      }
-    );
-  },
-  
-  // Helper to update user cache after mutation
-  updateUserCache: (newData) => {
-    queryClient.setQueryData(
-      QueryKeys.auth.user,
-      (oldData) => {
-        // Handle the case where oldData might be undefined
-        if (!oldData) return newData;
-        return { ...oldData, ...newData };
-      }
-    );
-  },
+// Helper for invalidating query caches
+export const invalidateQueries = async (queryKey) => {
+  return await queryClient.invalidateQueries({ queryKey });
 };
+
+// Helper for refreshing query data
+export const refetchQueries = async (queryKey) => {
+  return await queryClient.refetchQueries({ queryKey });
+};
+
+export default queryClient;

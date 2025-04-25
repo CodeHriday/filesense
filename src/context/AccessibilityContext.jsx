@@ -1,83 +1,115 @@
-/**
- * Accessibility Context
- * 
- * Context for managing and applying accessibility settings throughout the application.
- */
-import React, { createContext, useContext, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  selectAccessibility,
-  setTextSize,
-  setContrast,
-  setReducedMotion,
-} from '../lib/redux/slices/uiSlice';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
-// Create context
-const AccessibilityContext = createContext({});
+// Create the context
+export const AccessibilityContext = createContext();
 
-/**
- * Accessibility Provider Component
- * 
- * Provides accessibility settings and methods to the component tree.
- */
+// Custom hook to use the accessibility context
+export const useAccessibility = () => useContext(AccessibilityContext);
+
+// Accessibility provider component
 export const AccessibilityProvider = ({ children }) => {
-  const dispatch = useDispatch();
-  const accessibilitySettings = useSelector(selectAccessibility);
+  // Initialize state from localStorage if available, otherwise use defaults
+  const [highContrast, setHighContrast] = useState(() => {
+    const saved = localStorage.getItem('accessibility_highContrast');
+    return saved ? JSON.parse(saved) : false;
+  });
   
-  const accessibility = {
-    ...accessibilitySettings,
-    setTextSize: (size) => dispatch(setTextSize(size)),
-    setContrast: (contrast) => dispatch(setContrast(contrast)),
-    setReducedMotion: (reduced) => dispatch(setReducedMotion(reduced)),
-    applyAccessibilitySettings: () => {
-      // Apply text size
-      document.documentElement.style.fontSize = {
-        small: '14px',
-        medium: '16px',
-        large: '18px',
-      }[accessibilitySettings.textSize] || '16px';
-      
-      // Apply contrast
-      document.body.classList.toggle('high-contrast', accessibilitySettings.contrast === 'high');
-      
-      // Apply reduced motion
-      document.body.classList.toggle('reduced-motion', accessibilitySettings.reducedMotion);
-      
-      if (accessibilitySettings.reducedMotion) {
-        document.body.style.setProperty('--transition-duration', '0s');
-      } else {
-        document.body.style.removeProperty('--transition-duration');
-      }
+  const [largeText, setLargeText] = useState(() => {
+    const saved = localStorage.getItem('accessibility_largeText');
+    return saved ? JSON.parse(saved) : false;
+  });
+  
+  const [screenReaderOptimized, setScreenReaderOptimized] = useState(() => {
+    const saved = localStorage.getItem('accessibility_screenReader');
+    return saved ? JSON.parse(saved) : false;
+  });
+  
+  const [reducedMotion, setReducedMotion] = useState(() => {
+    const saved = localStorage.getItem('accessibility_reducedMotion');
+    return saved ? JSON.parse(saved) : false;
+  });
+  
+  // Listen for system preference changes for reduced motion
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mediaQuery.matches) {
+      setReducedMotion(true);
     }
+    
+    const handleChange = (e) => {
+      setReducedMotion(e.matches);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+  
+  // Save preferences to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('accessibility_highContrast', JSON.stringify(highContrast));
+    document.documentElement.classList.toggle('high-contrast', highContrast);
+  }, [highContrast]);
+  
+  useEffect(() => {
+    localStorage.setItem('accessibility_largeText', JSON.stringify(largeText));
+    document.documentElement.classList.toggle('large-text', largeText);
+  }, [largeText]);
+  
+  useEffect(() => {
+    localStorage.setItem('accessibility_screenReader', JSON.stringify(screenReaderOptimized));
+    document.documentElement.classList.toggle('screen-reader-optimized', screenReaderOptimized);
+  }, [screenReaderOptimized]);
+  
+  useEffect(() => {
+    localStorage.setItem('accessibility_reducedMotion', JSON.stringify(reducedMotion));
+    document.documentElement.classList.toggle('reduced-motion', reducedMotion);
+  }, [reducedMotion]);
+  
+  // Function to toggle high contrast mode
+  const toggleHighContrast = () => {
+    setHighContrast(prev => !prev);
   };
   
-  // Apply accessibility settings when they change
-  useEffect(() => {
-    accessibility.applyAccessibilitySettings();
-  }, [
-    accessibilitySettings.textSize,
-    accessibilitySettings.contrast,
-    accessibilitySettings.reducedMotion,
-  ]);
+  // Function to toggle large text mode
+  const toggleLargeText = () => {
+    setLargeText(prev => !prev);
+  };
+  
+  // Function to toggle screen reader optimization
+  const toggleScreenReaderOptimized = () => {
+    setScreenReaderOptimized(prev => !prev);
+  };
+  
+  // Function to toggle reduced motion
+  const toggleReducedMotion = () => {
+    setReducedMotion(prev => !prev);
+  };
+  
+  // Reset all accessibility settings to default
+  const resetSettings = () => {
+    setHighContrast(false);
+    setLargeText(false);
+    setScreenReaderOptimized(false);
+    setReducedMotion(false);
+  };
   
   return (
-    <AccessibilityContext.Provider value={accessibility}>
+    <AccessibilityContext.Provider
+      value={{
+        highContrast,
+        largeText,
+        screenReaderOptimized,
+        reducedMotion,
+        toggleHighContrast,
+        toggleLargeText,
+        toggleScreenReaderOptimized,
+        toggleReducedMotion,
+        resetSettings
+      }}
+    >
       {children}
     </AccessibilityContext.Provider>
   );
 };
-
-/**
- * Hook to access the accessibility context
- */
-export const useAccessibilityContext = () => {
-  const context = useContext(AccessibilityContext);
-  
-  if (context === undefined) {
-    throw new Error('useAccessibilityContext must be used within an AccessibilityProvider');
-  }
-  
-  return context;
-};
-
-export default AccessibilityContext;
