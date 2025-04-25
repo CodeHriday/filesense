@@ -1,91 +1,75 @@
-import { useState, useCallback, useContext, createContext } from 'react';
+import { createContext, useContext, useReducer, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
-// Create Context
-const NotificationContext = createContext();
+// Default duration for notifications in milliseconds
+const DEFAULT_DURATION = 5000;
 
-/**
- * Notification provider component
- * Wrap your app with this provider to enable notifications
- */
-export const NotificationProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState([]);
-  
-  // Add a notification
-  const addNotification = useCallback((notification) => {
-    const id = Date.now().toString();
-    const newNotification = {
-      id,
-      message: notification.message || 'Notification',
-      type: notification.type || 'info', // 'success', 'error', 'warning', 'info'
-      duration: notification.duration || 5000, // milliseconds
-      ...notification
-    };
+// Create a context for notifications
+export const NotificationsContext = createContext();
+
+// Action types
+const ADD_NOTIFICATION = 'ADD_NOTIFICATION';
+const REMOVE_NOTIFICATION = 'REMOVE_NOTIFICATION';
+
+// Notification reducer
+const notificationsReducer = (state, action) => {
+  switch (action.type) {
+    case ADD_NOTIFICATION:
+      return [...state, action.payload];
+    case REMOVE_NOTIFICATION:
+      return state.filter(notification => notification.id !== action.payload);
+    default:
+      return state;
+  }
+};
+
+// Notifications Provider component
+export const NotificationsProvider = ({ children }) => {
+  const [notifications, dispatch] = useReducer(notificationsReducer, []);
+
+  const removeNotification = useCallback((id) => {
+    dispatch({ type: REMOVE_NOTIFICATION, payload: id });
+  }, []);
+
+  const addNotification = useCallback((message, type, duration = DEFAULT_DURATION) => {
+    const id = uuidv4();
     
-    setNotifications(prev => [...prev, newNotification]);
-    
-    // Auto-dismiss notification after duration
-    if (newNotification.duration > 0) {
-      setTimeout(() => {
-        removeNotification(id);
-      }, newNotification.duration);
-    }
+    dispatch({
+      type: ADD_NOTIFICATION,
+      payload: {
+        id,
+        message,
+        type,
+        duration,
+      },
+    });
     
     return id;
   }, []);
-  
-  // Remove a notification by ID
-  const removeNotification = useCallback((id) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
-  }, []);
-  
-  // Remove all notifications
-  const clearNotifications = useCallback(() => {
-    setNotifications([]);
-  }, []);
-  
-  // Shorthand for common notification types
+
+  // Create helper methods for different notification types
   const notify = {
-    success: useCallback((message, options = {}) => {
-      return addNotification({ message, type: 'success', ...options });
-    }, [addNotification]),
-    
-    error: useCallback((message, options = {}) => {
-      return addNotification({ message, type: 'error', ...options });
-    }, [addNotification]),
-    
-    warning: useCallback((message, options = {}) => {
-      return addNotification({ message, type: 'warning', ...options });
-    }, [addNotification]),
-    
-    info: useCallback((message, options = {}) => {
-      return addNotification({ message, type: 'info', ...options });
-    }, [addNotification])
+    success: (message, duration) => addNotification(message, 'success', duration),
+    error: (message, duration) => addNotification(message, 'error', duration),
+    warning: (message, duration) => addNotification(message, 'warning', duration),
+    info: (message, duration) => addNotification(message, 'info', duration),
   };
-  
-  const value = {
-    notifications,
-    addNotification,
-    removeNotification,
-    clearNotifications,
-    notify
-  };
-  
+
   return (
-    <NotificationContext.Provider value={value}>
+    <NotificationsContext.Provider
+      value={{ notifications, addNotification, removeNotification, notify }}
+    >
       {children}
-    </NotificationContext.Provider>
+    </NotificationsContext.Provider>
   );
 };
 
-/**
- * Custom hook for accessing and managing notifications
- * Must be used within a NotificationProvider
- */
+// Custom hook to use notifications
 export const useNotifications = () => {
-  const context = useContext(NotificationContext);
+  const context = useContext(NotificationsContext);
   
   if (!context) {
-    throw new Error('useNotifications must be used within a NotificationProvider');
+    throw new Error('useNotifications must be used within a NotificationsProvider');
   }
   
   return context;

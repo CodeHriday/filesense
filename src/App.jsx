@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import NotificationList from './components/Notifications/NotificationList';
 import Dashboard from './pages/Dashboard';
 import FileUpload from './pages/FileUpload';
 import DataProfile from './pages/DataProfile';
@@ -35,7 +36,7 @@ import { AccessibilityProvider } from './context/AccessibilityContext';
 import AuthProvider, { useAuth } from './context/AuthContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
-import { NotificationProvider, ModalProvider } from './hooks';
+import { NotificationsProvider, ModalProvider } from './hooks';
 import './App.css';
 import './styles/accessibility.css';
 import './styles/Login.css';
@@ -80,13 +81,13 @@ function App() {
       <AuthProvider>
         <AnnouncementProvider>
           <ToastProvider>
-            <NotificationProvider>
+            <NotificationsProvider>
               <ModalProvider>
                 <Router>
                   <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
                 </Router>
               </ModalProvider>
-            </NotificationProvider>
+            </NotificationsProvider>
           </ToastProvider>
         </AnnouncementProvider>
       </AuthProvider>
@@ -182,6 +183,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       {currentUser && showOnboarding && (
         <OnboardingWizard onClose={() => setShowOnboarding(false)} />
       )}
+      
+      {/* Global Notifications */}
+      <NotificationList />
     </div>
   );
 }

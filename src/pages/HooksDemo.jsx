@@ -130,6 +130,27 @@ const HooksDemo = () => {
       </div>
       
       <div className="demo-section" style={{ marginBottom: '30px' }}>
+        <h2>Notifications (useNotifications)</h2>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button onClick={() => notify.success('Operation completed successfully!')}>
+            Success Notification
+          </button>
+          <button onClick={() => notify.error('An error occurred. Please try again.')}>
+            Error Notification
+          </button>
+          <button onClick={() => notify.warning('This action cannot be undone.')}>
+            Warning Notification
+          </button>
+          <button onClick={() => notify.info('New features are available.')}>
+            Info Notification
+          </button>
+        </div>
+        <p style={{ marginTop: '10px' }}>
+          Click the buttons above to see different types of notifications.
+        </p>
+      </div>
+      
+      <div className="demo-section" style={{ marginBottom: '30px' }}>
         <h2>Window Size (useWindowSize)</h2>
         <p>Current window dimensions: {width} x {height}</p>
         <p>

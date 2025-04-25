@@ -9,7 +9,7 @@ export * from './usePagination';
 export * from './useSearch';
 export * from './useSorting';
 export * from './useLocalStorage';
-export * from './useNotifications';
+export * from './useNotifications.jsx';
 export * from './useModal';
 export * from './useAsync';
 export * from './useWindowSize';
@@ -21,16 +21,16 @@ export { default as usePagination } from './usePagination';
 export { default as useSearch } from './useSearch';
 export { default as useSorting } from './useSorting';
 export { default as useLocalStorage } from './useLocalStorage';
-export { default as useNotifications } from './useNotifications';
+export { default as useNotifications } from './useNotifications.jsx';
 export { default as useModal } from './useModal';
 export { default as useAsync } from './useAsync';
 export { default as useWindowSize } from './useWindowSize';
 
 // Export provider components
 export { 
-  NotificationProvider 
+  NotificationsProvider 
 } from './useNotifications.jsx';
 
 export { 
   ModalProvider 
-} from './useModal.jsx';
+} from './useModal';
