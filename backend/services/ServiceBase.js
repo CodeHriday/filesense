@@ -63,29 +63,134 @@ class ServiceBase {
    * @returns {Promise<any>} Transaction result
    */
   async executeTransaction(callback, options = {}) {
-    const { traceId } = options;
-    const client = await this.dbPool.connect();
+    const { 
+      traceId,
+      isolationLevel = 'READ COMMITTED', // Default isolation level
+      readOnly = false,
+      maxRetries = 3,
+      retryDelay = 100 // ms
+    } = options;
     
-    try {
-      this.logger.debug('Starting database transaction', { traceId });
-      await client.query('BEGIN');
-      
-      const result = await callback(client);
-      
-      await client.query('COMMIT');
-      this.logger.debug('Transaction committed', { traceId });
-      
-      return result;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      this.logger.error('Transaction rolled back', { 
-        error: error.message,
-        traceId
-      });
-      throw error;
-    } finally {
-      client.release();
+    const client = await this.dbPool.connect();
+    let retryCount = 0;
+    let lastError = null;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        this.logger.debug('Starting database transaction', { 
+          traceId,
+          isolationLevel,
+          readOnly,
+          attempt: retryCount + 1
+        });
+        
+        // Start transaction with specified isolation level
+        await client.query('BEGIN');
+        
+        // Set isolation level and read-only status if needed
+        if (isolationLevel) {
+          await client.query(`SET TRANSACTION ISOLATION LEVEL ${isolationLevel}`);
+        }
+        
+        if (readOnly) {
+          await client.query('SET TRANSACTION READ ONLY');
+        }
+        
+        const result = await callback(client);
+        
+        await client.query('COMMIT');
+        this.logger.debug('Transaction committed successfully', { 
+          traceId,
+          attempt: retryCount + 1
+        });
+        
+        return result;
+      } catch (error) {
+        lastError = error;
+        
+        // Handle serialization failures or deadlocks with retry logic
+        const isRetryable = this._isRetryableError(error);
+        
+        try {
+          await client.query('ROLLBACK');
+          this.logger.warn('Transaction rolled back', { 
+            error: error.message,
+            code: error.code,
+            traceId,
+            attempt: retryCount + 1,
+            retryable: isRetryable
+          });
+        } catch (rollbackError) {
+          this.logger.error('Error during transaction rollback', { 
+            error: rollbackError.message,
+            traceId
+          });
+        }
+        
+        // If it's a retryable error and we have retries left, try again
+        if (isRetryable && retryCount < maxRetries) {
+          retryCount++;
+          
+          // Exponential backoff for retries
+          const delay = retryDelay * Math.pow(2, retryCount - 1);
+          this.logger.info('Retrying transaction', { 
+            attempt: retryCount + 1,
+            delay, 
+            traceId
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        throw error;
+      } finally {
+        if (retryCount >= maxRetries) {
+          this.logger.error('Transaction failed after max retries', {
+            maxRetries,
+            traceId,
+            error: lastError ? lastError.message : 'Unknown error'
+          });
+        }
+        client.release();
+      }
     }
+  }
+  
+  /**
+   * Check if an error is retryable for transaction purposes
+   * 
+   * @private
+   * @param {Error} error - The error to check
+   * @returns {boolean} Whether the error is retryable
+   */
+  _isRetryableError(error) {
+    if (!error || !error.code) {
+      return false;
+    }
+    
+    // PostgreSQL error codes for retryable errors:
+    // 40001: serialization_failure
+    // 40P01: deadlock_detected
+    // 55P03: lock_not_available
+    const retryableCodes = ['40001', '40P01', '55P03'];
+    
+    return retryableCodes.includes(error.code);
+  }
+  
+  /**
+   * Execute a read-only transaction (for queries that don't modify data)
+   * 
+   * @param {Function} callback - Function that receives a client and executes queries
+   * @param {Object} options - Additional options
+   * @returns {Promise<any>} Transaction result
+   */
+  async executeReadTransaction(callback, options = {}) {
+    return this.executeTransaction(callback, {
+      ...options,
+      readOnly: true,
+      isolationLevel: options.isolationLevel || 'REPEATABLE READ'
+    });
   }
 
   /**

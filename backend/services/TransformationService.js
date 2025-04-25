@@ -57,38 +57,77 @@ class TransformationService extends ServiceBase {
       // Generate a unique transformation ID
       const transformationId = transformationData.id || `transform_${Date.now()}`;
       
-      // Insert into database
-      const query = `
-        INSERT INTO transformations (
-          transformation_id,
-          name,
-          description,
-          type,
-          config,
-          input_files,
-          output_format,
-          created_by,
-          created_at,
-          updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-        RETURNING *
-      `;
-      
-      const params = [
-        transformationId,
-        transformationData.name,
-        transformationData.description || '',
-        transformationData.type,
-        JSON.stringify(transformationData.config || {}),
-        JSON.stringify(transformationData.inputFiles || []),
-        transformationData.outputFormat || 'csv',
-        transformationData.createdBy || 2  // Default to admin user ID
-      ];
-      
-      const result = await this.executeQuery(query, params);
-      
-      return result.rows[0];
+      // Use transaction to ensure data integrity
+      return await this.executeTransaction(async (client) => {
+        // Insert into database
+        const query = `
+          INSERT INTO transformations (
+            transformation_id,
+            name,
+            description,
+            type,
+            config,
+            input_files,
+            output_format,
+            created_by,
+            created_at,
+            updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+          RETURNING *
+        `;
+        
+        const params = [
+          transformationId,
+          transformationData.name,
+          transformationData.description || '',
+          transformationData.type,
+          JSON.stringify(transformationData.config || {}),
+          JSON.stringify(transformationData.inputFiles || []),
+          transformationData.outputFormat || 'csv',
+          transformationData.createdBy || 2  // Default to admin user ID
+        ];
+        
+        const result = await client.query(query, params);
+        
+        // Add lineage tracking entries if input files are specified
+        if (transformationData.inputFiles && transformationData.inputFiles.length > 0) {
+          // Check if transformation_lineage table exists, create it if not
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS transformation_lineage (
+              id SERIAL PRIMARY KEY,
+              transformation_id VARCHAR(255) NOT NULL,
+              input_file_id VARCHAR(255) NOT NULL,
+              created_at TIMESTAMP DEFAULT NOW(),
+              CONSTRAINT fk_transformation
+                FOREIGN KEY(transformation_id) 
+                REFERENCES transformations(transformation_id)
+                ON DELETE CASCADE
+            )
+          `);
+          
+          // Insert lineage records
+          for (const inputFile of transformationData.inputFiles) {
+            await client.query(
+              `INSERT INTO transformation_lineage 
+                (transformation_id, input_file_id, created_at)
+                VALUES ($1, $2, NOW())`,
+              [transformationId, inputFile]
+            );
+          }
+          
+          this.logger.debug('Added lineage information', {
+            transformationId,
+            inputFileCount: transformationData.inputFiles.length,
+            traceId
+          });
+        }
+        
+        return result.rows[0];
+      }, { 
+        traceId,
+        isolationLevel: 'SERIALIZABLE'  // Use highest isolation level for data consistency
+      });
     } catch (error) {
       this.logger.error('Error creating transformation', { 
         error: error.message,
@@ -339,45 +378,143 @@ class TransformationService extends ServiceBase {
     this.logger.info('Executing transformation', { transformationId, traceId });
     
     try {
-      // Get transformation details
-      const transformation = await this.getTransformationById(transformationId);
+      // Get transformation details with input validation in a read transaction
+      const transformation = await this.executeReadTransaction(async (client) => {
+        // Get the transformation
+        const transformResult = await client.query(
+          `SELECT * FROM transformations WHERE transformation_id = $1`,
+          [transformationId]
+        );
+        
+        if (transformResult.rows.length === 0) {
+          throw new Error(`Transformation not found: ${transformationId}`);
+        }
+        
+        const transformation = transformResult.rows[0];
+        
+        // Validate existence of input files if needed
+        const inputFiles = JSON.parse(transformation.input_files || '[]');
+        if (inputFiles.length > 0 && options.validateInputs !== false) {
+          this.logger.debug('Validating input files', { 
+            transformationId, 
+            inputFiles,
+            traceId 
+          });
+          
+          for (const fileId of inputFiles) {
+            const fileResult = await client.query(
+              `SELECT COUNT(*) as count FROM files WHERE file_id = $1`,
+              [fileId]
+            );
+            
+            if (fileResult.rows[0].count === 0) {
+              throw new Error(`Input file not found: ${fileId}`);
+            }
+          }
+        }
+        
+        return transformation;
+      }, { 
+        traceId, 
+        isolationLevel: 'REPEATABLE READ' 
+      });
       
-      if (!transformation) {
-        throw new Error(`Transformation not found: ${transformationId}`);
-      }
+      // Create execution record with a write transaction
+      const executionDetails = await this.executeTransaction(async (client) => {
+        const executionId = `exec_${Date.now()}`;
+        
+        const insertQuery = `
+          INSERT INTO transformation_executions (
+            execution_id,
+            transformation_id,
+            status,
+            started_at,
+            parameters,
+            created_at
+          )
+          VALUES ($1, $2, $3, NOW(), $4, NOW())
+          RETURNING *
+        `;
+        
+        const executionResult = await client.query(insertQuery, [
+          executionId,
+          transformationId,
+          'RUNNING',
+          JSON.stringify(options.parameters || {})
+        ]);
+        
+        // Track execution in transformation record
+        await client.query(
+          `UPDATE transformations 
+           SET last_execution_id = $1, last_executed_at = NOW(), updated_at = NOW()
+           WHERE transformation_id = $2`,
+          [executionId, transformationId]
+        );
+        
+        return {
+          executionId,
+          execution: executionResult.rows[0]
+        };
+      }, { 
+        traceId,
+        isolationLevel: 'SERIALIZABLE' 
+      });
       
-      // Create execution record
-      const executionId = `exec_${Date.now()}`;
-      
-      const insertQuery = `
-        INSERT INTO transformation_executions (
-          execution_id,
-          transformation_id,
-          status,
-          started_at,
-          parameters,
-          created_at
-        )
-        VALUES ($1, $2, $3, NOW(), $4, NOW())
-        RETURNING *
-      `;
-      
-      await this.executeQuery(insertQuery, [
-        executionId,
-        transformationId,
-        'RUNNING',
-        JSON.stringify(options.parameters || {})
-      ]);
+      const { executionId } = executionDetails;
       
       // Define handler for completion outside worker data
       const handleCompletion = async (result) => {
-        // Update execution record when complete
+        // Update execution record when complete using a transaction
         try {
-          await this.updateExecutionStatus(
-            executionId, 
-            result.success ? 'COMPLETED' : 'FAILED',
-            result
-          );
+          await this.executeTransaction(async (client) => {
+            const status = result.success ? 'COMPLETED' : 'FAILED';
+            
+            // Update execution status
+            await client.query(
+              `UPDATE transformation_executions
+               SET status = $1,
+                   completed_at = NOW(),
+                   result = $2,
+                   updated_at = NOW()
+               WHERE execution_id = $3`,
+              [status, JSON.stringify(result), executionId]
+            );
+            
+            // If successful and contains output files, record them
+            if (result.success && result.result && result.result.outputFiles) {
+              for (const outputFile of result.result.outputFiles) {
+                await client.query(
+                  `INSERT INTO transformation_outputs
+                   (execution_id, transformation_id, file_id, file_path, created_at)
+                   VALUES ($1, $2, $3, $4, NOW())`,
+                  [executionId, transformationId, outputFile.fileId, outputFile.filePath]
+                );
+              }
+              
+              this.logger.debug('Recorded output files', {
+                executionId,
+                outputCount: result.result.outputFiles.length,
+                traceId
+              });
+            }
+            
+            // Update transformation stats
+            const statsUpdate = status === 'COMPLETED' 
+              ? `total_successful_executions = total_successful_executions + 1`
+              : `total_failed_executions = total_failed_executions + 1`;
+            
+            await client.query(
+              `UPDATE transformations
+               SET ${statsUpdate}, 
+                   updated_at = NOW()
+               WHERE transformation_id = $1`,
+              [transformationId]
+            );
+          }, { 
+            traceId,
+            isolationLevel: 'READ COMMITTED',
+            maxRetries: 5  // More retries for this critical operation
+          });
         } catch (updateErr) {
           this.logger.error('Failed to update execution status', {
             error: updateErr.message,
@@ -429,28 +566,113 @@ class TransformationService extends ServiceBase {
       traceId
     });
     
-    const query = `
-      UPDATE transformation_executions
-      SET 
-        status = $1,
-        completed_at = CASE WHEN $1 IN ('COMPLETED', 'FAILED') THEN NOW() ELSE completed_at END,
-        result = $2,
-        updated_at = NOW()
-      WHERE execution_id = $3
-      RETURNING *
-    `;
-    
     try {
-      const updateResult = await this.executeQuery(query, [
-        status,
-        JSON.stringify(result),
-        executionId
-      ]);
-      
-      return updateResult.rows[0];
+      // Use a transaction to ensure atomic updates
+      return await this.executeTransaction(async (client) => {
+        // Get execution record to determine transformation ID
+        const getQuery = `
+          SELECT * FROM transformation_executions 
+          WHERE execution_id = $1
+        `;
+        
+        const execResult = await client.query(getQuery, [executionId]);
+        
+        if (execResult.rows.length === 0) {
+          throw new Error(`Execution not found: ${executionId}`);
+        }
+        
+        const execution = execResult.rows[0];
+        const transformationId = execution.transformation_id;
+        
+        // Update execution status
+        const updateQuery = `
+          UPDATE transformation_executions
+          SET 
+            status = $1,
+            completed_at = CASE WHEN $1 IN ('COMPLETED', 'FAILED') THEN NOW() ELSE completed_at END,
+            result = $2,
+            updated_at = NOW()
+          WHERE execution_id = $3
+          RETURNING *
+        `;
+        
+        const updateResult = await client.query(updateQuery, [
+          status,
+          JSON.stringify(result),
+          executionId
+        ]);
+        
+        // If status indicates completion, update transformation stats
+        if (status === 'COMPLETED' || status === 'FAILED') {
+          const statsUpdate = status === 'COMPLETED' 
+            ? `total_successful_executions = COALESCE(total_successful_executions, 0) + 1`
+            : `total_failed_executions = COALESCE(total_failed_executions, 0) + 1`;
+          
+          await client.query(
+            `UPDATE transformations
+             SET ${statsUpdate}, 
+                 last_execution_status = $1,
+                 updated_at = NOW()
+             WHERE transformation_id = $2`,
+            [status, transformationId]
+          );
+          
+          this.logger.debug('Updated transformation stats', {
+            transformationId,
+            status,
+            traceId
+          });
+          
+          // If successful and result contains output files, record them
+          if (status === 'COMPLETED' && 
+              result && 
+              result.result && 
+              result.result.outputFiles &&
+              Array.isArray(result.result.outputFiles)) {
+            
+            // Check if transformation_outputs table exists
+            await client.query(`
+              CREATE TABLE IF NOT EXISTS transformation_outputs (
+                id SERIAL PRIMARY KEY,
+                execution_id VARCHAR(255) NOT NULL,
+                transformation_id VARCHAR(255) NOT NULL,
+                file_id VARCHAR(255) NOT NULL,
+                file_path TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                CONSTRAINT fk_execution
+                  FOREIGN KEY(execution_id) 
+                  REFERENCES transformation_executions(execution_id)
+                  ON DELETE CASCADE
+              )
+            `);
+            
+            for (const outputFile of result.result.outputFiles) {
+              await client.query(
+                `INSERT INTO transformation_outputs
+                 (execution_id, transformation_id, file_id, file_path, created_at)
+                 VALUES ($1, $2, $3, $4, NOW())`,
+                [executionId, transformationId, outputFile.fileId, outputFile.filePath]
+              );
+            }
+            
+            this.logger.debug('Recorded output files', {
+              executionId,
+              outputCount: result.result.outputFiles.length,
+              traceId
+            });
+          }
+        }
+        
+        return updateResult.rows[0];
+      }, {
+        traceId,
+        isolationLevel: 'READ COMMITTED',
+        maxRetries: 3
+      });
     } catch (error) {
       this.logger.error('Error updating execution status', { 
         error: error.message,
+        stack: error.stack,
         executionId,
         traceId
       });
@@ -466,24 +688,73 @@ class TransformationService extends ServiceBase {
    * @returns {Promise<Array>} Execution history
    */
   async getExecutionHistory(transformationId, options = {}) {
-    const { limit = 20, offset = 0 } = options;
+    const { limit = 20, offset = 0, includeCounts = true } = options;
     const traceId = this.generateTraceId();
     
     this.logger.info('Fetching execution history', { transformationId, traceId });
     
-    const query = `
-      SELECT * FROM transformation_executions
-      WHERE transformation_id = $1
-      ORDER BY started_at DESC
-      LIMIT $2 OFFSET $3
-    `;
-    
     try {
-      const result = await this.executeQuery(query, [transformationId, limit, offset]);
-      return result.rows;
+      // Use a read-only transaction for consistent data retrieval
+      return await this.executeReadTransaction(async (client) => {
+        // Main query to get execution history
+        const query = `
+          SELECT * FROM transformation_executions
+          WHERE transformation_id = $1
+          ORDER BY started_at DESC
+          LIMIT $2 OFFSET $3
+        `;
+        
+        const result = await client.query(query, [transformationId, limit, offset]);
+        
+        // If we need counts, get total records for pagination
+        if (includeCounts) {
+          const countQuery = `
+            SELECT COUNT(*) as total
+            FROM transformation_executions
+            WHERE transformation_id = $1
+          `;
+          
+          const countResult = await client.query(countQuery, [transformationId]);
+          
+          // Get the stats for this transformation
+          const statsQuery = `
+            SELECT 
+              COALESCE(total_successful_executions, 0) as successful,
+              COALESCE(total_failed_executions, 0) as failed,
+              last_execution_id,
+              last_execution_status,
+              last_executed_at
+            FROM transformations
+            WHERE transformation_id = $1
+          `;
+          
+          const statsResult = await client.query(statsQuery, [transformationId]);
+          
+          // Return the combined results
+          return {
+            executions: result.rows,
+            pagination: {
+              total: parseInt(countResult.rows[0].total),
+              limit,
+              offset
+            },
+            stats: statsResult.rows[0] || {
+              successful: 0,
+              failed: 0
+            }
+          };
+        }
+        
+        // If counts not needed, just return the executions
+        return result.rows;
+      }, {
+        traceId,
+        isolationLevel: 'REPEATABLE READ'
+      });
     } catch (error) {
       this.logger.error('Error fetching execution history', { 
         error: error.message,
+        stack: error.stack,
         transformationId,
         traceId
       });
@@ -501,43 +772,102 @@ class TransformationService extends ServiceBase {
     const traceId = this.generateTraceId();
     this.logger.info('Fetching execution details', { executionId, traceId });
     
-    // Try both with the transformation JOIN and without as a fallback
     try {
-      // First try with the join
-      const joinQuery = `
-        SELECT e.*, t.name as transformation_name, t.type as transformation_type
-        FROM transformation_executions e
-        JOIN transformations t ON e.transformation_id = t.transformation_id
-        WHERE e.execution_id = $1
-      `;
-      
-      const joinResult = await this.executeQuery(joinQuery, [executionId]);
-      
-      if (joinResult.rows.length > 0) {
-        return joinResult.rows[0];
-      }
-      
-      // If not found with join, try direct query
-      const directQuery = `
-        SELECT * FROM transformation_executions
-        WHERE execution_id = $1
-      `;
-      
-      const directResult = await this.executeQuery(directQuery, [executionId]);
-      
-      if (directResult.rows.length === 0) {
-        this.logger.warn('Execution not found', { executionId, traceId });
-        return null;
-      }
-      
-      return directResult.rows[0];
+      // Use a read-only transaction for consistent data retrieval
+      return await this.executeReadTransaction(async (client) => {
+        // First try with the join to get transformation name and type
+        const joinQuery = `
+          SELECT 
+            e.*,
+            t.name as transformation_name,
+            t.type as transformation_type
+          FROM transformation_executions e
+          JOIN transformations t ON e.transformation_id = t.transformation_id
+          WHERE e.execution_id = $1
+        `;
+        
+        const joinResult = await client.query(joinQuery, [executionId]);
+        
+        if (joinResult.rows.length > 0) {
+          // Also get output files if available
+          const outputFiles = await this._getOutputFilesForExecution(client, executionId);
+          const result = joinResult.rows[0];
+          
+          if (outputFiles.length > 0) {
+            result.output_files = outputFiles;
+          }
+          
+          return result;
+        }
+        
+        // If not found with join, try direct query (may be due to deleted transformation)
+        const directQuery = `
+          SELECT * FROM transformation_executions
+          WHERE execution_id = $1
+        `;
+        
+        const directResult = await client.query(directQuery, [executionId]);
+        
+        if (directResult.rows.length === 0) {
+          this.logger.warn('Execution not found', { executionId, traceId });
+          return null;
+        }
+        
+        return directResult.rows[0];
+      }, {
+        traceId,
+        isolationLevel: 'REPEATABLE READ'
+      });
     } catch (error) {
       this.logger.error('Error fetching execution details', { 
         error: error.message,
+        stack: error.stack,
         executionId,
         traceId
       });
       throw error;
+    }
+  }
+  
+  /**
+   * Helper method to get output files for an execution
+   * 
+   * @private
+   * @param {Object} client - Database client
+   * @param {string} executionId - Execution ID
+   * @returns {Promise<Array>} List of output files
+   */
+  async _getOutputFilesForExecution(client, executionId) {
+    try {
+      // Check if the table exists first to avoid error
+      const tableCheckQuery = `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'transformation_outputs'
+        )
+      `;
+      
+      const tableExists = await client.query(tableCheckQuery);
+      
+      if (!tableExists.rows[0].exists) {
+        return [];
+      }
+      
+      const query = `
+        SELECT * FROM transformation_outputs
+        WHERE execution_id = $1
+        ORDER BY created_at
+      `;
+      
+      const result = await client.query(query, [executionId]);
+      return result.rows;
+    } catch (error) {
+      // Just log and return empty array, don't fail the whole operation
+      this.logger.warn('Error getting output files', { 
+        error: error.message,
+        executionId
+      });
+      return [];
     }
   }
 
