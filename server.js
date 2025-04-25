@@ -9,6 +9,9 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+// Import enhanced backend features
+const { setupEnhancedFeatures } = require('./backend/integration');
+
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3000;
@@ -4519,6 +4522,9 @@ app.delete('/api/job-groups/:id/jobs/:jobId', authenticateToken, async (req, res
 });
 
 // Start the server
+// Setup enhanced backend features
+setupEnhancedFeatures(app);
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
