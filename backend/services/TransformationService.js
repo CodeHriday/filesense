@@ -501,22 +501,36 @@ class TransformationService extends ServiceBase {
     const traceId = this.generateTraceId();
     this.logger.info('Fetching execution details', { executionId, traceId });
     
-    const query = `
-      SELECT e.*, t.name as transformation_name, t.type as transformation_type
-      FROM transformation_executions e
-      JOIN transformations t ON e.transformation_id = t.transformation_id
-      WHERE e.execution_id = $1
-    `;
-    
+    // Try both with the transformation JOIN and without as a fallback
     try {
-      const result = await this.executeQuery(query, [executionId]);
+      // First try with the join
+      const joinQuery = `
+        SELECT e.*, t.name as transformation_name, t.type as transformation_type
+        FROM transformation_executions e
+        JOIN transformations t ON e.transformation_id = t.transformation_id
+        WHERE e.execution_id = $1
+      `;
       
-      if (result.rows.length === 0) {
+      const joinResult = await this.executeQuery(joinQuery, [executionId]);
+      
+      if (joinResult.rows.length > 0) {
+        return joinResult.rows[0];
+      }
+      
+      // If not found with join, try direct query
+      const directQuery = `
+        SELECT * FROM transformation_executions
+        WHERE execution_id = $1
+      `;
+      
+      const directResult = await this.executeQuery(directQuery, [executionId]);
+      
+      if (directResult.rows.length === 0) {
         this.logger.warn('Execution not found', { executionId, traceId });
         return null;
       }
       
-      return result.rows[0];
+      return directResult.rows[0];
     } catch (error) {
       this.logger.error('Error fetching execution details', { 
         error: error.message,
