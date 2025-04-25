@@ -116,11 +116,12 @@ function processFileAsync(options) {
  * Process a transformation asynchronously
  * 
  * @param {Object} options - Processing options
+ * @param {Function} onCompleteCallback - Callback to run on completion
  * @returns {Object} Task information
  */
-function processTransformationAsync(options) {
+function processTransformationAsync(options, onCompleteCallback) {
   const taskId = uuidv4();
-  const { transformation, executionId, traceId, onComplete } = options;
+  const { transformation, executionId, traceId } = options;
   
   systemLogger.info('Starting async transformation', { 
     taskId, 
@@ -130,6 +131,14 @@ function processTransformationAsync(options) {
     traceId
   });
   
+  // Create a copy of options without functions for worker data
+  const workerOptions = {
+    transformation,
+    executionId,
+    traceId,
+    parameters: options.parameters || {}
+  };
+  
   // Create task record
   const taskInfo = {
     taskId,
@@ -137,20 +146,20 @@ function processTransformationAsync(options) {
     status: 'processing',
     progress: 0,
     startTime: Date.now(),
-    options,
+    options: workerOptions, // Use the serializable copy
     worker: null,
-    onComplete
+    onComplete: onCompleteCallback
   };
   
   // Store in active tasks map
   activeTasks.set(taskId, taskInfo);
   
-  // Create worker thread
+  // Create worker thread with serializable data
   const worker = new Worker(workerPath, {
     workerData: {
       taskType: 'transformation',
       taskId,
-      options
+      options: workerOptions
     }
   });
   

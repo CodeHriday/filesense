@@ -369,29 +369,31 @@ class TransformationService extends ServiceBase {
         JSON.stringify(options.parameters || {})
       ]);
       
+      // Define handler for completion outside worker data
+      const handleCompletion = async (result) => {
+        // Update execution record when complete
+        try {
+          await this.updateExecutionStatus(
+            executionId, 
+            result.success ? 'COMPLETED' : 'FAILED',
+            result
+          );
+        } catch (updateErr) {
+          this.logger.error('Failed to update execution status', {
+            error: updateErr.message,
+            executionId,
+            traceId
+          });
+        }
+      };
+      
       // Start async processing
       const processingTask = processTransformationAsync({
         transformation,
         executionId,
         traceId,
-        options,
-        onComplete: async (result) => {
-          // Update execution record when complete
-          try {
-            await this.updateExecutionStatus(
-              executionId, 
-              result.success ? 'COMPLETED' : 'FAILED',
-              result
-            );
-          } catch (updateErr) {
-            this.logger.error('Failed to update execution status', {
-              error: updateErr.message,
-              executionId,
-              traceId
-            });
-          }
-        }
-      });
+        options
+      }, handleCompletion);
       
       // Return task information
       return {
