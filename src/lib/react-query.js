@@ -13,7 +13,7 @@ const defaultQueryOptions = {
   refetchOnReconnect: true,
   retry: 1,
   staleTime: 5 * 60 * 1000, // 5 minutes
-  cacheTime: 10 * 60 * 1000, // 10 minutes
+  gcTime: 10 * 60 * 1000, // 10 minutes (replaces cacheTime in React Query v4)
 };
 
 // Default options for all mutations
@@ -97,29 +97,33 @@ export const QueryKeys = {
 export const QueryUtils = {
   // Helper to invalidate cache for files
   invalidateFiles: () => {
-    return queryClient.invalidateQueries(QueryKeys.files.all);
+    return queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
   },
   
   // Helper to invalidate cache for a specific file
   invalidateFile: (fileId) => {
-    return queryClient.invalidateQueries(QueryKeys.files.detail(fileId));
+    return queryClient.invalidateQueries({ queryKey: QueryKeys.files.detail(fileId) });
   },
   
   // Helper to invalidate all process-related queries
   invalidateProcesses: () => {
-    return queryClient.invalidateQueries(QueryKeys.processes.all);
+    return queryClient.invalidateQueries({ queryKey: QueryKeys.processes.all });
   },
   
   // Helper to invalidate all dashboard stats
   invalidateDashboard: () => {
-    return queryClient.invalidateQueries(QueryKeys.dashboard.stats);
+    return queryClient.invalidateQueries({ queryKey: QueryKeys.dashboard.stats });
   },
   
   // Helper to update file cache after mutation
   updateFileCache: (fileId, newData) => {
     queryClient.setQueryData(
       QueryKeys.files.detail(fileId),
-      (oldData) => ({ ...oldData, ...newData })
+      (oldData) => {
+        // Handle the case where oldData might be undefined
+        if (!oldData) return newData;
+        return { ...oldData, ...newData };
+      }
     );
   },
   
@@ -127,7 +131,11 @@ export const QueryUtils = {
   updateUserCache: (newData) => {
     queryClient.setQueryData(
       QueryKeys.auth.user,
-      (oldData) => ({ ...oldData, ...newData })
+      (oldData) => {
+        // Handle the case where oldData might be undefined
+        if (!oldData) return newData;
+        return { ...oldData, ...newData };
+      }
     );
   },
 };
