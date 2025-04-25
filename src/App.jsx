@@ -23,6 +23,7 @@ import DashboardSettings from './pages/DashboardSettings';
 import Login from './pages/Login';
 import UserManagement from './pages/UserManagement';
 import RoleManagement from './pages/RoleManagement';
+import HooksDemo from './pages/HooksDemo';
 // Business Process Management imports
 import Groups from './pages/Groups';
 import BusinessProcesses from './pages/BusinessProcesses';
@@ -34,6 +35,7 @@ import { AccessibilityProvider } from './context/AccessibilityContext';
 import AuthProvider, { useAuth } from './context/AuthContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
+import { NotificationProvider, ModalProvider } from './hooks';
 import './App.css';
 import './styles/accessibility.css';
 import './styles/Login.css';
@@ -78,9 +80,13 @@ function App() {
       <AuthProvider>
         <AnnouncementProvider>
           <ToastProvider>
-            <Router>
-              <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
-            </Router>
+            <NotificationProvider>
+              <ModalProvider>
+                <Router>
+                  <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
+                </Router>
+              </ModalProvider>
+            </NotificationProvider>
           </ToastProvider>
         </AnnouncementProvider>
       </AuthProvider>
@@ -140,6 +146,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs/:jobId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/process-management-wizard" element={<ProtectedRoute><ProcessManagementWizard /></ProtectedRoute>} />
+                {/* Development Routes */}
+                <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

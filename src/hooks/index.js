@@ -29,8 +29,8 @@ export { default as useWindowSize } from './useWindowSize';
 // Export provider components
 export { 
   NotificationProvider 
-} from './useNotifications';
+} from './useNotifications.jsx';
 
 export { 
   ModalProvider 
-} from './useModal';
+} from './useModal.jsx';
