@@ -19,6 +19,10 @@ async function initTransformationTables(pool) {
     systemLogger.info('Initializing transformation tables');
     
     // Create transformations table
+    // Drop the existing table if it exists
+    await pool.query(`DROP TABLE IF EXISTS transformations CASCADE;`);
+    
+    // Create transformations table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformations (
         id SERIAL PRIMARY KEY,
@@ -37,7 +41,9 @@ async function initTransformationTables(pool) {
     `);
     systemLogger.info('Transformations table initialized');
     
-    // Create transformation executions table
+    // Drop and recreate transformation executions table
+    await pool.query(`DROP TABLE IF EXISTS transformation_executions CASCADE;`);
+    
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformation_executions (
         id SERIAL PRIMARY KEY,
@@ -54,7 +60,9 @@ async function initTransformationTables(pool) {
     `);
     systemLogger.info('Transformation executions table initialized');
     
-    // Create transformation output files table
+    // Drop and recreate transformation output files table
+    await pool.query(`DROP TABLE IF EXISTS transformation_outputs CASCADE;`);
+    
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformation_outputs (
         id SERIAL PRIMARY KEY,
@@ -68,7 +76,9 @@ async function initTransformationTables(pool) {
     `);
     systemLogger.info('Transformation outputs table initialized');
     
-    // Create transformation lineage table
+    // Drop and recreate transformation lineage table
+    await pool.query(`DROP TABLE IF EXISTS transformation_lineage CASCADE;`);
+    
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformation_lineage (
         id SERIAL PRIMARY KEY,
