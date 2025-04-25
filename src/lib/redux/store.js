@@ -1,38 +1,44 @@
 /**
  * Redux Store Configuration
  * 
- * This file sets up the Redux store with Redux Toolkit and
- * configures middleware and enhancers.
+ * This file configures the Redux store with necessary middleware
+ * and combines all the application slices.
  */
 import { configureStore } from '@reduxjs/toolkit';
-import { setupListeners } from '@reduxjs/toolkit/query';
-
-// Import reducers
+import { combineReducers } from 'redux';
 import uiReducer from './slices/uiSlice';
 import authReducer from './slices/authSlice';
+import workflowReducer from './slices/workflowSlice';
+import filesReducer from './slices/filesSlice';
+import settingsReducer from './slices/settingsSlice';
 
-// Configure the store
+// Root reducer combining all slice reducers
+const rootReducer = combineReducers({
+  ui: uiReducer,
+  auth: authReducer,
+  workflow: workflowReducer,
+  files: filesReducer,
+  settings: settingsReducer,
+});
+
+// Configure store with middleware
 export const store = configureStore({
-  reducer: {
-    ui: uiReducer,
-    auth: authReducer,
-    // Add more reducers here as they are created
-  },
+  reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types
-        ignoredActions: ['ui/setNotification'],
-        // Ignore these field paths in all actions
-        ignoredActionPaths: ['payload.timestamp', 'meta.arg'],
-        // Ignore these paths in the state
-        ignoredPaths: ['ui.notifications'],
+        ignoredActions: ['ui/showToast', 'files/setFilePreview'],
+        // Ignore these field paths in state
+        ignoredPaths: ['files.filePreview', 'ui.modals.modalProps'],
       },
     }),
   devTools: process.env.NODE_ENV !== 'production',
 });
 
-// Setup listeners for RTK-Query (if used later)
-setupListeners(store.dispatch);
+// Export store types
+export const RootState = store.getState;
+export const AppDispatch = store.dispatch;
 
-export default store;
+// Export a hook that can be reused to resolve types
+export const useAppDispatch = () => store.dispatch;

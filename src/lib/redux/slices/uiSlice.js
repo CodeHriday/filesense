@@ -1,153 +1,217 @@
 /**
  * UI Slice
  * 
- * This slice manages UI-related state like theme, notifications, modals,
- * and other UI elements that need to be tracked globally.
+ * Redux slice for managing global UI state such as:
+ * - Sidebar open/closed state
+ * - Theme settings
+ * - Modal visibility
+ * - Toast notifications
+ * - Loading states
  */
 import { createSlice } from '@reduxjs/toolkit';
 
-// Define the initial state
+// Initial state
 const initialState = {
-  theme: localStorage.getItem('theme') || 'light',
-  sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
-  notifications: [],
-  activeModals: [],
-  isLoading: false,
-  globalError: null,
-  // Used for accessibility
-  fontSize: localStorage.getItem('fontSize') || 'medium',
-  highContrast: localStorage.getItem('highContrast') === 'true',
-  reduceMotion: localStorage.getItem('reduceMotion') === 'true',
+  sidebar: {
+    open: true,
+    collapsed: false,
+  },
+  theme: {
+    mode: 'light', // 'light' or 'dark'
+    primaryColor: 'blue',
+    fontSize: 'medium', // 'small', 'medium', 'large'
+    reducedMotion: false,
+    highContrast: false,
+  },
+  modals: {
+    activeModals: [], // Array of active modal IDs
+    modalProps: {}, // Props for modals keyed by modal ID
+  },
+  toasts: [], // Array of toast notifications
+  loading: {
+    global: false,
+    byId: {}, // Loading states keyed by ID
+  },
+  accessibility: {
+    textSize: 'medium', // 'small', 'medium', 'large'
+    contrast: 'normal', // 'normal', 'high'
+    reducedMotion: false,
+  },
 };
 
-// Create the slice
+// Helper to generate unique IDs for toasts
+let toastId = 0;
+const getNextToastId = () => {
+  toastId += 1;
+  return `toast-${toastId}`;
+};
+
+// Create slice
 const uiSlice = createSlice({
   name: 'ui',
   initialState,
   reducers: {
-    // Theme actions
-    setTheme: (state, action) => {
-      state.theme = action.payload;
-      localStorage.setItem('theme', action.payload);
-    },
-    toggleTheme: (state) => {
-      state.theme = state.theme === 'light' ? 'dark' : 'light';
-      localStorage.setItem('theme', state.theme);
-    },
-    
     // Sidebar actions
     toggleSidebar: (state) => {
-      state.sidebarCollapsed = !state.sidebarCollapsed;
-      localStorage.setItem('sidebarCollapsed', state.sidebarCollapsed);
+      state.sidebar.open = !state.sidebar.open;
+    },
+    setSidebarOpen: (state, action) => {
+      state.sidebar.open = action.payload;
+    },
+    toggleSidebarCollapsed: (state) => {
+      state.sidebar.collapsed = !state.sidebar.collapsed;
     },
     setSidebarCollapsed: (state, action) => {
-      state.sidebarCollapsed = action.payload;
-      localStorage.setItem('sidebarCollapsed', action.payload);
+      state.sidebar.collapsed = action.payload;
     },
     
-    // Notification actions
-    addNotification: (state, action) => {
-      // Generate unique ID for notification
-      const id = Date.now() + Math.random().toString(36).substring(2, 9);
-      
-      // Add notification with default values if not provided
-      state.notifications.push({
-        id,
-        type: 'info',
-        title: '',
-        message: '',
-        autoClose: true,
-        duration: 5000,
-        ...action.payload,
-        timestamp: Date.now(),
-      });
+    // Theme actions
+    setThemeMode: (state, action) => {
+      state.theme.mode = action.payload;
     },
-    removeNotification: (state, action) => {
-      state.notifications = state.notifications.filter(
-        notification => notification.id !== action.payload
-      );
+    setPrimaryColor: (state, action) => {
+      state.theme.primaryColor = action.payload;
     },
-    clearNotifications: (state) => {
-      state.notifications = [];
+    setFontSize: (state, action) => {
+      state.theme.fontSize = action.payload;
+    },
+    toggleReducedMotion: (state) => {
+      state.theme.reducedMotion = !state.theme.reducedMotion;
+    },
+    toggleHighContrast: (state) => {
+      state.theme.highContrast = !state.theme.highContrast;
     },
     
     // Modal actions
     openModal: (state, action) => {
-      const modalId = action.payload.id || action.payload;
+      const { modalId, props = {} } = action.payload;
       
-      // Add to active modals if not already open
-      if (!state.activeModals.includes(modalId)) {
-        state.activeModals.push(modalId);
+      // Add modal to active modals if not already open
+      if (!state.modals.activeModals.includes(modalId)) {
+        state.modals.activeModals.push(modalId);
       }
+      
+      // Set modal props
+      state.modals.modalProps[modalId] = props;
     },
     closeModal: (state, action) => {
-      const modalId = action.payload.id || action.payload;
-      state.activeModals = state.activeModals.filter(id => id !== modalId);
+      const modalId = action.payload;
+      
+      // Remove modal from active modals
+      state.modals.activeModals = state.modals.activeModals.filter(id => id !== modalId);
+      
+      // Clean up props
+      delete state.modals.modalProps[modalId];
     },
     closeAllModals: (state) => {
-      state.activeModals = [];
+      state.modals.activeModals = [];
+      state.modals.modalProps = {};
     },
     
-    // Loading state actions
+    // Toast actions
+    showToast: {
+      reducer: (state, action) => {
+        const { id, ...rest } = action.payload;
+        state.toasts.push({ id, ...rest });
+      },
+      prepare: (toast) => {
+        // Generate ID if not provided
+        const id = toast.id || getNextToastId();
+        return {
+          payload: {
+            id,
+            type: toast.type || 'info',
+            title: toast.title || '',
+            message: toast.message || '',
+            duration: toast.duration || 5000, // 5 seconds by default
+            dismissible: toast.dismissible !== false, // Dismissible by default
+            timestamp: Date.now(),
+            ...toast,
+          },
+        };
+      },
+    },
+    hideToast: (state, action) => {
+      const toastId = action.payload;
+      state.toasts = state.toasts.filter(toast => toast.id !== toastId);
+    },
+    clearAllToasts: (state) => {
+      state.toasts = [];
+    },
+    
+    // Loading actions
+    setGlobalLoading: (state, action) => {
+      state.loading.global = action.payload;
+    },
     setLoading: (state, action) => {
-      state.isLoading = action.payload;
+      const { id, isLoading } = action.payload;
+      state.loading.byId[id] = isLoading;
     },
-    
-    // Error state actions
-    setGlobalError: (state, action) => {
-      state.globalError = action.payload;
+    clearLoading: (state, action) => {
+      const id = action.payload;
+      delete state.loading.byId[id];
     },
-    clearGlobalError: (state) => {
-      state.globalError = null;
+    clearAllLoading: (state) => {
+      state.loading.global = false;
+      state.loading.byId = {};
     },
     
     // Accessibility actions
-    setFontSize: (state, action) => {
-      state.fontSize = action.payload;
-      localStorage.setItem('fontSize', action.payload);
+    setTextSize: (state, action) => {
+      state.accessibility.textSize = action.payload;
     },
-    toggleHighContrast: (state) => {
-      state.highContrast = !state.highContrast;
-      localStorage.setItem('highContrast', state.highContrast);
+    setContrast: (state, action) => {
+      state.accessibility.contrast = action.payload;
     },
-    toggleReduceMotion: (state) => {
-      state.reduceMotion = !state.reduceMotion;
-      localStorage.setItem('reduceMotion', state.reduceMotion);
+    setReducedMotion: (state, action) => {
+      state.accessibility.reducedMotion = action.payload;
+    },
+    resetAccessibility: (state) => {
+      state.accessibility = initialState.accessibility;
     },
   },
 });
 
 // Export actions
 export const {
-  setTheme,
-  toggleTheme,
   toggleSidebar,
+  setSidebarOpen,
+  toggleSidebarCollapsed,
   setSidebarCollapsed,
-  addNotification,
-  removeNotification,
-  clearNotifications,
+  setThemeMode,
+  setPrimaryColor,
+  setFontSize,
+  toggleReducedMotion,
+  toggleHighContrast,
   openModal,
   closeModal,
   closeAllModals,
+  showToast,
+  hideToast,
+  clearAllToasts,
+  setGlobalLoading,
   setLoading,
-  setGlobalError,
-  clearGlobalError,
-  setFontSize,
-  toggleHighContrast,
-  toggleReduceMotion,
+  clearLoading,
+  clearAllLoading,
+  setTextSize,
+  setContrast,
+  setReducedMotion,
+  resetAccessibility,
 } = uiSlice.actions;
 
-// Export selectors
-export const selectTheme = (state) => state.ui.theme;
-export const selectSidebarCollapsed = (state) => state.ui.sidebarCollapsed;
-export const selectNotifications = (state) => state.ui.notifications;
-export const selectActiveModals = (state) => state.ui.activeModals;
-export const selectIsLoading = (state) => state.ui.isLoading;
-export const selectGlobalError = (state) => state.ui.globalError;
-export const selectFontSize = (state) => state.ui.fontSize;
-export const selectHighContrast = (state) => state.ui.highContrast;
-export const selectReduceMotion = (state) => state.ui.reduceMotion;
-export const selectIsModalOpen = (id) => (state) => state.ui.activeModals.includes(id);
+// Selectors
+export const selectSidebarOpen = (state) => state.ui.sidebar.open;
+export const selectSidebarCollapsed = (state) => state.ui.sidebar.collapsed;
+export const selectThemeMode = (state) => state.ui.theme.mode;
+export const selectPrimaryColor = (state) => state.ui.theme.primaryColor;
+export const selectFontSize = (state) => state.ui.theme.fontSize;
+export const selectReducedMotion = (state) => state.ui.theme.reducedMotion;
+export const selectHighContrast = (state) => state.ui.theme.highContrast;
+export const selectActiveModals = (state) => state.ui.modals.activeModals;
+export const selectModalProps = (state, modalId) => state.ui.modals.modalProps[modalId] || {};
+export const selectToasts = (state) => state.ui.toasts;
+export const selectGlobalLoading = (state) => state.ui.loading.global;
+export const selectLoadingById = (state, id) => state.ui.loading.byId[id] || false;
+export const selectAccessibility = (state) => state.ui.accessibility;
 
-// Export reducer
 export default uiSlice.reducer;

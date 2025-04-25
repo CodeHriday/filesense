@@ -1,145 +1,343 @@
 /**
- * File-related React Query hooks
+ * Files Hook
  * 
- * This file contains React Query hooks for file operations including
- * fetching files, getting file details, and managing file uploads.
+ * Custom hook for managing file operations and state.
  */
-import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
-import { queryClient, QueryKeys } from '../lib/react-query';
+import { useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  setFileCatalog, 
+  addFileToCollection, 
+  updateFileInCollection,
+  removeFileFromCollection,
+  setFileCatalogLoading,
+  setFileCatalogError,
+  addUpload,
+  updateUpload,
+  completeUpload,
+  selectFiles,
+  setCurrentFile,
+  setFilePreview,
+  setFilePreviewLoading,
+  setFilePreviewError,
+  clearFilePreview,
+  selectFileCatalog,
+  selectFileCatalogLoading,
+  selectFileCatalogError,
+  selectActiveUploads,
+  selectUploadHistory,
+  selectSelectedFileIds,
+  selectCurrentFileId,
+  selectFilePreview,
+  selectFilePreviewLoading,
+  selectFilePreviewError,
+  selectFilteredFiles
+} from '../lib/redux/slices/filesSlice';
+import { QueryKeys, QueryUtils } from '../lib/react-query';
 import { API_BASE_URL } from '../config';
-
-const API_URL = `${API_BASE_URL}/api`;
-
-/**
- * Hook for fetching file catalog
- */
-export const useFileCatalog = (options = {}) => {
-  return useQuery({
-    queryKey: QueryKeys.files.all,
-    queryFn: async () => {
-      const response = await axios.get(`${API_URL}/files`);
-      return response.data;
-    },
-    ...options,
-  });
-};
+import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Hook for fetching a single file by ID
+ * Main hook for file operations
  */
-export const useFile = (fileId, options = {}) => {
-  return useQuery({
-    queryKey: QueryKeys.files.byId(fileId),
-    queryFn: async () => {
-      if (!fileId) return null;
-      const response = await axios.get(`${API_URL}/files/${fileId}`);
-      return response.data;
-    },
-    enabled: !!fileId,
-    ...options,
-  });
-};
-
-/**
- * Hook for fetching file profile data
- */
-export const useFileProfile = (fileId, options = {}) => {
-  return useQuery({
-    queryKey: QueryKeys.files.profile(fileId),
-    queryFn: async () => {
-      if (!fileId) return null;
-      const response = await axios.get(`${API_URL}/files/${fileId}/profile`);
-      return response.data;
-    },
-    enabled: !!fileId,
-    ...options,
-  });
-};
-
-/**
- * Hook for fetching file quality data
- */
-export const useFileQuality = (fileId, options = {}) => {
-  return useQuery({
-    queryKey: QueryKeys.files.quality(fileId),
-    queryFn: async () => {
-      if (!fileId) return null;
-      const response = await axios.get(`${API_URL}/files/${fileId}/quality`);
-      return response.data;
-    },
-    enabled: !!fileId,
-    ...options,
-  });
-};
-
-/**
- * Hook for uploading files
- */
-export const useFileUpload = (options = {}) => {
-  return useMutation({
-    mutationFn: async ({ file, progressCallback }) => {
+export const useFiles = () => {
+  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
+  
+  // Selectors
+  const files = useSelector(selectFileCatalog);
+  const isLoading = useSelector(selectFileCatalogLoading);
+  const error = useSelector(selectFileCatalogError);
+  const activeUploads = useSelector(selectActiveUploads);
+  const uploadHistory = useSelector(selectUploadHistory);
+  const selectedFileIds = useSelector(selectSelectedFileIds);
+  const currentFileId = useSelector(selectCurrentFileId);
+  const filePreview = useSelector(selectFilePreview);
+  const filePreviewLoading = useSelector(selectFilePreviewLoading);
+  const filePreviewError = useSelector(selectFilePreviewError);
+  const filteredFiles = useSelector(selectFilteredFiles);
+  
+  // API functions
+  const fetchFiles = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/files`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch files');
+    }
+    
+    return await response.json();
+  };
+  
+  const fetchFileDetails = async (fileId) => {
+    const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch file details');
+    }
+    
+    return await response.json();
+  };
+  
+  const fetchFilePreview = async (fileId) => {
+    const response = await fetch(`${API_BASE_URL}/api/files/${fileId}/preview`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch file preview');
+    }
+    
+    return await response.json();
+  };
+  
+  const deleteFile = async (fileId) => {
+    const response = await fetch(`${API_BASE_URL}/api/files/${fileId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to delete file');
+    }
+    
+    return await response.json();
+  };
+  
+  const uploadFile = async ({ file, options = {} }) => {
+    // Create a unique upload ID
+    const uploadId = uuidv4();
+    
+    // Add upload to state
+    dispatch(addUpload({
+      id: uploadId,
+      filename: file.name,
+      size: file.size,
+      type: file.type,
+      progress: 0,
+      status: 'preparing',
+      startedAt: Date.now(),
+      error: null,
+      ...options,
+    }));
+    
+    try {
+      // Create FormData
       const formData = new FormData();
       formData.append('file', file);
       
-      // Upload configuration
-      const config = {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 1800000, // 30 minutes
-      };
-      
-      // Add progress tracking if provided
-      if (progressCallback && typeof progressCallback === 'function') {
-        config.onUploadProgress = progressCallback;
+      // Add options to FormData
+      if (options.description) {
+        formData.append('description', options.description);
       }
       
-      const response = await axios.post(`${API_URL}/files/upload`, formData, config);
-      return response.data;
-    },
-    onSuccess: () => {
-      // Invalidate files cache to trigger a refresh
-      queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
-    },
-    ...options,
-  });
-};
-
-/**
- * Hook for running quality checks
- */
-export const useRunQualityCheck = (options = {}) => {
-  return useMutation({
-    mutationFn: async ({ fileId, rules = [] }) => {
-      const response = await axios.post(`${API_URL}/files/${fileId}/quality-check`, { 
-        rules,
-        anomalyDetection: true,
-        calculateReliabilityScore: true
+      if (options.tags) {
+        formData.append('tags', JSON.stringify(options.tags));
+      }
+      
+      // Create upload request
+      const xhr = new XMLHttpRequest();
+      
+      // Setup progress handler
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded * 100) / event.total);
+          
+          dispatch(updateUpload({
+            id: uploadId,
+            updates: {
+              progress,
+              status: progress < 100 ? 'uploading' : 'processing',
+            },
+          }));
+        }
       });
-      return response.data;
+      
+      // Create promise for response
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response);
+          } else {
+            let errorMessage = 'Upload failed';
+            try {
+              const errorResponse = JSON.parse(xhr.responseText);
+              errorMessage = errorResponse.message || errorMessage;
+            } catch (e) {
+              // Ignore parse error
+            }
+            reject(new Error(errorMessage));
+          }
+        });
+        
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error during upload'));
+        });
+        
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Upload aborted'));
+        });
+      });
+      
+      // Start upload
+      xhr.open('POST', `${API_BASE_URL}/api/files/upload`);
+      xhr.send(formData);
+      
+      // Wait for response
+      const response = await uploadPromise;
+      
+      // Update upload status
+      dispatch(completeUpload({
+        id: uploadId,
+        success: true,
+      }));
+      
+      // Add file to catalog
+      dispatch(addFileToCollection(response));
+      
+      // Invalidate file queries
+      QueryUtils.invalidateFiles();
+      
+      return response;
+    } catch (error) {
+      // Update upload with error
+      dispatch(updateUpload({
+        id: uploadId,
+        updates: {
+          status: 'error',
+          error: error.message,
+        },
+      }));
+      
+      // Mark upload as failed
+      dispatch(completeUpload({
+        id: uploadId,
+        success: false,
+      }));
+      
+      throw error;
+    }
+  };
+  
+  // Queries
+  const filesQuery = useQuery({
+    queryKey: QueryKeys.files.all,
+    queryFn: fetchFiles,
+    onSuccess: (data) => {
+      dispatch(setFileCatalog(data));
     },
-    onSuccess: (_, variables) => {
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: QueryKeys.files.quality(variables.fileId) });
+    onError: (error) => {
+      dispatch(setFileCatalogError(error.message));
     },
-    ...options,
   });
+  
+  const fileDetailsQuery = (fileId) => useQuery({
+    queryKey: QueryKeys.files.detail(fileId),
+    queryFn: () => fetchFileDetails(fileId),
+    enabled: !!fileId,
+  });
+  
+  const filePreviewQuery = (fileId) => useQuery({
+    queryKey: QueryKeys.files.preview(fileId),
+    queryFn: () => fetchFilePreview(fileId),
+    enabled: !!fileId,
+    onSuccess: (data) => {
+      dispatch(setFilePreview(data));
+    },
+    onError: (error) => {
+      dispatch(setFilePreviewError(error.message));
+    },
+  });
+  
+  // Mutations
+  const uploadFileMutation = useMutation({
+    mutationFn: uploadFile,
+  });
+  
+  const deleteFileMutation = useMutation({
+    mutationFn: deleteFile,
+    onSuccess: (_, fileId) => {
+      dispatch(removeFileFromCollection(fileId));
+      QueryUtils.invalidateFiles();
+    },
+  });
+  
+  // Action handlers
+  const handleFetchFiles = useCallback(() => {
+    dispatch(setFileCatalogLoading(true));
+    return filesQuery.refetch();
+  }, [dispatch, filesQuery]);
+  
+  const handleUploadFile = useCallback((file, options) => {
+    return uploadFileMutation.mutateAsync({ file, options });
+  }, [uploadFileMutation]);
+  
+  const handleDeleteFile = useCallback((fileId) => {
+    return deleteFileMutation.mutateAsync(fileId);
+  }, [deleteFileMutation]);
+  
+  const handleSelectFiles = useCallback((fileIds) => {
+    dispatch(selectFiles(Array.isArray(fileIds) ? fileIds : [fileIds]));
+  }, [dispatch]);
+  
+  const handleSetCurrentFile = useCallback((fileId) => {
+    dispatch(setCurrentFile(fileId));
+  }, [dispatch]);
+  
+  const handleFetchFilePreview = useCallback((fileId) => {
+    dispatch(setFilePreviewLoading(true));
+    return filePreviewQuery(fileId).refetch();
+  }, [dispatch, filePreviewQuery]);
+  
+  const handleClearFilePreview = useCallback(() => {
+    dispatch(clearFilePreview());
+  }, [dispatch]);
+  
+  return {
+    // State
+    files,
+    filteredFiles,
+    isLoading,
+    error,
+    activeUploads,
+    uploadHistory,
+    selectedFileIds,
+    currentFileId,
+    filePreview,
+    filePreviewLoading,
+    filePreviewError,
+    
+    // Queries
+    filesQuery,
+    fileDetailsQuery,
+    filePreviewQuery,
+    
+    // Actions
+    fetchFiles: handleFetchFiles,
+    uploadFile: handleUploadFile,
+    deleteFile: handleDeleteFile,
+    selectFiles: handleSelectFiles,
+    setCurrentFile: handleSetCurrentFile,
+    fetchFilePreview: handleFetchFilePreview,
+    clearFilePreview: handleClearFilePreview,
+  };
 };
 
-/**
- * Hook for deleting a file
- */
-export const useDeleteFile = (options = {}) => {
-  return useMutation({
-    mutationFn: async (fileId) => {
-      const response = await axios.delete(`${API_URL}/files/${fileId}`);
-      return response.data;
-    },
-    onSuccess: () => {
-      // Invalidate files cache to trigger a refresh
-      queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
-    },
-    ...options,
-  });
-};
+export default useFiles;

@@ -1,151 +1,333 @@
 /**
- * Authentication-related React Query hooks
+ * Authentication Hook
  * 
- * This file contains React Query hooks for authentication operations
- * including login, logout, and user data management.
+ * Custom hook for managing authentication, user state, and permissions.
  */
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import axios from 'axios';
-import { queryClient, QueryKeys } from '../lib/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  fetchCurrentUser, 
-  loginUser, 
-  logoutUser,
-  selectUser,
-  selectAuthLoading,
+  loginStart, 
+  loginSuccess, 
+  loginFailure, 
+  logout, 
+  refreshTokenStart,
+  refreshTokenSuccess,
+  refreshTokenFailure,
+  initializeAuth,
   selectIsAuthenticated,
-  selectAuthError,
+  selectUser,
+  selectToken,
+  selectRefreshToken,
+  selectRoles,
+  selectPermissions,
   selectHasRole,
   selectHasPermission,
-  selectUserRoles,
-  selectUserPermissions
+  selectIsLoading,
+  selectAuthError
 } from '../lib/redux/slices/authSlice';
+import { QueryKeys } from '../lib/react-query';
 import { API_BASE_URL } from '../config';
 
-const API_URL = `${API_BASE_URL}/api`;
+const AUTH_STORAGE_KEY = 'dfo_auth';
 
 /**
- * Primary auth hook that combines Redux and React Query
+ * Main authentication hook providing authentication state and methods
  */
 export const useAuth = () => {
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   
-  // Select data from Redux store
-  const user = useSelector(selectUser);
-  const loading = useSelector(selectAuthLoading);
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const user = useSelector(selectUser);
+  const token = useSelector(selectToken);
+  const refreshToken = useSelector(selectRefreshToken);
+  const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectAuthError);
-  const roles = useSelector(selectUserRoles);
-  const permissions = useSelector(selectUserPermissions);
   
-  // Login mutation using RTK
-  const login = async (username, password) => {
-    const resultAction = await dispatch(loginUser({ username, password }));
+  // Load authentication state from localStorage on mount
+  useEffect(() => {
+    const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
     
-    if (loginUser.fulfilled.match(resultAction)) {
-      // Success, returned the user
-      return resultAction.payload;
-    } else {
-      // Error, throw to be caught by the component
-      throw new Error(resultAction.payload || 'Failed to login');
+    if (savedAuth) {
+      try {
+        const authData = JSON.parse(savedAuth);
+        
+        // Check if token appears valid (not expired)
+        if (authData.token) {
+          dispatch(initializeAuth(authData));
+          
+          // Fetch current user to validate token
+          queryClient.prefetchQuery(QueryKeys.auth.user, fetchCurrentUser);
+        }
+      } catch (err) {
+        console.error('Failed to parse saved authentication data:', err);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
+    }
+  }, [dispatch, queryClient]);
+  
+  // Save auth state to localStorage when it changes
+  useEffect(() => {
+    if (isAuthenticated && token && user) {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+        user,
+        token,
+        refreshToken,
+        roles: user.roles,
+        permissions: user.permissions,
+      }));
+    } else if (!isAuthenticated) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }, [isAuthenticated, token, refreshToken, user]);
+  
+  // API calls
+  const loginApi = async (credentials) => {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Login failed');
+    }
+    
+    return await response.json();
+  };
+  
+  const fetchCurrentUser = async () => {
+    if (!token) return null;
+    
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        // Token expired - try refresh
+        await refreshTokenMutation.mutateAsync();
+        throw new Error('Session expired. Please try again.');
+      }
+      
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch user data');
+    }
+    
+    return await response.json();
+  };
+  
+  const refreshTokenApi = async () => {
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to refresh token');
+    }
+    
+    return await response.json();
+  };
+  
+  const logoutApi = async () => {
+    if (!token) return;
+    
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch (err) {
+      console.error('Logout API call failed:', err);
+      // Continue with local logout even if API call fails
     }
   };
   
-  // Logout mutation using RTK
-  const logout = async () => {
-    const resultAction = await dispatch(logoutUser());
-    
-    if (logoutUser.fulfilled.match(resultAction)) {
-      // Clear React Query cache on logout
-      queryClient.clear();
-      return true;
-    } else {
-      throw new Error(resultAction.payload || 'Failed to logout');
-    }
-  };
-  
-  // Initialize Auth - check for token and load user data
-  const initAuth = async () => {
-    const token = localStorage.getItem('token');
-    
-    if (token && !user) {
-      const resultAction = await dispatch(fetchCurrentUser());
-      return fetchCurrentUser.fulfilled.match(resultAction);
-    }
-    
-    return !!user;
-  };
-  
-  // Role and permission checks
-  const hasRole = (role) => {
-    return useSelector(selectHasRole(role));
-  };
-  
-  const hasPermission = (permission) => {
-    return useSelector(selectHasPermission(permission));
-  };
-  
-  return {
-    user,
-    loading,
-    isAuthenticated,
-    error,
-    roles,
-    permissions,
-    login,
-    logout,
-    initAuth,
-    hasRole,
-    hasPermission
-  };
-};
-
-/**
- * Hook for refreshing authentication token
- */
-export const useRefreshToken = () => {
-  return useMutation({
-    mutationFn: async () => {
-      const refreshToken = localStorage.getItem('refreshToken');
-      
-      if (!refreshToken) {
-        throw new Error('No refresh token found');
-      }
-      
-      const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-      
-      const { token, user } = response.data;
-      
-      if (!token) {
-        throw new Error('No token returned from refresh request');
-      }
-      
-      // Update tokens in localStorage
-      localStorage.setItem('token', token);
-      if (response.data.refreshToken) {
-        localStorage.setItem('refreshToken', response.data.refreshToken);
-      }
-      
-      return user;
+  // Mutations
+  const loginMutation = useMutation({
+    mutationFn: loginApi,
+    onMutate: () => {
+      dispatch(loginStart());
     },
     onSuccess: (data) => {
-      // Update user data in Redux
-      queryClient.invalidateQueries({ queryKey: QueryKeys.auth.currentUser });
-    }
+      const { user, token, refreshToken } = data;
+      dispatch(loginSuccess({
+        user,
+        token,
+        refreshToken,
+        roles: user.roles,
+        permissions: user.permissions,
+      }));
+      
+      // Invalidate and refetch user data
+      queryClient.invalidateQueries(QueryKeys.auth.user);
+    },
+    onError: (error) => {
+      dispatch(loginFailure(error.message));
+    },
   });
+  
+  const refreshTokenMutation = useMutation({
+    mutationFn: refreshTokenApi,
+    onMutate: () => {
+      dispatch(refreshTokenStart());
+    },
+    onSuccess: (data) => {
+      const { token, refreshToken } = data;
+      dispatch(refreshTokenSuccess({ token, refreshToken }));
+      
+      // Invalidate and refetch user data
+      queryClient.invalidateQueries(QueryKeys.auth.user);
+    },
+    onError: (error) => {
+      dispatch(refreshTokenFailure(error.message));
+      handleLogout();
+    },
+  });
+  
+  const logoutMutation = useMutation({
+    mutationFn: logoutApi,
+    onSuccess: () => {
+      dispatch(logout());
+      queryClient.clear(); // Clear all query cache on logout
+    },
+    onError: () => {
+      // Even if the API call fails, we should still log out locally
+      dispatch(logout());
+      queryClient.clear();
+    },
+  });
+  
+  // Current user query
+  const userQuery = useQuery({
+    queryKey: QueryKeys.auth.user,
+    queryFn: fetchCurrentUser,
+    enabled: !!isAuthenticated && !!token,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1,
+    onError: (error) => {
+      console.error('User query failed:', error);
+      // If we can't fetch the user, the token might be invalid
+      if (error.message.includes('expired')) {
+        handleLogout();
+      }
+    },
+  });
+  
+  // Login handler
+  const handleLogin = useCallback((credentials) => {
+    return loginMutation.mutateAsync(credentials);
+  }, [loginMutation]);
+  
+  // Logout handler
+  const handleLogout = useCallback(() => {
+    return logoutMutation.mutateAsync();
+  }, [logoutMutation]);
+  
+  // Refresh token handler
+  const handleRefreshToken = useCallback(() => {
+    return refreshTokenMutation.mutateAsync();
+  }, [refreshTokenMutation]);
+  
+  return {
+    // State
+    isAuthenticated,
+    user,
+    token,
+    isLoading: isLoading || userQuery.isLoading,
+    error,
+    
+    // Actions
+    login: handleLogin,
+    logout: handleLogout,
+    refreshToken: handleRefreshToken,
+    
+    // User query state
+    userQuery,
+  };
 };
 
 /**
- * Hook for checking if current user has permission for a feature
+ * Hook for checking permissions
  */
-export const useHasPermission = (permission) => {
-  return useSelector(selectHasPermission(permission));
+export const usePermissions = () => {
+  const roles = useSelector(selectRoles);
+  const permissions = useSelector(selectPermissions);
+  
+  // Check if user has specific role
+  const hasRole = useCallback((roleName) => {
+    return roles?.includes(roleName) || false;
+  }, [roles]);
+  
+  // Check if user has specific permission
+  const hasPermission = useCallback((permissionName) => {
+    if (!permissions || permissions.length === 0) {
+      return false;
+    }
+    
+    // Check if permission is in array format
+    if (Array.isArray(permissions)) {
+      // Check exact match first
+      if (permissions.includes(permissionName)) {
+        return true;
+      }
+      
+      // Check for permissions in object format
+      for (const perm of permissions) {
+        if (typeof perm === 'object' && perm.name === permissionName) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }, [permissions]);
+  
+  // For complex permission checks
+  const checkPermission = useCallback((checker) => {
+    if (typeof checker === 'string') {
+      return hasPermission(checker);
+    }
+    
+    if (typeof checker === 'function') {
+      return checker(permissions);
+    }
+    
+    return false;
+  }, [hasPermission, permissions]);
+  
+  return {
+    roles,
+    permissions,
+    hasRole,
+    hasPermission,
+    checkPermission,
+    
+    // Common role checks
+    isAdmin: hasRole('Admin'),
+    isManager: hasRole('Manager'),
+    isEditor: hasRole('Editor'),
+    isViewer: hasRole('Viewer'),
+  };
 };
 
-/**
- * Hook for checking if current user has a specific role
- */
-export const useHasRole = (role) => {
-  return useSelector(selectHasRole(role));
-};
+export default useAuth;

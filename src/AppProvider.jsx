@@ -14,25 +14,6 @@ import queryClient from './lib/react-query';
 import { AccessibilityProvider } from './context/AccessibilityContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
-import { useTheme } from './hooks/useUI';
-import { useAccessibility } from './hooks/useUI';
-
-// Wrapper to apply theme and accessibility settings
-const ThemeWrapper = ({ children }) => {
-  const { theme } = useTheme();
-  const { applyAccessibilitySettings } = useAccessibility();
-  
-  // Apply theme and accessibility settings on mount
-  useEffect(() => {
-    // Apply theme to body
-    document.body.setAttribute('data-theme', theme);
-    
-    // Apply accessibility settings
-    applyAccessibilitySettings();
-  }, [theme, applyAccessibilitySettings]);
-  
-  return children;
-};
 
 const AppProvider = ({ children }) => {
   return (
@@ -41,11 +22,9 @@ const AppProvider = ({ children }) => {
         <AccessibilityProvider>
           <AnnouncementProvider>
             <ToastProvider>
-              <ThemeWrapper>
-                <Router>
-                  {children}
-                </Router>
-              </ThemeWrapper>
+              <Router>
+                {children}
+              </Router>
             </ToastProvider>
           </AnnouncementProvider>
         </AccessibilityProvider>

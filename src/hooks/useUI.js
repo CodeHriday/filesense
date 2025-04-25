@@ -1,179 +1,284 @@
 /**
- * UI-related React hooks
+ * UI Hook
  * 
- * This file contains hooks for managing UI state through Redux Toolkit,
- * including theme, notifications, modals, and loading states.
+ * Custom hooks for managing UI-related state and operations.
  */
-import { useSelector, useDispatch } from 'react-redux';
-import { 
-  setTheme,
-  toggleTheme,
-  toggleSidebar, 
+import { useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  toggleSidebar,
+  setSidebarOpen,
+  toggleSidebarCollapsed,
   setSidebarCollapsed,
-  addNotification, 
-  removeNotification,
-  clearNotifications,
+  setThemeMode,
+  setPrimaryColor,
+  setFontSize,
+  toggleReducedMotion,
+  toggleHighContrast,
   openModal,
   closeModal,
   closeAllModals,
-  setLoading, 
-  setGlobalError,
-  clearGlobalError,
-  setFontSize,
-  toggleHighContrast,
-  toggleReduceMotion,
-  selectTheme,
+  showToast,
+  hideToast,
+  clearAllToasts,
+  setGlobalLoading,
+  setLoading,
+  clearLoading,
+  setTextSize,
+  setContrast,
+  setReducedMotion,
+  selectSidebarOpen,
   selectSidebarCollapsed,
-  selectNotifications,
-  selectActiveModals,
-  selectIsLoading,
-  selectGlobalError,
+  selectThemeMode,
+  selectPrimaryColor,
   selectFontSize,
+  selectReducedMotion,
   selectHighContrast,
-  selectReduceMotion,
-  selectIsModalOpen
+  selectActiveModals,
+  selectModalProps,
+  selectToasts,
+  selectGlobalLoading,
+  selectLoadingById,
+  selectAccessibility
 } from '../lib/redux/slices/uiSlice';
-
-/**
- * Hook for accessing and managing theme
- */
-export const useTheme = () => {
-  const dispatch = useDispatch();
-  const theme = useSelector(selectTheme);
-  
-  const setActiveTheme = (newTheme) => {
-    dispatch(setTheme(newTheme));
-    
-    // Apply theme to body element
-    document.body.setAttribute('data-theme', newTheme);
-  };
-  
-  const toggle = () => {
-    dispatch(toggleTheme());
-    
-    // Apply updated theme to body element
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    document.body.setAttribute('data-theme', newTheme);
-  };
-  
-  return { theme, setTheme: setActiveTheme, toggleTheme: toggle };
-};
 
 /**
  * Hook for managing sidebar state
  */
 export const useSidebar = () => {
   const dispatch = useDispatch();
+  const isOpen = useSelector(selectSidebarOpen);
   const isCollapsed = useSelector(selectSidebarCollapsed);
   
-  const toggle = () => dispatch(toggleSidebar());
-  const setCollapsed = (collapsed) => dispatch(setSidebarCollapsed(collapsed));
+  const toggle = useCallback(() => {
+    dispatch(toggleSidebar());
+  }, [dispatch]);
   
-  return { isCollapsed, toggleSidebar: toggle, setSidebarCollapsed: setCollapsed };
+  const open = useCallback(() => {
+    dispatch(setSidebarOpen(true));
+  }, [dispatch]);
+  
+  const close = useCallback(() => {
+    dispatch(setSidebarOpen(false));
+  }, [dispatch]);
+  
+  const toggleCollapsed = useCallback(() => {
+    dispatch(toggleSidebarCollapsed());
+  }, [dispatch]);
+  
+  const expand = useCallback(() => {
+    dispatch(setSidebarCollapsed(false));
+  }, [dispatch]);
+  
+  const collapse = useCallback(() => {
+    dispatch(setSidebarCollapsed(true));
+  }, [dispatch]);
+  
+  return {
+    isOpen,
+    isCollapsed,
+    toggle,
+    open,
+    close,
+    toggleCollapsed,
+    expand,
+    collapse,
+  };
 };
 
 /**
- * Hook for managing notifications
+ * Hook for managing theme settings
  */
-export const useNotifications = () => {
+export const useTheme = () => {
   const dispatch = useDispatch();
-  const notifications = useSelector(selectNotifications);
+  const theme = useSelector(selectThemeMode);
+  const primaryColor = useSelector(selectPrimaryColor);
+  const fontSize = useSelector(selectFontSize);
+  const reducedMotion = useSelector(selectReducedMotion);
+  const highContrast = useSelector(selectHighContrast);
   
-  const add = (notification) => dispatch(addNotification(notification));
-  const remove = (id) => dispatch(removeNotification(id));
-  const clear = () => dispatch(clearNotifications());
+  const setTheme = useCallback((mode) => {
+    dispatch(setThemeMode(mode));
+  }, [dispatch]);
   
-  // Helper methods for common notification types
-  const showSuccess = (message, options = {}) => {
-    dispatch(addNotification({
-      type: 'success', 
-      title: options.title || 'Success',
-      message,
-      ...options
-    }));
-  };
+  const toggleTheme = useCallback(() => {
+    dispatch(setThemeMode(theme === 'light' ? 'dark' : 'light'));
+  }, [dispatch, theme]);
   
-  const showError = (message, options = {}) => {
-    dispatch(addNotification({
-      type: 'error', 
-      title: options.title || 'Error',
-      message,
-      ...options
-    }));
-  };
+  const setPrimary = useCallback((color) => {
+    dispatch(setPrimaryColor(color));
+  }, [dispatch]);
   
-  const showWarning = (message, options = {}) => {
-    dispatch(addNotification({
-      type: 'warning', 
-      title: options.title || 'Warning',
-      message,
-      ...options
-    }));
-  };
+  const setFontSizeOption = useCallback((size) => {
+    dispatch(setFontSize(size));
+  }, [dispatch]);
   
-  const showInfo = (message, options = {}) => {
-    dispatch(addNotification({
-      type: 'info', 
-      title: options.title || 'Information',
-      message,
-      ...options
-    }));
-  };
+  const toggleMotion = useCallback(() => {
+    dispatch(toggleReducedMotion());
+  }, [dispatch]);
   
-  return { 
-    notifications, 
-    addNotification: add, 
-    removeNotification: remove, 
-    clearNotifications: clear,
-    showSuccess,
-    showError,
-    showWarning,
-    showInfo
+  const toggleContrast = useCallback(() => {
+    dispatch(toggleHighContrast());
+  }, [dispatch]);
+  
+  return {
+    theme,
+    isDark: theme === 'dark',
+    isLight: theme === 'light',
+    primaryColor,
+    fontSize,
+    reducedMotion,
+    highContrast,
+    setTheme,
+    toggleTheme,
+    setPrimaryColor: setPrimary,
+    setFontSize: setFontSizeOption,
+    toggleReducedMotion: toggleMotion,
+    toggleHighContrast: toggleContrast,
   };
 };
 
 /**
  * Hook for managing modals
  */
-export const useModal = () => {
+export const useModal = (modalId) => {
   const dispatch = useDispatch();
   const activeModals = useSelector(selectActiveModals);
+  const modalProps = useSelector((state) => selectModalProps(state, modalId));
   
-  const open = (modalId) => dispatch(openModal(modalId));
-  const close = (modalId) => dispatch(closeModal(modalId));
-  const closeAll = () => dispatch(closeAllModals());
+  const isOpen = useCallback(() => {
+    return modalId ? activeModals.includes(modalId) : activeModals.length > 0;
+  }, [activeModals, modalId]);
   
-  // Function to check if a specific modal is open
-  const isOpen = (modalId) => {
-    return useSelector(selectIsModalOpen(modalId));
+  const open = useCallback((props = {}) => {
+    if (!modalId) {
+      throw new Error('modalId is required to open a modal');
+    }
+    dispatch(openModal({ modalId, props }));
+  }, [dispatch, modalId]);
+  
+  const close = useCallback(() => {
+    if (modalId) {
+      dispatch(closeModal(modalId));
+    } else {
+      dispatch(closeAllModals());
+    }
+  }, [dispatch, modalId]);
+  
+  return {
+    isOpen: isOpen(),
+    open,
+    close,
+    props: modalProps,
   };
-  
-  return { activeModals, openModal: open, closeModal: close, closeAllModals: closeAll, isModalOpen: isOpen };
 };
 
 /**
- * Hook for managing global loading state
+ * Hook for managing toasts
  */
-export const useLoading = () => {
+export const useToast = () => {
   const dispatch = useDispatch();
-  const isLoading = useSelector(selectIsLoading);
+  const toasts = useSelector(selectToasts);
   
-  const setIsLoading = (loading) => dispatch(setLoading(loading));
+  const showSuccessToast = useCallback((message, options = {}) => {
+    dispatch(showToast({
+      type: 'success',
+      title: options.title || 'Success',
+      message,
+      ...options,
+    }));
+  }, [dispatch]);
   
-  return { isLoading, setLoading: setIsLoading };
+  const showErrorToast = useCallback((message, options = {}) => {
+    dispatch(showToast({
+      type: 'error',
+      title: options.title || 'Error',
+      message,
+      ...options,
+    }));
+  }, [dispatch]);
+  
+  const showInfoToast = useCallback((message, options = {}) => {
+    dispatch(showToast({
+      type: 'info',
+      title: options.title || 'Information',
+      message,
+      ...options,
+    }));
+  }, [dispatch]);
+  
+  const showWarningToast = useCallback((message, options = {}) => {
+    dispatch(showToast({
+      type: 'warning',
+      title: options.title || 'Warning',
+      message,
+      ...options,
+    }));
+  }, [dispatch]);
+  
+  const hideToastById = useCallback((id) => {
+    dispatch(hideToast(id));
+  }, [dispatch]);
+  
+  const clearToasts = useCallback(() => {
+    dispatch(clearAllToasts());
+  }, [dispatch]);
+  
+  return {
+    toasts,
+    showSuccess: showSuccessToast,
+    showError: showErrorToast,
+    showInfo: showInfoToast,
+    showWarning: showWarningToast,
+    hideToast: hideToastById,
+    clearToasts,
+  };
 };
 
 /**
- * Hook for managing global error state
+ * Hook for managing loading states
  */
-export const useGlobalError = () => {
+export const useLoading = (id) => {
   const dispatch = useDispatch();
-  const globalError = useSelector(selectGlobalError);
+  const globalLoading = useSelector(selectGlobalLoading);
+  const idLoading = id ? useSelector((state) => selectLoadingById(state, id)) : false;
   
-  const setError = (error) => dispatch(setGlobalError(error));
-  const clearError = () => dispatch(clearGlobalError());
+  const setGlobal = useCallback((isLoading) => {
+    dispatch(setGlobalLoading(isLoading));
+  }, [dispatch]);
   
-  return { globalError, setGlobalError: setError, clearGlobalError: clearError };
+  const setById = useCallback((loadingId, isLoading) => {
+    dispatch(setLoading({ id: loadingId, isLoading }));
+  }, [dispatch]);
+  
+  const clearById = useCallback((loadingId) => {
+    dispatch(clearLoading(loadingId));
+  }, [dispatch]);
+  
+  const startLoading = useCallback(() => {
+    if (id) {
+      setById(id, true);
+    } else {
+      setGlobal(true);
+    }
+  }, [id, setById, setGlobal]);
+  
+  const stopLoading = useCallback(() => {
+    if (id) {
+      setById(id, false);
+    } else {
+      setGlobal(false);
+    }
+  }, [id, setById, setGlobal]);
+  
+  return {
+    isLoading: id ? idLoading : globalLoading,
+    startLoading,
+    stopLoading,
+    setGlobalLoading: setGlobal,
+    setLoadingById: setById,
+    clearLoadingById: clearById,
+  };
 };
 
 /**
@@ -181,41 +286,67 @@ export const useGlobalError = () => {
  */
 export const useAccessibility = () => {
   const dispatch = useDispatch();
-  const fontSize = useSelector(selectFontSize);
-  const highContrast = useSelector(selectHighContrast);
-  const reduceMotion = useSelector(selectReduceMotion);
+  const accessibility = useSelector(selectAccessibility);
   
-  const setSize = (size) => dispatch(setFontSize(size));
-  const toggleContrast = () => dispatch(toggleHighContrast());
-  const toggleMotion = () => dispatch(toggleReduceMotion());
+  const setTextSizeOption = useCallback((size) => {
+    dispatch(setTextSize(size));
+  }, [dispatch]);
   
-  // Apply accessibility settings to body element
-  const applyAccessibilitySettings = () => {
-    // Apply font size
-    document.body.setAttribute('data-font-size', fontSize);
+  const setContrastOption = useCallback((contrast) => {
+    dispatch(setContrast(contrast));
+  }, [dispatch]);
+  
+  const setReducedMotionOption = useCallback((reduced) => {
+    dispatch(setReducedMotion(reduced));
+  }, [dispatch]);
+  
+  const applyAccessibilitySettings = useCallback(() => {
+    // Apply text size
+    document.documentElement.style.fontSize = {
+      small: '14px',
+      medium: '16px',
+      large: '18px',
+    }[accessibility.textSize] || '16px';
     
-    // Apply high contrast
-    if (highContrast) {
-      document.body.setAttribute('data-high-contrast', 'true');
-    } else {
-      document.body.removeAttribute('data-high-contrast');
-    }
+    // Apply contrast
+    document.body.classList.toggle('high-contrast', accessibility.contrast === 'high');
     
     // Apply reduced motion
-    if (reduceMotion) {
-      document.body.setAttribute('data-reduce-motion', 'true');
+    document.body.classList.toggle('reduced-motion', accessibility.reducedMotion);
+    
+    if (accessibility.reducedMotion) {
+      document.body.style.setProperty('--transition-duration', '0s');
     } else {
-      document.body.removeAttribute('data-reduce-motion');
+      document.body.style.removeProperty('--transition-duration');
     }
-  };
+  }, [accessibility]);
   
-  return { 
-    fontSize, 
-    highContrast, 
-    reduceMotion,
-    setFontSize: setSize,
-    toggleHighContrast: toggleContrast,
-    toggleReduceMotion: toggleMotion,
-    applyAccessibilitySettings
+  return {
+    ...accessibility,
+    setTextSize: setTextSizeOption,
+    setContrast: setContrastOption,
+    setReducedMotion: setReducedMotionOption,
+    applyAccessibilitySettings,
   };
 };
+
+/**
+ * Combined hook for UI operations
+ */
+export const useUI = () => {
+  const sidebar = useSidebar();
+  const theme = useTheme();
+  const toast = useToast();
+  const loading = useLoading();
+  const accessibility = useAccessibility();
+  
+  return {
+    sidebar,
+    theme,
+    toast,
+    loading,
+    accessibility,
+  };
+};
+
+export default useUI;
