@@ -1,3 +1,6 @@
+// Import our transformation tables migration
+const initTransformationTables = require('./backend/migrations/createTransformationTables');
+
 // Function to initialize business process-related tables
 const initBusinessProcessTables = async (pool) => {
   try {
@@ -121,6 +124,9 @@ const initBusinessProcessTables = async (pool) => {
     }
 
     console.log('Business process management tables initialized');
+    
+    // Initialize transformation tables
+    await initTransformationTables(pool);
   } catch (error) {
     console.error('Error initializing business process tables:', error);
   }

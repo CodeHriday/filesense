@@ -49,8 +49,7 @@ async function initTransformationTables(pool) {
         parameters JSONB DEFAULT '{}',
         result JSONB DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (transformation_id) REFERENCES transformations(transformation_id) ON DELETE CASCADE
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     systemLogger.info('Transformation executions table initialized');
@@ -64,8 +63,7 @@ async function initTransformationTables(pool) {
         file_path TEXT NOT NULL,
         file_size BIGINT,
         row_count INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (execution_id) REFERENCES transformation_executions(execution_id) ON DELETE CASCADE
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     systemLogger.info('Transformation outputs table initialized');
@@ -78,9 +76,7 @@ async function initTransformationTables(pool) {
         input_file_id TEXT NOT NULL,
         output_file_id TEXT NOT NULL,
         execution_id TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (transformation_id) REFERENCES transformations(transformation_id) ON DELETE CASCADE,
-        FOREIGN KEY (execution_id) REFERENCES transformation_executions(execution_id) ON DELETE SET NULL
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     systemLogger.info('Transformation lineage table initialized');
