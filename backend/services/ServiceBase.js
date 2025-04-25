@@ -10,9 +10,18 @@ const { systemLogger } = require('../utils/logger');
 const { Pool } = require('pg');
 
 class ServiceBase {
-  constructor() {
-    this.logger = systemLogger;
-    this.dbPool = new Pool({
+  /**
+   * Create a new ServiceBase instance
+   * 
+   * @param {Pool} dbPool - PostgreSQL connection pool (optional, will create if not provided)
+   * @param {Object} logger - Logger instance (optional, will use system logger if not provided)
+   */
+  constructor(dbPool, logger) {
+    // Support dependency injection or fall back to defaults
+    this.logger = logger || systemLogger;
+    
+    // Use provided DB pool or create a new one
+    this.dbPool = dbPool || new Pool({
       connectionString: process.env.DATABASE_URL,
     });
     

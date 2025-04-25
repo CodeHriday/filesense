@@ -19,8 +19,17 @@ const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 
 class TransformationService extends ServiceBase {
-  constructor() {
-    super();
+  /**
+   * Create a new TransformationService instance
+   * 
+   * @param {Pool} dbPool - PostgreSQL connection pool
+   * @param {Object} logger - Logger instance
+   * @param {Object} fileService - File service instance (optional)
+   */
+  constructor(dbPool, logger, fileService) {
+    super(dbPool, logger);
+    
+    this.fileService = fileService;
     this.transformationTypes = {
       JOIN: 'join',
       FILTER: 'filter',
