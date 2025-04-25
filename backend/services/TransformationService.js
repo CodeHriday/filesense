@@ -963,4 +963,5 @@ class TransformationService extends ServiceBase {
   }
 }
 
-module.exports = new TransformationService();
+// Export the class instead of an instance to support dependency injection
+module.exports = TransformationService;

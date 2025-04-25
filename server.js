@@ -1,13 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
-const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+
+// Initialize dependency injection container
+const { initialize: initializeDI } = require('./backend/di/bootstrapper');
+const diContainer = initializeDI();
 
 // Import enhanced backend features
 const { setupEnhancedFeatures } = require('./backend/integration');
@@ -15,6 +17,10 @@ const { setupEnhancedFeatures } = require('./backend/integration');
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Get shared services from DI container
+const dbPool = diContainer.get('dbPool');
+const logger = diContainer.get('logger');
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
@@ -222,15 +228,8 @@ const upload = multer({
   }
 });
 
-// Configure PostgreSQL connection with better error handling
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// Add error handler to connection pool
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-});
+// Use the database pool from the DI container
+const pool = dbPool;
 
 // Test database connection
 pool.query('SELECT NOW()', (err, res) => {

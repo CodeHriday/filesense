@@ -1,91 +1,72 @@
 /**
- * Dependency Injection Container
+ * Simple Dependency Injection Container
  * 
- * This module provides a simple dependency injection container to manage
- * service instantiation and dependencies throughout the application.
+ * This module provides a lightweight dependency injection container
+ * implementation for managing service instances and their dependencies.
  */
 
-class DIContainer {
-  constructor() {
-    this.services = new Map();
-    this.factories = new Map();
-    this.singletons = new Map();
-  }
-
-  /**
-   * Register a service factory function
-   * 
-   * @param {string} name - Service name
-   * @param {Function} factory - Factory function that creates the service
-   * @param {boolean} singleton - Whether to cache the instance (true) or create new ones (false)
-   */
-  register(name, factory, singleton = true) {
-    if (typeof factory !== 'function') {
-      throw new Error(`Factory for service '${name}' must be a function`);
-    }
-    
-    this.factories.set(name, factory);
-    
-    if (!singleton) {
-      // For non-singletons, we'll create a new instance each time
-      return;
-    }
-    
-    // Define a getter on the services map that lazily initializes the service
-    Object.defineProperty(this.services, name, {
-      configurable: true,
-      get: () => {
-        // Check if we've already created this singleton
-        if (this.singletons.has(name)) {
-          return this.singletons.get(name);
-        }
-        
-        // Create the service instance
-        const instance = this.createInstance(name);
-        
-        // Cache it for future use
-        this.singletons.set(name, instance);
-        
-        return instance;
-      }
-    });
-  }
+/**
+ * Creates a new DI container
+ * @returns {Object} DI container instance
+ */
+function createContainer() {
+  // Store service registrations
+  const registrations = new Map();
+  // Track dependency resolution chains to prevent circular dependencies
+  const resolutionStack = [];
   
   /**
-   * Create a new instance of a service
+   * Register a service factory
    * 
    * @param {string} name - Service name
-   * @returns {Object} Service instance
+   * @param {Function} factory - Factory function that returns the service instance
+   * @param {boolean} singleton - Whether to cache the instance (default: true)
    */
-  createInstance(name) {
-    const factory = this.factories.get(name);
-    
-    if (!factory) {
-      throw new Error(`Service '${name}' is not registered`);
-    }
-    
-    // Create the service instance by calling the factory with the container as 'this'
-    return factory.call(this);
+  function register(name, factory, singleton = true) {
+    registrations.set(name, { factory, singleton, instance: null });
   }
   
   /**
    * Get a service instance
    * 
    * @param {string} name - Service name
-   * @returns {Object} Service instance
+   * @returns {any} Service instance
+   * @throws {Error} If service is not registered or circular dependency detected
    */
-  get(name) {
-    // For singletons, use the getter defined in register()
-    if (this.services[name]) {
-      return this.services[name];
+  function get(name) {
+    const registration = registrations.get(name);
+    
+    if (!registration) {
+      throw new Error(`Service '${name}' is not registered`);
     }
     
-    // For non-singletons, create a new instance
-    if (this.factories.has(name)) {
-      return this.createInstance(name);
+    // Check for circular dependencies
+    if (resolutionStack.includes(name)) {
+      throw new Error(`Circular dependency detected: ${resolutionStack.join(' -> ')} -> ${name}`);
     }
     
-    throw new Error(`Service '${name}' is not registered`);
+    // Return cached instance for singletons
+    if (registration.singleton && registration.instance) {
+      return registration.instance;
+    }
+    
+    // Create new instance with the container as 'this' context
+    // This allows factory functions to resolve other dependencies
+    try {
+      resolutionStack.push(name);
+      const instance = registration.factory.call(this);
+      resolutionStack.pop();
+      
+      // Cache instance for singletons
+      if (registration.singleton) {
+        registration.instance = instance;
+      }
+      
+      return instance;
+    } catch (error) {
+      resolutionStack.pop();
+      throw new Error(`Error creating instance of '${name}': ${error.message}`);
+    }
   }
   
   /**
@@ -94,36 +75,27 @@ class DIContainer {
    * @param {string} name - Service name
    * @returns {boolean} Whether the service is registered
    */
-  has(name) {
-    return this.factories.has(name);
+  function has(name) {
+    return registrations.has(name);
   }
   
   /**
-   * Remove a service registration
+   * Get all registered service names
    * 
-   * @param {string} name - Service name
+   * @returns {Array<string>} Service names
    */
-  remove(name) {
-    this.factories.delete(name);
-    this.singletons.delete(name);
-    delete this.services[name];
+  function getRegistrationNames() {
+    return Array.from(registrations.keys());
   }
   
-  /**
-   * Clear all service registrations
-   */
-  clear() {
-    this.factories.clear();
-    this.singletons.clear();
-    
-    // Reset services object
-    for (const key of Object.keys(this.services)) {
-      delete this.services[key];
-    }
-  }
+  return {
+    register,
+    get,
+    has,
+    getRegistrationNames,
+    isConfigured: false
+  };
 }
 
-// Create and export a singleton container instance
-const container = new DIContainer();
-
-module.exports = container;
+// Export a singleton container instance
+module.exports = createContainer();

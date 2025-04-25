@@ -4,64 +4,56 @@
  * This module registers all application services with the DI container.
  */
 
-const container = require('./container');
-const { systemLogger } = require('../utils/logger');
-const { Pool } = require('pg');
-const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 
-// Import service class definitions
-const ServiceBase = require('../services/ServiceBase');
-const FileService = require('../services/FileService');
-const TransformationService = require('../services/TransformationService');
-const UserService = require('../services/UserService');
+/**
+ * Register all domain services with the DI container
+ * 
+ * @param {Object} container - DI container
+ * @returns {Object} Updated container
+ */
+function registerServices(container) {
+  // Auto-discover service classes from the services directory
+  const servicesDir = path.join(__dirname, '..', 'services');
+  
+  if (fs.existsSync(servicesDir)) {
+    const serviceFiles = fs.readdirSync(servicesDir)
+      .filter(file => 
+        (file.endsWith('Service.js') || file.endsWith('Repository.js')) && 
+        file !== 'ServiceBase.js'
+      );
+      
+    // For each service file, import the service and register it
+    for (const file of serviceFiles) {
+      try {
+        // Skip ServiceBase.js which is handled separately
+        if (file === 'ServiceBase.js') continue;
+        
+        const ServiceClass = require(path.join(servicesDir, file));
+        const serviceName = file.replace('.js', '').charAt(0).toLowerCase() + file.replace('.js', '').slice(1);
+        
+        // Only register if it's a class/constructor function
+        if (typeof ServiceClass === 'function') {
+          container.register(serviceName, function() {
+            // Create instance with dependencies
+            return new ServiceClass(
+              this.get('dbPool'),
+              this.get('logger')
+            );
+          });
+          
+          console.log(`Registered service: ${serviceName}`);
+        }
+      } catch (error) {
+        console.error(`Error registering service from file ${file}:`, error);
+      }
+    }
+  }
+  
+  return container;
+}
 
-// Register database connection
-container.register('dbPool', () => {
-  return new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
-});
-
-// Register logger
-container.register('logger', () => systemLogger);
-
-// Register ServiceBase
-container.register('serviceBase', function() {
-  const ServiceBaseClass = ServiceBase;
-  return new ServiceBaseClass(
-    this.get('dbPool'),
-    this.get('logger')
-  );
-});
-
-// Register FileService
-container.register('fileService', function() {
-  const FileServiceClass = FileService;
-  return new FileServiceClass(
-    this.get('dbPool'),
-    this.get('logger')
-  );
-});
-
-// Register TransformationService
-container.register('transformationService', function() {
-  const TransformationServiceClass = TransformationService;
-  return new TransformationServiceClass(
-    this.get('dbPool'),
-    this.get('logger')
-  );
-});
-
-// Register UserService
-container.register('userService', function() {
-  const UserServiceClass = UserService;
-  return new UserServiceClass(
-    this.get('dbPool'),
-    this.get('logger')
-  );
-});
-
-// Register utility helpers
-container.register('uuid', () => uuidv4);
-
-module.exports = container;
+module.exports = {
+  registerServices
+};
