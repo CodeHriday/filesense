@@ -1,178 +1,218 @@
 /**
  * File Service
  * 
- * Handles all file-related operations including uploads, processing,
- * quality checks, and catalog management.
+ * Handles file management operations including upload, storage, metadata
+ * extraction, catalog management, and lifecycle tracking.
  */
 
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
-
 const ServiceBase = require('./ServiceBase');
-const { systemLogger, performanceLogger } = require('../utils/logger');
-const { processFileAsync } = require('../utils/asyncProcessor');
 
-// Promisify fs functions
-const stat = promisify(fs.stat);
+// Promisify file system operations
 const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
+const stat = promisify(fs.stat);
+const mkdir = promisify(fs.mkdir);
+const unlink = promisify(fs.unlink);
 
 class FileService extends ServiceBase {
-  constructor() {
-    super();
-    this.uploadDir = path.join(process.cwd(), 'uploads');
-    this.ensureUploadDir();
-  }
-
   /**
-   * Ensure upload directory exists
+   * Create a new FileService instance
+   * 
+   * @param {Pool} dbPool - PostgreSQL connection pool
+   * @param {Object} logger - Logger instance
    */
-  ensureUploadDir() {
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
-      this.logger.info('Created upload directory', { path: this.uploadDir });
+  constructor(dbPool, logger) {
+    super(dbPool, logger);
+    
+    // Set up upload directory
+    this.uploadDir = path.join(process.cwd(), 'uploads');
+    this.tempDir = path.join(this.uploadDir, 'temp');
+    this.ensureDirectoriesExist();
+    
+    // Allowed file types with validation functions
+    this.allowedTypes = {
+      csv: this.validateCsv.bind(this),
+      json: this.validateJson.bind(this),
+      parquet: this.validateParquet.bind(this),
+      xlsx: this.validateExcel.bind(this)
+    };
+  }
+  
+  /**
+   * Ensure required directories exist
+   * 
+   * @private
+   */
+  async ensureDirectoriesExist() {
+    try {
+      if (!fs.existsSync(this.uploadDir)) {
+        await mkdir(this.uploadDir, { recursive: true });
+        this.logger.info('Created uploads directory', { path: this.uploadDir });
+      }
+      
+      if (!fs.existsSync(this.tempDir)) {
+        await mkdir(this.tempDir, { recursive: true });
+        this.logger.info('Created temporary uploads directory', { path: this.tempDir });
+      }
+    } catch (error) {
+      this.logger.error('Error creating directories', { error: error.message });
+      throw error;
     }
   }
-
+  
   /**
-   * Upload and process a file
+   * Save an uploaded file and store metadata
    * 
    * @param {Object} fileData - File data from multer
-   * @param {Object} options - Processing options
-   * @returns {Promise<Object>} Processing result
+   * @param {Object} options - Upload options
+   * @returns {Promise<Object>} - File metadata
    */
-  async uploadAndProcessFile(fileData, options = {}) {
+  async saveFile(fileData, options = {}) {
     const traceId = this.generateTraceId();
-    this.logger.info('Uploading and processing file', { 
+    this.logger.info('Saving uploaded file', { 
       filename: fileData.originalname,
       size: fileData.size,
       traceId
     });
-
+    
     try {
-      // Generate a unique file ID
+      // Generate unique ID for the file
       const fileId = `file_${Date.now()}`;
+      const extension = path.extname(fileData.originalname).toLowerCase().substring(1);
       
-      // Process the file asynchronously
-      const processingTask = processFileAsync({
-        filePath: fileData.path,
-        fileName: fileData.originalname,
-        fileType: path.extname(fileData.originalname).toLowerCase().substring(1),
+      // Basic validation
+      if (!this.allowedTypes[extension]) {
+        throw new Error(`File type not supported: ${extension}`);
+      }
+      
+      // Additional type-specific validation
+      await this.allowedTypes[extension](fileData.path);
+      
+      // Extract file metadata
+      const metadata = await this.extractMetadata(fileData, extension);
+      
+      // Store in database 
+      const fileRecord = await this.executeTransaction(async (client) => {
+        // Insert file record
+        const insertQuery = `
+          INSERT INTO files (
+            file_id, 
+            filename, 
+            file_type, 
+            file_size, 
+            row_count,
+            column_count, 
+            processed_at,
+            metadata
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+          RETURNING *
+        `;
+        
+        const result = await client.query(insertQuery, [
+          fileId,
+          fileData.originalname,
+          extension,
+          fileData.size.toString(),
+          metadata.rowCount || 0,
+          metadata.columnCount || 0,
+          JSON.stringify({ path: fileData.path })
+        ]);
+        
+        // Insert column metadata if available
+        if (metadata.columns && metadata.columns.length > 0) {
+          for (let i = 0; i < metadata.columns.length; i++) {
+            const column = metadata.columns[i];
+            
+            await client.query(`
+              INSERT INTO file_columns (
+                file_id,
+                column_name,
+                column_type,
+                column_index,
+                stats
+              )
+              VALUES ($1, $2, $3, $4, $5)
+            `, [
+              fileId,
+              column.name,
+              column.type,
+              i,
+              JSON.stringify(column.stats || {})
+            ]);
+          }
+        }
+        
+        return result.rows[0];
+      }, { traceId });
+      
+      this.logger.info('File saved successfully', { 
         fileId,
-        traceId,
-        options
+        filename: fileData.originalname,
+        traceId
       });
       
-      // Save initial file metadata to database
-      const initialMetadata = {
-        file_id: fileId,
-        filename: fileData.originalname,
-        file_type: path.extname(fileData.originalname).toLowerCase().substring(1),
-        file_size: fileData.size.toString(),
-        metadata: {
-          path: fileData.path
-        },
-        processing_status: 'processing'
-      };
-      
-      // Insert initial file record
-      const insertQuery = `
-        INSERT INTO files 
-        (file_id, filename, file_type, file_size, metadata, processed_at, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), NOW())
-        RETURNING id, file_id
-      `;
-      
-      const result = await this.executeQuery(insertQuery, [
-        initialMetadata.file_id,
-        initialMetadata.filename,
-        initialMetadata.file_type,
-        initialMetadata.file_size,
-        JSON.stringify(initialMetadata.metadata)
-      ]);
-      
-      // Return initial response with task ID
-      return {
-        fileId: initialMetadata.file_id,
-        taskId: processingTask.taskId,
-        status: 'processing',
-        message: 'File upload initiated. Processing in background.'
-      };
+      return fileRecord;
     } catch (error) {
-      this.logger.error('Error uploading file', { 
+      this.logger.error('Error saving file', { 
         error: error.message, 
-        stack: error.stack,
         filename: fileData.originalname,
         traceId
       });
+      
+      // Clean up the file if there was an error
+      try {
+        await unlink(fileData.path);
+        this.logger.debug('Temporary file deleted after error', { path: fileData.path });
+      } catch (unlinkError) {
+        this.logger.warn('Failed to delete temporary file', { 
+          error: unlinkError.message,
+          path: fileData.path
+        });
+      }
+      
       throw error;
     }
   }
-
+  
   /**
-   * Get file catalog from database
-   * 
-   * @param {Object} options - Query options
-   * @returns {Promise<Array>} File catalog
-   */
-  async getFileCatalog(options = {}) {
-    const { sortBy = 'created_at', sortOrder = 'DESC', limit = 100, offset = 0 } = options;
-    const traceId = this.generateTraceId();
-    
-    this.logger.info('Fetching file catalog', { traceId, sortBy, sortOrder, limit, offset });
-    
-    // Validate sort column to prevent SQL injection
-    const validSortColumns = ['id', 'filename', 'file_type', 'file_size', 'created_at', 'processed_at', 'quality_score'];
-    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
-    
-    // Validate sort order
-    const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-    
-    const query = `
-      SELECT * FROM files
-      ORDER BY ${sortColumn} ${order}
-      LIMIT $1 OFFSET $2
-    `;
-    
-    try {
-      const result = await this.executeQuery(query, [limit, offset]);
-      return result.rows;
-    } catch (error) {
-      this.logger.error('Error fetching file catalog', { 
-        error: error.message,
-        traceId
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get a single file by ID
+   * Get file by ID with associated columns
    * 
    * @param {string} fileId - File ID
-   * @returns {Promise<Object>} File data
+   * @returns {Promise<Object>} - File with columns
    */
   async getFileById(fileId) {
     const traceId = this.generateTraceId();
-    this.logger.info('Fetching file by ID', { fileId, traceId });
-    
-    const query = `
-      SELECT * FROM files WHERE file_id = $1 OR id = $1
-    `;
+    this.logger.debug('Fetching file by ID', { fileId, traceId });
     
     try {
-      const result = await this.executeQuery(query, [fileId]);
+      const result = await this.executeQuery(
+        'SELECT * FROM files WHERE file_id = $1',
+        [fileId]
+      );
       
       if (result.rows.length === 0) {
         this.logger.warn('File not found', { fileId, traceId });
         return null;
       }
       
-      return result.rows[0];
+      const file = result.rows[0];
+      
+      // Get columns for the file
+      const columnsResult = await this.executeQuery(
+        'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
+        [fileId]
+      );
+      
+      file.columns = columnsResult.rows;
+      
+      return file;
     } catch (error) {
-      this.logger.error('Error fetching file by ID', { 
+      this.logger.error('Error fetching file', { 
         error: error.message,
         fileId,
         traceId
@@ -180,45 +220,120 @@ class FileService extends ServiceBase {
       throw error;
     }
   }
-
+  
   /**
-   * Delete a file
+   * Get all files with basic filtering and sorting
+   * 
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} - List of files
+   */
+  async getAllFiles(options = {}) {
+    const { 
+      sortBy = 'created_at', 
+      sortOrder = 'DESC', 
+      limit = 50, 
+      offset = 0,
+      fileType = null,
+      search = null
+    } = options;
+    
+    const traceId = this.generateTraceId();
+    this.logger.debug('Fetching all files', { options, traceId });
+    
+    try {
+      // Validate sort column to prevent SQL injection
+      const validSortColumns = ['id', 'filename', 'file_type', 'file_size', 'created_at', 'quality_score'];
+      const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+      
+      // Validate sort order
+      const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      
+      let query = 'SELECT * FROM files';
+      const params = [];
+      let whereClauses = [];
+      
+      // Add filter by file type
+      if (fileType) {
+        whereClauses.push('file_type = $' + (params.length + 1));
+        params.push(fileType);
+      }
+      
+      // Add search filter
+      if (search) {
+        whereClauses.push('(filename ILIKE $' + (params.length + 1) + 
+                         ' OR file_id ILIKE $' + (params.length + 1) + ')');
+        params.push(`%${search}%`);
+      }
+      
+      // Add WHERE clause if filters are applied
+      if (whereClauses.length > 0) {
+        query += ' WHERE ' + whereClauses.join(' AND ');
+      }
+      
+      // Add sorting and pagination
+      query += ` ORDER BY ${sortColumn} ${order} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      params.push(limit, offset);
+      
+      const result = await this.executeQuery(query, params, { traceId });
+      
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Error fetching files', { 
+        error: error.message,
+        traceId
+      });
+      throw error;
+    }
+  }
+  
+  /**
+   * Delete a file and its metadata
    * 
    * @param {string} fileId - File ID
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<boolean>} - Success status
    */
   async deleteFile(fileId) {
     const traceId = this.generateTraceId();
     this.logger.info('Deleting file', { fileId, traceId });
     
     try {
-      // Get file information first
-      const fileInfo = await this.getFileById(fileId);
+      // Get file info before deleting
+      const file = await this.getFileById(fileId);
       
-      if (!fileInfo) {
+      if (!file) {
         this.logger.warn('File not found for deletion', { fileId, traceId });
         return false;
       }
       
-      // Delete from database within a transaction
+      // Delete the file from the database within a transaction
       await this.executeTransaction(async (client) => {
-        // Delete from the main files table
-        await client.query('DELETE FROM files WHERE file_id = $1 OR id = $1', [fileId]);
+        // First delete columns
+        await client.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
         
-        // Optional: Delete related records from other tables
-        // await client.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
-        // await client.query('DELETE FROM file_history WHERE file_id = $1', [fileId]);
-      });
+        // Then delete the file record
+        await client.query('DELETE FROM files WHERE file_id = $1', [fileId]);
+      }, { traceId });
       
-      // Try to delete the physical file if path is available
-      if (fileInfo.metadata && fileInfo.metadata.path) {
-        const filePath = fileInfo.metadata.path;
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          this.logger.info('Deleted physical file', { path: filePath, traceId });
+      // Delete the physical file if it exists
+      if (file.metadata && file.metadata.path) {
+        try {
+          const filePath = file.metadata.path;
+          
+          if (fs.existsSync(filePath)) {
+            await unlink(filePath);
+            this.logger.debug('Physical file deleted', { path: filePath });
+          }
+        } catch (unlinkError) {
+          this.logger.warn('Error deleting physical file', {
+            error: unlinkError.message,
+            fileId,
+            traceId
+          });
+          // Continue despite physical file deletion error
         }
       }
       
+      this.logger.info('File deleted successfully', { fileId, traceId });
       return true;
     } catch (error) {
       this.logger.error('Error deleting file', { 
@@ -229,74 +344,65 @@ class FileService extends ServiceBase {
       throw error;
     }
   }
-
+  
   /**
    * Update file metadata
    * 
    * @param {string} fileId - File ID
    * @param {Object} updates - Fields to update
-   * @returns {Promise<Object>} Updated file data
+   * @returns {Promise<Object>} - Updated file record
    */
   async updateFile(fileId, updates) {
     const traceId = this.generateTraceId();
-    this.logger.info('Updating file', { fileId, traceId, fields: Object.keys(updates) });
-    
-    // Check which fields are updatable
-    const updatableFields = [
-      'filename', 'quality_score', 'row_count', 'column_count', 
-      'metadata', 'tags', 'description'
-    ];
-    
-    // Filter out non-updatable fields
-    const validUpdates = {};
-    for (const field of updatableFields) {
-      if (updates[field] !== undefined) {
-        validUpdates[field] = updates[field];
-      }
-    }
-    
-    if (Object.keys(validUpdates).length === 0) {
-      this.logger.warn('No valid fields to update', { fileId, traceId });
-      return await this.getFileById(fileId);
-    }
+    this.logger.info('Updating file', { 
+      fileId, 
+      updatedFields: Object.keys(updates),
+      traceId
+    });
     
     try {
       // Build dynamic update query
       const setClauses = [];
-      const queryParams = [];
-      let paramCounter = 1;
+      const queryParams = [fileId];
+      let paramCounter = 2;
       
-      for (const [field, value] of Object.entries(validUpdates)) {
-        if (field === 'metadata') {
-          setClauses.push(`${field} = $${paramCounter}`);
-          queryParams.push(JSON.stringify(value));
-        } else {
+      const updatableFields = [
+        'quality_score', 'row_count', 'column_count', 'metadata'
+      ];
+      
+      for (const field of updatableFields) {
+        if (updates[field] !== undefined) {
+          let value = updates[field];
+          
+          // Handle special fields
+          if (field === 'metadata' && typeof value === 'object') {
+            value = JSON.stringify(value);
+          }
+          
           setClauses.push(`${field} = $${paramCounter}`);
           queryParams.push(value);
+          paramCounter++;
         }
-        paramCounter++;
       }
       
-      // Add updated_at timestamp
-      setClauses.push(`updated_at = NOW()`);
-      
-      // Add file ID as the last parameter
-      queryParams.push(fileId);
+      // Add updated_at
+      setClauses.push('updated_at = NOW()');
       
       const query = `
         UPDATE files
         SET ${setClauses.join(', ')}
-        WHERE file_id = $${paramCounter} OR id = $${paramCounter}
+        WHERE file_id = $1
         RETURNING *
       `;
       
-      const result = await this.executeQuery(query, queryParams);
+      const result = await this.executeQuery(query, queryParams, { traceId });
       
       if (result.rows.length === 0) {
         this.logger.warn('File not found for update', { fileId, traceId });
         return null;
       }
       
+      this.logger.info('File updated successfully', { fileId, traceId });
       return result.rows[0];
     } catch (error) {
       this.logger.error('Error updating file', { 
@@ -307,6 +413,120 @@ class FileService extends ServiceBase {
       throw error;
     }
   }
+  
+  /**
+   * Extract metadata from file
+   * 
+   * @private
+   * @param {Object} fileData - File data from multer
+   * @param {string} extension - File extension
+   * @returns {Promise<Object>} - Extracted metadata
+   */
+  async extractMetadata(fileData, extension) {
+    // Basic metadata available without parsing
+    const metadata = {
+      size: fileData.size,
+      name: fileData.originalname,
+      type: extension,
+      path: fileData.path,
+      uploadedAt: new Date().toISOString()
+    };
+    
+    // Get file stats
+    const stats = await stat(fileData.path);
+    metadata.created = stats.birthtime;
+    metadata.modified = stats.mtime;
+    
+    // Type-specific metadata extraction will be handled by specialized
+    // processors in a more robust implementation
+    
+    return metadata;
+  }
+  
+  /**
+   * Validate CSV file
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateCsv(filePath) {
+    // Simple validation: check if file exists and is readable
+    try {
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      await fileHandle.close();
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid CSV file: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Validate JSON file
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateJson(filePath) {
+    try {
+      // Read a portion of the file to validate JSON structure
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      const buffer = Buffer.alloc(4096); // Read first 4KB
+      
+      await fileHandle.read(buffer, 0, 4096, 0);
+      await fileHandle.close();
+      
+      const sample = buffer.toString('utf8').trim();
+      
+      // Check if it starts with [ or { for valid JSON
+      if (!sample.startsWith('[') && !sample.startsWith('{')) {
+        throw new Error('Invalid JSON structure');
+      }
+      
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid JSON file: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Validate Parquet file
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateParquet(filePath) {
+    // In a real implementation, we would use the parquetjs library
+    // to validate the file structure
+    try {
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      await fileHandle.close();
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid Parquet file: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Validate Excel file
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateExcel(filePath) {
+    // In a real implementation, we would use the xlsx library
+    // to validate the file structure
+    try {
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      await fileHandle.close();
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid Excel file: ${error.message}`);
+    }
+  }
 }
 
-module.exports = new FileService();
+module.exports = FileService;

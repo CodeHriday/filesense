@@ -52,6 +52,33 @@ const systemLogger = createLogger({
   ]
 });
 
+// Configure database logger for database operations
+const databaseLogger = createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: combine(
+    timestamp(),
+    json()
+  ),
+  defaultMeta: { service: 'data-observatory-db' },
+  transports: [
+    // Console output with colors (for development)
+    new transports.Console({
+      format: combine(
+        colorize(),
+        timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        consoleFormat
+      )
+    }),
+    // File output (JSON format for machine processing)
+    new transports.File({ 
+      filename: path.join(logsDir, 'database.log'),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5,
+      tailable: true
+    })
+  ]
+});
+
 // Configure audit logger for security and user actions
 const auditLogger = createLogger({
   level: 'info',
@@ -144,6 +171,7 @@ function logDatabaseOperation(operation, details, duration) {
 module.exports = {
   systemLogger,
   auditLogger,
+  databaseLogger,
   performanceLogger,
   logUserAction,
   logSecurityEvent,

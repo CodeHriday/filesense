@@ -401,6 +401,33 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Test DI endpoint - this is for testing only and should be removed in production
+app.get('/api/test-di', (req, res) => {
+  try {
+    const transformationService = diContainer.get('transformationService');
+    const fileService = diContainer.get('fileService');
+    
+    // Just check if we can access the services
+    res.json({ 
+      status: 'ok', 
+      services: {
+        transformation: {
+          name: 'TransformationService',
+          methodCount: Object.getOwnPropertyNames(Object.getPrototypeOf(transformationService))
+            .filter(m => m !== 'constructor').length
+        },
+        file: {
+          name: 'FileService',
+          methodCount: Object.getOwnPropertyNames(Object.getPrototypeOf(fileService))
+            .filter(m => m !== 'constructor').length
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // Files API
 app.get('/api/files', async (req, res) => {
   try {
