@@ -1,43 +1,53 @@
 /**
  * Server entry point
  * 
- * This module initializes and starts the HTTP server for the application.
+ * This module starts the Express application server.
  */
-const { app, initializeTables } = require('./app');
-const { SERVER_CONFIG } = require('./config/environment');
+const { app, initializeApp } = require('./app');
+const { APP_CONFIG } = require('./config/environment');
+const db = require('./config/database');
 
-// Set the port
-const PORT = SERVER_CONFIG.PORT;
+// Start the server
+const port = APP_CONFIG.PORT;
+const host = APP_CONFIG.HOST;
 
-// Initialize database tables and start the server
 const startServer = async () => {
   try {
-    // Initialize database tables
-    await initializeTables();
+    // Initialize the application
+    await initializeApp();
     
-    // Start the server
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    // Start listening for requests
+    app.listen(port, host, () => {
+      console.log(`Server running on ${host}:${port}`);
+      console.log(`API available at ${APP_CONFIG.API_PREFIX}`);
+      console.log(`Environment: ${APP_CONFIG.NODE_ENV}`);
+    });
+    
+    // Handle graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('SIGTERM signal received: closing HTTP server');
+      // Close database connection
+      await db.closePool();
+      // Exit process
+      process.exit(0);
+    });
+    
+    process.on('SIGINT', async () => {
+      console.log('SIGINT signal received: closing HTTP server');
+      // Close database connection
+      await db.closePool();
+      // Exit process
+      process.exit(0);
     });
   } catch (error) {
-    console.error('Error starting server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 };
 
-// Start the server
-startServer();
+// Start the server if this file is run directly
+if (require.main === module) {
+  startServer();
+}
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // For now, we won't exit the process, but in production you might want to
-  // process.exit(1);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // For now, we won't exit the process, but in production you might want to
-  // process.exit(1);
-});
+module.exports = { app, startServer };

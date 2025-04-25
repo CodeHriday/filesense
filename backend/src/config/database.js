@@ -1,92 +1,98 @@
 /**
  * Database configuration module
  * 
- * This module centralizes database connection management using a connection pool
- * and provides error handling for database connections.
+ * This module provides a configured PostgreSQL pool for database access.
  */
 const { Pool } = require('pg');
-const dotenv = require('dotenv');
+const { DATABASE_CONFIG } = require('./environment');
 
-// Load environment variables from .env file
-dotenv.config();
-
-// Configure PostgreSQL connection pool
+// Create a connection pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: DATABASE_CONFIG.CONNECTION_STRING,
+  ssl: DATABASE_CONFIG.SSL_ENABLED ? {
+    rejectUnauthorized: DATABASE_CONFIG.SSL_REJECT_UNAUTHORIZED
+  } : false,
+  max: DATABASE_CONFIG.POOL_MAX || 20,
+  idleTimeoutMillis: DATABASE_CONFIG.POOL_IDLE_TIMEOUT || 30000,
+  connectionTimeoutMillis: DATABASE_CONFIG.CONNECTION_TIMEOUT || 5000
 });
 
-// Add error handler to connection pool for unexpected errors
+// Log connection events
+pool.on('connect', () => {
+  console.log('New client connected to PostgreSQL');
+});
+
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle database client', err);
-  process.exit(-1); // Exit on connection pool error
+  console.error('Unexpected error on PostgreSQL client', err);
 });
 
 /**
- * Test database connection
- * @returns {Promise<boolean>} True if connection successful, false otherwise
- */
-const testConnection = async () => {
-  try {
-    const client = await pool.connect();
-    const result = await client.query('SELECT NOW()');
-    client.release();
-    console.log('Database connected successfully');
-    return true;
-  } catch (err) {
-    console.error('Error connecting to the database:', err);
-    return false;
-  }
-};
-
-/**
- * Execute a query with parameters
+ * Execute a SQL query
  * @param {string} text - SQL query text
- * @param {Array} params - Parameters for the query
+ * @param {Array} params - Query parameters
  * @returns {Promise<Object>} Query result
  */
 const query = async (text, params) => {
   const start = Date.now();
-  try {
-    const result = await pool.query(text, params);
-    const duration = Date.now() - start;
-    
-    // Log slow queries (over 100ms) for performance monitoring
-    if (duration > 100) {
-      console.log('Slow query detected:', { text, duration, rows: result.rowCount });
-    }
-    
-    return result;
-  } catch (err) {
-    console.error('Error executing query:', err);
-    throw err; // Re-throw for handling by caller
+  const res = await pool.query(text, params);
+  const duration = Date.now() - start;
+  
+  // Log query if duration exceeds threshold
+  if (duration > 100) {
+    console.log('Slow query:', {
+      text,
+      params,
+      duration,
+      rows: res.rowCount
+    });
   }
+  
+  return res;
 };
 
 /**
- * Get a client from the pool for transactions
- * @returns {Promise<Object>} Client and release function
+ * Get a client from the pool
+ * @returns {Promise<Object>} Database client
  */
 const getClient = async () => {
   const client = await pool.connect();
-  const originalRelease = client.release;
   
-  // Override client release method to make it safe
-  client.release = () => {
-    client.release = originalRelease;
-    return client.release();
+  // Monkey patch the client's query method to add logging
+  const query = client.query;
+  client.query = (...args) => {
+    const start = Date.now();
+    return query.apply(client, args).then(res => {
+      const duration = Date.now() - start;
+      
+      // Log transaction queries if duration exceeds threshold
+      if (duration > 100) {
+        console.log('Slow transaction query:', {
+          text: args[0],
+          params: args[1],
+          duration,
+          rows: res.rowCount
+        });
+      }
+      
+      return res;
+    });
   };
   
-  // Return both client and release function
-  return {
-    client,
-    release: () => client.release(),
-  };
+  return client;
 };
 
-// Export database pool and utility functions
+/**
+ * Close the database connection pool
+ * @returns {Promise<void>}
+ */
+const closePool = async () => {
+  await pool.end();
+  console.log('Database connection pool closed');
+};
+
+// Export the database interface
 module.exports = {
-  pool,
   query,
   getClient,
-  testConnection
+  closePool
 };

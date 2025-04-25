@@ -1,229 +1,251 @@
 /**
  * Authentication middleware module
  * 
- * This module provides JWT authentication middleware for securing API routes.
+ * This module provides middleware for authenticating requests and enforcing permissions.
  */
-const jwt = require('jsonwebtoken');
-const { SECURITY_CONFIG } = require('../config/environment');
+const authService = require('../services/authService');
+const userRepository = require('../repositories/userRepository');
 const db = require('../config/database');
 
 /**
- * Middleware to authenticate JWT tokens
+ * Middleware to authenticate API requests using JWT
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} next - Express next function
  */
 const authenticateToken = async (req, res, next) => {
-  // Skip auth for routes that don't require authentication
-  if (req.path === '/api/health' || req.path === '/api/auth/login') {
-    return next();
-  }
-  
-  // Skip auth for Business Process Management routes, but set a default user
-  if (req.path.match(/^\/api\/groups/) || 
-      req.path.match(/^\/api\/business-processes/) || 
-      req.path.match(/^\/api\/jobs/)) {
-    console.log('Skipping auth for BPM route:', req.path);
-    // Set a default admin user to prevent 'undefined' errors
-    req.user = { 
-      id: 2,  // Admin ID
-      roles: ['Admin']
-    };
-    return next();
-  }
-  
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
-  
-  if (!token) {
-    return res.status(401).json({ 
-      error: 'Access denied',
-      message: 'No authentication token provided' 
-    });
-  }
-  
   try {
-    // Verify token
-    const verified = jwt.verify(token, SECURITY_CONFIG.JWT_SECRET);
+    // Get authorization header
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
     
-    // Store user data from token
-    req.user = verified;
-    req.token = token;
-    
-    // Get permissions for the user based on roles
-    if (verified.roles && verified.roles.length > 0) {
-      const allPermissions = await getUserPermissions(verified.roles);
-      req.user.permissions = allPermissions;
-    } else {
-      req.user.permissions = [];
-    }
-    
-    next();
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        error: 'Token expired',
-        message: 'Your session has expired. Please log in again.' 
+    if (!token) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Authentication token is required'
       });
     }
     
-    return res.status(403).json({ 
-      error: 'Invalid token',
-      message: 'The authentication token is invalid'
+    // Verify the token
+    const decoded = authService.verifyToken(token);
+    
+    if (!decoded) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or expired token'
+      });
+    }
+    
+    // Check the token type is not a refresh token
+    if (decoded.type === 'refresh') {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid token type'
+      });
+    }
+    
+    // Get user from database to ensure it exists and get current roles
+    try {
+      const user = await userRepository.findById(decoded.id);
+      
+      // Combine token data with fresh user data
+      req.user = {
+        ...decoded,
+        ...user
+      };
+      
+      // Add user permissions to request for permission checking
+      req.user.permissions = await getUserPermissions(user);
+      
+      console.log('Authentication successful, proceeding to next middleware');
+      next();
+    } catch (error) {
+      if (error.status === 404) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User no longer exists'
+        });
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in authenticateToken middleware:', error);
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Authentication failed due to server error'
     });
   }
 };
 
 /**
- * Get all permissions for a user based on their roles
- * @param {Array<string>} roles - Array of role names
+ * Get user permissions based on roles
+ * @param {Object} user - User object with roles
  * @returns {Promise<Array>} Array of permission objects
  */
-const getUserPermissions = async (roles) => {
-  try {
-    let allPermissions = [];
-    
-    // Add critical permissions regardless of role
-    const criticalPermissions = [
-      { name: 'dashboard_view', resource: 'dashboard', action: 'view' },
-      { name: 'file_view', resource: 'file', action: 'view' },
-      'dashboard:read',
-      'file_profile:read',
-      'quality_checks:read'
-    ];
-    allPermissions = [...criticalPermissions];
-    
-    // 1. Get permissions from the permissions and role_permissions tables
-    const permissionsQuery = `
-      SELECT DISTINCT p.name, p.resource, p.action
-      FROM permissions p
-      JOIN role_permissions rp ON p.id = rp.permission_id
-      JOIN roles r ON rp.role_id = r.id
-      WHERE r.name = ANY($1::varchar[])
-    `;
-    
-    const permissionsResult = await db.query(permissionsQuery, [roles]);
-    
-    // Add permissions from junction table
-    const oldSystemPermissions = permissionsResult.rows.map(p => ({
-      name: p.name,
-      resource: p.resource,
-      action: p.action
-    }));
-    allPermissions = [...allPermissions, ...oldSystemPermissions];
-    
-    // 2. Get permissions from the JSON array in the roles table
-    const rolesWithPermissionsQuery = `
-      SELECT name, permissions 
-      FROM roles 
-      WHERE name = ANY($1::varchar[])
-    `;
-    
-    const rolesResult = await db.query(rolesWithPermissionsQuery, [roles]);
-    
-    // Process each role's JSON permissions
-    for (const role of rolesResult.rows) {
-      // Special handling for Executor role
-      if (role.name === 'Executor') {
-        const executorCorePermissions = [
-          'dashboard:read',
-          'file_profile:read',
-          'quality_checks:read',
-          'mappings:read',
-          'lineage:read',
-          'monitor:read',
-          'scheduler:read',
-          'badges:read',
-          'insights:read',
-          'recommendations:read',
-          'stories:read'
-        ];
-        allPermissions = [...allPermissions, ...executorCorePermissions];
-      }
+const getUserPermissions = async (user) => {
+  // Start with some core permissions based on user existence
+  const permissions = [
+    'dashboard:read',
+    'file_profile:read',
+    'quality_checks:read'
+  ];
+  
+  // Add role-based permissions
+  if (user.roles && user.roles.length > 0) {
+    try {
+      // First, get permissions from role_permissions junction table
+      const permissionsQuery = `
+        SELECT p.* 
+        FROM permissions p
+        JOIN role_permissions rp ON p.id = rp.permission_id
+        JOIN roles r ON rp.role_id = r.id
+        WHERE r.name = ANY($1)
+      `;
       
-      if (role.permissions) {
-        try {
-          // Handle array format
-          if (Array.isArray(role.permissions)) {
-            allPermissions = [...allPermissions, ...role.permissions];
-          } 
-          // Handle object format from PostgreSQL JSONB
-          else if (typeof role.permissions === 'object') {
-            // Check for numeric keys (PostgreSQL JSONB array representation)
-            if (Object.keys(role.permissions).some(key => !isNaN(parseInt(key)))) {
-              allPermissions = [...allPermissions, ...Object.values(role.permissions)];
-            } else {
-              allPermissions = [...allPermissions, ...Object.values(role.permissions)];
-            }
+      const permissionsResult = await db.query(permissionsQuery, [user.roles]);
+      console.log('Permission query result rows:', permissionsResult.rows.length);
+      
+      // Add each permission object to the permissions array
+      permissionsResult.rows.forEach(permission => {
+        permissions.push({
+          name: permission.name,
+          resource: permission.resource,
+          action: permission.action
+        });
+      });
+      
+      console.log('Added permissions from role_permissions junction table');
+      
+      // Get permissions stored directly in the roles table as JSON array
+      const rolesQuery = `
+        SELECT name, permissions
+        FROM roles
+        WHERE name = ANY($1)
+      `;
+      
+      const rolesResult = await db.query(rolesQuery, [user.roles]);
+      console.log('Roles query result rows:', rolesResult.rows.length);
+      
+      // Process each role
+      rolesResult.rows.forEach(role => {
+        console.log(`Processing role ${role.name}`);
+        console.log('Role permissions type:', typeof role.permissions);
+        console.log('Role permissions:', role.permissions);
+        
+        // Parse the permissions if it's a JSON string
+        let rolePermissions = role.permissions;
+        if (typeof rolePermissions === 'string') {
+          try {
+            rolePermissions = JSON.parse(rolePermissions);
+          } catch (e) {
+            console.error('Error parsing role permissions JSON:', e);
           }
-        } catch (err) {
-          console.error(`Error processing permissions for role ${role.name}:`, err);
         }
-      }
+        
+        // Add each permission to the permissions array
+        if (Array.isArray(rolePermissions)) {
+          console.log('Processing array format permissions');
+          rolePermissions.forEach(permission => {
+            permissions.push(permission);
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
     }
-    
-    // Remove duplicates and return
-    return [...new Set(allPermissions)];
-  } catch (error) {
-    console.error('Error getting user permissions:', error);
-    return [];
   }
+  
+  // Remove duplicates and return
+  const uniquePermissions = [...new Set(permissions)];
+  console.log('Final permission count:', permissions.length);
+  return uniquePermissions;
 };
 
 /**
- * Check if user has a specific permission
- * @param {Object} req - Express request object
- * @param {string} permission - Permission string or object
+ * Middleware to check if user has required permission
+ * @param {string} permissionRequired - Permission required (format: 'resource:action')
+ * @returns {Function} Express middleware function
+ */
+const requirePermission = (permissionRequired) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.permissions) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Authentication required'
+      });
+    }
+    
+    const hasPermission = checkPermission(req.user.permissions, permissionRequired);
+    
+    if (!hasPermission) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: `You don't have permission to access this resource`
+      });
+    }
+    
+    next();
+  };
+};
+
+/**
+ * Check if user has the required permission
+ * @param {Array} userPermissions - Array of user permissions
+ * @param {string} requiredPermission - Required permission string
  * @returns {boolean} True if user has permission
  */
-const hasPermission = (req, permission) => {
-  if (!req.user || !req.user.permissions) {
-    return false;
+const checkPermission = (userPermissions, requiredPermission) => {
+  // Direct string match (for string format permissions like 'dashboard:read')
+  if (userPermissions.includes(requiredPermission)) {
+    return true;
   }
   
-  // Handle string format permissions like 'resource:action'
-  if (typeof permission === 'string') {
-    return req.user.permissions.some(p => 
-      p === permission || 
-      (typeof p === 'object' && p.name === permission)
-    );
-  }
+  // Split required permission into resource and action
+  const [requiredResource, requiredAction] = requiredPermission.split(':');
   
-  // Handle object format permissions like { name, resource, action }
-  if (typeof permission === 'object') {
-    return req.user.permissions.some(p => 
-      (p === permission.name) || 
-      (typeof p === 'object' && 
-        p.name === permission.name && 
-        p.resource === permission.resource && 
-        p.action === permission.action)
-    );
+  // Check object format permissions
+  for (const permission of userPermissions) {
+    if (typeof permission === 'object' && permission !== null) {
+      if (
+        (permission.resource === requiredResource || permission.resource === '*') &&
+        (permission.action === requiredAction || permission.action === '*')
+      ) {
+        return true;
+      }
+    }
   }
   
   return false;
 };
 
 /**
- * Middleware to require specific permission
- * @param {string|Object} permission - Required permission
- * @returns {Function} Express middleware
+ * Middleware to check if user has required role
+ * @param {string} roleRequired - Role required
+ * @returns {Function} Express middleware function
  */
-const requirePermission = (permission) => {
+const requireRole = (roleRequired) => {
   return (req, res, next) => {
-    if (hasPermission(req, permission)) {
-      next();
-    } else {
-      res.status(403).json({ 
-        error: 'Permission denied',
-        message: 'You do not have permission to access this resource'
+    if (!req.user || !req.user.roles) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Authentication required'
       });
     }
+    
+    if (!req.user.roles.includes(roleRequired)) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: `This action requires the ${roleRequired} role`
+      });
+    }
+    
+    next();
   };
 };
 
 module.exports = {
   authenticateToken,
-  hasPermission,
   requirePermission,
+  requireRole,
   getUserPermissions
 };

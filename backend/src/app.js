@@ -1,123 +1,117 @@
 /**
  * Main application module
  * 
- * This module initializes the Express application with all middleware
- * and routes. It centralizes application setup and configuration.
+ * This module sets up the Express application with all middleware and routes.
  */
 const express = require('express');
-const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const cors = require('cors');
 const compression = require('compression');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
-const { SERVER_CONFIG, UPLOAD_CONFIG } = require('./config/environment');
+
+// Import application modules
+const { APP_CONFIG, SECURITY_CONFIG } = require('./config/environment');
+const { errorHandler, notFoundHandler } = require('./middleware/error-handler');
+const routes = require('./routes');
 const db = require('./config/database');
-const { configureSecurityMiddleware } = require('./middleware/security');
-const { notFoundHandler, errorHandler } = require('./middleware/error-handler');
+const { applyMigrations } = require('./migrations');
 
-// Import route modules (will add more as they're created)
-const transformationsRoutes = require('./routes/transformations');
-
-// Initialize Express application
+// Create Express application
 const app = express();
 
-// Configure file upload storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Create upload directory if it doesn't exist
-    if (!fs.existsSync(UPLOAD_CONFIG.UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_CONFIG.UPLOAD_DIR, { recursive: true });
-    }
-    cb(null, UPLOAD_CONFIG.UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    cb(null, `${timestamp}-${file.originalname}`);
+// Set up request logging
+if (APP_CONFIG.NODE_ENV === 'production') {
+  // In production, log to file
+  const logDir = path.join(__dirname, '../logs');
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir);
+  }
+  
+  const accessLogStream = fs.createWriteStream(
+    path.join(logDir, 'access.log'),
+    { flags: 'a' }
+  );
+  
+  app.use(morgan('combined', { stream: accessLogStream }));
+} else {
+  // In development, log to console
+  app.use(morgan('dev'));
+}
+
+// Apply security middleware
+app.use(helmet()); // Set security headers
+app.use(cors({
+  origin: APP_CONFIG.CORS_ORIGINS,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// Apply rate limiting
+const limiter = rateLimit({
+  windowMs: APP_CONFIG.RATE_LIMIT_WINDOW_MS,
+  max: APP_CONFIG.RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too Many Requests',
+    message: 'Too many requests from this IP, please try again later.'
   }
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: UPLOAD_CONFIG.MAX_FILE_SIZE }
-});
+// Apply rate limiter to all requests
+app.use(limiter);
 
-// Apply security middleware (CORS, helmet, rate limiting)
-configureSecurityMiddleware(app);
+// Parse request body
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Apply common middleware
-app.use(compression()); // Compress responses
-app.use(bodyParser.json({ limit: '50mb' })); // Parse JSON request bodies
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' })); // Parse URL-encoded request bodies
-app.use(cookieParser()); // Parse cookies
+// Parse cookies
+app.use(cookieParser(SECURITY_CONFIG.COOKIE_SECRET));
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '../../public')));
+// Compress responses
+app.use(compression());
 
-// Set up API routes
-app.use('/api/transformations', transformationsRoutes);
+// Mount API routes
+app.use(APP_CONFIG.API_PREFIX, routes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString()
+// Static files for the React frontend in production
+if (APP_CONFIG.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../build')));
+  
+  // Serve React app for any unmatched routes
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../build/index.html'));
   });
-});
+}
 
-// Apply error handling middleware
+// Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Initialize database tables
-const initializeTables = async () => {
+/**
+ * Initialize the application
+ * @returns {Promise<void>}
+ */
+const initializeApp = async () => {
   try {
-    // Test database connection
-    const isConnected = await db.testConnection();
+    // Apply database migrations
+    console.log('Applying database migrations...');
+    const migrationsApplied = await applyMigrations();
+    console.log(`Applied ${migrationsApplied} database migrations`);
     
-    if (!isConnected) {
-      console.error('Database connection failed');
-      return;
-    }
+    // Additional initialization if needed
+    // ...
     
-    // Create transformations table
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS transformations (
-        id VARCHAR(36) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        source_file_id VARCHAR(255),
-        target_file_id VARCHAR(255),
-        transform_type VARCHAR(50) NOT NULL,
-        transform_config JSONB,
-        status VARCHAR(50) DEFAULT 'created',
-        created_at TIMESTAMP NOT NULL,
-        updated_at TIMESTAMP NOT NULL
-      )
-    `);
-    console.log('Transformations table initialized');
-    
-    // Create lineage table if it doesn't exist
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS file_lineage (
-        id SERIAL PRIMARY KEY,
-        source_file_id VARCHAR(255) NOT NULL,
-        target_file_id VARCHAR(255) NOT NULL,
-        transformation_id VARCHAR(36) REFERENCES transformations(id),
-        created_at TIMESTAMP NOT NULL,
-        updated_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(source_file_id, target_file_id)
-      )
-    `);
-    console.log('File lineage table initialized');
-    
+    console.log('Application initialization complete');
   } catch (error) {
-    console.error('Error initializing tables:', error);
+    console.error('Failed to initialize application:', error);
+    process.exit(1);
   }
 };
 
-// Export the configured app and initialization function
-module.exports = {
-  app,
-  initializeTables
-};
+module.exports = { app, initializeApp };
