@@ -61,7 +61,11 @@ export const useAuth = () => {
           dispatch(initializeAuth(authData));
           
           // Fetch current user to validate token
-          queryClient.prefetchQuery(QueryKeys.auth.user, fetchCurrentUser);
+          // Important: QueryKeys.auth.user is already an array ['auth', 'user']
+          queryClient.prefetchQuery({
+            queryKey: QueryKeys.auth.user,
+            queryFn: fetchCurrentUser
+          });
         }
       } catch (err) {
         console.error('Failed to parse saved authentication data:', err);
@@ -255,8 +259,10 @@ export const useAuth = () => {
         permissions: user.permissions,
       }));
       
-      // Invalidate and refetch user data
-      queryClient.invalidateQueries(QueryKeys.auth.user);
+      // Invalidate and refetch user data - use object style for React Query v4
+      queryClient.invalidateQueries({ 
+        queryKey: QueryKeys.auth.user 
+      });
     },
     onError: (error) => {
       dispatch(loginFailure(error.message));
@@ -272,8 +278,10 @@ export const useAuth = () => {
       const { token, refreshToken } = data;
       dispatch(refreshTokenSuccess({ token, refreshToken }));
       
-      // Invalidate and refetch user data
-      queryClient.invalidateQueries(QueryKeys.auth.user);
+      // Invalidate and refetch user data - use object style for React Query v4
+      queryClient.invalidateQueries({ 
+        queryKey: QueryKeys.auth.user 
+      });
     },
     onError: (error) => {
       dispatch(refreshTokenFailure(error.message));

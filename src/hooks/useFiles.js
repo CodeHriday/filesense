@@ -248,23 +248,37 @@ export const useFiles = () => {
     },
   });
   
-  const fileDetailsQuery = (fileId) => useQuery({
-    queryKey: QueryKeys.files.detail(fileId),
-    queryFn: () => fetchFileDetails(fileId),
-    enabled: !!fileId,
-  });
+  // Function to create a query for file details
+  const fileDetailsQuery = (fileId) => {
+    const queryOptions = {
+      queryKey: QueryKeys.files.detail(fileId),
+      queryFn: () => fetchFileDetails(fileId),
+      enabled: !!fileId,
+    };
+    
+    return useQuery(queryOptions);
+  };
   
-  const filePreviewQuery = (fileId) => useQuery({
-    queryKey: QueryKeys.files.preview(fileId),
-    queryFn: () => fetchFilePreview(fileId),
-    enabled: !!fileId,
-    onSuccess: (data) => {
-      dispatch(setFilePreview(data));
-    },
-    onError: (error) => {
-      dispatch(setFilePreviewError(error.message));
-    },
-  });
+  // This is a function that creates a query instance for file preview
+  // It needs to return a function that can be called with fileId
+  const filePreviewQuery = (fileId) => {
+    // Using an object with properties to make the query more explicit
+    const queryOptions = {
+      // Must use an array for queryKey in React Query v4
+      queryKey: QueryKeys.files.preview(fileId),
+      queryFn: () => fetchFilePreview(fileId),
+      enabled: !!fileId,
+      onSuccess: (data) => {
+        dispatch(setFilePreview(data));
+      },
+      onError: (error) => {
+        dispatch(setFilePreviewError(error.message));
+      },
+    };
+    
+    // Return the useQuery result
+    return useQuery(queryOptions);
+  };
   
   // Mutations
   const uploadFileMutation = useMutation({

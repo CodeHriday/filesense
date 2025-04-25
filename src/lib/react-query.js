@@ -48,6 +48,7 @@ export const QueryKeys = {
   files: {
     all: ['files'],
     detail: (fileId) => ['files', fileId],
+    preview: (fileId) => ['files', fileId, 'preview'],
     recent: ['files', 'recent'],
     byType: (type) => ['files', 'type', type],
     history: (fileId) => ['files', fileId, 'history'],
