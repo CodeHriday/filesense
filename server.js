@@ -4583,10 +4583,14 @@ app.use('/api/transformations-noauth', (req, res, next) => {
 }, transformationRoutes);
 console.log('Added unauthenticated transformation routes');
 
-// Start the server
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 
+// Import and use global error handler middleware (must be after all routes)
+const errorHandler = require('./backend/middleware/errorHandler');
+app.use(errorHandler);
+
+// Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
