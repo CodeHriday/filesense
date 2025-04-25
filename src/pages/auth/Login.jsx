@@ -83,8 +83,7 @@ const Login = () => {
           onChange={handleChange}
           error={errors.username}
           required
-          fullWidth
-          className="mb-4"
+          className="mb-4 w-full"
         />
         
         <Input
@@ -96,15 +95,13 @@ const Login = () => {
           onChange={handleChange}
           error={errors.password}
           required
-          fullWidth
-          className="mb-6"
+          className="mb-6 w-full"
         />
         
         <Button
           type="submit"
           isLoading={isLoading}
-          fullWidth
-          className="mb-4"
+          className="mb-4 w-full"
         >
           Log In
         </Button>
