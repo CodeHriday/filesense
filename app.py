@@ -14,6 +14,11 @@ import db_operations
 import visualization
 import utils
 
+# Import enhanced utilities
+from utils.logger import file_logger, data_logger
+# This import enhances the original modules with optimized implementations
+import utils.integration
+
 # Set page configuration
 st.set_page_config(
     page_title="Data File Observatory",
