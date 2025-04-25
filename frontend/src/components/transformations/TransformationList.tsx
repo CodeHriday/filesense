@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Transformation, TransformationStatus } from '../../../../shared/types/transformations';
-import axios from 'axios';
+import transformationService from '../../services/transformationService';
+import { THEME } from '../../config/config';
 
 // Status badge styles
 const statusStyles = {
@@ -32,20 +33,6 @@ const statusStyles = {
   }
 };
 
-// Import API and theme config later after moving configuration files
-const API_BASE_URL = '/api';
-const THEME = {
-  colors: {
-    primary: '#0079C1',    // Blumetra blue
-    secondary: '#333333',  // Dark gray
-    accent: '#FF5722',     // Orange accent
-    background: '#F4F7F9', // Light gray background
-    text: '#333333',       // Text color
-    lightText: '#666666',  // Secondary text
-    white: '#FFFFFF'       // White
-  }
-};
-
 /**
  * TransformationList component displays a list of all available transformations
  */
@@ -59,8 +46,8 @@ const TransformationList: React.FC = () => {
     const fetchTransformations = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/transformations`);
-        setTransformations(response.data);
+        const data = await transformationService.getAllTransformations();
+        setTransformations(data);
         setError(null);
       } catch (err) {
         console.error('Error fetching transformations:', err);
@@ -76,7 +63,7 @@ const TransformationList: React.FC = () => {
   // Handle executing a transformation
   const handleExecuteTransformation = async (id: string) => {
     try {
-      await axios.post(`${API_BASE_URL}/transformations/${id}/execute`);
+      await transformationService.executeTransformation(id);
       
       // Update the transformation status in the UI
       setTransformations(prevTransformations =>
@@ -102,8 +89,7 @@ const TransformationList: React.FC = () => {
 
     const poll = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/transformations/${id}`);
-        const updatedTransformation = response.data;
+        const updatedTransformation = await transformationService.getTransformationById(id);
 
         // Update the transformation in the list
         setTransformations(prevTransformations =>
@@ -135,7 +121,7 @@ const TransformationList: React.FC = () => {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/transformations/${id}`);
+      await transformationService.deleteTransformation(id);
       
       // Remove the deleted transformation from the list
       setTransformations(prevTransformations =>

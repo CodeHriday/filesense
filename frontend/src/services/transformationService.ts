@@ -1,12 +1,9 @@
-import axios from 'axios';
+import { ApiService } from './apiClient';
 import {
   Transformation,
   CreateTransformationRequest,
   UpdateTransformationRequest
 } from '../../../shared/types/transformations';
-
-// API base URL will be replaced with imported config
-const API_BASE_URL = '/api';
 
 /**
  * Transformation service for API interactions
@@ -18,8 +15,7 @@ const transformationService = {
    */
   getAllTransformations: async (): Promise<Transformation[]> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/transformations`);
-      return response.data;
+      return await ApiService.get<Transformation[]>('/transformations');
     } catch (error) {
       console.error('Error fetching transformations:', error);
       throw error;
@@ -33,8 +29,7 @@ const transformationService = {
    */
   getTransformationById: async (id: string): Promise<Transformation> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/transformations/${id}`);
-      return response.data;
+      return await ApiService.get<Transformation>(`/transformations/${id}`);
     } catch (error) {
       console.error(`Error fetching transformation ${id}:`, error);
       throw error;
@@ -48,8 +43,7 @@ const transformationService = {
    */
   createTransformation: async (data: CreateTransformationRequest): Promise<Transformation> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/transformations`, data);
-      return response.data;
+      return await ApiService.post<Transformation>('/transformations', data);
     } catch (error) {
       console.error('Error creating transformation:', error);
       throw error;
@@ -64,8 +58,7 @@ const transformationService = {
    */
   updateTransformation: async (id: string, data: UpdateTransformationRequest): Promise<Transformation> => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/transformations/${id}`, data);
-      return response.data;
+      return await ApiService.put<Transformation>(`/transformations/${id}`, data);
     } catch (error) {
       console.error(`Error updating transformation ${id}:`, error);
       throw error;
@@ -79,7 +72,7 @@ const transformationService = {
    */
   deleteTransformation: async (id: string): Promise<void> => {
     try {
-      await axios.delete(`${API_BASE_URL}/transformations/${id}`);
+      await ApiService.delete(`/transformations/${id}`);
     } catch (error) {
       console.error(`Error deleting transformation ${id}:`, error);
       throw error;
@@ -93,8 +86,7 @@ const transformationService = {
    */
   executeTransformation: async (id: string): Promise<Transformation> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/transformations/${id}/execute`);
-      return response.data;
+      return await ApiService.post<Transformation>(`/transformations/${id}/execute`);
     } catch (error) {
       console.error(`Error executing transformation ${id}:`, error);
       throw error;
