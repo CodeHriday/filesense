@@ -4586,6 +4586,19 @@ console.log('Added unauthenticated transformation routes');
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 
+// Import error types
+const { NotFoundError } = require('./backend/errors');
+
+// Add 404 handler (must come after all routes and before error handler)
+app.use((req, res, next) => {
+  const error = new NotFoundError(
+    `Route ${req.originalUrl} not found`,
+    'route',
+    req.originalUrl
+  );
+  next(error);
+});
+
 // Import and use global error handler middleware (must be after all routes)
 const errorHandler = require('./backend/middleware/errorHandler');
 app.use(errorHandler);

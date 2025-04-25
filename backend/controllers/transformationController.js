@@ -7,145 +7,97 @@
 
 const transformationService = require('../services/TransformationService');
 const { systemLogger } = require('../utils/logger');
+const { asyncHandler } = require('../utils/errorHelpers');
+const { NotFoundError, ValidationError, TransformationError } = require('../errors');
 
 /**
  * Create a new transformation
  */
-async function createTransformation(req, res) {
-  try {
-    const transformationData = req.body;
-    
-    // Add audit information
-    transformationData.createdBy = req.user?.id || 2; // Default to admin if no user
-    
-    const result = await transformationService.createTransformation(transformationData);
-    res.status(201).json(result);
-  } catch (error) {
-    systemLogger.error('Error in createTransformation controller', { 
-      error: error.message,
-      stack: error.stack,
-      user: req.user?.id
-    });
-    
-    res.status(400).json({ 
-      error: 'Failed to create transformation',
-      message: error.message
-    });
-  }
-}
+const createTransformation = asyncHandler(async (req, res) => {
+  const transformationData = req.body;
+  
+  // Add audit information
+  transformationData.createdBy = req.user?.id || 2; // Default to admin if no user
+  
+  const result = await transformationService.createTransformation(transformationData);
+  res.status(201).json(result);
+});
 
 /**
  * Get all transformations
  */
-async function getAllTransformations(req, res) {
-  try {
-    const options = {
-      sortBy: req.query.sortBy || 'created_at',
-      sortOrder: req.query.sortOrder || 'DESC',
-      limit: parseInt(req.query.limit) || 100,
-      offset: parseInt(req.query.offset) || 0
-    };
-    
-    const transformations = await transformationService.getAllTransformations(options);
-    res.json(transformations);
-  } catch (error) {
-    systemLogger.error('Error in getAllTransformations controller', { 
-      error: error.message,
-      stack: error.stack
-    });
-    
-    res.status(500).json({ 
-      error: 'Failed to fetch transformations',
-      message: error.message
-    });
-  }
-}
+const getAllTransformations = asyncHandler(async (req, res) => {
+  const options = {
+    sortBy: req.query.sortBy || 'created_at',
+    sortOrder: req.query.sortOrder || 'DESC',
+    limit: parseInt(req.query.limit) || 100,
+    offset: parseInt(req.query.offset) || 0
+  };
+  
+  const transformations = await transformationService.getAllTransformations(options);
+  res.json(transformations);
+});
 
 /**
  * Get a transformation by ID
  */
-async function getTransformationById(req, res) {
-  try {
-    const transformationId = req.params.id;
-    const transformation = await transformationService.getTransformationById(transformationId);
-    
-    if (!transformation) {
-      return res.status(404).json({ error: 'Transformation not found' });
-    }
-    
-    res.json(transformation);
-  } catch (error) {
-    systemLogger.error('Error in getTransformationById controller', { 
-      error: error.message,
-      stack: error.stack,
-      transformationId: req.params.id
-    });
-    
-    res.status(500).json({ 
-      error: 'Failed to fetch transformation',
-      message: error.message
-    });
+const getTransformationById = asyncHandler(async (req, res) => {
+  const transformationId = req.params.id;
+  const transformation = await transformationService.getTransformationById(transformationId);
+  
+  if (!transformation) {
+    // Use our NotFoundError from the service layer
+    // The service should throw this error, but we'll handle the case if it doesn't
+    throw new NotFoundError(
+      'Transformation not found',
+      'transformation',
+      transformationId
+    );
   }
-}
+  
+  res.json(transformation);
+});
 
 /**
  * Update a transformation
  */
-async function updateTransformation(req, res) {
-  try {
-    const transformationId = req.params.id;
-    const updates = req.body;
-    
-    const updatedTransformation = await transformationService.updateTransformation(
-      transformationId,
-      updates
+const updateTransformation = asyncHandler(async (req, res) => {
+  const transformationId = req.params.id;
+  const updates = req.body;
+  
+  const updatedTransformation = await transformationService.updateTransformation(
+    transformationId, 
+    updates
+  );
+  
+  if (!updatedTransformation) {
+    throw new NotFoundError(
+      'Transformation not found',
+      'transformation',
+      transformationId
     );
-    
-    if (!updatedTransformation) {
-      return res.status(404).json({ error: 'Transformation not found' });
-    }
-    
-    res.json(updatedTransformation);
-  } catch (error) {
-    systemLogger.error('Error in updateTransformation controller', { 
-      error: error.message,
-      stack: error.stack,
-      transformationId: req.params.id
-    });
-    
-    res.status(400).json({ 
-      error: 'Failed to update transformation',
-      message: error.message
-    });
   }
-}
+  
+  res.json(updatedTransformation);
+});
 
 /**
  * Delete a transformation
  */
-async function deleteTransformation(req, res) {
-  try {
-    const transformationId = req.params.id;
-    const success = await transformationService.deleteTransformation(transformationId);
-    
-    if (!success) {
-      return res.status(404).json({ error: 'Transformation not found' });
-    }
-    
-    res.json({ message: 'Transformation deleted successfully' });
-  } catch (error) {
-    systemLogger.error('Error in deleteTransformation controller', { 
-      error: error.message,
-      stack: error.stack,
-      transformationId: req.params.id
-    });
-    
-    res.status(500).json({ 
-      error: 'Failed to delete transformation',
-      message: error.message
-    });
+const deleteTransformation = asyncHandler(async (req, res) => {
+  const transformationId = req.params.id;
+  const success = await transformationService.deleteTransformation(transformationId);
+  
+  if (!success) {
+    throw new NotFoundError(
+      'Transformation not found',
+      'transformation',
+      transformationId
+    );
   }
-}
+  
+  res.json({ message: 'Transformation deleted successfully' });
+});
 
 /**
  * Execute a transformation
