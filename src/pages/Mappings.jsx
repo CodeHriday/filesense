@@ -632,16 +632,7 @@ function Mappings() {
           console.error('Error fetching files:', filesErr);
         }
         
-        try {
-          console.log('Fetching transformations...');
-          const transformationsRes = await axios.get(`${API_BASE_URL}/api/transformations`);
-          console.log('Transformations response:', transformationsRes.data);
-          setTransformations(transformationsRes.data || []);
-        } catch (transformationsErr) {
-          console.error('Error fetching transformations:', transformationsErr);
-          // Continue even if transformations fail to load
-          setTransformations([]);
-        }
+        // Transformation functionality has been moved to BlumeETL
         
         setError(null);
       } catch (err) {
@@ -830,43 +821,19 @@ function Mappings() {
     alert(`Conversion started for mapping ID: ${mappingId}`);
   };
 
-  // Handler for opening a transformation in the Transformations page
-  const handleOpenTransformation = (transformation) => {
-    navigate(`/transformations?id=${transformation.id}`);
-  };
-  
-  // Handler for editing a transformation
-  const handleEditTransformation = (transformation) => {
-    navigate(`/transformations?id=${transformation.id}&edit=true`);
-  };
-  
-  // Handler for deleting a transformation
-  const handleDeleteTransformation = async (id) => {
-    if (window.confirm('Are you sure you want to delete this transformation?')) {
-      try {
-        await axios.delete(`${API_BASE_URL}/api/transformations/${id}`);
-        setTransformations(transformations.filter(transformation => transformation.id !== id));
-      } catch (err) {
-        console.error('Error deleting transformation:', err);
-        alert('Failed to delete transformation. Please try again.');
-      }
-    }
-  };
-  
-  // Handler for creating a new transformation
-  const handleCreateTransformation = () => {
-    navigate('/transformations?new=true');
+  // BlumeETL Handlers
+  const handleOpenBlumeETL = () => {
+    window.open('https://blume-etl.example.com', '_blank', 'noopener,noreferrer');
   };
 
   return (
     <div className="mappings-container">
       <div className="mappings-header">
-        <h1>Data Transformations</h1>
-        <div className="d-flex" style={{ visibility: 'hidden' }}>
-          {/* Hidden placeholder for header alignment */}
-          <button className="btn btn-primary">
-            <FiPlus className="btn-icon" />
-            Add Mapping
+        <h1>Data Transformations & Mappings</h1>
+        <div className="d-flex">
+          <button className="btn btn-primary external-link-btn" onClick={handleOpenBlumeETL}>
+            <FiExternalLink className="btn-icon" />
+            Open BlumeETL Platform
           </button>
         </div>
       </div>
@@ -1201,10 +1168,10 @@ function Mappings() {
               {/* BlumeETL Section */}
               <div className="section-header transformations-header">
                 <h2>Data Transformations with BlumeETL</h2>
-                <a href="https://blume-etl.example.com" target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary">
+                <button onClick={handleOpenBlumeETL} className="btn btn-sm btn-primary">
                   <FiExternalLink className="btn-icon" />
                   Open BlumeETL
-                </a>
+                </button>
               </div>
               
               <Card>
@@ -1215,10 +1182,10 @@ function Mappings() {
                     We've moved all data transformation capabilities to BlumeETL, our dedicated ETL platform 
                     designed to handle complex transformations with advanced features and better performance.
                   </p>
-                  <a href="https://blume-etl.example.com" target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                  <button onClick={handleOpenBlumeETL} className="btn btn-primary">
                     <FiExternalLink className="btn-icon" />
                     Open BlumeETL
-                  </a>
+                  </button>
                 </div>
               </Card>
             </>

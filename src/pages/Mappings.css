@@ -571,6 +571,25 @@
   border-left: 3px solid var(--primary-color);
 }
 
+/* BlumeETL Integration Styles */
+.blume-etl-icon {
+  color: #6366f1;
+}
+
+.external-link-btn {
+  background-color: #6366f1;
+  border-color: #6366f1;
+}
+
+.external-link-btn:hover {
+  background-color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+.transformations-header {
+  border-bottom: 2px solid #6366f1;
+}
+
 .status-badge {
   display: inline-block;
   padding: 2px 8px;
