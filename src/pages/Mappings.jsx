@@ -606,8 +606,7 @@ function Mappings() {
     })
   );
   
-  // Added transformations state to store transformation data
-  const [transformations, setTransformations] = useState([]);
+  // Transformations have been migrated to BlumeETL
   
   useEffect(() => {
     const fetchData = async () => {
