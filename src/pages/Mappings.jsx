@@ -822,7 +822,7 @@ function Mappings() {
   };
 
   // Transform Handlers
-  const handleOpenBlumeETL = () => {
+  const handleOpenTransform = () => {
     window.open('https://blume-etl-blumetra.replit.app/', '_blank', 'noopener,noreferrer');
   };
 
@@ -831,7 +831,7 @@ function Mappings() {
       <div className="mappings-header">
         <h1>Data Transformations & Mappings</h1>
         <div className="d-flex">
-          <button className="btn btn-primary external-link-btn" onClick={handleOpenBlumeETL}>
+          <button className="btn btn-primary external-link-btn" onClick={handleOpenTransform}>
             <FiExternalLink className="btn-icon" />
             Open Transform
           </button>
@@ -1165,26 +1165,26 @@ function Mappings() {
                 </div>
               )}
               
-              {/* BlumeETL Section */}
+              {/* Transform Section */}
               <div className="section-header transformations-header">
-                <h2>Data Transformations with BlumeETL</h2>
-                <button onClick={handleOpenBlumeETL} className="btn btn-sm btn-primary">
+                <h2>Data Transformations with Transform</h2>
+                <button onClick={handleOpenTransform} className="btn btn-sm btn-primary">
                   <FiExternalLink className="btn-icon" />
-                  Open BlumeETL
+                  Open Transform
                 </button>
               </div>
               
               <Card>
                 <div className="empty-state">
-                  <FiLayers className="empty-icon blume-etl-icon" />
-                  <h2>BlumeETL Integration</h2>
+                  <FiLayers className="empty-icon transform-icon" />
+                  <h2>Transform Integration</h2>
                   <p>
-                    We've moved all data transformation capabilities to BlumeETL, our dedicated ETL platform 
+                    We've moved all data transformation capabilities to Transform, our dedicated ETL platform 
                     designed to handle complex transformations with advanced features and better performance.
                   </p>
                   <button onClick={handleOpenBlumeETL} className="btn btn-primary">
                     <FiExternalLink className="btn-icon" />
-                    Open BlumeETL
+                    Open Transform
                   </button>
                 </div>
               </Card>
