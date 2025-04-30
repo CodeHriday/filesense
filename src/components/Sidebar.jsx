@@ -257,16 +257,16 @@ function Sidebar() {
               </NavLink>
             </li>
             
-            {/* External link to BlumeETL */}
+            {/* External link to Transform */}
             <li>
               <a 
-                href="https://blume-etl.example.com" 
+                href="https://blume-etl-blumetra.replit.app/" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="external-link"
               >
                 <FiLayers className="icon" />
-                <span>BlumeETL Platform</span>
+                <span>Transform</span>
               </a>
             </li>
             
@@ -316,17 +316,17 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {/* BlumeETL Integration - External Link */}
+                {/* Transform Integration - External Link */}
                 {checkPermissions(['mappings', 'mappings:read']) && (
                   <li>
                     <a 
-                      href="https://blume-etl.example.com" 
+                      href="https://blume-etl-blumetra.replit.app/" 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="external-link"
                     >
                       <FiLayers className="icon" />
-                      <span>BlumeETL</span>
+                      <span>Transform</span>
                     </a>
                   </li>
                 )}

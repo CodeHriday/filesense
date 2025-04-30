@@ -606,7 +606,7 @@ function Mappings() {
     })
   );
   
-  // Transformations have been migrated to BlumeETL
+  // Transformations have been migrated to Transform
   
   useEffect(() => {
     const fetchData = async () => {
@@ -632,7 +632,7 @@ function Mappings() {
           console.error('Error fetching files:', filesErr);
         }
         
-        // Transformation functionality has been moved to BlumeETL
+        // Transformation functionality has been moved to Transform
         
         setError(null);
       } catch (err) {
@@ -821,9 +821,9 @@ function Mappings() {
     alert(`Conversion started for mapping ID: ${mappingId}`);
   };
 
-  // BlumeETL Handlers
+  // Transform Handlers
   const handleOpenBlumeETL = () => {
-    window.open('https://blume-etl.example.com', '_blank', 'noopener,noreferrer');
+    window.open('https://blume-etl-blumetra.replit.app/', '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -833,7 +833,7 @@ function Mappings() {
         <div className="d-flex">
           <button className="btn btn-primary external-link-btn" onClick={handleOpenBlumeETL}>
             <FiExternalLink className="btn-icon" />
-            Open BlumeETL Platform
+            Open Transform
           </button>
         </div>
       </div>
