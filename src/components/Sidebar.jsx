@@ -257,12 +257,12 @@ function Sidebar() {
               </NavLink>
             </li>
             
-            {/* Transformations (moved from Monitor section) */}
+            {/* External link to BlumeETL */}
             <li>
-              <NavLink to="/transformations" className={({ isActive }) => isActive ? 'active' : ''}>
+              <a href="https://blume-etl.example.com" target="_blank" rel="noopener noreferrer" className="external-link">
                 <FiLayers className="icon" />
-                <span>Transformations</span>
-              </NavLink>
+                <span>BlumeETL</span>
+              </a>
             </li>
             
             {/* Jobs and Monitoring section */}

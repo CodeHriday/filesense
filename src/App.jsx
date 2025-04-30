@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// External link component for BlumeETL redirect
+const BlumeETLRedirect = () => {
+  useEffect(() => {
+    window.location.href = "https://blume-etl.example.com";
+  }, []);
+  return <div className="loading-screen">Redirecting to BlumeETL...</div>;
+};
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
@@ -12,7 +19,7 @@ import QualityReport from './pages/QualityReport';
 import Alerts from './pages/Alerts';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
-import Transformations from './pages/Transformations';
+// Removed Transformations import - now using external BlumeETL app
 import FileLineage from './pages/FileLineage';
 import LineageImpact from './pages/LineageImpact';
 import Monitor from './pages/Monitor';
@@ -129,7 +136,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
                 <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
                 <Route path="/mappings" element={<ProtectedRoute><Mappings /></ProtectedRoute>} />
-                <Route path="/transformations" element={<ProtectedRoute><Transformations /></ProtectedRoute>} />
+                {/* BlumeETL redirect route */}
+                <Route path="/transformations" element={<ProtectedRoute><BlumeETLRedirect /></ProtectedRoute>} />
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
                 <Route path="/lineage/impact/:fileId" element={<ProtectedRoute><LineageImpact /></ProtectedRoute>} />
                 <Route path="/monitor" element={<ProtectedRoute><Monitor /></ProtectedRoute>} />

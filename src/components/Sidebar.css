@@ -112,3 +112,20 @@
   font-weight: 500;
   letter-spacing: 0.5px;
 }
+
+/* External link styling */
+.sidebar-nav a.external-link {
+  color: var(--primary-color);
+  position: relative;
+}
+
+.sidebar-nav a.external-link::after {
+  content: "↗";
+  margin-left: 5px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.sidebar-nav a.external-link:hover {
+  background-color: rgba(var(--primary-color-rgb), 0.05);
+}

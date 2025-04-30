@@ -17,7 +17,8 @@ import {
   FiLayers,
   FiArrowRight,
   FiXCircle,
-  FiCode
+  FiCode,
+  FiExternalLink
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -1198,108 +1199,29 @@ function Mappings() {
                 </div>
               )}
               
-              {/* Transformations Section */}
+              {/* BlumeETL Section */}
               <div className="section-header transformations-header">
-                <h2>Transformations</h2>
-                {hasWritePermission('mappings') && (
-                  <button className="btn btn-sm btn-primary" onClick={handleCreateTransformation}>
-                    <FiPlus className="btn-icon" />
-                    Add Transformation
-                  </button>
-                )}
+                <h2>Data Transformations with BlumeETL</h2>
+                <a href="https://blume-etl.example.com" target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary">
+                  <FiExternalLink className="btn-icon" />
+                  Open BlumeETL
+                </a>
               </div>
               
-              {transformations.length === 0 ? (
-                <Card>
-                  <div className="empty-state">
-                    <FiLayers className="empty-icon" />
-                    <h2>No Transformations Created</h2>
-                    <p>
-                      Create advanced data transformations with our visual editor to automate your ETL processes.
-                    </p>
-                    {hasWritePermission('mappings') ? (
-                      <button className="btn btn-primary" onClick={handleCreateTransformation}>
-                        <FiPlus className="btn-icon" />
-                        Create Your First Transformation
-                      </button>
-                    ) : (
-                      <div className="permission-notice">
-                        You don't have permission to create transformations
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ) : (
-                <div className="mappings-grid">
-                  {transformations.map(transformation => (
-                    <Card key={transformation.id} className="mapping-card transformation-card">
-                      <div className="mapping-header">
-                        <div className="mapping-title">
-                          <h3>{transformation.name}</h3>
-                        </div>
-                        <div className="mapping-actions">
-                          <button 
-                            className="action-button" 
-                            title="Open Transformation"
-                            onClick={() => handleOpenTransformation(transformation)}
-                          >
-                            <FiCode />
-                          </button>
-                          {hasWritePermission('mappings') && (
-                            <>
-                              <button 
-                                className="action-button" 
-                                title="Edit Transformation"
-                                onClick={() => handleEditTransformation(transformation)}
-                              >
-                                <FiEdit2 />
-                              </button>
-                              <button 
-                                className="action-button delete-button" 
-                                title="Delete Transformation"
-                                onClick={() => handleDeleteTransformation(transformation.id)}
-                              >
-                                <FiTrash2 />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="mapping-content">
-                        <div className="mapping-detail">
-                          <span className="detail-label">Sources:</span>
-                          <span className="detail-value">
-                            {transformation.sourceCount || 0}
-                          </span>
-                        </div>
-                        <div className="mapping-detail">
-                          <span className="detail-label">Targets:</span>
-                          <span className="detail-value">
-                            {transformation.targetCount || 0}
-                          </span>
-                        </div>
-                        <div className="mapping-detail">
-                          <span className="detail-label">Transformations:</span>
-                          <span className="detail-value">
-                            {transformation.transformationCount || 0}
-                          </span>
-                        </div>
-                        <div className="mapping-detail">
-                          <span className="detail-label">Status:</span>
-                          <span className="detail-value">
-                            <span className={`status-badge ${transformation.status?.toLowerCase() || 'draft'}`}>
-                              {transformation.status || 'Draft'}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mapping-footer">
-                        Updated: {formatDate(transformation.updated_at || transformation.created_at)}
-                      </div>
-                    </Card>
-                  ))}
+              <Card>
+                <div className="empty-state">
+                  <FiLayers className="empty-icon blume-etl-icon" />
+                  <h2>BlumeETL Integration</h2>
+                  <p>
+                    We've moved all data transformation capabilities to BlumeETL, our dedicated ETL platform 
+                    designed to handle complex transformations with advanced features and better performance.
+                  </p>
+                  <a href="https://blume-etl.example.com" target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                    <FiExternalLink className="btn-icon" />
+                    Open BlumeETL
+                  </a>
                 </div>
-              )}
+              </Card>
             </>
           )}
         </>
