@@ -115,8 +115,9 @@
 
 /* External link styling */
 .sidebar-nav a.external-link {
-  color: var(--primary-color);
+  color: #6366f1; /* BlumeETL branding color */
   position: relative;
+  transition: all 0.2s ease;
 }
 
 .sidebar-nav a.external-link::after {
@@ -124,8 +125,18 @@
   margin-left: 5px;
   font-size: 14px;
   opacity: 0.7;
+  transition: transform 0.2s ease;
 }
 
 .sidebar-nav a.external-link:hover {
-  background-color: rgba(var(--primary-color-rgb), 0.05);
+  background-color: rgba(99, 102, 241, 0.1); /* BlumeETL background with opacity */
+}
+
+.sidebar-nav a.external-link:hover::after {
+  transform: translateX(2px) translateY(-2px);
+  opacity: 1;
+}
+
+.sidebar-nav a.external-link .icon {
+  color: #6366f1; /* BlumeETL branding color */
 }

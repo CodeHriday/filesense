@@ -259,9 +259,14 @@ function Sidebar() {
             
             {/* External link to BlumeETL */}
             <li>
-              <a href="https://blume-etl.example.com" target="_blank" rel="noopener noreferrer" className="external-link">
+              <a 
+                href="https://blume-etl.example.com" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="external-link"
+              >
                 <FiLayers className="icon" />
-                <span>BlumeETL</span>
+                <span>BlumeETL Platform</span>
               </a>
             </li>
             
@@ -311,7 +316,20 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {/* Transformations moved to Process Management section */}
+                {/* BlumeETL Integration - External Link */}
+                {checkPermissions(['mappings', 'mappings:read']) && (
+                  <li>
+                    <a 
+                      href="https://blume-etl.example.com" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="external-link"
+                    >
+                      <FiLayers className="icon" />
+                      <span>BlumeETL</span>
+                    </a>
+                  </li>
+                )}
               </>
             )}
             
