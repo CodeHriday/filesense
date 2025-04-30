@@ -1182,7 +1182,7 @@ function Mappings() {
                     We've moved all data transformation capabilities to Transform, our dedicated ETL platform 
                     designed to handle complex transformations with advanced features and better performance.
                   </p>
-                  <button onClick={handleOpenBlumeETL} className="btn btn-primary">
+                  <button onClick={handleOpenTransform} className="btn btn-primary">
                     <FiExternalLink className="btn-icon" />
                     Open Transform
                   </button>
