@@ -1209,7 +1209,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
           });
           
           // Calculate quality score using the actual column data
-          const { calculate_quality_from_columns } = require('./quality_checks');
+          const { calculateQualityScore } = require('./quality_helper');
           
           // Map column data to the format expected by our quality calculator
           const columnData = columns.map(col => ({
@@ -1226,10 +1226,10 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
           // Calculate quality score based on actual file data
           const fileMetadata = {
             row_count: rowCount,
-            created_at: new Date()
+            created_at: new Date().toISOString()
           };
           
-          const qualityResult = calculate_quality_from_columns(columnData, fileMetadata);
+          const qualityResult = await calculateQualityScore(columnData, fileMetadata);
           logger.info('Calculated quality score', {
             fileId: finalFileId,
             score: qualityResult.overall_score,
@@ -1719,9 +1719,9 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
       least_frequent_value: col.least_frequent_value
     }));
     
-    // Calculate quality score using our new formula
-    const { calculate_quality_from_columns } = require('./quality_checks');
-    const qualityResult = calculate_quality_from_columns(columns, {
+    // Calculate quality score using our helper module
+    const { calculateQualityScore } = require('./quality_helper');
+    const qualityResult = await calculateQualityScore(columns, {
       row_count: file.row_count,
       created_at: file.created_at
     });
