@@ -129,15 +129,16 @@ function Monitor() {
                         {file.filename}
                       </div>
                     </div>
-                    <div>
-                      <span>{file.file_type.toUpperCase()}</span>
+                    <div className="file-stats">
+                      <span>{file.file_type.toUpperCase()} | {formatBytes(file.file_size)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>{formatBytes(file.file_size)}</span>
-                      {file.quality_score !== undefined && (
+                    <div className="file-quality">
+                      {file.quality_score !== undefined ? (
                         <div className={getQualityBadgeClass(file.quality_score)}>
                           {file.quality_score}
                         </div>
+                      ) : (
+                        <span className="no-quality">-</span>
                       )}
                     </div>
                   </div>
