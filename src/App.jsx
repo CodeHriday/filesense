@@ -61,6 +61,8 @@ import './styles/Transformations.css';
 // Protected route component
 const ProtectedRoute = ({ children }) => {
   const { currentUser, loading } = useAuth();
+  const params = new URLSearchParams(window.location.search);
+  const location = window.location.pathname;
   
   if (loading) {
     return <div className="loading-screen">Loading...</div>;
@@ -68,6 +70,27 @@ const ProtectedRoute = ({ children }) => {
   
   if (!currentUser) {
     return <Navigate to="/login" replace />;
+  }
+  
+  // Extract route parameters to pass to children if it's a function
+  // This handles routes like /profile/:fileId
+  if (typeof children === 'function') {
+    // Extract fileId from the path based on various possible route patterns
+    let fileId = null;
+    const profileMatch = location.match(/\/profile\/([^\/]+)/);
+    const qualityMatch = location.match(/\/quality\/([^\/]+)/);
+    const reportMatch = location.match(/\/report\/([^\/]+)/);
+    const lineageMatch = location.match(/\/lineage\/impact\/([^\/]+)/);
+    
+    if (profileMatch) fileId = profileMatch[1];
+    else if (qualityMatch) fileId = qualityMatch[1];
+    else if (reportMatch) fileId = reportMatch[1];
+    else if (lineageMatch) fileId = lineageMatch[1];
+    
+    // Also validate fileId format is reasonable (not "undefined" as string)
+    if (fileId === 'undefined') fileId = null;
+    
+    return children({ fileId });
   }
   
   return children;
@@ -130,16 +153,49 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
               <Routes>
                 <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
-                <Route path="/profile/:fileId" element={<ProtectedRoute><DataProfile showAIInsights={toggleAIInsights} /></ProtectedRoute>} />
-                <Route path="/quality/:fileId" element={<ProtectedRoute><QualityChecks showAIInsights={toggleAIInsights} /></ProtectedRoute>} />
-                <Route path="/report/:fileId" element={<ProtectedRoute><QualityReport /></ProtectedRoute>} />
+                <Route path="/profile/:fileId" element={<ProtectedRoute>
+                  {({ fileId }) => {
+                    // Only render DataProfile if fileId exists
+                    return fileId ? (
+                      <DataProfile showAIInsights={toggleAIInsights} />
+                    ) : (
+                      <Navigate to="/catalog" replace />
+                    );
+                  }}
+                </ProtectedRoute>} />
+                <Route path="/quality/:fileId" element={<ProtectedRoute>
+                  {({ fileId }) => {
+                    return fileId ? (
+                      <QualityChecks showAIInsights={toggleAIInsights} />
+                    ) : (
+                      <Navigate to="/catalog" replace />
+                    );
+                  }}
+                </ProtectedRoute>} />
+                <Route path="/report/:fileId" element={<ProtectedRoute>
+                  {({ fileId }) => {
+                    return fileId ? (
+                      <QualityReport />
+                    ) : (
+                      <Navigate to="/catalog" replace />
+                    );
+                  }}
+                </ProtectedRoute>} />
                 <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
                 <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
                 <Route path="/mappings" element={<ProtectedRoute><Mappings /></ProtectedRoute>} />
                 {/* BlumeETL redirect route */}
                 <Route path="/transformations" element={<ProtectedRoute><BlumeETLRedirect /></ProtectedRoute>} />
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
-                <Route path="/lineage/impact/:fileId" element={<ProtectedRoute><LineageImpact /></ProtectedRoute>} />
+                <Route path="/lineage/impact/:fileId" element={<ProtectedRoute>
+                  {({ fileId }) => {
+                    return fileId ? (
+                      <LineageImpact />
+                    ) : (
+                      <Navigate to="/lineage" replace />
+                    );
+                  }}
+                </ProtectedRoute>} />
                 <Route path="/monitor" element={<ProtectedRoute><Monitor /></ProtectedRoute>} />
                 <Route path="/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
                 <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
