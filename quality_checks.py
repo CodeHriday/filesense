@@ -98,50 +98,102 @@ def run_basic_checks(df):
     
     return results
 
-def calculate_quality_score(quality_results):
+def calculate_quality_score(quality_results, file_metadata=None):
     """
-    Calculate an overall quality score based on check results.
+    Calculate an overall quality score based on check results using multiple dimensions of data quality.
     
     Args:
         quality_results (dict): Quality check results
+        file_metadata (dict, optional): Additional file metadata for timeliness calculation
     
     Returns:
-        float: Quality score (0-100)
+        dict: Quality score details including overall score and component scores
     """
     if not quality_results or "error" in quality_results:
-        return 0.0
+        return {"overall_score": 0.0, "components": {}}
     
-    score = 100.0  # Start with perfect score
-    deductions = []
+    # Define weights for different quality dimensions (sum should be 1.0)
+    weights = {
+        "completeness": 0.3,  # How much of the data is present
+        "consistency": 0.25,  # How consistent the data types and patterns are
+        "validity": 0.2,     # How valid the data is against business rules
+        "uniqueness": 0.15,  # How unique the values are
+        "timeliness": 0.1    # How recent the data is
+    }
     
-    # Deduct for completeness issues
+    component_scores = {}
+    
+    # Calculate COMPLETENESS score (percentage of non-null values)
     completeness = quality_results.get("completeness", {})
-    for col, result in completeness.items():
-        missing_pct = result.get("missing_pct", 0)
-        if missing_pct > 0:
-            # Deduct based on missing percentage (higher % = higher deduction)
-            deduction = min(20.0, missing_pct / 5)  # Cap at 20 points
-            deductions.append(("completeness", col, deduction))
+    if completeness:
+        # Calculate average completeness across all columns
+        missing_percentages = [result.get("missing_pct", 0) for result in completeness.values()]
+        avg_missing_pct = sum(missing_percentages) / len(missing_percentages) if missing_percentages else 0
+        # Score is 100 minus the average missing percentage
+        component_scores["completeness"] = max(0, 100 - avg_missing_pct)
+    else:
+        component_scores["completeness"] = 100  # Default if no completeness data
     
-    # Deduct for type validation issues
+    # Calculate CONSISTENCY score (data type consistency)
     type_validation = quality_results.get("type_validation", {})
-    for col, result in type_validation.items():
-        if not result.get("is_valid", True):
-            deductions.append(("type_validation", col, 10.0))
+    if type_validation:
+        # Count columns with valid data types
+        valid_types_count = sum(1 for result in type_validation.values() if result.get("is_valid", True))
+        total_columns = len(type_validation)
+        # Score is percentage of columns with valid types
+        component_scores["consistency"] = (valid_types_count / total_columns * 100) if total_columns > 0 else 100
+    else:
+        component_scores["consistency"] = 100  # Default if no type validation data
     
-    # Deduct for uniqueness issues (only if high duplication)
+    # Calculate VALIDITY score (valid values against business rules)
+    # Note: This is a placeholder. In production, you'd have specific business rules to validate against
+    # For now, we'll use a combination of type validation and range checks as a proxy
+    component_scores["validity"] = (component_scores.get("consistency", 100) * 0.7) + 30  # Rough estimate
+    
+    # Calculate UNIQUENESS score
     uniqueness = quality_results.get("uniqueness", {})
-    for col, result in uniqueness.items():
-        dup_pct = result.get("duplicate_pct", 0)
-        if dup_pct > 50:  # Only deduct if more than 50% duplicates
-            deduction = min(10.0, dup_pct / 10)
-            deductions.append(("uniqueness", col, deduction))
+    if uniqueness:
+        # For simplicity, we'll use the average uniqueness across all columns
+        # In production, you'd likely weight this differently for key columns vs. non-key columns
+        duplicate_percentages = [result.get("duplicate_pct", 0) for result in uniqueness.values()]
+        avg_duplicate_pct = sum(duplicate_percentages) / len(duplicate_percentages) if duplicate_percentages else 0
+        # Score is 100 minus the average duplicate percentage
+        component_scores["uniqueness"] = max(0, 100 - avg_duplicate_pct)
+    else:
+        component_scores["uniqueness"] = 100  # Default if no uniqueness data
     
-    # Apply deductions
-    total_deduction = sum(d[2] for d in deductions)
-    score = max(0, score - total_deduction)
+    # Calculate TIMELINESS score
+    if file_metadata and "created_at" in file_metadata:
+        try:
+            from datetime import datetime
+            # Parse the timestamp (assuming ISO format)
+            if isinstance(file_metadata["created_at"], str):
+                created_at = datetime.fromisoformat(file_metadata["created_at"].replace('Z', '+00:00'))
+            else:
+                created_at = file_metadata["created_at"]
+                
+            # Calculate days since creation
+            days_since_creation = (datetime.now().astimezone() - created_at.astimezone()).days
+            # Score decreases by 5 points per day, minimum 0
+            component_scores["timeliness"] = max(0, 100 - (days_since_creation * 5))
+        except (ValueError, TypeError):
+            component_scores["timeliness"] = 50  # Default if date parsing fails
+    else:
+        component_scores["timeliness"] = 50  # Default if no timestamp data
     
-    return score
+    # Calculate OVERALL score using weighted average
+    overall_score = sum(component_scores.get(component, 0) * weight 
+                      for component, weight in weights.items())
+    
+    # Round to 2 decimal places
+    overall_score = round(overall_score, 2)
+    component_scores = {k: round(v, 2) for k, v in component_scores.items()}
+    
+    return {
+        "overall_score": overall_score,
+        "components": component_scores,
+        "weights": weights
+    }
 
 def check_value_range(df, column, min_val, max_val):
     """
@@ -252,6 +304,115 @@ def check_cross_column(df, col1, col2, validation_type):
         "failure_pct": float(failure_pct),
         "is_valid": failure_count == 0,
         "failure_examples": failures.head(10)
+    }
+
+def calculate_quality_from_columns(columns, file_metadata=None):
+    """
+    Calculate quality score directly from column metadata (when no DataFrame is available).
+    This is useful for API endpoints that need to compute quality without loading the file.
+    
+    Args:
+        columns (list): List of column metadata dictionaries
+        file_metadata (dict, optional): File metadata for timeliness scoring
+        
+    Returns:
+        dict: Quality score details including overall score and component scores
+    """
+    if not columns or not isinstance(columns, list):
+        return {"overall_score": 0.0, "components": {}}
+        
+    # Define weights for different quality dimensions (sum should be 1.0)
+    weights = {
+        "completeness": 0.3,  # How much of the data is present
+        "consistency": 0.25,  # How consistent the data types and patterns are
+        "validity": 0.2,     # How valid the data is against business rules
+        "uniqueness": 0.15,  # How unique the values are
+        "timeliness": 0.1    # How recent the data is
+    }
+    
+    component_scores = {}
+    total_rows = file_metadata.get("row_count", 100) if file_metadata else 100
+    
+    # Calculate COMPLETENESS score (percentage of non-null values)
+    if columns:
+        missing_percentages = []
+        for column in columns:
+            null_count = column.get("null_count", 0) or column.get("missing", 0) or 0
+            missing_pct = (null_count / total_rows * 100) if total_rows > 0 else 0
+            missing_percentages.append(missing_pct)
+            
+        avg_missing_pct = sum(missing_percentages) / len(missing_percentages) if missing_percentages else 0
+        component_scores["completeness"] = max(0, 100 - avg_missing_pct)
+    else:
+        component_scores["completeness"] = 100  # Default if no column data
+    
+    # Calculate CONSISTENCY score (data type consistency)
+    if columns:
+        # Check if any columns have mismatched types
+        string_columns = sum(1 for col in columns if col.get("type") == "string")
+        date_columns = sum(1 for col in columns if col.get("type") == "date")
+        numeric_columns = sum(1 for col in columns if col.get("type") in ("integer", "number", "decimal", "float"))
+        other_columns = len(columns) - string_columns - date_columns - numeric_columns
+        
+        # Assume 90% consistency for now - if we had access to actual data, we could check values vs types
+        consistency_score = 90 if other_columns == 0 else 100 - (other_columns / len(columns) * 30)
+        component_scores["consistency"] = max(0, min(100, consistency_score))
+    else:
+        component_scores["consistency"] = 90  # Default if no column data
+    
+    # Calculate VALIDITY score based on column types and potential errors
+    component_scores["validity"] = component_scores.get("consistency", 100) * 0.9  # Estimate based on consistency
+    
+    # Calculate UNIQUENESS score
+    if columns:
+        uniqueness_scores = []
+        for column in columns:
+            # Use unique values count if available
+            unique_values = column.get("unique", 0) or 0
+            if unique_values > 0 and total_rows > 0:
+                # Calculate percentage of unique values
+                uniqueness_pct = (unique_values / total_rows) * 100
+                # Cap at 100% for columns where every value is unique
+                uniqueness_pct = min(100, uniqueness_pct)
+                uniqueness_scores.append(uniqueness_pct)
+        
+        # Use average uniqueness score across all columns
+        avg_uniqueness = sum(uniqueness_scores) / len(uniqueness_scores) if uniqueness_scores else 80
+        component_scores["uniqueness"] = avg_uniqueness
+    else:
+        component_scores["uniqueness"] = 80  # Default if no column data
+    
+    # Calculate TIMELINESS score
+    if file_metadata and "created_at" in file_metadata:
+        try:
+            from datetime import datetime
+            # Parse the timestamp (assuming ISO format)
+            if isinstance(file_metadata["created_at"], str):
+                created_at = datetime.fromisoformat(file_metadata["created_at"].replace('Z', '+00:00'))
+            else:
+                created_at = file_metadata["created_at"]
+                
+            # Calculate days since creation
+            days_since_creation = (datetime.now().astimezone() - created_at.astimezone()).days
+            # Score decreases by 5 points per day, minimum 0
+            component_scores["timeliness"] = max(0, 100 - (days_since_creation * 5))
+        except (ValueError, TypeError):
+            component_scores["timeliness"] = 90  # Default if date parsing fails
+    else:
+        component_scores["timeliness"] = 90  # Default if no timestamp data
+    
+    # Calculate OVERALL score using weighted average
+    overall_score = sum(component_scores.get(component, 0) * weight 
+                      for component, weight in weights.items())
+    
+    # Round to 2 decimal places
+    overall_score = round(overall_score, 2)
+    component_scores = {k: round(v, 2) for k, v in component_scores.items()}
+    
+    return {
+        "overall_score": overall_score,
+        "components": component_scores,
+        "weights": weights
     }
 
 def check_alert(file_data, rule):

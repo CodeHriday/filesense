@@ -1208,15 +1208,43 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             columnCount: columns.length
           });
           
-          // Update the file record with the actual counts
+          // Calculate quality score using the actual column data
+          const { calculate_quality_from_columns } = require('./quality_checks');
+          
+          // Map column data to the format expected by our quality calculator
+          const columnData = columns.map(col => ({
+            name: col.column_name,
+            type: col.column_type,
+            unique: col.unique_count,
+            missing: col.null_count || 0,
+            min: col.min_value || col.min_value_decimal,
+            max: col.max_value || col.max_value_decimal,
+            most_frequent_value: col.most_frequent_value,
+            least_frequent_value: col.least_frequent_value
+          }));
+          
+          // Calculate quality score based on actual file data
+          const fileMetadata = {
+            row_count: rowCount,
+            created_at: new Date()
+          };
+          
+          const qualityResult = calculate_quality_from_columns(columnData, fileMetadata);
+          logger.info('Calculated quality score', {
+            fileId: finalFileId,
+            score: qualityResult.overall_score,
+            components: qualityResult.components
+          });
+          
+          // Update the file record with counts and quality score
           await pool.query(
             `UPDATE files 
-             SET row_count = $1, column_count = $2, updated_at = NOW() 
-             WHERE file_id = $3`,
-            [rowCount, columns.length, finalFileId]
+             SET row_count = $1, column_count = $2, quality_score = $3, updated_at = NOW() 
+             WHERE file_id = $4`,
+            [rowCount, columns.length, qualityResult.overall_score, finalFileId]
           );
         } catch (updateErr) {
-          logger.error('Error updating file record with counts:', updateErr);
+          logger.error('Error updating file record with counts and quality score:', updateErr);
         }
       }
     }
@@ -1671,41 +1699,117 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
       )
     `);
     
-    // Get file quality checks
+    // Get file details and column data for quality calculation
+    const file = fileResult.rows[0];
+    
+    // Get column data for this file
+    const columnsResult = await pool.query(
+      'SELECT * FROM file_columns WHERE file_id = $1',
+      [fileId]
+    );
+    
+    const columns = columnsResult.rows.map(col => ({
+      name: col.column_name,
+      type: col.column_type,
+      unique: col.unique_count,
+      missing: col.null_count,
+      min: col.min_value || col.min_value_decimal,
+      max: col.max_value || col.max_value_decimal,
+      most_frequent_value: col.most_frequent_value,
+      least_frequent_value: col.least_frequent_value
+    }));
+    
+    // Calculate quality score using our new formula
+    const { calculate_quality_from_columns } = require('./quality_checks');
+    const qualityResult = calculate_quality_from_columns(columns, {
+      row_count: file.row_count,
+      created_at: file.created_at
+    });
+    
+    // Update the quality score in the database
+    await pool.query(
+      'UPDATE files SET quality_score = $1 WHERE file_id = $2',
+      [qualityResult.overall_score, fileId]
+    );
+    
+    // Get file quality checks table or create if needed
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS file_quality_checks (
+        id SERIAL PRIMARY KEY,
+        file_id VARCHAR(255) NOT NULL,
+        check_type VARCHAR(50) NOT NULL,
+        check_name VARCHAR(100) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        score NUMERIC(5,2),
+        details JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Get existing quality checks or create new ones
     const qualityChecksResult = await pool.query(
       'SELECT * FROM file_quality_checks WHERE file_id = $1',
       [fileId]
     );
     
-    const file = fileResult.rows[0];
-    
-    // If no quality checks exist yet, create basic ones
+    // If no quality checks exist yet, create them from our calculated components
     if (qualityChecksResult.rows.length === 0) {
-      const basicChecks = [
+      // Create checks based on our calculated component scores
+      const components = qualityResult.components;
+      const componentChecks = [
         {
           check_type: 'completeness',
           check_name: 'Missing Values Check',
-          status: 'passed',
-          score: 90,
-          details: { description: 'Check for missing values in the dataset' }
+          status: components.completeness >= 90 ? 'passed' : (components.completeness >= 70 ? 'warning' : 'failed'),
+          score: components.completeness,
+          details: { 
+            description: 'Check for missing values in the dataset',
+            weight: qualityResult.weights.completeness
+          }
         },
         {
           check_type: 'consistency',
           check_name: 'Data Type Consistency',
-          status: 'passed',
-          score: 95,
-          details: { description: 'Check if data types are consistent across columns' }
+          status: components.consistency >= 90 ? 'passed' : (components.consistency >= 70 ? 'warning' : 'failed'),
+          score: components.consistency,
+          details: { 
+            description: 'Check if data types are consistent across columns',
+            weight: qualityResult.weights.consistency
+          }
         },
         {
           check_type: 'validity',
           check_name: 'Value Range Check',
-          status: 'warning',
-          score: 80,
-          details: { description: 'Check if values are within expected ranges' }
+          status: components.validity >= 90 ? 'passed' : (components.validity >= 70 ? 'warning' : 'failed'),
+          score: components.validity,
+          details: { 
+            description: 'Check if values are within expected ranges',
+            weight: qualityResult.weights.validity
+          }
+        },
+        {
+          check_type: 'uniqueness',
+          check_name: 'Uniqueness Check',
+          status: components.uniqueness >= 90 ? 'passed' : (components.uniqueness >= 70 ? 'warning' : 'failed'),
+          score: components.uniqueness,
+          details: { 
+            description: 'Check for uniqueness of values across columns',
+            weight: qualityResult.weights.uniqueness
+          }
+        },
+        {
+          check_type: 'timeliness',
+          check_name: 'Data Freshness Check',
+          status: components.timeliness >= 90 ? 'passed' : (components.timeliness >= 70 ? 'warning' : 'failed'),
+          score: components.timeliness,
+          details: { 
+            description: 'Check for freshness of data based on creation date',
+            weight: qualityResult.weights.timeliness
+          }
         }
       ];
       
-      for (const check of basicChecks) {
+      for (const check of componentChecks) {
         await pool.query(
           'INSERT INTO file_quality_checks (file_id, check_type, check_name, status, score, details) VALUES ($1, $2, $3, $4, $5, $6)',
           [fileId, check.check_type, check.check_name, check.status, check.score, JSON.stringify(check.details)]
@@ -1721,7 +1825,7 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
       qualityChecksResult.rows = newChecksResult.rows;
     }
     
-    const qualityScore = file.quality_score || 85;
+    const qualityScore = qualityResult.overall_score;
     
     const quality = {
       fileId,
