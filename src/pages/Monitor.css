@@ -3,9 +3,10 @@
 }
 
 .monitor-container h1 {
-  font-size: 1.5rem;
-  margin-bottom: 16px;
+  font-size: 1.2rem;
+  margin-bottom: 12px;
   color: #333;
+  font-weight: 500;
 }
 
 .monitor-layout {
@@ -24,11 +25,12 @@
 }
 
 .files-list h2 {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: #333;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #eee;
+  font-weight: 500;
 }
 
 .file-list {
@@ -67,9 +69,9 @@
 }
 
 .file-name {
-  font-weight: 600;
-  margin-bottom: 3px;
-  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -78,7 +80,7 @@
 .file-meta {
   display: flex;
   gap: 8px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #777;
 }
 
@@ -101,11 +103,12 @@
 }
 
 .file-header h2 {
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: #333;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #eee;
+  font-weight: 500;
 }
 
 .file-actions {
@@ -154,7 +157,7 @@
 
 .meta-item .value {
   font-weight: 500;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .columns-overview {
@@ -164,13 +167,14 @@
 }
 
 .columns-overview h3 {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: #333;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #eee;
   display: flex;
   align-items: center;
+  font-weight: 500;
 }
 
 .section-icon {
@@ -189,10 +193,10 @@
 }
 
 .columns-table {
-  margin-top: 12px;
+  margin-top: 10px;
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .table-header {
