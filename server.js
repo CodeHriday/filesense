@@ -1674,6 +1674,7 @@ app.get('/api/files/:fileId/profile', async (req, res) => {
 });
 
 // File quality endpoint
+// Get file quality data
 app.get('/api/files/:fileId/quality', async (req, res) => {
   try {
     const { fileId } = req.params;
@@ -1851,6 +1852,179 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
   } catch (err) {
     console.error('Error fetching file quality:', err);
     res.status(500).json({ error: 'Failed to fetch file quality' });
+  }
+});
+
+// Recalculate quality score for a file
+app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if file exists
+    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Get column data for this file
+    const columnsResult = await pool.query(
+      'SELECT * FROM file_columns WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (columnsResult.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'No column data found for this file', 
+        message: 'Cannot calculate quality score without column data.'
+      });
+    }
+    
+    // Map column data to the format expected by our quality calculator
+    const columns = columnsResult.rows.map(col => ({
+      name: col.column_name,
+      type: col.column_type,
+      unique: col.unique_count,
+      missing: col.null_count || 0,
+      min: col.min_value || col.min_value_decimal,
+      max: col.max_value || col.max_value_decimal,
+      most_frequent_value: col.most_frequent_value,
+      least_frequent_value: col.least_frequent_value
+    }));
+    
+    // Calculate quality score using our helper module
+    const { calculateQualityScore } = require('./quality_helper');
+    const qualityResult = await calculateQualityScore(columns, {
+      row_count: file.row_count,
+      created_at: file.created_at
+    });
+    
+    console.log('Calculated new quality score:', {
+      fileId,
+      score: qualityResult.overall_score,
+      components: qualityResult.components
+    });
+    
+    // Update the quality score in the database
+    await pool.query(
+      'UPDATE files SET quality_score = $1, updated_at = NOW() WHERE file_id = $2',
+      [qualityResult.overall_score, fileId]
+    );
+    
+    // Create or update quality checks based on component scores
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS file_quality_checks (
+        id SERIAL PRIMARY KEY,
+        file_id VARCHAR(255) NOT NULL,
+        check_type VARCHAR(50) NOT NULL,
+        check_name VARCHAR(100) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        score NUMERIC(5,2),
+        details JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Delete existing quality checks for this file
+    await pool.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
+    
+    // Create new quality checks based on our calculated component scores
+    const components = qualityResult.components;
+    const componentChecks = [
+      {
+        check_type: 'completeness',
+        check_name: 'Missing Values Check',
+        status: components.completeness >= 90 ? 'passed' : (components.completeness >= 70 ? 'warning' : 'failed'),
+        score: components.completeness,
+        details: { 
+          description: 'Check for missing values in the dataset',
+          weight: qualityResult.weights.completeness
+        }
+      },
+      {
+        check_type: 'consistency',
+        check_name: 'Data Type Consistency',
+        status: components.consistency >= 90 ? 'passed' : (components.consistency >= 70 ? 'warning' : 'failed'),
+        score: components.consistency,
+        details: { 
+          description: 'Check if data types are consistent across columns',
+          weight: qualityResult.weights.consistency
+        }
+      },
+      {
+        check_type: 'validity',
+        check_name: 'Value Range Check',
+        status: components.validity >= 90 ? 'passed' : (components.validity >= 70 ? 'warning' : 'failed'),
+        score: components.validity,
+        details: { 
+          description: 'Check if values are within expected ranges',
+          weight: qualityResult.weights.validity
+        }
+      },
+      {
+        check_type: 'uniqueness',
+        check_name: 'Uniqueness Check',
+        status: components.uniqueness >= 90 ? 'passed' : (components.uniqueness >= 70 ? 'warning' : 'failed'),
+        score: components.uniqueness,
+        details: { 
+          description: 'Check for uniqueness of values across columns',
+          weight: qualityResult.weights.uniqueness
+        }
+      },
+      {
+        check_type: 'timeliness',
+        check_name: 'Data Freshness Check',
+        status: components.timeliness >= 90 ? 'passed' : (components.timeliness >= 70 ? 'warning' : 'failed'),
+        score: components.timeliness,
+        details: { 
+          description: 'Check for freshness of data based on creation date',
+          weight: qualityResult.weights.timeliness
+        }
+      }
+    ];
+    
+    for (const check of componentChecks) {
+      await pool.query(
+        'INSERT INTO file_quality_checks (file_id, check_type, check_name, status, score, details) VALUES ($1, $2, $3, $4, $5, $6)',
+        [fileId, check.check_type, check.check_name, check.status, check.score, JSON.stringify(check.details)]
+      );
+    }
+    
+    // Get the newly created checks
+    const qualityChecksResult = await pool.query(
+      'SELECT * FROM file_quality_checks WHERE file_id = $1',
+      [fileId]
+    );
+    
+    // Return the updated quality data
+    const qualityData = {
+      fileId,
+      filename: file.filename,
+      qualityScore: qualityResult.overall_score,
+      scoringMethod: 'weighted_average',
+      components: qualityResult.components,
+      weights: qualityResult.weights,
+      checks: qualityChecksResult.rows.map(check => ({
+        id: check.id,
+        type: check.check_type,
+        name: check.check_name,
+        status: check.status,
+        score: check.score,
+        details: check.details
+      })),
+      summary: {
+        passed: qualityChecksResult.rows.filter(c => c.status === 'passed').length,
+        warning: qualityChecksResult.rows.filter(c => c.status === 'warning').length,
+        failed: qualityChecksResult.rows.filter(c => c.status === 'failed').length
+      }
+    };
+    
+    res.json(qualityData);
+  } catch (err) {
+    console.error('Error recalculating file quality:', err);
+    res.status(500).json({ error: 'Failed to recalculate file quality', details: err.message });
   }
 });
 
