@@ -685,20 +685,11 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     const fileService = diContainer.get('fileService');
     logger.info('Processing file upload', { 
       filename: req.file.originalname, 
-      size: req.file.size 
+      size: req.file.size,
+      traceId: `svc_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`
     });
     
-    // Use the service to save the file
-    const fileRecord = await fileService.saveFile(req.file);
-    
-    // Return the saved file record
-    res.json({
-      success: true,
-      file: fileRecord
-    });
-    
-    /* 
-    // Legacy implementation for reference
+    // Important: Define these variables that are used later in the code
     const file = req.file;
     const fileId = `file_${Date.now()}`;
     const fileType = path.extname(file.originalname).substring(1).toLowerCase();
@@ -708,7 +699,21 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     let columnCount = 0;
     let columns = [];
     let qualityScore = 85; // Default quality score
-    */
+    
+    // Use the service to save the file
+    const fileRecord = await fileService.saveFile(req.file);
+    
+    // Return the saved file record - early response to improve UX
+    res.json({
+      success: true,
+      file: fileRecord
+    });
+    
+    // Set response flag to prevent multiple responses
+    res.headersSent = true;
+    
+    /* Legacy implementation for reference - variables moved above */
+    
     
     try {
       // Extract basic file metrics based on file type
@@ -1107,24 +1112,29 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
       // Continue even if processing fails
     }
     
-    // Save file information to database
-    await pool.query(
-      `INSERT INTO files 
-        (file_id, filename, file_type, file_size, checksum, row_count, column_count, quality_score, metadata, created_at, updated_at) 
-       VALUES 
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
-      [
-        fileId, 
-        file.originalname, 
-        fileType, 
-        file.size, 
-        null, // checksum
-        rowCount,
-        columnCount,
-        qualityScore,
-        JSON.stringify({ path: file.path }) // basic metadata
-      ]
-    );
+    // Only proceed with database operations if it's not the FileService handling it
+    // This check prevents duplicate records and headers already sent errors
+    if (!fileRecord) {
+      logger.info('Legacy file processing - inserting into database', { fileId, size: file.size });
+      // Save file information to database
+      await pool.query(
+        `INSERT INTO files 
+          (file_id, filename, file_type, file_size, checksum, row_count, column_count, quality_score, metadata, created_at, updated_at) 
+         VALUES 
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+        [
+          fileId, 
+          file.originalname, 
+          fileType, 
+          file.size, 
+          null, // checksum
+          rowCount,
+          columnCount,
+          qualityScore,
+          JSON.stringify({ path: file.path }) // basic metadata
+        ]
+      );
+    }
     
     // Save column information if available
     if (columns.length > 0) {
@@ -1160,21 +1170,39 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
       }
     }
     
-    res.json({ 
-      success: true, 
-      fileId: fileId,
-      filename: file.originalname,
-      file_type: fileType,
-      file_size: file.size,
-      row_count: rowCount,
-      column_count: columnCount,
-      created_at: new Date().toISOString(),
-      message: 'File uploaded successfully'
-    });
+    // Only send a response if we haven't already sent one
+    if (!res.headersSent) {
+      res.json({ 
+        success: true, 
+        fileId: fileId,
+        filename: file.originalname,
+        file_type: fileType,
+        file_size: file.size,
+        row_count: rowCount,
+        column_count: columnCount,
+        created_at: new Date().toISOString(),
+        message: 'File uploaded successfully'
+      });
+    } else {
+      // Just log the completion if response already sent
+      logger.info('File upload processing completed but response already sent', {
+        fileId,
+        headersSent: true
+      });
+    }
   } catch (err) {
     console.error('Error uploading file:', err);
     console.error(err.stack);
-    res.status(500).json({ error: 'Failed to upload file: ' + err.message });
+    
+    // Prevent sending multiple responses
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to upload file: ' + err.message });
+    } else {
+      logger.error('Error processing file upload after response sent', {
+        error: err.message,
+        stack: err.stack
+      });
+    }
   }
 });
 
