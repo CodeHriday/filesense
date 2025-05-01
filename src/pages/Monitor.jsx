@@ -119,26 +119,27 @@ function Monitor() {
                     className={`file-item ${selectedFile && selectedFile.file_id === file.file_id ? 'selected' : ''}`}
                     onClick={() => handleFileSelect(file)}
                   >
-                    <div className="file-icon">
-                      {file.file_type === 'csv' ? '📊' : 
-                       file.file_type === 'json' ? '📋' : 
-                       file.file_type === 'parquet' ? '📁' : '📄'}
-                    </div>
                     <div className="file-info">
-                      <div className="file-name">{file.filename}</div>
-                      <div className="file-meta">
-                        <span>{file.file_type.toUpperCase()}</span>
-                        <span>{formatBytes(file.file_size)}</span>
-                        <span title={formatDate(file.created_at)}>
-                          {getTimeSince(file.created_at)}
+                      <div className="file-name">
+                        <span className="file-icon">
+                          {file.file_type === 'csv' ? '📊' : 
+                           file.file_type === 'json' ? '📋' : 
+                           file.file_type === 'parquet' ? '📁' : '📄'}
                         </span>
+                        {file.filename}
                       </div>
                     </div>
-                    {file.quality_score !== undefined && (
-                      <div className={getQualityBadgeClass(file.quality_score)}>
-                        {file.quality_score}
-                      </div>
-                    )}
+                    <div>
+                      <span>{file.file_type.toUpperCase()}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>{formatBytes(file.file_size)}</span>
+                      {file.quality_score !== undefined && (
+                        <div className={getQualityBadgeClass(file.quality_score)}>
+                          {file.quality_score}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
