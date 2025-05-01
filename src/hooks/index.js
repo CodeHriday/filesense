@@ -2,6 +2,7 @@
 export * from './useFiles';
 export * from './useTransformations';
 export * from './useApiStatus';
+export * from './useQualityComponents';
 
 // UI and state management hooks
 export * from './useForm';
