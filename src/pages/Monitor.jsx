@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiBarChart2, FiCheckSquare, FiFileText, FiList } from 'react-icons/fi';
 import Card from '../components/Card';
 import { getFileCatalog, getFileProfile, getFileQuality } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince } from '../utils/formatters';
@@ -153,69 +154,73 @@ function Monitor() {
                   <Card className="file-overview">
                     <div className="file-header">
                       <h2>{selectedFile.filename}</h2>
-                      <div className="file-actions">
-                        <button 
-                          className="btn btn-primary"
-                          onClick={handleViewProfile}
-                        >
-                          View Full Profile
-                        </button>
-                        <button 
-                          className="btn btn-secondary"
-                          onClick={handleViewQuality}
-                        >
-                          View Quality Details
-                        </button>
-                        <button 
-                          className="btn btn-success"
-                          onClick={handleGenerateReport}
-                        >
-                          Generate Quality Report
-                        </button>
-                      </div>
                     </div>
                     
                     <div className="file-meta-details">
                       <div className="meta-item">
-                        <span className="label">File Type:</span>
+                        <span className="label">File Type</span>
                         <span className="value">{selectedFile.file_type.toUpperCase()}</span>
                       </div>
                       <div className="meta-item">
-                        <span className="label">Size:</span>
+                        <span className="label">Size</span>
                         <span className="value">{formatBytes(selectedFile.file_size)}</span>
                       </div>
                       <div className="meta-item">
-                        <span className="label">Uploaded:</span>
+                        <span className="label">Uploaded</span>
                         <span className="value" title={formatDate(selectedFile.created_at)}>
                           {getTimeSince(selectedFile.created_at)}
                         </span>
                       </div>
                       {fileDetails?.basic_info?.row_count && (
                         <div className="meta-item">
-                          <span className="label">Rows:</span>
+                          <span className="label">Rows</span>
                           <span className="value">{fileDetails.basic_info.row_count.toLocaleString()}</span>
                         </div>
                       )}
                       {fileDetails?.basic_info?.column_count && (
                         <div className="meta-item">
-                          <span className="label">Columns:</span>
+                          <span className="label">Columns</span>
                           <span className="value">{fileDetails.basic_info.column_count}</span>
                         </div>
                       )}
                       {fileQuality?.overall_score !== undefined && (
                         <div className="meta-item">
-                          <span className="label">Quality Score:</span>
+                          <span className="label">Quality Score</span>
                           <span className={`value ${getQualityBadgeClass(fileQuality.overall_score)}`}>
                             {fileQuality.overall_score}
                           </span>
                         </div>
                       )}
                     </div>
+                    
+                    <div className="file-actions">
+                      <button 
+                        className="btn btn-primary"
+                        onClick={handleViewProfile}
+                      >
+                        <FiBarChart2 /> View Profile
+                      </button>
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={handleViewQuality}
+                      >
+                        <FiCheckSquare /> Quality Details
+                      </button>
+                      <button 
+                        className="btn btn-success"
+                        onClick={handleGenerateReport}
+                      >
+                        <FiFileText /> Generate Report
+                      </button>
+                    </div>
                   </Card>
                   
                   {fileDetails && (
                     <Card className="columns-overview">
-                      <h3>Column Overview</h3>
+                      <h3>
+                        <FiList className="section-icon" /> 
+                        Column Overview
+                      </h3>
                       {fileDetails.columns && fileDetails.columns.length > 0 ? (
                         <div className="columns-table">
                           <div className="table-header">
@@ -229,14 +234,18 @@ function Monitor() {
                                 cm => cm.name === column.name
                               )?.completeness || 100;
                               
+                              const completenessClass = 
+                                completeness >= 90 ? 'high' : 
+                                completeness >= 70 ? 'medium' : 'low';
+                              
                               return (
                                 <div className="table-row" key={index}>
-                                  <div className="col">{column.name}</div>
-                                  <div className="col">{column.type}</div>
+                                  <div className="col col-name">{column.name}</div>
+                                  <div className="col col-type">{column.type}</div>
                                   <div className="col">
                                     <div className="completeness-bar-container">
                                       <div 
-                                        className="completeness-bar" 
+                                        className={`completeness-bar ${completenessClass}`}
                                         style={{width: `${completeness}%`}}
                                       />
                                       <span>{completeness.toFixed(1)}%</span>
