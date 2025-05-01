@@ -691,7 +691,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     
     // Important: Define these variables that are used later in the code
     const file = req.file;
-    const fileId = `file_${Date.now()}`;
+    // Generate a consistent fileId that will be used throughout this request
+    const generatedFileId = `file_${Date.now()}`;
     const fileType = path.extname(file.originalname).substring(1).toLowerCase();
     
     // Process file based on type
@@ -700,13 +701,28 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     let columns = [];
     let qualityScore = 85; // Default quality score
     
-    // Use the service to save the file
-    const fileRecord = await fileService.saveFile(req.file);
+    // Use the service to save the file - IMPORTANT: We pass our generated ID to ensure consistency
+    let fileRecord;
+    try {
+      // Override the service to use our generated fileId for consistency
+      fileRecord = await fileService.saveFile(req.file, { fileId: generatedFileId });
+    } catch (saveError) {
+      logger.error('Error saving file using FileService', { error: saveError.message, fileId: generatedFileId });
+      // Allow execution to continue, will fallback to legacy implementation below
+    }
+    
+    // Use the fileRecord's file_id if available, otherwise use our generated ID
+    const fileId = fileRecord ? fileRecord.file_id : generatedFileId;
     
     // Return the saved file record - early response to improve UX
     res.json({
       success: true,
-      file: fileRecord
+      file: fileRecord || {
+        file_id: fileId,
+        filename: file.originalname,
+        file_type: fileType,
+        file_size: file.size
+      }
     });
     
     // Set response flag to prevent multiple responses
@@ -1138,6 +1154,15 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     
     // Save column information if available
     if (columns.length > 0) {
+      // Make sure we're using the final fileId from above for all columns
+      const finalFileId = fileRecord ? fileRecord.file_id : fileId;
+      
+      // Log the fileId being used for columns to help with debugging
+      logger.info('Saving column information', {
+        fileId: finalFileId,
+        columnCount: columns.length
+      });
+      
       for (const column of columns) {
         try {
           await pool.query(
@@ -1148,7 +1173,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
              VALUES 
               ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())`,
             [
-              fileId,
+              finalFileId, // Use the consistent fileId
               column.column_name,
               column.column_type,
               column.column_index,
@@ -1164,7 +1189,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             ]
           );
         } catch (columnErr) {
-          console.error('Error saving column information:', columnErr);
+          logger.error('Error saving column information:', columnErr);
           // Continue with other columns
         }
       }
