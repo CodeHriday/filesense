@@ -484,7 +484,21 @@ app.get('/api/files/:fileId/preview', async (req, res) => {
     }
     
     const file = fileResult.rows[0];
-    const filePath = JSON.parse(file.metadata).path;
+    
+    // Handle metadata whether it's a string or already an object
+    let filePath;
+    if (typeof file.metadata === 'string') {
+      // If metadata is a string, parse it
+      filePath = JSON.parse(file.metadata).path;
+    } else if (typeof file.metadata === 'object' && file.metadata !== null) {
+      // If metadata is already an object, use it directly
+      filePath = file.metadata.path;
+    } else {
+      // Handle the case where metadata is invalid
+      console.error('Invalid metadata format:', file.metadata);
+      return res.status(500).json({ error: 'Invalid file metadata format' });
+    }
+    
     const fileType = file.file_type;
     
     if (!fs.existsSync(filePath)) {
