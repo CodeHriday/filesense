@@ -41,6 +41,12 @@ export const getFileCatalog = async () => {
  * Get file details by ID
  */
 export const getFileDetails = async (fileId) => {
+  // Validate fileId before making the request
+  if (!fileId) {
+    console.error('Error fetching file details: No file ID provided');
+    return Promise.reject(new Error('No file ID provided'));
+  }
+  
   try {
     const response = await axios.get(`${API_URL}/files/${fileId}`);
     return response.data;
@@ -54,6 +60,12 @@ export const getFileDetails = async (fileId) => {
  * Get file profile by ID
  */
 export const getFileProfile = async (fileId) => {
+  // Validate fileId before making the request
+  if (!fileId) {
+    console.error('Error fetching file profile: No file ID provided');
+    return Promise.reject(new Error('No file ID provided'));
+  }
+  
   try {
     const response = await axios.get(`${API_URL}/files/${fileId}/profile`);
     return response.data;
@@ -67,6 +79,12 @@ export const getFileProfile = async (fileId) => {
  * Get file quality metrics by ID
  */
 export const getFileQuality = async (fileId) => {
+  // Validate fileId before making the request
+  if (!fileId) {
+    console.error('Error fetching file quality: No file ID provided');
+    return Promise.reject(new Error('No file ID provided'));
+  }
+  
   try {
     const response = await axios.get(`${API_URL}/files/${fileId}/quality`);
     return response.data;

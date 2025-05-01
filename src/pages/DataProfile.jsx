@@ -18,6 +18,15 @@ function DataProfile() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Validate fileId before making API calls
+        if (!fileId) {
+          console.error('Error fetching file data: No file ID provided');
+          setError('No file ID provided. Please select a file from the catalog.');
+          setLoading(false);
+          return;
+        }
+        
         const [fileData, profileData] = await Promise.all([
           getFileDetails(fileId),
           getFileProfile(fileId)
@@ -408,9 +417,14 @@ function DataProfile() {
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>
-            Retry
-          </button>
+          <div className="error-actions">
+            <Link to="/catalog" className="btn btn-secondary">
+              <FiFileText className="btn-icon" /> Go to File Catalog
+            </Link>
+            <button className="btn btn-primary" onClick={() => window.location.reload()}>
+              Retry
+            </button>
+          </div>
         </div>
       ) : file ? (
         <>
