@@ -9,6 +9,29 @@ import { Tooltip } from '../components/Tooltip';
 import { QualityTooltip } from '../components/QualityTooltip';
 import './QualityChecks.css';
 
+// Helper function to provide descriptions for data types
+const getTypeDescription = (type) => {
+  const descriptions = {
+    'string': 'Text data such as names, descriptions, or categorical values.',
+    'text': 'Long-form text content that may span multiple paragraphs.',
+    'integer': 'Whole numbers without decimal places, such as counts or IDs.',
+    'float': 'Decimal numbers that can represent measurements or calculated values.',
+    'double': 'High-precision decimal numbers for scientific or financial calculations.',
+    'boolean': 'True/false values representing binary states or conditions.',
+    'date': 'Calendar dates without time information.',
+    'datetime': 'Date and time values with precision to the second or millisecond.',
+    'timestamp': 'Precise moment in time, typically stored as seconds since epoch.',
+    'json': 'Structured data in JavaScript Object Notation format.',
+    'array': 'Collection of values of the same type.',
+    'object': 'Complex data structure with named properties and values.',
+  };
+  
+  // Normalize the type by removing any modifiers and converting to lowercase
+  const normalizedType = type.toLowerCase().replace(/\(.*\)/, '').trim();
+  
+  return descriptions[normalizedType] || `Data of type ${type}`;
+};
+
 function QualityChecks() {
   const { fileId } = useParams();
   const [file, setFile] = useState(null);
@@ -172,8 +195,25 @@ function QualityChecks() {
                   {/* Display column metrics summary */}
                   <Card className="metric-card">
                     <div className="metric-header">
-                      <h3>Columns</h3>
-                      <div className="metric-score good">{file.column_count || 0}</div>
+                      <h3>
+                        Columns
+                        <Tooltip
+                          content="Total number of columns detected in the dataset."
+                          position="top"
+                          type="info"
+                          animated={true}
+                        >
+                          <FiInfo className="info-icon" />
+                        </Tooltip>
+                      </h3>
+                      <Tooltip
+                        content={`File contains ${file.column_count || 0} columns with various data types and characteristics.`}
+                        position="left"
+                        type="info"
+                        animated={true}
+                      >
+                        <div className="metric-score good">{file.column_count || 0}</div>
+                      </Tooltip>
                     </div>
                     <p>Total number of columns analyzed in the file.</p>
                   </Card>
@@ -181,12 +221,29 @@ function QualityChecks() {
                   {/* Best Column */}
                   <Card className="metric-card">
                     <div className="metric-header">
-                      <h3>Best Column</h3>
+                      <h3>
+                        Best Column
+                        <Tooltip
+                          content="The column with the highest completeness score (fewest null values)."
+                          position="top"
+                          type="info"
+                          animated={true}
+                        >
+                          <FiInfo className="info-icon" />
+                        </Tooltip>
+                      </h3>
                       {file?.columns ? (
                         <>
-                          <div className="metric-score good">
-                            {formatDecimal(100, 1)}%
-                          </div>
+                          <Tooltip
+                            content="This column has 100% completeness with no missing values."
+                            position="left"
+                            type="success"
+                            animated={true}
+                          >
+                            <div className="metric-score good">
+                              {formatDecimal(100, 1)}%
+                            </div>
+                          </Tooltip>
                         </>
                       ) : (
                         <div className="metric-score">N/A</div>
@@ -207,7 +264,17 @@ function QualityChecks() {
                   {/* Worst Column */}
                   <Card className="metric-card">
                     <div className="metric-header">
-                      <h3>Worst Column</h3>
+                      <h3>
+                        Worst Column
+                        <Tooltip
+                          content="The column with the lowest completeness score (most missing values)."
+                          position="top"
+                          type="info"
+                          animated={true}
+                        >
+                          <FiInfo className="info-icon" />
+                        </Tooltip>
+                      </h3>
                       {file?.columns ? (
                         <>
                           {(() => {
@@ -219,16 +286,31 @@ function QualityChecks() {
                             
                             if (!worstColumn || worstColumn.null_count === 0) {
                               return (
-                                <div className="metric-score good">
-                                  100.0%
-                                </div>
+                                <Tooltip
+                                  content="All columns have 100% completeness with no missing values."
+                                  position="left"
+                                  type="success"
+                                  animated={true}
+                                >
+                                  <div className="metric-score good">
+                                    100.0%
+                                  </div>
+                                </Tooltip>
                               );
                             } else {
                               const completenessScore = 100 - (worstColumn.null_count / file.row_count * 100);
+                              const nullPercent = (worstColumn.null_count / file.row_count * 100).toFixed(1);
                               return (
-                                <div className={`metric-score ${completenessScore >= 80 ? 'good' : completenessScore >= 60 ? 'medium' : 'poor'}`}>
-                                  {formatDecimal(completenessScore, 1)}%
-                                </div>
+                                <Tooltip
+                                  content={`This column is missing ${nullPercent}% of its values (${worstColumn.null_count} out of ${file.row_count} rows).`}
+                                  position="left"
+                                  type={completenessScore >= 80 ? 'success' : completenessScore >= 60 ? 'warning' : 'error'}
+                                  animated={true}
+                                >
+                                  <div className={`metric-score ${completenessScore >= 80 ? 'good' : completenessScore >= 60 ? 'medium' : 'poor'}`}>
+                                    {formatDecimal(completenessScore, 1)}%
+                                  </div>
+                                </Tooltip>
                               );
                             }
                           })()}
@@ -266,24 +348,71 @@ function QualityChecks() {
                     <tbody>
                       {file?.columns && file.columns.map((col, index) => (
                         <tr key={index}>
-                          <td>{col.column_name}</td>
-                          <td>{col.column_type}</td>
+                          <td>
+                            <Tooltip
+                              content={`${col.column_name}: ${col.description || 'No description available'}`}
+                              position="top"
+                              type="info"
+                              animated={true}
+                            >
+                              {col.column_name}
+                            </Tooltip>
+                          </td>
+                          <td>
+                            <Tooltip
+                              content={getTypeDescription(col.column_type)}
+                              position="top"
+                              type="info"
+                              animated={true}
+                            >
+                              {col.column_type}
+                            </Tooltip>
+                          </td>
                           <td>
                             {col.null_count !== undefined && (
-                              <span className={`check-status ${(100 - (col.null_count / file.row_count * 100)) >= 80 ? 'success' : (100 - (col.null_count / file.row_count * 100)) >= 60 ? 'warning' : 'error'}`}>
-                                {(100 - (col.null_count / file.row_count * 100)) >= 80 ? (
-                                  <FiCheck />
-                                ) : (100 - (col.null_count / file.row_count * 100)) >= 60 ? (
-                                  <FiAlertTriangle />
-                                ) : (
-                                  <FiX />
-                                )}
-                                {formatDecimal(100 - (col.null_count / file.row_count * 100), 1)}%
-                              </span>
+                              <Tooltip
+                                content={`${formatDecimal(col.null_count / file.row_count * 100, 1)}% missing values (${col.null_count} out of ${file.row_count} rows)`}
+                                position="top"
+                                type={(100 - (col.null_count / file.row_count * 100)) >= 80 ? 'success' : (100 - (col.null_count / file.row_count * 100)) >= 60 ? 'warning' : 'error'}
+                                animated={true}
+                              >
+                                <span className={`check-status ${(100 - (col.null_count / file.row_count * 100)) >= 80 ? 'success' : (100 - (col.null_count / file.row_count * 100)) >= 60 ? 'warning' : 'error'}`}>
+                                  {(100 - (col.null_count / file.row_count * 100)) >= 80 ? (
+                                    <FiCheck />
+                                  ) : (100 - (col.null_count / file.row_count * 100)) >= 60 ? (
+                                    <FiAlertTriangle />
+                                  ) : (
+                                    <FiX />
+                                  )}
+                                  {formatDecimal(100 - (col.null_count / file.row_count * 100), 1)}%
+                                </span>
+                              </Tooltip>
                             )}
                           </td>
-                          <td>{col.unique_count !== undefined ? col.unique_count.toLocaleString() : 'N/A'}</td>
-                          <td>{col.null_count !== undefined ? col.null_count.toLocaleString() : 0}</td>
+                          <td>
+                            {col.unique_count !== undefined ? (
+                              <Tooltip
+                                content={`${formatDecimal(col.unique_count / file.row_count * 100, 1)}% of values are unique in this column`}
+                                position="top"
+                                type="info"
+                                animated={true}
+                              >
+                                {col.unique_count.toLocaleString()}
+                              </Tooltip>
+                            ) : 'N/A'}
+                          </td>
+                          <td>
+                            {col.null_count !== undefined ? (
+                              <Tooltip
+                                content={`${formatDecimal(col.null_count / file.row_count * 100, 1)}% of rows have missing values in this column`}
+                                position="top"
+                                type="info"
+                                animated={true}
+                              >
+                                {col.null_count.toLocaleString()}
+                              </Tooltip>
+                            ) : 0}
+                          </td>
                         </tr>
                       ))}
                       
