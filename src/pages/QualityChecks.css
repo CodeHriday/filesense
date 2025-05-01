@@ -152,6 +152,20 @@
   font-size: 18px;
   font-weight: 600;
   color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-icon {
+  color: #95a5a6;
+  font-size: 16px;
+  cursor: help;
+  transition: color 0.2s ease;
+}
+
+.info-icon:hover {
+  color: #3498db;
 }
 
 .metric-score {

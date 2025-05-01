@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiCheck, FiX, FiAlertTriangle, FiBarChart2 } from 'react-icons/fi';
+import { FiCheck, FiX, FiAlertTriangle, FiBarChart2, FiInfo } from 'react-icons/fi';
 import Card from '../components/Card';
 import { getFileDetails, getFileQuality, runQualityCheck } from '../api/fileService';
 import { formatDate, getTimeSince, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import { Tooltip } from '../components/Tooltip';
+import { QualityTooltip } from '../components/QualityTooltip';
 import './QualityChecks.css';
 
 function QualityChecks() {
@@ -112,10 +114,23 @@ function QualityChecks() {
               <div className="quality-summary">
                 <Card className="quality-score-card">
                   <div className="quality-score">
-                    <div className="score-circle" data-score={Math.round(parseFloat(quality.qualityScore || "0"))}>
-                      <div className="score-value">{Math.round(parseFloat(quality.qualityScore || "0"))}</div>
-                      <div className="score-label">Quality Score</div>
-                    </div>
+                    <QualityTooltip
+                      score={parseFloat(quality.qualityScore || "0")}
+                      components={{
+                        completeness: quality.checks?.find(c => c.type === 'completeness')?.score || 0,
+                        consistency: quality.checks?.find(c => c.type === 'consistency')?.score || 0,
+                        validity: quality.checks?.find(c => c.type === 'validity')?.score || 0,
+                        uniqueness: quality.checks?.find(c => c.type === 'uniqueness')?.score || 0,
+                        timeliness: quality.checks?.find(c => c.type === 'timeliness')?.score || 0
+                      }}
+                      position="right"
+                      animated={true}
+                    >
+                      <div className="score-circle" data-score={Math.round(parseFloat(quality.qualityScore || "0"))}>
+                        <div className="score-value">{Math.round(parseFloat(quality.qualityScore || "0"))}</div>
+                        <div className="score-label">Quality Score</div>
+                      </div>
+                    </QualityTooltip>
                     <div className="score-timestamp">
                       File: {quality.filename || file.filename}
                     </div>
@@ -125,11 +140,28 @@ function QualityChecks() {
                 <div className="quality-metrics">
                   <Card className="metric-card">
                     <div className="metric-header">
-                      <h3>Completeness</h3>
-                      {quality.checks?.[0]?.score ? (
-                        <div className={`metric-score ${parseFloat(quality.checks[0].score) >= 80 ? 'good' : parseFloat(quality.checks[0].score) >= 60 ? 'medium' : 'poor'}`}>
-                          {formatDecimal(quality.checks[0].score, 1)}%
-                        </div>
+                      <h3>
+                        Completeness
+                        <Tooltip
+                          content="Measures the percentage of non-empty values across all columns in the dataset."
+                          position="top"
+                          type="info"
+                          animated={true}
+                        >
+                          <FiInfo className="info-icon" />
+                        </Tooltip>
+                      </h3>
+                      {quality.checks?.find(c => c.type === 'completeness')?.score ? (
+                        <Tooltip
+                          content={`Weight: ${quality.checks.find(c => c.type === 'completeness')?.details?.weight || '30%'}`}
+                          position="left"
+                          type="info"
+                          animated={true}
+                        >
+                          <div className={`metric-score ${parseFloat(quality.checks.find(c => c.type === 'completeness').score) >= 80 ? 'good' : parseFloat(quality.checks.find(c => c.type === 'completeness').score) >= 60 ? 'medium' : 'poor'}`}>
+                            {formatDecimal(quality.checks.find(c => c.type === 'completeness').score, 1)}%
+                          </div>
+                        </Tooltip>
                       ) : (
                         <div className="metric-score">0.0%</div>
                       )}

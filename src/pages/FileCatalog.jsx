@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../components/Card';
 import { useFileCatalog } from '../hooks';
+import { QualityTooltip } from '../components/QualityTooltip';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
@@ -244,9 +245,22 @@ export const FileCatalog = ({ onFileSelect }) => {
                     </div>
                     <div className="stat">
                       <span className="stat-label">Quality:</span>
-                      <span className={`stat-value quality-score ${getQualityClass(file.qualityScore)}`}>
-                        {file.qualityScore}%
-                      </span>
+                      <QualityTooltip 
+                        score={file.qualityScore}
+                        components={{
+                          completeness: file.qualityComponents?.completeness || 95,
+                          consistency: file.qualityComponents?.consistency || 85,
+                          validity: file.qualityComponents?.validity || 80,
+                          uniqueness: file.qualityComponents?.uniqueness || 75,
+                          timeliness: file.qualityComponents?.timeliness || 90
+                        }}
+                        position="top"
+                        animated={true}
+                      >
+                        <span className={`stat-value quality-score ${getQualityClass(file.qualityScore)}`}>
+                          {file.qualityScore}%
+                        </span>
+                      </QualityTooltip>
                     </div>
                   </div>
                   
