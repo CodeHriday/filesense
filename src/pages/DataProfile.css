@@ -127,10 +127,13 @@
 .file-stat-card {
   display: flex;
   align-items: center;
-  padding: 24px;
+  padding: 16px; /* Reduced from 24px */
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* Reducing container size by approximately 30% */
+  max-width: 70%;
+  margin: 0 auto;
 }
 
 .file-stat-card:hover {
@@ -139,15 +142,15 @@
 }
 
 .stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 39px; /* Reduced by 30% from 56px */
+  height: 39px; /* Reduced by 30% from 56px */
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  margin-right: 18px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  font-size: 17px; /* Reduced by 30% from 24px */
+  margin-right: 12px; /* Reduced from 18px */
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 .rows-icon {
@@ -171,8 +174,8 @@
 }
 
 .stat-details h3 {
-  margin: 0 0 5px 0;
-  font-size: 24px;
+  margin: 0 0 3px 0;
+  font-size: 17px; /* Reduced by 30% from 24px */
   font-weight: 600;
   color: #2c3e50;
 }
@@ -180,7 +183,7 @@
 .stat-details p {
   margin: 0;
   color: #7f8c8d;
-  font-size: 16px;
+  font-size: 11px; /* Reduced by 30% from 16px */
 }
 
 .completeness-table-container {
@@ -290,14 +293,14 @@
 
 .freshness-stat h3 {
   margin: 0 0 8px 0;
-  font-size: 16px;
+  font-size: 11px; /* Reduced by 30% from 16px */
   color: #7f8c8d;
 }
 
 .freshness-stat p {
   margin: 0;
   font-weight: 500;
-  font-size: 18px;
+  font-size: 13px; /* Reduced by 30% from 18px */
   color: #2c3e50;
 }
 
