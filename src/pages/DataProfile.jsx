@@ -15,6 +15,7 @@ function DataProfile() {
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
+    console.log('DataProfile component mounted with fileId:', fileId);
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -27,10 +28,14 @@ function DataProfile() {
           return;
         }
         
+        console.log('Fetching file details and profile for fileId:', fileId);
         const [fileData, profileData] = await Promise.all([
           getFileDetails(fileId),
           getFileProfile(fileId)
         ]);
+        
+        console.log('File details received:', fileData);
+        console.log('Profile data received:', profileData);
         
         setFile(fileData);
         setProfile(profileData || {});

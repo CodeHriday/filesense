@@ -109,9 +109,14 @@ function FileUpload() {
       setUploadStatus('success');
       
       // Automatically redirect to profile page after a short delay
+      console.log('File uploaded successfully, will redirect to profile shortly. File ID:', result.fileId);
+      
+      // Use a longer timeout to ensure the file processing has started on the server
       setTimeout(() => {
-        navigate(`/profile/${result.fileId}`);
-      }, 1000); // Increased the delay slightly to show success state
+        console.log('Now redirecting to profile page for file:', result.fileId);
+        // Add a timestamp parameter to force a fresh load
+        navigate(`/profile/${result.fileId}?t=${Date.now()}`);
+      }, 2000); // Increased delay to ensure server has time to process the file
       
       return result;
     } catch (error) {
@@ -127,7 +132,9 @@ function FileUpload() {
   
   const handleViewProfile = () => {
     if (uploadedFile && uploadedFile.fileId) {
-      navigate(`/profile/${uploadedFile.fileId}`);
+      console.log('Manually navigating to profile for file:', uploadedFile.fileId);
+      // Add a timestamp parameter to force a fresh load
+      navigate(`/profile/${uploadedFile.fileId}?t=${Date.now()}`);
     }
   };
   
