@@ -346,8 +346,8 @@
 
 .distribution-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 .column-distribution {
@@ -356,20 +356,20 @@
 
 .column-stats-table {
   background-color: #f8fafc;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 24px;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
 }
 
 .column-stat-row {
   display: flex;
-  padding: 10px 16px;
+  padding: 6px 10px;
   border-bottom: 1px solid #ecf0f1;
   align-items: center;
   background-color: white;
-  margin-bottom: 6px;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 4px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
 }
 
