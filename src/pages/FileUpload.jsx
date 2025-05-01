@@ -23,7 +23,7 @@ function FileUpload() {
         const result = await testApiConnection();
         setApiStatus({ 
           checked: true, 
-          status: result.success ? 'connected' : 'error',
+          status: result.status === 'ok' ? 'connected' : 'error',
           details: result 
         });
         setDiagnosticInfo(prev => prev + `\nAPI health check: ${JSON.stringify(result, null, 2)}`);
@@ -43,7 +43,7 @@ function FileUpload() {
       setDiagnosticInfo(prev => prev + `API connection test result: ${JSON.stringify(result, null, 2)}\n`);
       setApiStatus({ 
         checked: true, 
-        status: result.success ? 'connected' : 'error',
+        status: result.status === 'ok' ? 'connected' : 'error',
         details: result 
       });
     } catch (err) {
@@ -98,8 +98,12 @@ function FileUpload() {
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
+      // Extract fileId from either result.fileId or result.file.file_id
+      const fileId = result.fileId || (result.file && result.file.file_id);
+      console.log('Extracted file ID from result:', fileId);
+      
       const fileDetails = {
-        fileId: result.fileId,
+        fileId: fileId,
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size
@@ -109,13 +113,13 @@ function FileUpload() {
       setUploadStatus('success');
       
       // Automatically redirect to profile page after a short delay
-      console.log('File uploaded successfully, will redirect to profile shortly. File ID:', result.fileId);
+      console.log('File uploaded successfully, will redirect to profile shortly. File ID:', fileId);
       
       // Use a longer timeout to ensure the file processing has started on the server
       setTimeout(() => {
-        console.log('Now redirecting to profile page for file:', result.fileId);
+        console.log('Now redirecting to profile page for file:', fileId);
         // Add a timestamp parameter to force a fresh load
-        navigate(`/profile/${result.fileId}?t=${Date.now()}`);
+        navigate(`/profile/${fileId}?t=${Date.now()}`);
       }, 2000); // Increased delay to ensure server has time to process the file
       
       return result;
