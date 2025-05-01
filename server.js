@@ -1163,6 +1163,9 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         columnCount: columns.length
       });
       
+      // Set success flag to track if all columns were saved
+      let columnSaveSuccess = true;
+      
       for (const column of columns) {
         try {
           await pool.query(
@@ -1190,7 +1193,30 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
           );
         } catch (columnErr) {
           logger.error('Error saving column information:', columnErr);
+          columnSaveSuccess = false;
           // Continue with other columns
+        }
+      }
+      
+      // IMPORTANT: Update the row_count and column_count in the files table
+      // This ensures the file profile displays correctly
+      if (columnSaveSuccess) {
+        try {
+          logger.info('Updating file record with row and column counts', {
+            fileId: finalFileId,
+            rowCount,
+            columnCount: columns.length
+          });
+          
+          // Update the file record with the actual counts
+          await pool.query(
+            `UPDATE files 
+             SET row_count = $1, column_count = $2, updated_at = NOW() 
+             WHERE file_id = $3`,
+            [rowCount, columns.length, finalFileId]
+          );
+        } catch (updateErr) {
+          logger.error('Error updating file record with counts:', updateErr);
         }
       }
     }
