@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBarChart2, FiCheckSquare, FiFileText, FiList } from 'react-icons/fi';
 import Card from '../components/Card';
-import { Tooltip } from '../components/Tooltip';
 import { getFileCatalog, getFileProfile, getFileQuality } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince } from '../utils/formatters';
 import './Monitor.css';
@@ -127,27 +126,19 @@ function Monitor() {
                            file.file_type === 'json' ? '📋' : 
                            file.file_type === 'parquet' ? '📁' : '📄'}
                         </span>
-                        <Tooltip content={file.filename}>
-                          {file.filename}
-                        </Tooltip>
+                        {file.filename}
                       </div>
                     </div>
                     <div className="file-stats">
-                      <Tooltip content={`File type: ${file.file_type.toUpperCase()}, Size: ${formatBytes(file.file_size)}`}>
-                        <span>{file.file_type.toUpperCase()} | {formatBytes(file.file_size)}</span>
-                      </Tooltip>
+                      <span>{file.file_type.toUpperCase()} | {formatBytes(file.file_size)}</span>
                     </div>
                     <div className="file-quality">
                       {file.quality_score !== undefined ? (
-                        <Tooltip content={`Quality score: ${file.quality_score}/100. Based on completeness, consistency, and validity.`}>
-                          <div className={getQualityBadgeClass(file.quality_score)}>
-                            {file.quality_score}
-                          </div>
-                        </Tooltip>
+                        <div className={getQualityBadgeClass(file.quality_score)}>
+                          {file.quality_score}
+                        </div>
                       ) : (
-                        <Tooltip content="Quality score not available. Run quality check on this file.">
-                          <span className="no-quality">-</span>
-                        </Tooltip>
+                        <span className="no-quality">-</span>
                       )}
                     </div>
                   </div>
@@ -205,30 +196,24 @@ function Monitor() {
                     </div>
                     
                     <div className="file-actions">
-                      <Tooltip content="View detailed data profile with statistical insights">
-                        <button 
-                          className="btn btn-primary"
-                          onClick={handleViewProfile}
-                        >
-                          <FiBarChart2 /> View Profile
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Check data quality metrics and validation results">
-                        <button 
-                          className="btn btn-secondary"
-                          onClick={handleViewQuality}
-                        >
-                          <FiCheckSquare /> Quality Details
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Generate a comprehensive PDF report for this file">
-                        <button 
-                          className="btn btn-success"
-                          onClick={handleGenerateReport}
-                        >
-                          <FiFileText /> Generate Report
-                        </button>
-                      </Tooltip>
+                      <button 
+                        className="btn btn-primary"
+                        onClick={handleViewProfile}
+                      >
+                        <FiBarChart2 /> View Profile
+                      </button>
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={handleViewQuality}
+                      >
+                        <FiCheckSquare /> Quality Details
+                      </button>
+                      <button 
+                        className="btn btn-success"
+                        onClick={handleGenerateReport}
+                      >
+                        <FiFileText /> Generate Report
+                      </button>
                     </div>
                   </Card>
                   
