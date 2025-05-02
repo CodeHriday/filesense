@@ -19,9 +19,11 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
       setLoading(true);
       setError(null);
       
+      console.log('Fetching preview data for fileId:', fileId);
       const response = await axios.get(`/api/files/${fileId}/preview?limit=${maxRows}`, {
         timeout: 60000 // 60 second timeout for preview loading
       });
+      console.log('Preview data received:', response.data);
       setPreviewData(response.data);
     } catch (err) {
       console.error('Error fetching file preview:', err);
@@ -68,7 +70,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
     if (!columnData) return null;
     
     // Calculate quality score based on the existing formula components
-    const totalRows = rows.length || 100;
+    const totalRows = previewData?.rows?.length || previewData?.data?.length || 100;
     
     // Component weights from our quality formula
     const weights = {
