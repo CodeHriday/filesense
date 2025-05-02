@@ -527,6 +527,91 @@ class FileService extends ServiceBase {
       throw new Error(`Invalid Excel file: ${error.message}`);
     }
   }
+
+  /**
+   * Get file profile with column details formatted for frontend
+   * 
+   * @param {string} fileId - File ID
+   * @returns {Promise<Object>} - File profile with formatted columns
+   */
+  async getFileProfile(fileId) {
+    const traceId = this.generateTraceId();
+    this.logger.debug('Fetching file profile', { fileId, traceId });
+    
+    try {
+      // Get file and its columns
+      const file = await this.getFileById(fileId);
+      
+      if (!file) {
+        this.logger.warn('File not found for profile', { fileId, traceId });
+        return null;
+      }
+      
+      // Format the profile for frontend consumption
+      const profile = {
+        fileId: file.file_id,
+        filename: file.filename,
+        fileType: file.file_type,
+        fileSize: file.file_size,
+        rowCount: file.row_count,
+        columnCount: file.column_count,
+        processedAt: file.processed_at,
+        columns: []
+      };
+      
+      // Format columns
+      if (file.columns && file.columns.length > 0) {
+        profile.columns = file.columns.map(column => {
+          const stats = column.stats || {};
+          
+          return {
+            name: column.column_name,
+            type: column.column_type,
+            unique: stats.unique_count || null,
+            missing: stats.null_count || 0,
+            min: stats.min_value || null,
+            max: stats.max_value || null,
+            histogram: stats.histogram || null,
+            most_frequent_value: stats.most_frequent_value || null,
+            least_frequent_value: stats.least_frequent_value || null,
+            top_values: stats.top_values || null
+          };
+        });
+      }
+      
+      // Add summary stats
+      const totalCells = profile.rowCount * profile.columnCount;
+      let missingCount = 0;
+      let uniqueValues = 0;
+      
+      profile.columns.forEach(col => {
+        missingCount += col.missing || 0;
+        uniqueValues += col.unique || 0;
+      });
+      
+      const completeness = totalCells > 0 ? 
+        ((totalCells - missingCount) / totalCells * 100).toFixed(2) : 
+        "100.00";
+      
+      const uniqueness = profile.columns.length > 0 ? 
+        ((uniqueValues / profile.columns.length) / profile.rowCount * 100).toFixed(2) : 
+        "0.00";
+      
+      profile.summary = {
+        completeness,
+        uniqueness
+      };
+      
+      return profile;
+    } catch (error) {
+      this.logger.error('Error fetching file profile', { 
+        error: error.message,
+        fileId,
+        traceId
+      });
+      throw error;
+    }
+  }
 }
 
 module.exports = FileService;
