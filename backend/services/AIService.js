@@ -13,22 +13,53 @@ const { systemLogger: logger } = require('../utils/logger');
 
 // Use dynamic import for ES modules
 let pipeline;
+let HF_TOKEN;
+
+// Configure authentication at module level
+if (process.env.HUGGING_FACE_TOKEN) {
+  HF_TOKEN = process.env.HUGGING_FACE_TOKEN;
+  logger.info('Hugging Face token found in environment');
+  
+  // Set up node-fetch to use in the polyfill
+  global.HF_TOKEN = HF_TOKEN;
+} else {
+  logger.warn('HUGGING_FACE_TOKEN not found in environment variables');
+}
+
+// Custom fetch function that adds authentication
+const authenticatedFetch = async (url, options = {}) => {
+  // Add authentication headers to all requests to huggingface.co
+  if (url.includes('huggingface.co') && HF_TOKEN) {
+    options.headers = {
+      ...options.headers,
+      Authorization: `Bearer ${HF_TOKEN}`
+    };
+  }
+  return fetch(url, options);
+};
+
+// Patch global fetch for transformers library
+const originalFetch = global.fetch;
+global.fetch = authenticatedFetch;
+
 (async () => {
   try {
     const transformers = await import('@xenova/transformers');
     pipeline = transformers.pipeline;
     
-    // Set Hugging Face token for authentication
-    if (process.env.HUGGING_FACE_TOKEN) {
-      // Configure Hugging Face token for HTTP requests
-      transformers.env.allowLocalModels = false;
-      // This is the correct way to set auth headers for Hugging Face models
-      transformers.env.backends.onnx.httpHeaders = {
-        Authorization: `Bearer ${process.env.HUGGING_FACE_TOKEN}`
-      };
-      logger.info('Set Hugging Face authentication token');
-    } else {
-      logger.warn('HUGGING_FACE_TOKEN not found in environment variables');
+    // Configure the library to use proper authentication
+    transformers.env.allowLocalModels = false;
+    transformers.env.useBrowserCache = false;
+    
+    // Force remote downloads with authentication
+    if (HF_TOKEN) {
+      // Apply token to all backends
+      if (transformers.env.backends && transformers.env.backends.onnx) {
+        transformers.env.backends.onnx.httpHeaders = {
+          Authorization: `Bearer ${HF_TOKEN}`
+        };
+      }
+      logger.info('Set Hugging Face authentication token for models');
     }
     
     logger.info('Successfully imported @xenova/transformers');
@@ -37,13 +68,44 @@ let pipeline;
   }
 })();
 
-// Cache for embeddings and model instances
-const embeddingCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+// Restore original fetch after initialization
+setTimeout(() => {
+  if (global.fetch === authenticatedFetch) {
+    global.fetch = originalFetch;
+    logger.info('Restored original fetch after transformers init');
+  }
+}, 10000); // 10 second timeout to ensure initialization is complete
+
+// Cache for embeddings and model instances with serialization/deserialization handlers
+const embeddingCache = new NodeCache({ 
+  stdTTL: 3600, 
+  checkperiod: 120,
+  // Custom serialize/deserialize functions to handle TypedArrays properly
+  useClones: false
+});
+
 const responseCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+
+// Helper functions for TypedArray serialization/deserialization
+const serializeTypedArray = (arr) => {
+  if (arr instanceof Float32Array) {
+    return { type: 'Float32Array', values: Array.from(arr) };
+  }
+  return arr;
+};
+
+const deserializeTypedArray = (obj) => {
+  if (obj && typeof obj === 'object' && obj.type === 'Float32Array') {
+    return new Float32Array(obj.values);
+  }
+  return obj;
+};
 
 // Model configuration
 const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
-const CHAT_MODEL = 'Xenova/phi-2';
+// Using a more accessible model that doesn't require HF Pro access
+// Phi-2 is often gated since it's a Microsoft model requiring special access
+const CHAT_MODEL = 'Xenova/distilgpt2'; // Fallback to a publicly available model
 
 class AIService {
   constructor(fileService, dbPool) {
@@ -93,7 +155,9 @@ class AIService {
       
       if (embeddingCache.has(cacheKey)) {
         logger.debug('Using cached embedding');
-        return embeddingCache.get(cacheKey);
+        const cachedValue = embeddingCache.get(cacheKey);
+        // Ensure we deserialize if needed
+        return deserializeTypedArray(cachedValue);
       }
 
       if (!this.embeddingPipeline) {
@@ -112,17 +176,42 @@ class AIService {
 
       // Extract the embedding from the model output and ensure it's a TypedArray
       let embedding;
-      if (result.data && typeof result.data === 'object' && !Array.isArray(result.data) && !(result.data instanceof Float32Array)) {
-        // Convert from object to Float32Array
-        logger.debug('Converting embedding from object to Float32Array');
-        const values = Object.values(result.data);
-        embedding = new Float32Array(values);
+      if (result.data) {
+        if (result.data instanceof Float32Array) {
+          // Already a TypedArray, use directly
+          embedding = result.data;
+        } else if (typeof result.data === 'object') {
+          // Convert from object to Float32Array
+          logger.debug('Converting embedding from object to Float32Array');
+          const values = Object.values(result.data);
+          embedding = new Float32Array(values);
+        } else {
+          throw new Error('Embedding model returned unexpected data format');
+        }
       } else {
-        embedding = result.data;
+        throw new Error('No embedding data returned from model');
+      }
+      
+      // Verify we have a valid embedding
+      if (!(embedding instanceof Float32Array)) {
+        logger.warn('Embedding is not a Float32Array, converting...', {
+          type: typeof embedding,
+          isArray: Array.isArray(embedding),
+          hasLength: embedding && embedding.length !== undefined
+        });
+        
+        // Make a best effort to convert
+        if (Array.isArray(embedding)) {
+          embedding = new Float32Array(embedding);
+        } else if (embedding && typeof embedding === 'object') {
+          embedding = new Float32Array(Object.values(embedding));
+        } else {
+          throw new Error('Could not convert embedding to Float32Array');
+        }
       }
       
       // Cache the result
-      embeddingCache.set(cacheKey, embedding);
+      embeddingCache.set(cacheKey, serializeTypedArray(embedding));
       
       return embedding;
     } catch (error) {
@@ -272,7 +361,9 @@ class AIService {
       
       if (embeddingCache.has(cacheKey)) {
         logger.debug('Using cached file embedding', { fileId: fileDetails.file_id });
-        return embeddingCache.get(cacheKey);
+        const cachedValue = embeddingCache.get(cacheKey);
+        // Ensure we deserialize if needed
+        return deserializeTypedArray(cachedValue);
       }
 
       // Create a text representation of the file for embedding
@@ -302,8 +393,8 @@ class AIService {
       // Generate embedding from text representation
       const embedding = await this.generateEmbedding(textRepresentation);
       
-      // Cache the embedding
-      embeddingCache.set(cacheKey, embedding);
+      // Cache the embedding (serialize if it's a TypedArray)
+      embeddingCache.set(cacheKey, serializeTypedArray(embedding));
       
       return embedding;
     } catch (error) {
