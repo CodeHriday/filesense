@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiSend, FiDownload, FiCopy, FiInfo } from 'react-icons/fi';
-import { chatWithDataset } from '../../api/aiService';
+import { useAIFeatures } from '../../hooks';
 import './ChatWithDataset.css';
 
 /**
@@ -9,8 +9,9 @@ import './ChatWithDataset.css';
 const ChatInterface = ({ fileId, filename }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  
+  const { sendChatMessage, chatLoading, chatError } = useAIFeatures();
   
   // Add a welcome message when the component mounts
   useEffect(() => {
@@ -37,16 +38,14 @@ const ChatInterface = ({ fileId, filename }) => {
 
   // Send a message to the AI service
   const sendMessageToAI = async (message) => {
-    setIsLoading(true);
-    
     try {
       // Filter out the welcome message to create chat history
-      const chatHistory = messages
+      const history = messages
         .filter(msg => msg.id !== 'welcome')
         .map(({ role, content }) => ({ role, content }));
       
-      // Call the AI service API
-      const result = await chatWithDataset(fileId, message, chatHistory);
+      // Call the AI service through our hook
+      const result = await sendChatMessage(fileId, message, history);
       
       // Create the AI response message
       const aiResponse = {
@@ -66,12 +65,10 @@ const ChatInterface = ({ fileId, filename }) => {
         {
           id: `error-${Date.now()}`,
           role: 'error',
-          content: 'Sorry, there was an error processing your request. Please try again later.',
+          content: chatError || 'Sorry, there was an error processing your request. Please try again later.',
           timestamp: new Date().toISOString()
         }
       ]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -151,7 +148,7 @@ const ChatInterface = ({ fileId, filename }) => {
             </div>
           </div>
         ))}
-        {isLoading && (
+        {chatLoading && (
           <div className="message-bubble ai-message loading-message">
             <div className="typing-indicator">
               <span></span>
@@ -169,12 +166,12 @@ const ChatInterface = ({ fileId, filename }) => {
           value={inputMessage} 
           onChange={(e) => setInputMessage(e.target.value)}
           placeholder="Ask about your dataset..."
-          disabled={isLoading}
+          disabled={chatLoading}
         />
         <button 
           type="submit" 
           className="send-button"
-          disabled={isLoading || !inputMessage.trim()}
+          disabled={chatLoading || !inputMessage.trim()}
         >
           <FiSend />
         </button>
