@@ -158,7 +158,12 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
                         <div 
                           className="quality-score-circle" 
                           style={{ backgroundColor: scoreColor }}
-                          title={`Quality Score: ${scorePercentage}%\nCompleteness: 30%\nConsistency: 25%\nValidity: 20%\nUniqueness: 15%\nTimeliness: 10%`}
+                          title={`Quality Score: ${scorePercentage}%
+Completeness: 30%
+Consistency: 25%
+Validity: 20%
+Uniqueness: 15%
+Timeliness: 10%`}
                         >
                           {scorePercentage}
                         </div>

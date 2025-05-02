@@ -62,6 +62,7 @@
 
 .preview-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 14px;
   white-space: nowrap;
@@ -81,10 +82,13 @@
   color: var(--text-color);
   border-bottom: 2px solid var(--border-color);
   background-color: var(--bg-light-color);
+  min-width: 150px;
+  position: relative;
 }
 
 .preview-table th.quality-header {
   padding: 8px 16px;
+  vertical-align: middle;
 }
 
 .preview-table .column-header-content {
@@ -92,6 +96,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 32px;
 }
 
 .preview-table .column-name {
@@ -100,6 +105,7 @@
   text-overflow: ellipsis;
   max-width: 200px;
   flex: 1;
+  padding-right: 4px;
 }
 
 .preview-table .quality-score-circle {
@@ -125,6 +131,8 @@
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 150px;
 }
 
 .preview-table tr:nth-child(even) {
