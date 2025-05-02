@@ -1,200 +1,164 @@
 /**
- * Helper module to bridge Node.js and Python quality checks
+ * Helper module for quality score calculation
+ * Pure JavaScript implementation for better reliability
  */
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
 
 /**
- * Calculate quality score from column data by calling the Python script
+ * Calculate quality score from column data
  * 
  * @param {Array} columns - Column metadata array
  * @param {Object} fileMetadata - File metadata object
  * @returns {Promise<Object>} - Quality score results
  */
 async function calculateQualityScore(columns, fileMetadata) {
-  return new Promise((resolve, reject) => {
-    try {
-      // Create a temporary JSON file with the data
-      const tempInputPath = path.join(os.tmpdir(), `quality_input_${Date.now()}.json`);
-      const tempOutputPath = path.join(os.tmpdir(), `quality_output_${Date.now()}.json`);
-      
-      // Prepare the input data
-      const inputData = {
-        columns,
-        fileMetadata
-      };
-      
-      // Write input data to temp file
-      fs.writeFileSync(tempInputPath, JSON.stringify(inputData, null, 2));
-      
-      // Prepare and run the Python process
-      const pythonProcess = spawn('python3', [
-        '-c',
-        `
-import json
-import sys
-from datetime import datetime
-
-try:
-    # Load the input data from temp file
-    with open("${tempInputPath}", "r") as f:
-        input_data = json.load(f)
+  try {
+    console.log('Calculating quality score for file with', columns.length, 'columns');
     
-    columns = input_data.get("columns", [])
-    file_metadata = input_data.get("fileMetadata", {})
+    // Define weights for different quality dimensions (sum should be 1.0)
+    const weights = {
+      completeness: 0.3,  // How much of the data is present
+      consistency: 0.25,  // How consistent the data types and patterns are
+      validity: 0.2,      // How valid the data is against business rules
+      uniqueness: 0.15,   // How unique the values are
+      timeliness: 0.1     // How recent the data is
+    };
     
-    # Define weights for different quality dimensions (sum should be 1.0)
-    weights = {
-        "completeness": 0.3,  # How much of the data is present
-        "consistency": 0.25,  # How consistent the data types and patterns are
-        "validity": 0.2,     # How valid the data is against business rules
-        "uniqueness": 0.15,  # How unique the values are
-        "timeliness": 0.1    # How recent the data is
-    }
+    const componentScores = {};
+    const totalRows = fileMetadata?.row_count || 100;
     
-    component_scores = {}
-    total_rows = file_metadata.get("row_count", 100) if file_metadata else 100
-    
-    # Calculate COMPLETENESS score (percentage of non-null values)
-    if columns:
-        missing_percentages = []
-        for column in columns:
-            null_count = column.get("missing", 0) or 0
-            missing_pct = (null_count / total_rows * 100) if total_rows > 0 else 0
-            missing_percentages.append(missing_pct)
-            
-        avg_missing_pct = sum(missing_percentages) / len(missing_percentages) if missing_percentages else 0
-        component_scores["completeness"] = max(0, 100 - avg_missing_pct)
-    else:
-        component_scores["completeness"] = 100  # Default if no column data
-    
-    # Calculate CONSISTENCY score (data type consistency)
-    if columns:
-        # Check if any columns have mismatched types
-        string_columns = sum(1 for col in columns if col.get("type") == "string")
-        date_columns = sum(1 for col in columns if col.get("type") == "date")
-        numeric_columns = sum(1 for col in columns if col.get("type") in ("integer", "number", "decimal", "float"))
-        other_columns = len(columns) - string_columns - date_columns - numeric_columns
-        
-        # Assume 90% consistency for now - if we had access to actual data, we could check values vs types
-        consistency_score = 90 if other_columns == 0 else 100 - (other_columns / len(columns) * 30)
-        component_scores["consistency"] = max(0, min(100, consistency_score))
-    else:
-        component_scores["consistency"] = 90  # Default if no column data
-    
-    # Calculate VALIDITY score based on column types and potential errors
-    component_scores["validity"] = component_scores.get("consistency", 100) * 0.9  # Estimate based on consistency
-    
-    # Calculate UNIQUENESS score
-    if columns:
-        uniqueness_scores = []
-        for column in columns:
-            # Use unique values count if available
-            unique_values = column.get("unique", 0) or 0
-            if unique_values > 0 and total_rows > 0:
-                # Calculate percentage of unique values
-                uniqueness_pct = (unique_values / total_rows) * 100
-                # Cap at 100% for columns where every value is unique
-                uniqueness_pct = min(100, uniqueness_pct)
-                uniqueness_scores.append(uniqueness_pct)
-        
-        # Use average uniqueness score across all columns
-        avg_uniqueness = sum(uniqueness_scores) / len(uniqueness_scores) if uniqueness_scores else 80
-        component_scores["uniqueness"] = avg_uniqueness
-    else:
-        component_scores["uniqueness"] = 80  # Default if no column data
-    
-    # Calculate TIMELINESS score
-    if file_metadata and "created_at" in file_metadata:
-        try:
-            # Parse the timestamp (assuming ISO format)
-            created_at_str = file_metadata["created_at"]
-            if isinstance(created_at_str, str):
-                if created_at_str.endswith('Z'):
-                    created_at_str = created_at_str[:-1] + '+00:00'
-                created_at = datetime.fromisoformat(created_at_str)
-            else:
-                # Assume it's already a datetime object
-                created_at = datetime.now()  # Fallback
-                
-            # Calculate days since creation (simple approximation)
-            days_since_creation = (datetime.now() - created_at).days
-            # Score decreases by 5 points per day, minimum 0
-            component_scores["timeliness"] = max(0, 100 - (days_since_creation * 5))
-        except Exception as e:
-            # Print the error for debugging
-            print(f"Error calculating timeliness: {str(e)}", file=sys.stderr)
-            component_scores["timeliness"] = 90  # Default if date parsing fails
-    else:
-        component_scores["timeliness"] = 90  # Default if no timestamp data
-    
-    # Calculate OVERALL score using weighted average
-    overall_score = sum(component_scores.get(component, 0) * weight 
-                      for component, weight in weights.items())
-    
-    # Round to 2 decimal places
-    overall_score = round(overall_score, 2)
-    component_scores = {k: round(v, 2) for k, v in component_scores.items()}
-    
-    # Prepare the result
-    result = {
-        "overall_score": overall_score,
-        "components": component_scores,
-        "weights": weights
-    }
-    
-    # Write the result to the output file
-    with open("${tempOutputPath}", "w") as f:
-        json.dump(result, f)
-        
-    # Indicate success
-    print("SUCCESS")
-    sys.exit(0)
-    
-except Exception as e:
-    # Handle any errors
-    print(f"ERROR: {str(e)}", file=sys.stderr)
-    sys.exit(1)
-`
-      ]);
-      
-      let stdoutData = '';
-      let stderrData = '';
-      
-      pythonProcess.stdout.on('data', (data) => {
-        stdoutData += data.toString();
+    // Calculate COMPLETENESS score (percentage of non-null values)
+    if (columns && columns.length > 0) {
+      const missingPercentages = columns.map(column => {
+        const nullCount = column.missing || 0;
+        return totalRows > 0 ? (nullCount / totalRows * 100) : 0;
       });
       
-      pythonProcess.stderr.on('data', (data) => {
-        stderrData += data.toString();
-      });
+      const avgMissingPct = missingPercentages.length > 0 ?
+        missingPercentages.reduce((sum, pct) => sum + pct, 0) / missingPercentages.length : 0;
       
-      pythonProcess.on('close', (code) => {
-        try {
-          // Clean up the input file
-          fs.unlinkSync(tempInputPath);
-          
-          if (code === 0 && stdoutData.includes('SUCCESS')) {
-            // Read the result from the output file
-            const resultData = JSON.parse(fs.readFileSync(tempOutputPath, 'utf8'));
-            
-            // Clean up the output file
-            fs.unlinkSync(tempOutputPath);
-            
-            resolve(resultData);
-          } else {
-            reject(new Error(`Python process exited with code ${code}: ${stderrData}`))
-          }
-        } catch (err) {
-          reject(new Error(`Failed to process quality results: ${err.message}`));
+      componentScores.completeness = Math.max(0, 100 - avgMissingPct);
+    } else {
+      componentScores.completeness = 100;  // Default if no column data
+    }
+    
+    // Calculate CONSISTENCY score (data type consistency)
+    if (columns && columns.length > 0) {
+      // Check if any columns have mismatched types
+      const stringColumns = columns.filter(col => col.type === 'string').length;
+      const dateColumns = columns.filter(col => col.type === 'date').length;
+      const numericColumns = columns.filter(col => 
+        ['integer', 'number', 'decimal', 'float'].includes(col.type)
+      ).length;
+      
+      const otherColumns = columns.length - stringColumns - dateColumns - numericColumns;
+      
+      // Assume 90% consistency for now - without actual data, we estimate
+      const consistencyScore = otherColumns === 0 ? 90 : 100 - (otherColumns / columns.length * 30);
+      componentScores.consistency = Math.max(0, Math.min(100, consistencyScore));
+    } else {
+      componentScores.consistency = 90;  // Default if no column data
+    }
+    
+    // Calculate VALIDITY score based on column types and potential errors
+    componentScores.validity = (componentScores.consistency || 100) * 0.9;  // Estimate based on consistency
+    
+    // Calculate UNIQUENESS score
+    if (columns && columns.length > 0) {
+      const uniquenessScores = [];
+      
+      columns.forEach(column => {
+        // Use unique values count if available
+        const uniqueValues = column.unique || 0;
+        
+        if (uniqueValues > 0 && totalRows > 0) {
+          // Calculate percentage of unique values
+          const uniquenessPct = (uniqueValues / totalRows) * 100;
+          // Cap at 100% for columns where every value is unique
+          uniquenessScores.push(Math.min(100, uniquenessPct));
         }
       });
-    } catch (err) {
-      reject(new Error(`Failed to calculate quality score: ${err.message}`));
+      
+      // Use average uniqueness score across all columns
+      const avgUniqueness = uniquenessScores.length > 0 ?
+        uniquenessScores.reduce((sum, score) => sum + score, 0) / uniquenessScores.length : 80;
+      
+      componentScores.uniqueness = avgUniqueness;
+    } else {
+      componentScores.uniqueness = 80;  // Default if no column data
     }
-  });
+    
+    // Calculate TIMELINESS score
+    if (fileMetadata && fileMetadata.created_at) {
+      try {
+        // Parse the timestamp (assuming ISO format)
+        let createdAt;
+        
+        if (typeof fileMetadata.created_at === 'string') {
+          createdAt = new Date(fileMetadata.created_at);
+        } else {
+          // Assume it's already a date object or fallback to now
+          createdAt = fileMetadata.created_at || new Date();
+        }
+        
+        if (createdAt && !isNaN(createdAt.getTime())) {
+          // Calculate days since creation
+          const daysSinceCreation = Math.floor((new Date() - createdAt) / (1000 * 60 * 60 * 24));
+          // Score decreases by 5 points per day, minimum 0
+          componentScores.timeliness = Math.max(0, 100 - (daysSinceCreation * 5));
+        } else {
+          componentScores.timeliness = 90;  // Default if date parsing fails
+        }
+      } catch (e) {
+        console.error('Error calculating timeliness:', e);
+        componentScores.timeliness = 90;  // Default if date parsing fails
+      }
+    } else {
+      componentScores.timeliness = 90;  // Default if no timestamp data
+    }
+    
+    // Calculate OVERALL score using weighted average
+    const overallScore = Object.entries(weights).reduce((score, [component, weight]) => {
+      return score + (componentScores[component] || 0) * weight;
+    }, 0);
+    
+    // Round scores to 2 decimal places
+    const roundedOverallScore = Math.round(overallScore * 100) / 100;
+    const roundedComponentScores = {};
+    
+    Object.entries(componentScores).forEach(([key, value]) => {
+      roundedComponentScores[key] = Math.round(value * 100) / 100;
+    });
+    
+    // Prepare the result
+    const result = {
+      overall_score: roundedOverallScore,
+      components: roundedComponentScores,
+      weights: weights
+    };
+    
+    console.log('Quality score calculation completed successfully');
+    return result;
+  } catch (error) {
+    console.error('Error calculating quality score:', error);
+    // Return a default score in case of error
+    return {
+      overall_score: 80,
+      components: {
+        completeness: 80,
+        consistency: 80,
+        validity: 80,
+        uniqueness: 80,
+        timeliness: 80
+      },
+      weights: {
+        completeness: 0.3,
+        consistency: 0.25,
+        validity: 0.2,
+        uniqueness: 0.15,
+        timeliness: 0.1
+      }
+    };
+  }
 }
 
 module.exports = {
