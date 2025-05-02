@@ -83,6 +83,31 @@
   background-color: var(--bg-light-color);
 }
 
+.preview-table th.quality-header {
+  padding: 8px 16px;
+}
+
+.preview-table .column-name {
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.preview-table .quality-score {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  margin-top: 4px;
+  cursor: help;
+}
+
+
 .preview-table td {
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-color);

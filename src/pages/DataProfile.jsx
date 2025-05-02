@@ -426,11 +426,15 @@ function DataProfile() {
   };
 
   const renderPreviewTab = () => {
-    if (!fileId) return null;
+    if (!fileId || !profile || !profile.columns) return null;
     
     return (
       <div className="preview-tab">
-        <FilePreview fileId={fileId} maxRows={100} />
+        <FilePreview 
+          fileId={fileId} 
+          maxRows={100} 
+          columnQualityData={profile.columns} 
+        />
       </div>
     );
   };
