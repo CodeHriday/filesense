@@ -125,6 +125,30 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
                       previewData.columns.map(col => col.name) : 
                       (rows.length > 0 ? Object.keys(rows[0]) : []);
   
+  // Render a quality score indicator
+  const renderQualityScore = (columnName) => {
+    const qualityScore = getColumnQualityScore(columnName);
+    if (qualityScore === null) return null;
+    
+    const scoreColor = getScoreColor(qualityScore);
+    const scorePercentage = Math.round(qualityScore * 100);
+    
+    return (
+      <div 
+        className="quality-score-circle" 
+        style={{ backgroundColor: scoreColor }}
+        title={`Quality Score: ${scorePercentage}%
+Completeness: 30%
+Consistency: 25%
+Validity: 20%
+Uniqueness: 15%
+Timeliness: 10%`}
+      >
+        {scorePercentage}
+      </div>
+    );
+  };
+
   return (
     <div className="file-preview-container">
       <div className="file-preview-header">
@@ -141,37 +165,18 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
         </div>
       </div>
       
-      <div className="preview-table-container">
+      <div className="preview-table-wrapper">
         <table className="preview-table">
           <thead>
             <tr>
-              {columnNames.map((column, index) => {
-                const qualityScore = getColumnQualityScore(column);
-                const scoreColor = getScoreColor(qualityScore);
-                const scorePercentage = qualityScore !== null ? Math.round(qualityScore * 100) : null;
-                
-                return (
-                  <th key={index} className="quality-header">
-                    <div className="column-header-content">
-                      <span className="column-name">{column}</span>
-                      {qualityScore !== null && (
-                        <div 
-                          className="quality-score-circle" 
-                          style={{ backgroundColor: scoreColor }}
-                          title={`Quality Score: ${scorePercentage}%
-Completeness: 30%
-Consistency: 25%
-Validity: 20%
-Uniqueness: 15%
-Timeliness: 10%`}
-                        >
-                          {scorePercentage}
-                        </div>
-                      )}
-                    </div>
-                  </th>
-                );
-              })}
+              {columnNames.map((column, index) => (
+                <th key={index}>
+                  <div className="header-cell">
+                    <span className="column-name">{column}</span>
+                    {renderQualityScore(column)}
+                  </div>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
