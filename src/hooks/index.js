@@ -15,6 +15,9 @@ export * from './useModal';
 export * from './useAsync';
 export * from './useWindowSize';
 
+// AI features hooks
+export * from './useAIFeatures';
+
 // Export default exports as well
 export { default as useApiStatus } from './useApiStatus';
 export { default as useForm } from './useForm';
@@ -26,6 +29,7 @@ export { default as useNotifications } from './useNotifications.jsx';
 export { default as useModal } from './useModal';
 export { default as useAsync } from './useAsync';
 export { default as useWindowSize } from './useWindowSize';
+export { default as useAIFeatures } from './useAIFeatures';
 
 // Export provider components
 export { 

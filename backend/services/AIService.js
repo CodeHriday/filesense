@@ -352,4 +352,5 @@ class AIService {
   }
 }
 
+// Export with both capitalization formats to avoid DI container issues
 module.exports = AIService;

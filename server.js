@@ -4955,9 +4955,9 @@ app.use('/api/transformations-noauth', (req, res, next) => {
 }, transformationRoutes);
 console.log('Added unauthenticated transformation routes');
 
-// Add AI routes
-app.use('/api/ai', authenticateToken, aiRoutes(diContainer.get('aIService') ? diContainer : { get: (name) => name === 'aiService' ? diContainer.get('aIService') : diContainer.get(name) }));
-console.log('Added AI routes');
+// Add AI routes (temporarily commented out until model integration is complete)
+// app.use('/api/ai', authenticateToken, aiRoutes(diContainer));
+// console.log('Added AI routes');
 
 // Setup enhanced backend features
 setupEnhancedFeatures(app);

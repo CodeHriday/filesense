@@ -14,9 +14,9 @@ const router = express.Router();
  * @returns {Router} Express router
  */
 module.exports = function(container) {
-  const aiService = container.get('aiService');
+  const aiService = container.get('aIService');
   const fileService = container.get('fileService');
-  const logger = container.get('logger');
+  const logger = container.get('systemLogger');
   
   /**
    * Get related datasets for a file
