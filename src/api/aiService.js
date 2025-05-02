@@ -76,17 +76,18 @@ export const generateFileEmbedding = async (fileId) => {
  * Chat with a dataset using natural language
  * 
  * @param {string} fileId - ID of the file to chat about
- * @param {string} message - User message
- * @param {Array} chatHistory - Previous chat messages (optional)
+ * @param {Object} params - Chat parameters
+ * @param {string} params.message - User message
+ * @param {Array} params.history - Previous chat messages (optional)
  * @returns {Promise<Object>} - AI response
  */
-export const chatWithDataset = async (fileId, message, chatHistory = []) => {
+export const chatWithDataset = async (fileId, { message, history = [] }) => {
   try {
     console.log(`Sending chat message for file ${fileId}...`);
     const response = await axios.post(`${API_URL}/ai/chat`, {
       fileId,
       message,
-      chatHistory
+      chatHistory: history
     });
     return response.data;
   } catch (error) {

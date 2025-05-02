@@ -86,6 +86,30 @@ const useAIFeatures = () => {
     setRelationshipExplanation(null);
     setError(null);
   }, []);
+  
+  /**
+   * Send a chat message to the dataset AI assistant
+   * 
+   * @param {string} fileId - ID of the file to chat with
+   * @param {string} message - User message to send
+   * @param {Array} history - Previous chat history (optional)
+   * @returns {Promise<Object>} Chat response object
+   */
+  const sendChatMessage = useCallback(async (fileId, message, history = []) => {
+    try {
+      setChatLoading(true);
+      setChatError(null);
+      
+      const response = await chatWithDataset(fileId, { message, history });
+      return response;
+    } catch (err) {
+      console.error('Error in sendChatMessage:', err);
+      setChatError('Failed to send message. Please try again.');
+      throw err;
+    } finally {
+      setChatLoading(false);
+    }
+  }, []);
 
   return {
     // State
@@ -94,12 +118,15 @@ const useAIFeatures = () => {
     relationshipExplanation,
     loadingExplanation,
     error,
+    chatLoading,
+    chatError,
     
     // Functions
     fetchRelatedDatasets,
     fetchRelationshipExplanation,
     clearRelatedDatasets,
-    clearRelationshipExplanation
+    clearRelationshipExplanation,
+    sendChatMessage
   };
 };
 
