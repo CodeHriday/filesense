@@ -188,8 +188,8 @@ function DataProfile() {
                 <th>Data Type</th>
                 <th>Unique Values</th>
                 <th>Missing Values</th>
-                <th>Min / Most Frequent</th>
-                <th>Max / Least Frequent</th>
+                <th>Min/Least Frequent</th>
+                <th>Max/Most Frequent</th>
               </tr>
             </thead>
             <tbody>
@@ -205,13 +205,17 @@ function DataProfile() {
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? formatDecimal(column.min, 2)
-                      : (column.most_frequent_value || 'N/A')}
+                      ? column.min_is_frequent 
+                        ? `${formatDecimal(column.min, 2)} (occurs ${column.min_frequency || 1}x)` 
+                        : formatDecimal(column.min, 2)
+                      : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
                     </td>
                     <td>
                     {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
-                      ? formatDecimal(column.max, 2)
-                      : (column.least_frequent_value || 'N/A')}
+                      ? column.max_is_frequent 
+                        ? `${formatDecimal(column.max, 2)} (occurs ${column.max_frequency || 1}x)` 
+                        : formatDecimal(column.max, 2)
+                      : column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
                     </td>
                   </tr>
                 );
@@ -249,13 +253,17 @@ function DataProfile() {
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
                         <div className="column-stat-value">
-                          {formatDecimal(column.min, 2)}
+                          {column.min_is_frequent 
+                            ? `${formatDecimal(column.min, 2)} (occurs ${column.min_frequency || 1}x)` 
+                            : formatDecimal(column.min, 2)}
                         </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Max:</div>
                         <div className="column-stat-value">
-                          {formatDecimal(column.max, 2)}
+                          {column.max_is_frequent 
+                            ? `${formatDecimal(column.max, 2)} (occurs ${column.max_frequency || 1}x)` 
+                            : formatDecimal(column.max, 2)}
                         </div>
                       </div>
                     </>
@@ -265,11 +273,15 @@ function DataProfile() {
                     <>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Most Frequent:</div>
-                        <div className="column-stat-value">{column.most_frequent_value || 'N/A'}</div>
+                        <div className="column-stat-value">
+                          {column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
+                        </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Least Frequent:</div>
-                        <div className="column-stat-value">{column.least_frequent_value || 'N/A'}</div>
+                        <div className="column-stat-value">
+                          {column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
+                        </div>
                       </div>
                     </>
                   )}
