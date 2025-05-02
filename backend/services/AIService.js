@@ -6,11 +6,22 @@
  * - Chat with dataset functionality (lightweight LLM)
  */
 
-const { pipeline } = require('@xenova/transformers');
 const NodeCache = require('node-cache');
 const path = require('path');
-const fs = require('fs');
-const logger = require('../utils/logger').getLogger('aiService');
+const fs = require('fs'); 
+const { systemLogger: logger } = require('../utils/logger');
+
+// Use dynamic import for ES modules
+let pipeline;
+(async () => {
+  try {
+    const transformers = await import('@xenova/transformers');
+    pipeline = transformers.pipeline;
+    logger.info('Successfully imported @xenova/transformers');
+  } catch (error) {
+    logger.error('Failed to import @xenova/transformers', { error: error.message });
+  }
+})();
 
 // Cache for embeddings and model instances
 const embeddingCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
@@ -32,6 +43,14 @@ class AIService {
    */
   async initializeModels() {
     try {
+      // Check if pipeline function is available yet
+      if (!pipeline) {
+        logger.info('Waiting for transformers module to load...');
+        // Retry after 3 seconds
+        setTimeout(() => this.initializeModels(), 3000);
+        return;
+      }
+
       logger.info('Initializing embedding model...');
       this.embeddingPipeline = await pipeline('feature-extraction', EMBEDDING_MODEL);
       logger.info('Embedding model initialized successfully');
