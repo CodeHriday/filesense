@@ -103,9 +103,14 @@ const deserializeTypedArray = (obj) => {
 
 // Model configuration
 const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
-// Using a more accessible model that doesn't require HF Pro access
-// Phi-2 is often gated since it's a Microsoft model requiring special access
-const CHAT_MODEL = 'Xenova/distilgpt2'; // Fallback to a publicly available model
+
+// Using models that don't require HF Pro access
+// Options for smaller LLMs that are publicly available without restrictions
+// For text generation, distilgpt2 needs special handling as it's not a chat model but a text completion model
+const CHAT_MODEL = 'Xenova/distilgpt2';
+
+// Larger context window size for distilgpt2 to handle our prompts
+const MODEL_CONTEXT_SIZE = 512;
 
 class AIService {
   constructor(fileService, dbPool) {
@@ -563,13 +568,26 @@ class AIService {
       // Prepare the prompt with context and chat history
       const prompt = this.buildChatPrompt(message, datasetContext, chatHistory);
       
-      // Generate response
+      // Log what we're about to send to the model
+      logger.info('Sending prompt to language model', { 
+        modelName: CHAT_MODEL,
+        promptLength: prompt.length
+      });
+      
+      // Generate response with parameters optimized for distilgpt2
+      // Note: distilgpt2 model has different parameters than Phi-2
       const result = await this.chatPipeline(prompt, {
-        max_new_tokens: 250,
-        temperature: 0.7,
-        repetition_penalty: 1.2,
-        top_p: 0.95,
-        do_sample: true
+        max_new_tokens: 100,       // Shorter responses for more coherence
+        temperature: 0.5,          // Lower temperature for more focused output
+        repetition_penalty: 1.5,   // Higher penalty to prevent repetition 
+        top_k: 50,                // Limit vocabulary to top 50 options at each step
+        top_p: 0.9,                // Sample from top 90% of probability mass
+        do_sample: true            // Use sampling instead of greedy decoding
+      });
+      
+      // Log raw result for debugging
+      logger.debug('Raw model result received', {
+        textLength: result.generated_text ? result.generated_text.length : 0
       });
       
       // Process the response
@@ -648,35 +666,66 @@ class AIService {
    * @returns {string} - Formatted prompt
    */
   buildChatPrompt(message, datasetContext, chatHistory) {
-    // Create a prompt with system instructions, dataset context, and the user message
-    let prompt = 'You are a helpful AI assistant that answers questions about datasets. ';
-    prompt += 'You have access to the following information about the dataset:\n\n';
-    prompt += datasetContext + '\n\n';
+    // Create a simplified prompt for distilgpt2 - it cannot handle complex instructions
+    // like Phi-2 could, so we need to be more straightforward
     
-    // Add specific instructions
-    prompt += 'Instructions:\n';
-    prompt += '- Answer questions based ONLY on the dataset information provided above\n';
-    prompt += '- If the answer cannot be determined from the provided information, say so\n';
-    prompt += '- Keep responses concise and focused on data analysis\n';
-    prompt += '- Use markdown formatting for better readability when appropriate\n\n';
+    // Compress the context to fit in smaller context window
+    const shortenedContext = this.createCompressedContext(datasetContext);
     
-    // Add chat history if available
-    if (chatHistory && chatHistory.length > 0) {
-      prompt += 'Previous conversation:\n';
-      chatHistory.forEach(chat => {
-        if (chat.role === 'user') {
-          prompt += `User: ${chat.content}\n`;
-        } else if (chat.role === 'assistant') {
-          prompt += `Assistant: ${chat.content}\n`;
-        }
-      });
-      prompt += '\n';
+    // Build a simple completion-style prompt rather than a chat-style prompt
+    let prompt = `Dataset information: ${shortenedContext}\n\n`;
+    
+    // Add a simpler instruction to guide the model
+    prompt += `Answer this question about the dataset: ${message}\n\n`;
+    prompt += `Answer: `;
+    
+    // Make sure the prompt is not too long for the model's context window
+    if (prompt.length > MODEL_CONTEXT_SIZE) {
+      // Shorten by removing some dataset context details if needed
+      const maxContextLength = MODEL_CONTEXT_SIZE - (message.length + 50);
+      const truncatedContext = shortenedContext.substring(0, maxContextLength) + '...';
+      
+      prompt = `Dataset information: ${truncatedContext}\n\n`;
+      prompt += `Answer this question about the dataset: ${message}\n\n`;
+      prompt += `Answer: `;
     }
     
-    // Add the current user message
-    prompt += `User: ${message}\n\nAssistant: `;
-    
+    logger.debug('Generated prompt for GPT model', { promptLength: prompt.length });
     return prompt;
+  }
+  
+  /**
+   * Create a compressed version of the dataset context for smaller models
+   * 
+   * @param {string} fullContext - The full dataset context
+   * @returns {string} - Shortened context
+   */
+  createCompressedContext(fullContext) {
+    // Split by lines
+    const lines = fullContext.split('\n');
+    
+    // Keep only the most important information
+    let compressed = [];
+    
+    for (const line of lines) {
+      // Skip empty lines
+      if (!line.trim()) continue;
+      
+      // Keep important dataset metadata
+      if (line.startsWith('Dataset:') || 
+          line.startsWith('Type:') || 
+          line.startsWith('Rows:') || 
+          line.startsWith('Columns:')) {
+        compressed.push(line);
+      }
+      
+      // Keep column names but simplify details
+      if (line.includes('(') && line.includes(')') && !line.startsWith('  *')) {
+        compressed.push(line);
+      }
+    }
+    
+    return compressed.join('\n');
   }
   
   /**
@@ -687,8 +736,17 @@ class AIService {
    * @returns {string} - Cleaned AI response
    */
   extractAIResponse(generatedText, prompt) {
-    // Extract only the assistant's response (removing the prompt)
-    if (!generatedText || generatedText === prompt) {
+    // Log raw response for debugging
+    logger.debug('Raw model response', { 
+      responseLength: generatedText ? generatedText.length : 0,
+      promptLength: prompt.length
+    });
+    
+    // Extract only the model's response (removing the prompt)
+    if (!generatedText || generatedText === prompt || generatedText.length <= prompt.length) {
+      logger.warn('Model returned no meaningful response', {
+        generatedText: generatedText ? generatedText.substring(0, 50) + '...' : 'undefined'
+      });
       return 'I apologize, but I couldn\'t generate a response. Please try asking in a different way.';
     }
     
@@ -696,12 +754,39 @@ class AIService {
     let response = generatedText.substring(prompt.length).trim();
     
     // Clean up any extra stuff the model might have added
+    // For GPT-style models they sometimes continue with conversation markers
     if (response.includes('User:')) {
       response = response.substring(0, response.indexOf('User:')).trim();
     }
     
-    if (response.length === 0) {
+    // DistilGPT2 often adds weird formatting or continues with repetitive text, cut at periods
+    const firstSentenceEnd = response.indexOf('.');
+    if (firstSentenceEnd > 20) { // Only if we have a reasonably long first sentence
+      response = response.substring(0, firstSentenceEnd + 1).trim();
+    } else {
+      // Otherwise try to find a reasonable cutoff
+      const maxLength = 100;
+      if (response.length > maxLength) {
+        response = response.substring(0, maxLength) + '...';
+      }
+    }
+    
+    // Check for any common tokens that indicate the model is trying to continue with code or markdown
+    const cutoffTokens = ['```', '###', '---', '```python', '```javascript', '```json'];
+    for (const token of cutoffTokens) {
+      if (response.includes(token)) {
+        response = response.substring(0, response.indexOf(token)).trim();
+      }
+    }
+    
+    // If we ended up with nothing useful
+    if (response.length < 5) {
       return 'I apologize, but I couldn\'t generate a response. Please try asking in a different way.';
+    }
+    
+    // Add a period at the end if missing
+    if (!response.endsWith('.') && !response.endsWith('!') && !response.endsWith('?')) {
+      response += '.';
     }
     
     return response;
