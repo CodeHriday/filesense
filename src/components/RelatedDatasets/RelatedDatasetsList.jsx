@@ -1,9 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiLink, FiEye, FiInfo, FiBarChart2, FiCalendar, FiFile } from 'react-icons/fi';
-import { formatDate, getTimeSince } from '../../utils/formatters';
 import { useAIFeatures } from '../../hooks';
 import './RelatedDatasets.css';
+
+// Utility functions
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toLocaleDateString();
+};
+
+const getTimeSince = (date) => {
+  if (!date) return '';
+  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+  
+  let interval = Math.floor(seconds / 31536000);
+  if (interval > 1) return interval + ' years ago';
+  if (interval === 1) return '1 year ago';
+  
+  interval = Math.floor(seconds / 2592000);
+  if (interval > 1) return interval + ' months ago';
+  if (interval === 1) return '1 month ago';
+  
+  interval = Math.floor(seconds / 86400);
+  if (interval > 1) return interval + ' days ago';
+  if (interval === 1) return '1 day ago';
+  
+  interval = Math.floor(seconds / 3600);
+  if (interval > 1) return interval + ' hours ago';
+  if (interval === 1) return '1 hour ago';
+  
+  interval = Math.floor(seconds / 60);
+  if (interval > 1) return interval + ' minutes ago';
+  if (interval === 1) return '1 minute ago';
+  
+  return 'just now';
+};
+
+const formatSimilarity = (value) => {
+  if (typeof value !== 'number') return '0%';
+  return `${Math.round(value * 100)}%`;
+};
 
 /**
  * Display a list of related datasets for a file
@@ -83,7 +121,7 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
               </div>
               <div className="similarity-score">
                 <span className={`score-value score-${Math.round(dataset.similarity * 10)}`}>
-                  {dataset.similarity_formatted} match
+                  {dataset.similarity_formatted || formatSimilarity(dataset.similarity)} match
                 </span>
               </div>
             </div>

@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { getRelatedDatasets, getRelationshipExplanation } from '../api/aiService';
+import { getRelatedDatasets, getRelationshipExplanation, chatWithDataset } from '../api/aiService';
 
 /**
  * Hook for AI-related features
@@ -16,6 +16,8 @@ const useAIFeatures = () => {
   const [relationshipExplanation, setRelationshipExplanation] = useState(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
   const [error, setError] = useState(null);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState(null);
 
   /**
    * Fetch related datasets for a file
