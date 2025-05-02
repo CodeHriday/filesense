@@ -4956,8 +4956,8 @@ app.use('/api/transformations-noauth', (req, res, next) => {
 console.log('Added unauthenticated transformation routes');
 
 // Add AI routes (temporarily commented out until model integration is complete)
-// app.use('/api/ai', authenticateToken, aiRoutes(diContainer));
-// console.log('Added AI routes');
+app.use('/api/ai', authenticateToken, aiRoutes(diContainer));
+console.log('Added AI routes');
 
 // Setup enhanced backend features
 setupEnhancedFeatures(app);

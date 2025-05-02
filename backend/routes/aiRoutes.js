@@ -16,7 +16,7 @@ const router = express.Router();
 module.exports = function(container) {
   const aiService = container.get('aIService');
   const fileService = container.get('fileService');
-  const logger = container.get('systemLogger');
+  const { systemLogger: logger } = require('../utils/logger');
   
   /**
    * Get related datasets for a file
