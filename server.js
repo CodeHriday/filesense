@@ -4944,6 +4944,7 @@ app.delete('/api/job-groups/:id/jobs/:jobId', authenticateToken, async (req, res
 
 // Add direct access to transformations API without authentication
 const transformationRoutes = require('./backend/routes/transformationRoutes');
+const aiRoutes = require('./backend/routes/aiRoutes');
 app.use('/api/transformations-noauth', (req, res, next) => {
   // Set a default admin user to prevent 'undefined' errors
   req.user = { 

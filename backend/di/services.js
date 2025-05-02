@@ -35,13 +35,23 @@ function registerServices(container) {
         
         // Only register if it's a class/constructor function
         if (typeof ServiceClass === 'function') {
-          container.register(serviceName, function() {
-            // Create instance with dependencies
-            return new ServiceClass(
-              this.get('dbPool'),
-              this.get('logger')
-            );
-          });
+          // Special handling for AIService which needs fileService as a dependency
+          if (file === 'AIService.js') {
+            container.register(serviceName, function() {
+              return new ServiceClass(
+                this.get('fileService'),
+                this.get('dbPool')
+              );
+            });
+          } else {
+            container.register(serviceName, function() {
+              // Create instance with dependencies
+              return new ServiceClass(
+                this.get('dbPool'),
+                this.get('logger')
+              );
+            });
+          }
           
           console.log(`Registered service: ${serviceName}`);
         }
