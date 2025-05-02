@@ -52,7 +52,7 @@ const FilePreview = ({ fileId, maxRows = 100 }) => {
     );
   }
   
-  if (!previewData || !previewData.data || previewData.data.length === 0) {
+  if (!previewData || (!previewData.rows && !previewData.data) || (previewData.rows && previewData.rows.length === 0) || (previewData.data && previewData.data.length === 0)) {
     return (
       <div className="file-preview-empty">
         <p>No data available to preview.</p>

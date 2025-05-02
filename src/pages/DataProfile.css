@@ -359,6 +359,20 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
+/* Preview tab styles */
+.preview-tab {
+  padding: 0;
+  margin-top: -1rem;
+  height: calc(100vh - 230px);
+  min-height: 400px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.tab-icon {
+  font-size: 1.1rem;
+  margin-right: 4px;
+}
+
 .distribution-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));

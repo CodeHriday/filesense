@@ -425,6 +425,16 @@ function DataProfile() {
     );
   };
 
+  const renderPreviewTab = () => {
+    if (!fileId) return null;
+    
+    return (
+      <div className="preview-tab">
+        <FilePreview fileId={fileId} maxRows={100} />
+      </div>
+    );
+  };
+
   return (
     <div className="data-profile-container">
       {loading ? (
@@ -485,12 +495,19 @@ function DataProfile() {
             >
               Distribution
             </button>
+            <button 
+              className={`tab-button ${activeTab === 'preview' ? 'active' : ''}`}
+              onClick={() => setActiveTab('preview')}
+            >
+              <FiTable className="tab-icon" /> Preview
+            </button>
           </div>
           
           <div className="profile-content">
             {activeTab === 'overview' && renderOverviewTab()}
             {activeTab === 'columns' && renderColumnsTab()}
             {activeTab === 'distribution' && renderDistributionTab()}
+            {activeTab === 'preview' && renderPreviewTab()}
           </div>
         </>
       ) : (
