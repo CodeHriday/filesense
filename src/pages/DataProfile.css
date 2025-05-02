@@ -368,6 +368,23 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
+/* Related Datasets Tab */
+.related-tab {
+  padding: 0;
+  margin-top: -1rem;
+  min-height: 400px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Chat Tab */
+.chat-tab {
+  padding: 0;
+  margin-top: -1rem;
+  height: calc(100vh - 230px);
+  min-height: 500px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
 .tab-icon {
   font-size: 1.1rem;
   margin-right: 4px;

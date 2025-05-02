@@ -29,12 +29,14 @@ const responseCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
 // Model configuration
 const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
+const CHAT_MODEL = 'Xenova/phi-2';
 
 class AIService {
   constructor(fileService, dbPool) {
     this.fileService = fileService;
     this.dbPool = dbPool;
     this.embeddingPipeline = null;
+    this.chatPipeline = null;
     this.initializeModels();
   }
 
@@ -54,6 +56,9 @@ class AIService {
       logger.info('Initializing embedding model...');
       this.embeddingPipeline = await pipeline('feature-extraction', EMBEDDING_MODEL);
       logger.info('Embedding model initialized successfully');
+      
+      // Note: We don't initialize the chat model right away to save resources
+      // It will be lazy-loaded when needed
     } catch (error) {
       logger.error('Failed to initialize AI models', { error: error.message });
       // Set a timeout to retry model initialization
@@ -349,6 +354,218 @@ class AIService {
         explanation: `Error analyzing relationship: ${error.message}`
       };
     }
+  }
+
+  /**
+   * Initialize chat model for dataset conversations
+   * Lazy-loaded only when needed
+   */
+  async initializeChatModel() {
+    if (this.chatPipeline) {
+      return this.chatPipeline;
+    }
+    
+    try {
+      if (!pipeline) {
+        logger.info('Pipeline not available yet, waiting for transformers module to load...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return this.initializeChatModel();
+      }
+      
+      logger.info('Initializing chat model...');
+      this.chatPipeline = await pipeline('text-generation', CHAT_MODEL);
+      logger.info('Chat model initialized successfully');
+      return this.chatPipeline;
+    } catch (error) {
+      logger.error('Failed to initialize chat model', { error: error.message });
+      throw new Error(`Failed to initialize chat model: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Chat with a dataset using natural language
+   * 
+   * @param {string} fileId - File ID to chat about
+   * @param {string} message - User message
+   * @param {Array} chatHistory - Previous chat messages (optional)
+   * @returns {Promise<Object>} - AI response
+   */
+  async chatWithDataset(fileId, message, chatHistory = []) {
+    try {
+      // Get dataset information
+      const fileDetails = await this.fileService.getFileById(fileId);
+      const fileProfile = await this.fileService.getFileProfile(fileId);
+      
+      if (!fileDetails || !fileProfile) {
+        logger.warn('File details or profile not found', { fileId });
+        return {
+          response: 'I don\'t have information about this dataset. Please try another file.',
+          error: 'Dataset not found'
+        };
+      }
+      
+      // Generate context about the dataset to help the model
+      const datasetContext = this.generateDatasetContext(fileDetails, fileProfile);
+      
+      // Create a cache key based on the message and file
+      const cacheKey = `chat_${fileId}_${Buffer.from(message).toString('base64').substring(0, 40)}`;
+      
+      // Check if we have a cached response
+      if (responseCache.has(cacheKey)) {
+        logger.debug('Using cached chat response');
+        return responseCache.get(cacheKey);
+      }
+      
+      // Initialize chat model if needed
+      if (!this.chatPipeline) {
+        await this.initializeChatModel();
+      }
+      
+      // Prepare the prompt with context and chat history
+      const prompt = this.buildChatPrompt(message, datasetContext, chatHistory);
+      
+      // Generate response
+      const result = await this.chatPipeline(prompt, {
+        max_new_tokens: 250,
+        temperature: 0.7,
+        repetition_penalty: 1.2,
+        top_p: 0.95,
+        do_sample: true
+      });
+      
+      // Process the response
+      const aiResponse = this.extractAIResponse(result.generated_text, prompt);
+      
+      // Cache the response
+      responseCache.set(cacheKey, { response: aiResponse });
+      
+      return { response: aiResponse };
+    } catch (error) {
+      logger.error('Error in chat with dataset', { error: error.message, fileId });
+      return {
+        response: 'I encountered an error processing your request. Please try again later.',
+        error: error.message
+      };
+    }
+  }
+  
+  /**
+   * Generate a context description for the dataset
+   * 
+   * @param {Object} fileDetails - File details
+   * @param {Object} fileProfile - File profile
+   * @returns {string} - Dataset context description
+   */
+  generateDatasetContext(fileDetails, fileProfile) {
+    // Create a context description of the dataset to help the model
+    let context = `Dataset: ${fileDetails.filename}\n`;
+    context += `Type: ${fileDetails.file_type.toUpperCase()}\n`;
+    context += `Rows: ${fileDetails.row_count}\n`;
+    context += `Columns: ${fileDetails.column_count}\n\n`;
+    
+    // Basic stats
+    if (fileProfile.basic_info) {
+      const basicInfo = fileProfile.basic_info;
+      context += `Created: ${basicInfo.created_at}\n`;
+      context += `Updated: ${basicInfo.updated_at || basicInfo.created_at}\n`;
+      context += `Size: ${basicInfo.file_size ? Math.round(basicInfo.file_size / 1024) + ' KB' : 'Unknown'}\n\n`;
+    }
+    
+    // Column information
+    if (fileProfile.columns && fileProfile.columns.length > 0) {
+      context += 'Column information:\n';
+      
+      fileProfile.columns.forEach(column => {
+        context += `- ${column.name} (${column.type}):\n`;
+        
+        if (column.unique !== undefined) context += `  * Unique values: ${column.unique}\n`;
+        if (column.missing !== undefined) context += `  * Missing values: ${column.missing}\n`;
+        
+        // Add numeric column stats
+        if (column.type === 'integer' || column.type === 'number' || column.type === 'decimal' || column.type === 'float') {
+          if (column.min !== undefined) context += `  * Min: ${column.min}\n`;
+          if (column.max !== undefined) context += `  * Max: ${column.max}\n`;
+          if (column.mean !== undefined) context += `  * Mean: ${column.mean}\n`;
+        }
+        
+        // Add string column stats
+        if (column.type === 'string' || column.type === 'text') {
+          if (column.most_frequent_value) {
+            context += `  * Most frequent: ${column.most_frequent_value} (${column.most_frequent_count || 'unknown'} times)\n`;
+          }
+        }
+      });
+    }
+    
+    return context;
+  }
+  
+  /**
+   * Build a prompt for the chat model
+   * 
+   * @param {string} message - User message
+   * @param {string} datasetContext - Dataset context description
+   * @param {Array} chatHistory - Previous chat messages
+   * @returns {string} - Formatted prompt
+   */
+  buildChatPrompt(message, datasetContext, chatHistory) {
+    // Create a prompt with system instructions, dataset context, and the user message
+    let prompt = 'You are a helpful AI assistant that answers questions about datasets. ';
+    prompt += 'You have access to the following information about the dataset:\n\n';
+    prompt += datasetContext + '\n\n';
+    
+    // Add specific instructions
+    prompt += 'Instructions:\n';
+    prompt += '- Answer questions based ONLY on the dataset information provided above\n';
+    prompt += '- If the answer cannot be determined from the provided information, say so\n';
+    prompt += '- Keep responses concise and focused on data analysis\n';
+    prompt += '- Use markdown formatting for better readability when appropriate\n\n';
+    
+    // Add chat history if available
+    if (chatHistory && chatHistory.length > 0) {
+      prompt += 'Previous conversation:\n';
+      chatHistory.forEach(chat => {
+        if (chat.role === 'user') {
+          prompt += `User: ${chat.content}\n`;
+        } else if (chat.role === 'assistant') {
+          prompt += `Assistant: ${chat.content}\n`;
+        }
+      });
+      prompt += '\n';
+    }
+    
+    // Add the current user message
+    prompt += `User: ${message}\n\nAssistant: `;
+    
+    return prompt;
+  }
+  
+  /**
+   * Extract the AI's response from the generated text
+   * 
+   * @param {string} generatedText - Full generated text from the model
+   * @param {string} prompt - Original prompt sent to the model
+   * @returns {string} - Cleaned AI response
+   */
+  extractAIResponse(generatedText, prompt) {
+    // Extract only the assistant's response (removing the prompt)
+    if (!generatedText || generatedText === prompt) {
+      return 'I apologize, but I couldn\'t generate a response. Please try asking in a different way.';
+    }
+    
+    // Remove the prompt to get just the model's completion
+    let response = generatedText.substring(prompt.length).trim();
+    
+    // Clean up any extra stuff the model might have added
+    if (response.includes('User:')) {
+      response = response.substring(0, response.indexOf('User:')).trim();
+    }
+    
+    if (response.length === 0) {
+      return 'I apologize, but I couldn\'t generate a response. Please try asking in a different way.';
+    }
+    
+    return response;
   }
 }
 
