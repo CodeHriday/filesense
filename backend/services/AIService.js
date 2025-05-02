@@ -17,6 +17,20 @@ let pipeline;
   try {
     const transformers = await import('@xenova/transformers');
     pipeline = transformers.pipeline;
+    
+    // Set Hugging Face token for authentication
+    if (process.env.HUGGING_FACE_TOKEN) {
+      // Configure Hugging Face token for HTTP requests
+      transformers.env.allowLocalModels = false;
+      // This is the correct way to set auth headers for Hugging Face models
+      transformers.env.backends.onnx.httpHeaders = {
+        Authorization: `Bearer ${process.env.HUGGING_FACE_TOKEN}`
+      };
+      logger.info('Set Hugging Face authentication token');
+    } else {
+      logger.warn('HUGGING_FACE_TOKEN not found in environment variables');
+    }
+    
     logger.info('Successfully imported @xenova/transformers');
   } catch (error) {
     logger.error('Failed to import @xenova/transformers', { error: error.message });
@@ -96,8 +110,16 @@ class AIService {
         normalize: true
       });
 
-      // Extract the embedding from the model output
-      const embedding = result.data;
+      // Extract the embedding from the model output and ensure it's a TypedArray
+      let embedding;
+      if (result.data && typeof result.data === 'object' && !Array.isArray(result.data) && !(result.data instanceof Float32Array)) {
+        // Convert from object to Float32Array
+        logger.debug('Converting embedding from object to Float32Array');
+        const values = Object.values(result.data);
+        embedding = new Float32Array(values);
+      } else {
+        embedding = result.data;
+      }
       
       // Cache the result
       embeddingCache.set(cacheKey, embedding);
@@ -112,21 +134,47 @@ class AIService {
   /**
    * Calculate the cosine similarity between two vectors
    * 
-   * @param {Float32Array} vec1 - First vector
-   * @param {Float32Array} vec2 - Second vector
+   * @param {Float32Array|Object} vec1 - First vector
+   * @param {Float32Array|Object} vec2 - Second vector
    * @returns {number} - Similarity score (0-1)
    */
   calculateSimilarity(vec1, vec2) {
-    if (!vec1 || !vec2 || vec1.length !== vec2.length) {
-      logger.warn('Invalid vectors for similarity calculation');
+    // Helper function to ensure we're working with array-like objects
+    const ensureArrayLike = (vec) => {
+      if (!vec) return null;
+      
+      // If it's already array-like with a length property, use it directly
+      if (vec.length !== undefined) return vec;
+      
+      // If it's an object, convert to array
+      if (typeof vec === 'object') {
+        return Object.values(vec);
+      }
+      
+      // If we can't handle it, return null
+      return null;
+    };
+    
+    // Ensure both vectors are array-like
+    const arrayVec1 = ensureArrayLike(vec1);
+    const arrayVec2 = ensureArrayLike(vec2);
+    
+    // Validate vectors
+    if (!arrayVec1 || !arrayVec2 || arrayVec1.length !== arrayVec2.length) {
+      logger.warn('Invalid vectors for similarity calculation', {
+        vec1Type: typeof vec1,
+        vec2Type: typeof vec2,
+        vec1Length: arrayVec1 ? arrayVec1.length : 'N/A',
+        vec2Length: arrayVec2 ? arrayVec2.length : 'N/A'
+      });
       return 0;
     }
 
     try {
       // Calculate dot product
       let dotProduct = 0;
-      for (let i = 0; i < vec1.length; i++) {
-        dotProduct += vec1[i] * vec2[i];
+      for (let i = 0; i < arrayVec1.length; i++) {
+        dotProduct += arrayVec1[i] * arrayVec2[i];
       }
 
       // Cosine similarity (vectors are already normalized)
