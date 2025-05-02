@@ -150,16 +150,18 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
                 
                 return (
                   <th key={index} className="quality-header">
-                    <div className="column-name">{column}</div>
-                    {qualityScore !== null && (
-                      <div 
-                        className="quality-score" 
-                        style={{ backgroundColor: scoreColor }}
-                        title={`Quality Score: ${scorePercentage}%\nCompleteness: 30%\nConsistency: 25%\nValidity: 20%\nUniqueness: 15%\nTimeliness: 10%`}
-                      >
-                        {scorePercentage}%
-                      </div>
-                    )}
+                    <div className="column-header-content">
+                      <span className="column-name">{column}</span>
+                      {qualityScore !== null && (
+                        <div 
+                          className="quality-score-circle" 
+                          style={{ backgroundColor: scoreColor }}
+                          title={`Quality Score: ${scorePercentage}%\nCompleteness: 30%\nConsistency: 25%\nValidity: 20%\nUniqueness: 15%\nTimeliness: 10%`}
+                        >
+                          {scorePercentage}
+                        </div>
+                      )}
+                    </div>
                   </th>
                 );
               })}
