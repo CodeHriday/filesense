@@ -135,6 +135,25 @@ export const runQualityCheck = async (fileId, rules = null) => {
 };
 
 /**
+ * Get file preview data by ID
+ */
+export const getFilePreview = async (fileId, limit = 100) => {
+  // Validate fileId before making the request
+  if (!fileId) {
+    console.error('Error fetching file preview: No file ID provided');
+    return Promise.reject(new Error('No file ID provided'));
+  }
+  
+  try {
+    const response = await axios.get(`${API_URL}/files/${fileId}/preview?limit=${limit}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching file preview for ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch file preview');
+  }
+};
+
+/**
  * Delete a file
  */
 export const deleteFile = async (fileId) => {

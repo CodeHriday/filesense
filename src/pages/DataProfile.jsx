@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload, FiTable } from 'react-icons/fi';
 import Card from '../components/Card';
-import { getFileDetails, getFileProfile } from '../api/fileService';
+import FilePreview from '../components/FilePreview';
+import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import './DataProfile.css';
 
