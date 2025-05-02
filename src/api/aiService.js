@@ -71,3 +71,29 @@ export const generateFileEmbedding = async (fileId) => {
     throw new Error(error.response?.data?.error || 'Failed to generate file embedding');
   }
 };
+
+/**
+ * Chat with a dataset using natural language
+ * 
+ * @param {string} fileId - ID of the file to chat about
+ * @param {string} message - User message
+ * @param {Array} chatHistory - Previous chat messages (optional)
+ * @returns {Promise<Object>} - AI response
+ */
+export const chatWithDataset = async (fileId, message, chatHistory = []) => {
+  try {
+    console.log(`Sending chat message for file ${fileId}...`);
+    const response = await axios.post(`${API_URL}/ai/chat`, {
+      fileId,
+      message,
+      chatHistory
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error in chat with dataset:', error);
+    return {
+      response: error.response?.data?.error || 'Failed to process chat message. Please try again later.',
+      error: true
+    };
+  }
+};

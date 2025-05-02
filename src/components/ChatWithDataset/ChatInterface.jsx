@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiSend, FiDownload, FiCopy, FiInfo } from 'react-icons/fi';
+import { chatWithDataset } from '../../api/aiService';
 import './ChatWithDataset.css';
 
 /**
@@ -34,23 +35,24 @@ const ChatInterface = ({ fileId, filename }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Mock function for sending a message to the AI
-  // In a real implementation, this would call the backend API
+  // Send a message to the AI service
   const sendMessageToAI = async (message) => {
     setIsLoading(true);
     
     try {
-      // This is a placeholder for the actual API call
-      // In real implementation, we would call the backend endpoint
+      // Filter out the welcome message to create chat history
+      const chatHistory = messages
+        .filter(msg => msg.id !== 'welcome')
+        .map(({ role, content }) => ({ role, content }));
       
-      // Simulating a network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the AI service API
+      const result = await chatWithDataset(fileId, message, chatHistory);
       
-      // Placeholder for the actual AI response
+      // Create the AI response message
       const aiResponse = {
         id: `resp-${Date.now()}`,
         role: 'assistant',
-        content: `This is a placeholder response. The backend API for the chat interface is still under implementation. Your question was: "${message}"`,
+        content: result.response,
         timestamp: new Date().toISOString()
       };
       

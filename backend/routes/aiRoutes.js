@@ -93,5 +93,29 @@ module.exports = function(container) {
     }
   });
 
+  /**
+   * Chat with a dataset using natural language
+   */
+  router.post('/chat', async (req, res) => {
+    try {
+      const { fileId, message, chatHistory = [] } = req.body;
+
+      if (!fileId || !message) {
+        return res.status(400).json({ error: 'fileId and message are required' });
+      }
+
+      logger.info('Chat with dataset', { fileId, messageLength: message.length });
+      
+      const chatResponse = await aiService.chatWithDataset(fileId, message, chatHistory);
+      res.json(chatResponse);
+    } catch (error) {
+      logger.error('Error in chat with dataset', { error: error.message });
+      res.status(500).json({ 
+        error: error.message,
+        response: 'An error occurred while processing your request.' 
+      });
+    }
+  });
+
   return router;
 };
