@@ -61,14 +61,19 @@ async function migrateTransformConnections() {
     
     // Get list of connections from transform storage_connections table
     let transformConnections = [];
-    if (hasIsActiveColumn) {
-      // If is_active column exists, only fetch active connections
-      const result = await client.query('SELECT * FROM storage_connections WHERE is_active = TRUE');
+    // Check if status column exists
+    const hasStatusColumn = columns.includes('status');
+    
+    if (hasStatusColumn) {
+      // If status column exists, only fetch active connections
+      const result = await client.query("SELECT * FROM storage_connections WHERE status = 'active'");
       transformConnections = result.rows;
+      console.log(`Found ${transformConnections.length} active connections in Transform`);
     } else {
       // Otherwise, fetch all connections
       const result = await client.query('SELECT * FROM storage_connections');
       transformConnections = result.rows;
+      console.log(`Found ${transformConnections.length} connections in Transform (status unknown)`);
     }
 
     if (transformConnections.length === 0) {
@@ -103,36 +108,58 @@ async function migrateTransformConnections() {
       }
 
       // Prepare config object
-      const config = {};
+      let config = {};
       
       const connectionType = connection.type || connection.connection_type;
       
-      if (connectionType === 'aws') {
-        config.region = connection.region || 'us-east-1';
-        config.bucket_name = connection.bucket_name || 'unknown-bucket';
-        config.access_key = connection.access_key;
-        // Don't copy secret keys for security reasons
-      } else if (connectionType === 'gcp') {
-        config.project_id = connection.project_id;
-        config.bucket_name = connection.bucket_name;
-        config.client_email = connection.client_email;
-        // Don't copy private keys for security reasons
-      } else if (connectionType === 'azure') {
-        config.account_name = connection.account_name;
-        config.container_name = connection.container_name;
-        // Don't copy account keys for security reasons
-      } else if (connectionType === 'snowflake') {
-        config.snowflake_account = connection.snowflake_account;
-        config.snowflake_username = connection.snowflake_username;
-        config.snowflake_warehouse = connection.snowflake_warehouse;
-        config.snowflake_database = connection.snowflake_database;
-        config.snowflake_schema = connection.snowflake_schema;
-        config.snowflake_role = connection.snowflake_role;
-        // Don't copy passwords for security reasons
-      } else if (!connectionType) {
+      if (!connectionType) {
         console.log('Connection without type found, skipping');
         continue;
       }
+      
+      // Check if there's a config field and try to use it directly
+      if (connection.config) {
+        if (typeof connection.config === 'string') {
+          try {
+            config = JSON.parse(connection.config);
+          } catch (e) {
+            console.log(`Error parsing config JSON for ${connectionName}: ${e.message}`);
+            // Continue with empty config
+          }
+        } else {
+          // If it's already an object, use it directly
+          config = connection.config;
+        }
+      }
+      
+      // If the config is still empty or doesn't have crucial fields, fall back to individual fields
+      if (Object.keys(config).length === 0) {
+        if (connectionType === 'aws') {
+          config.region = connection.region || 'us-east-1';
+          config.bucket_name = connection.bucket_name || 'unknown-bucket';
+          config.access_key = connection.access_key;
+          // Don't copy secret keys for security reasons
+        } else if (connectionType === 'gcp') {
+          config.project_id = connection.project_id;
+          config.bucket_name = connection.bucket_name;
+          config.client_email = connection.client_email;
+          // Don't copy private keys for security reasons
+        } else if (connectionType === 'azure') {
+          config.account_name = connection.account_name;
+          config.container_name = connection.container_name;
+          // Don't copy account keys for security reasons
+        } else if (connectionType === 'snowflake') {
+          config.snowflake_account = connection.snowflake_account;
+          config.snowflake_username = connection.snowflake_username;
+          config.snowflake_warehouse = connection.snowflake_warehouse;
+          config.snowflake_database = connection.snowflake_database;
+          config.snowflake_schema = connection.snowflake_schema;
+          config.snowflake_role = connection.snowflake_role;
+          // Don't copy passwords for security reasons
+        }
+      }
+      
+      console.log(`Prepared config for ${connectionName} with properties: ${Object.keys(config).join(', ')}`)
 
       // Insert into transform_connections table with source='transform'
       await client.query(`
@@ -163,7 +190,7 @@ async function migrateTransformConnections() {
         true          // Mark as active
       ]);
 
-      console.log(`Migrated connection: ${connection.name}`);
+      console.log(`Migrated connection: ${connectionName}`);
       migratedCount++;
     }
 
