@@ -153,7 +153,7 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
                 onClick={() => handleExplanationRequest(dataset.file_id)}
                 disabled={loadingExplanation}
               >
-                <FiInfo /> Explain Relationship
+                <FiInfo /> View Explanation
               </button>
             </div>
           </div>
