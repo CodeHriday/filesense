@@ -1374,11 +1374,18 @@ app.use('/api/connections', connectionRoutes);
 
 // Migrate connections from old table to new shared table
 const migrateConnectionsSchema = require('./backend/migrations/createSharedConnectionsTable');
+const { migrateTransformConnections } = require('./backend/migrations/migrateTransformConnections');
 
-// Run migration asynchronously
+// Run schema migration asynchronously
 migrateConnectionsSchema()
   .then(result => {
-    console.log('Connection migration result:', result.message);
+    console.log('Connection schema migration result:', result.message);
+    
+    // After schema is created, migrate transform connections
+    return migrateTransformConnections();
+  })
+  .then(count => {
+    console.log(`Transform connections migration completed. Migrated ${count} connections.`);
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
