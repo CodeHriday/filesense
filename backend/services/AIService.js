@@ -454,18 +454,24 @@ class AIService {
       let relationshipType = 'unknown';
       let explanation = '';
       
+      // Get the similarity score to include in the explanation
+      const embedding1 = await this.generateFileEmbedding(file1, profile1);
+      const embedding2 = await this.generateFileEmbedding(file2, profile2);
+      const similarityScore = this.calculateSimilarity(embedding1, embedding2);
+      const similarityPercentage = Math.round(similarityScore * 100);
+      
       if (overlapPercentage >= 80) {
         relationshipType = 'nearly_identical';
-        explanation = `The datasets appear to be nearly identical with ${Math.round(overlapPercentage)}% column overlap.`;
+        explanation = `The datasets appear to be nearly identical with ${Math.round(overlapPercentage)}% column structure overlap.`;
       } else if (overlapPercentage >= 50) {
         relationshipType = 'strongly_related';
-        explanation = `The datasets are strongly related with ${Math.round(overlapPercentage)}% column overlap.`;
+        explanation = `The datasets are strongly related with ${Math.round(overlapPercentage)}% column structure overlap.`;
       } else if (overlapPercentage >= 30) {
         relationshipType = 'moderately_related';
-        explanation = `The datasets are moderately related with ${Math.round(overlapPercentage)}% column overlap.`;
+        explanation = `The datasets are moderately related with ${Math.round(overlapPercentage)}% column structure overlap.`;
       } else {
         relationshipType = 'weakly_related';
-        explanation = `The datasets appear to be only weakly related with ${Math.round(overlapPercentage)}% column overlap.`;
+        explanation = `The datasets have ${Math.round(overlapPercentage)}% column structure overlap, but show a ${similarityPercentage}% content similarity based on AI analysis.`;
       }
       
       // Add file type information
