@@ -6,8 +6,8 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import './Connections.css';
 
-// Use relative URL for API calls in the same domain
-const API_URL = '/api';
+// Import the connection service
+import { getConnections, createConnection, updateConnection, deleteConnection, testConnection } from '../api/connectionService';
 
 const Connections = () => {
   const { hasWritePermission } = useAuth();
@@ -67,8 +67,8 @@ const Connections = () => {
   const fetchConnections = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/connections`);
-      setConnections(response.data);
+      const data = await getConnections();
+      setConnections(data);
       setError(null);
     } catch (err) {
       console.error('Error fetching connections:', err);
@@ -182,7 +182,7 @@ const Connections = () => {
     }
     
     try {
-      await axios.delete(`${API_URL}/connections/${id}`);
+      await deleteConnection(id);
       // Update local state without refetching
       setConnections(connections.filter(conn => conn.id !== id));
     } catch (err) {
@@ -256,9 +256,9 @@ const Connections = () => {
     
     try {
       if (editMode) {
-        await axios.put(`${API_URL}/connections/${editId}`, formData);
+        await updateConnection(editId, formData);
       } else {
-        await axios.post(`${API_URL}/connections`, formData);
+        await createConnection(formData);
       }
       
       // Reset form and fetch updated connections

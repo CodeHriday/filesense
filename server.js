@@ -1368,28 +1368,21 @@ app.get('/api/alerts/history', async (req, res) => {
   }
 });
 
-// Connections endpoint
-app.get('/api/connections', async (req, res) => {
-  try {
-    // Create connections table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS storage_connections (
-        id SERIAL PRIMARY KEY,
-        connection_name VARCHAR(100) NOT NULL,
-        connection_type VARCHAR(50) NOT NULL,
-        connection_details JSON NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    
-    const result = await pool.query('SELECT * FROM storage_connections');
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error fetching connections:', err);
-    res.status(500).json({ error: 'Failed to fetch connections' });
-  }
-});
+// Connection routes
+const connectionRoutes = require('./backend/routes/connectionRoutes');
+app.use('/api/connections', connectionRoutes);
+
+// Migrate connections from old table to new shared table
+const migrateConnectionsSchema = require('./backend/migrations/createSharedConnectionsTable');
+
+// Run migration asynchronously
+migrateConnectionsSchema()
+  .then(result => {
+    console.log('Connection migration result:', result.message);
+  })
+  .catch(err => {
+    console.error('Error during connection migration:', err);
+  });
 
 // Mappings endpoint
 app.get('/api/mappings', async (req, res) => {
