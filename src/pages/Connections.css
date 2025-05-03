@@ -406,6 +406,91 @@
   padding: 40px;
 }
 
+/* Test button and results */
+.test-btn {
+  background-color: #f0f8ff;
+  border: 1px solid #b0d8ff;
+  border-radius: 4px;
+  color: #0066cc;
+  font-size: 13px;
+  padding: 4px 12px;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.test-btn:hover {
+  background-color: #d6eaff;
+}
+
+.test-btn:disabled {
+  background-color: #e9ecef;
+  border-color: #ced4da;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.test-result {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.test-result.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.test-result.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.error-message {
+  word-break: break-word;
+}
+
+/* Shared connection indicator */
+.connection-title {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.shared-indicator {
+  position: absolute;
+  top: -8px;
+  right: -20px;
+  background-color: #e9ecef;
+  color: #495057;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shared-icon {
+  font-size: 14px;
+}
+
+.source-app {
+  display: inline-block;
+  background-color: #e9ecef;
+  color: #495057;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .connections-grid {

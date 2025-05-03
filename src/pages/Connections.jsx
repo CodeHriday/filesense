@@ -70,7 +70,19 @@ const Connections = () => {
     try {
       setLoading(true);
       const data = await getConnections();
-      setConnections(data);
+      
+      // Debug log to see the structure of connections
+      console.log('Connections data:', data);
+      
+      // Process connections to ensure shared status is set
+      const processedConnections = data.map(conn => ({
+        ...conn,
+        // Determine if connection is shared (has source_application that is not data_observatory)
+        shared: conn.source_application && conn.source_application !== 'data_observatory'
+      }));
+      
+      console.log('Processed connections:', processedConnections);
+      setConnections(processedConnections);
       setError(null);
     } catch (err) {
       console.error('Error fetching connections:', err);
@@ -202,14 +214,39 @@ const Connections = () => {
     try {
       setTestingConnection(connection.id);
       
-      // For existing connections we need to get the config from the connection object
-      // This is typically stored in the config field in the new structure
-      const configData = connection.config || connection;
+      console.log('Testing connection:', connection);
       
-      const result = await testConnection({
-        type: connection.connection_type || connection.type,
-        ...configData
-      });
+      // Extract properly formatted data for testing
+      // Connections have different property structures depending on their source
+      // New connections use config object, older ones have flat properties
+      const configData = {};
+      
+      // First get the connection type (might be in different properties)
+      const connectionType = connection.connection_type || connection.type;
+      configData.connection_type = connectionType;
+      
+      // Copy all relevant connection properties
+      if (connectionType === 'aws') {
+        configData.region = connection.region || (connection.config?.region);
+        configData.bucket_name = connection.bucket_name || (connection.config?.bucket_name);
+        configData.access_key = connection.access_key || (connection.config?.access_key);
+        configData.secret_key = connection.secret_key || (connection.config?.secret_key);
+      } else if (connectionType === 'gcp') {
+        configData.project_id = connection.project_id || (connection.config?.project_id);
+        configData.bucket_name = connection.bucket_name || (connection.config?.bucket_name);
+        configData.client_email = connection.client_email || (connection.config?.client_email);
+        configData.private_key = connection.private_key || (connection.config?.private_key);
+      } else if (connectionType === 'azure') {
+        configData.account_name = connection.account_name || (connection.config?.account_name);
+        configData.account_key = connection.account_key || (connection.config?.account_key);
+        configData.container_name = connection.container_name || (connection.config?.container_name);
+      }
+      
+      console.log('Config data for testing:', configData);
+      
+      const result = await testConnection(configData);
+      
+      console.log('Test result:', result);
       
       setTestResults({
         ...testResults,
@@ -1239,7 +1276,8 @@ const Connections = () => {
                       <div className="connection-header">
                         {renderConnectionIcon(connection.connection_type || connection.type)}
                         <div className="connection-title">
-                          {connection.shared && (
+                          {/* Check if connection is from another source application */}
+                          {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
                             <div className="shared-indicator" title="Shared with Transform">
                               <FiLink className="shared-icon" />
                             </div>
