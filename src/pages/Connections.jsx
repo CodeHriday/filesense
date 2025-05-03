@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
@@ -17,6 +17,8 @@ const Connections = () => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [testingConnection, setTestingConnection] = useState(null);
+  const [testResults, setTestResults] = useState({});
   
   // Connection form state
   const [formData, setFormData] = useState({
@@ -194,6 +196,40 @@ const Connections = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+  };
+  
+  const handleTestConnection = async (connection) => {
+    try {
+      setTestingConnection(connection.id);
+      
+      // For existing connections we need to get the config from the connection object
+      // This is typically stored in the config field in the new structure
+      const configData = connection.config || connection;
+      
+      const result = await testConnection({
+        type: connection.connection_type || connection.type,
+        ...configData
+      });
+      
+      setTestResults({
+        ...testResults,
+        [connection.id]: {
+          success: result.success,
+          message: result.message || (result.success ? 'Connection successful' : 'Connection failed')
+        }
+      });
+    } catch (err) {
+      console.error('Error testing connection:', err);
+      setTestResults({
+        ...testResults,
+        [connection.id]: {
+          success: false,
+          message: err.response?.data?.message || 'Connection test failed. Please check your credentials.'
+        }
+      });
+    } finally {
+      setTestingConnection(null);
+    }
   };
   
   const handleConnectionTypeChange = (e) => {
@@ -1201,8 +1237,13 @@ const Connections = () => {
                   {connections.map(connection => (
                     <Card key={connection.id} className="connection-card">
                       <div className="connection-header">
-                        {renderConnectionIcon(connection.connection_type)}
+                        {renderConnectionIcon(connection.connection_type || connection.type)}
                         <div className="connection-title">
+                          {connection.shared && (
+                            <div className="shared-indicator" title="Shared with Transform">
+                              <FiLink className="shared-icon" />
+                            </div>
+                          )}
                           <h3>{connection.connection_name}</h3>
                           <span className="connection-type">
                             {getConnectionTypeLabel(connection.connection_type)}
@@ -1211,6 +1252,13 @@ const Connections = () => {
                         <div className="connection-actions">
                           {hasWritePermission('connections') && (
                             <>
+                              <button 
+                                className="test-btn" 
+                                onClick={() => handleTestConnection(connection)}
+                                disabled={testingConnection === connection.id}
+                              >
+                                {testingConnection === connection.id ? 'Testing...' : 'Test'}
+                              </button>
                               <button 
                                 className="action-btn edit-btn" 
                                 onClick={() => handleEdit(connection)}
@@ -1231,7 +1279,21 @@ const Connections = () => {
                       </div>
                       
                       <div className="connection-details">
+                        {connection.source_application && connection.source_application !== 'data_observatory' && (
+                          <div className="source-app">Source: {connection.source_application}</div>
+                        )}
                         {formatConnectionDetails(connection)}
+                        
+                        {testResults[connection.id] && (
+                          <div className={`test-result ${testResults[connection.id].success ? 'success' : 'error'}`}>
+                            {testResults[connection.id].success ? (
+                              <><FiCheckCircle /> Connection is working</>
+                            ) : (
+                              <div className="error-message">{testResults[connection.id].message}</div>
+                            )}
+                          </div>
+                        )}
+                        
                         <div className="connection-meta">
                           <span className="last-used">
                             Last used: {connection.last_used_at ? 
