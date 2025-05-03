@@ -59,6 +59,10 @@
   gap: 12px;
 }
 
+.profile-actions .btn-primary {
+  color: white; /* Ensure text is white for better visibility */
+}
+
 .profile-tabs {
   display: flex;
   margin-bottom: 28px;
