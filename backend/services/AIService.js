@@ -287,7 +287,7 @@ class AIService {
    * @param {number} threshold - Minimum similarity threshold (0-1)
    * @returns {Promise<Array>} - Array of related datasets with similarity scores
    */
-  async findRelatedDatasets(fileId, limit = 5, threshold = 0.7) {
+  async findRelatedDatasets(fileId, limit = 5, threshold = 0.5) {
     try {
       // Get the target file details and profile
       const fileDetails = await this.fileService.getFileById(fileId);
@@ -312,8 +312,14 @@ class AIService {
       
       // Calculate similarity with other files
       const similarityResults = [];
+      const seenFilenames = new Set(); // Track filenames to avoid duplicates
       
       for (const file of otherFiles) {
+        // Skip if we've already seen this filename (prefer the most recent version)
+        if (seenFilenames.has(file.filename)) {
+          continue;
+        }
+        
         // Get profile for comparison file
         const comparisonProfile = await this.fileService.getFileProfile(file.file_id);
         
@@ -338,6 +344,9 @@ class AIService {
             created_at: file.created_at,
             quality_score: file.quality_score
           });
+          
+          // Mark this filename as seen
+          seenFilenames.add(file.filename);
         }
       }
       
@@ -371,31 +380,55 @@ class AIService {
         return deserializeTypedArray(cachedValue);
       }
 
-      // Create a text representation of the file for embedding
-      let textRepresentation = `Filename: ${fileDetails.filename}\n`;
-      textRepresentation += `Type: ${fileDetails.file_type}\n`;
-      textRepresentation += `Rows: ${fileDetails.row_count}\n`;
-      textRepresentation += `Columns: ${fileDetails.column_count}\n\n`;
+      // Create a rich text representation of the file for embedding
+      let textRepresentation = '';
       
-      // Add column information if available
+      // File metadata
+      textRepresentation += `Dataset: ${fileDetails.filename}\n`;
+      textRepresentation += `Format: ${fileDetails.file_type}\n`;
+      textRepresentation += `Size: ${fileDetails.row_count} rows, ${fileDetails.column_count} columns\n`;
+      
+      // Add quality information if available
+      if (fileDetails.quality_score) {
+        textRepresentation += `Quality Score: ${fileDetails.quality_score}%\n`;
+      }
+      
+      textRepresentation += '\n';
+      
+      // Add detailed column information if available
       if (fileProfile && fileProfile.columns) {
-        textRepresentation += 'Columns:\n';
-        fileProfile.columns.forEach(column => {
-          textRepresentation += `${column.name} (${column.type}): `;
-          textRepresentation += `${column.description || 'No description'}\n`;
+        textRepresentation += 'Schema and Statistics:\n';
+        fileProfile.columns.forEach((column, index) => {
+          textRepresentation += `Column ${index + 1}: ${column.name}\n`;
+          textRepresentation += `  Data Type: ${column.type}\n`;
           
-          // Add some statistical information
-          if (column.stats) {
-            if (column.stats.unique_count) textRepresentation += `Unique values: ${column.stats.unique_count}\n`;
-            if (column.stats.min_value) textRepresentation += `Min: ${column.stats.min_value}\n`;
-            if (column.stats.max_value) textRepresentation += `Max: ${column.stats.max_value}\n`;
-            if (column.stats.avg_value) textRepresentation += `Average: ${column.stats.avg_value}\n`;
-            if (column.stats.missing_count) textRepresentation += `Missing values: ${column.stats.missing_count}\n`;
-          }
+          // Add statistical information for better differentiation
+          if (column.unique !== undefined) textRepresentation += `  Unique Values: ${column.unique}\n`;
+          if (column.missing !== undefined) textRepresentation += `  Missing Values: ${column.missing}\n`;
+          if (column.most_frequent_value) textRepresentation += `  Most Frequent: ${column.most_frequent_value}\n`;
+          if (column.least_frequent_value) textRepresentation += `  Least Frequent: ${column.least_frequent_value}\n`;
+          
+          // Add range information for numeric columns
+          if (column.min !== null && column.min !== undefined) textRepresentation += `  Min Value: ${column.min}\n`;
+          if (column.max !== null && column.max !== undefined) textRepresentation += `  Max Value: ${column.max}\n`;
+          
+          textRepresentation += '\n';
+        });
+        
+        // Add a summary of column types to help with categorization
+        const columnTypes = fileProfile.columns.map(col => col.type);
+        const typeFrequency = columnTypes.reduce((acc, type) => {
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {});
+        
+        textRepresentation += 'Data Types Distribution:\n';
+        Object.entries(typeFrequency).forEach(([type, count]) => {
+          textRepresentation += `  ${type}: ${count} columns\n`;
         });
       }
 
-      // Generate embedding from text representation
+      // Generate embedding from rich text representation
       const embedding = await this.generateEmbedding(textRepresentation);
       
       // Cache the embedding (serialize if it's a TypedArray)
