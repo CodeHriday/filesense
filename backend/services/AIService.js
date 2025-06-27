@@ -835,7 +835,7 @@ class AIService {
 
   /**
    * Generate intelligent responses based on dataset analysis and user questions
-   * Uses rule-based logic to provide accurate, contextual answers
+   * Uses rule-based logic to provide accurate, contextual answers with conversational tone
    * 
    * @param {string} message - User's question
    * @param {Object} fileDetails - File metadata
@@ -853,37 +853,55 @@ class AIService {
 
     // Greeting and introduction
     if (msg.includes('hello') || msg.includes('hi') || msg.includes('help')) {
-      return `Hello! I'm your data assistant for "${filename}". This ${fileType} file contains ${rowCount} rows and ${columnCount} columns with a quality score of ${qualityScore.toFixed(1)}%. Ask me about columns, data quality, statistics, or patterns in your dataset.`;
+      const greetings = [
+        `Hey there! I'm here to help you explore "${filename}". It's a ${fileType} file with ${rowCount} rows and ${columnCount} columns, and I can see it has a quality score of ${qualityScore.toFixed(1)}% - that's pretty good! What would you like to know about your data?`,
+        `Hi! I've taken a look at your "${filename}" file, and it looks interesting! With ${rowCount} rows and ${columnCount} columns, there's definitely some good data to explore. What questions do you have about it?`,
+        `Hello! I'm your personal data analyst for this session. I can see you've got "${filename}" loaded up - it's a ${fileType} file with ${columnCount} different columns and ${rowCount} records. What would you like to discover about your data?`
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
     }
 
     // File overview questions
     if (msg.includes('how many') && (msg.includes('column') || msg.includes('field'))) {
       const columnNames = columns.map(c => c.name).join(', ');
-      return `This dataset has ${columnCount} columns: ${columnNames}. Each column contains different types of information about your data.`;
+      return `Great question! Your dataset has ${columnCount} columns in total. Let me list them for you: ${columnNames}. Each of these columns tells us something different about your data - quite a nice variety to work with!`;
     }
 
     if (msg.includes('how many') && msg.includes('row')) {
-      return `This dataset contains ${rowCount} rows of data. Each row represents a single record or observation in your dataset.`;
+      const rowDesc = rowCount > 100 ? 'plenty of data points' : rowCount > 10 ? 'a good amount of data' : 'a few data points';
+      return `Your dataset contains ${rowCount} rows of data - that's ${rowDesc} to analyze! Each row represents one complete record, so you have ${rowCount} individual observations to explore.`;
     }
 
     if (msg.includes('size') || msg.includes('big')) {
-      const sizeDesc = rowCount > 10000 ? 'large' : rowCount > 1000 ? 'medium-sized' : 'small';
-      return `This is a ${sizeDesc} dataset with ${rowCount} rows and ${columnCount} columns. The file size is ${fileDetails.file_size} bytes.`;
+      const sizeDesc = rowCount > 10000 ? 'quite large' : rowCount > 1000 ? 'medium-sized' : 'compact';
+      const encouragement = rowCount > 1000 ? 'Perfect for detailed analysis!' : 'Great for quick insights!';
+      return `This is a ${sizeDesc} dataset with ${rowCount} rows and ${columnCount} columns. The file weighs in at ${fileDetails.file_size} bytes. ${encouragement}`;
     }
 
     // Data quality questions
     if (msg.includes('quality') || msg.includes('good') || msg.includes('clean')) {
       let qualityDesc = 'excellent';
-      if (qualityScore < 90) qualityDesc = 'good';
-      if (qualityScore < 70) qualityDesc = 'fair';
-      if (qualityScore < 50) qualityDesc = 'poor';
+      let encouragement = "That's fantastic - your data is in great shape for analysis!";
+      
+      if (qualityScore < 90) {
+        qualityDesc = 'pretty good';
+        encouragement = "That's solid quality - should work well for most analyses!";
+      }
+      if (qualityScore < 70) {
+        qualityDesc = 'fair';
+        encouragement = "There's room for improvement, but it's definitely workable.";
+      }
+      if (qualityScore < 50) {
+        qualityDesc = 'needs some attention';
+        encouragement = "You might want to clean this up a bit before diving into analysis.";
+      }
       
       const missingData = columns.filter(c => c.missing > 0);
       const missingText = missingData.length > 0 
-        ? ` Some columns have missing values: ${missingData.map(c => `${c.name} (${c.missing} missing)`).join(', ')}.`
-        : ' All columns appear to be complete with no missing values.';
+        ? ` I did notice some missing values in: ${missingData.map(c => `${c.name} (${c.missing} gaps)`).join(', ')}. Nothing too concerning though!`
+        : ' The good news is that all your columns are complete - no missing values anywhere!';
       
-      return `Your data quality is ${qualityDesc} with a score of ${qualityScore.toFixed(1)}%.${missingText}`;
+      return `Looking at your data quality, I'd say it's ${qualityDesc} with a score of ${qualityScore.toFixed(1)}%. ${encouragement}${missingText}`;
     }
 
     // Column-specific questions
@@ -896,14 +914,23 @@ class AIService {
       const col = mentionedColumn;
       const uniquePercent = ((col.unique / rowCount) * 100).toFixed(1);
       
-      let response = `The "${col.name}" column contains ${col.type} data with ${col.unique} unique values (${uniquePercent}% unique).`;
+      let response = `Ah, you're asking about the "${col.name}" column! It's a ${col.type} column with ${col.unique} unique values, which means about ${uniquePercent}% of the values are distinct.`;
       
       if (col.missing > 0) {
-        response += ` It has ${col.missing} missing values.`;
+        response += ` Just a heads up - there are ${col.missing} missing values in this column, so keep that in mind.`;
+      } else {
+        response += ` The good news is there are no missing values here!`;
       }
       
       if (col.most_frequent_value) {
-        response += ` The most common value is "${col.most_frequent_value}".`;
+        response += ` I noticed that "${col.most_frequent_value}" appears most frequently in this column.`;
+      }
+      
+      // Add contextual insights based on uniqueness
+      if (uniquePercent > 95) {
+        response += ` This looks like it might be an identifier column since almost every value is unique.`;
+      } else if (uniquePercent < 10) {
+        response += ` This seems to be more of a categorical column with repeated values.`;
       }
       
       return response;
@@ -938,13 +965,17 @@ class AIService {
     if (msg.includes('missing') || msg.includes('null') || msg.includes('empty')) {
       const missingCols = columns.filter(c => c.missing > 0);
       if (missingCols.length === 0) {
-        return 'Great news! Your dataset appears to be complete with no missing values in any column.';
+        return 'Excellent news! I\'ve checked every column and your dataset is completely clean - no missing values anywhere. That\'s pretty rare and means you can dive straight into analysis without worrying about data gaps!';
       }
       
       const totalMissing = missingCols.reduce((sum, col) => sum + col.missing, 0);
       const missingPercent = ((totalMissing / (rowCount * columnCount)) * 100).toFixed(2);
       
-      return `Your dataset has missing values in ${missingCols.length} columns (${missingPercent}% of all data points). Columns with missing data: ${missingCols.map(c => `${c.name} (${c.missing} missing)`).join(', ')}.`;
+      let severity = 'manageable';
+      if (missingPercent > 10) severity = 'significant';
+      if (missingPercent > 25) severity = 'substantial';
+      
+      return `I found missing values in ${missingCols.length} of your columns, which represents about ${missingPercent}% of all data points - that's ${severity}. Here's the breakdown: ${missingCols.map(c => `${c.name} has ${c.missing} gaps`).join(', ')}. Depending on your analysis, you might want to consider how to handle these.`;
     }
 
     // Unique values questions
@@ -989,11 +1020,17 @@ class AIService {
       return `With ${rowCount} rows and ${columnCount} columns, this dataset offers good analytical potential. Consider exploring relationships between different columns.`;
     }
 
-    // Default response with helpful suggestions
+    // Default response with helpful suggestions - make it more conversational
     const columnNames = columns.slice(0, 3).map(c => c.name).join(', ');
     const moreColumns = columns.length > 3 ? ` and ${columns.length - 3} more` : '';
     
-    return `I can help you understand this ${fileType} dataset with ${rowCount} rows and columns like ${columnNames}${moreColumns}. Try asking about: data quality, column details, missing values, or analysis suggestions.`;
+    const responses = [
+      `I'm here to help you explore this ${fileType} dataset! It has ${rowCount} rows with interesting columns like ${columnNames}${moreColumns}. What would you like to know? I can tell you about data quality, dive into specific columns, check for missing values, or suggest some analysis ideas.`,
+      `Interesting question! While I was thinking about that, let me tell you what I can see in your data. This ${fileType} file has ${rowCount} rows and includes columns like ${columnNames}${moreColumns}. Feel free to ask me about any specific aspect - I'm here to help!`,
+      `I'd love to help you with that! Your dataset looks quite interesting with ${rowCount} rows and columns including ${columnNames}${moreColumns}. What specifically would you like to explore? I can discuss data quality, column analysis, patterns, or suggest some insights to look for.`
+    ];
+    
+    return responses[Math.floor(Math.random() * responses.length)];
   }
 }
 
