@@ -367,66 +367,422 @@ const Connections = () => {
   const renderFormFields = () => {
     const { connection_type } = formData;
     
-    // Common fields for all connection types
-    const commonFields = (
-      <>
-        <div className="form-group">
-          <label htmlFor="connection_name">Connection Name</label>
-          <input
-            type="text"
-            id="connection_name"
-            name="connection_name"
-            className="form-control"
-            value={formData.connection_name}
-            onChange={handleInputChange}
-            required
-          />
+    return (
+      <div className={`connection-form connection-type-${connection_type}`}>
+        {/* Basic Information Section */}
+        <div className="form-section">
+          <h3>Basic Information</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="connection_name">Connection Name</label>
+              <input
+                type="text"
+                id="connection_name"
+                name="connection_name"
+                className="form-control"
+                value={formData.connection_name}
+                onChange={handleInputChange}
+                required
+                placeholder="Enter a descriptive name"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="connection_type">Connection Type</label>
+              <select
+                id="connection_type"
+                name="connection_type"
+                className="form-control"
+                value={formData.connection_type}
+                onChange={handleConnectionTypeChange}
+                required
+              >
+                <option value="aws">AWS S3</option>
+                <option value="gcp">Google Cloud Storage</option>
+                <option value="azure">Azure Blob Storage</option>
+                <option value="snowflake">Snowflake</option>
+                <option value="databricks">Databricks</option>
+                <option value="sharepoint">SharePoint</option>
+                <option value="outlook">Outlook</option>
+              </select>
+            </div>
+          </div>
         </div>
-        
-        <div className="form-group">
-          <label htmlFor="connection_type">Connection Type</label>
-          <select
-            id="connection_type"
-            name="connection_type"
-            className="form-control"
-            value={formData.connection_type}
-            onChange={handleConnectionTypeChange}
-            required
-          >
-            <option value="aws">AWS S3</option>
-            <option value="gcp">Google Cloud Storage</option>
-            <option value="azure">Azure Blob Storage</option>
-            <option value="snowflake">Snowflake</option>
-            <option value="databricks">Databricks</option>
-            <option value="sharepoint">SharePoint</option>
-            <option value="outlook">Outlook</option>
-          </select>
-        </div>
-      </>
+
+        {/* Connection Configuration */}
+        {renderConnectionConfig()}
+      </div>
     );
-    
-    // Type-specific fields
-    let specificFields;
-    
+  };
+
+  const renderConnectionConfig = () => {
+    const { connection_type } = formData;
+
     if (connection_type === 'aws') {
-      specificFields = (
-        <>
-          <div className="form-group">
-            <label htmlFor="region">AWS Region</label>
-            <input
-              type="text"
-              id="region"
-              name="region"
-              className="form-control"
-              value={formData.region}
-              onChange={handleInputChange}
-              required
-            />
+      return (
+        <div className="form-section">
+          <h3>AWS Configuration</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="region">AWS Region</label>
+              <input
+                type="text"
+                id="region"
+                name="region"
+                className="form-control"
+                value={formData.region}
+                onChange={handleInputChange}
+                required
+                placeholder="e.g., us-east-1"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="bucket_name">S3 Bucket Name</label>
+              <input
+                type="text"
+                id="bucket_name"
+                name="bucket_name"
+                className="form-control"
+                value={formData.bucket_name}
+                onChange={handleInputChange}
+                required
+                placeholder="your-bucket-name"
+              />
+            </div>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="bucket_name">S3 Bucket Name</label>
-            <input
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="access_key">Access Key ID</label>
+              <input
+                type="text"
+                id="access_key"
+                name="access_key"
+                className="form-control"
+                value={formData.access_key}
+                onChange={handleInputChange}
+                required
+                placeholder="AKIA..."
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="secret_key">Secret Access Key</label>
+              <input
+                type="password"
+                id="secret_key"
+                name="secret_key"
+                className="form-control"
+                value={formData.secret_key}
+                onChange={handleInputChange}
+                required={!editMode}
+                placeholder={editMode ? '(unchanged)' : 'Secret key'}
+              />
+              {editMode && (
+                <small className="form-text text-muted">
+                  Leave blank to keep the existing secret key
+                </small>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    if (connection_type === 'gcp') {
+      return (
+        <div className="form-section">
+          <h3>Google Cloud Configuration</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="project_id">Project ID</label>
+              <input
+                type="text"
+                id="project_id"
+                name="project_id"
+                className="form-control"
+                value={formData.project_id}
+                onChange={handleInputChange}
+                required
+                placeholder="your-project-id"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="bucket_name">Storage Bucket Name</label>
+              <input
+                type="text"
+                id="bucket_name"
+                name="bucket_name"
+                className="form-control"
+                value={formData.bucket_name}
+                onChange={handleInputChange}
+                required
+                placeholder="your-bucket-name"
+              />
+            </div>
+          </div>
+          
+          <div className="form-grid single-column">
+            <div className="form-group">
+              <label htmlFor="client_email">Service Account Email</label>
+              <input
+                type="email"
+                id="client_email"
+                name="client_email"
+                className="form-control"
+                value={formData.client_email}
+                onChange={handleInputChange}
+                required
+                placeholder="service-account@project.iam.gserviceaccount.com"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="private_key">Service Account Private Key</label>
+              <textarea
+                id="private_key"
+                name="private_key"
+                className="form-control"
+                value={formData.private_key}
+                onChange={handleInputChange}
+                required={!editMode}
+                placeholder={editMode ? '(unchanged)' : 'Paste the private key from your service account JSON'}
+                rows={4}
+              />
+              {editMode && (
+                <small className="form-text text-muted">
+                  Leave blank to keep the existing private key
+                </small>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    if (connection_type === 'azure') {
+      return (
+        <div className="form-section">
+          <h3>Azure Configuration</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="account_name">Storage Account Name</label>
+              <input
+                type="text"
+                id="account_name"
+                name="account_name"
+                className="form-control"
+                value={formData.account_name}
+                onChange={handleInputChange}
+                required
+                placeholder="yourstorageaccount"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="container_name">Container Name</label>
+              <input
+                type="text"
+                id="container_name"
+                name="container_name"
+                className="form-control"
+                value={formData.container_name}
+                onChange={handleInputChange}
+                required
+                placeholder="your-container"
+              />
+            </div>
+          </div>
+          
+          <div className="form-grid single-column">
+            <div className="form-group">
+              <label htmlFor="account_key">Storage Account Key</label>
+              <input
+                type="password"
+                id="account_key"
+                name="account_key"
+                className="form-control"
+                value={formData.account_key}
+                onChange={handleInputChange}
+                required={!editMode}
+                placeholder={editMode ? '(unchanged)' : 'Storage account key'}
+              />
+              {editMode && (
+                <small className="form-text text-muted">
+                  Leave blank to keep the existing account key
+                </small>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    if (connection_type === 'snowflake') {
+      return (
+        <div className="form-section">
+          <h3>Snowflake Configuration</h3>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="snowflake_account">Account Identifier</label>
+              <input
+                type="text"
+                id="snowflake_account"
+                name="snowflake_account"
+                className="form-control"
+                value={formData.snowflake_account}
+                onChange={handleInputChange}
+                required
+                placeholder="xy12345.us-east-1"
+              />
+              <small className="form-text text-muted">
+                The account identifier (e.g., xy12345.us-east-1)
+              </small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="snowflake_username">Username</label>
+              <input
+                type="text"
+                id="snowflake_username"
+                name="snowflake_username"
+                className="form-control"
+                value={formData.snowflake_username}
+                onChange={handleInputChange}
+                required
+                placeholder="your-username"
+              />
+            </div>
+          </div>
+          
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="snowflake_warehouse">Warehouse</label>
+              <input
+                type="text"
+                id="snowflake_warehouse"
+                name="snowflake_warehouse"
+                className="form-control"
+                value={formData.snowflake_warehouse}
+                onChange={handleInputChange}
+                required
+                placeholder="COMPUTE_WH"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="snowflake_database">Database</label>
+              <input
+                type="text"
+                id="snowflake_database"
+                name="snowflake_database"
+                className="form-control"
+                value={formData.snowflake_database}
+                onChange={handleInputChange}
+                required
+                placeholder="your-database"
+              />
+            </div>
+          </div>
+          
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="snowflake_schema">Schema</label>
+              <input
+                type="text"
+                id="snowflake_schema"
+                name="snowflake_schema"
+                className="form-control"
+                value={formData.snowflake_schema}
+                onChange={handleInputChange}
+                required
+                placeholder="PUBLIC"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="snowflake_role">Role (Optional)</label>
+              <input
+                type="text"
+                id="snowflake_role"
+                name="snowflake_role"
+                className="form-control"
+                value={formData.snowflake_role}
+                onChange={handleInputChange}
+                placeholder="Leave blank for default"
+              />
+            </div>
+          </div>
+          
+          <div className="form-grid single-column">
+            <div className="form-group">
+              <label htmlFor="snowflake_password">Password</label>
+              <input
+                type="password"
+                id="snowflake_password"
+                name="snowflake_password"
+                className="form-control"
+                value={formData.snowflake_password}
+                onChange={handleInputChange}
+                required={!editMode}
+                placeholder={editMode ? '(unchanged)' : 'Your password'}
+              />
+              {editMode && (
+                <small className="form-text text-muted">
+                  Leave blank to keep the existing password
+                </small>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Return null for other connection types or add more configurations as needed
+    return null;
+  };
+
+  // Format connection details for display
+  const formatConnectionDetails = (connection) => {
+    if (!connection) return null;
+    
+    const details = [];
+    
+    if (connection.aws_region) {
+      details.push(<div key="region"><strong>Region:</strong> {connection.aws_region}</div>);
+    }
+    if (connection.aws_bucket_name) {
+      details.push(<div key="bucket"><strong>Bucket:</strong> {connection.aws_bucket_name}</div>);
+    }
+    if (connection.gcp_project_id) {
+      details.push(<div key="project"><strong>Project:</strong> {connection.gcp_project_id}</div>);
+    }
+    if (connection.gcp_bucket_name) {
+      details.push(<div key="bucket"><strong>Bucket:</strong> {connection.gcp_bucket_name}</div>);
+    }
+    if (connection.azure_account_name) {
+      details.push(<div key="account"><strong>Account:</strong> {connection.azure_account_name}</div>);
+    }
+    if (connection.azure_container_name) {
+      details.push(<div key="container"><strong>Container:</strong> {connection.azure_container_name}</div>);
+    }
+    if (connection.sharepoint_site_url) {
+      details.push(<div key="site"><strong>Site:</strong> {connection.sharepoint_site_url}</div>);
+    }
+    if (connection.sharepoint_document_library) {
+      details.push(<div key="library"><strong>Library:</strong> {connection.sharepoint_document_library}</div>);
+    }
+    if (connection.outlook_folder_path) {
+      details.push(<div key="folder"><strong>Folder:</strong> {connection.outlook_folder_path}</div>);
+    }
+    
+    return details.length > 0 ? (
+      <div className="connection-details-old">
+        {details}
+      </div>
+    ) : null;
               type="text"
               id="bucket_name"
               name="bucket_name"
