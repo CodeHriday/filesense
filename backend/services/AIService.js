@@ -107,7 +107,8 @@ const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 // Using models that don't require HF Pro access
 // Options for smaller LLMs that are publicly available without restrictions
 // For text generation, distilgpt2 needs special handling as it's not a chat model but a text completion model
-const CHAT_MODEL = 'Xenova/distilgpt2';
+// Using rule-based approach instead of distilgpt2 for better dataset conversations
+const CHAT_MODEL = 'rule-based';
 
 // Larger context window size for distilgpt2 to handle our prompts
 const MODEL_CONTEXT_SIZE = 512;
@@ -566,7 +567,7 @@ class AIService {
   }
   
   /**
-   * Chat with a dataset using natural language
+   * Chat with a dataset using intelligent rule-based responses
    * 
    * @param {string} fileId - File ID to chat about
    * @param {string} message - User message
@@ -587,9 +588,6 @@ class AIService {
         };
       }
       
-      // Generate context about the dataset to help the model
-      const datasetContext = this.generateDatasetContext(fileDetails, fileProfile);
-      
       // Create a cache key based on the message and file
       const cacheKey = `chat_${fileId}_${Buffer.from(message).toString('base64').substring(0, 40)}`;
       
@@ -599,41 +597,13 @@ class AIService {
         return responseCache.get(cacheKey);
       }
       
-      // Initialize chat model if needed
-      if (!this.chatPipeline) {
-        await this.initializeChatModel();
-      }
-      
-      // Prepare the prompt with context and chat history
-      const prompt = this.buildChatPrompt(message, datasetContext, chatHistory);
-      
-      // Log what we're about to send to the model
-      logger.info('Sending prompt to language model', { 
-        modelName: CHAT_MODEL,
-        promptLength: prompt.length
+      logger.info('Processing intelligent chat response', { 
+        fileId,
+        messageLength: message.length
       });
       
-      // Generate response with parameters optimized for distilgpt2
-      // Note: distilgpt2 model has different parameters than Phi-2
-      const result = await this.chatPipeline(prompt, {
-        max_new_tokens: 100,       // Shorter responses for more coherence
-        temperature: 0.7,          // Slightly higher temperature for more variety
-        repetition_penalty: 1.2,   // Moderate penalty to prevent repetition 
-        top_k: 40,                // Limit vocabulary to top 40 options at each step
-        top_p: 0.9,                // Sample from top 90% of probability mass
-        do_sample: true,           // Use sampling instead of greedy decoding
-        return_full_text: false    // Only return the generated text, not the prompt
-      });
-      
-      // Log raw result for debugging
-      logger.debug('Raw model result received', {
-        result: result,
-        type: typeof result,
-        isArray: Array.isArray(result)
-      });
-      
-      // Process the response based on the actual structure returned by distilgpt2
-      const aiResponse = this.extractAIResponse(result, prompt);
+      // Use rule-based intelligent response system
+      const aiResponse = this.generateIntelligentResponse(message, fileDetails, fileProfile);
       
       // Cache the response
       responseCache.set(cacheKey, { response: aiResponse });
@@ -861,6 +831,169 @@ class AIService {
     }
     
     return response;
+  }
+
+  /**
+   * Generate intelligent responses based on dataset analysis and user questions
+   * Uses rule-based logic to provide accurate, contextual answers
+   * 
+   * @param {string} message - User's question
+   * @param {Object} fileDetails - File metadata
+   * @param {Object} fileProfile - File profile data
+   * @returns {string} - Intelligent response
+   */
+  generateIntelligentResponse(message, fileDetails, fileProfile) {
+    const msg = message.toLowerCase().trim();
+    const filename = fileDetails.filename;
+    const fileType = fileDetails.file_type.toUpperCase();
+    const rowCount = fileDetails.row_count;
+    const columnCount = fileDetails.column_count;
+    const qualityScore = parseFloat(fileDetails.quality_score || 0);
+    const columns = fileProfile.columns || [];
+
+    // Greeting and introduction
+    if (msg.includes('hello') || msg.includes('hi') || msg.includes('help')) {
+      return `Hello! I'm your data assistant for "${filename}". This ${fileType} file contains ${rowCount} rows and ${columnCount} columns with a quality score of ${qualityScore.toFixed(1)}%. Ask me about columns, data quality, statistics, or patterns in your dataset.`;
+    }
+
+    // File overview questions
+    if (msg.includes('how many') && (msg.includes('column') || msg.includes('field'))) {
+      const columnNames = columns.map(c => c.name).join(', ');
+      return `This dataset has ${columnCount} columns: ${columnNames}. Each column contains different types of information about your data.`;
+    }
+
+    if (msg.includes('how many') && msg.includes('row')) {
+      return `This dataset contains ${rowCount} rows of data. Each row represents a single record or observation in your dataset.`;
+    }
+
+    if (msg.includes('size') || msg.includes('big')) {
+      const sizeDesc = rowCount > 10000 ? 'large' : rowCount > 1000 ? 'medium-sized' : 'small';
+      return `This is a ${sizeDesc} dataset with ${rowCount} rows and ${columnCount} columns. The file size is ${fileDetails.file_size} bytes.`;
+    }
+
+    // Data quality questions
+    if (msg.includes('quality') || msg.includes('good') || msg.includes('clean')) {
+      let qualityDesc = 'excellent';
+      if (qualityScore < 90) qualityDesc = 'good';
+      if (qualityScore < 70) qualityDesc = 'fair';
+      if (qualityScore < 50) qualityDesc = 'poor';
+      
+      const missingData = columns.filter(c => c.missing > 0);
+      const missingText = missingData.length > 0 
+        ? ` Some columns have missing values: ${missingData.map(c => `${c.name} (${c.missing} missing)`).join(', ')}.`
+        : ' All columns appear to be complete with no missing values.';
+      
+      return `Your data quality is ${qualityDesc} with a score of ${qualityScore.toFixed(1)}%.${missingText}`;
+    }
+
+    // Column-specific questions
+    const mentionedColumn = columns.find(c => 
+      msg.includes(c.name.toLowerCase()) || 
+      msg.includes(c.name.toLowerCase().replace(/[_\s]/g, ''))
+    );
+    
+    if (mentionedColumn) {
+      const col = mentionedColumn;
+      const uniquePercent = ((col.unique / rowCount) * 100).toFixed(1);
+      
+      let response = `The "${col.name}" column contains ${col.type} data with ${col.unique} unique values (${uniquePercent}% unique).`;
+      
+      if (col.missing > 0) {
+        response += ` It has ${col.missing} missing values.`;
+      }
+      
+      if (col.most_frequent_value) {
+        response += ` The most common value is "${col.most_frequent_value}".`;
+      }
+      
+      return response;
+    }
+
+    // Type-specific questions
+    if (msg.includes('string') || msg.includes('text')) {
+      const stringCols = columns.filter(c => c.type === 'string');
+      if (stringCols.length > 0) {
+        return `Your dataset has ${stringCols.length} text columns: ${stringCols.map(c => c.name).join(', ')}. These contain categorical or descriptive information.`;
+      }
+      return 'This dataset doesn\'t appear to have any text columns.';
+    }
+
+    if (msg.includes('number') || msg.includes('numeric') || msg.includes('decimal')) {
+      const numericCols = columns.filter(c => c.type === 'decimal' || c.type === 'integer');
+      if (numericCols.length > 0) {
+        return `Your dataset has ${numericCols.length} numeric columns: ${numericCols.map(c => c.name).join(', ')}. These can be used for calculations and statistical analysis.`;
+      }
+      return 'This dataset doesn\'t appear to have any numeric columns.';
+    }
+
+    if (msg.includes('date') || msg.includes('time')) {
+      const dateCols = columns.filter(c => c.type === 'date' || c.type === 'datetime');
+      if (dateCols.length > 0) {
+        return `Your dataset has ${dateCols.length} date/time columns: ${dateCols.map(c => c.name).join(', ')}. These can be used for time-based analysis.`;
+      }
+      return 'This dataset doesn\'t appear to have any date columns.';
+    }
+
+    // Missing data questions
+    if (msg.includes('missing') || msg.includes('null') || msg.includes('empty')) {
+      const missingCols = columns.filter(c => c.missing > 0);
+      if (missingCols.length === 0) {
+        return 'Great news! Your dataset appears to be complete with no missing values in any column.';
+      }
+      
+      const totalMissing = missingCols.reduce((sum, col) => sum + col.missing, 0);
+      const missingPercent = ((totalMissing / (rowCount * columnCount)) * 100).toFixed(2);
+      
+      return `Your dataset has missing values in ${missingCols.length} columns (${missingPercent}% of all data points). Columns with missing data: ${missingCols.map(c => `${c.name} (${c.missing} missing)`).join(', ')}.`;
+    }
+
+    // Unique values questions
+    if (msg.includes('unique') || msg.includes('distinct')) {
+      const highUniqueCols = columns.filter(c => (c.unique / rowCount) > 0.9);
+      const lowUniqueCols = columns.filter(c => (c.unique / rowCount) < 0.1);
+      
+      let response = '';
+      if (highUniqueCols.length > 0) {
+        response += `Columns with high uniqueness (likely identifiers): ${highUniqueCols.map(c => c.name).join(', ')}. `;
+      }
+      if (lowUniqueCols.length > 0) {
+        response += `Columns with low uniqueness (likely categories): ${lowUniqueCols.map(c => c.name).join(', ')}.`;
+      }
+      
+      return response || 'Most columns have moderate uniqueness, suggesting a good mix of categorical and descriptive data.';
+    }
+
+    // Analysis suggestions
+    if (msg.includes('analyze') || msg.includes('insight') || msg.includes('pattern')) {
+      const suggestions = [];
+      
+      const numericCols = columns.filter(c => c.type === 'decimal' || c.type === 'integer');
+      if (numericCols.length > 0) {
+        suggestions.push(`statistical analysis on ${numericCols.map(c => c.name).join(', ')}`);
+      }
+      
+      const dateCols = columns.filter(c => c.type === 'date');
+      if (dateCols.length > 0) {
+        suggestions.push(`time-based trends using ${dateCols.map(c => c.name).join(', ')}`);
+      }
+      
+      const categoricalCols = columns.filter(c => c.type === 'string' && (c.unique / rowCount) < 0.5);
+      if (categoricalCols.length > 0) {
+        suggestions.push(`category distribution analysis on ${categoricalCols.map(c => c.name).join(', ')}`);
+      }
+      
+      if (suggestions.length > 0) {
+        return `Based on your data structure, I suggest exploring: ${suggestions.join('; ')}. Your data quality score of ${qualityScore.toFixed(1)}% indicates it's ready for analysis.`;
+      }
+      
+      return `With ${rowCount} rows and ${columnCount} columns, this dataset offers good analytical potential. Consider exploring relationships between different columns.`;
+    }
+
+    // Default response with helpful suggestions
+    const columnNames = columns.slice(0, 3).map(c => c.name).join(', ');
+    const moreColumns = columns.length > 3 ? ` and ${columns.length - 3} more` : '';
+    
+    return `I can help you understand this ${fileType} dataset with ${rowCount} rows and columns like ${columnNames}${moreColumns}. Try asking about: data quality, column details, missing values, or analysis suggestions.`;
   }
 }
 
