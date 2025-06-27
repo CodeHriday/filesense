@@ -1,1045 +1,1353 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiCloud, FiDatabase, FiServer, FiFolder, FiMail, FiLink, FiUsers, FiHardDrive } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle } from 'react-icons/fi';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import './Connections.css';
 
-// Component to render connection icons
-const renderConnectionIcon = (type) => {
-  const iconProps = { size: 24, className: `connection-icon ${type}` };
-  
-  switch (type) {
-    case 'aws':
-      return <FiCloud {...iconProps} />;
-    case 'gcp':
-      return <FiCloud {...iconProps} />;
-    case 'azure':
-      return <FiCloud {...iconProps} />;
-    case 'sharepoint':
-      return <FiFolder {...iconProps} />;
-    case 'outlook':
-      return <FiMail {...iconProps} />;
-    case 'local_folder':
-      return <FiHardDrive {...iconProps} />;
-    case 'sftp':
-      return <FiServer {...iconProps} />;
-    case 'snowflake':
-      return <FiDatabase {...iconProps} />;
-    default:
-      return <FiServer {...iconProps} />;
-  }
-};
+// Import the connection service
+import { getConnections, createConnection, updateConnection, deleteConnection, testConnection } from '../api/connectionService';
 
-// Helper function to get connection type labels
-const getConnectionTypeLabel = (type) => {
-  const labels = {
-    aws: 'Amazon S3',
-    gcp: 'Google Cloud Storage',
-    azure: 'Azure Blob Storage',
-    sharepoint: 'SharePoint',
-    outlook: 'Outlook',
-    local_folder: 'Local Folder',
-    sftp: 'SFTP',
-    snowflake: 'Snowflake'
-  };
-  return labels[type] || type;
-};
-
-function Connections() {
+const Connections = () => {
+  const { hasWritePermission } = useAuth();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editConnection, setEditConnection] = useState(null);
+  const [editId, setEditId] = useState(null);
   const [testingConnection, setTestingConnection] = useState(null);
-  const [userRole, setUserRole] = useState('read-only');
-
+  const [testResults, setTestResults] = useState({});
+  
+  // Connection form state
+  const [formData, setFormData] = useState({
+    connection_name: '',
+    connection_type: 'aws',
+    region: '',
+    bucket_name: '',
+    access_key: '',
+    secret_key: '',
+    project_id: '',
+    client_email: '',
+    private_key: '',
+    account_name: '',
+    account_key: '',
+    container_name: '',
+    // Snowflake credentials
+    snowflake_account: '',
+    snowflake_username: '',
+    snowflake_password: '',
+    snowflake_warehouse: '',
+    snowflake_database: '',
+    snowflake_schema: '',
+    snowflake_role: '',
+    // Databricks credentials
+    databricks_host: '',
+    databricks_token: '',
+    databricks_catalog: '',
+    databricks_schema: '',
+    // SharePoint credentials
+    sharepoint_tenant_id: '',
+    sharepoint_client_id: '',
+    sharepoint_client_secret: '',
+    sharepoint_site_url: '',
+    sharepoint_document_library: '',
+    // Outlook credentials
+    outlook_tenant_id: '',
+    outlook_client_id: '',
+    outlook_client_secret: '',
+    outlook_user_email: '',
+    outlook_folder_path: ''
+  });
+  
+  // Fetch connections on component mount
   useEffect(() => {
     fetchConnections();
-    fetchUserRole();
   }, []);
-
-  const hasWritePermission = (resource) => {
-    return userRole === 'admin' || userRole === 'editor';
-  };
-
-  const fetchUserRole = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('/api/user/role', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUserRole(data.role || 'read-only');
-      }
-    } catch (error) {
-      console.error('Error fetching user role:', error);
-      setUserRole('read-only');
-    }
-  };
-
+  
   const fetchConnections = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Authentication token not found');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch('/api/connections', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setConnections(data);
-      } else {
-        setError('Failed to fetch connections');
-      }
-    } catch (error) {
-      console.error('Error fetching connections:', error);
-      setError('Error loading connections');
+      setLoading(true);
+      const data = await getConnections();
+      
+      // Debug log to see the structure of connections
+      console.log('Connections data:', data);
+      
+      // Process connections to ensure shared status is set
+      const processedConnections = data.map(conn => ({
+        ...conn,
+        // Determine if connection is shared (has source_application that is not data_observatory)
+        shared: conn.source_application && conn.source_application !== 'data_observatory'
+      }));
+      
+      console.log('Processed connections:', processedConnections);
+      setConnections(processedConnections);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching connections:', err);
+      setError('Failed to load connections. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  const handleSubmit = async (formData) => {
-    try {
-      const token = localStorage.getItem('token');
-      const url = editMode 
-        ? `/api/connections/${editConnection.id}` 
-        : '/api/connections';
-      
-      const method = editMode ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setShowForm(false);
-        setEditMode(false);
-        setEditConnection(null);
-        await fetchConnections();
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to save connection');
-      }
-    } catch (error) {
-      console.error('Error saving connection:', error);
-      setError('Error saving connection');
-    }
-  };
-
-  const handleEdit = (connection) => {
-    setEditConnection(connection);
-    setEditMode(true);
+  
+  const handleAddNew = () => {
+    setFormData({
+      connection_name: '',
+      connection_type: 'aws',
+      region: '',
+      bucket_name: '',
+      access_key: '',
+      secret_key: '',
+      project_id: '',
+      client_email: '',
+      private_key: '',
+      account_name: '',
+      account_key: '',
+      container_name: ''
+    });
+    setEditMode(false);
+    setEditId(null);
     setShowForm(true);
   };
-
-  const handleDelete = async (connectionId) => {
+  
+  const handleEdit = (connection) => {
+    const { id, connection_name, connection_type } = connection;
+    
+    // Create a form data object with the correct fields based on connection type
+    let newFormData = {
+      connection_name,
+      connection_type,
+    };
+    
+    // Add type-specific fields
+    if (connection_type === 'aws') {
+      newFormData = {
+        ...newFormData,
+        region: connection.region || '',
+        bucket_name: connection.bucket_name || '',
+        access_key: connection.access_key || '',
+        secret_key: '' // Don't prefill secret key for security
+      };
+    } else if (connection_type === 'gcp') {
+      newFormData = {
+        ...newFormData,
+        project_id: connection.project_id || '',
+        bucket_name: connection.bucket_name || '',
+        client_email: connection.client_email || '',
+        private_key: '' // Don't prefill private key for security
+      };
+    } else if (connection_type === 'azure') {
+      newFormData = {
+        ...newFormData,
+        account_name: connection.account_name || '',
+        container_name: connection.container_name || '',
+        account_key: '' // Don't prefill account key for security
+      };
+    } else if (connection_type === 'snowflake') {
+      newFormData = {
+        ...newFormData,
+        snowflake_account: connection.snowflake_account || '',
+        snowflake_username: connection.snowflake_username || '',
+        snowflake_password: '', // Don't prefill password for security
+        snowflake_warehouse: connection.snowflake_warehouse || '',
+        snowflake_database: connection.snowflake_database || '',
+        snowflake_schema: connection.snowflake_schema || '',
+        snowflake_role: connection.snowflake_role || ''
+      };
+    } else if (connection_type === 'databricks') {
+      newFormData = {
+        ...newFormData,
+        databricks_host: connection.databricks_host || '',
+        databricks_token: '', // Don't prefill token for security
+        databricks_catalog: connection.databricks_catalog || '',
+        databricks_schema: connection.databricks_schema || ''
+      };
+    } else if (connection_type === 'sharepoint') {
+      newFormData = {
+        ...newFormData,
+        sharepoint_tenant_id: connection.sharepoint_tenant_id || '',
+        sharepoint_client_id: connection.sharepoint_client_id || '',
+        sharepoint_client_secret: '', // Don't prefill secret for security
+        sharepoint_site_url: connection.sharepoint_site_url || '',
+        sharepoint_document_library: connection.sharepoint_document_library || ''
+      };
+    } else if (connection_type === 'outlook') {
+      newFormData = {
+        ...newFormData,
+        outlook_tenant_id: connection.outlook_tenant_id || '',
+        outlook_client_id: connection.outlook_client_id || '',
+        outlook_client_secret: '', // Don't prefill secret for security
+        outlook_user_email: connection.outlook_user_email || '',
+        outlook_folder_path: connection.outlook_folder_path || ''
+      };
+    }
+    
+    setFormData(newFormData);
+    setEditMode(true);
+    setEditId(id);
+    setShowForm(true);
+  };
+  
+  const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this connection?')) {
       return;
     }
-
+    
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/connections/${connectionId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        await fetchConnections();
-      } else {
-        setError('Failed to delete connection');
-      }
-    } catch (error) {
-      console.error('Error deleting connection:', error);
-      setError('Error deleting connection');
+      await deleteConnection(id);
+      // Update local state without refetching
+      setConnections(connections.filter(conn => conn.id !== id));
+    } catch (err) {
+      console.error('Error deleting connection:', err);
+      setError('Failed to delete connection. Please try again.');
     }
   };
-
+  
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+  
   const handleTestConnection = async (connection) => {
-    setTestingConnection(connection.id);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/connections/${connection.id}/test`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const result = await response.json();
+      setTestingConnection(connection.id);
       
-      if (response.ok && result.success) {
-        alert('Connection test successful!');
-      } else {
-        alert(`Connection test failed: ${result.error || 'Unknown error'}`);
+      console.log('Testing connection:', connection);
+      
+      // Extract properly formatted data for testing
+      // Connections have different property structures depending on their source
+      // New connections use config object, older ones have flat properties
+      const configData = {};
+      
+      // First get the connection type (might be in different properties)
+      const connectionType = connection.connection_type || connection.type;
+      configData.connection_type = connectionType;
+      
+      // Copy all relevant connection properties
+      if (connectionType === 'aws') {
+        configData.region = connection.region || (connection.config?.region);
+        configData.bucket_name = connection.bucket_name || (connection.config?.bucket_name);
+        configData.access_key = connection.access_key || (connection.config?.access_key);
+        configData.secret_key = connection.secret_key || (connection.config?.secret_key);
+      } else if (connectionType === 'gcp') {
+        configData.project_id = connection.project_id || (connection.config?.project_id);
+        configData.bucket_name = connection.bucket_name || (connection.config?.bucket_name);
+        configData.client_email = connection.client_email || (connection.config?.client_email);
+        configData.private_key = connection.private_key || (connection.config?.private_key);
+      } else if (connectionType === 'azure') {
+        configData.account_name = connection.account_name || (connection.config?.account_name);
+        configData.account_key = connection.account_key || (connection.config?.account_key);
+        configData.container_name = connection.container_name || (connection.config?.container_name);
       }
-    } catch (error) {
-      console.error('Error testing connection:', error);
-      alert('Error testing connection');
+      
+      console.log('Config data for testing:', configData);
+      
+      const result = await testConnection(configData);
+      
+      console.log('Test result:', result);
+      
+      setTestResults({
+        ...testResults,
+        [connection.id]: {
+          success: result.success,
+          message: result.message || (result.success ? 'Connection successful' : 'Connection failed')
+        }
+      });
+    } catch (err) {
+      console.error('Error testing connection:', err);
+      setTestResults({
+        ...testResults,
+        [connection.id]: {
+          success: false,
+          message: err.response?.data?.message || 'Connection test failed. Please check your credentials.'
+        }
+      });
     } finally {
       setTestingConnection(null);
     }
   };
-
-  return (
-    <div className="connections-container">
-      <div className="connections-header">
-        <h2>Connections</h2>
-        {hasWritePermission('connections') && (
-          <button 
-            className="btn btn-primary" 
-            onClick={() => setShowForm(true)}
-          >
-            Add Connection
-          </button>
-        )}
-      </div>
-
-      {loading && <div className="loading">Loading connections...</div>}
-
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
-
-      {showForm && (
-        <div className="connection-form-overlay">
-          <div className="connection-form-modal">
-            <ConnectionForm 
-              onSubmit={handleSubmit}
-              onCancel={() => {
-                setShowForm(false);
-                setEditMode(false);
-                setEditConnection(null);
-              }}
-              editMode={editMode}
-              initialData={editConnection}
-            />
-          </div>
-        </div>
-      )}
-
-      {!loading && !error && (
-        <>
-          {connections.length === 0 && !hasWritePermission('connections') && (
-            <div className="no-connections">
-              <p>No connections available.</p>
-              {!hasWritePermission('connections') && (
-                <div className="permission-notice-sm">
-                  Contact your administrator to add connections
-                </div>
-              )}
-            </div>
-          )}
-
-          {connections.length === 0 && hasWritePermission('connections') && (
-            <div className="no-connections">
-              <p>No connections configured yet.</p>
-              <p>Add your first connection to get started.</p>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Show connections only if we have them */}
-      {!loading && !error && connections.length > 0 && (
-        <>
-          {/* Connection Statistics */}
-          <div className="connection-stats">
-            <div className="stat-card">
-              <span className="stat-number">{connections.length}</span>
-              <span className="stat-label">Total Connections</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-number">{connections.filter(c => c.is_active).length}</span>
-              <span className="stat-label">Active</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-number">{new Set(connections.map(c => c.connection_type || c.type)).size}</span>
-              <span className="stat-label">Provider Types</span>
-            </div>
-          </div>
-
-          <div className="connections-grid">
-            {connections.map(connection => (
-              <Card key={connection.id} className={`connection-card ${connection.connection_type || connection.type}`}>
-                <div className="connection-header">
-                  <div className="connection-title-section">
-                    {renderConnectionIcon(connection.connection_type || connection.type)}
-                    <div className="connection-info">
-                      <div className="connection-name">
-                        {connection.connection_name}
-                        {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
-                          <span className="shared-indicator" title="Shared with Transform">
-                            <FiLink className="shared-icon" />
-                          </span>
-                        )}
-                      </div>
-                      <div className="connection-type">
-                        {getConnectionTypeLabel(connection.connection_type || connection.type)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="connection-actions">
-                    {hasWritePermission('connections') && (
-                      <>
-                        <button 
-                          className="test-btn" 
-                          onClick={() => handleTestConnection(connection)}
-                          disabled={testingConnection === connection.id}
-                        >
-                          {testingConnection === connection.id ? 'Testing...' : 'Test'}
-                        </button>
-                        <button 
-                          className="action-btn edit-btn" 
-                          onClick={() => handleEdit(connection)}
-                          title="Edit connection"
-                        >
-                          <FiEdit2 />
-                        </button>
-                        <button 
-                          className="action-btn delete-btn" 
-                          onClick={() => handleDelete(connection.id)}
-                          title="Delete connection"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="connection-details">
-                  {connection.source_application && connection.source_application !== 'data_observatory' && (
-                    <div className="connection-detail-item">
-                      <span className="connection-detail-label">Source:</span>
-                      <span className="connection-detail-value">{connection.source_application}</span>
-                    </div>
-                  )}
-                  
-                  {(connection.connection_type === 'aws' || connection.type === 'aws') && (
-                    <>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Region:</span>
-                        <span className="connection-detail-value">{connection.aws_region || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Bucket:</span>
-                        <span className="connection-detail-value">{connection.aws_bucket_name || 'Not set'}</span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {(connection.connection_type === 'gcp' || connection.type === 'gcp') && (
-                    <>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Project:</span>
-                        <span className="connection-detail-value">{connection.gcp_project_id || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Bucket:</span>
-                        <span className="connection-detail-value">{connection.gcp_bucket_name || 'Not set'}</span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {(connection.connection_type === 'azure' || connection.type === 'azure') && (
-                    <>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Account:</span>
-                        <span className="connection-detail-value">{connection.azure_account_name || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Container:</span>
-                        <span className="connection-detail-value">{connection.azure_container_name || 'Not set'}</span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {(connection.connection_type === 'sharepoint' || connection.type === 'sharepoint') && (
-                    <>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Site:</span>
-                        <span className="connection-detail-value">{connection.sharepoint_site_url || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Library:</span>
-                        <span className="connection-detail-value">{connection.sharepoint_document_library || 'Not set'}</span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {(connection.connection_type === 'outlook' || connection.type === 'outlook') && (
-                    <div className="connection-detail-item">
-                      <span className="connection-detail-label">Folder:</span>
-                      <span className="connection-detail-value">{connection.outlook_folder_path || 'Not set'}</span>
-                    </div>
-                  )}
-                  
-                  {(connection.connection_type === 'local_folder' || connection.type === 'local_folder') && (
-                    <div className="connection-detail-item">
-                      <span className="connection-detail-label">Path:</span>
-                      <span className="connection-detail-value">{connection.local_folder_path || 'Not set'}</span>
-                    </div>
-                  )}
-                  
-                  {(connection.connection_type === 'sftp' || connection.type === 'sftp') && (
-                    <>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Host:</span>
-                        <span className="connection-detail-value">{connection.sftp_host || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Port:</span>
-                        <span className="connection-detail-value">{connection.sftp_port || '22'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Username:</span>
-                        <span className="connection-detail-value">{connection.sftp_username || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Path:</span>
-                        <span className="connection-detail-value">{connection.sftp_path || '/'}</span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {(connection.connection_type === 'snowflake' || connection.type === 'snowflake') && (
-                    <>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Account:</span>
-                        <span className="connection-detail-value">{connection.snowflake_account || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Database:</span>
-                        <span className="connection-detail-value">{connection.snowflake_database || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Schema:</span>
-                        <span className="connection-detail-value">{connection.snowflake_schema || 'Not set'}</span>
-                      </div>
-                      <div className="connection-detail-item">
-                        <span className="connection-detail-label">Warehouse:</span>
-                        <span className="connection-detail-value">{connection.snowflake_warehouse || 'Not set'}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ConnectionForm component with improved multi-column layout
-const ConnectionForm = ({ onSubmit, onCancel, editMode = false, initialData = null }) => {
-  const [formData, setFormData] = useState(initialData || {
-    connection_name: '',
-    connection_type: '',
-    aws_region: '',
-    aws_bucket_name: '',
-    aws_access_key: '',
-    aws_secret_key: '',
-    gcp_project_id: '',
-    gcp_bucket_name: '',
-    gcp_service_account_key: '',
-    azure_account_name: '',
-    azure_container_name: '',
-    azure_account_key: '',
-    sharepoint_site_url: '',
-    sharepoint_document_library: '',
-    sharepoint_client_id: '',
-    sharepoint_client_secret: '',
-    outlook_folder_path: '',
-    outlook_client_id: '',
-    outlook_client_secret: '',
-    local_folder_path: '',
-    sftp_host: '',
-    sftp_port: '22',
-    sftp_username: '',
-    sftp_password: '',
-    sftp_path: '/',
-    snowflake_account: '',
-    snowflake_database: '',
-    snowflake_schema: '',
-    snowflake_warehouse: '',
-    snowflake_username: '',
-    snowflake_password: ''
-  });
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  
+  const handleConnectionTypeChange = (e) => {
+    const connectionType = e.target.value;
+    // Reset form data to avoid field confusion between types
+    setFormData({
+      ...formData,
+      connection_type: connectionType,
+      
+      // Clear fields that aren't relevant to the new type
+      // AWS fields
+      region: connectionType === 'aws' ? formData.region : '',
+      bucket_name: ['aws', 'gcp'].includes(connectionType) ? formData.bucket_name : '',
+      access_key: connectionType === 'aws' ? formData.access_key : '',
+      secret_key: connectionType === 'aws' ? formData.secret_key : '',
+      
+      // GCP fields
+      project_id: connectionType === 'gcp' ? formData.project_id : '',
+      client_email: connectionType === 'gcp' ? formData.client_email : '',
+      private_key: connectionType === 'gcp' ? formData.private_key : '',
+      
+      // Azure fields
+      account_name: connectionType === 'azure' ? formData.account_name : '',
+      account_key: connectionType === 'azure' ? formData.account_key : '',
+      container_name: connectionType === 'azure' ? formData.container_name : '',
+      
+      // Snowflake fields
+      snowflake_account: connectionType === 'snowflake' ? formData.snowflake_account : '',
+      snowflake_username: connectionType === 'snowflake' ? formData.snowflake_username : '',
+      snowflake_password: connectionType === 'snowflake' ? formData.snowflake_password : '',
+      snowflake_warehouse: connectionType === 'snowflake' ? formData.snowflake_warehouse : '',
+      snowflake_database: connectionType === 'snowflake' ? formData.snowflake_database : '',
+      snowflake_schema: connectionType === 'snowflake' ? formData.snowflake_schema : '',
+      snowflake_role: connectionType === 'snowflake' ? formData.snowflake_role : '',
+      
+      // Databricks fields
+      databricks_host: connectionType === 'databricks' ? formData.databricks_host : '',
+      databricks_token: connectionType === 'databricks' ? formData.databricks_token : '',
+      databricks_catalog: connectionType === 'databricks' ? formData.databricks_catalog : '',
+      databricks_schema: connectionType === 'databricks' ? formData.databricks_schema : '',
+      
+      // SharePoint fields
+      sharepoint_tenant_id: connectionType === 'sharepoint' ? formData.sharepoint_tenant_id : '',
+      sharepoint_client_id: connectionType === 'sharepoint' ? formData.sharepoint_client_id : '',
+      sharepoint_client_secret: connectionType === 'sharepoint' ? formData.sharepoint_client_secret : '',
+      sharepoint_site_url: connectionType === 'sharepoint' ? formData.sharepoint_site_url : '',
+      sharepoint_document_library: connectionType === 'sharepoint' ? formData.sharepoint_document_library : '',
+      
+      // Outlook fields
+      outlook_tenant_id: connectionType === 'outlook' ? formData.outlook_tenant_id : '',
+      outlook_client_id: connectionType === 'outlook' ? formData.outlook_client_id : '',
+      outlook_client_secret: connectionType === 'outlook' ? formData.outlook_client_secret : '',
+      outlook_user_email: connectionType === 'outlook' ? formData.outlook_user_email : '',
+      outlook_folder_path: connectionType === 'outlook' ? formData.outlook_folder_path : ''
+    });
   };
-
-  const handleFormSubmit = (e) => {
+  
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(formData);
-  };
-
-  const renderSpecificFields = () => {
-    const { connection_type } = formData;
     
-    switch (connection_type) {
-      case 'aws':
-        return (
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="aws_region">AWS Region</label>
-              <input
-                type="text"
-                id="aws_region"
-                name="aws_region"
-                className="form-control"
-                value={formData.aws_region}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="aws_bucket_name">S3 Bucket Name</label>
-              <input
-                type="text"
-                id="aws_bucket_name"
-                name="aws_bucket_name"
-                className="form-control"
-                value={formData.aws_bucket_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="aws_access_key">Access Key ID</label>
-              <input
-                type="text"
-                id="aws_access_key"
-                name="aws_access_key"
-                className="form-control"
-                value={formData.aws_access_key}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="aws_secret_key">Secret Access Key</label>
-              <input
-                type="password"
-                id="aws_secret_key"
-                name="aws_secret_key"
-                className="form-control"
-                value={formData.aws_secret_key}
-                onChange={handleInputChange}
-                required={!editMode}
-                placeholder={editMode ? '(unchanged)' : ''}
-              />
-              {editMode && (
-                <small className="form-text text-muted">
-                  Leave blank to keep the existing secret key.
-                </small>
-              )}
-            </div>
-          </div>
-        );
+    try {
+      if (editMode) {
+        await updateConnection(editId, formData);
+      } else {
+        await createConnection(formData);
+      }
       
-      case 'gcp':
-        return (
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="gcp_project_id">GCP Project ID</label>
-              <input
-                type="text"
-                id="gcp_project_id"
-                name="gcp_project_id"
-                className="form-control"
-                value={formData.gcp_project_id}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="gcp_bucket_name">Storage Bucket Name</label>
-              <input
-                type="text"
-                id="gcp_bucket_name"
-                name="gcp_bucket_name"
-                className="form-control"
-                value={formData.gcp_bucket_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group form-group-full-width">
-              <label htmlFor="gcp_service_account_key">Service Account Key (JSON)</label>
-              <textarea
-                id="gcp_service_account_key"
-                name="gcp_service_account_key"
-                className="form-control"
-                rows="6"
-                value={formData.gcp_service_account_key}
-                onChange={handleInputChange}
-                required={!editMode}
-                placeholder={editMode ? '(unchanged)' : 'Paste your service account JSON key here'}
-              />
-              {editMode && (
-                <small className="form-text text-muted">
-                  Leave blank to keep the existing service account key.
-                </small>
-              )}
-            </div>
-          </div>
-        );
-      
-      case 'azure':
-        return (
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="azure_account_name">Storage Account Name</label>
-              <input
-                type="text"
-                id="azure_account_name"
-                name="azure_account_name"
-                className="form-control"
-                value={formData.azure_account_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="azure_container_name">Container Name</label>
-              <input
-                type="text"
-                id="azure_container_name"
-                name="azure_container_name"
-                className="form-control"
-                value={formData.azure_container_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group form-group-full-width">
-              <label htmlFor="azure_account_key">Account Key</label>
-              <input
-                type="password"
-                id="azure_account_key"
-                name="azure_account_key"
-                className="form-control"
-                value={formData.azure_account_key}
-                onChange={handleInputChange}
-                required={!editMode}
-                placeholder={editMode ? '(unchanged)' : ''}
-              />
-              {editMode && (
-                <small className="form-text text-muted">
-                  Leave blank to keep the existing account key.
-                </small>
-              )}
-            </div>
-          </div>
-        );
-      
-      case 'sharepoint':
-        return (
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="sharepoint_site_url">SharePoint Site URL</label>
-              <input
-                type="url"
-                id="sharepoint_site_url"
-                name="sharepoint_site_url"
-                className="form-control"
-                value={formData.sharepoint_site_url}
-                onChange={handleInputChange}
-                required
-                placeholder="https://yourcompany.sharepoint.com/sites/yoursite"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="sharepoint_document_library">Document Library</label>
-              <input
-                type="text"
-                id="sharepoint_document_library"
-                name="sharepoint_document_library"
-                className="form-control"
-                value={formData.sharepoint_document_library}
-                onChange={handleInputChange}
-                required
-                placeholder="Shared Documents"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="sharepoint_client_id">Client ID</label>
-              <input
-                type="text"
-                id="sharepoint_client_id"
-                name="sharepoint_client_id"
-                className="form-control"
-                value={formData.sharepoint_client_id}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="sharepoint_client_secret">Client Secret</label>
-              <input
-                type="password"
-                id="sharepoint_client_secret"
-                name="sharepoint_client_secret"
-                className="form-control"
-                value={formData.sharepoint_client_secret}
-                onChange={handleInputChange}
-                required={!editMode}
-                placeholder={editMode ? '(unchanged)' : ''}
-              />
-              {editMode && (
-                <small className="form-text text-muted">
-                  Leave blank to keep the existing client secret.
-                </small>
-              )}
-            </div>
-          </div>
-        );
-      
-      case 'outlook':
-        return (
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="outlook_folder_path">Folder Path</label>
-              <input
-                type="text"
-                id="outlook_folder_path"
-                name="outlook_folder_path"
-                className="form-control"
-                value={formData.outlook_folder_path}
-                onChange={handleInputChange}
-                placeholder="Inbox/Attachments"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="outlook_client_id">Client ID</label>
-              <input
-                type="text"
-                id="outlook_client_id"
-                name="outlook_client_id"
-                className="form-control"
-                value={formData.outlook_client_id}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group form-group-full-width">
-              <label htmlFor="outlook_client_secret">Client Secret</label>
-              <input
-                type="password"
-                id="outlook_client_secret"
-                name="outlook_client_secret"
-                className="form-control"
-                value={formData.outlook_client_secret}
-                onChange={handleInputChange}
-                required={!editMode}
-                placeholder={editMode ? '(unchanged)' : ''}
-              />
-              {editMode && (
-                <small className="form-text text-muted">
-                  Leave blank to keep the existing client secret.
-                </small>
-              )}
-            </div>
-          </div>
-        );
-      
-      case 'local_folder':
-        return (
-          <div className="form-row">
-            <div className="form-group form-group-full-width">
-              <label htmlFor="local_folder_path">Folder Path</label>
-              <input
-                type="text"
-                id="local_folder_path"
-                name="local_folder_path"
-                className="form-control"
-                value={formData.local_folder_path}
-                onChange={handleInputChange}
-                required
-                placeholder="/path/to/your/folder"
-              />
-            </div>
-          </div>
-        );
-      
-      case 'sftp':
-        return (
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="sftp_host">SFTP Host</label>
-              <input
-                type="text"
-                id="sftp_host"
-                name="sftp_host"
-                className="form-control"
-                value={formData.sftp_host}
-                onChange={handleInputChange}
-                required
-                placeholder="ftp.example.com"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="sftp_port">Port</label>
-              <input
-                type="number"
-                id="sftp_port"
-                name="sftp_port"
-                className="form-control"
-                value={formData.sftp_port}
-                onChange={handleInputChange}
-                required
-                min="1"
-                max="65535"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="sftp_username">Username</label>
-              <input
-                type="text"
-                id="sftp_username"
-                name="sftp_username"
-                className="form-control"
-                value={formData.sftp_username}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="sftp_password">Password</label>
-              <input
-                type="password"
-                id="sftp_password"
-                name="sftp_password"
-                className="form-control"
-                value={formData.sftp_password}
-                onChange={handleInputChange}
-                required={!editMode}
-                placeholder={editMode ? '(unchanged)' : ''}
-              />
-              {editMode && (
-                <small className="form-text text-muted">
-                  Leave blank to keep the existing password.
-                </small>
-              )}
-            </div>
-            
-            <div className="form-group form-group-full-width">
-              <label htmlFor="sftp_path">Remote Path</label>
-              <input
-                type="text"
-                id="sftp_path"
-                name="sftp_path"
-                className="form-control"
-                value={formData.sftp_path}
-                onChange={handleInputChange}
-                placeholder="/"
-              />
-            </div>
-          </div>
-        );
-      
-      case 'snowflake':
-        return (
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="snowflake_account">Account</label>
-              <input
-                type="text"
-                id="snowflake_account"
-                name="snowflake_account"
-                className="form-control"
-                value={formData.snowflake_account}
-                onChange={handleInputChange}
-                required
-                placeholder="your-account.snowflakecomputing.com"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="snowflake_database">Database</label>
-              <input
-                type="text"
-                id="snowflake_database"
-                name="snowflake_database"
-                className="form-control"
-                value={formData.snowflake_database}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="snowflake_schema">Schema</label>
-              <input
-                type="text"
-                id="snowflake_schema"
-                name="snowflake_schema"
-                className="form-control"
-                value={formData.snowflake_schema}
-                onChange={handleInputChange}
-                required
-                placeholder="PUBLIC"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="snowflake_warehouse">Warehouse</label>
-              <input
-                type="text"
-                id="snowflake_warehouse"
-                name="snowflake_warehouse"
-                className="form-control"
-                value={formData.snowflake_warehouse}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="snowflake_username">Username</label>
-              <input
-                type="text"
-                id="snowflake_username"
-                name="snowflake_username"
-                className="form-control"
-                value={formData.snowflake_username}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="snowflake_password">Password</label>
-              <input
-                type="password"
-                id="snowflake_password"
-                name="snowflake_password"
-                className="form-control"
-                value={formData.snowflake_password}
-                onChange={handleInputChange}
-                required={!editMode}
-                placeholder={editMode ? '(unchanged)' : ''}
-              />
-              {editMode && (
-                <small className="form-text text-muted">
-                  Leave blank to keep the existing password.
-                </small>
-              )}
-            </div>
-          </div>
-        );
-      
-      default:
-        return null;
+      // Reset form and fetch updated connections
+      setShowForm(false);
+      fetchConnections();
+    } catch (err) {
+      console.error('Error saving connection:', err);
+      setError('Failed to save connection. Please check your inputs and try again.');
     }
   };
-
-  return (
-    <div className="connection-form">
-      <div className="form-header">
-        <h3>{editMode ? 'Edit Connection' : 'Add New Connection'}</h3>
-        <button type="button" className="close-btn" onClick={onCancel}>×</button>
-      </div>
-      
-      <form onSubmit={handleFormSubmit}>
-        {/* Common fields in multi-column layout */}
-        <div className="form-row">
+  
+  const renderConnectionIcon = (type) => {
+    switch (type) {
+      case 'aws':
+        return <FiCloud className="connection-icon aws" />;
+      case 'gcp':
+        return <FiCloud className="connection-icon gcp" />;
+      case 'azure':
+        return <FiCloud className="connection-icon azure" />;
+      case 'snowflake':
+        return <FiDatabase className="connection-icon snowflake" />;
+      case 'databricks':
+        return <FiDatabase className="connection-icon databricks" />;
+      case 'sharepoint':
+        return <FiFolder className="connection-icon sharepoint" />;
+      case 'outlook':
+        return <FiMail className="connection-icon outlook" />;
+      default:
+        return <FiDatabase className="connection-icon" />;
+    }
+  };
+  
+  const renderFormFields = () => {
+    const { connection_type } = formData;
+    
+    // Common fields for all connection types
+    const commonFields = (
+      <>
+        <div className="form-group">
+          <label htmlFor="connection_name">Connection Name</label>
+          <input
+            type="text"
+            id="connection_name"
+            name="connection_name"
+            className="form-control"
+            value={formData.connection_name}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="connection_type">Connection Type</label>
+          <select
+            id="connection_type"
+            name="connection_type"
+            className="form-control"
+            value={formData.connection_type}
+            onChange={handleConnectionTypeChange}
+            required
+          >
+            <option value="aws">AWS S3</option>
+            <option value="gcp">Google Cloud Storage</option>
+            <option value="azure">Azure Blob Storage</option>
+            <option value="snowflake">Snowflake</option>
+            <option value="databricks">Databricks</option>
+            <option value="sharepoint">SharePoint</option>
+            <option value="outlook">Outlook</option>
+          </select>
+        </div>
+      </>
+    );
+    
+    // Type-specific fields
+    let specificFields;
+    
+    if (connection_type === 'aws') {
+      specificFields = (
+        <>
           <div className="form-group">
-            <label htmlFor="connection_name">Connection Name</label>
+            <label htmlFor="region">AWS Region</label>
             <input
               type="text"
-              id="connection_name"
-              name="connection_name"
+              id="region"
+              name="region"
               className="form-control"
-              value={formData.connection_name}
+              value={formData.region}
               onChange={handleInputChange}
               required
             />
           </div>
           
           <div className="form-group">
-            <label htmlFor="connection_type">Connection Type</label>
-            <select
-              id="connection_type"
-              name="connection_type"
+            <label htmlFor="bucket_name">S3 Bucket Name</label>
+            <input
+              type="text"
+              id="bucket_name"
+              name="bucket_name"
               className="form-control"
-              value={formData.connection_type}
+              value={formData.bucket_name}
               onChange={handleInputChange}
               required
-            >
-              <option value="">Select a connection type</option>
-              <option value="aws">Amazon S3</option>
-              <option value="gcp">Google Cloud Storage</option>
-              <option value="azure">Azure Blob Storage</option>
-              <option value="sharepoint">SharePoint</option>
-              <option value="outlook">Outlook</option>
-              <option value="local_folder">Local Folder</option>
-              <option value="sftp">SFTP</option>
-              <option value="snowflake">Snowflake</option>
-            </select>
+            />
           </div>
-        </div>
-
-        {/* Connection-specific fields */}
-        {renderSpecificFields()}
-
-        <div className="form-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            Cancel
+          
+          <div className="form-group">
+            <label htmlFor="access_key">Access Key ID</label>
+            <input
+              type="text"
+              id="access_key"
+              name="access_key"
+              className="form-control"
+              value={formData.access_key}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="secret_key">Secret Access Key</label>
+            <input
+              type="password"
+              id="secret_key"
+              name="secret_key"
+              className="form-control"
+              value={formData.secret_key}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing secret key.
+              </small>
+            )}
+          </div>
+        </>
+      );
+    } else if (connection_type === 'gcp') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="project_id">GCP Project ID</label>
+            <input
+              type="text"
+              id="project_id"
+              name="project_id"
+              className="form-control"
+              value={formData.project_id}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="bucket_name">Storage Bucket Name</label>
+            <input
+              type="text"
+              id="bucket_name"
+              name="bucket_name"
+              className="form-control"
+              value={formData.bucket_name}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="client_email">Service Account Email</label>
+            <input
+              type="text"
+              id="client_email"
+              name="client_email"
+              className="form-control"
+              value={formData.client_email}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="private_key">Service Account Private Key</label>
+            <textarea
+              id="private_key"
+              name="private_key"
+              className="form-control"
+              value={formData.private_key}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+              rows={3}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing private key.
+              </small>
+            )}
+          </div>
+        </>
+      );
+    } else if (connection_type === 'azure') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="account_name">Storage Account Name</label>
+            <input
+              type="text"
+              id="account_name"
+              name="account_name"
+              className="form-control"
+              value={formData.account_name}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="container_name">Container Name</label>
+            <input
+              type="text"
+              id="container_name"
+              name="container_name"
+              className="form-control"
+              value={formData.container_name}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="account_key">Storage Account Key</label>
+            <input
+              type="password"
+              id="account_key"
+              name="account_key"
+              className="form-control"
+              value={formData.account_key}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing account key.
+              </small>
+            )}
+          </div>
+        </>
+      );
+    } else if (connection_type === 'snowflake') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="snowflake_account">Snowflake Account</label>
+            <input
+              type="text"
+              id="snowflake_account"
+              name="snowflake_account"
+              className="form-control"
+              value={formData.snowflake_account}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The account identifier (e.g., xy12345.us-east-1)
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_username">Username</label>
+            <input
+              type="text"
+              id="snowflake_username"
+              name="snowflake_username"
+              className="form-control"
+              value={formData.snowflake_username}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_password">Password</label>
+            <input
+              type="password"
+              id="snowflake_password"
+              name="snowflake_password"
+              className="form-control"
+              value={formData.snowflake_password}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing password.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_warehouse">Warehouse</label>
+            <input
+              type="text"
+              id="snowflake_warehouse"
+              name="snowflake_warehouse"
+              className="form-control"
+              value={formData.snowflake_warehouse}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_database">Database</label>
+            <input
+              type="text"
+              id="snowflake_database"
+              name="snowflake_database"
+              className="form-control"
+              value={formData.snowflake_database}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_schema">Schema</label>
+            <input
+              type="text"
+              id="snowflake_schema"
+              name="snowflake_schema"
+              className="form-control"
+              value={formData.snowflake_schema}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="snowflake_role">Role</label>
+            <input
+              type="text"
+              id="snowflake_role"
+              name="snowflake_role"
+              className="form-control"
+              value={formData.snowflake_role}
+              onChange={handleInputChange}
+            />
+            <small className="form-text text-muted">
+              Optional - leave blank to use the default role
+            </small>
+          </div>
+        </>
+      );
+    } else if (connection_type === 'databricks') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="databricks_host">Databricks Host</label>
+            <input
+              type="text"
+              id="databricks_host"
+              name="databricks_host"
+              className="form-control"
+              value={formData.databricks_host}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The Databricks workspace URL (e.g., https://dbc-abc123.cloud.databricks.com)
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="databricks_token">Access Token</label>
+            <input
+              type="password"
+              id="databricks_token"
+              name="databricks_token"
+              className="form-control"
+              value={formData.databricks_token}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing token.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="databricks_catalog">Catalog</label>
+            <input
+              type="text"
+              id="databricks_catalog"
+              name="databricks_catalog"
+              className="form-control"
+              value={formData.databricks_catalog}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="databricks_schema">Schema</label>
+            <input
+              type="text"
+              id="databricks_schema"
+              name="databricks_schema"
+              className="form-control"
+              value={formData.databricks_schema}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+        </>
+      );
+    } else if (connection_type === 'sharepoint') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="sharepoint_tenant_id">Microsoft Tenant ID</label>
+            <input
+              type="text"
+              id="sharepoint_tenant_id"
+              name="sharepoint_tenant_id"
+              className="form-control"
+              value={formData.sharepoint_tenant_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Your Microsoft 365 tenant ID
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_client_id">Application (Client) ID</label>
+            <input
+              type="text"
+              id="sharepoint_client_id"
+              name="sharepoint_client_id"
+              className="form-control"
+              value={formData.sharepoint_client_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Client ID from your Azure AD registered application
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_client_secret">Client Secret</label>
+            <input
+              type="password"
+              id="sharepoint_client_secret"
+              name="sharepoint_client_secret"
+              className="form-control"
+              value={formData.sharepoint_client_secret}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing client secret.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_site_url">SharePoint Site URL</label>
+            <input
+              type="text"
+              id="sharepoint_site_url"
+              name="sharepoint_site_url"
+              className="form-control"
+              value={formData.sharepoint_site_url}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The URL of your SharePoint site (e.g., https://contoso.sharepoint.com/sites/mysite)
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="sharepoint_document_library">Document Library</label>
+            <input
+              type="text"
+              id="sharepoint_document_library"
+              name="sharepoint_document_library"
+              className="form-control"
+              value={formData.sharepoint_document_library}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Name of the document library where your files are stored (e.g., "Documents" or "Shared Documents")
+            </small>
+          </div>
+        </>
+      );
+    } else if (connection_type === 'outlook') {
+      specificFields = (
+        <>
+          <div className="form-group">
+            <label htmlFor="outlook_tenant_id">Microsoft Tenant ID</label>
+            <input
+              type="text"
+              id="outlook_tenant_id"
+              name="outlook_tenant_id"
+              className="form-control"
+              value={formData.outlook_tenant_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Your Microsoft 365 tenant ID
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_client_id">Application (Client) ID</label>
+            <input
+              type="text"
+              id="outlook_client_id"
+              name="outlook_client_id"
+              className="form-control"
+              value={formData.outlook_client_id}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Client ID from your Azure AD registered application
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_client_secret">Client Secret</label>
+            <input
+              type="password"
+              id="outlook_client_secret"
+              name="outlook_client_secret"
+              className="form-control"
+              value={formData.outlook_client_secret}
+              onChange={handleInputChange}
+              required={!editMode}
+              placeholder={editMode ? '(unchanged)' : ''}
+            />
+            {editMode && (
+              <small className="form-text text-muted">
+                Leave blank to keep the existing client secret.
+              </small>
+            )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_user_email">User Email</label>
+            <input
+              type="email"
+              id="outlook_user_email"
+              name="outlook_user_email"
+              className="form-control"
+              value={formData.outlook_user_email}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              The email address of the Outlook account to access
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="outlook_folder_path">Folder Path</label>
+            <input
+              type="text"
+              id="outlook_folder_path"
+              name="outlook_folder_path"
+              className="form-control"
+              value={formData.outlook_folder_path}
+              onChange={handleInputChange}
+              required
+            />
+            <small className="form-text text-muted">
+              Path to the folder containing attachment files (e.g., "Inbox/Reports" or leave as "Inbox" for default)
+            </small>
+          </div>
+        </>
+      );
+    }
+    
+    return (
+      <>
+        {commonFields}
+        {specificFields}
+      </>
+    );
+  };
+  
+  // Format connection details for display
+  const formatConnectionDetails = (connection) => {
+    const { connection_type } = connection;
+    
+    if (connection_type === 'aws') {
+      return (
+        <>
+          <div><strong>Region:</strong> {connection.region}</div>
+          <div><strong>Bucket:</strong> {connection.bucket_name}</div>
+        </>
+      );
+    } else if (connection_type === 'gcp') {
+      return (
+        <>
+          <div><strong>Project:</strong> {connection.project_id}</div>
+          <div><strong>Bucket:</strong> {connection.bucket_name}</div>
+        </>
+      );
+    } else if (connection_type === 'azure') {
+      return (
+        <>
+          <div><strong>Account:</strong> {connection.account_name}</div>
+          <div><strong>Container:</strong> {connection.container_name}</div>
+        </>
+      );
+    } else if (connection_type === 'snowflake') {
+      return (
+        <>
+          <div><strong>Account:</strong> {connection.snowflake_account}</div>
+          <div><strong>Database:</strong> {connection.snowflake_database}</div>
+          <div><strong>Schema:</strong> {connection.snowflake_schema}</div>
+        </>
+      );
+    } else if (connection_type === 'databricks') {
+      return (
+        <>
+          <div><strong>Host:</strong> {connection.databricks_host}</div>
+          <div><strong>Catalog:</strong> {connection.databricks_catalog}</div>
+          <div><strong>Schema:</strong> {connection.databricks_schema}</div>
+        </>
+      );
+    } else if (connection_type === 'sharepoint') {
+      return (
+        <>
+          <div><strong>Site URL:</strong> {connection.sharepoint_site_url}</div>
+          <div><strong>Document Library:</strong> {connection.sharepoint_document_library}</div>
+        </>
+      );
+    } else if (connection_type === 'outlook') {
+      return (
+        <>
+          <div><strong>Email:</strong> {connection.outlook_user_email}</div>
+          <div><strong>Folder:</strong> {connection.outlook_folder_path}</div>
+        </>
+      );
+    }
+    
+    return null;
+  };
+  
+  // Get connection type label
+  const getConnectionTypeLabel = (type) => {
+    switch (type) {
+      case 'aws': return 'AWS S3';
+      case 'gcp': return 'Google Cloud Storage';
+      case 'azure': return 'Azure Blob Storage';
+      case 'snowflake': return 'Snowflake';
+      case 'databricks': return 'Databricks';
+      case 'sharepoint': return 'SharePoint';
+      case 'outlook': return 'Outlook';
+      default: return type;
+    }
+  };
+  
+  return (
+    <div className="connections-container">
+      <div className="connections-header">
+        <h1>Cloud Storage Connections</h1>
+        {hasWritePermission('connections') ? (
+          <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
+            <FiPlus /> Add Connection
           </button>
-          <button type="submit" className="btn btn-primary">
-            {editMode ? 'Update Connection' : 'Create Connection'}
-          </button>
+        ) : (
+          <div className="permission-notice">
+            You don't have permission to create connections
+          </div>
+        )}
+      </div>
+      
+      {error && <div className="alert alert-error">{error}</div>}
+      
+      {loading ? (
+        <div className="loading-container">
+          <LoadingSpinner />
+          <p>Loading connections...</p>
         </div>
-      </form>
+      ) : (
+        <div className="connections-content">
+          {showForm ? (
+            <Card className="connection-form-container">
+              <h2>{editMode ? 'Edit Connection' : 'Add New Connection'}</h2>
+              <form onSubmit={handleSubmit}>
+                {renderFormFields()}
+                
+                <div className="form-actions">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {editMode ? 'Update' : 'Save'} Connection
+                  </button>
+                </div>
+              </form>
+            </Card>
+          ) : (
+            <>
+              {connections.length === 0 ? (
+                <>
+                  <div className="no-connections">
+                    <FiServer className="empty-icon" />
+                    <p>No cloud storage connections configured yet.</p>
+                    <p>Add a connection to start importing files from cloud storage.</p>
+                    {hasWritePermission('connections') ? (
+                      <button className="btn btn-primary" onClick={handleAddNew}>
+                        Add Your First Connection
+                      </button>
+                    ) : (
+                      <div className="permission-notice">
+                        You don't have permission to create connections
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Cloud provider options */}
+                  <h2>Supported Cloud Storage Providers</h2>
+                  <div className="cloud-providers-list">
+                    <div className="cloud-provider-section aws">
+                      <div className="cloud-provider-header">
+                        <FiCloud className="cloud-provider-icon aws" />
+                        <div className="cloud-provider-title">
+                          <h3>Amazon S3</h3>
+                          <div className="cloud-provider-features">
+                            Store and retrieve data from AWS S3 buckets
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Amazon Simple Storage Service (S3) to access your object storage data. 
+                        Supports importing CSV, JSON, and Parquet files directly from any S3 bucket.
+                      </p>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'aws'});
+                          handleAddNew();
+                        }}>
+                          Connect to AWS S3
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="cloud-provider-section gcp">
+                      <div className="cloud-provider-header">
+                        <FiCloud className="cloud-provider-icon gcp" />
+                        <div className="cloud-provider-title">
+                          <h3>Google Cloud Storage</h3>
+                          <div className="cloud-provider-features">
+                            Import data from GCP storage buckets
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Google Cloud Storage to import data files from your GCP projects.
+                        Use service account credentials to securely access your storage buckets.
+                      </p>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'gcp'});
+                          handleAddNew();
+                        }}>
+                          Connect to Google Cloud
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="cloud-provider-section azure">
+                      <div className="cloud-provider-header">
+                        <FiCloud className="cloud-provider-icon azure" />
+                        <div className="cloud-provider-title">
+                          <h3>Azure Blob Storage</h3>
+                          <div className="cloud-provider-features">
+                            Access data from Azure storage containers
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Microsoft Azure Blob Storage to import files from your storage containers.
+                        Supports secure access using storage account keys.
+                      </p>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'azure'});
+                          handleAddNew();
+                        }}>
+                          Connect to Azure
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="cloud-provider-section snowflake">
+                      <div className="cloud-provider-header">
+                        <FiDatabase className="cloud-provider-icon snowflake" />
+                        <div className="cloud-provider-title">
+                          <h3>Snowflake</h3>
+                          <div className="cloud-provider-features">
+                            Connect to your Snowflake data warehouse
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Access data directly from your Snowflake data warehouse. Query tables and views
+                        to import data for profiling, quality checks, and lineage tracking.
+                      </p>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'snowflake'});
+                          handleAddNew();
+                        }}>
+                          Connect to Snowflake
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="cloud-provider-section databricks">
+                      <div className="cloud-provider-header">
+                        <FiDatabase className="cloud-provider-icon databricks" />
+                        <div className="cloud-provider-title">
+                          <h3>Databricks</h3>
+                          <div className="cloud-provider-features">
+                            Access data from your Databricks lakehouse
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Databricks to access tables and views from your lakehouse platform.
+                        Seamlessly import structured data for advanced profiling and quality monitoring.
+                      </p>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'databricks'});
+                          handleAddNew();
+                        }}>
+                          Connect to Databricks
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="cloud-provider-section sharepoint">
+                      <div className="cloud-provider-header">
+                        <FiFolder className="cloud-provider-icon sharepoint" />
+                        <div className="cloud-provider-title">
+                          <h3>SharePoint</h3>
+                          <div className="cloud-provider-features">
+                            Access files from Microsoft SharePoint document libraries
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Microsoft SharePoint to access files from your organization's document libraries.
+                        Import spreadsheets, reports, and data files directly from SharePoint sites.
+                      </p>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'sharepoint'});
+                          handleAddNew();
+                        }}>
+                          Connect to SharePoint
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="cloud-provider-section outlook">
+                      <div className="cloud-provider-header">
+                        <FiMail className="cloud-provider-icon outlook" />
+                        <div className="cloud-provider-title">
+                          <h3>Outlook</h3>
+                          <div className="cloud-provider-features">
+                            Process email attachments from Outlook folders
+                          </div>
+                        </div>
+                      </div>
+                      <p>
+                        Connect to Microsoft Outlook to access and process file attachments from emails.
+                        Automatically import data from scheduled reports sent to your inbox.
+                      </p>
+                      {hasWritePermission('connections') ? (
+                        <button className="btn btn-outline" onClick={() => {
+                          setFormData({...formData, connection_type: 'outlook'});
+                          handleAddNew();
+                        }}>
+                          Connect to Outlook
+                        </button>
+                      ) : (
+                        <div className="permission-notice-sm">
+                          Requires write permission
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="connections-grid">
+                  {connections.map(connection => (
+                    <Card key={connection.id} className="connection-card">
+                      <div className="connection-header">
+                        {renderConnectionIcon(connection.connection_type || connection.type)}
+                        <div className="connection-title">
+                          {/* Check if connection is from another source application */}
+                          {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
+                            <div className="shared-indicator" title="Shared with Transform">
+                              <FiLink className="shared-icon" />
+                            </div>
+                          )}
+                          <h3>{connection.connection_name}</h3>
+                          <span className="connection-type">
+                            {getConnectionTypeLabel(connection.connection_type)}
+                          </span>
+                        </div>
+                        <div className="connection-actions">
+                          {hasWritePermission('connections') && (
+                            <>
+                              <button 
+                                className="test-btn" 
+                                onClick={() => handleTestConnection(connection)}
+                                disabled={testingConnection === connection.id}
+                              >
+                                {testingConnection === connection.id ? 'Testing...' : 'Test'}
+                              </button>
+                              <button 
+                                className="action-btn edit-btn" 
+                                onClick={() => handleEdit(connection)}
+                                title="Edit connection"
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button 
+                                className="action-btn delete-btn" 
+                                onClick={() => handleDelete(connection.id)}
+                                title="Delete connection"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="connection-details">
+                        {connection.source_application && connection.source_application !== 'data_observatory' && (
+                          <div className="source-app">Source: {connection.source_application}</div>
+                        )}
+                        {formatConnectionDetails(connection)}
+                        
+                        {testResults[connection.id] && (
+                          <div className={`test-result ${testResults[connection.id].success ? 'success' : 'error'}`}>
+                            {testResults[connection.id].success ? (
+                              <><FiCheckCircle /> Connection is working</>
+                            ) : (
+                              <div className="error-message">{testResults[connection.id].message}</div>
+                            )}
+                          </div>
+                        )}
+                        
+                        <div className="connection-meta">
+                          <span className="last-used">
+                            Last used: {connection.last_used_at ? 
+                              new Date(connection.last_used_at).toLocaleString() : 
+                              'Never'}
+                          </span>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
