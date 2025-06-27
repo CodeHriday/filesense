@@ -1296,11 +1296,10 @@ const Connections = () => {
                             <div className="connection-info">
                               <div className="connection-name">
                                 {connection.connection_name}
-                                {/* Check if connection is from another source application */}
                                 {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
-                                  <div className="shared-indicator" title="Shared with Transform">
+                                  <span className="shared-indicator" title="Shared with Transform">
                                     <FiLink className="shared-icon" />
-                                  </div>
+                                  </span>
                                 )}
                               </div>
                               <div className="connection-type">
@@ -1318,25 +1317,25 @@ const Connections = () => {
                                 >
                                   {testingConnection === connection.id ? 'Testing...' : 'Test'}
                                 </button>
-                              <button 
-                                className="action-btn edit-btn" 
-                                onClick={() => handleEdit(connection)}
-                                title="Edit connection"
-                              >
-                                <FiEdit2 />
-                              </button>
-                              <button 
-                                className="action-btn delete-btn" 
-                                onClick={() => handleDelete(connection.id)}
-                                title="Delete connection"
-                              >
-                                <FiTrash2 />
-                              </button>
-                            </>
-                          )}
+                                <button 
+                                  className="action-btn edit-btn" 
+                                  onClick={() => handleEdit(connection)}
+                                  title="Edit connection"
+                                >
+                                  <FiEdit2 />
+                                </button>
+                                <button 
+                                  className="action-btn delete-btn" 
+                                  onClick={() => handleDelete(connection.id)}
+                                  title="Delete connection"
+                                >
+                                  <FiTrash2 />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      
+                        
                         <div className="connection-details">
                           {connection.source_application && connection.source_application !== 'data_observatory' && (
                             <div className="connection-detail-item">
@@ -1345,7 +1344,6 @@ const Connections = () => {
                             </div>
                           )}
                           
-                          {/* Connection-specific details */}
                           {(connection.connection_type === 'aws' || connection.type === 'aws') && (
                             <>
                               <div className="connection-detail-item">
@@ -1404,16 +1402,19 @@ const Connections = () => {
                           {testResults[connection.id] && (
                             <div className={`test-result ${testResults[connection.id].success ? 'success' : 'error'}`}>
                               {testResults[connection.id].success ? (
-                                <><FiCheckCircle /> Connection verified</>
+                                <>
+                                  <FiCheckCircle /> Connection verified
+                                </>
                               ) : (
                                 <div className="error-message">{testResults[connection.id].message}</div>
                               )}
                             </div>
                           )}
                         </div>
-                    </Card>
-                  ))}
-                </div>
+                      </Card>
+                    ))}
+                  </div>
+                </>
               )}
             </>
           )}
