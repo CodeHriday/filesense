@@ -30,18 +30,7 @@ const ConnectionSelector = ({ sourceConnection, targetConnection, onSourceChange
     }
   };
 
-  const getConnectionIcon = (type) => {
-    switch (type?.toLowerCase()) {
-      case 'aws':
-      case 's3':
-        return FiCloud;
-      case 'snowflake':
-      case 'databricks':
-        return FiDatabase;
-      default:
-        return FiServer;
-    }
-  };
+
 
   const getConnectionTypeLabel = (type) => {
     const labels = {
@@ -57,36 +46,7 @@ const ConnectionSelector = ({ sourceConnection, targetConnection, onSourceChange
     return labels[type?.toLowerCase()] || type;
   };
 
-  const ConnectionCard = ({ connection, isSelected, onSelect, label, disabled }) => {
-    const IconComponent = getConnectionIcon(connection.type);
-    
-    return (
-      <div 
-        className={`connection-card ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
-        onClick={() => !disabled && onSelect(connection)}
-      >
-        <div className="connection-icon">
-          <IconComponent />
-        </div>
-        <div className="connection-info">
-          <h4>{connection.name || connection.connection_name}</h4>
-          <p>{getConnectionTypeLabel(connection.type)}</p>
-          <div className="connection-meta">
-            <span className="connection-status">
-              <FiCheckCircle className="status-icon active" />
-              Active
-            </span>
-          </div>
-        </div>
-        {isSelected && (
-          <div className="selection-indicator">
-            <FiCheckCircle />
-          </div>
-        )}
-        <div className="connection-label">{label}</div>
-      </div>
-    );
-  };
+
 
   if (loading) {
     return (
@@ -125,17 +85,22 @@ const ConnectionSelector = ({ sourceConnection, targetConnection, onSourceChange
           <p className="section-description">
             Select where your data will come from. Source connections are read-only.
           </p>
-          <div className="connection-grid">
-            {connections.map(connection => (
-              <ConnectionCard
-                key={`source-${connection.id}`}
-                connection={connection}
-                isSelected={sourceConnection?.id === connection.id}
-                onSelect={onSourceChange}
-                label="SOURCE"
-                disabled={false}
-              />
-            ))}
+          <div className="connection-dropdown-container">
+            <select 
+              className="connection-dropdown"
+              value={sourceConnection?.id || ''}
+              onChange={(e) => {
+                const selectedConnection = connections.find(conn => conn.id === parseInt(e.target.value));
+                onSourceChange(selectedConnection);
+              }}
+            >
+              <option value="">Select a source connection...</option>
+              {connections.map(connection => (
+                <option key={`source-${connection.id}`} value={connection.id}>
+                  {connection.name || connection.connection_name} ({getConnectionTypeLabel(connection.type)})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -147,17 +112,22 @@ const ConnectionSelector = ({ sourceConnection, targetConnection, onSourceChange
           <p className="section-description">
             Select where your transformed data will be written. Target connections are fully editable.
           </p>
-          <div className="connection-grid">
-            {connections.map(connection => (
-              <ConnectionCard
-                key={`target-${connection.id}`}
-                connection={connection}
-                isSelected={targetConnection?.id === connection.id}
-                onSelect={onTargetChange}
-                label="TARGET"
-                disabled={false}
-              />
-            ))}
+          <div className="connection-dropdown-container">
+            <select 
+              className="connection-dropdown"
+              value={targetConnection?.id || ''}
+              onChange={(e) => {
+                const selectedConnection = connections.find(conn => conn.id === parseInt(e.target.value));
+                onTargetChange(selectedConnection);
+              }}
+            >
+              <option value="">Select a target connection...</option>
+              {connections.map(connection => (
+                <option key={`target-${connection.id}`} value={connection.id}>
+                  {connection.name || connection.connection_name} ({getConnectionTypeLabel(connection.type)})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
