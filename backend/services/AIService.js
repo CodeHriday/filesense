@@ -617,20 +617,23 @@ class AIService {
       // Note: distilgpt2 model has different parameters than Phi-2
       const result = await this.chatPipeline(prompt, {
         max_new_tokens: 100,       // Shorter responses for more coherence
-        temperature: 0.5,          // Lower temperature for more focused output
-        repetition_penalty: 1.5,   // Higher penalty to prevent repetition 
-        top_k: 50,                // Limit vocabulary to top 50 options at each step
+        temperature: 0.7,          // Slightly higher temperature for more variety
+        repetition_penalty: 1.2,   // Moderate penalty to prevent repetition 
+        top_k: 40,                // Limit vocabulary to top 40 options at each step
         top_p: 0.9,                // Sample from top 90% of probability mass
-        do_sample: true            // Use sampling instead of greedy decoding
+        do_sample: true,           // Use sampling instead of greedy decoding
+        return_full_text: false    // Only return the generated text, not the prompt
       });
       
       // Log raw result for debugging
       logger.debug('Raw model result received', {
-        textLength: result.generated_text ? result.generated_text.length : 0
+        result: result,
+        type: typeof result,
+        isArray: Array.isArray(result)
       });
       
-      // Process the response
-      const aiResponse = this.extractAIResponse(result.generated_text, prompt);
+      // Process the response based on the actual structure returned by distilgpt2
+      const aiResponse = this.extractAIResponse(result, prompt);
       
       // Cache the response
       responseCache.set(cacheKey, { response: aiResponse });
@@ -770,27 +773,52 @@ class AIService {
   /**
    * Extract the AI's response from the generated text
    * 
-   * @param {string} generatedText - Full generated text from the model
+   * @param {Object|Array|string} result - Result from the model pipeline
    * @param {string} prompt - Original prompt sent to the model
    * @returns {string} - Cleaned AI response
    */
-  extractAIResponse(generatedText, prompt) {
+  extractAIResponse(result, prompt) {
     // Log raw response for debugging
-    logger.debug('Raw model response', { 
-      responseLength: generatedText ? generatedText.length : 0,
-      promptLength: prompt.length
+    logger.debug('Processing model response', { 
+      resultType: typeof result,
+      isArray: Array.isArray(result),
+      resultKeys: result && typeof result === 'object' ? Object.keys(result) : 'N/A'
     });
     
-    // Extract only the model's response (removing the prompt)
-    if (!generatedText || generatedText === prompt || generatedText.length <= prompt.length) {
+    let generatedText = '';
+    
+    // Handle different response formats from distilgpt2
+    if (Array.isArray(result) && result.length > 0) {
+      // Array format: take the first result
+      generatedText = result[0].generated_text || '';
+    } else if (result && typeof result === 'object') {
+      // Object format: extract generated_text property
+      generatedText = result.generated_text || '';
+    } else if (typeof result === 'string') {
+      // String format: use directly
+      generatedText = result;
+    }
+    
+    logger.debug('Extracted generated text', {
+      generatedLength: generatedText.length,
+      generatedPreview: generatedText.substring(0, 100)
+    });
+    
+    // Check if we have meaningful generated text
+    if (!generatedText || generatedText.length === 0) {
       logger.warn('Model returned no meaningful response', {
-        generatedText: generatedText ? generatedText.substring(0, 50) + '...' : 'undefined'
+        result: JSON.stringify(result).substring(0, 200)
       });
       return 'I apologize, but I couldn\'t generate a response. Please try asking in a different way.';
     }
     
-    // Remove the prompt to get just the model's completion
-    let response = generatedText.substring(prompt.length).trim();
+    // Since we used return_full_text: false, the result should only contain the generated part
+    let response = generatedText.trim();
+    
+    // If the response somehow still contains the prompt, remove it
+    if (response.startsWith(prompt.trim())) {
+      response = response.substring(prompt.trim().length).trim();
+    }
     
     // Clean up any extra stuff the model might have added
     // For GPT-style models they sometimes continue with conversation markers
@@ -798,20 +826,23 @@ class AIService {
       response = response.substring(0, response.indexOf('User:')).trim();
     }
     
-    // DistilGPT2 often adds weird formatting or continues with repetitive text, cut at periods
-    const firstSentenceEnd = response.indexOf('.');
-    if (firstSentenceEnd > 20) { // Only if we have a reasonably long first sentence
-      response = response.substring(0, firstSentenceEnd + 1).trim();
+    // DistilGPT2 often adds weird formatting or continues with repetitive text
+    // Look for natural sentence endings
+    const sentences = response.split(/[.!?]/);
+    if (sentences.length > 1 && sentences[0].length > 10) {
+      // Take the first complete sentence
+      response = sentences[0].trim() + '.';
     } else {
-      // Otherwise try to find a reasonable cutoff
-      const maxLength = 100;
+      // Otherwise limit length to prevent rambling
+      const maxLength = 150;
       if (response.length > maxLength) {
-        response = response.substring(0, maxLength) + '...';
+        const cutIndex = response.lastIndexOf(' ', maxLength);
+        response = response.substring(0, cutIndex > 0 ? cutIndex : maxLength) + '...';
       }
     }
     
     // Check for any common tokens that indicate the model is trying to continue with code or markdown
-    const cutoffTokens = ['```', '###', '---', '```python', '```javascript', '```json'];
+    const cutoffTokens = ['```', '###', '---', 'python', 'javascript', 'json', '\n\n'];
     for (const token of cutoffTokens) {
       if (response.includes(token)) {
         response = response.substring(0, response.indexOf(token)).trim();
@@ -820,6 +851,7 @@ class AIService {
     
     // If we ended up with nothing useful
     if (response.length < 5) {
+      logger.warn('Response too short after processing', { response });
       return 'I apologize, but I couldn\'t generate a response. Please try asking in a different way.';
     }
     
