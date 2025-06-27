@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiFile, FiDatabase, FiRefreshCw, FiAlertCircle, FiInfo } from 'react-icons/fi';
 import axios from 'axios';
 import LoadingSpinner from '../LoadingSpinner';
+import './Transform.css';
 
 /**
  * File Selector component for choosing a source file and loading its schema

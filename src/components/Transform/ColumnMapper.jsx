@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { FiArrowRight, FiTrash2, FiPlus, FiType, FiKey, FiEye, FiEyeOff } from 'react-icons/fi';
+import './Transform.css';
 
 /**
  * Draggable source column component

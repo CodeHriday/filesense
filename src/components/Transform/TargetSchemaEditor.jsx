@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FiSettings, FiDatabase, FiEdit2, FiSave, FiRefreshCw } from 'react-icons/fi';
+import './Transform.css';
 
 /**
  * Target Schema Editor component for configuring target connection settings
