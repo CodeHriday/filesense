@@ -140,64 +140,76 @@ const FileSelector = ({ connection, selectedFile, onFileSelect }) => {
           <p>No files were found in this connection. Make sure files are uploaded and accessible.</p>
         </div>
       ) : (
-        <div className="file-grid">
-          {files.map(file => (
-            <div 
-              key={file.file_id}
-              className={`file-card ${selectedFile?.file_id === file.file_id ? 'selected' : ''}`}
-              onClick={() => loadFileSchema(file)}
+        <div className="file-dropdown-section">
+          <div className="dropdown-container">
+            <label htmlFor="file-select" className="dropdown-label">
+              Choose File:
+            </label>
+            <select 
+              id="file-select"
+              className="file-dropdown"
+              value={selectedFile?.file_id || ''}
+              onChange={(e) => {
+                const selectedFileId = e.target.value;
+                if (selectedFileId) {
+                  const file = files.find(f => f.file_id === selectedFileId);
+                  if (file) {
+                    loadFileSchema(file);
+                  }
+                }
+              }}
             >
-              <div className="file-icon">
-                <FiFile />
-              </div>
-              <div className="file-info">
-                <h4>{file.filename}</h4>
-                <div className="file-meta">
-                  <span className="file-type">{file.file_type?.toUpperCase()}</span>
-                  <span className="file-size">{formatFileSize(file.file_size)}</span>
-                </div>
-                <div className="file-stats">
-                  <span>{file.row_count || 0} rows</span>
-                  <span>{file.column_count || 0} columns</span>
-                </div>
-                <div className="file-date">
-                  Processed: {formatDate(file.processed_at)}
-                </div>
-                {file.quality_score && (
-                  <div className="quality-score">
-                    Quality: {parseFloat(file.quality_score).toFixed(1)}%
-                  </div>
-                )}
-              </div>
-              {schemaLoading && selectedFile?.file_id === file.file_id && (
-                <div className="loading-overlay">
-                  <LoadingSpinner size="small" />
-                  <span>Loading schema...</span>
-                </div>
-              )}
+              <option value="">Select a file...</option>
+              {files.map(file => (
+                <option key={file.file_id} value={file.file_id}>
+                  {file.filename} - {file.file_type?.toUpperCase()} ({file.row_count} rows, {file.column_count} cols)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {schemaLoading && (
+            <div className="schema-loading">
+              <LoadingSpinner size="small" />
+              <span>Loading file schema...</span>
             </div>
-          ))}
+          )}
         </div>
       )}
 
       {selectedFile && (
         <div className="selected-file-summary">
-          <h3>Selected File</h3>
-          <div className="summary-content">
-            <div className="summary-item">
-              <strong>File:</strong> {selectedFile.filename}
+          <h3>Selected File Details</h3>
+          <div className="file-details-grid">
+            <div className="detail-item">
+              <span className="label">Filename:</span>
+              <span className="value">{selectedFile.filename}</span>
             </div>
-            <div className="summary-item">
-              <strong>Type:</strong> {selectedFile.file_type?.toUpperCase()}
+            <div className="detail-item">
+              <span className="label">Type:</span>
+              <span className="value">{selectedFile.file_type?.toUpperCase()}</span>
             </div>
-            <div className="summary-item">
-              <strong>Size:</strong> {formatFileSize(selectedFile.file_size)}
+            <div className="detail-item">
+              <span className="label">Size:</span>
+              <span className="value">{formatFileSize(parseInt(selectedFile.file_size))}</span>
             </div>
-            <div className="summary-item">
-              <strong>Rows:</strong> {selectedFile.row_count || 0}
+            <div className="detail-item">
+              <span className="label">Rows:</span>
+              <span className="value">{selectedFile.row_count || 0}</span>
             </div>
-            <div className="summary-item">
-              <strong>Columns:</strong> {selectedFile.column_count || 0}
+            <div className="detail-item">
+              <span className="label">Columns:</span>
+              <span className="value">{selectedFile.column_count || 0}</span>
+            </div>
+            {selectedFile.quality_score && (
+              <div className="detail-item">
+                <span className="label">Quality Score:</span>
+                <span className="value">{parseFloat(selectedFile.quality_score).toFixed(1)}%</span>
+              </div>
+            )}
+            <div className="detail-item">
+              <span className="label">Last Updated:</span>
+              <span className="value">{formatDate(selectedFile.updated_at)}</span>
             </div>
           </div>
         </div>
