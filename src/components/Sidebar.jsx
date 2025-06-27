@@ -257,17 +257,12 @@ function Sidebar() {
               </NavLink>
             </li>
             
-            {/* External link to Transform */}
+            {/* Transform Builder */}
             <li>
-              <a 
-                href="https://blume-etl-blumetra.replit.app/" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="external-link"
-              >
+              <NavLink to="/transform" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiLayers className="icon" />
                 <span>Transform</span>
-              </a>
+              </NavLink>
             </li>
             
             {/* Jobs and Monitoring section */}
