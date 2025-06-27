@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiDatabase, FiCloud, FiServer, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { getConnections } from '../../api/connectionService';
 import LoadingSpinner from '../LoadingSpinner';
 import './Transform.css';
