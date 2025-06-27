@@ -10,6 +10,7 @@ const ChatInterface = ({ fileId, filename }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   
   const { sendChatMessage, chatLoading, chatError } = useAIFeatures();
   
@@ -31,6 +32,36 @@ const ChatInterface = ({ fileId, filename }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Focus management - keep input focused
+  useEffect(() => {
+    // Focus input on mount
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  // Re-focus input after sending message
+  useEffect(() => {
+    if (!chatLoading && inputRef.current) {
+      // Small delay to ensure the message is processed
+      setTimeout(() => {
+        inputRef.current.focus();
+      }, 100);
+    }
+  }, [chatLoading]);
+
+  // Handle window focus - refocus input when user comes back to tab
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,9 +116,22 @@ const ChatInterface = ({ fileId, filename }) => {
     };
     
     setMessages(prev => [...prev, newMessage]);
+    const messageToSend = inputMessage;
     setInputMessage('');
     
-    await sendMessageToAI(inputMessage);
+    // Keep focus on input while sending message
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+    
+    await sendMessageToAI(messageToSend);
+  };
+
+  // Handle clicks in the chat area to maintain focus
+  const handleChatAreaClick = () => {
+    if (inputRef.current && !chatLoading) {
+      inputRef.current.focus();
+    }
   };
 
   const formatTimestamp = (timestamp) => {
@@ -117,7 +161,7 @@ const ChatInterface = ({ fileId, filename }) => {
   };
 
   return (
-    <div className="chat-interface-container">
+    <div className="chat-interface-container" onClick={handleChatAreaClick}>
       <div className="chat-header">
         <h3>Chat with Dataset</h3>
         {messages.length > 1 && (
@@ -162,11 +206,13 @@ const ChatInterface = ({ fileId, filename }) => {
       
       <form className="chat-input-container" onSubmit={handleSendMessage}>
         <input 
+          ref={inputRef}
           type="text" 
           value={inputMessage} 
           onChange={(e) => setInputMessage(e.target.value)}
           placeholder="Ask about your dataset..."
           disabled={chatLoading}
+          autoFocus
         />
         <button 
           type="submit" 
