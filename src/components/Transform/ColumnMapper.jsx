@@ -152,9 +152,22 @@ const TargetColumn = ({ column, onUpdate, onDelete, onDrop, mapping }) => {
  * Main Column Mapper component with drag-and-drop functionality
  */
 const ColumnMapper = ({ sourceSchema, targetSchema, mappings, onMappingsChange, onTargetSchemaChange }) => {
-  const [localTargetSchema, setLocalTargetSchema] = useState(targetSchema);
-  const [localMappings, setLocalMappings] = useState(mappings);
+  const [localTargetSchema, setLocalTargetSchema] = useState(targetSchema || []);
+  const [localMappings, setLocalMappings] = useState(mappings || []);
   const [nextColumnId, setNextColumnId] = useState(1);
+
+  // Update local state when props change
+  useEffect(() => {
+    if (targetSchema && targetSchema.length > 0) {
+      setLocalTargetSchema(targetSchema);
+    }
+  }, [targetSchema]);
+
+  useEffect(() => {
+    if (mappings && mappings.length > 0) {
+      setLocalMappings(mappings);
+    }
+  }, [mappings]);
 
   // Initialize target schema if empty
   useEffect(() => {
@@ -168,16 +181,20 @@ const ColumnMapper = ({ sourceSchema, targetSchema, mappings, onMappingsChange, 
       setLocalTargetSchema(initialSchema);
       setNextColumnId(initialSchema.length + 1);
     }
-  }, [sourceSchema, localTargetSchema.length]);
+  }, [sourceSchema.length]);
 
-  // Sync with parent component
+  // Sync with parent component - only when data actually changes
   useEffect(() => {
-    onTargetSchemaChange(localTargetSchema);
-  }, [localTargetSchema, onTargetSchemaChange]);
+    if (JSON.stringify(targetSchema) !== JSON.stringify(localTargetSchema)) {
+      onTargetSchemaChange(localTargetSchema);
+    }
+  }, [localTargetSchema]);
 
   useEffect(() => {
-    onMappingsChange(localMappings);
-  }, [localMappings, onMappingsChange]);
+    if (JSON.stringify(mappings) !== JSON.stringify(localMappings)) {
+      onMappingsChange(localMappings);
+    }
+  }, [localMappings]);
 
   const handleDrop = (sourceColumn, targetColumnId) => {
     const newMapping = {

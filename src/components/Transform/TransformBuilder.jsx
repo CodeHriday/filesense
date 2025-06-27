@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FiDatabase, FiArrowRight, FiPlay, FiSave, FiSettings } from 'react-icons/fi';
 import ConnectionSelector from './ConnectionSelector';
 import FileSelector from './FileSelector';
@@ -31,12 +31,12 @@ const TransformBuilder = () => {
     { id: 5, title: 'Execute Transform', description: 'Run the transformation and load data' }
   ];
 
-  const updateConfig = (key, value) => {
+  const updateConfig = useCallback((key, value) => {
     setTransformConfig(prev => ({
       ...prev,
       [key]: value
     }));
-  };
+  }, []);
 
   const canProceedToStep = (step) => {
     switch (step) {
