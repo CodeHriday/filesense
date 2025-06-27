@@ -1270,33 +1270,54 @@ const Connections = () => {
                   </div>
                 </>
               ) : (
-                <div className="connections-grid">
-                  {connections.map(connection => (
-                    <Card key={connection.id} className="connection-card">
-                      <div className="connection-header">
-                        {renderConnectionIcon(connection.connection_type || connection.type)}
-                        <div className="connection-title">
-                          {/* Check if connection is from another source application */}
-                          {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
-                            <div className="shared-indicator" title="Shared with Transform">
-                              <FiLink className="shared-icon" />
+                <>
+                  {/* Connection Statistics */}
+                  <div className="connection-stats">
+                    <div className="stat-card">
+                      <span className="stat-number">{connections.length}</span>
+                      <span className="stat-label">Total Connections</span>
+                    </div>
+                    <div className="stat-card">
+                      <span className="stat-number">{connections.filter(c => c.is_active).length}</span>
+                      <span className="stat-label">Active</span>
+                    </div>
+                    <div className="stat-card">
+                      <span className="stat-number">{new Set(connections.map(c => c.connection_type || c.type)).size}</span>
+                      <span className="stat-label">Provider Types</span>
+                    </div>
+                  </div>
+
+                  <div className="connections-grid">
+                    {connections.map(connection => (
+                      <Card key={connection.id} className={`connection-card ${connection.connection_type || connection.type}`}>
+                        <div className="connection-header">
+                          <div className="connection-title-section">
+                            {renderConnectionIcon(connection.connection_type || connection.type)}
+                            <div className="connection-info">
+                              <div className="connection-name">
+                                {connection.connection_name}
+                                {/* Check if connection is from another source application */}
+                                {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
+                                  <div className="shared-indicator" title="Shared with Transform">
+                                    <FiLink className="shared-icon" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="connection-type">
+                                {getConnectionTypeLabel(connection.connection_type || connection.type)}
+                              </div>
                             </div>
-                          )}
-                          <h3>{connection.connection_name}</h3>
-                          <span className="connection-type">
-                            {getConnectionTypeLabel(connection.connection_type)}
-                          </span>
-                        </div>
-                        <div className="connection-actions">
-                          {hasWritePermission('connections') && (
-                            <>
-                              <button 
-                                className="test-btn" 
-                                onClick={() => handleTestConnection(connection)}
-                                disabled={testingConnection === connection.id}
-                              >
-                                {testingConnection === connection.id ? 'Testing...' : 'Test'}
-                              </button>
+                          </div>
+                          <div className="connection-actions">
+                            {hasWritePermission('connections') && (
+                              <>
+                                <button 
+                                  className="test-btn" 
+                                  onClick={() => handleTestConnection(connection)}
+                                  disabled={testingConnection === connection.id}
+                                >
+                                  {testingConnection === connection.id ? 'Testing...' : 'Test'}
+                                </button>
                               <button 
                                 className="action-btn edit-btn" 
                                 onClick={() => handleEdit(connection)}
@@ -1316,30 +1337,80 @@ const Connections = () => {
                         </div>
                       </div>
                       
-                      <div className="connection-details">
-                        {connection.source_application && connection.source_application !== 'data_observatory' && (
-                          <div className="source-app">Source: {connection.source_application}</div>
-                        )}
-                        {formatConnectionDetails(connection)}
-                        
-                        {testResults[connection.id] && (
-                          <div className={`test-result ${testResults[connection.id].success ? 'success' : 'error'}`}>
-                            {testResults[connection.id].success ? (
-                              <><FiCheckCircle /> Connection is working</>
-                            ) : (
-                              <div className="error-message">{testResults[connection.id].message}</div>
-                            )}
+                        <div className="connection-details">
+                          {connection.source_application && connection.source_application !== 'data_observatory' && (
+                            <div className="connection-detail-item">
+                              <span className="connection-detail-label">Source:</span>
+                              <span className="connection-detail-value">{connection.source_application}</span>
+                            </div>
+                          )}
+                          
+                          {/* Connection-specific details */}
+                          {(connection.connection_type === 'aws' || connection.type === 'aws') && (
+                            <>
+                              <div className="connection-detail-item">
+                                <span className="connection-detail-label">Region:</span>
+                                <span className="connection-detail-value">{connection.aws_region || 'Not set'}</span>
+                              </div>
+                              <div className="connection-detail-item">
+                                <span className="connection-detail-label">Bucket:</span>
+                                <span className="connection-detail-value">{connection.aws_bucket_name || 'Not set'}</span>
+                              </div>
+                            </>
+                          )}
+                          
+                          {(connection.connection_type === 'gcp' || connection.type === 'gcp') && (
+                            <>
+                              <div className="connection-detail-item">
+                                <span className="connection-detail-label">Project:</span>
+                                <span className="connection-detail-value">{connection.gcp_project_id || 'Not set'}</span>
+                              </div>
+                              <div className="connection-detail-item">
+                                <span className="connection-detail-label">Bucket:</span>
+                                <span className="connection-detail-value">{connection.gcp_bucket_name || 'Not set'}</span>
+                              </div>
+                            </>
+                          )}
+                          
+                          {(connection.connection_type === 'azure' || connection.type === 'azure') && (
+                            <>
+                              <div className="connection-detail-item">
+                                <span className="connection-detail-label">Account:</span>
+                                <span className="connection-detail-value">{connection.azure_account_name || 'Not set'}</span>
+                              </div>
+                              <div className="connection-detail-item">
+                                <span className="connection-detail-label">Container:</span>
+                                <span className="connection-detail-value">{connection.azure_container_name || 'Not set'}</span>
+                              </div>
+                            </>
+                          )}
+                          
+                          <div className="connection-detail-item">
+                            <span className="connection-detail-label">Status:</span>
+                            <span className="connection-detail-value">
+                              {connection.is_active ? 'Active' : 'Inactive'}
+                            </span>
                           </div>
-                        )}
-                        
-                        <div className="connection-meta">
-                          <span className="last-used">
-                            Last used: {connection.last_used_at ? 
-                              new Date(connection.last_used_at).toLocaleString() : 
-                              'Never'}
-                          </span>
+                          
+                          <div className="connection-detail-item">
+                            <span className="connection-detail-label">Last Used:</span>
+                            <span className="connection-detail-value">
+                              {connection.last_used_at ? 
+                                new Date(connection.last_used_at).toLocaleDateString() : 
+                                'Never'}
+                            </span>
+                          </div>
+                          
+                          {testResults[connection.id] && (
+                            <div className={`test-result ${testResults[connection.id].success ? 'success' : 'error'}`}>
+                              {testResults[connection.id].success ? (
+                                <><FiCheckCircle /> Connection verified</>
+                              ) : (
+                                <div className="error-message">{testResults[connection.id].message}</div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      </div>
                     </Card>
                   ))}
                 </div>
