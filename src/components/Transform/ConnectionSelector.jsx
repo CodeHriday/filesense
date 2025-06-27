@@ -121,7 +121,6 @@ const ConnectionSelector = ({ sourceConnection, targetConnection, onSourceChange
         <div className="connection-section">
           <div className="section-header">
             <h3>Source Connection</h3>
-            <span className="section-badge source">READ-ONLY</span>
           </div>
           <p className="section-description">
             Select where your data will come from. Source connections are read-only.
@@ -144,7 +143,6 @@ const ConnectionSelector = ({ sourceConnection, targetConnection, onSourceChange
         <div className="connection-section">
           <div className="section-header">
             <h3>Target Connection</h3>
-            <span className="section-badge target">EDITABLE</span>
           </div>
           <p className="section-description">
             Select where your transformed data will be written. Target connections are fully editable.
