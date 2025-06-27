@@ -168,6 +168,45 @@ const FileSelector = ({ connection, selectedFile, onFileSelect }) => {
             </select>
           </div>
 
+          {/* File Details Section */}
+          {selectedFile && (
+            <div className="selected-file-summary">
+              <h3>Selected File Details</h3>
+              <div className="file-details-grid">
+                <div className="detail-item">
+                  <span className="label">Filename:</span>
+                  <span className="value">{selectedFile.filename}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Type:</span>
+                  <span className="value">{selectedFile.file_type?.toUpperCase()}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Size:</span>
+                  <span className="value">{formatFileSize(parseInt(selectedFile.file_size))}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Rows:</span>
+                  <span className="value">{selectedFile.row_count || 0}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Columns:</span>
+                  <span className="value">{selectedFile.column_count || 0}</span>
+                </div>
+                {selectedFile.quality_score && (
+                  <div className="detail-item">
+                    <span className="label">Quality Score:</span>
+                    <span className="value">{parseFloat(selectedFile.quality_score).toFixed(1)}%</span>
+                  </div>
+                )}
+                <div className="detail-item">
+                  <span className="label">Last Updated:</span>
+                  <span className="value">{formatDate(selectedFile.updated_at)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {schemaLoading && (
             <div className="schema-loading">
               <LoadingSpinner size="small" />
@@ -177,43 +216,7 @@ const FileSelector = ({ connection, selectedFile, onFileSelect }) => {
         </div>
       )}
 
-      {selectedFile && (
-        <div className="selected-file-summary">
-          <h3>Selected File Details</h3>
-          <div className="file-details-grid">
-            <div className="detail-item">
-              <span className="label">Filename:</span>
-              <span className="value">{selectedFile.filename}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Type:</span>
-              <span className="value">{selectedFile.file_type?.toUpperCase()}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Size:</span>
-              <span className="value">{formatFileSize(parseInt(selectedFile.file_size))}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Rows:</span>
-              <span className="value">{selectedFile.row_count || 0}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Columns:</span>
-              <span className="value">{selectedFile.column_count || 0}</span>
-            </div>
-            {selectedFile.quality_score && (
-              <div className="detail-item">
-                <span className="label">Quality Score:</span>
-                <span className="value">{parseFloat(selectedFile.quality_score).toFixed(1)}%</span>
-              </div>
-            )}
-            <div className="detail-item">
-              <span className="label">Last Updated:</span>
-              <span className="value">{formatDate(selectedFile.updated_at)}</span>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

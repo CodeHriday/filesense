@@ -213,7 +213,7 @@
   align-items: center;
   gap: 12px;
   padding: 20px;
-  background-color: #f8fafc;
+  background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   color: #64748b;
@@ -223,7 +223,7 @@
 .selected-file-summary {
   margin-top: 30px;
   padding: 20px;
-  background-color: #f8fafc;
+  background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 }
@@ -396,24 +396,7 @@
   border-radius: 8px;
 }
 
-.selected-file-summary {
-  margin-top: 30px;
-  padding: 20px;
-  background-color: #f0f9ff;
-  border-radius: 8px;
-  border-left: 4px solid #3b82f6;
-}
 
-.selected-file-summary h3 {
-  margin: 0 0 15px 0;
-  color: #1e293b;
-}
-
-.summary-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-}
 
 /* Column Mapper Styles */
 .column-mapper {
