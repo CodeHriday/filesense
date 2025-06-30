@@ -89,7 +89,7 @@ const authenticateToken = async (req, res, next) => {
           WHERE r.name = ANY($1::varchar[])
         `;
         
-        const permissionsResult = await pool.query(permissionsQuery, [verified.roles]);
+        const permissionsResult = await dbPool.query(permissionsQuery, [verified.roles]);
         console.log('Old system permissions result rows:', permissionsResult.rows.length);
         
         // Store the permissions from the old system
@@ -110,7 +110,7 @@ const authenticateToken = async (req, res, next) => {
           WHERE name = ANY($1::varchar[])
         `;
         
-        const rolesResult = await pool.query(rolesWithPermissionsQuery, [verified.roles]);
+        const rolesResult = await dbPool.query(rolesWithPermissionsQuery, [verified.roles]);
         console.log('New system permissions result rows:', rolesResult.rows.length);
         
         // Process each role's JSON permissions
@@ -235,10 +235,10 @@ const upload = multer({
 });
 
 // Use the database pool from the DI container
-const pool = dbPool;
+// const pool = dbPool; // Removed to avoid confusion - using dbPool directly
 
 // Test database connection
-pool.query('SELECT NOW()', (err, res) => {
+dbPool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('Error connecting to the database:', err);
     console.error(err.stack);
@@ -248,7 +248,7 @@ pool.query('SELECT NOW()', (err, res) => {
 });
 
 // Initialize file schedules table (if not exists)
-pool.query(`
+dbPool.query(`
   CREATE TABLE IF NOT EXISTS file_schedules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     file_id TEXT NOT NULL,
@@ -269,18 +269,18 @@ pool.query(`
 const initBusinessProcessTables = require('./initBusinessProcessTables');
 
 // Run table initialization
-initBusinessProcessTables(pool);
+initBusinessProcessTables(dbPool);
 
 // Business Process Management API Routes
 // Groups API - with stats (public)
 app.get('/api/groups/stats', async (req, res) => {
   try {
     // First check if we need to create a default group
-    const checkDefaultGroup = await pool.query("SELECT COUNT(*) FROM groups WHERE name = 'Default Group'");
+    const checkDefaultGroup = await dbPool.query("SELECT COUNT(*) FROM groups WHERE name = 'Default Group'");
     if (parseInt(checkDefaultGroup.rows[0].count) === 0) {
       console.log('No default group found, creating one');
       try {
-        await pool.query(`
+        await dbPool.query(`
           INSERT INTO groups (name, description)
           VALUES ('Default Group', 'Default group for all users');
         `);
@@ -301,7 +301,7 @@ app.get('/api/groups/stats', async (req, res) => {
       ORDER BY g.name
     `;
     
-    const groupsResult = await pool.query(groupsQuery);
+    const groupsResult = await dbPool.query(groupsQuery);
     res.json(groupsResult.rows);
   } catch (err) {
     console.error('Error fetching groups:', err);
@@ -321,7 +321,7 @@ app.get('/api/groups/user', async (req, res) => {
       ORDER BY g.name
     `;
     
-    const groupsResult = await pool.query(groupsQuery);
+    const groupsResult = await dbPool.query(groupsQuery);
     res.json(groupsResult.rows);
   } catch (err) {
     console.error('Error fetching user groups:', err);
@@ -339,7 +339,7 @@ app.post('/api/groups', async (req, res) => {
     }
     
     // Insert the group
-    const result = await pool.query(
+    const result = await dbPool.query(
       'INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING *',
       [name, description]
     );
@@ -362,7 +362,7 @@ app.put('/api/groups/:id', async (req, res) => {
     }
     
     // Update the group
-    const result = await pool.query(
+    const result = await dbPool.query(
       'UPDATE groups SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
       [name, description, id]
     );
@@ -383,7 +383,7 @@ app.delete('/api/groups/:id', async (req, res) => {
     const { id } = req.params;
     
     // Delete the group
-    const result = await pool.query('DELETE FROM groups WHERE id = $1 RETURNING id', [id]);
+    const result = await dbPool.query('DELETE FROM groups WHERE id = $1 RETURNING id', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Group not found' });
@@ -477,7 +477,7 @@ app.get('/api/files/:fileId/preview', async (req, res) => {
     const { limit = 100 } = req.query;
     
     // Get file details to determine type and path
-    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -506,7 +506,7 @@ app.get('/api/files/:fileId/preview', async (req, res) => {
     }
     
     // Get column information
-    const columnsResult = await pool.query(
+    const columnsResult = await dbPool.query(
       'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
       [fileId]
     );
@@ -1147,7 +1147,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     if (!fileRecord) {
       logger.info('Legacy file processing - inserting into database', { fileId, size: file.size });
       // Save file information to database
-      await pool.query(
+      await dbPool.query(
         `INSERT INTO files 
           (file_id, filename, file_type, file_size, checksum, row_count, column_count, quality_score, metadata, created_at, updated_at) 
          VALUES 
@@ -1182,7 +1182,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
       
       for (const column of columns) {
         try {
-          await pool.query(
+          await dbPool.query(
             `INSERT INTO file_columns 
               (file_id, column_name, column_type, column_index, file_name, 
                min_value, max_value, min_value_decimal, max_value_decimal, 
@@ -1251,7 +1251,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
           });
           
           // Update the file record with counts and quality score
-          await pool.query(
+          await dbPool.query(
             `UPDATE files 
              SET row_count = $1, column_count = $2, quality_score = $3, updated_at = NOW() 
              WHERE file_id = $4`,
@@ -1303,7 +1303,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
 app.get('/api/lineage', async (req, res) => {
   try {
     // Create lineage table if it doesn't exist
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS file_lineage (
         id SERIAL PRIMARY KEY,
         source_file_id VARCHAR(255) NOT NULL,
@@ -1314,7 +1314,7 @@ app.get('/api/lineage', async (req, res) => {
       )
     `);
     
-    const result = await pool.query('SELECT * FROM file_lineage');
+    const result = await dbPool.query('SELECT * FROM file_lineage');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching lineage data:', err);
@@ -1326,7 +1326,7 @@ app.get('/api/lineage', async (req, res) => {
 app.get('/api/badges', async (req, res) => {
   try {
     // Create badges table if it doesn't exist
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS user_badges (
         id SERIAL PRIMARY KEY,
         badge_id VARCHAR(50) NOT NULL,
@@ -1337,7 +1337,7 @@ app.get('/api/badges', async (req, res) => {
       )
     `);
     
-    const result = await pool.query('SELECT * FROM user_badges');
+    const result = await dbPool.query('SELECT * FROM user_badges');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching badges:', err);
@@ -1349,7 +1349,7 @@ app.get('/api/badges', async (req, res) => {
 app.get('/api/alerts/history', async (req, res) => {
   try {
     // Create alerts history table if it doesn't exist
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS alert_history (
         id SERIAL PRIMARY KEY,
         file_id VARCHAR(255) NOT NULL,
@@ -1360,7 +1360,7 @@ app.get('/api/alerts/history', async (req, res) => {
       )
     `);
     
-    const result = await pool.query('SELECT * FROM alert_history');
+    const result = await dbPool.query('SELECT * FROM alert_history');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching alert history:', err);
@@ -1395,7 +1395,7 @@ migrateConnectionsSchema()
 app.get('/api/mappings', async (req, res) => {
   try {
     // Create mappings table if it doesn't exist
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS file_mappings (
         id SERIAL PRIMARY KEY,
         mapping_name VARCHAR(100) NOT NULL,
@@ -1409,7 +1409,7 @@ app.get('/api/mappings', async (req, res) => {
       )
     `);
     
-    const result = await pool.query('SELECT * FROM file_mappings');
+    const result = await dbPool.query('SELECT * FROM file_mappings');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching mappings:', err);
@@ -1421,10 +1421,10 @@ app.get('/api/mappings', async (req, res) => {
 const initFileMappingsTable = async () => {
   try {
     // Drop existing table if it has issues
-    await pool.query(`DROP TABLE IF EXISTS file_mappings`);
+    await dbPool.query(`DROP TABLE IF EXISTS file_mappings`);
     
     // Create a new table with the correct schema
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE file_mappings (
         id SERIAL PRIMARY KEY,
         mapping_name VARCHAR(255) NOT NULL,
@@ -1446,7 +1446,7 @@ const initFileMappingsTable = async () => {
 // Create schedules table if it doesn't exist
 const initSchedulesTable = async () => {
   try {
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS job_schedules (
         id SERIAL PRIMARY KEY,
         job_id INTEGER NOT NULL,
@@ -1487,7 +1487,7 @@ app.post('/api/mappings', async (req, res) => {
     }
     
     // Insert the new mapping
-    const result = await pool.query(`
+    const result = await dbPool.query(`
       INSERT INTO file_mappings (
         mapping_name, 
         source_file_id, 
@@ -1531,7 +1531,7 @@ app.put('/api/mappings/:id', async (req, res) => {
     }
     
     // Update the mapping
-    const result = await pool.query(`
+    const result = await dbPool.query(`
       UPDATE file_mappings 
       SET 
         mapping_name = $1, 
@@ -1569,7 +1569,7 @@ app.delete('/api/mappings/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query('DELETE FROM file_mappings WHERE id = $1 RETURNING id', [id]);
+    const result = await dbPool.query('DELETE FROM file_mappings WHERE id = $1 RETURNING id', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Mapping not found' });
@@ -1586,7 +1586,7 @@ app.delete('/api/mappings/:id', async (req, res) => {
 app.get('/api/user/dashboard-settings', async (req, res) => {
   try {
     // Create dashboard settings table if it doesn't exist
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS user_dashboard_settings (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(50) DEFAULT 'default',
@@ -1596,7 +1596,7 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
       )
     `);
     
-    const result = await pool.query("SELECT * FROM user_dashboard_settings WHERE user_id = 'default'");
+    const result = await dbPool.query("SELECT * FROM user_dashboard_settings WHERE user_id = 'default'");
     
     if (result.rows.length === 0) {
       // Return default settings if none exist
@@ -1625,14 +1625,14 @@ app.get('/api/files/:fileId/profile', async (req, res) => {
     const { fileId } = req.params;
     
     // Check if file exists
-    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
     
     // Get file columns
-    const columnsResult = await pool.query(
+    const columnsResult = await dbPool.query(
       'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
       [fileId]
     );
@@ -1694,14 +1694,14 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
     const { fileId } = req.params;
     
     // Check if file exists
-    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
     
     // Create quality check table if it doesn't exist
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS file_quality_checks (
         id SERIAL PRIMARY KEY,
         file_id VARCHAR(255) NOT NULL,
@@ -1718,7 +1718,7 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
     const file = fileResult.rows[0];
     
     // Get column data for this file
-    const columnsResult = await pool.query(
+    const columnsResult = await dbPool.query(
       'SELECT * FROM file_columns WHERE file_id = $1',
       [fileId]
     );
@@ -1742,13 +1742,13 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
     });
     
     // Update the quality score in the database
-    await pool.query(
+    await dbPool.query(
       'UPDATE files SET quality_score = $1 WHERE file_id = $2',
       [qualityResult.overall_score, fileId]
     );
     
     // Get file quality checks table or create if needed
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS file_quality_checks (
         id SERIAL PRIMARY KEY,
         file_id VARCHAR(255) NOT NULL,
@@ -1762,7 +1762,7 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
     `);
     
     // Get existing quality checks or create new ones
-    const qualityChecksResult = await pool.query(
+    const qualityChecksResult = await dbPool.query(
       'SELECT * FROM file_quality_checks WHERE file_id = $1',
       [fileId]
     );
@@ -1825,14 +1825,14 @@ app.get('/api/files/:fileId/quality', async (req, res) => {
       ];
       
       for (const check of componentChecks) {
-        await pool.query(
+        await dbPool.query(
           'INSERT INTO file_quality_checks (file_id, check_type, check_name, status, score, details) VALUES ($1, $2, $3, $4, $5, $6)',
           [fileId, check.check_type, check.check_name, check.status, check.score, JSON.stringify(check.details)]
         );
       }
       
       // Fetch the newly created checks
-      const newChecksResult = await pool.query(
+      const newChecksResult = await dbPool.query(
         'SELECT * FROM file_quality_checks WHERE file_id = $1',
         [fileId]
       );
@@ -1875,7 +1875,7 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
     const { fileId } = req.params;
     
     // Check if file exists
-    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -1884,7 +1884,7 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
     const file = fileResult.rows[0];
     
     // Get column data for this file
-    const columnsResult = await pool.query(
+    const columnsResult = await dbPool.query(
       'SELECT * FROM file_columns WHERE file_id = $1',
       [fileId]
     );
@@ -1922,13 +1922,13 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
     });
     
     // Update the quality score in the database
-    await pool.query(
+    await dbPool.query(
       'UPDATE files SET quality_score = $1, updated_at = NOW() WHERE file_id = $2',
       [qualityResult.overall_score, fileId]
     );
     
     // Create or update quality checks based on component scores
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS file_quality_checks (
         id SERIAL PRIMARY KEY,
         file_id VARCHAR(255) NOT NULL,
@@ -1942,7 +1942,7 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
     `);
     
     // Delete existing quality checks for this file
-    await pool.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
+    await dbPool.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
     
     // Create new quality checks based on our calculated component scores
     const components = qualityResult.components;
@@ -2000,14 +2000,14 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
     ];
     
     for (const check of componentChecks) {
-      await pool.query(
+      await dbPool.query(
         'INSERT INTO file_quality_checks (file_id, check_type, check_name, status, score, details) VALUES ($1, $2, $3, $4, $5, $6)',
         [fileId, check.check_type, check.check_name, check.status, check.score, JSON.stringify(check.details)]
       );
     }
     
     // Get the newly created checks
-    const qualityChecksResult = await pool.query(
+    const qualityChecksResult = await dbPool.query(
       'SELECT * FROM file_quality_checks WHERE file_id = $1',
       [fileId]
     );
@@ -2045,7 +2045,7 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
 // Alert rules endpoint
 app.get('/api/alerts', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM alert_rules');
+    const result = await dbPool.query('SELECT * FROM alert_rules');
     
     // If no rules exist, create some default ones
     if (result.rows.length === 0) {
@@ -2069,13 +2069,13 @@ app.get('/api/alerts', async (req, res) => {
       ];
       
       for (const rule of defaultRules) {
-        await pool.query(
+        await dbPool.query(
           'INSERT INTO alert_rules (rule_name, rule_condition, rule_value, rule_type, severity, enabled) VALUES ($1, $2, $3, $4, $5, $6)',
           [rule.rule_name, rule.rule_condition, rule.rule_value, rule.rule_type, rule.severity, rule.enabled]
         );
       }
       
-      const newResult = await pool.query('SELECT * FROM alert_rules');
+      const newResult = await dbPool.query('SELECT * FROM alert_rules');
       res.json(newResult.rows);
     } else {
       res.json(result.rows);
@@ -2101,7 +2101,7 @@ app.post('/api/auth/login', async (req, res) => {
     const normalizedUsername = username.toLowerCase();
     
     // Find user in database (using LOWER() for case-insensitive matching)
-    const userResult = await pool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [normalizedUsername]);
+    const userResult = await dbPool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [normalizedUsername]);
     
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -2122,7 +2122,7 @@ app.post('/api/auth/login', async (req, res) => {
       JOIN user_roles ur ON r.id = ur.role_id
       WHERE ur.user_id = $1
     `;
-    const rolesResult = await pool.query(userRolesQuery, [user.id]);
+    const rolesResult = await dbPool.query(userRolesQuery, [user.id]);
     
     const roleIds = rolesResult.rows.map(role => role.role_id);
     const userRoles = rolesResult.rows.map(role => role.role_name);
@@ -2139,7 +2139,7 @@ app.post('/api/auth/login', async (req, res) => {
     );
     
     // Update last login time
-    await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
     
     // Don't store token in database
     
@@ -2175,7 +2175,7 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
     }
     
     // Check if username already exists
-    const existingUser = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const existingUser = await dbPool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: 'Username already exists' });
     }
@@ -2185,7 +2185,7 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     
     // Create user
-    const userResult = await pool.query(
+    const userResult = await dbPool.query(
       'INSERT INTO users (username, password, email, full_name) VALUES ($1, $2, $3, $4) RETURNING *',
       [username, hashedPassword, email, fullName]
     );
@@ -2195,13 +2195,13 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
     // Assign roles if provided
     if (Array.isArray(roles) && roles.length > 0) {
       const rolesQuery = 'SELECT id FROM roles WHERE name = ANY($1::varchar[])';
-      const rolesResult = await pool.query(rolesQuery, [roles]);
+      const rolesResult = await dbPool.query(rolesQuery, [roles]);
       
       const roleIds = rolesResult.rows.map(role => role.id);
       if (roleIds.length > 0) {
         // Insert role assignments
         const values = roleIds.map(roleId => `(${user.id}, ${roleId})`).join(', ');
-        await pool.query(`INSERT INTO user_roles (user_id, role_id) VALUES ${values}`);
+        await dbPool.query(`INSERT INTO user_roles (user_id, role_id) VALUES ${values}`);
       }
     }
     
@@ -2224,7 +2224,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     console.log('Fetching user with ID:', userId);
     
     // Get user from database
-    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    const userResult = await dbPool.query('SELECT * FROM users WHERE id = $1', [userId]);
     
     if (userResult.rows.length === 0) {
       console.log('User not found in database');
@@ -2264,7 +2264,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
           WHERE r.name = ANY($1::varchar[])
         `;
         
-        const permissionsResult = await pool.query(permissionsQuery, [userRoles]);
+        const permissionsResult = await dbPool.query(permissionsQuery, [userRoles]);
         console.log('Permission query result rows:', permissionsResult.rows.length);
         
         // Convert permissions to the format expected by the frontend
@@ -2280,7 +2280,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         // 2. Get permissions from the roles table JSON array (new system)
         console.log('Fetching role details with permissions array');
         const rolesQuery = `SELECT id, name, permissions FROM roles WHERE name = ANY($1::varchar[])`;
-        const rolesResult = await pool.query(rolesQuery, [userRoles]);
+        const rolesResult = await dbPool.query(rolesQuery, [userRoles]);
         console.log('Roles query result rows:', rolesResult.rows.length);
         
         roleDetails = rolesResult.rows || []; // Capture role details
@@ -2376,7 +2376,7 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
     const token = req.headers.authorization.split(' ')[1];
     
     // Remove token from sessions table
-    await pool.query('DELETE FROM user_sessions WHERE token = $1', [token]);
+    await dbPool.query('DELETE FROM user_sessions WHERE token = $1', [token]);
     
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
@@ -2397,7 +2397,7 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     //   return res.status(403).json({ error: 'You do not have permission to view users' });
     // }
     
-    const result = await pool.query(`
+    const result = await dbPool.query(`
       SELECT u.id, u.username, u.email, u.full_name, u.created_at, u.updated_at, u.last_login,
         array_agg(r.name) as roles
       FROM users u
@@ -2430,7 +2430,7 @@ app.get('/api/roles', authenticateToken, async (req, res) => {
     //   return res.status(403).json({ error: 'You do not have permission to view roles' });
     // }
     
-    const result = await pool.query('SELECT * FROM roles ORDER BY id ASC');
+    const result = await dbPool.query('SELECT * FROM roles ORDER BY id ASC');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching roles:', err);
@@ -2450,7 +2450,7 @@ app.get('/api/permissions', authenticateToken, async (req, res) => {
     //   return res.status(403).json({ error: 'You do not have permission to view permissions' });
     // }
     
-    const result = await pool.query('SELECT * FROM permissions ORDER BY resource, action');
+    const result = await dbPool.query('SELECT * FROM permissions ORDER BY resource, action');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching permissions:', err);
@@ -2476,13 +2476,13 @@ app.post('/api/roles', authenticateToken, async (req, res) => {
     }
     
     // Check if role with the same name already exists
-    const existingRole = await pool.query('SELECT * FROM roles WHERE name = $1', [name]);
+    const existingRole = await dbPool.query('SELECT * FROM roles WHERE name = $1', [name]);
     if (existingRole.rows.length > 0) {
       return res.status(400).json({ error: 'A role with this name already exists' });
     }
     
     // Create role
-    const roleResult = await pool.query(
+    const roleResult = await dbPool.query(
       'INSERT INTO roles (name, description, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING *',
       [name, description]
     );
@@ -2492,14 +2492,14 @@ app.post('/api/roles', authenticateToken, async (req, res) => {
     // If permissions are provided, link them to the role
     if (permissions && Array.isArray(permissions) && permissions.length > 0) {
       // Update the permissions array in the roles table
-      await pool.query(
+      await dbPool.query(
         'UPDATE roles SET permissions = $1 WHERE id = $2',
         [permissions, roleId]
       );
     }
     
     // Return the created role
-    const createdRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    const createdRole = await dbPool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
     res.status(201).json(createdRole.rows[0]);
   } catch (err) {
     console.error('Error creating role:', err);
@@ -2533,7 +2533,7 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     }
     
     // Check if role exists
-    const existingRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    const existingRole = await dbPool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
     if (existingRole.rows.length === 0) {
       console.log(`Role with ID ${roleId} not found`);
       return res.status(404).json({ error: 'Role not found' });
@@ -2548,7 +2548,7 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     }
     
     // Check if another role with the same name exists
-    const duplicateRole = await pool.query(
+    const duplicateRole = await dbPool.query(
       'SELECT * FROM roles WHERE name = $1 AND id != $2', 
       [name, roleId]
     );
@@ -2558,7 +2558,7 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     }
     
     // Update role
-    await pool.query(
+    await dbPool.query(
       'UPDATE roles SET name = $1, description = $2, updated_at = NOW() WHERE id = $3',
       [name, description, roleId]
     );
@@ -2567,14 +2567,14 @@ app.put('/api/roles/:id', authenticateToken, async (req, res) => {
     if (permissions && Array.isArray(permissions)) {
       console.log('Updating permissions for role:', permissions);
       // Update the permissions array
-      await pool.query(
+      await dbPool.query(
         'UPDATE roles SET permissions = $1 WHERE id = $2',
         [permissions, roleId]
       );
     }
     
     // Return the updated role
-    const updatedRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    const updatedRole = await dbPool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
     console.log('Updated role:', updatedRole.rows[0]);
     res.json(updatedRole.rows[0]);
   } catch (err) {
@@ -2596,7 +2596,7 @@ app.delete('/api/roles/:id', authenticateToken, async (req, res) => {
     const roleId = req.params.id;
     
     // Check if role exists
-    const existingRole = await pool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
+    const existingRole = await dbPool.query('SELECT * FROM roles WHERE id = $1', [roleId]);
     if (existingRole.rows.length === 0) {
       return res.status(404).json({ error: 'Role not found' });
     }
@@ -2607,7 +2607,7 @@ app.delete('/api/roles/:id', authenticateToken, async (req, res) => {
     }
     
     // Check if role is assigned to users
-    const usersWithRole = await pool.query(
+    const usersWithRole = await dbPool.query(
       `SELECT COUNT(*) FROM user_roles 
        WHERE role_id = $1`,
       [roleId]
@@ -2620,7 +2620,7 @@ app.delete('/api/roles/:id', authenticateToken, async (req, res) => {
     }
     
     // Delete role
-    await pool.query('DELETE FROM roles WHERE id = $1', [roleId]);
+    await dbPool.query('DELETE FROM roles WHERE id = $1', [roleId]);
     
     res.json({ message: 'Role deleted successfully' });
   } catch (err) {
@@ -2641,7 +2641,7 @@ app.get('/api/files/:fileId/insights', authenticateToken, async (req, res) => {
     }
     
     // Get file from database
-    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -2650,13 +2650,13 @@ app.get('/api/files/:fileId/insights', authenticateToken, async (req, res) => {
     const file = fileResult.rows[0];
     
     // Get column statistics
-    const columnStats = await pool.query(
+    const columnStats = await dbPool.query(
       'SELECT * FROM file_columns WHERE file_id = $1',
       [fileId]
     );
     
     // Get file profile
-    const profileResult = await pool.query(
+    const profileResult = await dbPool.query(
       'SELECT * FROM file_profiles WHERE file_id = $1 ORDER BY created_at DESC LIMIT 1',
       [fileId]
     );
@@ -2667,7 +2667,7 @@ app.get('/api/files/:fileId/insights', authenticateToken, async (req, res) => {
     }
     
     // Get quality report
-    const qualityResult = await pool.query(
+    const qualityResult = await dbPool.query(
       'SELECT * FROM file_quality_checks WHERE file_id = $1 ORDER BY created_at DESC LIMIT 1',
       [fileId]
     );
@@ -2744,7 +2744,7 @@ app.post('/api/files/:fileId/quality-check', async (req, res) => {
     const { rules = [], anomalyDetection = true, calculateReliabilityScore = true } = req.body;
     
     // First, verify the file exists
-    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -2753,7 +2753,7 @@ app.post('/api/files/:fileId/quality-check', async (req, res) => {
     const file = fileResult.rows[0];
     
     // Get column data for the file
-    const columnsResult = await pool.query('SELECT * FROM file_columns WHERE file_id = $1', [fileId]);
+    const columnsResult = await dbPool.query('SELECT * FROM file_columns WHERE file_id = $1', [fileId]);
     const columns = columnsResult.rows;
 
     // Run basic quality checks
@@ -2877,24 +2877,24 @@ app.post('/api/files/:fileId/quality-check', async (req, res) => {
     ];
     
     // First clear existing checks for this file to avoid duplicates
-    await pool.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
+    await dbPool.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
     
     // Insert new checks
     for (const check of qualityChecks) {
-      await pool.query(
+      await dbPool.query(
         'INSERT INTO file_quality_checks (file_id, check_type, check_name, status, score, details) VALUES ($1, $2, $3, $4, $5, $6)',
         [fileId, check.check_type, check.check_name, check.status, check.score, JSON.stringify(check.details)]
       );
     }
     
     // Also update the quality score in the files table
-    await pool.query(
+    await dbPool.query(
       'UPDATE files SET quality_score = $1 WHERE file_id = $2',
       [overallScore, fileId]
     );
     
     // Fetch the newly created checks to return
-    const newChecksResult = await pool.query(
+    const newChecksResult = await dbPool.query(
       'SELECT * FROM file_quality_checks WHERE file_id = $1',
       [fileId]
     );
@@ -2943,7 +2943,7 @@ app.get('/api/debug/hash-password/:password', async (req, res) => {
 // Create the schedules table if it doesn't exist
 (async () => {
   try {
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS file_schedules (
         id SERIAL PRIMARY KEY,
         file_id VARCHAR(255) NOT NULL,
@@ -2968,7 +2968,7 @@ app.get('/api/debug/hash-password/:password', async (req, res) => {
 // Create the transformations table if it doesn't exist
 (async () => {
   try {
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS transformations (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -2988,7 +2988,7 @@ app.get('/api/debug/hash-password/:password', async (req, res) => {
 // Transformations endpoints
 app.get('/api/transformations', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM transformations ORDER BY created_at DESC');
+    const result = await dbPool.query('SELECT * FROM transformations ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching transformations:', err);
@@ -2999,7 +2999,7 @@ app.get('/api/transformations', authenticateToken, async (req, res) => {
 app.get('/api/transformations/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM transformations WHERE id = $1', [id]);
+    const result = await dbPool.query('SELECT * FROM transformations WHERE id = $1', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Transformation not found' });
@@ -3017,7 +3017,7 @@ app.post('/api/transformations', authenticateToken, async (req, res) => {
     const { name, description, config } = req.body;
     const userId = req.user.id;
     
-    const result = await pool.query(
+    const result = await dbPool.query(
       'INSERT INTO transformations (name, description, config, created_by) VALUES ($1, $2, $3, $4) RETURNING *',
       [name, description, config, userId]
     );
@@ -3034,7 +3034,7 @@ app.put('/api/transformations/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { name, description, config } = req.body;
     
-    const result = await pool.query(
+    const result = await dbPool.query(
       'UPDATE transformations SET name = $1, description = $2, config = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
       [name, description, config, id]
     );
@@ -3053,7 +3053,7 @@ app.put('/api/transformations/:id', authenticateToken, async (req, res) => {
 app.delete('/api/transformations/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM transformations WHERE id = $1 RETURNING *', [id]);
+    const result = await dbPool.query('DELETE FROM transformations WHERE id = $1 RETURNING *', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Transformation not found' });
@@ -3071,7 +3071,7 @@ app.delete('/api/transformations/:id', authenticateToken, async (req, res) => {
 // Get all schedules
 app.get('/api/schedules', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM file_schedules ORDER BY created_at DESC');
+    const result = await dbPool.query('SELECT * FROM file_schedules ORDER BY created_at DESC');
     res.json({ schedules: result.rows });
   } catch (error) {
     console.error('Error fetching schedules:', error);
@@ -3083,7 +3083,7 @@ app.get('/api/schedules', async (req, res) => {
 app.get('/api/schedules/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    const result = await dbPool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
@@ -3136,7 +3136,7 @@ app.post('/api/schedules', async (req, res) => {
         nextRun.setDate(nextRun.getDate() + 1);
     }
     
-    const result = await pool.query(
+    const result = await dbPool.query(
       `INSERT INTO file_schedules 
        (file_id, frequency, time, day, is_active, next_run) 
        VALUES ($1, $2, $3, $4, $5, $6) 
@@ -3193,7 +3193,7 @@ app.patch('/api/schedules/:id', async (req, res) => {
     const updateClause = Object.values(updates).join(', ');
     const query = `UPDATE file_schedules SET ${updateClause} WHERE id = $${paramIndex} RETURNING *`;
     
-    const result = await pool.query(query, values);
+    const result = await dbPool.query(query, values);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
@@ -3211,7 +3211,7 @@ app.delete('/api/schedules/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query('DELETE FROM file_schedules WHERE id = $1 RETURNING *', [id]);
+    const result = await dbPool.query('DELETE FROM file_schedules WHERE id = $1 RETURNING *', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
@@ -3230,7 +3230,7 @@ app.post('/api/schedules/:id/run', async (req, res) => {
     const { id } = req.params;
     
     // First, get the schedule
-    const scheduleResult = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    const scheduleResult = await dbPool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
     
     if (scheduleResult.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
@@ -3239,7 +3239,7 @@ app.post('/api/schedules/:id/run', async (req, res) => {
     const schedule = scheduleResult.rows[0];
     
     // Get the file info
-    const fileResult = await pool.query('SELECT * FROM files WHERE file_id = $1', [schedule.file_id]);
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [schedule.file_id]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'Associated file not found' });
@@ -3248,7 +3248,7 @@ app.post('/api/schedules/:id/run', async (req, res) => {
     const file = fileResult.rows[0];
     
     // Update the last_run time
-    await pool.query(
+    await dbPool.query(
       'UPDATE file_schedules SET last_run = $1 WHERE id = $2',
       [new Date(), id]
     );
@@ -3280,7 +3280,7 @@ app.patch('/api/schedules/:id', async (req, res) => {
     const { file_id, frequency, time, day, is_active } = req.body;
     
     // First, check if the schedule exists
-    const checkResult = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    const checkResult = await dbPool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
     
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
@@ -3384,7 +3384,7 @@ app.patch('/api/schedules/:id', async (req, res) => {
     }
     
     // Execute the update query
-    const result = await pool.query(
+    const result = await dbPool.query(
       `UPDATE file_schedules SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
       queryParams
     );
@@ -3402,14 +3402,14 @@ app.delete('/api/schedules/:id', async (req, res) => {
     const { id } = req.params;
     
     // First, check if the schedule exists
-    const checkResult = await pool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
+    const checkResult = await dbPool.query('SELECT * FROM file_schedules WHERE id = $1', [id]);
     
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
     
     // Delete the schedule
-    await pool.query('DELETE FROM file_schedules WHERE id = $1', [id]);
+    await dbPool.query('DELETE FROM file_schedules WHERE id = $1', [id]);
     
     res.json({ message: 'Schedule deleted successfully' });
   } catch (error) {
@@ -3423,7 +3423,7 @@ app.get('/api/files/:fileId/schedules', async (req, res) => {
   try {
     const { fileId } = req.params;
     
-    const result = await pool.query(
+    const result = await dbPool.query(
       'SELECT * FROM file_schedules WHERE file_id = $1 ORDER BY created_at DESC',
       [fileId]
     );
@@ -3447,14 +3447,14 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
     try {
       // Check if default group exists
       console.log("Checking for default group");
-      const defaultGroupCheck = await pool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+      const defaultGroupCheck = await dbPool.query("SELECT id FROM groups WHERE name = 'Default Group'");
       
       let defaultGroupId;
       
       if (defaultGroupCheck.rows.length === 0) {
         // Create default group
         console.log("Creating default group");
-        const newGroupResult = await pool.query(
+        const newGroupResult = await dbPool.query(
           "INSERT INTO groups (name, description) VALUES ('Default Group', 'Default group for all users') RETURNING id"
         );
         defaultGroupId = newGroupResult.rows[0].id;
@@ -3466,7 +3466,7 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
       
       // Ensure user is in the default group
       console.log("Ensuring user", userId, "is in default group");
-      const userGroupCheck = await pool.query(
+      const userGroupCheck = await dbPool.query(
         "SELECT 1 FROM user_groups WHERE user_id = $1 AND group_id = $2",
         [userId, defaultGroupId]
       );
@@ -3474,7 +3474,7 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
       if (userGroupCheck.rows.length === 0) {
         // Add user to default group
         console.log("Adding user to default group");
-        await pool.query(
+        await dbPool.query(
           "INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
           [userId, defaultGroupId]
         );
@@ -3495,7 +3495,7 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
       WHERE ug.user_id = $1 OR g.name = 'Default Group'
     `;
     
-    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupsResult = await dbPool.query(userGroupsQuery, [userId]);
     const userGroupIds = userGroupsResult.rows.map(row => row.id);
     console.log("User group IDs:", userGroupIds);
     
@@ -3515,7 +3515,7 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
       ORDER BY bp.updated_at DESC
     `;
     
-    const processesResult = await pool.query(businessProcessesQuery, [userGroupIds]);
+    const processesResult = await dbPool.query(businessProcessesQuery, [userGroupIds]);
     res.json(processesResult.rows);
   } catch (err) {
     console.error('Error fetching business processes:', err);
@@ -3536,7 +3536,7 @@ app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
       JOIN user_groups ug ON g.id = ug.group_id
       WHERE ug.user_id = $1
     `;
-    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupsResult = await dbPool.query(userGroupsQuery, [userId]);
     const userGroupIds = userGroupsResult.rows.map(row => row.id);
     
     if (userGroupIds.length === 0) {
@@ -3550,7 +3550,7 @@ app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
       LEFT JOIN groups g ON bp.group_id = g.id
       WHERE bp.id = $1
     `;
-    const processResult = await pool.query(processQuery, [id]);
+    const processResult = await dbPool.query(processQuery, [id]);
     
     if (processResult.rows.length === 0) {
       return res.status(404).json({ error: 'Business process not found' });
@@ -3573,7 +3573,7 @@ app.get('/api/business-processes/:id', authenticateToken, async (req, res) => {
       GROUP BY j.id
       ORDER BY j.updated_at DESC
     `;
-    const jobsResult = await pool.query(jobsQuery, [id]);
+    const jobsResult = await dbPool.query(jobsQuery, [id]);
     
     // Combine process and jobs
     const businessProcess = processResult.rows[0];
@@ -3604,7 +3604,7 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
       console.log("No group_id provided, looking for default group");
       
       // Check if default group exists
-      const defaultGroupResult = await pool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+      const defaultGroupResult = await dbPool.query("SELECT id FROM groups WHERE name = 'Default Group'");
       
       if (defaultGroupResult.rows.length > 0) {
         // Use existing default group
@@ -3614,7 +3614,7 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
         // Create a default group
         console.log("Creating default group");
         try {
-          const newGroupResult = await pool.query(
+          const newGroupResult = await dbPool.query(
             "INSERT INTO groups (name, description) VALUES ('Default Group', 'Default group for all users') RETURNING id"
           );
           group_id = newGroupResult.rows[0].id;
@@ -3627,7 +3627,7 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
     } else {
       // Verify the specified group exists
       console.log("Verifying group exists:", group_id);
-      const groupCheck = await pool.query("SELECT id FROM groups WHERE id = $1", [group_id]);
+      const groupCheck = await dbPool.query("SELECT id FROM groups WHERE id = $1", [group_id]);
       
       if (groupCheck.rows.length === 0) {
         console.error("Specified group ID does not exist:", group_id);
@@ -3649,7 +3649,7 @@ app.post('/api/business-processes', authenticateToken, async (req, res) => {
       RETURNING *
     `;
     
-    const result = await pool.query(insertQuery, [name, description, group_id, userId]);
+    const result = await dbPool.query(insertQuery, [name, description, group_id, userId]);
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -3678,7 +3678,7 @@ app.put('/api/business-processes/:id', authenticateToken, async (req, res) => {
       WHERE bp.id = $1 AND ug.user_id = $2
     `;
     
-    const checkResult = await pool.query(checkQuery, [id, userId]);
+    const checkResult = await dbPool.query(checkQuery, [id, userId]);
     
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: 'Business process not found or you do not have access to it' });
@@ -3691,7 +3691,7 @@ app.put('/api/business-processes/:id', authenticateToken, async (req, res) => {
         WHERE user_id = $1 AND group_id = $2
       `;
       
-      const userGroupResult = await pool.query(userGroupQuery, [userId, group_id]);
+      const userGroupResult = await dbPool.query(userGroupQuery, [userId, group_id]);
       
       if (userGroupResult.rows.length === 0) {
         return res.status(403).json({ error: 'You are not a member of the specified group' });
@@ -3711,7 +3711,7 @@ app.put('/api/business-processes/:id', authenticateToken, async (req, res) => {
     
     const finalGroupId = group_id || checkResult.rows[0].group_id;
     
-    const result = await pool.query(updateQuery, [name, description, finalGroupId, id]);
+    const result = await dbPool.query(updateQuery, [name, description, finalGroupId, id]);
     
     res.json(result.rows[0]);
   } catch (err) {
@@ -3735,7 +3735,7 @@ app.delete('/api/business-processes/:id', authenticateToken, async (req, res) =>
       WHERE bp.id = $1 AND ug.user_id = $2
     `;
     
-    const checkResult = await pool.query(checkQuery, [id, userId]);
+    const checkResult = await dbPool.query(checkQuery, [id, userId]);
     
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: 'Business process not found or you do not have access to it' });
@@ -3743,7 +3743,7 @@ app.delete('/api/business-processes/:id', authenticateToken, async (req, res) =>
     
     // Delete the business process (cascade will delete related jobs)
     const deleteQuery = 'DELETE FROM business_processes WHERE id = $1';
-    await pool.query(deleteQuery, [id]);
+    await dbPool.query(deleteQuery, [id]);
     
     res.json({ message: 'Business process deleted successfully' });
   } catch (err) {
@@ -3764,14 +3764,14 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
     try {
       // Check if default group exists
       console.log("Checking for default group");
-      const defaultGroupCheck = await pool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+      const defaultGroupCheck = await dbPool.query("SELECT id FROM groups WHERE name = 'Default Group'");
       
       let defaultGroupId;
       
       if (defaultGroupCheck.rows.length === 0) {
         // Create default group
         console.log("Creating default group");
-        const newGroupResult = await pool.query(
+        const newGroupResult = await dbPool.query(
           "INSERT INTO groups (name, description) VALUES ('Default Group', 'Default group for all users') RETURNING id"
         );
         defaultGroupId = newGroupResult.rows[0].id;
@@ -3783,7 +3783,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       
       // Ensure user is in the default group
       console.log("Ensuring user", userId, "is in default group");
-      const userGroupCheck = await pool.query(
+      const userGroupCheck = await dbPool.query(
         "SELECT 1 FROM user_groups WHERE user_id = $1 AND group_id = $2",
         [userId, defaultGroupId]
       );
@@ -3791,7 +3791,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       if (userGroupCheck.rows.length === 0) {
         // Add user to default group
         console.log("Adding user to default group");
-        await pool.query(
+        await dbPool.query(
           "INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
           [userId, defaultGroupId]
         );
@@ -3811,7 +3811,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       LEFT JOIN user_groups ug ON g.id = ug.group_id AND ug.user_id = $1
       WHERE ug.user_id = $1 OR g.name = 'Default Group'
     `;
-    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupsResult = await dbPool.query(userGroupsQuery, [userId]);
     const userGroupIds = userGroupsResult.rows.map(row => row.id);
     console.log("User group IDs for jobs:", userGroupIds);
     
@@ -3830,7 +3830,7 @@ app.get('/api/jobs', authenticateToken, async (req, res) => {
       ORDER BY j.updated_at DESC
     `;
     
-    const jobsResult = await pool.query(jobsQuery, [userGroupIds]);
+    const jobsResult = await dbPool.query(jobsQuery, [userGroupIds]);
     
     // Add empty placeholders for run_count and last_run_time
     const jobsWithRunInfo = jobsResult.rows.map(job => {
@@ -3860,14 +3860,14 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
     try {
       // Check if default group exists
       console.log("Checking for default group");
-      const defaultGroupCheck = await pool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+      const defaultGroupCheck = await dbPool.query("SELECT id FROM groups WHERE name = 'Default Group'");
       
       let defaultGroupId;
       
       if (defaultGroupCheck.rows.length === 0) {
         // Create default group
         console.log("Creating default group");
-        const newGroupResult = await pool.query(
+        const newGroupResult = await dbPool.query(
           "INSERT INTO groups (name, description) VALUES ('Default Group', 'Default group for all users') RETURNING id"
         );
         defaultGroupId = newGroupResult.rows[0].id;
@@ -3879,7 +3879,7 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
       
       // Ensure user is in the default group
       console.log("Ensuring user", userId, "is in default group");
-      const userGroupCheck = await pool.query(
+      const userGroupCheck = await dbPool.query(
         "SELECT 1 FROM user_groups WHERE user_id = $1 AND group_id = $2",
         [userId, defaultGroupId]
       );
@@ -3887,7 +3887,7 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
       if (userGroupCheck.rows.length === 0) {
         // Add user to default group
         console.log("Adding user to default group");
-        await pool.query(
+        await dbPool.query(
           "INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
           [userId, defaultGroupId]
         );
@@ -3907,7 +3907,7 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
       LEFT JOIN user_groups ug ON g.id = ug.group_id AND ug.user_id = $1
       WHERE ug.user_id = $1 OR g.name = 'Default Group'
     `;
-    const userGroupsResult = await pool.query(userGroupsQuery, [userId]);
+    const userGroupsResult = await dbPool.query(userGroupsQuery, [userId]);
     const userGroupIds = userGroupsResult.rows.map(row => row.id);
     console.log("User group IDs for job detail:", userGroupIds);
     
@@ -3924,7 +3924,7 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
       JOIN groups g ON bp.group_id = g.id
       WHERE j.id = $1 AND bp.group_id = ANY($2::integer[])
     `;
-    const jobResult = await pool.query(jobQuery, [id, userGroupIds]);
+    const jobResult = await dbPool.query(jobQuery, [id, userGroupIds]);
     
     if (jobResult.rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or you do not have access to it' });
@@ -3998,7 +3998,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
     const scheduleSettingsValue = schedule_settings || {};
     
     // Create the job (note: there's no description column in the table)
-    const result = await pool.query(
+    const result = await dbPool.query(
       `INSERT INTO jobs (
         name,
         business_process_id, 
@@ -4041,7 +4041,7 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
 // Schedule endpoints
 app.get('/api/schedules', authenticateToken, async (req, res) => {
   try {
-    const schedules = await pool.query(`
+    const schedules = await dbPool.query(`
       SELECT js.*, j.name as job_name 
       FROM job_schedules js
       JOIN jobs j ON js.job_id = j.id
@@ -4057,7 +4057,7 @@ app.get('/api/schedules', authenticateToken, async (req, res) => {
 app.get('/api/jobs/:jobId/schedules', authenticateToken, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const schedules = await pool.query('SELECT * FROM job_schedules WHERE job_id = $1', [jobId]);
+    const schedules = await dbPool.query('SELECT * FROM job_schedules WHERE job_id = $1', [jobId]);
     res.json(schedules.rows);
   } catch (err) {
     console.error('Error fetching job schedules:', err);
@@ -4099,7 +4099,7 @@ app.post('/api/schedules', authenticateToken, async (req, res) => {
     }
     
     // Insert the schedule
-    const result = await pool.query(`
+    const result = await dbPool.query(`
       INSERT INTO job_schedules (
         job_id, 
         type, 
@@ -4147,7 +4147,7 @@ app.put('/api/schedules/:id', authenticateToken, async (req, res) => {
     }
     
     // Update the schedule
-    const result = await pool.query(`
+    const result = await dbPool.query(`
       UPDATE job_schedules 
       SET 
         type = $1, 
@@ -4182,7 +4182,7 @@ app.delete('/api/schedules/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query('DELETE FROM job_schedules WHERE id = $1 RETURNING id', [id]);
+    const result = await dbPool.query('DELETE FROM job_schedules WHERE id = $1 RETURNING id', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
@@ -4199,7 +4199,7 @@ app.post('/api/schedules/:id/enable', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query(
+    const result = await dbPool.query(
       'UPDATE job_schedules SET enabled = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
       [id]
     );
@@ -4219,7 +4219,7 @@ app.post('/api/schedules/:id/disable', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query(
+    const result = await dbPool.query(
       'UPDATE job_schedules SET enabled = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
       [id]
     );
@@ -4266,7 +4266,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
       WHERE j.id = $1 AND ug.user_id = $2
     `;
     
-    const jobAccessResult = await pool.query(jobAccessQuery, [id, userId]);
+    const jobAccessResult = await dbPool.query(jobAccessQuery, [id, userId]);
     
     if (jobAccessResult.rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or you do not have access to it' });
@@ -4281,7 +4281,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
         WHERE bp.id = $1 AND ug.user_id = $2
       `;
       
-      const processAccessResult = await pool.query(processAccessQuery, [business_process_id, userId]);
+      const processAccessResult = await dbPool.query(processAccessQuery, [business_process_id, userId]);
       
       if (processAccessResult.rows.length === 0) {
         return res.status(403).json({ error: 'You do not have access to the specified business process' });
@@ -4299,7 +4299,7 @@ app.put('/api/jobs/:id', authenticateToken, async (req, res) => {
     console.log('Updating job with business_process_id:', processId, 'Type:', typeof processId);
     
     // Update the job
-    const result = await pool.query(
+    const result = await dbPool.query(
       `UPDATE jobs SET 
         name = $1, 
         business_process_id = $2, 
@@ -4348,14 +4348,14 @@ app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
       WHERE j.id = $1 AND ug.user_id = $2
     `;
     
-    const jobAccessResult = await pool.query(jobAccessQuery, [id, userId]);
+    const jobAccessResult = await dbPool.query(jobAccessQuery, [id, userId]);
     
     if (jobAccessResult.rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or you do not have access to it' });
     }
     
     // Delete the job (cascade will delete history)
-    await pool.query('DELETE FROM jobs WHERE id = $1', [id]);
+    await dbPool.query('DELETE FROM jobs WHERE id = $1', [id]);
     
     res.json({ message: 'Job deleted successfully' });
   } catch (err) {
@@ -4379,7 +4379,7 @@ app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
       WHERE j.id = $1 AND ug.user_id = $2
     `;
     
-    const jobAccessResult = await pool.query(jobAccessQuery, [id, userId]);
+    const jobAccessResult = await dbPool.query(jobAccessQuery, [id, userId]);
     
     if (jobAccessResult.rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or you do not have access to it' });
@@ -4407,11 +4407,11 @@ app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
 app.get('/api/groups', authenticateToken, async (req, res) => {
   try {
     // First check if we need to create a default group
-    const checkDefaultGroup = await pool.query("SELECT COUNT(*) FROM groups WHERE name = 'Default Group'");
+    const checkDefaultGroup = await dbPool.query("SELECT COUNT(*) FROM groups WHERE name = 'Default Group'");
     if (parseInt(checkDefaultGroup.rows[0].count) === 0) {
       console.log('No default group found, creating one from authenticated endpoint');
       try {
-        await pool.query(`
+        await dbPool.query(`
           INSERT INTO groups (name, description)
           VALUES ('Default Group', 'Default group for all users');
         `);
@@ -4423,7 +4423,7 @@ app.get('/api/groups', authenticateToken, async (req, res) => {
       }
     }
 
-    const result = await pool.query('SELECT * FROM groups ORDER BY name');
+    const result = await dbPool.query('SELECT * FROM groups ORDER BY name');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching groups:', err);
@@ -4444,7 +4444,7 @@ app.get('/api/user/groups', authenticateToken, async (req, res) => {
       ORDER BY g.name
     `;
     
-    const result = await pool.query(query, [userId]);
+    const result = await dbPool.query(query, [userId]);
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching user groups:', err);
@@ -4467,11 +4467,11 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
       RETURNING *
     `;
     
-    const result = await pool.query(query, [name, description]);
+    const result = await dbPool.query(query, [name, description]);
     const newGroup = result.rows[0];
     
     // Add the creator to the group automatically
-    await pool.query(
+    await dbPool.query(
       'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2)',
       [req.user.id, newGroup.id]
     );
@@ -4500,7 +4500,7 @@ app.put('/api/groups/:id', authenticateToken, async (req, res) => {
       RETURNING *
     `;
     
-    const result = await pool.query(query, [name, description, groupId]);
+    const result = await dbPool.query(query, [name, description, groupId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Group not found' });
@@ -4519,14 +4519,14 @@ app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
     const groupId = req.params.id;
     
     // First check if it's the default group
-    const defaultGroup = await pool.query('SELECT * FROM groups WHERE name = $1', ['Default Group']);
+    const defaultGroup = await dbPool.query('SELECT * FROM groups WHERE name = $1', ['Default Group']);
     
     if (defaultGroup.rows.length > 0 && defaultGroup.rows[0].id == groupId) {
       return res.status(403).json({ error: 'Cannot delete the default group' });
     }
     
     // Delete the group (cascade will remove user_groups entries)
-    const result = await pool.query('DELETE FROM groups WHERE id = $1 RETURNING *', [groupId]);
+    const result = await dbPool.query('DELETE FROM groups WHERE id = $1 RETURNING *', [groupId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Group not found' });
@@ -4550,7 +4550,7 @@ app.post('/api/groups/:id/users', authenticateToken, async (req, res) => {
     }
     
     // Check if the group exists
-    const groupResult = await pool.query('SELECT * FROM groups WHERE id = $1', [groupId]);
+    const groupResult = await dbPool.query('SELECT * FROM groups WHERE id = $1', [groupId]);
     
     if (groupResult.rows.length === 0) {
       return res.status(404).json({ error: 'Group not found' });
@@ -4560,7 +4560,7 @@ app.post('/api/groups/:id/users', authenticateToken, async (req, res) => {
     const addedUsers = [];
     for (const userId of userIds) {
       try {
-        await pool.query(
+        await dbPool.query(
           'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [userId, groupId]
         );
@@ -4583,7 +4583,7 @@ app.delete('/api/groups/:groupId/users/:userId', authenticateToken, async (req, 
     const { groupId, userId } = req.params;
     
     // Check if the group exists
-    const groupResult = await pool.query('SELECT * FROM groups WHERE id = $1', [groupId]);
+    const groupResult = await dbPool.query('SELECT * FROM groups WHERE id = $1', [groupId]);
     
     if (groupResult.rows.length === 0) {
       return res.status(404).json({ error: 'Group not found' });
@@ -4595,7 +4595,7 @@ app.delete('/api/groups/:groupId/users/:userId', authenticateToken, async (req, 
     }
     
     // Remove the user from the group
-    const result = await pool.query(
+    const result = await dbPool.query(
       'DELETE FROM user_groups WHERE user_id = $1 AND group_id = $2 RETURNING *',
       [userId, groupId]
     );
@@ -4615,7 +4615,7 @@ app.delete('/api/groups/:groupId/users/:userId', authenticateToken, async (req, 
 // This ensures all users have at least one group
 (async () => {
   try {
-    const defaultGroupResult = await pool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+    const defaultGroupResult = await dbPool.query("SELECT id FROM groups WHERE name = 'Default Group'");
     
     if (defaultGroupResult.rows.length > 0) {
       const defaultGroupId = defaultGroupResult.rows[0].id;
@@ -4628,11 +4628,11 @@ app.delete('/api/groups/:groupId/users/:userId', authenticateToken, async (req, 
         )
       `;
       
-      const usersResult = await pool.query(usersWithoutGroupQuery);
+      const usersResult = await dbPool.query(usersWithoutGroupQuery);
       
       // Add these users to the default group
       for (const user of usersResult.rows) {
-        await pool.query(
+        await dbPool.query(
           'INSERT INTO user_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [user.id, defaultGroupId]
         );
@@ -4664,7 +4664,7 @@ app.get('/api/job-groups', authenticateToken, async (req, res) => {
       
       // If the user is an admin, fetch all users to see all groups
       if (userRoles.includes('Admin')) {
-        const allUsers = await pool.query(`SELECT id FROM users`);
+        const allUsers = await dbPool.query(`SELECT id FROM users`);
         if (allUsers.rows.length > 0) {
           allUsers.rows.forEach(user => {
             if (!usersWithSameRoleIds.includes(user.id.toString())) {
@@ -4693,7 +4693,7 @@ app.get('/api/job-groups', authenticateToken, async (req, res) => {
       ORDER BY jg.created_at DESC
     `;
     
-    const jobGroupsResult = await pool.query(jobGroupsQuery, [usersWithSameRoleIds]);
+    const jobGroupsResult = await dbPool.query(jobGroupsQuery, [usersWithSameRoleIds]);
     res.json(jobGroupsResult.rows);
   } catch (err) {
     console.error('Error fetching groups:', err);
@@ -4715,7 +4715,7 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
       LEFT JOIN users u ON u.id::text = jg.created_by
       WHERE jg.id = $1
     `;
-    const jobGroupResult = await pool.query(jobGroupQuery, [id]);
+    const jobGroupResult = await dbPool.query(jobGroupQuery, [id]);
     
     if (jobGroupResult.rows.length === 0) {
       return res.status(404).json({ error: 'Group not found' });
@@ -4739,7 +4739,7 @@ app.get('/api/job-groups/:id', authenticateToken, async (req, res) => {
       WHERE jgj.group_id = $1
       ORDER BY j.created_at DESC
     `;
-    const jobsResult = await pool.query(jobsQuery, [id]);
+    const jobsResult = await dbPool.query(jobsQuery, [id]);
     
     // Combine job group and jobs
     const jobGroup = jobGroupResult.rows[0];
@@ -4763,7 +4763,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
     }
     
     // First check if tables exist, create if not
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS job_groups (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
@@ -4774,7 +4774,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
       )
     `);
     
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS job_group_jobs (
         group_id UUID NOT NULL,
         job_id UUID NOT NULL,
@@ -4783,7 +4783,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
       )
     `);
     
-    await pool.query(`
+    await dbPool.query(`
       CREATE TABLE IF NOT EXISTS user_job_groups (
         user_id TEXT NOT NULL,
         group_id UUID NOT NULL,
@@ -4794,7 +4794,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
     // Get user info for display purposes
     let userName = 'Unknown';
     try {
-      const userResult = await pool.query('SELECT username FROM users WHERE id::text = $1', [userId.toString()]);
+      const userResult = await dbPool.query('SELECT username FROM users WHERE id::text = $1', [userId.toString()]);
       if (userResult.rows.length > 0) {
         userName = userResult.rows[0].username;
       }
@@ -4808,7 +4808,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
     console.log('Creating job group with user ID (as text):', text_user_id);
     
     // Create the group with user ID as text
-    const result = await pool.query(
+    const result = await dbPool.query(
       'INSERT INTO job_groups (name, description, created_by) VALUES ($1, $2, $3) RETURNING *',
       [name, description, text_user_id]
     );
@@ -4817,7 +4817,7 @@ app.post('/api/job-groups', authenticateToken, async (req, res) => {
     console.log('Created new job group with ID:', new_group_id, 'and user ID:', text_user_id);
     
     // Add creator to group
-    await pool.query(
+    await dbPool.query(
       'INSERT INTO user_job_groups (user_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [text_user_id, new_group_id]
     );
@@ -4842,14 +4842,14 @@ app.put('/api/job-groups/:id', authenticateToken, async (req, res) => {
     const { name, description } = req.body;
     
     // Check if the job group exists
-    const existingGroup = await pool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
+    const existingGroup = await dbPool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
     
     if (existingGroup.rows.length === 0) {
       return res.status(404).json({ error: 'Job group not found' });
     }
     
     // Update the job group
-    const result = await pool.query(
+    const result = await dbPool.query(
       'UPDATE job_groups SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
       [name, description, id]
     );
@@ -4867,18 +4867,18 @@ app.delete('/api/job-groups/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     
     // Check if the job group exists
-    const existingGroup = await pool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
+    const existingGroup = await dbPool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
     
     if (existingGroup.rows.length === 0) {
       return res.status(404).json({ error: 'Job group not found' });
     }
     
     // Delete associations first
-    await pool.query('DELETE FROM job_group_jobs WHERE group_id = $1', [id]);
-    await pool.query('DELETE FROM user_job_groups WHERE group_id = $1', [id]);
+    await dbPool.query('DELETE FROM job_group_jobs WHERE group_id = $1', [id]);
+    await dbPool.query('DELETE FROM user_job_groups WHERE group_id = $1', [id]);
     
     // Delete the job group
-    await pool.query('DELETE FROM job_groups WHERE id = $1', [id]);
+    await dbPool.query('DELETE FROM job_groups WHERE id = $1', [id]);
     
     res.json({ message: 'Job group deleted successfully' });
   } catch (err) {
@@ -4898,21 +4898,21 @@ app.post('/api/job-groups/:id/jobs', authenticateToken, async (req, res) => {
     }
     
     // Check if job group exists
-    const groupResult = await pool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
+    const groupResult = await dbPool.query('SELECT * FROM job_groups WHERE id = $1', [id]);
     
     if (groupResult.rows.length === 0) {
       return res.status(404).json({ error: 'Job group not found' });
     }
     
     // Check if job exists
-    const jobResult = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
+    const jobResult = await dbPool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
     
     if (jobResult.rows.length === 0) {
       return res.status(404).json({ error: 'Job not found' });
     }
     
     // Add job to group
-    await pool.query(
+    await dbPool.query(
       'INSERT INTO job_group_jobs (group_id, job_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [id, job_id]
     );
@@ -4930,7 +4930,7 @@ app.delete('/api/job-groups/:id/jobs/:jobId', authenticateToken, async (req, res
     const { id, jobId } = req.params;
     
     // Remove job from group
-    await pool.query(
+    await dbPool.query(
       'DELETE FROM job_group_jobs WHERE group_id = $1 AND job_id = $2',
       [id, jobId]
     );
