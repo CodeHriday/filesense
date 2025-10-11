@@ -6,6 +6,8 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 
 // Initialize dependency injection container
 const { initialize: initializeDI } = require('./backend/di/bootstrapper');
@@ -13,6 +15,9 @@ const diContainer = initializeDI();
 
 // Import enhanced backend features
 const { setupEnhancedFeatures } = require('./backend/integration');
+
+// Import validation middleware and schemas
+const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
 
 // Initialize Express app
 const app = express();
@@ -25,6 +30,52 @@ const logger = diContainer.get('logger');
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
 const JWT_EXPIRATION = '2h'; // Token expiration time (reduced from 24h for better security)
+
+// Validate JWT secret strength
+const validateJWTSecret = (secret) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const weakSecrets = [
+    'secret', 'your-secret-key', 'your-secret-key-for-development',
+    '12345', 'password', 'changeme', 'test', 'development'
+  ];
+  
+  // Check if secret is in the weak list
+  const isWeak = weakSecrets.some(weak => secret.toLowerCase().includes(weak));
+  
+  // Check minimum length (should be at least 32 characters)
+  const isTooShort = secret.length < 32;
+  
+  if (isProduction && (isWeak || isTooShort)) {
+    logger.error('CRITICAL SECURITY ERROR: Weak or default JWT secret detected in production', {
+      secretLength: secret.length,
+      isWeak,
+      isTooShort
+    });
+    console.error('\n='.repeat(80));
+    console.error('CRITICAL SECURITY ERROR: JWT_SECRET is weak or using default value!');
+    console.error('Production server cannot start with weak JWT secret.');
+    console.error('Generate a strong secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+    console.error('='.repeat(80) + '\n');
+    process.exit(1);
+  }
+  
+  if (!isProduction && (isWeak || isTooShort)) {
+    logger.warn('WARNING: Weak or default JWT secret detected in development', {
+      secretLength: secret.length,
+      isWeak,
+      isTooShort,
+      recommendation: 'Use a strong secret in production'
+    });
+    console.warn('\n' + '='.repeat(80));
+    console.warn('WARNING: Using weak or default JWT secret in development!');
+    console.warn('This is acceptable for development but NEVER use this in production.');
+    console.warn('Generate a strong secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+    console.warn('='.repeat(80) + '\n');
+  }
+};
+
+// Validate JWT secret on startup
+validateJWTSecret(JWT_SECRET);
 
 // Error sanitization utility for production
 const sanitizeError = (error, genericMessage = 'An error occurred') => {
@@ -225,10 +276,62 @@ const authenticateToken = async (req, res, next) => {
 };
 
 // Middleware
+// Helmet security headers (must be early in the middleware chain)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for React
+      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+
+// CORS configuration with restricted origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5000', 'http://localhost:3000', 'https://*.replit.dev', 'https://*.replit.app'];
+
 app.use(cors({
-  origin: '*',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if the origin is in the allowed list
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      // Support wildcard matching for replit domains
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin.replace(/\*/g, '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return allowedOrigin === origin;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      logger.warn('CORS blocked request from unauthorized origin', {
+        origin,
+        ip: origin,
+        allowedOrigins
+      });
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204
@@ -266,6 +369,90 @@ app.use((req, res, next) => {
   next();
 });
 
+// Rate limiting configuration to prevent brute force and DoS attacks
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  handler: (req, res) => {
+    logger.warn('Rate limit exceeded', {
+      ip: req.ip,
+      path: req.path,
+      method: req.method
+    });
+    res.status(429).json({ 
+      error: 'Too many requests from this IP, please try again later' 
+    });
+  }
+});
+
+// Stricter rate limiting for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  skipSuccessfulRequests: true, // Don't count successful requests
+  message: 'Too many authentication attempts, please try again later',
+  handler: (req, res) => {
+    logger.warn('Authentication rate limit exceeded', {
+      ip: req.ip,
+      path: req.path,
+      username: req.body?.username
+    });
+    res.status(429).json({ 
+      error: 'Too many authentication attempts, please try again later' 
+    });
+  }
+});
+
+// Rate limiting for file upload endpoints
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20, // Limit each IP to 20 uploads per hour
+  message: 'Too many file uploads, please try again later',
+  handler: (req, res) => {
+    logger.warn('Upload rate limit exceeded', {
+      ip: req.ip,
+      path: req.path
+    });
+    res.status(429).json({ 
+      error: 'Too many file uploads, please try again later' 
+    });
+  }
+});
+
+// Apply general rate limiting to all API routes
+app.use('/api/', generalLimiter);
+
+// CSRF Protection Middleware
+// NOTE: CSRF protection is currently disabled because:
+// 1. JWT tokens are stored in Authorization headers (not cookies), which provides inherent CSRF protection
+//    - Browsers don't automatically send Authorization headers in cross-origin requests
+//    - CSRF attacks cannot read or set custom headers
+// 2. CSRF is primarily a concern when using cookies for authentication
+// 3. Implementing CSRF for JWT-in-header requires frontend changes to send X-Requested-With
+//
+// TODO: When implementing httpOnly cookies (Task 5), enable CSRF protection with one of:
+//    - Double-submit cookie pattern
+//    - Synchronizer token pattern
+//    - Require X-Requested-With header from frontend for all state-changing requests
+//
+// const csrfProtection = (req, res, next) => {
+//   // Skip CSRF check for safe methods (GET, HEAD, OPTIONS)
+//   const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
+//   if (safeMethods.includes(req.method)) {
+//     return next();
+//   }
+//   
+//   // For JWT-in-header, CSRF is not a primary concern
+//   // When using cookies, implement proper CSRF token validation here
+//   
+//   next();
+// };
+//
+// app.use('/api/', csrfProtection);
+
 // Configure file upload with support for large files
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -280,13 +467,58 @@ const storage = multer.diskStorage({
   }
 });
 
-// Configure multer with increased file size limits to handle files up to 1GB
+// File upload validation
+const MAX_FILE_SIZE = process.env.MAX_FILE_SIZE || (100 * 1024 * 1024); // Default 100MB (reduced from 1GB for security)
+const ALLOWED_FILE_TYPES = [
+  'text/csv',
+  'application/json',
+  'application/vnd.apache.parquet',
+  'application/x-parquet',
+  'application/octet-stream' // For parquet files that might be detected as binary
+];
+const ALLOWED_EXTENSIONS = ['.csv', '.json', '.parquet'];
+
+const fileFilter = (req, file, cb) => {
+  // Get file extension
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  // Check file extension
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    logger.warn('File upload rejected - invalid extension', {
+      filename: file.originalname,
+      extension: ext,
+      ip: req.ip
+    });
+    return cb(new Error(`Invalid file type. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`), false);
+  }
+  
+  // Check MIME type
+  if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+    // Allow if extension matches even if MIME type is generic
+    if (ext === '.parquet' && file.mimetype === 'application/octet-stream') {
+      return cb(null, true);
+    }
+    
+    logger.warn('File upload rejected - invalid MIME type', {
+      filename: file.originalname,
+      mimetype: file.mimetype,
+      ip: req.ip
+    });
+    return cb(new Error(`Invalid file MIME type. Allowed types: ${ALLOWED_FILE_TYPES.join(', ')}`), false);
+  }
+  
+  cb(null, true);
+};
+
+// Configure multer with security-focused file size limits
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 1024 * 1024 * 1024, // 1GB in bytes
-    fieldSize: 1024 * 1024 * 1024 // 1GB for form fields
-  }
+    fileSize: MAX_FILE_SIZE, // Configurable, default 100MB (reduced from 1GB)
+    fieldSize: 10 * 1024 * 1024, // 10MB for form fields
+    files: 1 // Only allow 1 file per upload
+  },
+  fileFilter: fileFilter
 });
 
 // Use the database pool from the DI container
@@ -743,7 +975,7 @@ app.get('/api/files/:fileId/preview', async (req, res) => {
 });
 
 // File upload endpoint with support for large files
-app.post('/api/files/upload', upload.single('file'), async (req, res) => {
+app.post('/api/files/upload', uploadLimiter, upload.single('file'), validateRequest(fileUploadSchema), async (req, res) => {
   try {
     // Process file upload and save metadata
     if (!req.file) {
@@ -2144,7 +2376,7 @@ app.get('/api/alerts', async (req, res) => {
 // Authentication and User Management API
 
 // Login endpoint
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (req, res) => {
   try {
     const { username, password } = req.body;
     
@@ -2239,7 +2471,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Register endpoint (for creating new users)
-app.post('/api/auth/register', authenticateToken, async (req, res) => {
+app.post('/api/auth/register', authLimiter, authenticateToken, validateRequest(userSchema), async (req, res) => {
   try {
     // Check if user has permission to create users
     const hasPermission = req.user.permissions.some(p => p.name === 'user_create');
@@ -2278,9 +2510,14 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
       
       const roleIds = rolesResult.rows.map(role => role.id);
       if (roleIds.length > 0) {
-        // Insert role assignments
-        const values = roleIds.map(roleId => `(${user.id}, ${roleId})`).join(', ');
-        await dbPool.query(`INSERT INTO user_roles (user_id, role_id) VALUES ${values}`);
+        // Insert role assignments using parameterized query to prevent SQL injection
+        // Build the VALUES clause with proper parameterization
+        const valuesClauses = roleIds.map((_, index) => `($1, $${index + 2})`).join(', ');
+        const queryParams = [user.id, ...roleIds];
+        await dbPool.query(
+          `INSERT INTO user_roles (user_id, role_id) VALUES ${valuesClauses}`,
+          queryParams
+        );
       }
     }
     
