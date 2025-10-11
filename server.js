@@ -24,7 +24,7 @@ const logger = diContainer.get('logger');
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
-const JWT_EXPIRATION = '24h'; // Token expiration time
+const JWT_EXPIRATION = '2h'; // Token expiration time (reduced from 24h for better security)
 
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
