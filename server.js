@@ -26,6 +26,24 @@ const logger = diContainer.get('logger');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
 const JWT_EXPIRATION = '2h'; // Token expiration time (reduced from 24h for better security)
 
+// Error sanitization utility for production
+const sanitizeError = (error, genericMessage = 'An error occurred') => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction) {
+    // In production, return generic message and log details server-side
+    logger.error('Error occurred', {
+      message: error.message,
+      stack: error.stack,
+      originalError: error.toString()
+    });
+    return genericMessage;
+  }
+  
+  // In development, return detailed error message
+  return error.message || genericMessage;
+};
+
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
   console.log('==== authenticateToken middleware called ====');
@@ -1326,7 +1344,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     
     // Prevent sending multiple responses
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to upload file: ' + err.message });
+      res.status(500).json({ error: sanitizeError(err, 'Failed to upload file') });
     } else {
       logger.error('Error processing file upload after response sent', {
         error: err.message,
@@ -2075,7 +2093,7 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
     res.json(qualityData);
   } catch (err) {
     console.error('Error recalculating file quality:', err);
-    res.status(500).json({ error: 'Failed to recalculate file quality', details: err.message });
+    res.status(500).json({ error: sanitizeError(err, 'Failed to recalculate file quality') });
   }
 });
 
