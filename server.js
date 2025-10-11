@@ -211,6 +211,30 @@ app.use((req, res, next) => {
   next();
 });
 
+// Request timeout configuration to prevent slowloris attacks and resource exhaustion
+app.use((req, res, next) => {
+  // Set timeout for regular requests (30 seconds)
+  req.setTimeout(30000, () => {
+    logger.warn('Request timeout', { 
+      method: req.method, 
+      path: req.path,
+      ip: req.ip 
+    });
+    res.status(408).json({ error: 'Request timeout' });
+  });
+  
+  // Set timeout for response (35 seconds - slightly longer than request timeout)
+  res.setTimeout(35000, () => {
+    logger.warn('Response timeout', { 
+      method: req.method, 
+      path: req.path,
+      ip: req.ip 
+    });
+  });
+  
+  next();
+});
+
 // Configure file upload with support for large files
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
