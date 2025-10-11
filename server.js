@@ -48,6 +48,12 @@ const authenticateToken = async (req, res, next) => {
   
   if (!token) {
     console.log('No token provided');
+    logger.warn('Authentication failed - no token provided', {
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      userAgent: req.get('user-agent')
+    });
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
   
@@ -189,6 +195,13 @@ const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Token verification error:', error);
+    logger.warn('Authentication failed - invalid or expired token', {
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      error: error.message
+    });
     return res.status(403).json({ error: 'Invalid token or token expired.' });
   }
 };
@@ -2118,6 +2131,10 @@ app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     
     if (!username || !password) {
+      logger.warn('Login attempt with missing credentials', { 
+        ip: req.ip,
+        userAgent: req.get('user-agent')
+      });
       return res.status(400).json({ error: 'Username and password are required' });
     }
     
@@ -2128,6 +2145,11 @@ app.post('/api/auth/login', async (req, res) => {
     const userResult = await dbPool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [normalizedUsername]);
     
     if (userResult.rows.length === 0) {
+      logger.warn('Failed login attempt - user not found', { 
+        username: normalizedUsername,
+        ip: req.ip,
+        userAgent: req.get('user-agent')
+      });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
     
@@ -2136,6 +2158,12 @@ app.post('/api/auth/login', async (req, res) => {
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      logger.warn('Failed login attempt - invalid password', { 
+        username: normalizedUsername,
+        userId: user.id,
+        ip: req.ip,
+        userAgent: req.get('user-agent')
+      });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
     
@@ -2164,6 +2192,15 @@ app.post('/api/auth/login', async (req, res) => {
     
     // Update last login time
     await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    
+    // Security audit: Log successful login
+    logger.info('Successful login', { 
+      username: user.username,
+      userId: user.id,
+      roles: userRoles,
+      ip: req.ip,
+      userAgent: req.get('user-agent')
+    });
     
     // Don't store token in database
     
