@@ -27,8 +27,11 @@ import pyarrow.parquet as pq
 from datetime import datetime
 import traceback
 
-# Import logger
-from utils.logger import file_logger
+# Import logger (handle both import paths)
+try:
+    from utils.logger import file_logger
+except ImportError:
+    from logger import file_logger
 
 
 class StreamingFileReader:
