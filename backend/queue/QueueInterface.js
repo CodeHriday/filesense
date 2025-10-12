@@ -51,6 +51,15 @@ class QueueInterface {
   }
 
   /**
+   * Mark job as active (being processed)
+   * @param {string} jobId - Job ID
+   * @returns {Promise<void>}
+   */
+  async activateJob(jobId) {
+    throw new Error('activateJob() must be implemented by subclass');
+  }
+
+  /**
    * Complete a job successfully
    * @param {string} jobId - Job ID
    * @param {*} result - Job result
@@ -86,6 +95,15 @@ class QueueInterface {
    */
   async getQueueStats(queueName) {
     throw new Error('getQueueStats() must be implemented by subclass');
+  }
+
+  /**
+   * Get comprehensive metrics for monitoring
+   * @param {string} queueName - Optional queue name to filter metrics
+   * @returns {Promise<Object>} Metrics object with processing stats and queue state
+   */
+  async getMetrics(queueName = null) {
+    throw new Error('getMetrics() must be implemented by subclass');
   }
 
   /**

@@ -102,6 +102,14 @@ class MemoryQueue extends QueueInterface {
     
     this.emitter.emit(`${job.queueName}:progress`, jobId, progress);
   }
+  
+  async activateJob(jobId) {
+    const job = await this.getJob(jobId);
+    job.state = 'active';
+    job.updatedAt = new Date();
+    
+    this.emitter.emit(`${job.queueName}:active`, jobId, job);
+  }
 
   async completeJob(jobId, result) {
     const job = await this.getJob(jobId);

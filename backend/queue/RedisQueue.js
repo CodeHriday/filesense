@@ -122,6 +122,12 @@ class RedisQueue extends QueueInterface {
     }
   }
 
+  async activateJob(jobId) {
+    // BullMQ automatically marks jobs as active when processing starts
+    // This is a no-op for Redis queue, state is managed by BullMQ
+    // The job state will be 'active' once the worker picks it up
+  }
+
   async completeJob(jobId, result) {
     // This is typically handled by workers, but can be done manually
     for (const queue of this.queues.values()) {
@@ -168,6 +174,41 @@ class RedisQueue extends QueueInterface {
       failed: counts.failed || 0,
       delayed: counts.delayed || 0,
       total: Object.values(counts).reduce((sum, count) => sum + count, 0)
+    };
+  }
+
+  async getMetrics(queueName = null) {
+    // For Redis/BullMQ, we don't track historical metrics like MemoryQueue
+    // Return zeros for now - can be enhanced with BullMQ metrics later
+    const baseMetrics = {
+      totalProcessed: 0,
+      totalSucceeded: 0,
+      totalFailed: 0,
+      totalRetries: 0,
+      successRate: '0%',
+      averageProcessingTimeMs: 0,
+      uptimeMs: 0,
+      uptimeHuman: 'N/A',
+      note: 'Historical metrics not available in Redis mode. Use BullMQ metrics or Bull Board UI.'
+    };
+
+    if (queueName) {
+      const queueStats = await this.getQueueStats(queueName);
+      return {
+        ...baseMetrics,
+        queue: queueStats
+      };
+    }
+
+    // Get all queue stats
+    const allQueues = {};
+    for (const [name] of this.queues) {
+      allQueues[name] = await this.getQueueStats(name);
+    }
+
+    return {
+      ...baseMetrics,
+      queues: allQueues
     };
   }
 

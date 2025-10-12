@@ -57,6 +57,9 @@ class FileProcessingWorker {
     });
 
     try {
+      // Mark job as active
+      await this.queue.activateJob(jobId);
+      
       // Update progress: Starting
       await this.queue.updateProgress(jobId, 10);
 

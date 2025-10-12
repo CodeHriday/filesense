@@ -140,6 +140,31 @@ The application employs a hybrid architecture combining:
 - `bullmq` (Redis-backed job queue - optional)
 - Queue abstraction layer (in-memory fallback for Replit)
 
+### Phase 2.1: Production Enhancements (Completed)
+**Status**: ✅ Production-ready (October 2025)
+
+**Achievements**:
+- **Automatic File Cleanup**: Uploaded files automatically deleted after processing to prevent storage bloat
+- **Queue Metrics Endpoint**: Real-time monitoring of queue performance and health (`GET /api/queue/metrics`)
+- **Comprehensive Configuration**: Documented environment variables and deployment configurations
+
+**Implementation**:
+- File cleanup with quarantine option for failed uploads (`backend/workers/fileProcessingWorker.js`)
+- Metrics tracking in queue: success rate, processing time, retry counts (`backend/queue/MemoryQueue.js`)
+- Configuration documentation covering all queue backends and deployment scenarios (`docs/CONFIGURATION.md`)
+
+**Features**:
+- **Metrics Available**:
+  - Total jobs processed (success/failure counts)
+  - Success rate percentage
+  - Average processing time in milliseconds
+  - Queue state breakdown (waiting, active, completed, failed, delayed)
+  - Queue uptime (human-readable format)
+- **Configurable Cleanup**:
+  - `CLEANUP_FILES=true` (default): Delete files after processing
+  - `CLEANUP_FILES=false`: Keep files for debugging
+  - `QUARANTINE_FAILED=true`: Move failed files to quarantine folder
+
 ### Future Phases (Planned)
 - **Phase 3**: Database optimization (100+ connection pool, query optimization)
 - **Phase 4**: Multi-layer caching (Redis + in-memory)
@@ -149,6 +174,7 @@ The application employs a hybrid architecture combining:
 
 ```
 Changelog:
+- October 12, 2025. Phase 2.1: Production enhancements - file cleanup, queue metrics, configuration docs
 - October 12, 2025. Phase 2: Async job queue system complete - non-blocking uploads with background processing
 - October 12, 2025. Phase 1: Streaming engine & memory management complete - 10 GB file support
 - June 27, 2025. Initial setup
