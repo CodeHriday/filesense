@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiLink, FiEye, FiInfo, FiBarChart2, FiCalendar, FiFile } from 'react-icons/fi';
+import LoadingSpinner from '../LoadingSpinner';
 import { useAIFeatures } from '../../hooks';
 import './RelatedDatasets.css';
 
@@ -80,12 +81,7 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
 
   // Handle loading state
   if (loadingRelatedDatasets) {
-    return (
-      <div className="related-datasets-loading">
-        <div className="spinner"></div>
-        <p>Analyzing datasets...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Analyzing datasets..." />;
   }
 
   // Handle error state

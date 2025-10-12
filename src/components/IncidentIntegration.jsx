@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 import { 
   FiAlertTriangle, 
   FiSlack, 
@@ -1010,7 +1011,7 @@ const IncidentIntegration = ({
                     
                     {testResult && (
                       <div className={`test-result ${testResult.status}`}>
-                        {testResult.status === 'testing' && <div className="loading-spinner" />}
+                        {testResult.status === 'testing' && <LoadingSpinner size="small" />}
                         {testResult.status === 'success' && <FiCheck className="result-icon" />}
                         {testResult.status === 'error' && <FiAlertTriangle className="result-icon" />}
                         <span>{testResult.message}</span>

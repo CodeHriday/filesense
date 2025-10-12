@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiEdit2, FiTrash2, FiClipboard, FiUsers } from 'react-icons/fi';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { Modal, Button, Tooltip } from '../components/common';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -106,7 +107,7 @@ const JobGroups = () => {
   };
   
   if (loading) {
-    return <div className="loading-spinner">Loading...</div>;
+    return <LoadingSpinner message="Loading job groups..." />;
   }
   
   return (

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 import ReactFlow, {
   Background,
   Controls,
@@ -165,12 +166,7 @@ function LineageImpactGraph({ impactData, direction, onNodeClick }) {
   }, []);
 
   if (loading) {
-    return (
-      <div className="lineage-graph-loading">
-        <div className="spinner"></div>
-        <p>Processing impact graph data...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Processing impact graph data..." />;
   }
 
   if (error) {
