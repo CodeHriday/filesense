@@ -183,23 +183,22 @@ The application employs a hybrid architecture combining:
   - 5 sort indexes (ORDER BY optimization)
 - Read replica guide with load balancing strategies (`docs/READ_REPLICA_CONFIG.md`)
 
-### Phase 4: Multi-Layer Caching (In Progress)
-**Status**: 🔄 In Progress (October 2025)
+### Phase 4: Multi-Layer Caching (Completed)
+**Status**: ✅ Completed (October 2025)
 
-**Completed**:
+**Achievements**:
 - **Redis Caching Layer**: Implemented with automatic fallback to in-memory cache (node-cache)
 - **Response Caching**: File metadata endpoints automatically cached (5-10 minute TTL)
 - **Cache Invalidation**: Automatic cache clearing on file uploads/modifications
+- **Dashboard Data Caching**: All dashboard-feeding endpoints cached (files, profiles, quality, insights)
 
 **Implementation**:
 - Cache service with Redis/memory fallback (`backend/services/cacheService.js`)
 - Automatic response caching middleware (`backend/middleware/cacheMiddleware.js`)
-- Cache management API (`GET /api/cache/stats`, `DELETE /api/cache/flush`)
+- Cache management API with authentication (`GET /api/cache/stats`, `DELETE /api/cache/flush`)
 - Cached endpoints: file list, file details, preview, profile, quality, insights
 - Cache TTL: 300s (list/preview), 600s (details/profile/quality/insights)
-
-**Pending**:
-- Query result caching for dashboard data
+- Security: Per-user cache keys for authenticated endpoints, protected admin endpoints
 
 ### Future Phases (Planned)
 - **Phase 5**: Cloud deployment configs (Docker, AWS/GCP documentation)

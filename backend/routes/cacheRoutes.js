@@ -11,7 +11,7 @@ const express = require('express');
 const router = express.Router();
 const cacheService = require('../services/cacheService');
 const { systemLogger } = require('../utils/logger');
-const authenticateToken = require('../src/middleware/authMiddleware');
+const authenticateToken = require('../middleware/authenticate');
 
 /**
  * Get cache statistics
