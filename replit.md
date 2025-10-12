@@ -186,9 +186,19 @@ The application employs a hybrid architecture combining:
 ### Phase 4: Multi-Layer Caching (In Progress)
 **Status**: 🔄 In Progress (October 2025)
 
-**Planned**:
-- Redis caching layer with fallback to in-memory cache
-- Response caching for file metadata endpoints
+**Completed**:
+- **Redis Caching Layer**: Implemented with automatic fallback to in-memory cache (node-cache)
+- **Response Caching**: File metadata endpoints automatically cached (5-10 minute TTL)
+- **Cache Invalidation**: Automatic cache clearing on file uploads/modifications
+
+**Implementation**:
+- Cache service with Redis/memory fallback (`backend/services/cacheService.js`)
+- Automatic response caching middleware (`backend/middleware/cacheMiddleware.js`)
+- Cache management API (`GET /api/cache/stats`, `DELETE /api/cache/flush`)
+- Cached endpoints: file list, file details, preview, profile, quality, insights
+- Cache TTL: 300s (list/preview), 600s (details/profile/quality/insights)
+
+**Pending**:
 - Query result caching for dashboard data
 
 ### Future Phases (Planned)
@@ -199,6 +209,8 @@ The application employs a hybrid architecture combining:
 
 ```
 Changelog:
+- October 12, 2025. Phase 4: Multi-layer caching - Redis/in-memory cache with response caching middleware
+- October 12, 2025. Phase 3: Database optimization complete - connection pool, 19 indexes, read replica docs
 - October 12, 2025. Phase 2.1: Production enhancements - file cleanup, queue metrics, configuration docs
 - October 12, 2025. Phase 2: Async job queue system complete - non-blocking uploads with background processing
 - October 12, 2025. Phase 1: Streaming engine & memory management complete - 10 GB file support

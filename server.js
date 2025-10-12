@@ -31,6 +31,7 @@ fileWorker.start();
 
 // Import validation middleware and schemas
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
+const { cacheMiddleware, invalidateCache } = require('./backend/middleware/cacheMiddleware');
 
 // Initialize Express app
 const app = express();
@@ -754,8 +755,8 @@ app.get('/api/test-di', (req, res) => {
   }
 });
 
-// Files API
-app.get('/api/files', async (req, res) => {
+// Files API (with caching)
+app.get('/api/files', cacheMiddleware(300), async (req, res) => {
   try {
     // Use the FileService from the DI container
     const fileService = diContainer.get('fileService');
@@ -771,7 +772,7 @@ app.get('/api/files', async (req, res) => {
   }
 });
 
-app.get('/api/files/:fileId', async (req, res) => {
+app.get('/api/files/:fileId', cacheMiddleware(600), async (req, res) => {
   try {
     const { fileId } = req.params;
     
@@ -790,8 +791,8 @@ app.get('/api/files/:fileId', async (req, res) => {
   }
 });
 
-// File preview endpoint
-app.get('/api/files/:fileId/preview', async (req, res) => {
+// File preview endpoint (with caching)
+app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => {
   try {
     const { fileId } = req.params;
     const { limit = 100 } = req.query;
@@ -1008,7 +1009,7 @@ app.get('/api/files/:fileId/preview', async (req, res) => {
 });
 
 // File upload endpoint with async queue processing
-app.post('/api/files/upload', uploadLimiter, upload.single('file'), validateRequest(fileUploadSchema), async (req, res) => {
+app.post('/api/files/upload', invalidateCache('cache:*:*files*'), uploadLimiter, upload.single('file'), validateRequest(fileUploadSchema), async (req, res) => {
   try {
     // Validate file upload
     if (!req.file) {
@@ -1185,6 +1186,18 @@ app.get('/api/alerts/history', async (req, res) => {
 // Connection routes
 const connectionRoutes = require('./backend/routes/connectionRoutes');
 app.use('/api/connections', connectionRoutes);
+
+// Cache routes
+const cacheRoutes = require('./backend/routes/cacheRoutes');
+app.use('/api/cache', cacheRoutes);
+
+// Initialize cache service
+const cacheService = require('./backend/services/cacheService');
+cacheService.initialize().then(result => {
+  console.log(`✅ Cache service initialized: ${result.type}`);
+}).catch(err => {
+  console.error('Failed to initialize cache service:', err);
+});
 
 // Migrate connections from old table to new shared table
 const migrateConnectionsSchema = require('./backend/migrations/createSharedConnectionsTable');
@@ -1445,7 +1458,7 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
 });
 
 // File profile endpoint
-app.get('/api/files/:fileId/profile', async (req, res) => {
+app.get('/api/files/:fileId/profile', cacheMiddleware(600), async (req, res) => {
   try {
     const { fileId } = req.params;
     
@@ -1514,7 +1527,7 @@ app.get('/api/files/:fileId/profile', async (req, res) => {
 
 // File quality endpoint
 // Get file quality data
-app.get('/api/files/:fileId/quality', async (req, res) => {
+app.get('/api/files/:fileId/quality', cacheMiddleware(600), async (req, res) => {
   try {
     const { fileId } = req.params;
     
@@ -2484,7 +2497,7 @@ app.delete('/api/roles/:id', authenticateToken, async (req, res) => {
 });
 
 // Get AI insights for a file
-app.get('/api/files/:fileId/insights', authenticateToken, async (req, res) => {
+app.get('/api/files/:fileId/insights', authenticateToken, cacheMiddleware(600), async (req, res) => {
   try {
     const { fileId } = req.params;
     
