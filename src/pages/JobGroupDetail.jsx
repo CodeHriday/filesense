@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiPlus, FiEdit2, FiTrash2, FiCpu, FiClock, FiFilter } from 'react-icons/fi';
 import { Modal, Button, Table, Tooltip } from '../components/common';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { getJobGroupById, updateJobGroup, addJobToGroup, removeJobFromGroup } from '../api/jobGroupsService';
@@ -170,7 +171,7 @@ const JobGroupDetail = () => {
   };
   
   if (loading) {
-    return <div className="loading-spinner">Loading...</div>;
+    return <LoadingSpinner message="Loading job group details..." />;
   }
   
   if (error || !jobGroup) {

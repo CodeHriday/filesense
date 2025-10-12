@@ -5,7 +5,7 @@ import { getJobs, createJob, updateJob, deleteJob, startJob } from '../api/jobsS
 import { getBusinessProcesses } from '../api/businessProcessesService';
 import Modal from '../components/Modal';
 import Button from '../components/common/Button';
-import Loader from '../components/Loader';
+import LoadingSpinner from '../components/LoadingSpinner';
 import PageHeader from '../components/PageHeader';
 import '../styles/Jobs.css';
 
@@ -362,7 +362,7 @@ const Jobs = () => {
       {error && <div className="alert alert-error">{error}</div>}
       
       {loading ? (
-        <Loader />
+        <LoadingSpinner message="Loading jobs..." />
       ) : (
         <div className="jobs-list">
           {jobs.length === 0 ? (

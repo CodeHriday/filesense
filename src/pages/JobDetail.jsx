@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { 
   getJobById, 
   updateJob,
@@ -109,7 +110,7 @@ const JobDetail = () => {
   };
   
   if (loading) {
-    return <div className="loading">Loading job details...</div>;
+    return <LoadingSpinner message="Loading job details..." />;
   }
   
   if (!job) {

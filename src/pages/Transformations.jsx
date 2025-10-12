@@ -15,6 +15,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import 'reactflow/dist/style.css';
 import '../styles/Transformations.css';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { 
   FiDatabase, 
   FiFilter, 
@@ -1982,7 +1983,7 @@ function Transformations() {
         </div>
         <div className="transformations-actions">
           {loading ? (
-            <div className="loading-indicator">Loading...</div>
+            <LoadingSpinner size="small" message="Loading transformation..." />
           ) : editing ? (
             <button className="btn btn-primary" onClick={saveTransformation}>
               <FiSave className="icon-left" /> Save Transformation

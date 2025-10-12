@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import '../styles/UserManagement.css';
@@ -177,7 +178,7 @@ const UserManagement = () => {
   };
   
   if (loading) {
-    return <div className="user-management-loading">Loading user management...</div>;
+    return <LoadingSpinner message="Loading user management..." />;
   }
   
   return (

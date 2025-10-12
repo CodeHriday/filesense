@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card } from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useFileCatalog } from '../hooks';
 import { QualityTooltip } from '../components/QualityTooltip';
 import './FileCatalog.css';
@@ -134,7 +135,7 @@ export const FileCatalog = ({ onFileSelect }) => {
     return (
       <div className="file-catalog-container">
         <h1 className="page-title">File Catalog</h1>
-        <div className="loading">Loading file catalog...</div>
+        <LoadingSpinner message="Loading file catalog..." />
       </div>
     );
   }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash, FiUsers, FiArrowRight, FiList } from 'react-icons/fi';
 import { getGroups, createGroup, updateGroup, deleteGroup } from '../api/groupsService';
-import Loader from '../components/Loader';
+import LoadingSpinner from '../components/LoadingSpinner';
 import PageHeader from '../components/PageHeader';
 import '../styles/Groups.css';
 
@@ -246,7 +246,7 @@ const Groups = () => {
       {error && <div className="alert alert-error" style={{ color: 'red', marginBottom: '20px' }}>{error}</div>}
       
       {loading ? (
-        <Loader />
+        <LoadingSpinner message="Loading groups..." />
       ) : (
         <div className="groups-list">
           {groups.length === 0 ? (

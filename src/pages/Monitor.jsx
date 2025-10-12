@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBarChart2, FiCheckSquare, FiFileText, FiList } from 'react-icons/fi';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { getFileCatalog, getFileProfile, getFileQuality } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince } from '../utils/formatters';
 import './Monitor.css';
@@ -102,7 +103,7 @@ function Monitor() {
       <h1>File Monitor</h1>
       
       {loading ? (
-        <div className="loading">Loading files...</div>
+        <LoadingSpinner message="Loading files..." />
       ) : error ? (
         <div className="error">{error}</div>
       ) : (
@@ -150,7 +151,7 @@ function Monitor() {
           <div className="file-details-container">
             {selectedFile ? (
               loadingDetails ? (
-                <div className="loading">Loading file details...</div>
+                <LoadingSpinner size="small" message="Loading file details..." />
               ) : (
                 <>
                   <Card className="file-overview">

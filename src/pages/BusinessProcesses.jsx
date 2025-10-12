@@ -8,7 +8,7 @@ import {
   deleteBusinessProcess 
 } from '../api/businessProcessesService';
 import { getUserGroups } from '../api/groupsService';
-import Loader from '../components/Loader';
+import LoadingSpinner from '../components/LoadingSpinner';
 import PageHeader from '../components/PageHeader';
 import '../styles/BusinessProcesses.css';
 
@@ -238,7 +238,7 @@ const BusinessProcesses = () => {
       {error && <div style={{ color: 'red', padding: '12px', marginBottom: '20px', backgroundColor: '#ffeeee', borderRadius: '4px' }}>{error}</div>}
       
       {loading ? (
-        <Loader />
+        <LoadingSpinner message="Loading business processes..." />
       ) : (
         <div>
           {processes.length === 0 ? (
