@@ -103,7 +103,7 @@ function Monitor() {
       <h1>File Monitor</h1>
       
       {loading ? (
-        <LoadingSpinner fullPage={true} />
+        <LoadingSpinner />
       ) : error ? (
         <div className="error">{error}</div>
       ) : (

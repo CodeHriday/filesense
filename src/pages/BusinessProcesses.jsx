@@ -238,7 +238,7 @@ const BusinessProcesses = () => {
       {error && <div style={{ color: 'red', padding: '12px', marginBottom: '20px', backgroundColor: '#ffeeee', borderRadius: '4px' }}>{error}</div>}
       
       {loading ? (
-        <LoadingSpinner fullPage={true} />
+        <LoadingSpinner />
       ) : (
         <div>
           {processes.length === 0 ? (

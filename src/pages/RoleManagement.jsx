@@ -320,7 +320,8 @@ const RoleManagement = () => {
   if (loading) {
     return (
       <div className="role-management-loading">
-        <LoadingSpinner fullPage={true} />
+        <LoadingSpinner />
+        <span>Loading role management...</span>
       </div>
     );
   }

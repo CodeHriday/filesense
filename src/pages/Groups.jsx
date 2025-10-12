@@ -246,7 +246,7 @@ const Groups = () => {
       {error && <div className="alert alert-error" style={{ color: 'red', marginBottom: '20px' }}>{error}</div>}
       
       {loading ? (
-        <LoadingSpinner fullPage={true} />
+        <LoadingSpinner />
       ) : (
         <div className="groups-list">
           {groups.length === 0 ? (

@@ -318,7 +318,7 @@ const DataStories = () => {
   return (
     <div className="data-stories-container">
       {loading ? (
-        <LoadingSpinner fullPage={true} />
+        <LoadingSpinner />
       ) : (
         <>
           {currentView === 'list' && renderListView()}

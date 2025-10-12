@@ -86,7 +86,7 @@ function QualityChecks() {
   return (
     <div className="quality-checks-container">
       {loading ? (
-        <LoadingSpinner fullPage={true} />
+        <LoadingSpinner />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>

@@ -178,7 +178,7 @@ const UserManagement = () => {
   };
   
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage={true} />;
   }
   
   return (

@@ -128,7 +128,7 @@ const Badges = () => {
       </div>
       
       {loading ? (
-        <LoadingSpinner fullPage={true} />
+        <LoadingSpinner />
       ) : (
         <>
           {Object.keys(groupedBadges).length === 0 ? (
