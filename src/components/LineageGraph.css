@@ -117,21 +117,7 @@
   opacity: 0.5;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  border-top-color: #3182ce;
-  animation: spin 1s ease-in-out infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* Loading spinner styles moved to LoadingSpinner.css */
 
 .layout-controls {
   margin: 10px;
