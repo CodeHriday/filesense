@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload, FiTable, FiLink, FiMessageCircle } from 'react-icons/fi';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
 import { RelatedDatasetsList } from '../components/RelatedDatasets';
 import { ChatInterface } from '../components/ChatWithDataset';
@@ -464,10 +465,7 @@ function DataProfile() {
   return (
     <div className="data-profile-container">
       {loading ? (
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading file data...</p>
-        </div>
+        <LoadingSpinner message="Loading file data..." />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>

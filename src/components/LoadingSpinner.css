@@ -1,27 +1,73 @@
 .loading-spinner {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 12px;
+  padding: 20px;
 }
 
+.loading-spinner.fullpage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 9999;
+}
+
+/* Throbbing spinner animation */
 .spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid rgba(0, 0, 0, 0.1);
-  border-top-color: #1a73e8;
+  width: 40px;
+  height: 40px;
+  background: #1a73e8;
   border-radius: 50%;
-  animation: spinner 0.8s linear infinite;
+  animation: throb 1.2s ease-in-out infinite;
 }
 
-@keyframes spinner {
-  to {
-    transform: rotate(360deg);
+/* Size variations */
+.spinner-small {
+  width: 20px;
+  height: 20px;
+}
+
+.spinner-medium {
+  width: 40px;
+  height: 40px;
+}
+
+.spinner-large {
+  width: 60px;
+  height: 60px;
+}
+
+/* Throbbing animation - pulsing effect */
+@keyframes throb {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
   }
+  50% {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+}
+
+/* Loading message text */
+.loading-message {
+  color: #5f6368;
+  font-size: 14px;
+  margin: 0;
+  text-align: center;
 }
 
 /* High contrast mode */
 body.high-contrast .spinner {
-  border-color: #fff;
-  border-top-color: #1a73e8;
+  background: #1a73e8;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .loading-message {
+  color: #fff;
 }

@@ -5,6 +5,7 @@ import {
   FiBox, FiFile, FiFileText
 } from 'react-icons/fi';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import LineageImpactGraph from '../components/LineageImpactGraph';
 import { getFileDetails } from '../api/fileService';
 import { getImpactAnalysis } from '../api/lineageService';
@@ -63,12 +64,7 @@ function LineageImpact() {
   };
   
   if (loading) {
-    return (
-      <div className="loading-spinner">
-        <div className="spinner"></div>
-        <p>Loading impact analysis...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading impact analysis..." />;
   }
   
   if (error) {

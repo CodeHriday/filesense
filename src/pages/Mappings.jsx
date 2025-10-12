@@ -39,6 +39,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import './Mappings.css';
@@ -158,7 +159,7 @@ function JoinPanel({ files, selectedFile, sourceFileId, onAddJoin, onClose }) {
         </div>
         
         {loading ? (
-          <div className="loading-spinner">Loading join file details...</div>
+          <LoadingSpinner size="small" message="Loading join file details..." />
         ) : (
           <>
             <div className="transform-field">
@@ -839,10 +840,7 @@ function Mappings() {
       </div>
       
       {loading ? (
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading mappings...</p>
-        </div>
+        <LoadingSpinner message="Loading mappings..." />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>

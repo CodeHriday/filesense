@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck } from 'react-icons/fi';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { getAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, getAlertHistory } from '../api/alertService';
 import { formatDate, getTimeSince } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -361,10 +362,7 @@ function Alerts() {
   return (
     <div className="alerts-container">
       {loading ? (
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading alert data...</p>
-        </div>
+        <LoadingSpinner message="Loading alert data..." />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>

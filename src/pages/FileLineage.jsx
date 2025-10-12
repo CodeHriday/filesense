@@ -11,6 +11,7 @@ import {
   FiMap
 } from 'react-icons/fi';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import LineageGraph from '../components/LineageGraph';
 import { getFileCatalog } from '../api/fileService';
 import { getLineages, createLineage, deleteLineage } from '../api/lineageService';
@@ -203,12 +204,7 @@ function FileLineage() {
   };
   
   if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading files and lineage data...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading files and lineage data..." />;
   }
   
   return (

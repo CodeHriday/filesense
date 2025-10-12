@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiCheck, FiX, FiAlertTriangle, FiBarChart2, FiInfo } from 'react-icons/fi';
 import Card from '../components/Card';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { getFileDetails, getFileQuality, runQualityCheck } from '../api/fileService';
 import { formatDate, getTimeSince, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -85,10 +86,7 @@ function QualityChecks() {
   return (
     <div className="quality-checks-container">
       {loading ? (
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading quality data...</p>
-        </div>
+        <LoadingSpinner message="Loading quality data..." />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>
