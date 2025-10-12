@@ -1983,7 +1983,7 @@ function Transformations() {
         </div>
         <div className="transformations-actions">
           {loading ? (
-            <LoadingSpinner size="small" message="Loading transformation..." />
+            <LoadingSpinner size="small" />
           ) : editing ? (
             <button className="btn btn-primary" onClick={saveTransformation}>
               <FiSave className="icon-left" /> Save Transformation

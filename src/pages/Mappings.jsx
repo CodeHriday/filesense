@@ -159,7 +159,7 @@ function JoinPanel({ files, selectedFile, sourceFileId, onAddJoin, onClose }) {
         </div>
         
         {loading ? (
-          <LoadingSpinner size="small" message="Loading join file details..." />
+          <LoadingSpinner size="small" />
         ) : (
           <>
             <div className="transform-field">
@@ -840,7 +840,7 @@ function Mappings() {
       </div>
       
       {loading ? (
-        <LoadingSpinner message="Loading mappings..." />
+        <LoadingSpinner />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>

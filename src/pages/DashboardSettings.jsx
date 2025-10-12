@@ -230,7 +230,7 @@ const DashboardSettings = () => {
               
               <div className="dashboard-layout-container">
                 {loading ? (
-                  <LoadingSpinner size="small" message="Loading your dashboard layout..." />
+                  <LoadingSpinner size="small" />
                 ) : (
                   <DashboardLayoutCreator
                     initialLayout={dashboardLayout}

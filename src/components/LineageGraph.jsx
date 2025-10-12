@@ -239,7 +239,7 @@ function LineageGraph({ onNodeClick }) {
   };
 
   if (loading) {
-    return <LoadingSpinner message="Loading lineage graph..." fullPage={true} />;
+    return <LoadingSpinner fullPage={true} />;
   }
 
   if (error) {

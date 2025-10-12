@@ -362,7 +362,7 @@ const Jobs = () => {
       {error && <div className="alert alert-error">{error}</div>}
       
       {loading ? (
-        <LoadingSpinner message="Loading jobs..." />
+        <LoadingSpinner />
       ) : (
         <div className="jobs-list">
           {jobs.length === 0 ? (

@@ -103,7 +103,7 @@ function Monitor() {
       <h1>File Monitor</h1>
       
       {loading ? (
-        <LoadingSpinner message="Loading files..." />
+        <LoadingSpinner />
       ) : error ? (
         <div className="error">{error}</div>
       ) : (
@@ -151,7 +151,7 @@ function Monitor() {
           <div className="file-details-container">
             {selectedFile ? (
               loadingDetails ? (
-                <LoadingSpinner size="small" message="Loading file details..." />
+                <LoadingSpinner size="small" />
               ) : (
                 <>
                   <Card className="file-overview">

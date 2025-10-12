@@ -204,7 +204,7 @@ function FileLineage() {
   };
   
   if (loading) {
-    return <LoadingSpinner message="Loading files and lineage data..." fullPage={true} />;
+    return <LoadingSpinner fullPage={true} />;
   }
   
   return (

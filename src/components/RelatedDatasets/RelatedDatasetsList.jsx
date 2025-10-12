@@ -81,7 +81,7 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
 
   // Handle loading state
   if (loadingRelatedDatasets) {
-    return <LoadingSpinner message="Analyzing datasets..." fullPage={true} />;
+    return <LoadingSpinner fullPage={true} />;
   }
 
   // Handle error state

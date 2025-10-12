@@ -219,7 +219,7 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
       </div>
       
       {loading ? (
-        <LoadingSpinner size="small" message="Analyzing data and generating insights..." />
+        <LoadingSpinner size="small" />
       ) : error ? (
         <div className="insights-error">{error}</div>
       ) : insights ? (
