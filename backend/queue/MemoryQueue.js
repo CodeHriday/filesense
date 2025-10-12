@@ -23,6 +23,16 @@ class MemoryQueue extends QueueInterface {
     this.queues = new Map(); // queueName -> array of jobIds
     this.emitter = new EventEmitter();
     
+    // Metrics tracking
+    this.metrics = {
+      totalProcessed: 0,
+      totalSucceeded: 0,
+      totalFailed: 0,
+      totalRetries: 0,
+      processingTimes: [], // Keep last 100 for average
+      startTime: new Date()
+    };
+    
     console.log('⚠️  Using in-memory queue (jobs not persisted, single process only)');
   }
 
@@ -98,7 +108,19 @@ class MemoryQueue extends QueueInterface {
     job.state = 'completed';
     job.progress = 100;
     job.result = result;
-    job.updatedAt = new Date();
+    job.finishedAt = new Date();
+    job.updatedAt = job.finishedAt;
+
+    // Track metrics
+    this.metrics.totalProcessed++;
+    this.metrics.totalSucceeded++;
+    
+    // Calculate and store processing time
+    const processingTime = job.finishedAt - job.createdAt;
+    this.metrics.processingTimes.push(processingTime);
+    if (this.metrics.processingTimes.length > 100) {
+      this.metrics.processingTimes.shift(); // Keep only last 100
+    }
 
     this.emitter.emit(`${job.queueName}:completed`, jobId, result);
 
@@ -115,6 +137,11 @@ class MemoryQueue extends QueueInterface {
   async failJob(jobId, error) {
     const job = await this.getJob(jobId);
     job.attemptsMade++;
+    
+    // Track retry metrics
+    if (job.attemptsMade > 1) {
+      this.metrics.totalRetries++;
+    }
 
     // Check if should retry
     if (job.attemptsMade < job.options.attempts) {
@@ -142,7 +169,12 @@ class MemoryQueue extends QueueInterface {
       // Max attempts reached
       job.state = 'failed';
       job.error = error instanceof Error ? error.message : String(error);
-      job.updatedAt = new Date();
+      job.finishedAt = new Date();
+      job.updatedAt = job.finishedAt;
+      
+      // Track failure metrics
+      this.metrics.totalProcessed++;
+      this.metrics.totalFailed++;
 
       this.emitter.emit(`${job.queueName}:failed`, jobId, error);
 
@@ -184,6 +216,64 @@ class MemoryQueue extends QueueInterface {
       delayed: jobs.filter(j => j.state === 'delayed').length,
       total: jobs.length
     };
+  }
+  
+  /**
+   * Get comprehensive metrics for monitoring
+   */
+  async getMetrics(queueName = null) {
+    const avgProcessingTime = this.metrics.processingTimes.length > 0
+      ? this.metrics.processingTimes.reduce((a, b) => a + b, 0) / this.metrics.processingTimes.length
+      : 0;
+    
+    const uptime = Date.now() - this.metrics.startTime.getTime();
+    
+    const baseMetrics = {
+      totalProcessed: this.metrics.totalProcessed,
+      totalSucceeded: this.metrics.totalSucceeded,
+      totalFailed: this.metrics.totalFailed,
+      totalRetries: this.metrics.totalRetries,
+      successRate: this.metrics.totalProcessed > 0 
+        ? (this.metrics.totalSucceeded / this.metrics.totalProcessed * 100).toFixed(2) + '%'
+        : '0%',
+      averageProcessingTimeMs: Math.round(avgProcessingTime),
+      uptimeMs: uptime,
+      uptimeHuman: this.formatUptime(uptime)
+    };
+    
+    if (queueName) {
+      const queueStats = await this.getQueueStats(queueName);
+      return {
+        ...baseMetrics,
+        queue: queueStats
+      };
+    }
+    
+    // Get all queue stats
+    const allQueues = {};
+    for (const [name] of this.queues) {
+      allQueues[name] = await this.getQueueStats(name);
+    }
+    
+    return {
+      ...baseMetrics,
+      queues: allQueues
+    };
+  }
+  
+  /**
+   * Format uptime in human-readable format
+   */
+  formatUptime(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
   }
 
   async removeJob(jobId) {

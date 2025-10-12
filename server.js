@@ -707,6 +707,26 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Queue metrics endpoint for monitoring
+app.get('/api/queue/metrics', async (req, res) => {
+  try {
+    const { queueName } = req.query;
+    const metrics = await queue.getMetrics(queueName);
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      queueType: process.env.QUEUE_TYPE || 'memory',
+      metrics
+    });
+  } catch (error) {
+    logger.error('Error fetching queue metrics', { error: error.message });
+    res.status(500).json({ 
+      error: 'Failed to fetch queue metrics',
+      message: error.message 
+    });
+  }
+});
+
 // Test DI endpoint - this is for testing only and should be removed in production
 app.get('/api/test-di', (req, res) => {
   try {
