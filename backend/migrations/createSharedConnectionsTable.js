@@ -55,6 +55,18 @@ async function migrateConnectionsSchema() {
           configData = {}; // Default to empty object if parsing fails
         }
         
+        // Skip connections with NULL or empty names (invalid data)
+        if (!conn.connection_name || conn.connection_name.trim() === '') {
+          console.log(`Skipping connection with NULL/empty name (id: ${conn.connection_id || 'unknown'})`);
+          continue;
+        }
+        
+        // Skip connections with NULL type (invalid data)
+        if (!conn.connection_type || conn.connection_type.trim() === '') {
+          console.log(`Skipping connection with NULL/empty type (id: ${conn.connection_id || 'unknown'})`);
+          continue;
+        }
+        
         // Insert into the new table
         await pool.query(`
           INSERT INTO transform_connections (
@@ -66,11 +78,11 @@ async function migrateConnectionsSchema() {
             source_application
           ) VALUES ($1, $2, $3, $4, $5, $6)
         `, [
-          conn.connection_name,
-          conn.connection_type,
+          conn.connection_name.trim(),
+          conn.connection_type.trim(),
           configData,
-          conn.is_active,
-          conn.created_at,
+          conn.is_active !== false, // Default to true if NULL
+          conn.created_at || new Date(),
           'data_observatory'
         ]);
       }

@@ -1189,6 +1189,7 @@ app.use('/api/connections', connectionRoutes);
 // Migrate connections from old table to new shared table
 const migrateConnectionsSchema = require('./backend/migrations/createSharedConnectionsTable');
 const { migrateTransformConnections } = require('./backend/migrations/migrateTransformConnections');
+const addPerformanceIndexes = require('./backend/migrations/addPerformanceIndexes');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1200,6 +1201,16 @@ migrateConnectionsSchema()
   })
   .then(count => {
     console.log(`Transform connections migration completed. Migrated ${count} connections.`);
+    
+    // After migrations, add performance indexes
+    return addPerformanceIndexes(dbPool);
+  })
+  .then(indexResult => {
+    if (indexResult.success) {
+      console.log(`✅ Performance indexes migration completed. Created ${indexResult.created} indexes.`);
+    } else {
+      console.error(`❌ Performance indexes migration failed:`, indexResult.error);
+    }
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
