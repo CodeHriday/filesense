@@ -310,7 +310,7 @@ const Recommendations = () => {
       
       <div className="recommendations-list">
         {loading ? (
-          <LoadingSpinner />
+          <LoadingSpinner fullPage={true} />
         ) : filteredRecs.length === 0 ? (
           <div className="no-recommendations">
             <FiBarChart size={48} />

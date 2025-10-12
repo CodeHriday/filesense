@@ -135,7 +135,7 @@ export const FileCatalog = ({ onFileSelect }) => {
     return (
       <div className="file-catalog-container">
         <h1 className="page-title">File Catalog</h1>
-        <LoadingSpinner />
+        <LoadingSpinner fullPage={true} />
       </div>
     );
   }

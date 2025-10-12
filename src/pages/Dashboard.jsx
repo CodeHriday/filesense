@@ -684,7 +684,7 @@ const Dashboard = () => {
   return (
     <div className="dashboard-container">
       {loading ? (
-        <LoadingSpinner />
+        <LoadingSpinner fullPage={true} />
       ) : (
         <>
           <div className="dashboard-overview">

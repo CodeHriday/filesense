@@ -227,7 +227,7 @@ const DataInsights = () => {
         
         <div className="insights-list">
           {loading ? (
-            <LoadingSpinner />
+            <LoadingSpinner fullPage={true} />
           ) : filteredInsights.length === 0 ? (
             <div className="no-insights">
               <FiMessageSquare size={48} />

@@ -840,7 +840,7 @@ function Mappings() {
       </div>
       
       {loading ? (
-        <LoadingSpinner />
+        <LoadingSpinner fullPage={true} />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>

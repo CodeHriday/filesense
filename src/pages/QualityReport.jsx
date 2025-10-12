@@ -213,8 +213,7 @@ const QualityReport = () => {
   if (loading) {
     return (
       <div className="loading-container">
-        <LoadingSpinner />
-        <p>Loading file details...</p>
+        <LoadingSpinner fullPage={true} />
       </div>
     );
   }

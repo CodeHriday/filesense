@@ -362,7 +362,7 @@ function Alerts() {
   return (
     <div className="alerts-container">
       {loading ? (
-        <LoadingSpinner />
+        <LoadingSpinner fullPage={true} />
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>
