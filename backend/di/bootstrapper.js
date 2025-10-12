@@ -26,11 +26,26 @@ function configureDI() {
   container.register('dbPool', () => {
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      // Production-optimized connection pool settings
+      max: parseInt(process.env.DB_POOL_MAX || '100', 10), // Maximum 100 connections (configurable)
+      min: parseInt(process.env.DB_POOL_MIN || '10', 10),  // Minimum 10 idle connections
+      idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10), // 30 seconds
+      connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT || '2000', 10), // 2 seconds
+      // Allow graceful shutdown
+      allowExitOnIdle: false
     });
     
     // Add error handler for unhandled pool errors
     pool.on('error', (err) => {
       systemLogger.error('Unhandled database pool error', { error: err.message });
+    });
+    
+    // Log pool configuration
+    systemLogger.info('Database connection pool initialized', {
+      max: pool.options.max,
+      min: pool.options.min,
+      idleTimeout: pool.options.idleTimeoutMillis,
+      connectionTimeout: pool.options.connectionTimeoutMillis
     });
     
     return pool;

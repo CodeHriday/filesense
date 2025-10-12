@@ -12,6 +12,12 @@ PGPORT=5432                  # PostgreSQL port
 PGUSER=username              # PostgreSQL username
 PGPASSWORD=password          # PostgreSQL password
 PGDATABASE=dbname            # PostgreSQL database name
+
+# Connection Pool Settings (Production Optimized)
+DB_POOL_MAX=100              # Maximum connections (default: 100)
+DB_POOL_MIN=10               # Minimum idle connections (default: 10)
+DB_IDLE_TIMEOUT=30000        # Idle timeout in ms (default: 30000)
+DB_CONNECT_TIMEOUT=2000      # Connection timeout in ms (default: 2000)
 ```
 
 #### Authentication
