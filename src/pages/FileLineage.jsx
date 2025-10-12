@@ -203,10 +203,6 @@ function FileLineage() {
     navigate(`/lineage/impact/${fileId}`);
   };
   
-  if (loading) {
-    return <LoadingSpinner fullPage={true} />;
-  }
-  
   return (
     <div className="lineage-container">
       <div className="page-header">
@@ -216,25 +212,29 @@ function FileLineage() {
         </p>
       </div>
       
-      {error && (
-        <div className="error-message">
-          <p>{error}</p>
-          <button 
-            className="btn btn-primary"
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-      
-      {successMessage && (
-        <div className="success-message">
-          <p>{successMessage}</p>
-        </div>
-      )}
-      
-      <div className="lineage-content">
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <>
+          {error && (
+            <div className="error-message">
+              <p>{error}</p>
+              <button 
+                className="btn btn-primary"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="success-message">
+              <p>{successMessage}</p>
+            </div>
+          )}
+          
+          <div className="lineage-content">
         <div className="lineage-mapping-section">
           <Card className="mapping-card">
             <h2>Create File Lineage</h2>
@@ -415,6 +415,8 @@ function FileLineage() {
           <li><strong>derives from:</strong> Target is based on or extracted from source</li>
         </ul>
       </Card>
+        </>
+      )}
     </div>
   );
 }

@@ -177,26 +177,26 @@ const UserManagement = () => {
     }
   };
   
-  if (loading) {
-    return <LoadingSpinner fullPage={true} />;
-  }
-  
   return (
     <div className="user-management-container">
-      <div className="user-management-header">
-        <h1>User Management</h1>
-        <Link to="/roles" className="role-management-link">
-          Role Management
-        </Link>
-      </div>
-      
-      {error && (
-        <div className="error-message" role="alert">
-          {error}
-        </div>
-      )}
-      
-      <div className="user-management-actions">
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <>
+          <div className="user-management-header">
+            <h1>User Management</h1>
+            <Link to="/roles" className="role-management-link">
+              Role Management
+            </Link>
+          </div>
+          
+          {error && (
+            <div className="error-message" role="alert">
+              {error}
+            </div>
+          )}
+          
+          <div className="user-management-actions">
         {/* Temporarily enable Add New User button for all users */}
         <button 
           className="create-user-btn"
@@ -374,6 +374,8 @@ const UserManagement = () => {
             </form>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
