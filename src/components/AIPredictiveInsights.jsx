@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FaLightbulb, FaChartLine, FaExclamationTriangle, FaTimes, FaArrowRight } from 'react-icons/fa';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/AIPredictiveInsights.css';
 
 const AIPredictiveInsights = ({ fileId, onClose }) => {
@@ -218,10 +219,7 @@ const AIPredictiveInsights = ({ fileId, onClose }) => {
       </div>
       
       {loading ? (
-        <div className="insights-loading">
-          <div className="loading-spinner"></div>
-          <p>Analyzing data and generating insights...</p>
-        </div>
+        <LoadingSpinner size="small" message="Analyzing data and generating insights..." />
       ) : error ? (
         <div className="insights-error">{error}</div>
       ) : insights ? (

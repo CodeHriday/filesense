@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiDownload, FiRefreshCw, FiAlertTriangle } from 'react-icons/fi';
+import LoadingSpinner from './LoadingSpinner';
 import axios from 'axios';
 import './FilePreview.css';
 
@@ -34,12 +35,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   };
   
   if (loading) {
-    return (
-      <div className="file-preview-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading file preview...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading file preview..." />;
   }
   
   if (error) {

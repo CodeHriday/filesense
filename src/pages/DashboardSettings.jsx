@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiSave, FiRotateCcw, FiEye, FiSettings, FiLayout } from 'react-icons/fi';
 import DashboardLayoutCreator from '../components/DashboardLayoutCreator';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition, AnimatedButton, SuccessAnimation } from '../components/MicroAnimations';
 import ContextualTooltip from '../components/ContextualTooltip';
 import axios from 'axios';
@@ -229,7 +230,7 @@ const DashboardSettings = () => {
               
               <div className="dashboard-layout-container">
                 {loading ? (
-                  <div className="loading-placeholder">Loading your dashboard layout...</div>
+                  <LoadingSpinner size="small" message="Loading your dashboard layout..." />
                 ) : (
                   <DashboardLayoutCreator
                     initialLayout={dashboardLayout}
