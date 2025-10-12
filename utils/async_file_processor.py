@@ -22,14 +22,32 @@ import file_processing
 # Import the logger
 from utils.logger import file_logger, log_execution_time, async_handler
 
+# Import streaming processors for memory-efficient file handling
+from utils.streaming_processors import (
+    StreamingFileReader, 
+    stream_json_file, 
+    stream_parquet_file, 
+    stream_csv_file,
+    auto_detect_and_stream
+)
+
+# Import memory monitoring for circuit breaker protection
+from utils.memory_monitor import (
+    check_before_processing,
+    MemoryGuard,
+    log_memory_status,
+    reduce_chunk_size,
+    get_memory_usage
+)
+
 # Thread pool for CPU-bound tasks
 thread_pool = concurrent.futures.ThreadPoolExecutor(
-    max_workers=min(32, os.cpu_count() + 4)
+    max_workers=min(32, (os.cpu_count() or 4) + 4)
 )
 
 # Process pool for CPU-bound pandas operations
 process_pool = concurrent.futures.ProcessPoolExecutor(
-    max_workers=max(1, os.cpu_count() - 1)
+    max_workers=max(1, (os.cpu_count() or 4) - 1)
 )
 
 # In-memory cache for tracking running tasks
@@ -233,49 +251,74 @@ async def load_file_async(file_path, file_extension, delimiter=",", chunk_size=1
         chunk_results = []
         
         try:
-            # Define a reader function based on file type
+            # Check memory before starting - circuit breaker protection
+            file_size_mb = file_info["size_bytes"] / (1024 * 1024)
+            can_process, reason = check_before_processing(file_size_mb)
+            
+            if not can_process:
+                error_msg = f"Cannot process file due to memory constraints: {reason}"
+                file_logger.error(error_msg, extra={
+                    "task_id": task_id,
+                    "file_size_mb": file_size_mb,
+                    "reason": reason
+                })
+                raise MemoryError(error_msg)
+            
+            # Log memory status at start
+            start_memory = get_memory_usage()
+            file_logger.info(f"Starting file processing with {start_memory['usage_percent']}% memory usage", extra={
+                "task_id": task_id,
+                "file_size_mb": file_size_mb,
+                "memory_usage": start_memory
+            })
+            
+            # Use streaming processors for memory-efficient file handling
+            # This works for CSV, JSON, and Parquet with constant memory usage
+            streaming_reader = StreamingFileReader(file_path, chunk_size)
+            
+            # Get streaming reader based on file type - all use true streaming now
             if file_extension == "csv":
-                reader = pd.read_csv(file_path, delimiter=delimiter, chunksize=chunk_size)
+                reader = stream_csv_file(file_path, chunk_size, delimiter)
             elif file_extension == "json":
-                # For JSON, we need to load it all at once, then split
-                df = await asyncio.to_thread(pd.read_json, file_path)
-                # Create a generator-like object from the loaded DataFrame
-                total_rows = len(df)
-                reader = (df.iloc[i:min(i+chunk_size, total_rows)] for i in range(0, total_rows, chunk_size))
+                # TRUE STREAMING: No longer loads entire file into memory
+                reader = stream_json_file(file_path, chunk_size)
             elif file_extension == "parquet":
-                # For parquet, use PyArrow for chunking if possible
-                try:
-                    import pyarrow.parquet as pq
-                    table = pq.read_table(file_path)
-                    total_rows = table.num_rows
-                    reader = (pd.DataFrame(table.slice(i, min(chunk_size, total_rows - i)).to_pandas()) 
-                              for i in range(0, total_rows, chunk_size))
-                except ImportError:
-                    # Fall back to pandas (reads whole file)
-                    df = await asyncio.to_thread(pd.read_parquet, file_path)
-                    total_rows = len(df)
-                    reader = (df.iloc[i:min(i+chunk_size, total_rows)] for i in range(0, total_rows, chunk_size))
+                # TRUE STREAMING: Uses PyArrow batch iteration
+                reader = stream_parquet_file(file_path, chunk_size)
             else:
                 raise ValueError(f"Unsupported file extension: {file_extension}")
             
-            # Process each chunk concurrently
+            # Process each chunk concurrently with memory monitoring
             loop = asyncio.get_event_loop()
             chunk_futures = []
             
             # Submit chunk processing to thread pool
             for i, chunk in enumerate(reader):
+                # Check memory every 10 chunks and adjust if needed
+                if i > 0 and i % 10 == 0:
+                    current_memory = get_memory_usage()
+                    
+                    # Log progress with memory status
+                    file_logger.info(f"Processing chunk {i} of file {file_path}", extra={
+                        "task_id": task_id,
+                        "chunk": i,
+                        "memory_percent": current_memory['usage_percent']
+                    })
+                    
+                    # Check if circuit breaker opened during processing
+                    can_continue, reason = check_before_processing(0)
+                    if not can_continue:
+                        file_logger.warning(f"Stopping processing due to memory: {reason}", extra={
+                            "task_id": task_id,
+                            "chunks_processed": i
+                        })
+                        break
+                
                 chunk_future = loop.run_in_executor(
                     thread_pool,
                     partial(_process_dataframe_chunk, chunk, file_extension)
                 )
                 chunk_futures.append(chunk_future)
-                
-                # Log progress periodically
-                if i % 10 == 0:
-                    file_logger.info(f"Processing chunk {i} of file {file_path}", extra={
-                        "task_id": task_id,
-                        "chunk": i
-                    })
             
             # Wait for all chunk processing to complete
             for future in asyncio.as_completed(chunk_futures):
@@ -357,28 +400,15 @@ def process_file_chunked(file_path, file_extension, delimiter=",", chunk_size=10
     }
     
     try:
-        # Define a reader function based on file type
+        # Use streaming processors for all file types - constant memory usage
         if file_extension == "csv":
-            reader = pd.read_csv(file_path, delimiter=delimiter, chunksize=chunk_size)
+            reader = stream_csv_file(file_path, chunk_size, delimiter)
         elif file_extension == "json":
-            # For JSON, we need to load it all at once, then split
-            df = pd.read_json(file_path)
-            # Create a generator-like object from the loaded DataFrame
-            total_rows = len(df)
-            reader = (df.iloc[i:min(i+chunk_size, total_rows)] for i in range(0, total_rows, chunk_size))
+            # TRUE STREAMING: No longer loads entire file into memory
+            reader = stream_json_file(file_path, chunk_size)
         elif file_extension == "parquet":
-            # For parquet, use PyArrow for chunking if possible
-            try:
-                import pyarrow.parquet as pq
-                table = pq.read_table(file_path)
-                total_rows = table.num_rows
-                reader = (pd.DataFrame(table.slice(i, min(chunk_size, total_rows - i)).to_pandas()) 
-                          for i in range(0, total_rows, chunk_size))
-            except ImportError:
-                # Fall back to pandas (reads whole file)
-                df = pd.read_parquet(file_path)
-                total_rows = len(df)
-                reader = (df.iloc[i:min(i+chunk_size, total_rows)] for i in range(0, total_rows, chunk_size))
+            # TRUE STREAMING: Uses PyArrow batch iteration  
+            reader = stream_parquet_file(file_path, chunk_size)
         else:
             raise ValueError(f"Unsupported file extension: {file_extension}")
         
