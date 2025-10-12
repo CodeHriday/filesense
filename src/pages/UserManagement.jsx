@@ -178,7 +178,7 @@ const UserManagement = () => {
   };
   
   if (loading) {
-    return <LoadingSpinner message="Loading user management..." />;
+    return <LoadingSpinner message="Loading user management..." fullPage={true} />;
   }
   
   return (

@@ -166,7 +166,7 @@ function LineageImpactGraph({ impactData, direction, onNodeClick }) {
   }, []);
 
   if (loading) {
-    return <LoadingSpinner message="Processing impact graph data..." />;
+    return <LoadingSpinner message="Processing impact graph data..." fullPage={true} />;
   }
 
   if (error) {

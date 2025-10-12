@@ -18,7 +18,7 @@
 }
 
 /* Throbbing spinner animation */
-.spinner {
+.throb-spinner {
   width: 40px;
   height: 40px;
   background: #1a73e8;
@@ -27,17 +27,17 @@
 }
 
 /* Size variations */
-.spinner-small {
+.throb-spinner-small {
   width: 20px;
   height: 20px;
 }
 
-.spinner-medium {
+.throb-spinner-medium {
   width: 40px;
   height: 40px;
 }
 
-.spinner-large {
+.throb-spinner-large {
   width: 60px;
   height: 60px;
 }
@@ -63,7 +63,7 @@
 }
 
 /* High contrast mode */
-body.high-contrast .spinner {
+body.high-contrast .throb-spinner {
   background: #1a73e8;
   border: 2px solid #fff;
 }

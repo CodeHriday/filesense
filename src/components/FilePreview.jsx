@@ -35,7 +35,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   };
   
   if (loading) {
-    return <LoadingSpinner message="Loading file preview..." />;
+    return <LoadingSpinner message="Loading file preview..." fullPage={true} />;
   }
   
   if (error) {

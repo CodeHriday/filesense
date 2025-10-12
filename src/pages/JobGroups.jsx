@@ -107,7 +107,7 @@ const JobGroups = () => {
   };
   
   if (loading) {
-    return <LoadingSpinner message="Loading job groups..." />;
+    return <LoadingSpinner message="Loading job groups..." fullPage={true} />;
   }
   
   return (

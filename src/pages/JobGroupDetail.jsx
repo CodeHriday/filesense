@@ -171,7 +171,7 @@ const JobGroupDetail = () => {
   };
   
   if (loading) {
-    return <LoadingSpinner message="Loading job group details..." />;
+    return <LoadingSpinner message="Loading job group details..." fullPage={true} />;
   }
   
   if (error || !jobGroup) {

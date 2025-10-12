@@ -64,7 +64,7 @@ function LineageImpact() {
   };
   
   if (loading) {
-    return <LoadingSpinner message="Loading impact analysis..." />;
+    return <LoadingSpinner message="Loading impact analysis..." fullPage={true} />;
   }
   
   if (error) {

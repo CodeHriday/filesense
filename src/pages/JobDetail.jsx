@@ -110,7 +110,7 @@ const JobDetail = () => {
   };
   
   if (loading) {
-    return <LoadingSpinner message="Loading job details..." />;
+    return <LoadingSpinner message="Loading job details..." fullPage={true} />;
   }
   
   if (!job) {
