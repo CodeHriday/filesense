@@ -204,7 +204,7 @@ function FileLineage() {
   };
   
   if (loading) {
-    return <LoadingSpinner fullPage={true} />;
+    return <LoadingSpinner />;
   }
   
   return (
