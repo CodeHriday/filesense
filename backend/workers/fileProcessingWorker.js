@@ -94,6 +94,9 @@ class FileProcessingWorker {
         processingTime: fileInfo.processing_time_seconds
       });
 
+      // Cleanup: Delete uploaded file after successful processing
+      await this.cleanupUploadedFile(filePath, 'success');
+
     } catch (error) {
       this.logger.error('Error processing file job', {
         jobId,
@@ -101,6 +104,9 @@ class FileProcessingWorker {
         error: error.message,
         stack: error.stack
       });
+
+      // Cleanup: Delete or quarantine failed file
+      await this.cleanupUploadedFile(filePath, 'failure');
 
       await this.queue.failJob(jobId, error);
     }
@@ -231,6 +237,47 @@ class FileProcessingWorker {
         col.unique_count || 0,
         col.null_count || 0
       ]);
+    }
+  }
+
+  /**
+   * Cleanup uploaded file after processing
+   * @param {string} filePath - Path to the uploaded file
+   * @param {string} status - 'success' or 'failure'
+   */
+  async cleanupUploadedFile(filePath, status) {
+    try {
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        this.logger.debug('File already deleted or does not exist', { filePath });
+        return;
+      }
+
+      if (status === 'failure' && process.env.QUARANTINE_FAILED_FILES === 'true') {
+        // Optionally quarantine failed files for debugging
+        const quarantinePath = filePath.replace('/uploads/', '/quarantine/');
+        const quarantineDir = path.dirname(quarantinePath);
+        
+        if (!fs.existsSync(quarantineDir)) {
+          fs.mkdirSync(quarantineDir, { recursive: true });
+        }
+        
+        fs.renameSync(filePath, quarantinePath);
+        this.logger.info('File quarantined for debugging', { 
+          originalPath: filePath, 
+          quarantinePath 
+        });
+      } else {
+        // Delete the file
+        fs.unlinkSync(filePath);
+        this.logger.info('Uploaded file cleaned up', { filePath, status });
+      }
+    } catch (error) {
+      this.logger.error('Error cleaning up uploaded file', {
+        filePath,
+        error: error.message
+      });
+      // Don't throw - cleanup failure shouldn't fail the job
     }
   }
 
