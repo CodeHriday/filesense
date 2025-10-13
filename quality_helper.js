@@ -44,23 +44,25 @@ async function calculateQualityScore(columns, fileMetadata) {
     // Calculate CONSISTENCY score (data type consistency)
     if (columns && columns.length > 0) {
       // Check if any columns have mismatched types
-      const stringColumns = columns.filter(col => col.type === 'string').length;
-      const dateColumns = columns.filter(col => col.type === 'date').length;
+      const stringColumns = columns.filter(col => col.type === 'string' || col.type === 'text' || col.type === 'object').length;
+      const dateColumns = columns.filter(col => col.type === 'date' || col.type === 'datetime' || col.type === 'timestamp').length;
       const numericColumns = columns.filter(col => 
-        ['integer', 'number', 'decimal', 'float'].includes(col.type)
+        ['integer', 'number', 'decimal', 'float', 'int64', 'int32', 'double'].includes(col.type)
       ).length;
       
       const otherColumns = columns.length - stringColumns - dateColumns - numericColumns;
       
-      // Assume 90% consistency for now - without actual data, we estimate
-      const consistencyScore = otherColumns === 0 ? 90 : 100 - (otherColumns / columns.length * 30);
+      // If all columns have recognized types, consistency is 100%
+      const consistencyScore = otherColumns === 0 ? 100 : 100 - (otherColumns / columns.length * 30);
       componentScores.consistency = Math.max(0, Math.min(100, consistencyScore));
     } else {
-      componentScores.consistency = 90;  // Default if no column data
+      componentScores.consistency = 100;  // Default if no column data
     }
     
-    // Calculate VALIDITY score based on column types and potential errors
-    componentScores.validity = (componentScores.consistency || 100) * 0.9;  // Estimate based on consistency
+    // Calculate VALIDITY score based on data completeness and consistency
+    // If completeness and consistency are both high, validity should be high too
+    const avgValidityBase = (componentScores.completeness + componentScores.consistency) / 2;
+    componentScores.validity = Math.min(100, avgValidityBase);
     
     // Calculate UNIQUENESS score
     if (columns && columns.length > 0) {
