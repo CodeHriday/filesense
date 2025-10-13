@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card } from '../components/Card';
+import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QualityTooltip } from '../components/QualityTooltip';
