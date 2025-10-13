@@ -64,8 +64,9 @@
 }
 
 .preview-table {
-  width: 100%;
-  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
   font-size: 14px;
   white-space: nowrap;

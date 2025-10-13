@@ -80,9 +80,29 @@ def profile_dataframe(df):
         # Add categorical-specific stats
         else:
             value_counts = df[col].value_counts(normalize=True).head(5).to_dict()
+            value_counts_abs = df[col].value_counts().head(5).to_dict()
+            
+            # Get most and least frequent values
+            most_frequent_value = None
+            most_frequent_count = 0
+            least_frequent_value = None
+            least_frequent_count = 0
+            
+            if len(value_counts_abs) > 0:
+                most_frequent_value = str(list(value_counts_abs.keys())[0])
+                most_frequent_count = int(list(value_counts_abs.values())[0])
+                
+                if len(value_counts_abs) > 1:
+                    least_frequent_value = str(list(value_counts_abs.keys())[-1])
+                    least_frequent_count = int(list(value_counts_abs.values())[-1])
+            
             col_stats.update({
                 "top_values": {str(k): float(v) for k, v in value_counts.items()},
-                "sample_values": df[col].dropna().sample(min(3, df[col].nunique())).tolist() if df[col].nunique() > 0 else []
+                "sample_values": df[col].dropna().sample(min(3, df[col].nunique())).tolist() if df[col].nunique() > 0 else [],
+                "most_frequent_value": most_frequent_value,
+                "most_frequent_count": most_frequent_count,
+                "least_frequent_value": least_frequent_value,
+                "least_frequent_count": least_frequent_count
             })
         
         profile["column_stats"][col] = col_stats
