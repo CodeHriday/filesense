@@ -30,7 +30,7 @@ function configureDI() {
       max: parseInt(process.env.DB_POOL_MAX || '100', 10), // Maximum 100 connections (configurable)
       min: parseInt(process.env.DB_POOL_MIN || '10', 10),  // Minimum 10 idle connections
       idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10), // 30 seconds
-      connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT || '2000', 10), // 2 seconds
+      connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10), // 10 seconds
       // Allow graceful shutdown
       allowExitOnIdle: false
     });
