@@ -75,13 +75,32 @@ class FileProcessingWorker {
         columnCount: fileInfo.column_count
       });
 
-      await this.queue.updateProgress(jobId, 60);
+      await this.queue.updateProgress(jobId, 50);
 
-      // Step 2: Save metadata to database
+      // Step 2: Generate detailed column profiling (min/max, frequency values)
+      this.logger.info('Generating column profiling statistics', { fileId });
+      const profilingData = await this.callProfilingScript(filePath, fileType);
+      
+      // Merge profiling data with schema (preserve original column type)
+      if (fileInfo.schema && profilingData.columns) {
+        fileInfo.schema = fileInfo.schema.map(col => {
+          const profiling = profilingData.columns.find(p => p.name === col.name);
+          if (profiling) {
+            // Preserve original type, merge other profiling fields
+            const { type, ...profilingData } = profiling;
+            return { ...col, ...profilingData };
+          }
+          return col;
+        });
+      }
+
+      await this.queue.updateProgress(jobId, 70);
+
+      // Step 3: Save metadata to database
       await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId);
-      await this.queue.updateProgress(jobId, 80);
+      await this.queue.updateProgress(jobId, 85);
 
-      // Step 3: Save column information
+      // Step 4: Save column information with profiling data
       if (fileInfo.schema && fileInfo.schema.length > 0) {
         await this.saveColumnInfo(fileId, fileInfo.schema);
       }
@@ -186,6 +205,69 @@ class FileProcessingWorker {
   }
 
   /**
+   * Call Python profiling script to get detailed column statistics
+   */
+  async callProfilingScript(filePath, fileType) {
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, '../../utils/profile_columns.py');
+      
+      // Check if file exists
+      if (!fs.existsSync(pythonScript)) {
+        this.logger.warn('Profiling script not found, skipping profiling', { pythonScript });
+        return resolve({ columns: [] });
+      }
+
+      // Set PYTHONPATH to include workspace root for utils module
+      const workspaceRoot = path.join(__dirname, '../..');
+      const env = {
+        ...process.env,
+        PYTHONPATH: workspaceRoot
+      };
+      
+      const python = spawn('python3', [pythonScript, filePath, fileType], { env });
+      
+      let stdout = '';
+      let stderr = '';
+
+      python.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      python.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      python.on('close', (code) => {
+        if (code !== 0) {
+          this.logger.error('Profiling script error', {
+            code,
+            stderr,
+            filePath
+          });
+          // Don't fail the whole job, just skip profiling
+          resolve({ columns: [] });
+        } else {
+          try {
+            const result = JSON.parse(stdout);
+            resolve(result);
+          } catch (error) {
+            this.logger.error('Failed to parse profiling output', {
+              stdout,
+              error: error.message
+            });
+            resolve({ columns: [] });
+          }
+        }
+      });
+
+      python.on('error', (error) => {
+        this.logger.error('Failed to spawn profiling script', { error: error.message });
+        resolve({ columns: [] });
+      });
+    });
+  }
+
+  /**
    * Save file metadata to database
    */
   async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId) {
@@ -227,7 +309,7 @@ class FileProcessingWorker {
   }
 
   /**
-   * Save column information to database
+   * Save column information to database with profiling data
    */
   async saveColumnInfo(fileId, schema) {
     const deleteQuery = 'DELETE FROM file_columns WHERE file_id = $1';
@@ -236,8 +318,13 @@ class FileProcessingWorker {
     const insertQuery = `
       INSERT INTO file_columns (
         file_id, column_name, column_type, column_index,
-        unique_count, null_count
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+        unique_count, null_count, min_value, max_value,
+        most_frequent_value, least_frequent_value,
+        min_value_decimal, max_value_decimal,
+        most_frequent_count, least_frequent_count,
+        min_frequency, max_frequency,
+        min_is_frequent, max_is_frequent
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     `;
 
     for (const col of schema) {
@@ -247,7 +334,19 @@ class FileProcessingWorker {
         col.type,
         schema.indexOf(col),
         col.unique_count || 0,
-        col.null_count || 0
+        col.null_count || 0,
+        col.min_value !== undefined && col.min_value !== null ? String(col.min_value) : null,
+        col.max_value !== undefined && col.max_value !== null ? String(col.max_value) : null,
+        col.most_frequent_value || null,
+        col.least_frequent_value || null,
+        col.min_value !== undefined && col.min_value !== null ? parseFloat(col.min_value) : null,
+        col.max_value !== undefined && col.max_value !== null ? parseFloat(col.max_value) : null,
+        col.most_frequent_count || null,
+        col.least_frequent_count || null,
+        col.min_frequency || null,
+        col.max_frequency || null,
+        col.min_is_frequent !== undefined && col.min_is_frequent !== null ? col.min_is_frequent : null,
+        col.max_is_frequent !== undefined && col.max_is_frequent !== null ? col.max_is_frequent : null
       ]);
     }
   }

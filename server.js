@@ -1099,6 +1099,7 @@ cacheService.initialize().then(result => {
 const migrateConnectionsSchema = require('./backend/migrations/createSharedConnectionsTable');
 const { migrateTransformConnections } = require('./backend/migrations/migrateTransformConnections');
 const addPerformanceIndexes = require('./backend/migrations/addPerformanceIndexes');
+const { addProfilingColumns } = require('./backend/migrations/addProfilingColumns');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1120,6 +1121,12 @@ migrateConnectionsSchema()
     } else {
       console.error(`❌ Performance indexes migration failed:`, indexResult.error);
     }
+    
+    // Add profiling columns migration
+    return addProfilingColumns(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Profiling columns migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
@@ -1387,6 +1394,12 @@ app.get('/api/files/:fileId/profile', cacheMiddleware(600), async (req, res) => 
       histogram: col.histogram ? JSON.parse(col.histogram) : null,
       most_frequent_value: col.most_frequent_value,
       least_frequent_value: col.least_frequent_value,
+      most_frequent_count: col.most_frequent_count,
+      least_frequent_count: col.least_frequent_count,
+      min_frequency: col.min_frequency,
+      max_frequency: col.max_frequency,
+      min_is_frequent: col.min_is_frequent,
+      max_is_frequent: col.max_is_frequent,
       top_values: col.top_values ? col.top_values : (
         // If top_values doesn't exist in the database, generate a simulated version
         // based on most_frequent_value and least_frequent_value
