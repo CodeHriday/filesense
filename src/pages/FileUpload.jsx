@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
-import FilePreview from '../components/FilePreview';
 import DuplicateFileModal from '../components/DuplicateFileModal';
 import { uploadFile, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { useAuth } from '../context/AuthContext';
@@ -297,14 +296,6 @@ function FileUpload() {
               >
                 Upload Another File
               </button>
-            </div>
-            
-            <div className="file-preview-section">
-              <h3>File Preview</h3>
-              <p className="preview-description">
-                Showing the first 100 records of your file to help you verify the data before analysis.
-              </p>
-              <FilePreview fileId={uploadedFile.fileId} maxRows={100} />
             </div>
           </>
         )}
