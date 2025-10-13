@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { useFileCatalog, useFileDelete } from '../hooks';
+import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -32,6 +35,8 @@ export const FileCatalog = ({ onFileSelect }) => {
   // File delete mutation
   const deleteFileMutation = useFileDelete({
     onSuccess: () => {
+      // Invalidate and refetch the file catalog
+      queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
       setDeletingFileId(null);
       setShowDeleteModal(false);
       setFileToDelete(null);
