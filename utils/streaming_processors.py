@@ -354,6 +354,79 @@ def detect_encoding(file_path: str, sample_size: int = 10000) -> str:
         return 'utf-8'
 
 
+def detect_delimiter(file_path: str, sample_size: int = 10000) -> str:
+    """
+    Detect CSV delimiter by analyzing a sample.
+    
+    Args:
+        file_path: Path to CSV file
+        sample_size: Number of bytes to sample
+        
+    Returns:
+        Detected delimiter (e.g., ',', ';', '\t', '|')
+    """
+    import csv
+    
+    is_compressed = file_path.lower().endswith('.gz')
+    
+    try:
+        # Read sample
+        if is_compressed:
+            with gzip.open(file_path, 'rt', encoding='utf-8') as f:
+                sample = f.read(sample_size)
+        else:
+            # Detect encoding first
+            encoding = detect_encoding(file_path, sample_size)
+            with open(file_path, 'r', encoding=encoding) as f:
+                sample = f.read(sample_size)
+        
+        # Use csv.Sniffer to detect delimiter
+        sniffer = csv.Sniffer()
+        
+        # Get first few lines for analysis
+        lines = sample.split('\n')[:10]
+        sample_text = '\n'.join(lines)
+        
+        try:
+            dialect = sniffer.sniff(sample_text, delimiters=',;\t|')
+            detected = dialect.delimiter
+            
+            file_logger.debug(f"Detected delimiter: {repr(detected)}", extra={
+                "file_path": file_path
+            })
+            return detected
+            
+        except csv.Error:
+            # If Sniffer fails, try to detect manually
+            # Count occurrences of common delimiters in first line
+            if lines:
+                first_line = lines[0]
+                delimiters = {
+                    ',': first_line.count(','),
+                    ';': first_line.count(';'),
+                    '\t': first_line.count('\t'),
+                    '|': first_line.count('|')
+                }
+                
+                # Return delimiter with highest count
+                detected = max(delimiters.items(), key=lambda x: x[1])[0]
+                if delimiters[detected] > 0:
+                    file_logger.debug(f"Manually detected delimiter: {repr(detected)}", extra={
+                        "file_path": file_path
+                    })
+                    return detected
+        
+        # Default to comma
+        file_logger.warning(f"Could not detect delimiter, defaulting to comma", extra={
+            "file_path": file_path
+        })
+        return ','
+        
+    except Exception as e:
+        file_logger.warning(f"Delimiter detection error: {str(e)}, using comma")
+        return ','
+
+
 def get_dynamic_chunk_size(file_size_bytes: int, base_chunk_size: int = 10000) -> int:
     """
     Calculate optimal chunk size based on file size.
