@@ -852,35 +852,55 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
 
 // File delete endpoint
 app.delete('/api/files/:fileId', invalidateCache('cache:*:*files*'), async (req, res) => {
+  const { fileId } = req.params;
+  const client = await dbPool.connect();
+  
   try {
-    const { fileId } = req.params;
-    
     // Check if file exists
-    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    const fileResult = await client.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
     }
     
-    // Delete file columns first (foreign key constraint)
-    await dbPool.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
+    // Begin transaction for atomic deletion
+    await client.query('BEGIN');
     
-    // Delete quality checks
-    await dbPool.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
-    
-    // Delete the file record
-    await dbPool.query('DELETE FROM files WHERE file_id = $1', [fileId]);
-    
-    logger.info('File deleted successfully', { fileId });
-    
-    res.json({ 
-      success: true, 
-      message: 'File deleted successfully',
-      fileId 
-    });
+    try {
+      // Delete all related records (cascade deletion)
+      await client.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
+      await client.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
+      await client.query('DELETE FROM file_schedules WHERE file_id = $1', [fileId]);
+      await client.query('DELETE FROM file_history WHERE file_id = $1', [fileId]);
+      await client.query('DELETE FROM alert_history WHERE file_id = $1', [fileId]);
+      await client.query('DELETE FROM quality_reports WHERE file_id = $1', [fileId]);
+      await client.query('DELETE FROM user_badges WHERE file_id = $1', [fileId]);
+      await client.query('DELETE FROM transformation_outputs WHERE file_id = $1', [fileId]);
+      
+      // Delete the file record itself
+      await client.query('DELETE FROM files WHERE file_id = $1', [fileId]);
+      
+      // Commit transaction
+      await client.query('COMMIT');
+      
+      logger.info('File deleted successfully with all related records', { fileId });
+      
+      res.json({ 
+        success: true, 
+        message: 'File deleted successfully',
+        fileId 
+      });
+    } catch (err) {
+      // Rollback on error
+      await client.query('ROLLBACK');
+      throw err;
+    }
   } catch (err) {
     logger.error('Error deleting file', { error: err.message, fileId: req.params.fileId });
     res.status(500).json({ error: 'Failed to delete file' });
+  } finally {
+    // Always release the client back to the pool
+    client.release();
   }
 });
 

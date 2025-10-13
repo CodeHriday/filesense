@@ -207,6 +207,15 @@ function Sidebar() {
               </li>
             )}
             
+            {checkPermissions(['file_view', 'file:read', 'file_upload:read']) && (
+              <li>
+                <NavLink to="/file-catalog" className={({ isActive }) => isActive ? 'active' : ''}>
+                  <FiDatabase className="icon" />
+                  <span>File Catalog</span>
+                </NavLink>
+              </li>
+            )}
+            
             {/* Onboarding wizard available to Admin, Creator roles, or with specific permission */}
             {(isAdmin || isCreator || hasPermission('onboarding_wizard') || hasPermission('onboarding_wizard:read')) && (
               <li>

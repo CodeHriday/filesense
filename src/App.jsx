@@ -13,6 +13,7 @@ import NotificationList from './components/Notifications/NotificationList';
 import PerformanceOptimizations from './pages/PerformanceOptimizations';
 import Dashboard from './pages/Dashboard';
 import FileUpload from './pages/FileUpload';
+import { FileCatalog } from './pages/FileCatalog';
 import DataProfile from './pages/DataProfile';
 import QualityChecks from './pages/QualityChecks';
 import QualityReport from './pages/QualityReport';
@@ -153,6 +154,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
               <Routes>
                 <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
+                <Route path="/file-catalog" element={<ProtectedRoute><FileCatalog /></ProtectedRoute>} />
                 <Route path="/profile/:fileId" element={<ProtectedRoute>
                   {({ fileId }) => {
                     // Only render DataProfile if fileId exists
