@@ -192,6 +192,11 @@
   color: var(--text-on-primary);
 }
 
+.duplicates-icon {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: var(--text-on-primary);
+}
+
 .stat-details h3 {
   margin: 0 0 var(--space-1) 0;
   font-size: 17px;
