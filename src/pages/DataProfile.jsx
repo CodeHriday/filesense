@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload, FiTable, FiLink, FiMessageCircle } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload, FiTable, FiLink, FiMessageCircle, FiCopy } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -107,7 +107,7 @@ function DataProfile() {
           
           <Card className="file-stat-card">
             <div className="stat-icon duplicates-icon">
-              <FiAlertTriangle />
+              <FiCopy />
             </div>
             <div className="stat-details">
               <h3>{formatNumber(file.duplicate_records_count || 0)}</h3>
