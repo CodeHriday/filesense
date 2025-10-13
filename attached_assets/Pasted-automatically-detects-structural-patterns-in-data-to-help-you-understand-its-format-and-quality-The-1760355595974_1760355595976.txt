@@ -1,0 +1,23 @@
+automatically detects structural patterns in data to help you understand its format and quality. The system uses special characters to represent different types of patterns, which are displayed along with their frequency and percentage in the profile results. 
+Pattern character representations
+9: Represents any numeric character. For example, a numeric value with eight digits would be shown as 9(8).
+X: Represents any alphabetic character, and is not case-sensitive. A value like Boston might be represented as X(6). The tool displays up to three characters separately (e.g., XXX) and more than three in parentheses.
+A: Specifically represents any uppercase alphabetic character.
+a: Specifically represents any lowercase alphabetic character.
+*: Represents any character.
+$: Represents a dollar sign.
+Space: Represents a blank space.
+\t: Represents a tab.
+(): Represents opening and closing parentheses.
+Other special characters: Many other special characters can also be part of a detected pattern, such as ~, [, ], =, -, ?, {, }, and >. 
+Pattern analysis for data quality
+By analyzing these patterns, the profiler can reveal a number of data quality issues and insights: 
+Inconsistent formatting: The profiler can highlight fields that don't conform to a standard pattern. For example, a phone number column might show multiple patterns if some numbers include an area code and others do not.
+Invalid formats: It can identify invalid formats for critical fields like email addresses or ZIP codes, which is crucial for data consistency.
+Systemic errors: The pattern analysis can pinpoint systemic errors like spelling variations (e.g., "Doctor" vs. "Dr.").
+Pattern frequency: You can view the frequency and percentage of each detected pattern. This shows how prevalent a particular pattern is within a column, which can be useful for data standardization efforts. 
+How patterns are used in practice
+The information gathered from pattern analysis is used in several ways within the Informatica environment:
+Identifying outliers: The profiling process identifies outlier values that do not match the most frequent patterns, which can help in data cleaning.
+Creating data domains: You can use a detected pattern to create or refine a data domain, which helps with data governance and classification.
+Root cause analysis: For data quality issues, patterns provide a granular view of formatting problems, helping data professionals pinpoint the root causes. 
