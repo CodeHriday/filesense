@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QualityTooltip } from '../components/QualityTooltip';
 import './FileCatalog.css';
@@ -13,6 +14,8 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedType, setSelectedType] = useState('all');
   const [deletingFileId, setDeletingFileId] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
   
   // Using React Query to fetch file catalog
   const { 
@@ -30,10 +33,14 @@ export const FileCatalog = ({ onFileSelect }) => {
   const deleteFileMutation = useFileDelete({
     onSuccess: () => {
       setDeletingFileId(null);
+      setShowDeleteModal(false);
+      setFileToDelete(null);
     },
     onError: (error) => {
       alert(`Failed to delete file: ${error.message}`);
       setDeletingFileId(null);
+      setShowDeleteModal(false);
+      setFileToDelete(null);
     }
   });
   
@@ -60,11 +67,21 @@ export const FileCatalog = ({ onFileSelect }) => {
     setSelectedType(e.target.value);
   };
 
-  const handleDelete = async (file) => {
-    if (window.confirm(`Are you sure you want to delete "${file.filename}"? This action cannot be undone.`)) {
-      setDeletingFileId(file.file_id);
-      deleteFileMutation.mutate(file.file_id);
+  const handleDelete = (file) => {
+    setFileToDelete(file);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (fileToDelete) {
+      setDeletingFileId(fileToDelete.file_id);
+      deleteFileMutation.mutate(fileToDelete.file_id);
     }
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setFileToDelete(null);
   };
 
   const formatBytes = (bytes, decimals = 2) => {
@@ -304,6 +321,14 @@ export const FileCatalog = ({ onFileSelect }) => {
           </table>
         )}
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
+        fileName={fileToDelete?.filename}
+        isDeleting={deletingFileId === fileToDelete?.file_id}
+      />
     </div>
   );
 };
