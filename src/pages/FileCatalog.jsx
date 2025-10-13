@@ -21,6 +21,12 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   // Using React Query to fetch file catalog
   const { 
@@ -42,9 +48,12 @@ export const FileCatalog = ({ onFileSelect }) => {
       setDeletingFileId(null);
       setShowDeleteModal(false);
       setFileToDelete(null);
+      setSuccessMessage('File deleted successfully');
+      setShowSuccessModal(true);
     },
     onError: (error) => {
-      alert(`Failed to delete file: ${error.message}`);
+      setErrorMessage(`Failed to delete file: ${error.message}`);
+      setShowErrorModal(true);
       setDeletingFileId(null);
       setShowDeleteModal(false);
       setFileToDelete(null);
@@ -58,10 +67,12 @@ export const FileCatalog = ({ onFileSelect }) => {
       queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
       setSelectedFiles([]);
       setShowDeleteModal(false);
-      alert(`Successfully deleted ${data.deletedCount} file(s)`);
+      setSuccessMessage(`Successfully deleted ${data.deletedCount} file(s)`);
+      setShowSuccessModal(true);
     },
     onError: (error) => {
-      alert(`Failed to delete files: ${error.message}`);
+      setErrorMessage(`Failed to delete files: ${error.message}`);
+      setShowErrorModal(true);
       setShowDeleteModal(false);
     }
   });
@@ -120,10 +131,16 @@ export const FileCatalog = ({ onFileSelect }) => {
   };
   
   const handleSelectAll = () => {
-    if (selectedFiles.length === filteredAndSortedFiles.length) {
-      setSelectedFiles([]);
+    const currentPageFileIds = paginatedFiles.map(file => file.file_id);
+    const allCurrentPageSelected = currentPageFileIds.every(id => selectedFiles.includes(id));
+    
+    if (allCurrentPageSelected) {
+      // Deselect all files on current page
+      setSelectedFiles(prev => prev.filter(id => !currentPageFileIds.includes(id)));
     } else {
-      setSelectedFiles(filteredAndSortedFiles.map(file => file.file_id));
+      // Select all files on current page
+      const newSelection = [...new Set([...selectedFiles, ...currentPageFileIds])];
+      setSelectedFiles(newSelection);
     }
   };
   
@@ -216,6 +233,59 @@ export const FileCatalog = ({ onFileSelect }) => {
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
+  // Pagination calculations
+  const totalItems = filteredAndSortedFiles.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedType, sortBy, sortOrder]);
+
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    setSelectedFiles([]); // Clear selection when changing pages
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+    setSelectedFiles([]);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 7;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   if (isLoading) {
     return (
       <div className="file-catalog-container">
@@ -307,29 +377,51 @@ export const FileCatalog = ({ onFileSelect }) => {
             <p>No files found matching your criteria.</p>
           </div>
         ) : (
-          <table className="file-catalog-table">
-            <thead>
-              <tr>
-                <th className="checkbox-cell">
-                  <input
-                    type="checkbox"
-                    checked={selectedFiles.length === filteredAndSortedFiles.length && filteredAndSortedFiles.length > 0}
-                    onChange={handleSelectAll}
-                    title="Select all files"
-                  />
-                </th>
-                <th>File Name</th>
-                <th>Type</th>
-                <th>Size</th>
-                <th>Rows</th>
-                <th>Columns</th>
-                <th>Uploaded</th>
-                <th>Quality</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAndSortedFiles.map(file => (
+          <>
+            <div className="pagination-info">
+              <span>
+                Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} files
+              </span>
+              <div className="items-per-page">
+                <label htmlFor="itemsPerPage">Items per page:</label>
+                <select 
+                  id="itemsPerPage"
+                  value={itemsPerPage} 
+                  onChange={handleItemsPerPageChange}
+                  className="items-per-page-select"
+                >
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </div>
+            </div>
+            
+            <table className="file-catalog-table">
+              <thead>
+                <tr>
+                  <th className="checkbox-cell">
+                    <input
+                      type="checkbox"
+                      checked={paginatedFiles.length > 0 && paginatedFiles.every(file => selectedFiles.includes(file.file_id))}
+                      onChange={handleSelectAll}
+                      title="Select all files on this page"
+                    />
+                  </th>
+                  <th>File Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Rows</th>
+                  <th>Columns</th>
+                  <th>Uploaded</th>
+                  <th>Quality</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedFiles.map(file => (
                 <tr key={file.file_id}>
                   <td className="checkbox-cell">
                     <input
@@ -394,6 +486,43 @@ export const FileCatalog = ({ onFileSelect }) => {
               ))}
             </tbody>
           </table>
+          
+          {totalPages > 1 && (
+            <div className="pagination-controls">
+              <button
+                className="pagination-button"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              
+              <div className="pagination-numbers">
+                {getPageNumbers().map((page, index) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${index}`} className="pagination-ellipsis">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      className={`pagination-number ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => handlePageChange(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                ))}
+              </div>
+              
+              <button
+                className="pagination-button"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          )}
+          </>
         )}
       </div>
 
@@ -404,6 +533,34 @@ export const FileCatalog = ({ onFileSelect }) => {
         fileName={fileToDelete ? fileToDelete.filename : `${selectedFiles.length} files`}
         isDeleting={fileToDelete ? (deletingFileId === fileToDelete.file_id) : bulkDeleteMutation.isPending}
       />
+      
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="notification-modal-overlay" onClick={() => setShowSuccessModal(false)}>
+          <div className="notification-modal success" onClick={(e) => e.stopPropagation()}>
+            <div className="notification-header">
+              <h3>Success</h3>
+              <button className="close-button" onClick={() => setShowSuccessModal(false)}>×</button>
+            </div>
+            <p>{successMessage}</p>
+            <button className="notification-button" onClick={() => setShowSuccessModal(false)}>OK</button>
+          </div>
+        </div>
+      )}
+      
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div className="notification-modal-overlay" onClick={() => setShowErrorModal(false)}>
+          <div className="notification-modal error" onClick={(e) => e.stopPropagation()}>
+            <div className="notification-header">
+              <h3>Error</h3>
+              <button className="close-button" onClick={() => setShowErrorModal(false)}>×</button>
+            </div>
+            <p>{errorMessage}</p>
+            <button className="notification-button" onClick={() => setShowErrorModal(false)}>OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
