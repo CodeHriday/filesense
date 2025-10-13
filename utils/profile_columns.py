@@ -36,8 +36,10 @@ def profile_columns(file_path, file_type):
             # Use pyarrow for memory-efficient sampling
             import pyarrow.parquet as pq
             parquet_file = pq.ParquetFile(file_path)
-            # Read only first row group or 10000 rows, whichever is smaller
-            df = parquet_file.read_row_group(0, columns=None).to_pandas()
+            # Read all columns from the file (parquet includes schema)
+            # Read only first row group OR enough rows to get 10000, whichever comes first
+            # But make sure we read ALL columns from schema
+            df = parquet_file.read(columns=None, use_pandas_metadata=True).to_pandas()
             if len(df) > 10000:
                 df = df.head(10000)
         else:
