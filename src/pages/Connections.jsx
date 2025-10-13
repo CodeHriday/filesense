@@ -373,8 +373,8 @@ const Connections = () => {
     
     // Common fields for all connection types
     const commonFields = (
-      <>
-        <div className="form-group">
+      <div className="form-grid">
+        <div className="form-group form-group-full">
           <label htmlFor="connection_name">Connection Name</label>
           <input
             type="text"
@@ -421,7 +421,7 @@ const Connections = () => {
             <option value="target">Target (Write data to)</option>
           </select>
         </div>
-      </>
+      </div>
     );
     
     // Type-specific fields
@@ -429,7 +429,7 @@ const Connections = () => {
     
     if (connection_type === 'aws') {
       specificFields = (
-        <>
+        <div className="form-grid">
           <div className="form-group">
             <label htmlFor="region">AWS Region</label>
             <input
@@ -487,11 +487,11 @@ const Connections = () => {
               </small>
             )}
           </div>
-        </>
+        </div>
       );
     } else if (connection_type === 'gcp') {
       specificFields = (
-        <>
+        <div className="form-grid">
           <div className="form-group">
             <label htmlFor="project_id">GCP Project ID</label>
             <input
@@ -518,7 +518,7 @@ const Connections = () => {
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="client_email">Service Account Email</label>
             <input
               type="text"
@@ -531,7 +531,7 @@ const Connections = () => {
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="private_key">Service Account Private Key</label>
             <textarea
               id="private_key"
@@ -549,11 +549,11 @@ const Connections = () => {
               </small>
             )}
           </div>
-        </>
+        </div>
       );
     } else if (connection_type === 'azure') {
       specificFields = (
-        <>
+        <div className="form-grid">
           <div className="form-group">
             <label htmlFor="account_name">Storage Account Name</label>
             <input
@@ -580,7 +580,7 @@ const Connections = () => {
             />
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="account_key">Storage Account Key</label>
             <input
               type="password"
@@ -598,12 +598,12 @@ const Connections = () => {
               </small>
             )}
           </div>
-        </>
+        </div>
       );
     } else if (connection_type === 'snowflake') {
       specificFields = (
-        <>
-          <div className="form-group">
+        <div className="form-grid">
+          <div className="form-group form-group-full">
             <label htmlFor="snowflake_account">Snowflake Account</label>
             <input
               type="text"
@@ -704,12 +704,12 @@ const Connections = () => {
               Optional - leave blank to use the default role
             </small>
           </div>
-        </>
+        </div>
       );
     } else if (connection_type === 'databricks') {
       specificFields = (
-        <>
-          <div className="form-group">
+        <div className="form-grid">
+          <div className="form-group form-group-full">
             <label htmlFor="databricks_host">Databricks Host</label>
             <input
               type="text"
@@ -725,7 +725,7 @@ const Connections = () => {
             </small>
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="databricks_token">Access Token</label>
             <input
               type="password"
@@ -769,11 +769,11 @@ const Connections = () => {
               required
             />
           </div>
-        </>
+        </div>
       );
     } else if (connection_type === 'sharepoint') {
       specificFields = (
-        <>
+        <div className="form-grid">
           <div className="form-group">
             <label htmlFor="sharepoint_tenant_id">Microsoft Tenant ID</label>
             <input
@@ -806,7 +806,7 @@ const Connections = () => {
             </small>
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="sharepoint_client_secret">Client Secret</label>
             <input
               type="password"
@@ -825,7 +825,7 @@ const Connections = () => {
             )}
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="sharepoint_site_url">SharePoint Site URL</label>
             <input
               type="text"
@@ -841,7 +841,7 @@ const Connections = () => {
             </small>
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="sharepoint_document_library">Document Library</label>
             <input
               type="text"
@@ -856,11 +856,11 @@ const Connections = () => {
               Name of the document library where your files are stored (e.g., "Documents" or "Shared Documents")
             </small>
           </div>
-        </>
+        </div>
       );
     } else if (connection_type === 'outlook') {
       specificFields = (
-        <>
+        <div className="form-grid">
           <div className="form-group">
             <label htmlFor="outlook_tenant_id">Microsoft Tenant ID</label>
             <input
@@ -893,7 +893,7 @@ const Connections = () => {
             </small>
           </div>
           
-          <div className="form-group">
+          <div className="form-group form-group-full">
             <label htmlFor="outlook_client_secret">Client Secret</label>
             <input
               type="password"
@@ -943,7 +943,7 @@ const Connections = () => {
               Path to the folder containing attachment files (e.g., "Inbox/Reports" or leave as "Inbox" for default)
             </small>
           </div>
-        </>
+        </div>
       );
     }
     
