@@ -1,8 +1,8 @@
-const logger = require('../utils/logger');
+const { systemLogger } = require('../utils/logger');
 
 async function addPatternsColumn(pool) {
   try {
-    logger.info('Adding patterns column to file_columns table');
+    systemLogger.info('Adding patterns column to file_columns table');
     
     // Add patterns column as JSONB with null default
     await pool.query(`
@@ -19,12 +19,12 @@ async function addPatternsColumn(pool) {
       AND jsonb_typeof(patterns) = 'string'
     `);
     
-    logger.info('Successfully added patterns column and cleaned up data');
+    systemLogger.info('Successfully added patterns column and cleaned up data');
     console.log('✅ Successfully added patterns column');
     
     return { success: true, message: 'Patterns column added successfully' };
   } catch (error) {
-    logger.error('Error adding patterns column', { error: error.message });
+    systemLogger.error('Error adding patterns column', { error: error.message });
     console.error('Error adding patterns column:', error);
     return { success: false, error: error.message };
   }
