@@ -491,6 +491,19 @@ function DataProfile() {
               <div className="file-details">
                 <span className="file-size">{file.file_size ? formatBytes(file.file_size) : 'Unknown size'}</span>
                 <span className="file-date">Uploaded {getTimeSince(file.created_at)}</span>
+                {file.metadata && (file.metadata.encoding || file.metadata.delimiter) && (
+                  <span className="file-metadata">
+                    {file.metadata.encoding && `Encoding: ${file.metadata.encoding}`}
+                    {file.metadata.encoding && file.metadata.delimiter && ' • '}
+                    {file.metadata.delimiter && `Delimiter: ${
+                      file.metadata.delimiter === ',' ? 'comma (,)' :
+                      file.metadata.delimiter === '\t' ? 'tab' :
+                      file.metadata.delimiter === ';' ? 'semicolon (;)' :
+                      file.metadata.delimiter === '|' ? 'pipe (|)' :
+                      file.metadata.delimiter
+                    }`}
+                  </span>
+                )}
               </div>
             </div>
             

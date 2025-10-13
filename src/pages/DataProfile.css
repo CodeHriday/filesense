@@ -55,6 +55,14 @@
   align-items: center;
 }
 
+.file-metadata {
+  margin-left: 15px;
+  display: flex;
+  align-items: center;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
 .profile-actions {
   display: flex;
   gap: 12px;
