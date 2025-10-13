@@ -216,91 +216,74 @@ function QualityChecks() {
                     <p>Total number of columns analyzed in the file.</p>
                   </Card>
                   
-                  {/* Best Column */}
-                  <Card className="metric-card">
-                    <div className="metric-header">
-                      <h3>
-                        Best Column
-                        <Tooltip
-                          content="The column with the highest completeness score (fewest null values)."
-                          position="top"
-                          type="info"
-                          animated={true}
-                        >
-                          <FiInfo className="info-icon" />
-                        </Tooltip>
-                      </h3>
-                      {file?.columns ? (
-                        <>
-                          <Tooltip
-                            content="This column has 100% completeness with no missing values."
-                            position="left"
-                            type="success"
-                            animated={true}
-                          >
-                            <div className="metric-score good">
-                              {formatDecimal(100, 1)}%
-                            </div>
-                          </Tooltip>
-                        </>
-                      ) : (
-                        <div className="metric-score">N/A</div>
-                      )}
-                    </div>
-                    {file?.columns && (
-                      <p>
-                        {file.columns
-                          .filter(col => col.null_count === 0)
-                          .slice(0, 1)
-                          .map(col => col.column_name)
-                          .join(', ') || 'No completely filled columns'}
-                      </p>
-                    )}
-                    <p>Column with highest completeness score.</p>
-                  </Card>
-                  
-                  {/* Worst Column */}
-                  <Card className="metric-card">
-                    <div className="metric-header">
-                      <h3>
-                        Worst Column
-                        <Tooltip
-                          content="The column with the lowest completeness score (most missing values)."
-                          position="top"
-                          type="info"
-                          animated={true}
-                        >
-                          <FiInfo className="info-icon" />
-                        </Tooltip>
-                      </h3>
-                      {file?.columns ? (
-                        <>
-                          {(() => {
-                            if (!file.columns || file.columns.length === 0) return <div className="metric-score">N/A</div>;
-                            
-                            // Sort columns by null_count (descending)
-                            const sortedColumns = [...file.columns].sort((a, b) => b.null_count - a.null_count);
-                            const worstColumn = sortedColumns[0];
-                            
-                            if (!worstColumn || worstColumn.null_count === 0) {
+                  {/* Best/Worst Column - Only show if columns have different completeness scores */}
+                  {(() => {
+                    if (!file?.columns || file.columns.length === 0) return null;
+                    
+                    // Find min and max null counts
+                    const minNullCount = Math.min(...file.columns.map(col => col.null_count || 0));
+                    const maxNullCount = Math.max(...file.columns.map(col => col.null_count || 0));
+                    
+                    // If all columns have the same null count, don't show best/worst
+                    if (minNullCount === maxNullCount) return null;
+                    
+                    return (
+                      <>
+                        {/* Best Column */}
+                        <Card className="metric-card">
+                          <div className="metric-header">
+                            <h3>
+                              Best Column
+                              <Tooltip
+                                content="The column with the highest completeness score (fewest null values)."
+                                position="top"
+                                type="info"
+                                animated={true}
+                              >
+                                <FiInfo className="info-icon" />
+                              </Tooltip>
+                            </h3>
+                            <Tooltip
+                              content="This column has 100% completeness with no missing values."
+                              position="left"
+                              type="success"
+                              animated={true}
+                            >
+                              <div className="metric-score good">
+                                {formatDecimal(100 - (minNullCount / file.row_count * 100), 1)}%
+                              </div>
+                            </Tooltip>
+                          </div>
+                          <p>
+                            {file.columns
+                              .filter(col => col.null_count === minNullCount)
+                              .slice(0, 1)
+                              .map(col => col.column_name)
+                              .join(', ')}
+                          </p>
+                          <p>Column with highest completeness score.</p>
+                        </Card>
+                        
+                        {/* Worst Column */}
+                        <Card className="metric-card">
+                          <div className="metric-header">
+                            <h3>
+                              Worst Column
+                              <Tooltip
+                                content="The column with the lowest completeness score (most missing values)."
+                                position="top"
+                                type="info"
+                                animated={true}
+                              >
+                                <FiInfo className="info-icon" />
+                              </Tooltip>
+                            </h3>
+                            {(() => {
+                              const completenessScore = 100 - (maxNullCount / file.row_count * 100);
+                              const nullPercent = (maxNullCount / file.row_count * 100).toFixed(1);
                               return (
                                 <Tooltip
-                                  content="All columns have 100% completeness with no missing values."
-                                  position="left"
-                                  type="success"
-                                  animated={true}
-                                >
-                                  <div className="metric-score good">
-                                    100.0%
-                                  </div>
-                                </Tooltip>
-                              );
-                            } else {
-                              const completenessScore = 100 - (worstColumn.null_count / file.row_count * 100);
-                              const nullPercent = (worstColumn.null_count / file.row_count * 100).toFixed(1);
-                              return (
-                                <Tooltip
-                                  content={`This column is missing ${nullPercent}% of its values (${worstColumn.null_count} out of ${file.row_count} rows).`}
+                                  content={`This column is missing ${nullPercent}% of its values (${maxNullCount} out of ${file.row_count} rows).`}
                                   position="left"
                                   type={completenessScore >= 80 ? 'success' : completenessScore >= 60 ? 'warning' : 'error'}
                                   animated={true}
@@ -310,24 +293,20 @@ function QualityChecks() {
                                   </div>
                                 </Tooltip>
                               );
-                            }
-                          })()}
-                        </>
-                      ) : (
-                        <div className="metric-score">N/A</div>
-                      )}
-                    </div>
-                    {file?.columns && file.columns.length > 0 && (
-                      <p>
-                        {(() => {
-                          // Get the column with the most null values
-                          const sortedColumns = [...file.columns].sort((a, b) => b.null_count - a.null_count);
-                          return sortedColumns[0].column_name;
-                        })()}
-                      </p>
-                    )}
-                    <p>Column with lowest completeness score.</p>
-                  </Card>
+                            })()}
+                          </div>
+                          <p>
+                            {file.columns
+                              .filter(col => col.null_count === maxNullCount)
+                              .slice(0, 1)
+                              .map(col => col.column_name)
+                              .join(', ')}
+                          </p>
+                          <p>Column with lowest completeness score.</p>
+                        </Card>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               
