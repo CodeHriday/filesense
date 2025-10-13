@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import Card from '../components/Card';
+import { FiEye, FiTrash2 } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QualityTooltip } from '../components/QualityTooltip';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -38,8 +40,8 @@ export const FileCatalog = ({ onFileSelect }) => {
   // Properly handle the file data format from the API
   const files = fileData || [];
 
-  const handleFileSelect = (file) => {
-    onFileSelect && onFileSelect(file);
+  const handleViewDetails = (file) => {
+    navigate(`/profile/${file.file_id}`);
   };
 
   const handleSearchChange = (e) => {
@@ -223,86 +225,83 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
       </div>
       
-      <div className="file-catalog-results">
+      <div className="file-catalog-table-container">
         {filteredAndSortedFiles.length === 0 ? (
           <div className="no-results">
             <p>No files found matching your criteria.</p>
           </div>
         ) : (
-          filteredAndSortedFiles.map(file => (
-            <Card key={file.file_id} className="file-card">
-              <div className="file-card-content">
-                <div className="file-icon">
-                  {file.file_type === 'csv' ? '📄' : 
-                   file.file_type === 'json' ? '🔠' : '📊'}
-                </div>
-                
-                <div className="file-info">
-                  <div className="file-header">
-                    <h3 className="file-name">{file.filename}</h3>
-                    <div className="file-meta">
-                      <span className="file-type">{file.file_type.toUpperCase()}</span>
-                      <span className="file-size">{formatBytes(parseInt(file.file_size))}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="file-stats">
-                    <div className="stat">
-                      <span className="stat-label">Rows:</span>
-                      <span className="stat-value">{file.row_count.toLocaleString()}</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-label">Columns:</span>
-                      <span className="stat-value">{file.column_count}</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-label">Uploaded:</span>
-                      <span className="stat-value" title={formatDate(file.created_at)}>
-                        {getTimeSince(file.created_at)}
+          <table className="file-catalog-table">
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Rows</th>
+                <th>Columns</th>
+                <th>Uploaded</th>
+                <th>Quality</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAndSortedFiles.map(file => (
+                <tr key={file.file_id}>
+                  <td className="file-name-cell">
+                    <span className="file-icon">
+                      {file.file_type === 'csv' ? '📄' : 
+                       file.file_type === 'json' ? '🔠' : '📊'}
+                    </span>
+                    <span className="file-name">{file.filename}</span>
+                  </td>
+                  <td>
+                    <span className="file-type-badge">{file.file_type.toUpperCase()}</span>
+                  </td>
+                  <td>{formatBytes(parseInt(file.file_size))}</td>
+                  <td>{file.row_count.toLocaleString()}</td>
+                  <td>{file.column_count}</td>
+                  <td title={formatDate(file.created_at)}>
+                    {getTimeSince(file.created_at)}
+                  </td>
+                  <td>
+                    <QualityTooltip 
+                      score={parseFloat(file.quality_score)}
+                      components={{
+                        completeness: file.quality_components?.completeness || 95,
+                        consistency: file.quality_components?.consistency || 85,
+                        validity: file.quality_components?.validity || 80,
+                        uniqueness: file.quality_components?.uniqueness || 75,
+                        timeliness: file.quality_components?.timeliness || 90
+                      }}
+                      position="top"
+                      animated={true}
+                    >
+                      <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
+                        {parseFloat(file.quality_score).toFixed(1)}%
                       </span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-label">Quality:</span>
-                      <QualityTooltip 
-                        score={parseFloat(file.quality_score)}
-                        components={{
-                          completeness: file.quality_components?.completeness || 95,
-                          consistency: file.quality_components?.consistency || 85,
-                          validity: file.quality_components?.validity || 80,
-                          uniqueness: file.quality_components?.uniqueness || 75,
-                          timeliness: file.quality_components?.timeliness || 90
-                        }}
-                        position="top"
-                        animated={true}
-                      >
-                        <span className={`stat-value quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
-                          {parseFloat(file.quality_score).toFixed(1)}%
-                        </span>
-                      </QualityTooltip>
-                    </div>
-                  </div>
-                  
-                  <div className="file-footer">
-                    <div className="file-actions">
-                      <button 
-                        className="btn btn-primary"
-                        onClick={() => handleFileSelect(file)}
-                      >
-                        View Details
-                      </button>
-                      <button 
-                        className="btn btn-danger"
-                        onClick={() => handleDelete(file)}
-                        disabled={deletingFileId === file.file_id}
-                      >
-                        {deletingFileId === file.file_id ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))
+                    </QualityTooltip>
+                  </td>
+                  <td className="actions-cell">
+                    <button
+                      className="icon-button view-button"
+                      onClick={() => handleViewDetails(file)}
+                      title="View Details"
+                    >
+                      <FiEye />
+                    </button>
+                    <button
+                      className="icon-button delete-button"
+                      onClick={() => handleDelete(file)}
+                      disabled={deletingFileId === file.file_id}
+                      title="Delete"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
