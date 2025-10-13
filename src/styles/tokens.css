@@ -6,70 +6,70 @@
 :root {
   /* === COLOR PALETTE === */
   
-  /* Primary Colors */
-  --color-primary: #2563EB;
-  --color-primary-dark: #1D4ED8;
-  --color-primary-light: #3B82F6;
-  --color-primary-50: #EFF6FF;
-  --color-primary-100: #DBEAFE;
+  /* Primary Colors - Muted Slate/Blue */
+  --color-primary: #6D8196;
+  --color-primary-dark: #5B7C99;
+  --color-primary-light: #849baa;
+  --color-primary-50: #F0F4F8;
+  --color-primary-100: #D8E3ED;
   
-  /* Secondary Colors */
-  --color-secondary: #0F172A;
-  --color-secondary-light: #1E293B;
+  /* Secondary Colors - Soft Slate */
+  --color-secondary: #435274;
+  --color-secondary-light: #5A6B88;
   
-  /* Neutral Colors */
+  /* Neutral Colors - Softer Grays */
   --color-white: #FFFFFF;
-  --color-gray-50: #F8FAFC;
-  --color-gray-100: #F1F5F9;
+  --color-gray-50: #F7F9FB;
+  --color-gray-100: #EDF2F7;
   --color-gray-200: #E2E8F0;
   --color-gray-300: #CBD5E1;
   --color-gray-400: #94A3B8;
-  --color-gray-500: #64748B;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1E293B;
-  --color-gray-900: #0F172A;
+  --color-gray-500: #6D7A8C;
+  --color-gray-600: #556379;
+  --color-gray-700: #435274;
+  --color-gray-800: #2E3B52;
+  --color-gray-900: #1F2937;
   
-  /* Accent Colors */
-  --color-teal: #14B8A6;
-  --color-teal-light: #5EEAD4;
-  --color-teal-dark: #0D9488;
+  /* Accent Colors - Muted Tones */
+  --color-teal: #6B9B88;
+  --color-teal-light: #8FB5A3;
+  --color-teal-dark: #557D6D;
   
-  --color-amber: #FBBF24;
-  --color-amber-light: #FCD34D;
-  --color-amber-dark: #F59E0B;
+  --color-amber: #D4A574;
+  --color-amber-light: #E8C9A0;
+  --color-amber-dark: #B88A5B;
   
-  --color-purple: #8B5CF6;
-  --color-purple-light: #A78BFA;
-  --color-purple-dark: #7C3AED;
+  --color-purple: #9B8AAF;
+  --color-purple-light: #B5A6C7;
+  --color-purple-dark: #7D6D8E;
   
-  /* Status Colors */
-  --color-success: #10B981;
-  --color-success-light: #D1FAE5;
-  --color-success-dark: #059669;
+  /* Status Colors - Softer Muted Tones */
+  --color-success: #6B9B88;
+  --color-success-light: #D4E8E1;
+  --color-success-dark: #557D6D;
   
-  --color-warning: #F59E0B;
-  --color-warning-light: #FEF3C7;
-  --color-warning-dark: #D97706;
+  --color-warning: #D4A574;
+  --color-warning-light: #F5E6D3;
+  --color-warning-dark: #B88A5B;
   
-  --color-error: #EF4444;
-  --color-error-light: #FEE2E2;
-  --color-error-dark: #DC2626;
+  --color-error: #D47E7E;
+  --color-error-light: #F5E0E0;
+  --color-error-dark: #B85E5E;
   
-  --color-info: #3B82F6;
-  --color-info-light: #DBEAFE;
-  --color-info-dark: #2563EB;
+  --color-info: #6D8196;
+  --color-info-light: #D8E3ED;
+  --color-info-dark: #5B7C99;
   
-  /* Text Colors */
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
+  /* Text Colors - Softer Contrast */
+  --text-primary: #2E3B52;
+  --text-secondary: #556379;
   --text-tertiary: #94A3B8;
   --text-on-primary: #FFFFFF;
   
-  /* Background Colors */
-  --bg-page: #FFFFFF;
-  --bg-surface: #F8FAFC;
-  --bg-header: #2563EB;
+  /* Background Colors - Off-White for Softer Look */
+  --bg-page: #F7F9FB;
+  --bg-surface: #FAFBFC;
+  --bg-header: #6D8196;
   --bg-sidebar: #FFFFFF;
   --bg-card: #FFFFFF;
   
@@ -125,26 +125,30 @@
   --radius-xl: 16px;
   --radius-full: 9999px;
   
-  /* === SHADOWS === */
-  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.12), 0 10px 10px -5px rgba(15, 23, 42, 0.04);
+  /* === SHADOWS - Softer, More Subtle === */
+  --shadow-sm: 0 1px 2px 0 rgba(67, 82, 116, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(67, 82, 116, 0.06), 0 2px 4px -1px rgba(67, 82, 116, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(67, 82, 116, 0.08), 0 4px 6px -2px rgba(67, 82, 116, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(67, 82, 116, 0.1), 0 10px 10px -5px rgba(67, 82, 116, 0.03);
   
   /* === LAYOUT === */
   --container-max-width: 1200px;
   --header-height: 64px;
   --sidebar-width: 260px;
   
-  /* === OPACITY / OVERLAY === */
-  --overlay-backdrop: rgba(15, 23, 42, 0.5);
-  --overlay-dark: rgba(15, 23, 42, 0.7);
+  /* === OPACITY / OVERLAY - More Translucent === */
+  --overlay-backdrop: rgba(67, 82, 116, 0.4);
+  --overlay-dark: rgba(67, 82, 116, 0.6);
   --white-alpha-10: rgba(255, 255, 255, 0.1);
   --white-alpha-15: rgba(255, 255, 255, 0.15);
   --white-alpha-20: rgba(255, 255, 255, 0.2);
   --white-alpha-30: rgba(255, 255, 255, 0.3);
+  --white-alpha-50: rgba(255, 255, 255, 0.5);
   --white-alpha-90: rgba(255, 255, 255, 0.9);
+  --black-alpha-05: rgba(0, 0, 0, 0.05);
   --black-alpha-10: rgba(0, 0, 0, 0.1);
+  --slate-alpha-10: rgba(109, 129, 150, 0.1);
+  --slate-alpha-20: rgba(109, 129, 150, 0.2);
   
   /* === TRANSITIONS === */
   --transition-fast: 150ms ease;
