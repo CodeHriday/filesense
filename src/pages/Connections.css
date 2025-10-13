@@ -386,7 +386,7 @@
 }
 
 .connection-form-container {
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
@@ -394,6 +394,18 @@
   margin-top: 0;
   margin-bottom: 20px;
   text-align: center;
+}
+
+/* Form Grid Layout - Two Columns */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.form-grid .form-group-full {
+  grid-column: 1 / -1;
 }
 
 .form-actions {
@@ -631,6 +643,15 @@
   
   .connection-form-container {
     padding: var(--space-4);
+  }
+  
+  /* Stack form grid on mobile */
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-grid .form-group-full {
+    grid-column: 1;
   }
   
   .connections-table thead {
