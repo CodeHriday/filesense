@@ -904,6 +904,68 @@ app.delete('/api/files/:fileId', invalidateCache('cache:*:*files*'), async (req,
   }
 });
 
+// File duplicate check endpoint
+app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const file = req.file;
+    const crypto = require('crypto');
+    
+    // Calculate SHA-256 hash of the file
+    const fileHash = await new Promise((resolve, reject) => {
+      const hash = crypto.createHash('sha256');
+      const stream = fs.createReadStream(file.path);
+      
+      stream.on('data', (data) => hash.update(data));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
+    });
+    
+    // Check if file with same hash exists
+    const result = await dbPool.query(
+      'SELECT file_id, filename, file_size, created_at FROM files WHERE checksum = $1 LIMIT 1',
+      [fileHash]
+    );
+    
+    // Delete temporary uploaded file
+    fs.unlinkSync(file.path);
+    
+    if (result.rows.length > 0) {
+      const existingFile = result.rows[0];
+      res.json({
+        isDuplicate: true,
+        existingFile: {
+          fileId: existingFile.file_id,
+          filename: existingFile.filename,
+          fileSize: existingFile.file_size,
+          uploadedAt: existingFile.created_at
+        },
+        fileHash
+      });
+    } else {
+      res.json({
+        isDuplicate: false,
+        fileHash
+      });
+    }
+  } catch (error) {
+    logger.error('Duplicate check error', { error: error.message });
+    
+    // Clean up temp file on error
+    if (req.file && req.file.path) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    
+    res.status(500).json({ 
+      error: 'Duplicate check failed',
+      details: error.message 
+    });
+  }
+});
+
 // File upload endpoint with async queue processing
 app.post('/api/files/upload', invalidateCache('cache:*:*files*'), uploadLimiter, upload.single('file'), validateRequest(fileUploadSchema), async (req, res) => {
   try {
@@ -916,13 +978,25 @@ app.post('/api/files/upload', invalidateCache('cache:*:*files*'), uploadLimiter,
     const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
     const fileType = path.extname(file.originalname).substring(1).toLowerCase();
     const userId = req.user ? req.user.id : null;
+    const crypto = require('crypto');
+    
+    // Calculate file hash
+    const fileHash = await new Promise((resolve, reject) => {
+      const hash = crypto.createHash('sha256');
+      const stream = fs.createReadStream(file.path);
+      
+      stream.on('data', (data) => hash.update(data));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
+    });
     
     logger.info('File uploaded, adding to processing queue', { 
       fileId,
       filename: file.originalname, 
       size: file.size,
       type: fileType,
-      userId
+      userId,
+      fileHash: fileHash.substring(0, 16) + '...'
     });
     
     // Add job to processing queue (non-blocking)
@@ -932,7 +1006,8 @@ app.post('/api/files/upload', invalidateCache('cache:*:*files*'), uploadLimiter,
       originalName: file.originalname,
       fileSize: file.size,
       fileType,
-      userId
+      userId,
+      fileHash
     }, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
@@ -1100,6 +1175,7 @@ const migrateConnectionsSchema = require('./backend/migrations/createSharedConne
 const { migrateTransformConnections } = require('./backend/migrations/migrateTransformConnections');
 const addPerformanceIndexes = require('./backend/migrations/addPerformanceIndexes');
 const { addProfilingColumns } = require('./backend/migrations/addProfilingColumns');
+const { addDuplicateRecordsColumns } = require('./backend/migrations/addDuplicateRecordsColumns');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1127,6 +1203,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Profiling columns migration completed');
+    
+    // Add duplicate records columns migration
+    return addDuplicateRecordsColumns(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Duplicate records columns migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

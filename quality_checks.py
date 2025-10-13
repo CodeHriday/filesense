@@ -503,3 +503,84 @@ def check_alert(file_data, rule):
             }
     
     return None
+
+def detect_duplicate_rows(file_path, file_type):
+    """
+    Detect duplicate rows in a file using streaming and hash-based approach.
+    Memory-efficient for large files (10GB+).
+    
+    Args:
+        file_path (str): Path to the file
+        file_type (str): Type of file ('csv', 'json', 'parquet')
+    
+    Returns:
+        dict: Duplicate statistics including count and percentage
+    """
+    import hashlib
+    
+    try:
+        hash_counts = {}
+        total_rows = 0
+        
+        if file_type == 'csv':
+            import csv
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    total_rows += 1
+                    row_str = '|'.join(str(v) for v in sorted(row.items()))
+                    row_hash = hashlib.sha256(row_str.encode()).hexdigest()
+                    hash_counts[row_hash] = hash_counts.get(row_hash, 0) + 1
+        
+        elif file_type == 'json':
+            import json
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        total_rows += 1
+                        data = json.loads(line.strip())
+                        row_str = json.dumps(data, sort_keys=True)
+                        row_hash = hashlib.sha256(row_str.encode()).hexdigest()
+                        hash_counts[row_hash] = hash_counts.get(row_hash, 0) + 1
+            except json.JSONDecodeError:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        for row in data:
+                            total_rows += 1
+                            row_str = json.dumps(row, sort_keys=True)
+                            row_hash = hashlib.sha256(row_str.encode()).hexdigest()
+                            hash_counts[row_hash] = hash_counts.get(row_hash, 0) + 1
+        
+        elif file_type == 'parquet':
+            import pyarrow.parquet as pq
+            parquet_file = pq.ParquetFile(file_path)
+            
+            for batch in parquet_file.iter_batches(batch_size=10000):
+                df_batch = batch.to_pandas()
+                for _, row in df_batch.iterrows():
+                    total_rows += 1
+                    row_str = '|'.join(str(v) for v in sorted(row.items()))
+                    row_hash = hashlib.sha256(row_str.encode()).hexdigest()
+                    hash_counts[row_hash] = hash_counts.get(row_hash, 0) + 1
+        
+        unique_rows = len(hash_counts)
+        duplicate_count = sum(count - 1 for count in hash_counts.values() if count > 1)
+        duplicate_percentage = (duplicate_count / total_rows * 100) if total_rows > 0 else 0
+        
+        return {
+            'total_rows': total_rows,
+            'unique_rows': unique_rows,
+            'duplicate_count': duplicate_count,
+            'duplicate_percentage': round(duplicate_percentage, 2)
+        }
+    
+    except Exception as e:
+        print(f"Error detecting duplicates: {str(e)}")
+        return {
+            'total_rows': 0,
+            'unique_rows': 0,
+            'duplicate_count': 0,
+            'duplicate_percentage': 0.0,
+            'error': str(e)
+        }

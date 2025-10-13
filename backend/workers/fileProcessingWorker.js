@@ -47,7 +47,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash } = job.data;
 
     this.logger.info('Processing file job', {
       jobId,
@@ -96,11 +96,23 @@ class FileProcessingWorker {
 
       await this.queue.updateProgress(jobId, 70);
 
-      // Step 3: Save metadata to database
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId);
+      // Step 3: Detect duplicate rows
+      this.logger.info('Detecting duplicate rows', { fileId });
+      const duplicateStats = await this.detectDuplicates(filePath, fileType);
+      
+      this.logger.info('Duplicate detection completed', {
+        fileId,
+        duplicateCount: duplicateStats.duplicate_count,
+        duplicatePercentage: duplicateStats.duplicate_percentage
+      });
+
+      await this.queue.updateProgress(jobId, 75);
+
+      // Step 4: Save metadata to database (including duplicates and hash)
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats);
       await this.queue.updateProgress(jobId, 85);
 
-      // Step 4: Save column information with profiling data
+      // Step 5: Save column information with profiling data
       if (fileInfo.schema && fileInfo.schema.length > 0) {
         await this.saveColumnInfo(fileId, fileInfo.schema);
       }
@@ -268,9 +280,82 @@ class FileProcessingWorker {
   }
 
   /**
+   * Detect duplicate rows using Python quality_checks module
+   */
+  async detectDuplicates(filePath, fileType) {
+    return new Promise((resolve, reject) => {
+      const pythonCode = `
+import sys
+import json
+sys.path.insert(0, '.')
+from quality_checks import detect_duplicate_rows
+
+result = detect_duplicate_rows('${filePath.replace(/'/g, "\\'")}', '${fileType}')
+print(json.dumps(result))
+`;
+      
+      const python = spawn('python3', ['-c', pythonCode]);
+      
+      let stdout = '';
+      let stderr = '';
+
+      python.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      python.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      python.on('close', (code) => {
+        if (code !== 0) {
+          this.logger.error('Duplicate detection error', {
+            code,
+            stderr,
+            filePath
+          });
+          // Don't fail the whole job, return zeros
+          resolve({
+            total_rows: 0,
+            unique_rows: 0,
+            duplicate_count: 0,
+            duplicate_percentage: 0.0
+          });
+        } else {
+          try {
+            const result = JSON.parse(stdout);
+            resolve(result);
+          } catch (error) {
+            this.logger.error('Failed to parse duplicate detection output', {
+              stdout,
+              error: error.message
+            });
+            resolve({
+              total_rows: 0,
+              unique_rows: 0,
+              duplicate_count: 0,
+              duplicate_percentage: 0.0
+            });
+          }
+        }
+      });
+
+      python.on('error', (error) => {
+        this.logger.error('Failed to spawn duplicate detection', { error: error.message });
+        resolve({
+          total_rows: 0,
+          unique_rows: 0,
+          duplicate_count: 0,
+          duplicate_percentage: 0.0
+        });
+      });
+    });
+  }
+
+  /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId) {
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats) {
     // Build metadata object with encoding, delimiter, and preview data
     const metadata = {
       encoding: fileInfo.encoding || null,
@@ -281,14 +366,18 @@ class FileProcessingWorker {
     const query = `
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
-        row_count, column_count, quality_score, metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        row_count, column_count, quality_score, metadata, checksum,
+        duplicate_records_count, duplicate_records_percentage
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         row_count = EXCLUDED.row_count,
         column_count = EXCLUDED.column_count,
         quality_score = EXCLUDED.quality_score,
         metadata = EXCLUDED.metadata,
+        checksum = EXCLUDED.checksum,
+        duplicate_records_count = EXCLUDED.duplicate_records_count,
+        duplicate_records_percentage = EXCLUDED.duplicate_records_percentage,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
@@ -301,7 +390,10 @@ class FileProcessingWorker {
       fileInfo.row_count || 0,
       fileInfo.column_count || 0,
       85, // Default quality score
-      JSON.stringify(metadata)
+      JSON.stringify(metadata),
+      fileHash || null,
+      duplicateStats?.duplicate_count || 0,
+      duplicateStats?.duplicate_percentage || 0.0
     ];
 
     const result = await this.dbPool.query(query, values);
