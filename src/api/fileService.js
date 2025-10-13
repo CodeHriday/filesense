@@ -186,16 +186,3 @@ export const getFilePreview = async (fileId, limit = 100) => {
     throw new Error(error.response?.data?.message || 'Failed to fetch file preview');
   }
 };
-
-/**
- * Delete a file
- */
-export const deleteFile = async (fileId) => {
-  try {
-    const response = await axios.delete(`${API_URL}/files/${fileId}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error deleting file ${fileId}:`, error);
-    throw new Error(error.response?.data?.message || 'Failed to delete file');
-  }
-};
