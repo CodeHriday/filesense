@@ -189,16 +189,23 @@ class FileProcessingWorker {
    * Save file metadata to database
    */
   async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId) {
+    // Build metadata object with encoding and delimiter
+    const metadata = {
+      encoding: fileInfo.encoding || null,
+      delimiter: fileInfo.delimiter || null
+    };
+
     const query = `
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
-        row_count, column_count, quality_score
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        row_count, column_count, quality_score, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         row_count = EXCLUDED.row_count,
         column_count = EXCLUDED.column_count,
         quality_score = EXCLUDED.quality_score,
+        metadata = EXCLUDED.metadata,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
@@ -210,7 +217,8 @@ class FileProcessingWorker {
       fileSize,
       fileInfo.row_count || 0,
       fileInfo.column_count || 0,
-      85 // Default quality score
+      85, // Default quality score
+      JSON.stringify(metadata)
     ];
 
     const result = await this.dbPool.query(query, values);

@@ -15,10 +15,10 @@ import json
 
 # Handle imports from different paths
 try:
-    from streaming_processors import StreamingFileReader
+    from streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
     from memory_monitor import MemoryGuard, check_before_processing
 except ImportError:
-    from utils.streaming_processors import StreamingFileReader
+    from utils.streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
     from utils.memory_monitor import MemoryGuard, check_before_processing
 
 def process_file(file_path, file_type):
@@ -33,8 +33,26 @@ def process_file(file_path, file_type):
             "error": f"Cannot process file: {reason}",
             "row_count": 0,
             "column_count": 0,
-            "schema": []
+            "schema": [],
+            "encoding": None,
+            "delimiter": None
         }
+    
+    # Detect encoding and delimiter
+    encoding = None
+    delimiter = None
+    
+    try:
+        # Detect encoding for all text-based files
+        if file_type in ['csv', 'json', 'txt']:
+            encoding = detect_encoding(file_path)
+        
+        # Detect delimiter for CSV files
+        if file_type == 'csv':
+            delimiter = detect_delimiter(file_path)
+    except Exception as e:
+        # Continue processing even if detection fails
+        pass
     
     try:
         # Use streaming reader with memory guard
@@ -67,7 +85,9 @@ def process_file(file_path, file_type):
                 "column_count": len(schema),
                 "schema": schema,
                 "processing_time_seconds": 0,
-                "size_bytes": os.path.getsize(file_path)
+                "size_bytes": os.path.getsize(file_path),
+                "encoding": encoding,
+                "delimiter": delimiter
             }
             
     except Exception as e:
@@ -75,7 +95,9 @@ def process_file(file_path, file_type):
             "error": str(e),
             "row_count": 0,
             "column_count": 0,
-            "schema": []
+            "schema": [],
+            "encoding": encoding,
+            "delimiter": delimiter
         }
 
 if __name__ == "__main__":
