@@ -6,7 +6,9 @@
 
 .main-container {
   display: flex;
-  flex: 1;
+  margin-top: 60px; /* Height of fixed header */
+  height: calc(100vh - 60px);
+  overflow: hidden;
 }
 
 .content {
@@ -15,8 +17,7 @@
   overflow-y: auto;
   margin-left: 250px; /* Width of sidebar */
   width: calc(100% - 250px);
-  position: relative;
-  top: 0;
+  height: 100%;
 }
 
 .btn {
