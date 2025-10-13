@@ -24,9 +24,10 @@
   color: #2c3e50;
 }
 
-.file-type {
-  background-color: #3498db;
-  color: white !important; /* Force white text color */
+.profile-title .file-type,
+.data-profile-container .file-type {
+  background-color: #3498db !important;
+  color: white !important;
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 14px;
@@ -34,7 +35,7 @@
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); /* Add text shadow for better visibility */
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
 .file-details {
