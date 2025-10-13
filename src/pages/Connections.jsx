@@ -19,11 +19,13 @@ const Connections = () => {
   const [editId, setEditId] = useState(null);
   const [testingConnection, setTestingConnection] = useState(null);
   const [testResults, setTestResults] = useState({});
+  const [activeTab, setActiveTab] = useState('source');
   
   // Connection form state
   const [formData, setFormData] = useState({
     connection_name: '',
     connection_type: 'aws',
+    connection_direction: 'source',
     region: '',
     bucket_name: '',
     access_key: '',
@@ -96,6 +98,7 @@ const Connections = () => {
     setFormData({
       connection_name: '',
       connection_type: 'aws',
+      connection_direction: activeTab,
       region: '',
       bucket_name: '',
       access_key: '',
@@ -113,12 +116,13 @@ const Connections = () => {
   };
   
   const handleEdit = (connection) => {
-    const { id, connection_name, connection_type } = connection;
+    const { id, connection_name, connection_type, connection_direction } = connection;
     
     // Create a form data object with the correct fields based on connection type
     let newFormData = {
       connection_name,
       connection_type,
+      connection_direction: connection_direction || 'source',
     };
     
     // Add type-specific fields
@@ -400,6 +404,21 @@ const Connections = () => {
             <option value="databricks">Databricks</option>
             <option value="sharepoint">SharePoint</option>
             <option value="outlook">Outlook</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="connection_direction">Connection Direction</label>
+          <select
+            id="connection_direction"
+            name="connection_direction"
+            className="form-control"
+            value={formData.connection_direction}
+            onChange={handleInputChange}
+            required
+          >
+            <option value="source">Source (Read data from)</option>
+            <option value="target">Target (Write data to)</option>
           </select>
         </div>
       </>
@@ -1010,6 +1029,11 @@ const Connections = () => {
     }
   };
   
+  // Filter connections based on active tab
+  const filteredConnections = connections.filter(conn => 
+    conn.connection_direction === activeTab || (!conn.connection_direction && activeTab === 'source')
+  );
+
   return (
     <div className="connections-container">
       <div className="connections-header">
@@ -1023,6 +1047,21 @@ const Connections = () => {
             You don't have permission to create connections
           </div>
         )}
+      </div>
+      
+      <div className="connections-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'source' ? 'active' : ''}`}
+          onClick={() => setActiveTab('source')}
+        >
+          Source Connections
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'target' ? 'active' : ''}`}
+          onClick={() => setActiveTab('target')}
+        >
+          Target Connections
+        </button>
       </div>
       
       {error && <div className="alert alert-error">{error}</div>}
@@ -1052,12 +1091,12 @@ const Connections = () => {
             </Card>
           ) : (
             <>
-              {connections.length === 0 ? (
+              {filteredConnections.length === 0 ? (
                 <>
                   <div className="no-connections">
                     <FiServer className="empty-icon" />
-                    <p>No cloud storage connections configured yet.</p>
-                    <p>Add a connection to start importing files from cloud storage.</p>
+                    <p>No {activeTab} connections configured yet.</p>
+                    <p>Add a {activeTab} connection to {activeTab === 'source' ? 'import data from' : 'export data to'} cloud storage.</p>
                     {hasWritePermission('connections') ? (
                       <button className="btn btn-primary" onClick={handleAddNew}>
                         Add Your First Connection
@@ -1271,7 +1310,7 @@ const Connections = () => {
                 </>
               ) : (
                 <div className="connections-grid">
-                  {connections.map(connection => (
+                  {filteredConnections.map(connection => (
                     <Card key={connection.id} className="connection-card">
                       <div className="connection-header">
                         {renderConnectionIcon(connection.connection_type || connection.type)}
