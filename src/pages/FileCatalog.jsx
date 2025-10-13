@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useFileCatalog } from '../hooks';
+import { useFileCatalog, useFileDelete } from '../hooks';
 import { QualityTooltip } from '../components/QualityTooltip';
 import './FileCatalog.css';
 
@@ -10,6 +10,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedType, setSelectedType] = useState('all');
+  const [deletingFileId, setDeletingFileId] = useState(null);
   
   // Using React Query to fetch file catalog
   const { 
@@ -21,6 +22,17 @@ export const FileCatalog = ({ onFileSelect }) => {
     // Refetching options
     refetchOnWindowFocus: false,  // Don't refetch when window regains focus
     staleTime: 5 * 60 * 1000,     // Consider data fresh for 5 minutes
+  });
+  
+  // File delete mutation
+  const deleteFileMutation = useFileDelete({
+    onSuccess: () => {
+      setDeletingFileId(null);
+    },
+    onError: (error) => {
+      alert(`Failed to delete file: ${error.message}`);
+      setDeletingFileId(null);
+    }
   });
   
   // Properly handle the file data format from the API
@@ -44,6 +56,13 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   const handleTypeChange = (e) => {
     setSelectedType(e.target.value);
+  };
+
+  const handleDelete = async (file) => {
+    if (window.confirm(`Are you sure you want to delete "${file.filename}"? This action cannot be undone.`)) {
+      setDeletingFileId(file.file_id);
+      deleteFileMutation.mutate(file.file_id);
+    }
   };
 
   const formatBytes = (bytes, decimals = 2) => {
@@ -94,12 +113,10 @@ export const FileCatalog = ({ onFileSelect }) => {
     .filter(file => {
       // Filter by search term
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = file.fileName.toLowerCase().includes(searchLower) || 
-                           file.tags.some(tag => tag.toLowerCase().includes(searchLower)) ||
-                           file.owner.toLowerCase().includes(searchLower);
+      const matchesSearch = file.filename.toLowerCase().includes(searchLower);
       
       // Filter by file type
-      const matchesType = selectedType === 'all' || file.fileType === selectedType;
+      const matchesType = selectedType === 'all' || file.file_type === selectedType;
       
       return matchesSearch && matchesType;
     })
@@ -109,19 +126,19 @@ export const FileCatalog = ({ onFileSelect }) => {
       
       switch (sortBy) {
         case 'name':
-          comparison = a.fileName.localeCompare(b.fileName);
+          comparison = a.filename.localeCompare(b.filename);
           break;
         case 'date':
-          comparison = new Date(a.uploadedAt) - new Date(b.uploadedAt);
+          comparison = new Date(a.created_at) - new Date(b.created_at);
           break;
         case 'size':
-          comparison = a.fileSize - b.fileSize;
+          comparison = parseInt(a.file_size) - parseInt(b.file_size);
           break;
         case 'rows':
-          comparison = a.rows - b.rows;
+          comparison = a.row_count - b.row_count;
           break;
         case 'quality':
-          comparison = a.qualityScore - b.qualityScore;
+          comparison = parseFloat(a.quality_score) - parseFloat(b.quality_score);
           break;
         default:
           comparison = 0;
@@ -213,78 +230,72 @@ export const FileCatalog = ({ onFileSelect }) => {
           </div>
         ) : (
           filteredAndSortedFiles.map(file => (
-            <Card key={file.id} className="file-card">
+            <Card key={file.file_id} className="file-card">
               <div className="file-card-content">
                 <div className="file-icon">
-                  {file.fileType === 'csv' ? '📄' : 
-                   file.fileType === 'json' ? '🔠' : '📊'}
+                  {file.file_type === 'csv' ? '📄' : 
+                   file.file_type === 'json' ? '🔠' : '📊'}
                 </div>
                 
                 <div className="file-info">
                   <div className="file-header">
-                    <h3 className="file-name">{file.fileName}</h3>
+                    <h3 className="file-name">{file.filename}</h3>
                     <div className="file-meta">
-                      <span className="file-type">{file.fileType.toUpperCase()}</span>
-                      <span className="file-size">{formatBytes(file.fileSize)}</span>
+                      <span className="file-type">{file.file_type.toUpperCase()}</span>
+                      <span className="file-size">{formatBytes(parseInt(file.file_size))}</span>
                     </div>
                   </div>
                   
                   <div className="file-stats">
                     <div className="stat">
                       <span className="stat-label">Rows:</span>
-                      <span className="stat-value">{file.rows.toLocaleString()}</span>
+                      <span className="stat-value">{file.row_count.toLocaleString()}</span>
                     </div>
                     <div className="stat">
                       <span className="stat-label">Columns:</span>
-                      <span className="stat-value">{file.columns}</span>
+                      <span className="stat-value">{file.column_count}</span>
                     </div>
                     <div className="stat">
                       <span className="stat-label">Uploaded:</span>
-                      <span className="stat-value" title={formatDate(file.uploadedAt)}>
-                        {getTimeSince(file.uploadedAt)}
+                      <span className="stat-value" title={formatDate(file.created_at)}>
+                        {getTimeSince(file.created_at)}
                       </span>
                     </div>
                     <div className="stat">
                       <span className="stat-label">Quality:</span>
                       <QualityTooltip 
-                        score={file.qualityScore}
+                        score={parseFloat(file.quality_score)}
                         components={{
-                          completeness: file.qualityComponents?.completeness || 95,
-                          consistency: file.qualityComponents?.consistency || 85,
-                          validity: file.qualityComponents?.validity || 80,
-                          uniqueness: file.qualityComponents?.uniqueness || 75,
-                          timeliness: file.qualityComponents?.timeliness || 90
+                          completeness: file.quality_components?.completeness || 95,
+                          consistency: file.quality_components?.consistency || 85,
+                          validity: file.quality_components?.validity || 80,
+                          uniqueness: file.quality_components?.uniqueness || 75,
+                          timeliness: file.quality_components?.timeliness || 90
                         }}
                         position="top"
                         animated={true}
                       >
-                        <span className={`stat-value quality-score ${getQualityClass(file.qualityScore)}`}>
-                          {file.qualityScore}%
+                        <span className={`stat-value quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
+                          {parseFloat(file.quality_score).toFixed(1)}%
                         </span>
                       </QualityTooltip>
                     </div>
                   </div>
                   
-                  <div className="file-tags">
-                    {file.tags.map((tag, index) => (
-                      <span key={index} className="tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  
                   <div className="file-footer">
-                    <div className="file-owner">
-                      <span className="owner-label">Owner:</span>
-                      <span className="owner-value">{file.owner}</span>
-                    </div>
-                    
                     <div className="file-actions">
                       <button 
-                        className="btn"
+                        className="btn btn-primary"
                         onClick={() => handleFileSelect(file)}
                       >
-                        Select
+                        View Details
+                      </button>
+                      <button 
+                        className="btn btn-danger"
+                        onClick={() => handleDelete(file)}
+                        disabled={deletingFileId === file.file_id}
+                      >
+                        {deletingFileId === file.file_id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
                   </div>

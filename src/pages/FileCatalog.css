@@ -188,10 +188,47 @@
 
 .file-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding-top: 15px;
   border-top: 1px solid var(--mid-gray);
+}
+
+.file-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.file-actions .btn {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.file-actions .btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.file-actions .btn-primary:hover:not(:disabled) {
+  background-color: #3a75b8;
+}
+
+.file-actions .btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.file-actions .btn-danger:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.file-actions .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .file-owner {
