@@ -25,6 +25,7 @@ router.get('/', async (req, res) => {
         // Include non-sensitive config fields
         connection_name: config.connection_name || config.name || conn.name,
         connection_type: config.connection_type || conn.type,
+        connection_direction: config.connection_direction || 'source',
         // Connection type specific fields (based on connection types)
         region: config.region,
         bucket_name: config.bucket_name,
@@ -74,6 +75,7 @@ router.get('/:id', async (req, res) => {
       // Include non-sensitive config fields
       connection_name: config.connection_name || config.name || connection.name,
       connection_type: config.connection_type || connection.type,
+      connection_direction: config.connection_direction || 'source',
       // Connection type specific fields (similar to above)
       region: config.region,
       bucket_name: config.bucket_name,
@@ -139,6 +141,7 @@ router.post('/', async (req, res) => {
       ...rest,
       connection_name: config.connection_name || config.name || newConnection.name,
       connection_type: config.connection_type || newConnection.type,
+      connection_direction: config.connection_direction || 'source',
       // Other non-sensitive fields
     };
     
@@ -181,6 +184,7 @@ router.put('/:id', async (req, res) => {
       ...rest,
       connection_name: config.connection_name || config.name || updatedConnection.name,
       connection_type: config.connection_type || updatedConnection.type,
+      connection_direction: config.connection_direction || 'source',
       // Other non-sensitive fields
     };
     
