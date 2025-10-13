@@ -440,7 +440,7 @@ print(json.dumps(result))
         col.max_frequency || null,
         col.min_is_frequent !== undefined && col.min_is_frequent !== null ? col.min_is_frequent : null,
         col.max_is_frequent !== undefined && col.max_is_frequent !== null ? col.max_is_frequent : null,
-        col.patterns && col.patterns.length > 0 ? col.patterns : null
+        col.patterns && col.patterns.length > 0 ? JSON.stringify(col.patterns) : null
       ]);
     }
   }
