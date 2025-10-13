@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import FilePreview from '../components/FilePreview';
-import { uploadFile, testApiConnection } from '../api/fileService';
+import DuplicateFileModal from '../components/DuplicateFileModal';
+import { uploadFile, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import './FileUpload.css';
@@ -13,6 +14,10 @@ function FileUpload() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [apiStatus, setApiStatus] = useState({ checked: false, status: null });
   const [diagnosticInfo, setDiagnosticInfo] = useState('');
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateFileInfo, setDuplicateFileInfo] = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingProgressHandler, setPendingProgressHandler] = useState(null);
   const navigate = useNavigate();
   const { hasWritePermission } = useAuth();
   
@@ -90,6 +95,34 @@ function FileUpload() {
   
   const handleFileDrop = async (file, progressHandler) => {
     try {
+      setDiagnosticInfo(`Checking for duplicate file: ${file.name}...\n`);
+      setUploadStatus('checking');
+      
+      // Check for duplicate file first
+      const duplicateCheck = await checkDuplicateFile(file);
+      
+      if (duplicateCheck.isDuplicate) {
+        // Show duplicate modal
+        setDuplicateFileInfo(duplicateCheck.existingFile);
+        setPendingFile(file);
+        setPendingProgressHandler(() => progressHandler);
+        setShowDuplicateModal(true);
+        setUploadStatus(null);
+        return;
+      }
+      
+      // If not duplicate, proceed with upload
+      await proceedWithUpload(file, progressHandler);
+    } catch (error) {
+      console.error('Error checking for duplicate or uploading file:', error);
+      setDiagnosticInfo(prev => prev + `Error: ${error.message}\n`);
+      setUploadStatus('error');
+      throw error;
+    }
+  };
+
+  const proceedWithUpload = async (file, progressHandler) => {
+    try {
       setDiagnosticInfo(`Starting file upload for ${file.name} (${file.size} bytes, type: ${file.type})...\n`);
       setUploadStatus('uploading');
       
@@ -133,6 +166,74 @@ function FileUpload() {
       throw error;
     }
   };
+
+  const handleReplaceFile = async () => {
+    setShowDuplicateModal(false);
+    
+    // Guard against null pendingFile
+    if (!pendingFile || !pendingProgressHandler) {
+      setDiagnosticInfo(prev => prev + `Error: No pending file to upload\n`);
+      setUploadStatus('error');
+      return;
+    }
+    
+    try {
+      // Upload new file FIRST
+      await proceedWithUpload(pendingFile, pendingProgressHandler);
+      
+      // Only delete existing file after successful upload
+      try {
+        await deleteFile(duplicateFileInfo.fileId);
+        setDiagnosticInfo(prev => prev + `Replaced existing file: ${duplicateFileInfo.filename}\n`);
+      } catch (deleteError) {
+        // Log deletion error but don't fail the upload since new file is already uploaded
+        console.error('Error deleting existing file:', deleteError);
+        setDiagnosticInfo(prev => prev + `Warning: Could not delete existing file: ${deleteError.message}\n`);
+      }
+      
+      // Clean up state after successful replace
+      setPendingFile(null);
+      setPendingProgressHandler(null);
+      setDuplicateFileInfo(null);
+    } catch (error) {
+      console.error('Error uploading replacement file:', error);
+      setDiagnosticInfo(prev => prev + `Error uploading replacement file: ${error.message}\n`);
+      setUploadStatus('error');
+    }
+  };
+
+  const handleKeepBoth = async () => {
+    setShowDuplicateModal(false);
+    
+    // Guard against null pendingFile
+    if (!pendingFile || !pendingProgressHandler) {
+      setDiagnosticInfo(prev => prev + `Error: No pending file to upload\n`);
+      setUploadStatus('error');
+      return;
+    }
+    
+    try {
+      // Simply proceed with upload (keeps both files)
+      await proceedWithUpload(pendingFile, pendingProgressHandler);
+      
+      // Clean up state after successful upload
+      setPendingFile(null);
+      setPendingProgressHandler(null);
+      setDuplicateFileInfo(null);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setDiagnosticInfo(prev => prev + `Error uploading file: ${error.message}\n`);
+      setUploadStatus('error');
+    }
+  };
+
+  const handleCancelUpload = () => {
+    setShowDuplicateModal(false);
+    setPendingFile(null);
+    setPendingProgressHandler(null);
+    setDuplicateFileInfo(null);
+    setUploadStatus(null);
+  };
   
   const handleViewProfile = () => {
     if (uploadedFile && uploadedFile.fileId) {
@@ -150,6 +251,15 @@ function FileUpload() {
   return (
     <div className="file-upload-container">
       <h1>Upload File</h1>
+      
+      {showDuplicateModal && duplicateFileInfo && (
+        <DuplicateFileModal
+          existingFile={duplicateFileInfo}
+          onReplace={handleReplaceFile}
+          onKeepBoth={handleKeepBoth}
+          onCancel={handleCancelUpload}
+        />
+      )}
       
       <Card>
         <div className="upload-instructions">

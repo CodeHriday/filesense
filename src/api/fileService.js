@@ -95,6 +95,40 @@ export const getFileQuality = async (fileId) => {
 };
 
 /**
+ * Check if a file is a duplicate based on its hash
+ */
+export const checkDuplicateFile = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axios.post(`${API_URL}/files/check-duplicate`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error checking for duplicate file:', error);
+    throw new Error(error.response?.data?.message || 'Failed to check for duplicate file');
+  }
+};
+
+/**
+ * Delete a file by ID
+ */
+export const deleteFile = async (fileId) => {
+  try {
+    const response = await axios.delete(`${API_URL}/files/${fileId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting file ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to delete file');
+  }
+};
+
+/**
  * Upload a file with progress tracking
  */
 export const uploadFile = async (file, progressCallback) => {
