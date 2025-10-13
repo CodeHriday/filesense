@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -39,6 +39,12 @@ export const FileCatalog = ({ onFileSelect }) => {
     refetchOnWindowFocus: false,  // Don't refetch when window regains focus
     staleTime: 5 * 60 * 1000,     // Consider data fresh for 5 minutes
   });
+
+  // Auto-refresh file catalog when navigating to this page
+  useEffect(() => {
+    // Refetch the file catalog to show newly uploaded files
+    refetch();
+  }, []); // Empty dependency array means this runs once when component mounts
   
   // File delete mutation
   const deleteFileMutation = useFileDelete({
