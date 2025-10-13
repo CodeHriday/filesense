@@ -1309,78 +1309,93 @@ const Connections = () => {
                   </div>
                 </>
               ) : (
-                <div className="connections-grid">
-                  {filteredConnections.map(connection => (
-                    <Card key={connection.id} className="connection-card">
-                      <div className="connection-header">
-                        {renderConnectionIcon(connection.connection_type || connection.type)}
-                        <div className="connection-title">
-                          {/* Check if connection is from another source application */}
-                          {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
-                            <div className="shared-indicator" title="Shared with Transform">
-                              <FiLink className="shared-icon" />
+                <div className="connections-table-container">
+                  <table className="connections-table">
+                    <thead>
+                      <tr>
+                        <th className="col-icon"></th>
+                        <th className="col-name">Connection Name</th>
+                        <th className="col-type">Type</th>
+                        <th className="col-details">Details</th>
+                        <th className="col-last-used">Last Used</th>
+                        <th className="col-actions">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredConnections.map(connection => (
+                        <tr key={connection.id} className={`connection-row ${connection.connection_type || connection.type}`}>
+                          <td className="col-icon">
+                            {renderConnectionIcon(connection.connection_type || connection.type)}
+                          </td>
+                          <td className="col-name">
+                            <div className="connection-name-wrapper">
+                              {connection.connection_name}
+                              {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
+                                <span className="shared-badge" title="Shared with Transform">
+                                  <FiLink />
+                                </span>
+                              )}
                             </div>
-                          )}
-                          <h3>{connection.connection_name}</h3>
-                          <span className="connection-type">
-                            {getConnectionTypeLabel(connection.connection_type)}
-                          </span>
-                        </div>
-                        <div className="connection-actions">
-                          {hasWritePermission('connections') && (
-                            <>
-                              <button 
-                                className="test-btn" 
-                                onClick={() => handleTestConnection(connection)}
-                                disabled={testingConnection === connection.id}
-                              >
-                                {testingConnection === connection.id ? 'Testing...' : 'Test'}
-                              </button>
-                              <button 
-                                className="action-btn edit-btn" 
-                                onClick={() => handleEdit(connection)}
-                                title="Edit connection"
-                              >
-                                <FiEdit2 />
-                              </button>
-                              <button 
-                                className="action-btn delete-btn" 
-                                onClick={() => handleDelete(connection.id)}
-                                title="Delete connection"
-                              >
-                                <FiTrash2 />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="connection-details">
-                        {connection.source_application && connection.source_application !== 'data_observatory' && (
-                          <div className="source-app">Source: {connection.source_application}</div>
-                        )}
-                        {formatConnectionDetails(connection)}
-                        
-                        {testResults[connection.id] && (
-                          <div className={`test-result ${testResults[connection.id].success ? 'success' : 'error'}`}>
-                            {testResults[connection.id].success ? (
-                              <><FiCheckCircle /> Connection is working</>
-                            ) : (
-                              <div className="error-message">{testResults[connection.id].message}</div>
+                            {connection.source_application && connection.source_application !== 'data_observatory' && (
+                              <div className="source-app-badge">Source: {connection.source_application}</div>
                             )}
-                          </div>
-                        )}
-                        
-                        <div className="connection-meta">
-                          <span className="last-used">
-                            Last used: {connection.last_used_at ? 
-                              new Date(connection.last_used_at).toLocaleString() : 
+                          </td>
+                          <td className="col-type">
+                            {getConnectionTypeLabel(connection.connection_type)}
+                          </td>
+                          <td className="col-details">
+                            <div className="connection-details-inline">
+                              {formatConnectionDetails(connection)}
+                            </div>
+                            {testResults[connection.id] && (
+                              <div className={`test-result ${testResults[connection.id].success ? 'success' : 'error'}`}>
+                                {testResults[connection.id].success ? (
+                                  <><FiCheckCircle /> Connection is working</>
+                                ) : (
+                                  <span className="error-message">{testResults[connection.id].message}</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="col-last-used">
+                            {connection.last_used_at ? 
+                              new Date(connection.last_used_at).toLocaleDateString() : 
                               'Never'}
-                          </span>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                          </td>
+                          <td className="col-actions">
+                            <div className="table-actions">
+                              {hasWritePermission('connections') && (
+                                <>
+                                  <button 
+                                    className="action-icon-btn test-btn" 
+                                    onClick={() => handleTestConnection(connection)}
+                                    disabled={testingConnection === connection.id}
+                                    title="Test connection"
+                                  >
+                                    {testingConnection === connection.id ? '...' : <FiCheckCircle />}
+                                  </button>
+                                  <button 
+                                    className="action-icon-btn edit-btn" 
+                                    onClick={() => handleEdit(connection)}
+                                    title="Edit connection"
+                                  >
+                                    <FiEdit2 />
+                                  </button>
+                                  <button 
+                                    className="action-icon-btn delete-btn" 
+                                    onClick={() => handleDelete(connection.id)}
+                                    title="Delete connection"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </>
