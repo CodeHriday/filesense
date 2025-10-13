@@ -83,6 +83,11 @@ def profile_columns(file_path, file_type):
                     stats["least_frequent_value"] = str(value_counts.index[-1])
                     stats["least_frequent_count"] = int(value_counts.iloc[-1])
             
+            # Detect patterns for this column
+            patterns = detect_column_patterns(df[col])
+            if patterns:
+                stats["patterns"] = patterns
+            
             column_stats.append(stats)
         
         return {"columns": column_stats}
