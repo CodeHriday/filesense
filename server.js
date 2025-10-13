@@ -850,6 +850,40 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
   }
 });
 
+// File delete endpoint
+app.delete('/api/files/:fileId', invalidateCache('cache:*:*files*'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if file exists
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Delete file columns first (foreign key constraint)
+    await dbPool.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
+    
+    // Delete quality checks
+    await dbPool.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
+    
+    // Delete the file record
+    await dbPool.query('DELETE FROM files WHERE file_id = $1', [fileId]);
+    
+    logger.info('File deleted successfully', { fileId });
+    
+    res.json({ 
+      success: true, 
+      message: 'File deleted successfully',
+      fileId 
+    });
+  } catch (err) {
+    logger.error('Error deleting file', { error: err.message, fileId: req.params.fileId });
+    res.status(500).json({ error: 'Failed to delete file' });
+  }
+});
+
 // File upload endpoint with async queue processing
 app.post('/api/files/upload', invalidateCache('cache:*:*files*'), uploadLimiter, upload.single('file'), validateRequest(fileUploadSchema), async (req, res) => {
   try {
