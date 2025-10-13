@@ -104,6 +104,16 @@ function DataProfile() {
               <p>Age</p>
             </div>
           </Card>
+          
+          <Card className="file-stat-card">
+            <div className="stat-icon duplicates-icon">
+              <FiAlertTriangle />
+            </div>
+            <div className="stat-details">
+              <h3>{formatNumber(file.duplicate_records_count || 0)}</h3>
+              <p>Duplicate Records ({formatDecimal(file.duplicate_records_percentage || 0, 1)}%)</p>
+            </div>
+          </Card>
         </div>
         
         <Card title="Column Details">
@@ -190,6 +200,7 @@ function DataProfile() {
               <tr>
                 <th>Column Name</th>
                 <th>Data Type</th>
+                <th>Pattern</th>
                 <th>Unique Values</th>
                 <th>Missing Values</th>
                 <th>Min/Least Frequent</th>
@@ -201,10 +212,22 @@ function DataProfile() {
                 const nullCount = column.missing || 0;
                 const missingPercentage = Math.round((nullCount / totalRows) * 100);
                 
+                // Format patterns for display
+                const formatPatterns = (patterns) => {
+                  if (!patterns || patterns.length === 0) return 'N/A';
+                  
+                  // Show top 2 patterns with their percentages
+                  const topPatterns = patterns.slice(0, 2);
+                  return topPatterns.map(p => 
+                    `${p.pattern} (${p.percentage}%)`
+                  ).join(', ');
+                };
+                
                 return (
                   <tr key={column.name}>
                     <td>{column.name}</td>
                     <td>{column.type}</td>
+                    <td className="pattern-cell">{formatPatterns(column.patterns)}</td>
                     <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>

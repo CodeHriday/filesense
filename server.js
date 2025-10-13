@@ -1176,6 +1176,7 @@ const { migrateTransformConnections } = require('./backend/migrations/migrateTra
 const addPerformanceIndexes = require('./backend/migrations/addPerformanceIndexes');
 const { addProfilingColumns } = require('./backend/migrations/addProfilingColumns');
 const { addDuplicateRecordsColumns } = require('./backend/migrations/addDuplicateRecordsColumns');
+const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1209,6 +1210,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Duplicate records columns migration completed');
+    
+    // Add patterns column migration
+    return addPatternsColumn(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Patterns column migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
@@ -1482,6 +1489,7 @@ app.get('/api/files/:fileId/profile', cacheMiddleware(600), async (req, res) => 
       max_frequency: col.max_frequency,
       min_is_frequent: col.min_is_frequent,
       max_is_frequent: col.max_is_frequent,
+      patterns: col.patterns || [],
       top_values: col.top_values ? col.top_values : (
         // If top_values doesn't exist in the database, generate a simulated version
         // based on most_frequent_value and least_frequent_value

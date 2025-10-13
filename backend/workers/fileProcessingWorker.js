@@ -415,8 +415,9 @@ print(json.dumps(result))
         min_value_decimal, max_value_decimal,
         most_frequent_count, least_frequent_count,
         min_frequency, max_frequency,
-        min_is_frequent, max_is_frequent
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        min_is_frequent, max_is_frequent,
+        patterns
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     `;
 
     for (const col of schema) {
@@ -438,7 +439,8 @@ print(json.dumps(result))
         col.min_frequency || null,
         col.max_frequency || null,
         col.min_is_frequent !== undefined && col.min_is_frequent !== null ? col.min_is_frequent : null,
-        col.max_is_frequent !== undefined && col.max_is_frequent !== null ? col.max_is_frequent : null
+        col.max_is_frequent !== undefined && col.max_is_frequent !== null ? col.max_is_frequent : null,
+        col.patterns && col.patterns.length > 0 ? col.patterns : null
       ]);
     }
   }

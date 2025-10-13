@@ -1,6 +1,151 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from collections import Counter
+import re
+
+def detect_value_pattern(value):
+    """
+    Detect the structural pattern of a single value.
+    
+    Pattern character representations:
+    - 9: Numeric digit
+    - X: Any letter (case insensitive, or mixed case)
+    - A: Uppercase letter only
+    - a: Lowercase letter only
+    - $: Dollar sign
+    - Space: Space character
+    - \t: Tab character
+    - Other special chars: shown as-is
+    
+    Args:
+        value: The value to analyze
+    
+    Returns:
+        str: Pattern string representing the value structure
+    """
+    if pd.isna(value):
+        return None
+    
+    value_str = str(value)
+    if not value_str:
+        return None
+    
+    pattern = []
+    i = 0
+    
+    while i < len(value_str):
+        char = value_str[i]
+        
+        # Determine character type
+        if char.isdigit():
+            char_type = '9'
+        elif char.isalpha():
+            # For letters, we need to check for mixed case in the sequence
+            char_type = 'letter'  # Temporary marker
+        elif char == '$':
+            char_type = '$'
+        elif char == ' ':
+            char_type = ' '
+        elif char == '\t':
+            char_type = '\\t'
+        else:
+            # Special character - show as-is
+            pattern.append(char)
+            i += 1
+            continue
+        
+        # Count consecutive characters of the same general type
+        count = 1
+        while i + count < len(value_str):
+            next_char = value_str[i + count]
+            
+            # Check if next character is the same general type
+            if char_type == '9' and next_char.isdigit():
+                count += 1
+            elif char_type == 'letter' and next_char.isalpha():
+                count += 1
+            elif char_type == '$' and next_char == '$':
+                count += 1
+            elif char_type == ' ' and next_char == ' ':
+                count += 1
+            elif char_type == '\\t' and next_char == '\t':
+                count += 1
+            else:
+                break
+        
+        # For letters, determine if uppercase, lowercase, or mixed
+        if char_type == 'letter':
+            sequence = value_str[i:i+count]
+            has_upper = any(c.isupper() for c in sequence)
+            has_lower = any(c.islower() for c in sequence)
+            
+            if has_upper and has_lower:
+                char_type = 'X'  # Mixed case
+            elif has_upper:
+                char_type = 'A'  # All uppercase
+            else:
+                char_type = 'a'  # All lowercase
+        
+        # Format the pattern segment
+        if count <= 3:
+            # Show individually
+            pattern.append(char_type * count)
+        else:
+            # Show as type(count)
+            pattern.append(f"{char_type}({count})")
+        
+        i += count
+    
+    return ''.join(pattern)
+
+def detect_column_patterns(series, max_sample=1000, top_n=5):
+    """
+    Detect patterns in a column of data.
+    
+    Args:
+        series (pd.Series): Column data to analyze
+        max_sample (int): Maximum number of values to sample for pattern detection
+        top_n (int): Number of top patterns to return
+    
+    Returns:
+        list: List of dictionaries containing pattern, count, and percentage
+    """
+    # Sample data if too large
+    if len(series) > max_sample:
+        sample_series = series.dropna().sample(min(max_sample, len(series.dropna())))
+    else:
+        sample_series = series.dropna()
+    
+    if len(sample_series) == 0:
+        return []
+    
+    # Detect patterns for each value
+    patterns = []
+    for value in sample_series:
+        pattern = detect_value_pattern(value)
+        if pattern:
+            patterns.append(pattern)
+    
+    if not patterns:
+        return []
+    
+    # Count pattern frequencies
+    pattern_counts = Counter(patterns)
+    total_count = len(patterns)
+    
+    # Get top N patterns
+    top_patterns = pattern_counts.most_common(top_n)
+    
+    result = []
+    for pattern, count in top_patterns:
+        result.append({
+            "pattern": pattern,
+            "count": count,
+            "percentage": round((count / total_count) * 100, 2)
+        })
+    
+    return result
 
 def profile_dataframe(df):
     """
@@ -106,6 +251,10 @@ def profile_dataframe(df):
                 "least_frequent_value": least_frequent_value,
                 "least_frequent_count": least_frequent_count
             })
+        
+        # Detect patterns for all columns (both numeric and categorical)
+        patterns = detect_column_patterns(df[col], max_sample=1000, top_n=5)
+        col_stats["patterns"] = patterns
         
         profile["column_stats"][col] = col_stats
     
