@@ -81,7 +81,11 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
 
   // Handle loading state
   if (loadingRelatedDatasets) {
-    return <LoadingSpinner fullPage={true} />;
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   // Handle error state

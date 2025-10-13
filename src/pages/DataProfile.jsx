@@ -465,7 +465,9 @@ function DataProfile() {
   return (
     <div className="data-profile-container">
       {loading ? (
-        <LoadingSpinner />
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <LoadingSpinner />
+        </div>
       ) : error ? (
         <div className="error-message">
           <p>{error}</p>

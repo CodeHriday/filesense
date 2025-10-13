@@ -35,7 +35,11 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   };
   
   if (loading) {
-    return <LoadingSpinner fullPage={true} />;
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <LoadingSpinner />
+      </div>
+    );
   }
   
   if (error) {
