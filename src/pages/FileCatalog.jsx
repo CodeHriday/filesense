@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { FiEye, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
+import { bulkDeleteFiles } from '../api/fileService';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
@@ -19,6 +20,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [deletingFileId, setDeletingFileId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   
   // Using React Query to fetch file catalog
   const { 
@@ -46,6 +48,21 @@ export const FileCatalog = ({ onFileSelect }) => {
       setDeletingFileId(null);
       setShowDeleteModal(false);
       setFileToDelete(null);
+    }
+  });
+  
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: bulkDeleteFiles,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
+      setSelectedFiles([]);
+      setShowDeleteModal(false);
+      alert(`Successfully deleted ${data.deletedCount} file(s)`);
+    },
+    onError: (error) => {
+      alert(`Failed to delete files: ${error.message}`);
+      setShowDeleteModal(false);
     }
   });
   
@@ -81,12 +98,39 @@ export const FileCatalog = ({ onFileSelect }) => {
     if (fileToDelete) {
       setDeletingFileId(fileToDelete.file_id);
       deleteFileMutation.mutate(fileToDelete.file_id);
+    } else if (selectedFiles.length > 0) {
+      // Bulk delete
+      bulkDeleteMutation.mutate(selectedFiles);
     }
   };
 
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setFileToDelete(null);
+  };
+  
+  const handleSelectFile = (fileId) => {
+    setSelectedFiles(prev => {
+      if (prev.includes(fileId)) {
+        return prev.filter(id => id !== fileId);
+      } else {
+        return [...prev, fileId];
+      }
+    });
+  };
+  
+  const handleSelectAll = () => {
+    if (selectedFiles.length === filteredAndSortedFiles.length) {
+      setSelectedFiles([]);
+    } else {
+      setSelectedFiles(filteredAndSortedFiles.map(file => file.file_id));
+    }
+  };
+  
+  const handleBulkDelete = () => {
+    if (selectedFiles.length > 0) {
+      setShowDeleteModal(true);
+    }
   };
 
   const formatBytes = (bytes, decimals = 2) => {
@@ -214,6 +258,16 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
         
         <div className="filter-container">
+          {selectedFiles.length > 0 && (
+            <button 
+              className="bulk-delete-button"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <FiTrash2 /> Delete Selected ({selectedFiles.length})
+            </button>
+          )}
+          
           <select 
             value={selectedType}
             onChange={handleTypeChange}
@@ -256,6 +310,14 @@ export const FileCatalog = ({ onFileSelect }) => {
           <table className="file-catalog-table">
             <thead>
               <tr>
+                <th className="checkbox-cell">
+                  <input
+                    type="checkbox"
+                    checked={selectedFiles.length === filteredAndSortedFiles.length && filteredAndSortedFiles.length > 0}
+                    onChange={handleSelectAll}
+                    title="Select all files"
+                  />
+                </th>
                 <th>File Name</th>
                 <th>Type</th>
                 <th>Size</th>
@@ -269,6 +331,14 @@ export const FileCatalog = ({ onFileSelect }) => {
             <tbody>
               {filteredAndSortedFiles.map(file => (
                 <tr key={file.file_id}>
+                  <td className="checkbox-cell">
+                    <input
+                      type="checkbox"
+                      checked={selectedFiles.includes(file.file_id)}
+                      onChange={() => handleSelectFile(file.file_id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </td>
                   <td className="file-name-cell">
                     <span className="file-icon">
                       {file.file_type === 'csv' ? '📄' : 
@@ -331,8 +401,8 @@ export const FileCatalog = ({ onFileSelect }) => {
         isOpen={showDeleteModal}
         onClose={closeDeleteModal}
         onConfirm={confirmDelete}
-        fileName={fileToDelete?.filename}
-        isDeleting={deletingFileId === fileToDelete?.file_id}
+        fileName={fileToDelete ? fileToDelete.filename : `${selectedFiles.length} files`}
+        isDeleting={fileToDelete ? (deletingFileId === fileToDelete.file_id) : bulkDeleteMutation.isPending}
       />
     </div>
   );

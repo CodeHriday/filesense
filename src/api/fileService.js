@@ -129,6 +129,19 @@ export const deleteFile = async (fileId) => {
 };
 
 /**
+ * Delete multiple files by IDs
+ */
+export const bulkDeleteFiles = async (fileIds) => {
+  try {
+    const response = await axios.post(`${API_URL}/files/bulk-delete`, { fileIds });
+    return response.data;
+  } catch (error) {
+    console.error('Error bulk deleting files:', error);
+    throw new Error(error.response?.data?.message || 'Failed to delete files');
+  }
+};
+
+/**
  * Upload a file with progress tracking
  */
 export const uploadFile = async (file, progressCallback) => {

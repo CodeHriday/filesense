@@ -904,6 +904,78 @@ app.delete('/api/files/:fileId', invalidateCache('cache:*:*files*'), async (req,
   }
 });
 
+// Bulk delete files endpoint
+app.post('/api/files/bulk-delete', invalidateCache('cache:*:*files*'), async (req, res) => {
+  const { fileIds } = req.body;
+  const client = await dbPool.connect();
+  
+  if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+    return res.status(400).json({ error: 'No file IDs provided' });
+  }
+  
+  try {
+    // Begin transaction for atomic deletion
+    await client.query('BEGIN');
+    
+    let deletedCount = 0;
+    const errors = [];
+    
+    for (const fileId of fileIds) {
+      try {
+        // Check if file exists
+        const fileResult = await client.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+        
+        if (fileResult.rows.length === 0) {
+          errors.push({ fileId, error: 'File not found' });
+          continue;
+        }
+        
+        // Delete all related records (cascade deletion)
+        await client.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
+        await client.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
+        await client.query('DELETE FROM file_schedules WHERE file_id = $1', [fileId]);
+        await client.query('DELETE FROM file_history WHERE file_id = $1', [fileId]);
+        await client.query('DELETE FROM alert_history WHERE file_id = $1', [fileId]);
+        await client.query('DELETE FROM quality_reports WHERE file_id = $1', [fileId]);
+        await client.query('DELETE FROM user_badges WHERE file_id = $1', [fileId]);
+        await client.query('DELETE FROM transformation_outputs WHERE file_id = $1', [fileId]);
+        
+        // Delete the file record itself
+        await client.query('DELETE FROM files WHERE file_id = $1', [fileId]);
+        
+        deletedCount++;
+      } catch (err) {
+        errors.push({ fileId, error: err.message });
+      }
+    }
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
+    logger.info('Bulk delete completed', { 
+      totalRequested: fileIds.length, 
+      deletedCount, 
+      errorCount: errors.length 
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted ${deletedCount} file(s)`,
+      deletedCount,
+      totalRequested: fileIds.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (err) {
+    // Rollback on error
+    await client.query('ROLLBACK');
+    logger.error('Error bulk deleting files', { error: err.message, fileIds });
+    res.status(500).json({ error: 'Failed to bulk delete files' });
+  } finally {
+    // Always release the client back to the pool
+    client.release();
+  }
+});
+
 // File duplicate check endpoint
 app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), async (req, res) => {
   try {
