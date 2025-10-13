@@ -59,13 +59,24 @@ def process_file(file_path, file_type):
         with MemoryGuard(file_size_mb=file_size_mb):
             reader = StreamingFileReader(file_path, chunk_size=10000)
             
-            # Process first chunk to get schema
+            # Process first chunk to get schema and preview
             first_chunk = None
             total_rows = 0
+            preview_rows = []
             
             for i, chunk in enumerate(reader.stream_chunks()):
                 if i == 0:
                     first_chunk = chunk
+                    # Generate preview data from first chunk (limit to 100 rows)
+                    preview_limit = min(100, len(chunk))
+                    preview_df = chunk.head(preview_limit)
+                    # Convert to list of dictionaries for JSON serialization
+                    preview_rows = preview_df.to_dict('records')
+                    # Convert any NaN values to None for JSON
+                    for row in preview_rows:
+                        for key in row:
+                            if row[key] is not None and str(row[key]) == 'nan':
+                                row[key] = None
                 total_rows += len(chunk)
             
             # Extract schema from first chunk
@@ -87,7 +98,8 @@ def process_file(file_path, file_type):
                 "processing_time_seconds": 0,
                 "size_bytes": os.path.getsize(file_path),
                 "encoding": encoding,
-                "delimiter": delimiter
+                "delimiter": delimiter,
+                "preview_data": preview_rows
             }
             
     except Exception as e:
@@ -97,7 +109,8 @@ def process_file(file_path, file_type):
             "column_count": 0,
             "schema": [],
             "encoding": encoding,
-            "delimiter": delimiter
+            "delimiter": delimiter,
+            "preview_data": []
         }
 
 if __name__ == "__main__":

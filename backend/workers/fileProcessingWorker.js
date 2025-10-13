@@ -189,10 +189,11 @@ class FileProcessingWorker {
    * Save file metadata to database
    */
   async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId) {
-    // Build metadata object with encoding and delimiter
+    // Build metadata object with encoding, delimiter, and preview data
     const metadata = {
       encoding: fileInfo.encoding || null,
-      delimiter: fileInfo.delimiter || null
+      delimiter: fileInfo.delimiter || null,
+      preview_data: fileInfo.preview_data || []
     };
 
     const query = `

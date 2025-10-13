@@ -797,7 +797,7 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     const { fileId } = req.params;
     const { limit = 100 } = req.query;
     
-    // Get file details to determine type and path
+    // Get file details with metadata
     const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
@@ -806,24 +806,16 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     
     const file = fileResult.rows[0];
     
-    // Handle metadata whether it's a string or already an object
-    let filePath;
+    // Parse metadata to get preview data
+    let metadata = {};
     if (typeof file.metadata === 'string') {
-      // If metadata is a string, parse it
-      filePath = JSON.parse(file.metadata).path;
+      try {
+        metadata = JSON.parse(file.metadata);
+      } catch (e) {
+        logger.error('Failed to parse file metadata', { fileId, error: e.message });
+      }
     } else if (typeof file.metadata === 'object' && file.metadata !== null) {
-      // If metadata is already an object, use it directly
-      filePath = file.metadata.path;
-    } else {
-      // Handle the case where metadata is invalid
-      console.error('Invalid metadata format:', file.metadata);
-      return res.status(500).json({ error: 'Invalid file metadata format' });
-    }
-    
-    const fileType = file.file_type;
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found on disk' });
+      metadata = file.metadata;
     }
     
     // Get column information
@@ -833,177 +825,22 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     );
     const columns = columnsResult.rows.map(col => ({ name: col.column_name, type: col.column_type }));
     
-    let previewData = [];
+    // Get preview data from metadata (stored during processing)
+    const previewData = metadata.preview_data || [];
     const rowLimit = parseInt(limit) || 100;
     
-    // For CSV files, use streaming to get the first N rows
-    if (fileType === 'csv') {
-      const fileStream = fs.createReadStream(filePath, { encoding: 'utf8' });
-      let buffer = '';
-      let rowCount = 0;
-      let header = [];
-      
-      await new Promise((resolve, reject) => {
-        fileStream.on('data', (chunk) => {
-          buffer += chunk;
-          const lines = buffer.split('\n');
-          
-          // Keep the last partial line in the buffer
-          buffer = lines.pop();
-          
-          if (lines.length > 0 && rowCount === 0) {
-            // Process header
-            header = lines[0].split(',').map(h => h.trim());
-            rowCount++;
-            
-            // Process data rows
-            for (let i = 1; i < lines.length && rowCount < rowLimit + 1; i++) {
-              if (lines[i].trim()) {
-                const values = lines[i].split(',').map(v => v.trim());
-                const row = {};
-                
-                // Map values to column names
-                header.forEach((colName, idx) => {
-                  row[colName] = idx < values.length ? values[idx] : null;
-                });
-                
-                previewData.push(row);
-                rowCount++;
-              }
-            }
-          } else {
-            // Process additional data rows
-            for (let i = 0; i < lines.length && rowCount < rowLimit + 1; i++) {
-              if (lines[i].trim()) {
-                const values = lines[i].split(',').map(v => v.trim());
-                const row = {};
-                
-                // Map values to column names
-                header.forEach((colName, idx) => {
-                  row[colName] = idx < values.length ? values[idx] : null;
-                });
-                
-                previewData.push(row);
-                rowCount++;
-              }
-            }
-          }
-          
-          // If we've reached the limit, end the stream
-          if (rowCount >= rowLimit + 1) {
-            fileStream.destroy();
-            resolve();
-          }
-        });
-        
-        fileStream.on('end', () => {
-          // Process any remaining buffer content
-          if (buffer.trim() && rowCount < rowLimit + 1) {
-            const values = buffer.split(',').map(v => v.trim());
-            const row = {};
-            
-            // Map values to column names
-            header.forEach((colName, idx) => {
-              row[colName] = idx < values.length ? values[idx] : null;
-            });
-            
-            previewData.push(row);
-          }
-          resolve();
-        });
-        
-        fileStream.on('error', (err) => {
-          reject(err);
-        });
-      });
-    } 
-    // For JSON files
-    else if (fileType === 'json') {
-      // Check file size first
-      const stats = fs.statSync(filePath);
-      const fileSize = stats.size;
-      
-      // For large files, use streaming
-      if (fileSize > 10 * 1024 * 1024) { // 10MB
-        const fileStream = fs.createReadStream(filePath, { 
-          encoding: 'utf8',
-          start: 0,
-          end: Math.min(fileSize, 1024 * 1024) // First 1MB or less
-        });
-        
-        let buffer = '';
-        
-        await new Promise((resolve, reject) => {
-          fileStream.on('data', (chunk) => {
-            buffer += chunk;
-            
-            // Try to parse what we have so far
-            try {
-              if (buffer.trimStart().startsWith('[')) {
-                // Add closing brackets if needed
-                let tempBuffer = buffer;
-                
-                // Count opening and closing brackets
-                const openBrackets = (tempBuffer.match(/\[/g) || []).length;
-                const closeBrackets = (tempBuffer.match(/\]/g) || []).length;
-                
-                // Add missing closing brackets
-                if (openBrackets > closeBrackets) {
-                  tempBuffer += ']'.repeat(openBrackets - closeBrackets);
-                }
-                
-                try {
-                  const partialData = JSON.parse(tempBuffer);
-                  if (Array.isArray(partialData) && partialData.length > 0) {
-                    // Take only what we need for the preview
-                    previewData = partialData.slice(0, rowLimit);
-                    
-                    // If we have enough data, end the stream
-                    fileStream.destroy();
-                    resolve();
-                  }
-                } catch (e) {
-                  // Continue collecting data
-                }
-              }
-            } catch (e) {
-              // Continue reading
-            }
-          });
-          
-          fileStream.on('end', () => {
-            resolve();
-          });
-          
-          fileStream.on('error', (err) => {
-            reject(err);
-          });
-        });
-      } else {
-        // For smaller files, read the whole file
-        try {
-          const fileContent = fs.readFileSync(filePath, 'utf8');
-          const jsonData = JSON.parse(fileContent);
-          
-          if (Array.isArray(jsonData)) {
-            previewData = jsonData.slice(0, rowLimit);
-          }
-        } catch (err) {
-          console.error('Error reading JSON file for preview:', err);
-          return res.status(500).json({ error: 'Failed to parse JSON file' });
-        }
-      }
-    }
+    // Limit preview data to requested rows
+    const limitedPreviewData = previewData.slice(0, rowLimit);
     
     res.json({
       fileId,
       columns,
-      rows: previewData,
+      rows: limitedPreviewData,
       totalRows: file.row_count,
       preview: true
     });
   } catch (err) {
-    console.error('Error generating file preview:', err);
+    logger.error('Error generating file preview', { error: err.message, fileId: req.params.fileId });
     res.status(500).json({ error: 'Failed to generate file preview' });
   }
 });
