@@ -81,7 +81,7 @@ def profile_dataframe(df):
         # Add categorical-specific stats
         else:
             value_counts = df[col].value_counts(normalize=True).head(5).to_dict()
-            value_counts_abs = df[col].value_counts().head(5).to_dict()
+            value_counts_abs = df[col].value_counts()  # Full counts, not just top 5
             
             # Get most and least frequent values
             most_frequent_value = None
@@ -90,12 +90,13 @@ def profile_dataframe(df):
             least_frequent_count = 0
             
             if len(value_counts_abs) > 0:
-                most_frequent_value = str(list(value_counts_abs.keys())[0])
-                most_frequent_count = int(list(value_counts_abs.values())[0])
+                # Most frequent is the first item
+                most_frequent_value = str(value_counts_abs.index[0])
+                most_frequent_count = int(value_counts_abs.iloc[0])
                 
-                if len(value_counts_abs) > 1:
-                    least_frequent_value = str(list(value_counts_abs.keys())[-1])
-                    least_frequent_count = int(list(value_counts_abs.values())[-1])
+                # Least frequent is the last item (smallest count)
+                least_frequent_value = str(value_counts_abs.index[-1])
+                least_frequent_count = int(value_counts_abs.iloc[-1])
             
             col_stats.update({
                 "top_values": {str(k): float(v) for k, v in value_counts.items()},

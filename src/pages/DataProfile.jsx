@@ -208,14 +208,14 @@ function DataProfile() {
                     <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>
-                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
+                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64') 
                       ? column.min_is_frequent 
                         ? `${formatDecimal(column.min, 2)} (occurs ${column.min_frequency || 1}x)` 
                         : formatDecimal(column.min, 2)
                       : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
                     </td>
                     <td>
-                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') 
+                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64') 
                       ? column.max_is_frequent 
                         ? `${formatDecimal(column.max, 2)} (occurs ${column.max_frequency || 1}x)` 
                         : formatDecimal(column.max, 2)
@@ -252,7 +252,7 @@ function DataProfile() {
                     <div className="column-stat-value">{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</div>
                   </div>
                   {/* Only show min/max for numeric types */}
-                  {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float') && (
+                  {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64') && (
                     <>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
@@ -272,8 +272,8 @@ function DataProfile() {
                       </div>
                     </>
                   )}
-                  {/* For string types, show different stats */}
-                  {column.type === 'string' && (
+                  {/* For string/object types, show different stats */}
+                  {(column.type === 'string' || column.type === 'object') && (
                     <>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Most Frequent:</div>
@@ -295,7 +295,7 @@ function DataProfile() {
                   <div className="histogram-container">
                     <div className="histogram-title">Value Distribution</div>
                     <div className="pseudo-histogram">
-                      {column.type === 'integer' || column.type === 'decimal' || column.type === 'number' ? (
+                      {column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64' ? (
                         // Create a data-based histogram for numeric data with min-max labels
                         <div className="numeric-distribution">
                           <div className="value-labels">
