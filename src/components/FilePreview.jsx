@@ -121,7 +121,9 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   // Check the structure of the data
   const rows = previewData.rows || previewData.data || [];
   const totalRows = previewData.totalRows || previewData.total_rows || rows.length;
-  const columnNames = previewData.columns ? 
+  
+  // Get column names - if columns array is empty or undefined, extract from first row
+  const columnNames = (previewData.columns && previewData.columns.length > 0) ? 
                       previewData.columns.map(col => col.name) : 
                       (rows.length > 0 ? Object.keys(rows[0]) : []);
   

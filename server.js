@@ -823,6 +823,11 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
       'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
       [fileId]
     );
+    
+    if (columnsResult.rows.length === 0) {
+      logger.warn('No columns found in file_columns table, will extract from preview data', { fileId });
+    }
+    
     const columns = columnsResult.rows.map(col => ({ name: col.column_name, type: col.column_type }));
     
     // Get preview data from metadata (stored during processing)
