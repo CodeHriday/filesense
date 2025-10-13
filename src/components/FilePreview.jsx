@@ -70,7 +70,9 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
     if (!columnData) return null;
     
     // Calculate quality score based on the existing formula components
-    const totalRows = previewData?.rows?.length || previewData?.data?.length || 100;
+    // Use the actual total rows from the dataset, not the preview length
+    const rows = previewData.rows || previewData.data || [];
+    const totalRows = previewData.totalRows || previewData.total_rows || rows.length;
     
     // Component weights from our quality formula
     const weights = {
@@ -81,14 +83,14 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
       timeliness: 0.10
     };
     
-    // Calculate component scores
+    // Calculate component scores - cap completeness at 100%
     const completeness = columnData.missing !== undefined ? 
-      ((totalRows - columnData.missing) / totalRows) * 100 : 100;
+      Math.min(((totalRows - columnData.missing) / totalRows) * 100, 100) : 100;
     
     // Calculate uniqueness only if it makes sense for this column
     // Higher uniqueness is better for ID columns, but not for category columns
     const uniqueness = columnData.unique !== undefined ? 
-      (columnData.unique / totalRows) * 100 : 100;
+      Math.min((columnData.unique / totalRows) * 100, 100) : 100;
     
     // For simplicity, assume validity and consistency are high if we don't have specific data
     const validity = 95;
