@@ -1,115 +1,115 @@
 .file-upload-container {
-  padding: 20px;
+  padding: var(--space-5);
 }
 
 .file-upload-container h1 {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .upload-instructions {
-  margin-bottom: 30px;
+  margin-bottom: var(--space-8);
 }
 
 .upload-instructions h2 {
-  font-size: 1.5rem;
-  margin-bottom: 10px;
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-2);
 }
 
 .upload-instructions p {
-  color: #555;
-  line-height: 1.5;
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
 }
 
 .access-denied-message {
-  background-color: #f8f9fa;
-  border: 1px dashed #ccc;
-  border-radius: 5px;
-  padding: 30px;
+  background-color: var(--bg-surface);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
   text-align: center;
-  margin: 20px 0;
+  margin: var(--space-5) 0;
 }
 
 .access-denied-message p {
-  color: #721c24;
-  font-size: 16px;
-  line-height: 1.5;
+  color: var(--color-error-dark);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   margin: 0;
 }
 
 .upload-success-actions {
   display: flex;
   justify-content: center;
-  gap: 15px;
-  margin-top: 20px;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
 }
 
 /* Debug section styles */
 .debug-section {
-  margin-top: 20px;
+  margin-top: var(--space-5);
 }
 
 .debug-section h2 {
-  font-size: 1.5rem;
-  margin-bottom: 15px;
-  color: #333;
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-4);
+  color: var(--text-primary);
 }
 
 .debug-section h3 {
-  font-size: 1.2rem;
-  margin: 15px 0 10px;
-  color: #555;
+  font-size: var(--text-xl);
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--text-secondary);
 }
 
 .debug-status {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
 
 .api-status {
-  font-weight: 500;
+  font-weight: var(--font-medium);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .status-badge {
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
 }
 
 .status-badge.connected {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: var(--color-success-light);
+  color: var(--color-success-dark);
 }
 
 .status-badge.error {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--color-error-light);
+  color: var(--color-error-dark);
 }
 
 .debug-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .diagnostic-info {
-  margin-top: 20px;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  padding: 15px;
+  margin-top: var(--space-5);
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
 }
 
 .diagnostic-info pre {
   white-space: pre-wrap;
-  font-family: monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
   max-height: 300px;
   overflow-y: auto;
 }

@@ -1,22 +1,25 @@
+/* Sidebar Component - Modern Design */
+
 .sidebar {
-  width: 250px;
-  min-width: 250px;
-  background-color: var(--card-bg-color);
-  border-right: 1px solid var(--border-color);
-  height: calc(100vh - 60px);
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-light);
+  height: calc(100vh - var(--header-height));
   position: fixed;
   overflow-y: auto;
   overflow-x: hidden;
-  top: 60px; /* Height of fixed header */
+  top: var(--header-height);
   bottom: 0;
   left: 0;
+  z-index: var(--z-base);
 }
 
 .sidebar-nav {
-  padding: 20px 0;
+  padding: var(--space-4) 0;
 }
 
-/* Custom scrollbar styling for WebKit browsers */
+/* Custom scrollbar styling */
 .sidebar::-webkit-scrollbar {
   width: 6px;
 }
@@ -26,16 +29,17 @@
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
+  background-color: var(--border-medium);
+  border-radius: var(--radius-full);
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: var(--border-dark);
 }
 
 .sidebar {
   scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
 }
 
 .sidebar-nav ul {
@@ -45,87 +49,104 @@
 }
 
 .sidebar-nav li {
-  margin-bottom: 5px;
+  margin-bottom: var(--space-1);
 }
 
 .sidebar-nav a {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
-  color: var(--text-color);
+  padding: var(--space-3) var(--space-5);
+  color: var(--text-secondary);
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all var(--transition-fast);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  border-left: 3px solid transparent;
+  margin: 0 var(--space-2);
+  border-radius: var(--radius-md);
 }
 
 .sidebar-nav a:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: var(--color-gray-50);
+  color: var(--text-primary);
 }
 
 .sidebar-nav a.active {
-  background-color: rgba(52, 152, 219, 0.1);
-  color: var(--primary-color);
-  border-left: 3px solid var(--primary-color);
+  background-color: var(--color-primary-50);
+  color: var(--color-primary);
+  border-left-color: var(--color-primary);
+  font-weight: var(--font-semibold);
 }
 
 .sidebar-nav .onboarding-button {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
+  padding: var(--space-3) var(--space-5);
   width: 100%;
   background: none;
   border: none;
-  color: var(--text-color);
+  color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: inherit;
-  font-size: inherit;
+  transition: all var(--transition-fast);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  border-left: 3px solid transparent;
+  margin: 0 var(--space-2);
+  border-radius: var(--radius-md);
 }
 
 .sidebar-nav .onboarding-button:hover {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: var(--color-gray-50);
+  color: var(--text-primary);
 }
 
 .sidebar-nav .onboarding-button .icon {
-  color: #4caf50;
+  color: var(--color-success);
 }
 
 .sidebar-nav .icon {
-  margin-right: 10px;
-  font-size: 1.1rem;
+  margin-right: var(--space-3);
+  font-size: 18px;
+  min-width: 18px;
 }
 
 .nav-divider {
-  padding: 12px 20px 5px;
-  margin-top: 15px;
-  border-top: 1px solid var(--border-color);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--border-light);
+}
+
+.nav-divider:first-child {
+  margin-top: 0;
+  border-top: none;
 }
 
 .nav-divider span {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  color: #888;
-  font-weight: 500;
-  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.05em;
 }
 
 /* External link styling */
 .sidebar-nav a.external-link {
-  color: #6366f1; /* BlumeETL branding color */
+  color: var(--color-teal);
   position: relative;
-  transition: all 0.2s ease;
 }
 
 .sidebar-nav a.external-link::after {
   content: "↗";
-  margin-left: 5px;
-  font-size: 14px;
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
   opacity: 0.7;
-  transition: transform 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .sidebar-nav a.external-link:hover {
-  background-color: rgba(99, 102, 241, 0.1); /* BlumeETL background with opacity */
+  background-color: var(--color-teal-light);
+  color: var(--color-teal-dark);
 }
 
 .sidebar-nav a.external-link:hover::after {
@@ -134,5 +155,60 @@
 }
 
 .sidebar-nav a.external-link .icon {
-  color: #6366f1; /* BlumeETL branding color */
+  color: var(--color-teal);
+}
+
+/* Collapsed sidebar for mobile */
+@media (max-width: 960px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--transition-base);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* Mobile menu toggle */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  border: none;
+  border-radius: var(--radius-full);
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  z-index: var(--z-modal);
+  transition: all var(--transition-base);
+}
+
+.sidebar-toggle:hover {
+  background-color: var(--color-primary-dark);
+  transform: scale(1.05);
+}
+
+@media (max-width: 960px) {
+  .sidebar-toggle {
+    display: flex;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .sidebar {
+    width: 280px;
+  }
+  
+  .sidebar-nav a,
+  .sidebar-nav .onboarding-button {
+    padding: var(--space-3) var(--space-4);
+  }
 }

@@ -2,12 +2,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-base);
   border: none;
   outline: none;
   text-decoration: none;
@@ -21,38 +21,38 @@
 
 /* Button variants */
 .btn-primary {
-  background-color: var(--primary-color, #3498db);
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-color-dark, #2980b9);
+  background-color: var(--color-primary-dark);
 }
 
 .btn-secondary {
-  background-color: #f8f9fa;
-  color: var(--text-color, #444);
-  border: 1px solid #ddd;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #e9ecef;
+  background-color: var(--color-gray-200);
 }
 
 /* Button sizes */
 .btn-small {
-  padding: 6px 12px;
-  font-size: 0.85rem;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
 }
 
 .btn-large {
-  padding: 10px 20px;
-  font-size: 1rem;
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--text-base);
 }
 
 /* Button with icon */
 .btn-with-icon {
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .btn-icon {

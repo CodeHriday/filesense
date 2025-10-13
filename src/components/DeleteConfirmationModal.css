@@ -1,24 +1,29 @@
+/* Delete Confirmation Modal - Modern Design */
+
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal-backdrop);
+  backdrop-filter: blur(2px);
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 0;
   max-width: 500px;
   width: 90%;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-xl);
   animation: modalSlideIn 0.2s ease-out;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
 }
 
 @keyframes modalSlideIn {
@@ -32,61 +37,110 @@
   }
 }
 
+.modal-header {
+  background: linear-gradient(135deg, var(--color-error) 0%, var(--color-error-dark) 100%);
+  color: var(--text-on-primary);
+  padding: var(--space-5) var(--space-6);
+}
+
 .modal-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-  color: #212529;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  margin: 0;
+  color: var(--text-on-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.modal-body {
+  padding: var(--space-6);
 }
 
 .modal-message {
-  font-size: 0.875rem;
-  color: #495057;
-  margin: 0 0 24px 0;
-  line-height: 1.5;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: var(--leading-relaxed);
 }
 
 .modal-message strong {
-  color: #212529;
-  font-weight: 600;
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
 }
 
 .modal-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: flex-end;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-light);
 }
 
 .modal-button {
-  padding: 8px 20px;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
-  min-width: 80px;
+  transition: all var(--transition-base);
+  min-width: 90px;
+  font-family: var(--font-primary);
 }
 
 .cancel-button {
-  background-color: #6c757d;
-  color: white;
+  background-color: var(--color-gray-600);
+  color: var(--text-on-primary);
 }
 
 .cancel-button:hover:not(:disabled) {
-  background-color: #5a6268;
+  background-color: var(--color-gray-700);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .delete-button {
-  background-color: #dc3545;
-  color: white;
+  background-color: var(--color-error);
+  color: var(--text-on-primary);
 }
 
 .delete-button:hover:not(:disabled) {
-  background-color: #c82333;
+  background-color: var(--color-error-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .modal-button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .modal-content {
+    width: 95%;
+  }
+  
+  .modal-header {
+    padding: var(--space-4) var(--space-5);
+  }
+  
+  .modal-title {
+    font-size: var(--text-lg);
+  }
+  
+  .modal-body {
+    padding: var(--space-5);
+  }
+  
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .modal-button {
+    width: 100%;
+  }
 }

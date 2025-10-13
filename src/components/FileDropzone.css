@@ -1,25 +1,25 @@
 .file-dropzone {
-  border: 2px dashed var(--border-color);
-  border-radius: 8px;
-  padding: 40px 20px;
+  border: 2px dashed var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-5);
   text-align: center;
-  transition: all 0.3s ease;
-  background-color: var(--background-color);
+  transition: var(--transition-base);
+  background-color: var(--bg-surface);
 }
 
 .file-dropzone.dragging {
-  border-color: var(--primary-color);
-  background-color: rgba(52, 152, 219, 0.05);
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-50);
 }
 
 .file-dropzone.status-success {
-  border-color: var(--success-color);
-  background-color: rgba(46, 204, 113, 0.05);
+  border-color: var(--color-success);
+  background-color: var(--color-success-light);
 }
 
 .file-dropzone.status-error {
-  border-color: var(--error-color);
-  background-color: rgba(231, 76, 60, 0.05);
+  border-color: var(--color-error);
+  background-color: var(--color-error-light);
 }
 
 .dropzone-content {
@@ -31,43 +31,43 @@
 
 .upload-icon {
   font-size: 3rem;
-  color: var(--primary-color);
-  margin-bottom: 15px;
+  color: var(--color-primary);
+  margin-bottom: var(--space-4);
 }
 
 .success-icon {
   font-size: 3rem;
-  color: var(--success-color);
-  margin-bottom: 15px;
+  color: var(--color-success);
+  margin-bottom: var(--space-4);
 }
 
 .error-icon {
   font-size: 3rem;
-  color: var(--error-color);
-  margin-bottom: 15px;
+  color: var(--color-error);
+  margin-bottom: var(--space-4);
 }
 
 .dropzone-text {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .dropzone-text p {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 
 .file-select-button {
   display: inline-block;
-  padding: 8px 16px;
-  background-color: var(--primary-color);
-  color: white;
-  border-radius: 4px;
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.3s;
+  font-weight: var(--font-medium);
+  transition: var(--transition-base);
 }
 
 .file-select-button:hover {
-  background-color: #2980b9;
+  background-color: var(--color-primary-dark);
 }
 
 .file-input {
@@ -75,13 +75,13 @@
 }
 
 .file-requirements {
-  margin-top: 20px;
-  font-size: 0.9rem;
-  color: #777;
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
 }
 
 .file-requirements p {
-  margin: 5px 0;
+  margin: var(--space-1) 0;
 }
 
 .upload-progress {
@@ -100,8 +100,8 @@
 }
 
 .file-name {
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
   margin: 0;
   text-align: left;
   white-space: nowrap;
@@ -111,25 +111,25 @@
 }
 
 .file-size {
-  font-size: 14px;
-  color: #666;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
   margin: 0;
 }
 
 .progress-container {
   width: 100%;
   height: 20px;
-  background-color: #e9ecef;
-  border-radius: 10px;
-  margin: 10px 0;
+  background-color: var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  margin: var(--space-2) 0;
   overflow: hidden;
   position: relative;
 }
 
 .progress-bar {
   height: 100%;
-  background-color: var(--primary-color);
-  border-radius: 10px;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-lg);
   transition: width 0.5s ease;
   display: flex;
   align-items: center;
@@ -140,17 +140,17 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  color: #000;
-  font-weight: 600;
-  font-size: 12px;
-  text-shadow: 0 0 2px white;
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-xs);
+  text-shadow: 0 0 2px var(--color-white);
 }
 
 .processing-step {
-  margin-top: 10px;
-  color: #333;
-  font-weight: 500;
-  font-size: 14px;
+  margin-top: var(--space-2);
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+  font-size: var(--text-sm);
 }
 
 @keyframes spin {
