@@ -3,7 +3,7 @@
 Column Profiling Script
 
 Called by Node.js worker to generate detailed column statistics.
-Returns min/max values and frequency information for each column.
+Returns min/max values, frequency information, and patterns for each column.
 
 Usage:
     python3 profile_columns.py <file_path> <file_type>
@@ -12,6 +12,7 @@ Usage:
 import sys
 import json
 import pandas as pd
+from data_profiling import detect_column_patterns
 
 def profile_columns(file_path, file_type):
     """Generate detailed column statistics"""
