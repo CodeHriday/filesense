@@ -216,97 +216,44 @@ function QualityChecks() {
                     <p>Total number of columns analyzed in the file.</p>
                   </Card>
                   
-                  {/* Best/Worst Column - Only show if columns have different completeness scores */}
-                  {(() => {
-                    if (!file?.columns || file.columns.length === 0) return null;
-                    
-                    // Find min and max null counts
-                    const minNullCount = Math.min(...file.columns.map(col => col.null_count || 0));
-                    const maxNullCount = Math.max(...file.columns.map(col => col.null_count || 0));
-                    
-                    // If all columns have the same null count, don't show best/worst
-                    if (minNullCount === maxNullCount) return null;
-                    
-                    return (
-                      <>
-                        {/* Best Column */}
-                        <Card className="metric-card">
-                          <div className="metric-header">
-                            <h3>
-                              Best Column
-                              <Tooltip
-                                content="The column with the highest completeness score (fewest null values)."
-                                position="top"
-                                type="info"
-                                animated={true}
-                              >
-                                <FiInfo className="info-icon" />
-                              </Tooltip>
-                            </h3>
-                            <Tooltip
-                              content="This column has 100% completeness with no missing values."
-                              position="left"
-                              type="success"
-                              animated={true}
-                            >
-                              <div className="metric-score good">
-                                {formatDecimal(100 - (minNullCount / file.row_count * 100), 1)}%
-                              </div>
-                            </Tooltip>
-                          </div>
-                          <p>
-                            {file.columns
-                              .filter(col => col.null_count === minNullCount)
-                              .slice(0, 1)
-                              .map(col => col.column_name)
-                              .join(', ')}
-                          </p>
-                          <p>Column with highest completeness score.</p>
-                        </Card>
+                  {/* Duplicate Records */}
+                  <Card className="metric-card">
+                    <div className="metric-header">
+                      <h3>
+                        Duplicate Records
+                        <Tooltip
+                          content="Number of exact duplicate rows found in the dataset."
+                          position="top"
+                          type="info"
+                          animated={true}
+                        >
+                          <FiInfo className="info-icon" />
+                        </Tooltip>
+                      </h3>
+                      {(() => {
+                        const duplicateCount = file.duplicate_records_count || 0;
+                        const duplicatePercentage = file.duplicate_records_percentage || 0;
+                        const scoreClass = duplicatePercentage === 0 ? 'good' : duplicatePercentage < 5 ? 'medium' : 'poor';
                         
-                        {/* Worst Column */}
-                        <Card className="metric-card">
-                          <div className="metric-header">
-                            <h3>
-                              Worst Column
-                              <Tooltip
-                                content="The column with the lowest completeness score (most missing values)."
-                                position="top"
-                                type="info"
-                                animated={true}
-                              >
-                                <FiInfo className="info-icon" />
-                              </Tooltip>
-                            </h3>
-                            {(() => {
-                              const completenessScore = 100 - (maxNullCount / file.row_count * 100);
-                              const nullPercent = (maxNullCount / file.row_count * 100).toFixed(1);
-                              return (
-                                <Tooltip
-                                  content={`This column is missing ${nullPercent}% of its values (${maxNullCount} out of ${file.row_count} rows).`}
-                                  position="left"
-                                  type={completenessScore >= 80 ? 'success' : completenessScore >= 60 ? 'warning' : 'error'}
-                                  animated={true}
-                                >
-                                  <div className={`metric-score ${completenessScore >= 80 ? 'good' : completenessScore >= 60 ? 'medium' : 'poor'}`}>
-                                    {formatDecimal(completenessScore, 1)}%
-                                  </div>
-                                </Tooltip>
-                              );
-                            })()}
-                          </div>
-                          <p>
-                            {file.columns
-                              .filter(col => col.null_count === maxNullCount)
-                              .slice(0, 1)
-                              .map(col => col.column_name)
-                              .join(', ')}
-                          </p>
-                          <p>Column with lowest completeness score.</p>
-                        </Card>
-                      </>
-                    );
-                  })()}
+                        return (
+                          <Tooltip
+                            content={`${duplicateCount} duplicate rows found (${duplicatePercentage}% of total records)`}
+                            position="left"
+                            type={duplicatePercentage === 0 ? 'success' : duplicatePercentage < 5 ? 'warning' : 'error'}
+                            animated={true}
+                          >
+                            <div className={`metric-score ${scoreClass}`}>
+                              {formatDecimal(duplicatePercentage, 1)}%
+                            </div>
+                          </Tooltip>
+                        );
+                      })()}
+                    </div>
+                    <p>
+                      {(file.duplicate_records_count || 0).toLocaleString()} duplicate{(file.duplicate_records_count || 0) !== 1 ? 's' : ''}
+                    </p>
+                    <p>Exact duplicate rows in the dataset.</p>
+                  </Card>
                 </div>
               </div>
               
