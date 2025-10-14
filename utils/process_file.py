@@ -12,6 +12,8 @@ Usage:
 import sys
 import os
 import json
+from decimal import Decimal
+import numpy as np
 
 # Handle imports from different paths
 try:
@@ -20,6 +22,20 @@ try:
 except ImportError:
     from utils.streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
     from utils.memory_monitor import MemoryGuard, check_before_processing
+
+
+class DecimalEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles Decimal and numpy types"""
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        if isinstance(o, np.integer):
+            return int(o)
+        if isinstance(o, np.floating):
+            return float(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return super(DecimalEncoder, self).default(o)
 
 def process_file(file_path, file_type):
     """Process file and return metadata"""
@@ -117,15 +133,15 @@ if __name__ == "__main__":
     import os
     
     if len(sys.argv) < 3:
-        print(json.dumps({"error": "Usage: process_file.py <file_path> <file_type>"}))
+        print(json.dumps({"error": "Usage: process_file.py <file_path> <file_type>"}, cls=DecimalEncoder))
         sys.exit(1)
     
     file_path = sys.argv[1]
     file_type = sys.argv[2]
     
     if not os.path.exists(file_path):
-        print(json.dumps({"error": f"File not found: {file_path}"}))
+        print(json.dumps({"error": f"File not found: {file_path}"}, cls=DecimalEncoder))
         sys.exit(1)
     
     result = process_file(file_path, file_type)
-    print(json.dumps(result))
+    print(json.dumps(result, cls=DecimalEncoder))
