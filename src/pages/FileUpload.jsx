@@ -247,6 +247,7 @@ function FileUpload() {
   const handleUploadAnother = () => {
     setUploadStatus(null);
     setUploadedFile(null);
+    setDropzoneKey(prev => prev + 1); // Reset FileDropzone component
   };
 
   return (

@@ -25,7 +25,7 @@ except ImportError:
 
 
 class DecimalEncoder(json.JSONEncoder):
-    """Custom JSON encoder that handles Decimal and numpy types"""
+    """Custom JSON encoder that handles Decimal, numpy, and pandas types"""
     def default(self, o):
         if isinstance(o, Decimal):
             return float(o)
@@ -35,6 +35,9 @@ class DecimalEncoder(json.JSONEncoder):
             return float(o)
         if isinstance(o, np.ndarray):
             return o.tolist()
+        # Handle pandas Timestamp (from Excel dates)
+        if hasattr(o, 'isoformat'):
+            return o.isoformat()
         return super(DecimalEncoder, self).default(o)
 
 def process_file(file_path, file_type):
