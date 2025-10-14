@@ -1267,6 +1267,10 @@ app.use('/api/cache', cacheRoutes);
 const dbtRoutes = require('./backend/routes/dbt');
 app.use('/api/dbt', authenticateToken, dbtRoutes);
 
+// Drop location routes (admin only)
+const dropLocationRoutes = require('./backend/routes/dropLocation');
+app.use('/api/drop-location', dropLocationRoutes);
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
