@@ -276,7 +276,7 @@ function Sidebar() {
             <li>
               <NavLink to="/transform" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiLayers className="icon" />
-                <span>Transform</span>
+                <span>UI Transformations</span>
               </NavLink>
             </li>
             

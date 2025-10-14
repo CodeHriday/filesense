@@ -40,7 +40,7 @@ The application utilizes a hybrid architecture:
   - `/api/dbt/discover` - Discover models from project
   - `/api/dbt/execute` - Execute DBT commands securely
   - `/api/dbt/executions` - Get execution history
-- **Navigation**: Added "Apply Transformations" section in sidebar with Transform and DBT Transformations subsections
+- **Navigation**: Added "Apply Transformations" section in sidebar with UI Transformations and DBT Transformations subsections
 
 **Security Enhancements**:
 - Whitelisted allowed DBT commands (run, test, compile, build, snapshot, seed, docs)
