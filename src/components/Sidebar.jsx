@@ -235,6 +235,16 @@ function Sidebar() {
               <span>Process Management</span>
             </li>
             
+            {/* Mappings */}
+            {checkPermissions(['mappings', 'mappings:read']) && (
+              <li>
+                <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
+                  <FiLink className="icon" />
+                  <span>Mappings</span>
+                </NavLink>
+              </li>
+            )}
+            
             {/* Groups */}
             <li>
               <NavLink to="/groups" className={({ isActive }) => isActive ? 'active' : ''}>
@@ -248,14 +258,6 @@ function Sidebar() {
               <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiBriefcase className="icon" />
                 <span>Business Processes</span>
-              </NavLink>
-            </li>
-            
-            {/* Jobs */}
-            <li>
-              <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiPlay className="icon" />
-                <span>Jobs</span>
               </NavLink>
             </li>
             
@@ -291,11 +293,18 @@ function Sidebar() {
             {/* Jobs and Monitoring section */}
             {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 
               checkPermissions(['alerts', 'alerts:read', 'alert_view']) || 
-              checkPermissions(['scheduler', 'scheduler:read']) || 
-              checkPermissions(['mappings', 'mappings:read'])) && (
+              checkPermissions(['scheduler', 'scheduler:read'])) && (
               <>
                 <li className="nav-divider">
                   <span>Jobs and Monitoring</span>
+                </li>
+                
+                {/* Jobs */}
+                <li>
+                  <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiPlay className="icon" />
+                    <span>Jobs</span>
+                  </NavLink>
                 </li>
                 
                 {checkPermissions(['file_view', 'monitor:read', 'monitor']) && (
@@ -321,15 +330,6 @@ function Sidebar() {
                     <NavLink to="/scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiCalendar className="icon" />
                       <span>File Scheduler</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {checkPermissions(['mappings', 'mappings:read']) && (
-                  <li>
-                    <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiLink className="icon" />
-                      <span>Mappings</span>
                     </NavLink>
                   </li>
                 )}
