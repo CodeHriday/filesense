@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiUploadCloud } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiUploadCloud, FiAlertCircle } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
@@ -28,6 +28,10 @@ const Connections = () => {
   const [connectionToDelete, setConnectionToDelete] = useState(null);
   const [isDeletingConnection, setIsDeletingConnection] = useState(false);
   const [showDeleteDropLocationModal, setShowDeleteDropLocationModal] = useState(false);
+  
+  // Test connection in modal state
+  const [testingInModal, setTestingInModal] = useState(false);
+  const [modalTestResult, setModalTestResult] = useState(null);
   
   // Drop Location state
   const [dropLocationConfig, setDropLocationConfig] = useState(null);
@@ -257,6 +261,7 @@ const Connections = () => {
     });
     setEditMode(false);
     setEditId(null);
+    setModalTestResult(null);
     setShowForm(true);
   };
   
@@ -336,6 +341,7 @@ const Connections = () => {
     setFormData(newFormData);
     setEditMode(true);
     setEditId(id);
+    setModalTestResult(null);
     setShowForm(true);
   };
   
@@ -429,6 +435,37 @@ const Connections = () => {
       });
     } finally {
       setTestingConnection(null);
+    }
+  };
+  
+  const handleTestConnectionInModal = async () => {
+    try {
+      setTestingInModal(true);
+      setModalTestResult(null);
+      
+      const configData = {
+        connection_type: formData.connection_type,
+        ...formData
+      };
+      
+      console.log('Testing connection in modal:', configData);
+      
+      const result = await testConnection(configData);
+      
+      console.log('Modal test result:', result);
+      
+      setModalTestResult({
+        success: result.success,
+        message: result.message || (result.success ? 'Connection successful' : 'Connection failed')
+      });
+    } catch (err) {
+      console.error('Error testing connection in modal:', err);
+      setModalTestResult({
+        success: false,
+        message: err.response?.data?.message || 'Connection test failed. Please check your credentials.'
+      });
+    } finally {
+      setTestingInModal(false);
     }
   };
   
@@ -1563,9 +1600,28 @@ const Connections = () => {
               <form onSubmit={handleSubmit}>
                 {renderFormFields()}
                 
+                {/* Test Connection Result */}
+                {modalTestResult && (
+                  <div className={`test-result ${modalTestResult.success ? 'success' : 'error'}`}>
+                    {modalTestResult.success ? (
+                      <><FiCheckCircle /> {modalTestResult.message}</>
+                    ) : (
+                      <><FiAlertCircle /> {modalTestResult.message}</>
+                    )}
+                  </div>
+                )}
+                
                 <div className="form-actions">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
                     Cancel
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline" 
+                    onClick={handleTestConnectionInModal}
+                    disabled={testingInModal}
+                  >
+                    {testingInModal ? 'Testing...' : 'Test Connection'}
                   </button>
                   <button type="submit" className="btn btn-primary">
                     {editMode ? 'Update' : 'Save'} Connection
