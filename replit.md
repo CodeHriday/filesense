@@ -20,6 +20,25 @@ The application utilizes a hybrid architecture:
 
 ## Recent Updates
 
+### Bug Fixes: CSV Upload & Profile Display (October 14, 2025)
+**Status**: ✅ Completed
+
+**Issues Resolved**:
+1. **CSV File Upload Fixed**:
+   - Removed unnecessary `fileUploadSchema` validation from `/api/files/upload` endpoint
+   - Validation was blocking multipart/form-data uploads (file in `req.file`, not `req.body`)
+   - Backend processing pipeline verified working: queue system, Python processors, duplicate detection, database storage
+   
+2. **Profile Display Fixed**:
+   - **Preview Tab Error**: Fixed audit logging failure by making `user_id` nullable in `data_access_log` table
+   - **Column Display**: Fixed missing columns (9 of 17 showing) by clearing stale cache via server restart
+   - All 17 columns now display correctly in profile view
+
+**Technical Details**:
+- Audit logging required `user_id` but was NULL for unauthenticated requests
+- Cache middleware (`cacheMiddleware(600)`) was returning stale data from partial processing
+- Solution: Made `user_id` nullable, restarted server to clear in-memory cache
+
 ### Phase 5.1: DBT Management UI (October 14, 2025)
 **Status**: ✅ Completed
 
