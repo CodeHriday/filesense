@@ -18,6 +18,11 @@ def profile_columns(file_path, file_type):
     """Generate detailed column statistics"""
     
     try:
+        # Normalize file type (defensive lowercase + xlsx -> excel, etc.)
+        file_type = file_type.lower()
+        if file_type == 'xlsx' or file_type == 'xls':
+            file_type = 'excel'
+        
         # Load the file based on type with memory-efficient sampling
         if file_type == 'csv':
             df = pd.read_csv(file_path, nrows=10000)  # Sample for performance
@@ -75,7 +80,7 @@ def profile_columns(file_path, file_type):
                 "type": str(df[col].dtype)
             }
             
-            # Check if numeric
+            # Check if numeric (including datetime)
             if df[col].dtype in ['int64', 'float64', 'int32', 'float32']:
                 # Numeric stats
                 stats["min_value"] = float(df[col].min()) if not pd.isna(df[col].min()) else None
@@ -93,6 +98,21 @@ def profile_columns(file_path, file_type):
                     max_count = int((df[col] == max_val).sum())
                     stats["max_is_frequent"] = max_count > 1
                     stats["max_frequency"] = max_count
+            elif 'datetime' in str(df[col].dtype):
+                # Datetime stats - convert to ISO string
+                min_val = df[col].min()
+                max_val = df[col].max()
+                if not pd.isna(min_val):
+                    stats["min_value"] = min_val.isoformat() if hasattr(min_val, 'isoformat') else str(min_val)
+                    min_count = int((df[col] == min_val).sum())
+                    stats["min_frequency"] = min_count
+                    stats["min_is_frequent"] = min_count > 1
+                
+                if not pd.isna(max_val):
+                    stats["max_value"] = max_val.isoformat() if hasattr(max_val, 'isoformat') else str(max_val)
+                    max_count = int((df[col] == max_val).sum())
+                    stats["max_frequency"] = max_count
+                    stats["max_is_frequent"] = max_count > 1
             else:
                 # Categorical stats - get most and least frequent values
                 value_counts = df[col].value_counts()
