@@ -156,6 +156,15 @@ class DBTService {
     const executionUuid = uuidv4();
     const { modelsSelector, triggerType = 'manual' } = options;
 
+    const allowedCommands = ['run', 'test', 'compile', 'build', 'snapshot', 'seed', 'docs'];
+    if (!allowedCommands.includes(command)) {
+      throw new Error(`Invalid DBT command. Allowed commands: ${allowedCommands.join(', ')}`);
+    }
+
+    if (modelsSelector && !/^[a-zA-Z0-9_\s\-\.\+:]+$/.test(modelsSelector)) {
+      throw new Error('Invalid models selector. Only alphanumeric characters, spaces, hyphens, underscores, dots, colons, and plus signs are allowed.');
+    }
+
     let executionId;
     try {
       const insertResult = await this.db.query(`
@@ -175,12 +184,13 @@ class DBTService {
       ]);
       executionId = insertResult.rows[0].execution_id;
 
-      const dbtCommand = modelsSelector 
-        ? `dbt ${command} --models ${modelsSelector}`
-        : `dbt ${command}`;
+      const dbtArgs = [command];
+      if (modelsSelector) {
+        dbtArgs.push('--models', modelsSelector);
+      }
 
       const startTime = Date.now();
-      const { stdout, stderr, exitCode } = await this.runDbtCommand(dbtCommand);
+      const { stdout, stderr, exitCode } = await this.runDbtCommand(dbtArgs);
       const duration = Date.now() - startTime;
 
       const results = this.parseDbtOutput(stdout);
@@ -284,14 +294,15 @@ class DBTService {
     }
   }
 
-  async runDbtCommand(command) {
+  async runDbtCommand(args) {
     return new Promise((resolve) => {
       let stdout = '';
       let stderr = '';
 
-      const dbtProcess = spawn('bash', ['-c', command], {
+      const dbtProcess = spawn('dbt', args, {
         cwd: this.dbtProjectPath,
-        env: { ...process.env }
+        env: { ...process.env },
+        shell: false
       });
 
       dbtProcess.stdout.on('data', (data) => {

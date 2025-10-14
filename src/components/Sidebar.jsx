@@ -267,11 +267,24 @@ function Sidebar() {
               </NavLink>
             </li>
             
+            {/* Apply Transformations section */}
+            <li className="nav-divider">
+              <span>Apply Transformations</span>
+            </li>
+            
             {/* Transform Builder */}
             <li>
               <NavLink to="/transform" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiLayers className="icon" />
                 <span>Transform</span>
+              </NavLink>
+            </li>
+            
+            {/* DBT Transformations */}
+            <li>
+              <NavLink to="/dbt-transformations" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiCpu className="icon" />
+                <span>DBT Transformations</span>
               </NavLink>
             </li>
             
@@ -359,13 +372,6 @@ function Sidebar() {
                   <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
                     <FiGitBranch className="icon" />
                     <span>File Lineage</span>
-                  </NavLink>
-                </li>
-                
-                <li>
-                  <NavLink to="/dbt-transformations" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiCpu className="icon" />
-                    <span>DBT Transformations</span>
                   </NavLink>
                 </li>
               </>
