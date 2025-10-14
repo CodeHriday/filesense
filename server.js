@@ -39,6 +39,9 @@ const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Trust proxy for accurate client IP detection (required for rate limiting)
+app.set('trust proxy', 1);
+
 // Get shared services from DI container
 const dbPool = diContainer.get('dbPool');
 const logger = diContainer.get('logger');

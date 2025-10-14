@@ -20,13 +20,59 @@ The application utilizes a hybrid architecture:
 
 ## Recent Updates
 
+### Phase 6.1: Multi-Cloud Drop Location Support (October 14, 2025)
+**Status**: ✅ Completed
+
+**Achievements**:
+- **Multi-Cloud Provider Support**:
+  - AWS S3 with full S3 API compatibility
+  - Google Cloud Storage (GCS) with service account authentication
+  - Azure Blob Storage with connection string authentication
+  - Dynamic provider selection in UI
+  
+- **UI Enhancements**:
+  - Redesigned Connections page with "Add Connection" button inside Source/Target tabs
+  - Dynamic Drop Location form that shows provider-specific fields based on selection
+  - Provider dropdown: AWS, GCP, Azure
+  - Provider-specific credential fields automatically displayed
+  
+- **Database Schema**:
+  - Added `provider` column (aws/gcp/azure) to `drop_location_config` table
+  - AWS fields: `access_key_id`, `secret_access_key`, `bucket`, `region`, `endpoint`, `use_ssl`
+  - GCP fields: `project_id`, `service_account_json` (encrypted), `gcp_bucket`
+  - Azure fields: `account_name`, `account_key` (encrypted), `container_name`, `azure_endpoint`
+  
+- **API Updates**:
+  - `POST /api/files/drop` - Uploads to AWS/GCP/Azure based on configured provider
+  - `GET /api/drop-location/config` - Returns config with hasCredentials flag (credentials stripped for security)
+  - `POST /api/drop-location/config` - Saves provider-specific configuration with encrypted credentials
+  
+- **Cloud SDK Integration**:
+  - AWS SDK for S3 operations
+  - @google-cloud/storage for GCS operations
+  - @azure/storage-blob for Azure Blob operations
+  
+- **Security**:
+  - All cloud credentials encrypted using AES-256-CBC via shared encryption utility
+  - Shared `backend/utils/encryption.js` ensures consistent encryption across services
+  - Fixed ENCRYPTION_KEY requirement - must be set as environment variable (32-byte hex)
+  - Credentials never exposed in API responses
+  - Fixed hasCredentials flag to properly detect stored credentials
+
+**Technical Implementation**:
+- **Encryption Utility** (`backend/utils/encryption.js`): Centralized encryption/decryption with fixed key requirement
+- **Drop Location Routes** (`backend/routes/dropLocation.js`): Multi-provider configuration with proper credential checking
+- **Upload Endpoint** (`server.js`): Provider-based upload logic for AWS/GCP/Azure
+- **Connections UI** (`src/pages/Connections.jsx`): Dynamic form with provider-specific fields
+- **Express Configuration**: Added `trust proxy` setting for accurate IP detection in rate limiting
+
 ### Phase 6: Dual Upload System with ClamAV Security (October 14, 2025)
 **Status**: ✅ Completed
 
 **Achievements**:
 - **Dual Upload Modes**:
   - **Upload & Profile**: Traditional upload with full data profiling and quality analysis
-  - **Drop File (S3 Direct)**: Quick upload directly to S3 without profiling for raw file storage
+  - **Drop File**: Quick upload directly to cloud storage without profiling for raw file storage
   
 - **ClamAV Virus Scanning Integration**:
   - All file uploads are scanned for viruses before processing
@@ -35,10 +81,10 @@ The application utilizes a hybrid architecture:
   - Integrated into both upload modes
 
 - **Drop Location Configuration**:
-  - Admin-only S3 drop location configuration in Connections page
-  - Single drop location allowed (one S3 bucket/path)
+  - Admin-only cloud drop location configuration in Connections page
+  - Single drop location allowed (one cloud storage location)
   - Encrypted credential storage (AES-256-CBC encryption)
-  - Database table: `drop_location_config` with encrypted AWS credentials
+  - Database table: `drop_location_config` with encrypted credentials
 
 - **Role-Based Access Control**:
   - New permission: `file_drop:write` for drop file uploads
@@ -46,14 +92,14 @@ The application utilizes a hybrid architecture:
   - Permission-based UI visibility in FileUpload page
 
 - **API Endpoints**:
-  - `POST /api/files/drop` - Upload directly to S3 (requires `file_drop:write` permission)
+  - `POST /api/files/drop` - Upload directly to cloud storage (requires `file_drop:write` permission)
   - `GET /api/drop-location/config` - Get drop location configuration (admin only)
   - `POST /api/drop-location/config` - Save drop location configuration (admin only)
   - `DELETE /api/drop-location/config` - Remove drop location configuration (admin only)
   - `GET /api/drop-location/credentials` - Get decrypted credentials (admin only)
 
 - **UI Enhancements**:
-  - FileUpload page now has dual tabs: "Upload & Profile" and "Drop File (S3 Direct)"
+  - FileUpload page now has dual tabs: "Upload & Profile" and "Drop File"
   - Modal alerts when drop location is not configured (admin gets link to configure)
   - Drop location configuration UI in Connections page (admin-only card section)
   - Virus scan status display (scanning, clean, threat detected)
@@ -61,9 +107,9 @@ The application utilizes a hybrid architecture:
 **Security Features**:
 - ClamAV virus scanner service with automatic initialization
 - Virus definitions check with graceful fallback
-- All files scanned before processing or S3 upload
+- All files scanned before processing or cloud upload
 - Infected files automatically deleted with audit trail
-- Encrypted S3 credentials with AES-256-CBC
+- Encrypted cloud credentials with AES-256-CBC
 - Role-based access for drop file feature
 
 **Technical Implementation**:
