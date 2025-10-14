@@ -141,6 +141,15 @@ router.post('/', async (req, res) => {
   try {
     const { connection_name, connection_type, ...configDetails } = req.body;
     
+    // DEBUG: Log what we received
+    console.log('[CREATE CONNECTION] Received request body:', JSON.stringify(req.body, null, 2));
+    console.log('[CREATE CONNECTION] Connection type:', connection_type);
+    console.log('[CREATE CONNECTION] Config details keys:', Object.keys(configDetails));
+    if (connection_type === 'aws') {
+      console.log('[CREATE CONNECTION] AWS - has access_key:', !!configDetails.access_key);
+      console.log('[CREATE CONNECTION] AWS - has secret_key:', !!configDetails.secret_key);
+    }
+    
     // Format data for the connection service
     const connectionData = {
       name: connection_name,
@@ -153,7 +162,11 @@ router.post('/', async (req, res) => {
       description: req.body.description
     };
     
+    console.log('[CREATE CONNECTION] Formatted connectionData config keys:', Object.keys(connectionData.config));
+    
     const newConnection = await connectionService.createConnection(connectionData);
+    
+    console.log('[CREATE CONNECTION] Connection created with ID:', newConnection.id);
     
     // Filter sensitive information in response
     const { config, ...rest } = newConnection;
@@ -167,7 +180,7 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(sanitizedConnection);
   } catch (error) {
-    console.error('Error in POST /connections', error);
+    console.error('[CREATE CONNECTION] Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -181,6 +194,18 @@ router.put('/:id', async (req, res) => {
   try {
     const { connection_name, connection_type, ...configDetails } = req.body;
     
+    // DEBUG: Log what we received
+    console.log('[UPDATE CONNECTION] Connection ID:', req.params.id);
+    console.log('[UPDATE CONNECTION] Received request body:', JSON.stringify(req.body, null, 2));
+    console.log('[UPDATE CONNECTION] Connection type:', connection_type);
+    console.log('[UPDATE CONNECTION] Config details keys:', Object.keys(configDetails));
+    if (connection_type === 'aws') {
+      console.log('[UPDATE CONNECTION] AWS - access_key value:', configDetails.access_key || '(empty)');
+      console.log('[UPDATE CONNECTION] AWS - secret_key value:', configDetails.secret_key || '(empty)');
+      console.log('[UPDATE CONNECTION] AWS - has access_key:', !!configDetails.access_key);
+      console.log('[UPDATE CONNECTION] AWS - has secret_key:', !!configDetails.secret_key);
+    }
+    
     // Format data for the connection service
     const connectionData = {
       name: connection_name,
@@ -193,10 +218,14 @@ router.put('/:id', async (req, res) => {
       description: req.body.description
     };
     
+    console.log('[UPDATE CONNECTION] Formatted connectionData config keys:', Object.keys(connectionData.config));
+    
     const updatedConnection = await connectionService.updateConnection(
       req.params.id, 
       connectionData
     );
+    
+    console.log('[UPDATE CONNECTION] Connection updated successfully');
     
     // Filter sensitive information in response
     const { config, ...rest } = updatedConnection;
@@ -213,7 +242,7 @@ router.put('/:id', async (req, res) => {
     if (error.message.includes('not found')) {
       res.status(404).json({ error: error.message });
     } else {
-      console.error('Error in PUT /connections/:id', error);
+      console.error('[UPDATE CONNECTION] Error:', error);
       res.status(500).json({ error: error.message });
     }
   }
@@ -247,6 +276,17 @@ router.post('/test', async (req, res) => {
   try {
     const { connection_type, ...configDetails } = req.body;
     
+    // DEBUG: Log what we received for testing
+    console.log('[TEST CONNECTION] Received request body:', JSON.stringify(req.body, null, 2));
+    console.log('[TEST CONNECTION] Connection type:', connection_type);
+    console.log('[TEST CONNECTION] Config details keys:', Object.keys(configDetails));
+    if (connection_type === 'aws') {
+      console.log('[TEST CONNECTION] AWS - access_key present:', !!configDetails.access_key);
+      console.log('[TEST CONNECTION] AWS - secret_key present:', !!configDetails.secret_key);
+      console.log('[TEST CONNECTION] AWS - region:', configDetails.region);
+      console.log('[TEST CONNECTION] AWS - bucket:', configDetails.bucket_name);
+    }
+    
     const testResult = await connectionService.testConnection({
       type: connection_type,
       config: {
@@ -255,9 +295,11 @@ router.post('/test', async (req, res) => {
       }
     });
     
+    console.log('[TEST CONNECTION] Test result:', testResult.success ? 'SUCCESS' : 'FAILED');
+    
     res.json(testResult);
   } catch (error) {
-    console.error('Error in POST /connections/test', error);
+    console.error('[TEST CONNECTION] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: `Connection test failed: ${error.message}` 
