@@ -1,34 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { systemLogger } = require('../utils/logger');
-const crypto = require('crypto');
+const { encrypt, decrypt } = require('../utils/encryption');
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
-const ALGORITHM = 'aes-256-cbc';
+// Middleware to check admin access (applied at route registration in server.js)
+const requireAdmin = (req, res, next) => {
+  if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
+    systemLogger.warn('Unauthorized drop location access attempt', {
+      userId: req.user?.id,
+      roles: req.user?.roles,
+      path: req.path
+    });
+    return res.status(403).json({ error: 'Access denied. Admin role required.' });
+  }
+  next();
+};
 
-function encrypt(text) {
-  if (!text) return null;
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY.slice(0, 64), 'hex'), iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
-
-function decrypt(text) {
-  if (!text) return null;
-  const parts = text.split(':');
-  const iv = Buffer.from(parts.shift(), 'hex');
-  const encryptedText = Buffer.from(parts.join(':'), 'hex');
-  const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY.slice(0, 64), 'hex'), iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
-}
-
-router.get('/config', verifyToken, requireAdmin, async (req, res) => {
+router.get('/config', requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT id, storage_type, region, bucket, path_prefix, endpoint, use_ssl, is_active, created_at, updated_at
@@ -56,7 +45,7 @@ router.get('/config', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/config', verifyToken, requireAdmin, async (req, res) => {
+router.post('/config', requireAdmin, async (req, res) => {
   try {
     const {
       storage_type = 's3',
@@ -120,7 +109,7 @@ router.post('/config', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/config', verifyToken, requireAdmin, async (req, res) => {
+router.delete('/config', requireAdmin, async (req, res) => {
   try {
     await db.query('UPDATE drop_location_config SET is_active = false WHERE is_active = true');
     
@@ -133,7 +122,7 @@ router.delete('/config', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/credentials', verifyToken, requireAdmin, async (req, res) => {
+router.get('/credentials', requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT access_key_id, secret_access_key

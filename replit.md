@@ -20,6 +20,59 @@ The application utilizes a hybrid architecture:
 
 ## Recent Updates
 
+### Phase 6: Dual Upload System with ClamAV Security (October 14, 2025)
+**Status**: ✅ Completed
+
+**Achievements**:
+- **Dual Upload Modes**:
+  - **Upload & Profile**: Traditional upload with full data profiling and quality analysis
+  - **Drop File (S3 Direct)**: Quick upload directly to S3 without profiling for raw file storage
+  
+- **ClamAV Virus Scanning Integration**:
+  - All file uploads are scanned for viruses before processing
+  - Graceful fallback when virus definitions are unavailable (logs warning, allows upload)
+  - Automatic deletion of infected files with detailed logging
+  - Integrated into both upload modes
+
+- **Drop Location Configuration**:
+  - Admin-only S3 drop location configuration in Connections page
+  - Single drop location allowed (one S3 bucket/path)
+  - Encrypted credential storage (AES-256-CBC encryption)
+  - Database table: `drop_location_config` with encrypted AWS credentials
+
+- **Role-Based Access Control**:
+  - New permission: `file_drop:write` for drop file uploads
+  - Added to Role Management UI
+  - Permission-based UI visibility in FileUpload page
+
+- **API Endpoints**:
+  - `POST /api/files/drop` - Upload directly to S3 (requires `file_drop:write` permission)
+  - `GET /api/drop-location/config` - Get drop location configuration (admin only)
+  - `POST /api/drop-location/config` - Save drop location configuration (admin only)
+  - `DELETE /api/drop-location/config` - Remove drop location configuration (admin only)
+  - `GET /api/drop-location/credentials` - Get decrypted credentials (admin only)
+
+- **UI Enhancements**:
+  - FileUpload page now has dual tabs: "Upload & Profile" and "Drop File (S3 Direct)"
+  - Modal alerts when drop location is not configured (admin gets link to configure)
+  - Drop location configuration UI in Connections page (admin-only card section)
+  - Virus scan status display (scanning, clean, threat detected)
+
+**Security Features**:
+- ClamAV virus scanner service with automatic initialization
+- Virus definitions check with graceful fallback
+- All files scanned before processing or S3 upload
+- Infected files automatically deleted with audit trail
+- Encrypted S3 credentials with AES-256-CBC
+- Role-based access for drop file feature
+
+**Technical Implementation**:
+- **VirusScanService** (`backend/services/VirusScanService.js`): ClamAV integration with error handling
+- **Drop Location Routes** (`backend/routes/dropLocation.js`): Admin-only configuration endpoints
+- **Server.js Updates**: Virus scanning in both `/api/files/upload` and `/api/files/drop` endpoints
+- **Database**: `drop_location_config` table with encrypted credentials
+- **UI Components**: Updated FileUpload, Connections, and RoleManagement pages
+
 ### Bug Fixes: CSV Upload & Profile Display (October 14, 2025)
 **Status**: ✅ Completed
 

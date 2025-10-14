@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiUploadCloud } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../config';
 import './Connections.css';
 
 // Import the connection service
 import { getConnections, createConnection, updateConnection, deleteConnection, testConnection } from '../api/connectionService';
 
 const Connections = () => {
-  const { hasWritePermission } = useAuth();
+  const { hasWritePermission, currentUser } = useAuth();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,6 +21,24 @@ const Connections = () => {
   const [testingConnection, setTestingConnection] = useState(null);
   const [testResults, setTestResults] = useState({});
   const [activeTab, setActiveTab] = useState('source');
+  
+  // Drop Location state
+  const [dropLocationConfig, setDropLocationConfig] = useState(null);
+  const [dropLocationConfigured, setDropLocationConfigured] = useState(false);
+  const [dropLocationLoading, setDropLocationLoading] = useState(false);
+  const [showDropLocationForm, setShowDropLocationForm] = useState(false);
+  const [dropLocationFormData, setDropLocationFormData] = useState({
+    storage_type: 's3',
+    region: '',
+    bucket: '',
+    path_prefix: '',
+    access_key_id: '',
+    secret_access_key: '',
+    endpoint: '',
+    use_ssl: true
+  });
+  
+  const isAdmin = currentUser?.roles?.includes('Admin');
   
   // Connection form state
   const [formData, setFormData] = useState({
@@ -66,7 +85,10 @@ const Connections = () => {
   // Fetch connections on component mount
   useEffect(() => {
     fetchConnections();
-  }, []);
+    if (isAdmin) {
+      fetchDropLocationConfig();
+    }
+  }, [isAdmin]);
   
   const fetchConnections = async () => {
     try {
@@ -91,6 +113,86 @@ const Connections = () => {
       setError('Failed to load connections. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Drop Location functions
+  const fetchDropLocationConfig = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/drop-location/config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.configured) {
+        setDropLocationConfig(response.data.config);
+        setDropLocationConfigured(true);
+        setDropLocationFormData({
+          storage_type: response.data.config.storage_type || 's3',
+          region: response.data.config.region || '',
+          bucket: response.data.config.bucket || '',
+          path_prefix: response.data.config.path_prefix || '',
+          access_key_id: '',
+          secret_access_key: '',
+          endpoint: response.data.config.endpoint || '',
+          use_ssl: response.data.config.use_ssl ?? true
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching drop location config:', err);
+    }
+  };
+  
+  const handleDropLocationSubmit = async (e) => {
+    e.preventDefault();
+    setDropLocationLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API_BASE_URL}/api/drop-location/config`,
+        dropLocationFormData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setDropLocationConfig(response.data.config);
+      setDropLocationConfigured(true);
+      setShowDropLocationForm(false);
+      setError(null);
+    } catch (err) {
+      console.error('Error saving drop location config:', err);
+      setError('Failed to save drop location configuration. ' + (err.response?.data?.error || err.message));
+    } finally {
+      setDropLocationLoading(false);
+    }
+  };
+  
+  const handleDropLocationRemove = async () => {
+    if (!window.confirm('Are you sure you want to remove the drop location configuration?')) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/api/drop-location/config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setDropLocationConfig(null);
+      setDropLocationConfigured(false);
+      setDropLocationFormData({
+        storage_type: 's3',
+        region: '',
+        bucket: '',
+        path_prefix: '',
+        access_key_id: '',
+        secret_access_key: '',
+        endpoint: '',
+        use_ssl: true
+      });
+    } catch (err) {
+      console.error('Error removing drop location config:', err);
+      setError('Failed to remove drop location configuration');
     }
   };
   
@@ -1048,6 +1150,157 @@ const Connections = () => {
           </div>
         )}
       </div>
+      
+      {/* Drop Location Configuration (Admin Only) */}
+      {isAdmin && (
+        <Card className="drop-location-card" style={{ marginBottom: '2rem' }}>
+          <div className="drop-location-header">
+            <div>
+              <h2><FiUploadCloud style={{ marginRight: '0.5rem' }} />Drop File Location</h2>
+              <p className="drop-location-subtitle">
+                Configure a single S3 location for quick file uploads without profiling
+              </p>
+            </div>
+            {dropLocationConfigured && !showDropLocationForm && (
+              <button 
+                className="btn btn-outline"
+                onClick={() => setShowDropLocationForm(true)}
+              >
+                <FiEdit2 /> Edit
+              </button>
+            )}
+          </div>
+          
+          {showDropLocationForm ? (
+            <form onSubmit={handleDropLocationSubmit} style={{ marginTop: '1rem' }}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="drop_region">AWS Region</label>
+                  <input
+                    type="text"
+                    id="drop_region"
+                    className="form-control"
+                    value={dropLocationFormData.region}
+                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, region: e.target.value})}
+                    placeholder="us-east-1"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="drop_bucket">S3 Bucket *</label>
+                  <input
+                    type="text"
+                    id="drop_bucket"
+                    className="form-control"
+                    value={dropLocationFormData.bucket}
+                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, bucket: e.target.value})}
+                    required
+                    placeholder="my-drop-bucket"
+                  />
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="drop_path_prefix">Path Prefix (Optional)</label>
+                <input
+                  type="text"
+                  id="drop_path_prefix"
+                  className="form-control"
+                  value={dropLocationFormData.path_prefix}
+                  onChange={(e) => setDropLocationFormData({...dropLocationFormData, path_prefix: e.target.value})}
+                  placeholder="uploads/drop-files"
+                />
+                <small className="form-text text-muted">
+                  Optional folder path within bucket
+                </small>
+              </div>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="drop_access_key">Access Key ID</label>
+                  <input
+                    type="text"
+                    id="drop_access_key"
+                    className="form-control"
+                    value={dropLocationFormData.access_key_id}
+                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, access_key_id: e.target.value})}
+                    placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="drop_secret_key">Secret Access Key</label>
+                  <input
+                    type="password"
+                    id="drop_secret_key"
+                    className="form-control"
+                    value={dropLocationFormData.secret_access_key}
+                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, secret_access_key: e.target.value})}
+                    placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
+                  />
+                </div>
+              </div>
+              
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowDropLocationForm(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={dropLocationLoading}
+                >
+                  {dropLocationLoading ? 'Saving...' : 'Save Configuration'}
+                </button>
+                {dropLocationConfigured && (
+                  <button 
+                    type="button" 
+                    className="btn btn-danger"
+                    onClick={handleDropLocationRemove}
+                  >
+                    <FiTrash2 /> Remove
+                  </button>
+                )}
+              </div>
+            </form>
+          ) : dropLocationConfigured ? (
+            <div className="drop-location-info">
+              <div className="info-grid">
+                <div className="info-item">
+                  <strong>Bucket:</strong> {dropLocationConfig.bucket}
+                </div>
+                {dropLocationConfig.region && (
+                  <div className="info-item">
+                    <strong>Region:</strong> {dropLocationConfig.region}
+                  </div>
+                )}
+                {dropLocationConfig.path_prefix && (
+                  <div className="info-item">
+                    <strong>Path Prefix:</strong> {dropLocationConfig.path_prefix}
+                  </div>
+                )}
+                <div className="info-item">
+                  <strong>Credentials:</strong> {dropLocationConfig.hasCredentials ? 'Configured' : 'Not set'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="drop-location-empty">
+              <p>No drop location configured. Configure an S3 location to enable drop file uploads.</p>
+              <button 
+                className="btn btn-primary"
+                onClick={() => setShowDropLocationForm(true)}
+              >
+                <FiPlus /> Configure Drop Location
+              </button>
+            </div>
+          )}
+        </Card>
+      )}
       
       <div className="connections-tabs">
         <button 

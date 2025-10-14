@@ -5,6 +5,7 @@ import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
 import { uploadFile, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import './FileUpload.css';
 
@@ -18,8 +19,14 @@ function FileUpload() {
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingProgressHandler, setPendingProgressHandler] = useState(null);
   const [dropzoneKey, setDropzoneKey] = useState(0);
+  const [activeTab, setActiveTab] = useState('upload-profile');
+  const [dropLocationConfigured, setDropLocationConfigured] = useState(false);
+  const [dropLocationChecking, setDropLocationChecking] = useState(true);
+  const [showDropLocationModal, setShowDropLocationModal] = useState(false);
   const navigate = useNavigate();
-  const { hasWritePermission } = useAuth();
+  const { hasWritePermission, currentUser } = useAuth();
+  
+  const isAdmin = currentUser?.roles?.includes('Admin');
   
   // Test API connection when component mounts
   useEffect(() => {
@@ -39,7 +46,29 @@ function FileUpload() {
     };
     
     checkApiStatus();
+    checkDropLocationConfig();
   }, []);
+  
+  const checkDropLocationConfig = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !isAdmin) {
+        setDropLocationChecking(false);
+        return;
+      }
+      
+      const response = await axios.get(`${API_BASE_URL}/api/drop-location/config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setDropLocationConfigured(response.data.configured);
+    } catch (err) {
+      console.error('Error checking drop location:', err);
+      setDropLocationConfigured(false);
+    } finally {
+      setDropLocationChecking(false);
+    }
+  };
   
   const handleTestConnection = async () => {
     setDiagnosticInfo('Running API connection test...\n');
@@ -249,6 +278,58 @@ function FileUpload() {
     setUploadedFile(null);
     setDropzoneKey(prev => prev + 1); // Reset FileDropzone component
   };
+  
+  const handleDropFile = async (file, progressHandler) => {
+    // Check if drop location is configured
+    if (!dropLocationConfigured) {
+      setShowDropLocationModal(true);
+      return;
+    }
+    
+    try {
+      setDiagnosticInfo(`Starting drop file upload for ${file.name}...\n`);
+      setUploadStatus('uploading');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_BASE_URL}/api/files/drop`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressHandler) {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            progressHandler(progress);
+          }
+        }
+      });
+      
+      setDiagnosticInfo(prev => prev + `Drop upload successful: ${JSON.stringify(response.data, null, 2)}\n`);
+      
+      const fileDetails = {
+        fileId: response.data.fileId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        s3Location: response.data.file.s3_location
+      };
+      
+      setUploadedFile(fileDetails);
+      setUploadStatus('success');
+      
+    } catch (error) {
+      console.error('Error dropping file:', error);
+      setDiagnosticInfo(prev => prev + `Drop upload error: ${error.message}\n`);
+      if (error.response) {
+        setDiagnosticInfo(prev => prev + `Error response: ${JSON.stringify(error.response.data, null, 2)}\n`);
+      }
+      setUploadStatus('error');
+      throw error;
+    }
+  };
 
   return (
     <div className="file-upload-container">
@@ -263,14 +344,70 @@ function FileUpload() {
         />
       )}
       
+      {/* Drop Location Not Configured Modal */}
+      {showDropLocationModal && (
+        <div className="modal-overlay" onClick={() => setShowDropLocationModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Drop Location Not Configured</h2>
+            <p>
+              {isAdmin 
+                ? 'The S3 drop location has not been configured yet. Please go to Connections to configure it.'
+                : 'The drop file feature is not available. Please contact your administrator to configure the drop location.'}
+            </p>
+            <div className="modal-actions">
+              {isAdmin && (
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowDropLocationModal(false);
+                    navigate('/connections');
+                  }}
+                >
+                  Go to Connections
+                </button>
+              )}
+              <button 
+                className="btn btn-secondary"
+                onClick={() => setShowDropLocationModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <Card>
+        {/* Upload Mode Tabs */}
+        <div className="upload-tabs">
+          <button 
+            className={`tab-button ${activeTab === 'upload-profile' ? 'active' : ''}`}
+            onClick={() => setActiveTab('upload-profile')}
+          >
+            Upload & Profile
+          </button>
+          {hasWritePermission('file_drop') && (
+            <button 
+              className={`tab-button ${activeTab === 'drop-file' ? 'active' : ''}`}
+              onClick={() => setActiveTab('drop-file')}
+            >
+              Drop File (S3 Direct)
+            </button>
+          )}
+        </div>
+        
         <div className="upload-instructions">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h2>Add a new file to the observatory</h2>
+              <h2>
+                {activeTab === 'drop-file' 
+                  ? 'Drop file to S3 storage'
+                  : 'Add a new file to the observatory'}
+              </h2>
               <p>
-                Upload a data file to analyze its structure, profile its content, and track
-                changes over time. Supported file types include CSV, JSON, Parquet, Excel, and XML.
+                {activeTab === 'drop-file'
+                  ? 'Upload files directly to S3 storage without profiling or analysis. Quick uploads for raw file storage.'
+                  : 'Upload a data file to analyze its structure, profile its content, and track changes over time. Supported file types include CSV, JSON, Parquet, Excel, and XML.'}
               </p>
             </div>
             {(uploadStatus || uploadedFile) && (
@@ -285,17 +422,32 @@ function FileUpload() {
           </div>
         </div>
         
-        {hasWritePermission('file') ? (
-          <FileDropzone 
-            key={dropzoneKey}
-            onFileDrop={handleFileDrop}
-            acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
-            maxSizeMB={50}
-          />
+        {activeTab === 'upload-profile' ? (
+          hasWritePermission('file') ? (
+            <FileDropzone 
+              key={`profile-${dropzoneKey}`}
+              onFileDrop={handleFileDrop}
+              acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+              maxSizeMB={50}
+            />
+          ) : (
+            <div className="access-denied-message">
+              <p>You do not have permission to upload files. Please contact an administrator.</p>
+            </div>
+          )
         ) : (
-          <div className="access-denied-message">
-            <p>You do not have permission to upload files. Please contact an administrator.</p>
-          </div>
+          hasWritePermission('file_drop') ? (
+            <FileDropzone 
+              key={`drop-${dropzoneKey}`}
+              onFileDrop={handleDropFile}
+              acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+              maxSizeMB={50}
+            />
+          ) : (
+            <div className="access-denied-message">
+              <p>You do not have permission to drop files. Please contact an administrator.</p>
+            </div>
+          )
         )}
         
         {uploadStatus === 'success' && uploadedFile && (

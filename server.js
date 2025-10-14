@@ -1081,6 +1081,60 @@ app.post('/api/files/upload', invalidateCache('cache:*:*files*'), uploadLimiter,
     const userId = req.user ? req.user.id : null;
     const crypto = require('crypto');
     
+    // Virus scan the uploaded file
+    const virusScanner = require('./backend/services/VirusScanService');
+    try {
+      const scanResult = await virusScanner.scanFile(file.path);
+      
+      if (scanResult.isInfected) {
+        logger.warn('Virus detected in uploaded file', {
+          fileId,
+          filename: file.originalname,
+          viruses: scanResult.viruses,
+          userId
+        });
+        
+        // Delete infected file
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        
+        return res.status(400).json({
+          error: 'Virus detected',
+          message: `The uploaded file contains malware: ${scanResult.viruses.join(', ')}`,
+          viruses: scanResult.viruses
+        });
+      }
+      
+      if (scanResult.skipped) {
+        logger.warn('Virus scan skipped for uploaded file', {
+          fileId,
+          filename: file.originalname,
+          reason: scanResult.message,
+          userId
+        });
+      } else {
+        logger.info('File passed virus scan', {
+          fileId,
+          filename: file.originalname,
+          userId
+        });
+      }
+    } catch (scanError) {
+      logger.error('Virus scan failed', {
+        fileId,
+        filename: file.originalname,
+        error: scanError.message,
+        userId
+      });
+      
+      // Delete file on scan failure
+      try { fs.unlinkSync(file.path); } catch (e) {}
+      
+      return res.status(400).json({
+        error: 'File security check failed',
+        message: 'The file could not be scanned for security threats'
+      });
+    }
+    
     // Calculate file hash
     const fileHash = await new Promise((resolve, reject) => {
       const hash = crypto.createHash('sha256');
@@ -1170,6 +1224,177 @@ app.get('/api/files/:fileId/job-status', async (req, res) => {
     logger.error('Error retrieving job status', { error: error.message });
     res.status(500).json({ 
       error: 'Failed to retrieve job status',
+      details: error.message 
+    });
+  }
+});
+
+// Drop File endpoint - uploads directly to S3 without profiling
+app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('file'), async (req, res) => {
+  try {
+    // Check if user has file_drop:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_drop:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to drop files. Contact your administrator.'
+      });
+    }
+    
+    // Validate file upload
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const file = req.file;
+    const fileId = `drop_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+    const userId = req.user.id;
+    
+    // Virus scan the uploaded file
+    const virusScanner = require('./backend/services/VirusScanService');
+    try {
+      const scanResult = await virusScanner.scanFile(file.path);
+      
+      if (scanResult.isInfected) {
+        logger.warn('Virus detected in drop file', {
+          fileId,
+          filename: file.originalname,
+          viruses: scanResult.viruses,
+          userId
+        });
+        
+        // Delete infected file
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        
+        return res.status(400).json({
+          error: 'Virus detected',
+          message: `The uploaded file contains malware: ${scanResult.viruses.join(', ')}`,
+          viruses: scanResult.viruses
+        });
+      }
+      
+      logger.info('Drop file passed virus scan', {
+        fileId,
+        filename: file.originalname,
+        userId,
+        scanSkipped: scanResult.skipped || false
+      });
+    } catch (scanError) {
+      logger.error('Virus scan failed for drop file', {
+        fileId,
+        filename: file.originalname,
+        error: scanError.message,
+        userId
+      });
+      
+      // Delete file on scan failure
+      try { fs.unlinkSync(file.path); } catch (e) {}
+      
+      return res.status(400).json({
+        error: 'File security check failed',
+        message: 'The file could not be scanned for security threats'
+      });
+    }
+    
+    // Get drop location config
+    const dropConfigResult = await dbPool.query(
+      'SELECT * FROM drop_location_config WHERE is_active = true LIMIT 1'
+    );
+    
+    if (dropConfigResult.rows.length === 0) {
+      // Delete file
+      try { fs.unlinkSync(file.path); } catch (e) {}
+      
+      return res.status(400).json({
+        error: 'Drop location not configured',
+        message: 'No drop location has been configured. Please contact your administrator.'
+      });
+    }
+    
+    const dropConfig = dropConfigResult.rows[0];
+    
+    // Decrypt credentials
+    const { decrypt } = require('./backend/utils/encryption');
+    
+    // Upload to S3
+    const AWS = require('aws-sdk');
+    const s3 = new AWS.S3({
+      accessKeyId: decrypt(dropConfig.access_key_id),
+      secretAccessKey: decrypt(dropConfig.secret_access_key),
+      region: dropConfig.region || 'us-east-1',
+      ...(dropConfig.endpoint && { endpoint: dropConfig.endpoint }),
+      ...(dropConfig.use_ssl !== null && { sslEnabled: dropConfig.use_ssl })
+    });
+    
+    const s3Key = dropConfig.path_prefix 
+      ? `${dropConfig.path_prefix}/${file.originalname}`
+      : file.originalname;
+    
+    const fileStream = fs.createReadStream(file.path);
+    const uploadParams = {
+      Bucket: dropConfig.bucket,
+      Key: s3Key,
+      Body: fileStream,
+      ContentType: file.mimetype,
+      Metadata: {
+        'uploaded-by': userId.toString(),
+        'original-filename': file.originalname,
+        'upload-timestamp': new Date().toISOString()
+      }
+    };
+    
+    const s3Upload = await s3.upload(uploadParams).promise();
+    
+    logger.info('File dropped to S3', {
+      fileId,
+      filename: file.originalname,
+      s3Location: s3Upload.Location,
+      bucket: dropConfig.bucket,
+      key: s3Key,
+      userId
+    });
+    
+    // Clean up local file
+    try { fs.unlinkSync(file.path); } catch (e) {}
+    
+    // Optionally log to database (without profiling)
+    await dbPool.query(
+      `INSERT INTO files (file_id, filename, file_type, file_size, upload_date, uploaded_by, storage_location)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        fileId,
+        file.originalname,
+        path.extname(file.originalname).substring(1).toLowerCase(),
+        file.size,
+        new Date(),
+        userId,
+        s3Upload.Location
+      ]
+    );
+    
+    res.json({
+      success: true,
+      fileId,
+      message: 'File uploaded successfully to drop location',
+      file: {
+        file_id: fileId,
+        filename: file.originalname,
+        file_size: file.size,
+        s3_location: s3Upload.Location,
+        bucket: dropConfig.bucket,
+        key: s3Key
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Drop file upload error', { error: error.message });
+    
+    // Clean up file on error
+    if (req.file && req.file.path) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    
+    res.status(500).json({ 
+      error: 'File drop failed',
       details: error.message 
     });
   }
@@ -1269,7 +1494,7 @@ app.use('/api/dbt', authenticateToken, dbtRoutes);
 
 // Drop location routes (admin only)
 const dropLocationRoutes = require('./backend/routes/dropLocation');
-app.use('/api/drop-location', dropLocationRoutes);
+app.use('/api/drop-location', authenticateToken, dropLocationRoutes);
 
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
