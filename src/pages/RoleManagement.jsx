@@ -11,6 +11,7 @@ import { API_BASE_URL } from '../config';
 const APP_FEATURES = [
   { id: 'dashboard', name: 'Dashboard', category: 'Core' },
   { id: 'file_upload', name: 'File Upload', category: 'Core' },
+  { id: 'file_drop', name: 'Drop File (S3 Direct)', category: 'Core' },
   { id: 'file_profile', name: 'Data Profile', category: 'Core' },
   { id: 'quality_checks', name: 'Quality Checks', category: 'Core' },
   { id: 'alerts', name: 'Alerts', category: 'Core' },
