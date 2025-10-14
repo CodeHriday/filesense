@@ -333,21 +333,6 @@ function Sidebar() {
                     </NavLink>
                   </li>
                 )}
-                
-                {/* Transform Integration - External Link */}
-                {checkPermissions(['mappings', 'mappings:read']) && (
-                  <li>
-                    <a 
-                      href="https://blume-etl-blumetra.replit.app/" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="external-link"
-                    >
-                      <FiLayers className="icon" />
-                      <span>Transform</span>
-                    </a>
-                  </li>
-                )}
               </>
             )}
             
