@@ -245,11 +245,11 @@ function Sidebar() {
               </li>
             )}
             
-            {/* Groups */}
+            {/* Mapping Groups */}
             <li>
               <NavLink to="/groups" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiUsers className="icon" />
-                <span>Groups</span>
+                <span>Mapping Groups</span>
               </NavLink>
             </li>
             
