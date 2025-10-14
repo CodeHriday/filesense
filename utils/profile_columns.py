@@ -42,6 +42,27 @@ def profile_columns(file_path, file_type):
             df = parquet_file.read(columns=None, use_pandas_metadata=True).to_pandas()
             if len(df) > 10000:
                 df = df.head(10000)
+        elif file_type == 'excel':
+            # Read Excel file (first sheet only)
+            df = pd.read_excel(file_path, nrows=10000)
+        elif file_type == 'xml':
+            # Read XML file
+            try:
+                df = pd.read_xml(file_path)
+                if len(df) > 10000:
+                    df = df.head(10000)
+            except Exception:
+                # Fallback to ElementTree parsing
+                import xml.etree.ElementTree as ET
+                tree = ET.parse(file_path)
+                root = tree.getroot()
+                records = []
+                for elem in root[:10000]:  # Limit to 10000 records
+                    record = {}
+                    for child in elem:
+                        record[child.tag] = child.text
+                    records.append(record)
+                df = pd.DataFrame(records)
         else:
             return {"error": f"Unsupported file type: {file_type}"}
         

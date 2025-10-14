@@ -488,9 +488,12 @@ const ALLOWED_FILE_TYPES = [
   'application/json',
   'application/vnd.apache.parquet',
   'application/x-parquet',
-  'application/octet-stream' // For parquet files that might be detected as binary
+  'application/octet-stream', // For parquet files that might be detected as binary
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'text/xml',
+  'application/xml'
 ];
-const ALLOWED_EXTENSIONS = ['.csv', '.json', '.parquet'];
+const ALLOWED_EXTENSIONS = ['.csv', '.json', '.parquet', '.xlsx', '.xml'];
 
 const fileFilter = (req, file, cb) => {
   // Get file extension
@@ -509,13 +512,14 @@ const fileFilter = (req, file, cb) => {
   // Check MIME type
   if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
     // Allow if extension matches even if MIME type is generic
-    if (ext === '.parquet' && file.mimetype === 'application/octet-stream') {
+    if ((ext === '.parquet' || ext === '.xlsx') && file.mimetype === 'application/octet-stream') {
       return cb(null, true);
     }
     
     logger.warn('File upload rejected - invalid MIME type', {
       filename: file.originalname,
       mimetype: file.mimetype,
+      extension: ext,
       ip: req.ip
     });
     return cb(new Error(`Invalid file MIME type. Allowed types: ${ALLOWED_FILE_TYPES.join(', ')}`), false);

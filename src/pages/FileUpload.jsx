@@ -264,11 +264,24 @@ function FileUpload() {
       
       <Card>
         <div className="upload-instructions">
-          <h2>Add a new file to the observatory</h2>
-          <p>
-            Upload a data file to analyze its structure, profile its content, and track
-            changes over time. Supported file types include CSV, JSON, Parquet, Excel, and XML.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2>Add a new file to the observatory</h2>
+              <p>
+                Upload a data file to analyze its structure, profile its content, and track
+                changes over time. Supported file types include CSV, JSON, Parquet, Excel, and XML.
+              </p>
+            </div>
+            {(uploadStatus || uploadedFile) && (
+              <button 
+                className="btn btn-secondary"
+                onClick={handleUploadAnother}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
         
         {hasWritePermission('file') ? (

@@ -67,6 +67,10 @@ class StreamingFileReader:
             return 'json'
         elif name.endswith('.parquet'):
             return 'parquet'
+        elif name.endswith('.xlsx'):
+            return 'excel'
+        elif name.endswith('.xml'):
+            return 'xml'
         else:
             raise ValueError(f"Unsupported file type: {self.file_path}")
     
@@ -89,6 +93,10 @@ class StreamingFileReader:
             yield from stream_parquet_file(self.file_path, self.chunk_size)
         elif self.file_extension == 'csv':
             yield from stream_csv_file(self.file_path, self.chunk_size)
+        elif self.file_extension == 'excel':
+            yield from stream_excel_file(self.file_path, self.chunk_size)
+        elif self.file_extension == 'xml':
+            yield from stream_xml_file(self.file_path, self.chunk_size)
         else:
             raise ValueError(f"Unsupported file type: {self.file_extension}")
     
@@ -302,6 +310,145 @@ def stream_csv_file(file_path: str, chunk_size: int = 10000,
         
     except Exception as e:
         file_logger.error(f"Error streaming CSV file: {str(e)}", extra={
+            "file_path": file_path,
+            "traceback": traceback.format_exc()
+        })
+        raise
+
+
+def stream_excel_file(file_path: str, chunk_size: int = 10000) -> Iterator[pd.DataFrame]:
+    """
+    Stream Excel file (.xlsx, .xls) with memory efficiency.
+    
+    Memory usage: Depends on Excel file structure, typically 200-800 MB
+    
+    Args:
+        file_path: Path to Excel file
+        chunk_size: Number of rows per chunk
+        
+    Yields:
+        DataFrame chunks
+    """
+    try:
+        file_logger.info(f"Streaming Excel file", extra={
+            "file_path": file_path,
+            "chunk_size": chunk_size
+        })
+        
+        # Read Excel file in chunks using pandas
+        # Note: pandas doesn't support native chunking for Excel, so we read it fully then chunk
+        excel_file = pd.ExcelFile(file_path)
+        
+        # Process first sheet (or you can iterate over all sheets)
+        sheet_name = excel_file.sheet_names[0]
+        file_logger.info(f"Reading Excel sheet: {sheet_name}")
+        
+        # Read the entire sheet (pandas limitation for Excel)
+        df = pd.read_excel(excel_file, sheet_name=sheet_name)
+        total_rows = len(df)
+        
+        file_logger.info(f"Excel file loaded: {total_rows} rows", extra={
+            "sheet_name": sheet_name
+        })
+        
+        # Yield in chunks
+        for start_idx in range(0, total_rows, chunk_size):
+            end_idx = min(start_idx + chunk_size, total_rows)
+            chunk = df.iloc[start_idx:end_idx]
+            
+            file_logger.debug(f"Yielding Excel chunk: {len(chunk)} rows", extra={
+                "start_idx": start_idx,
+                "end_idx": end_idx
+            })
+            
+            yield chunk
+        
+        file_logger.info(f"Completed streaming Excel file: {total_rows} total rows")
+        
+    except Exception as e:
+        file_logger.error(f"Error streaming Excel file: {str(e)}", extra={
+            "file_path": file_path,
+            "traceback": traceback.format_exc()
+        })
+        raise
+
+
+def stream_xml_file(file_path: str, chunk_size: int = 10000) -> Iterator[pd.DataFrame]:
+    """
+    Stream XML file with memory efficiency.
+    
+    Assumes XML structure with repeating elements (e.g., <record> elements).
+    
+    Memory usage: Depends on XML structure, typically 200-800 MB
+    
+    Args:
+        file_path: Path to XML file
+        chunk_size: Number of rows per chunk
+        
+    Yields:
+        DataFrame chunks
+    """
+    try:
+        file_logger.info(f"Streaming XML file", extra={
+            "file_path": file_path,
+            "chunk_size": chunk_size
+        })
+        
+        # Try to read XML as a DataFrame
+        # pandas will attempt to parse the XML structure
+        try:
+            df = pd.read_xml(file_path)
+            total_rows = len(df)
+            
+            file_logger.info(f"XML file loaded: {total_rows} rows")
+            
+            # Yield in chunks
+            for start_idx in range(0, total_rows, chunk_size):
+                end_idx = min(start_idx + chunk_size, total_rows)
+                chunk = df.iloc[start_idx:end_idx]
+                
+                file_logger.debug(f"Yielding XML chunk: {len(chunk)} rows", extra={
+                    "start_idx": start_idx,
+                    "end_idx": end_idx
+                })
+                
+                yield chunk
+            
+            file_logger.info(f"Completed streaming XML file: {total_rows} total rows")
+            
+        except Exception as parse_error:
+            # If pandas can't parse it, try alternative approach
+            file_logger.warning(f"Standard XML parsing failed, trying alternative: {str(parse_error)}")
+            
+            # Fallback: try to read as a simple list of records
+            import xml.etree.ElementTree as ET
+            tree = ET.parse(file_path)
+            root = tree.getroot()
+            
+            # Extract all child elements as records
+            records = []
+            for elem in root:
+                record = {}
+                for child in elem:
+                    record[child.tag] = child.text
+                records.append(record)
+            
+            if records:
+                df = pd.DataFrame(records)
+                total_rows = len(df)
+                
+                # Yield in chunks
+                for start_idx in range(0, total_rows, chunk_size):
+                    end_idx = min(start_idx + chunk_size, total_rows)
+                    chunk = df.iloc[start_idx:end_idx]
+                    yield chunk
+                
+                file_logger.info(f"Completed streaming XML file (fallback): {total_rows} total rows")
+            else:
+                raise ValueError("No records found in XML file")
+        
+    except Exception as e:
+        file_logger.error(f"Error streaming XML file: {str(e)}", extra={
             "file_path": file_path,
             "traceback": traceback.format_exc()
         })
