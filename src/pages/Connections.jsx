@@ -9,7 +9,7 @@ import { API_BASE_URL } from '../config';
 import './Connections.css';
 
 // Import the connection service
-import { getConnections, createConnection, updateConnection, deleteConnection, testConnection, testSavedConnection } from '../api/connectionService';
+import { getConnections, createConnection, updateConnection, deleteConnection, testConnection, testSavedConnection, testConnectionWithUpdates } from '../api/connectionService';
 
 const Connections = () => {
   const { hasWritePermission, currentUser } = useAuth();
@@ -423,7 +423,9 @@ const Connections = () => {
       setTestingInModal(true);
       setModalTestResult(null);
       
-      // Strip UI-only flags before testing
+      let result;
+      
+      // Strip UI-only flags first
       const { 
         has_access_key, 
         has_secret_key, 
@@ -436,14 +438,20 @@ const Connections = () => {
         ...cleanFormData 
       } = formData;
       
-      const configData = {
-        connection_type: cleanFormData.connection_type,
-        ...cleanFormData
-      };
-      
-      console.log('Testing connection in modal:', configData);
-      
-      const result = await testConnection(configData);
+      if (editMode && editId) {
+        // EDIT MODE: Test with form updates merged with saved credentials
+        console.log('Testing connection in edit mode - merging form updates with saved credentials');
+        result = await testConnectionWithUpdates(editId, cleanFormData);
+      } else {
+        // NEW CONNECTION: Test with form data only
+        const configData = {
+          connection_type: cleanFormData.connection_type,
+          ...cleanFormData
+        };
+        
+        console.log('Testing new connection with form data');
+        result = await testConnection(configData);
+      }
       
       console.log('Modal test result:', result);
       

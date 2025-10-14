@@ -82,6 +82,18 @@ export const testSavedConnection = async (id) => {
 };
 
 /**
+ * Test a saved connection with form updates (merges form data with saved credentials)
+ * 
+ * @param {number} id - Connection ID
+ * @param {Object} formData - Form data with updates
+ * @returns {Promise<Object>} - Test result
+ */
+export const testConnectionWithUpdates = async (id, formData) => {
+  const response = await axios.post(`${API_URL}/connections/${id}/test`, formData);
+  return response.data;
+};
+
+/**
  * Test a connection configuration (for new connections before saving)
  * 
  * @param {Object} connectionData - Connection configuration to test

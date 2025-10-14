@@ -301,6 +301,68 @@ router.get('/:id/test', async (req, res) => {
 });
 
 /**
+ * @route   POST /api/connections/:id/test
+ * @desc    Test a saved connection with form updates (merges form data with saved credentials)
+ * @access  Public (authentication would be added in a real implementation)
+ */
+router.post('/:id/test', async (req, res) => {
+  try {
+    const { connection_type, ...formConfig } = req.body;
+    
+    console.log('[TEST WITH UPDATES] Connection ID:', req.params.id);
+    console.log('[TEST WITH UPDATES] Form updates:', Object.keys(formConfig));
+    
+    // Fetch the saved connection from database
+    const savedConnection = await connectionService.getConnectionById(req.params.id);
+    
+    // Merge form config with saved config (form values take precedence, except for empty credential fields)
+    const mergedConfig = { ...savedConnection.config };
+    
+    // Define credential fields that should be preserved if empty in form
+    const credentialFields = {
+      aws: ['access_key', 'secret_key'],
+      gcp: ['private_key'],
+      azure: ['account_key'],
+      snowflake: ['snowflake_password'],
+      databricks: ['databricks_token'],
+      sharepoint: ['sharepoint_client_secret'],
+      outlook: ['outlook_client_secret']
+    };
+    
+    const credsToPreserve = credentialFields[savedConnection.type] || [];
+    
+    // Update config with form values, but preserve saved credentials if form fields are empty
+    for (const [key, value] of Object.entries(formConfig)) {
+      if (credsToPreserve.includes(key) && !value) {
+        // Keep existing encrypted credential
+        console.log('[TEST WITH UPDATES] Preserving saved credential:', key);
+      } else {
+        // Use form value
+        mergedConfig[key] = value;
+      }
+    }
+    
+    console.log('[TEST WITH UPDATES] Testing with merged config');
+    
+    // Test the merged configuration
+    const testResult = await connectionService.testConnection({
+      type: savedConnection.type,
+      config: mergedConfig
+    });
+    
+    console.log('[TEST WITH UPDATES] Test result:', testResult.success ? 'SUCCESS' : 'FAILED');
+    
+    res.json(testResult);
+  } catch (error) {
+    console.error('[TEST WITH UPDATES] Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Connection test failed: ${error.message}` 
+    });
+  }
+});
+
+/**
  * @route   POST /api/connections/test
  * @desc    Test a connection without saving it (for new connections)
  * @access  Public (authentication would be added in a real implementation)
