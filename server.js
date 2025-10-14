@@ -1263,6 +1263,10 @@ app.use('/api/connections', connectionRoutes);
 const cacheRoutes = require('./backend/routes/cacheRoutes');
 app.use('/api/cache', cacheRoutes);
 
+// DBT routes
+const dbtRoutes = require('./backend/routes/dbt');
+app.use('/api/dbt', authenticateToken, dbtRoutes);
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {

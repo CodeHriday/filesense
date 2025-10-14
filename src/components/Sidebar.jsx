@@ -361,6 +361,13 @@ function Sidebar() {
                     <span>File Lineage</span>
                   </NavLink>
                 </li>
+                
+                <li>
+                  <NavLink to="/dbt-transformations" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiCpu className="icon" />
+                    <span>DBT Transformations</span>
+                  </NavLink>
+                </li>
               </>
             )}
             

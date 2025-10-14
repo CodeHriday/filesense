@@ -43,6 +43,13 @@ function registerServices(container) {
                 this.get('dbPool')
               );
             });
+          } else if (file === 'DBTService.js') {
+            container.register(serviceName, function() {
+              return new ServiceClass(
+                this.get('dbPool'),
+                this.get('auditService')
+              );
+            });
           } else {
             container.register(serviceName, function() {
               // Create instance with dependencies
