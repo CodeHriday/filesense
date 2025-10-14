@@ -464,13 +464,23 @@ class ConnectionService {
       return value && typeof value === 'string' && value.includes(':') && value.split(':').length === 2;
     };
     
+    console.log('[DECRYPT] Connection type:', type);
+    console.log('[DECRYPT] Config has access_key:', !!config.access_key);
+    console.log('[DECRYPT] Config has secret_key:', !!config.secret_key);
+    
     switch (type) {
       case 'aws':
         if (isEncrypted(config.access_key)) {
+          console.log('[DECRYPT] Decrypting access_key (encrypted)');
           decryptedConfig.access_key = decrypt(config.access_key);
+        } else {
+          console.log('[DECRYPT] access_key is plaintext or missing');
         }
         if (isEncrypted(config.secret_key)) {
+          console.log('[DECRYPT] Decrypting secret_key (encrypted)');
           decryptedConfig.secret_key = decrypt(config.secret_key);
+        } else {
+          console.log('[DECRYPT] secret_key is plaintext or missing');
         }
         break;
       

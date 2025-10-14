@@ -268,8 +268,41 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
+ * @route   GET /api/connections/:id/test
+ * @desc    Test a saved connection by ID (fetches and decrypts credentials)
+ * @access  Public (authentication would be added in a real implementation)
+ */
+router.get('/:id/test', async (req, res) => {
+  try {
+    console.log('[TEST SAVED CONNECTION] Testing connection ID:', req.params.id);
+    
+    // Fetch the connection from database
+    const connection = await connectionService.getConnectionById(req.params.id);
+    
+    console.log('[TEST SAVED CONNECTION] Connection type:', connection.type);
+    console.log('[TEST SAVED CONNECTION] Has encrypted credentials:', !!connection.config.access_key);
+    
+    // Test the connection (service will decrypt credentials automatically)
+    const testResult = await connectionService.testConnection({
+      type: connection.type,
+      config: connection.config
+    });
+    
+    console.log('[TEST SAVED CONNECTION] Test result:', testResult.success ? 'SUCCESS' : 'FAILED');
+    
+    res.json(testResult);
+  } catch (error) {
+    console.error('[TEST SAVED CONNECTION] Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Connection test failed: ${error.message}` 
+    });
+  }
+});
+
+/**
  * @route   POST /api/connections/test
- * @desc    Test a connection without saving it
+ * @desc    Test a connection without saving it (for new connections)
  * @access  Public (authentication would be added in a real implementation)
  */
 router.post('/test', async (req, res) => {

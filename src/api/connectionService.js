@@ -71,7 +71,18 @@ export const deleteConnection = async (id) => {
 };
 
 /**
- * Test a connection configuration
+ * Test a saved connection by ID (fetches encrypted credentials from database)
+ * 
+ * @param {number} id - Connection ID
+ * @returns {Promise<Object>} - Test result
+ */
+export const testSavedConnection = async (id) => {
+  const response = await axios.get(`${API_URL}/connections/${id}/test`);
+  return response.data;
+};
+
+/**
+ * Test a connection configuration (for new connections before saving)
  * 
  * @param {Object} connectionData - Connection configuration to test
  * @returns {Promise<Object>} - Test result

@@ -9,7 +9,7 @@ import { API_BASE_URL } from '../config';
 import './Connections.css';
 
 // Import the connection service
-import { getConnections, createConnection, updateConnection, deleteConnection, testConnection } from '../api/connectionService';
+import { getConnections, createConnection, updateConnection, deleteConnection, testConnection, testSavedConnection } from '../api/connectionService';
 
 const Connections = () => {
   const { hasWritePermission, currentUser } = useAuth();
@@ -390,37 +390,10 @@ const Connections = () => {
     try {
       setTestingConnection(connection.id);
       
-      console.log('Testing connection:', connection);
+      console.log('Testing saved connection ID:', connection.id);
       
-      // Extract properly formatted data for testing
-      // Connections have different property structures depending on their source
-      // New connections use config object, older ones have flat properties
-      const configData = {};
-      
-      // First get the connection type (might be in different properties)
-      const connectionType = connection.connection_type || connection.type;
-      configData.connection_type = connectionType;
-      
-      // Copy all relevant connection properties
-      if (connectionType === 'aws') {
-        configData.region = connection.region || (connection.config?.region);
-        configData.bucket_name = connection.bucket_name || (connection.config?.bucket_name);
-        configData.access_key = connection.access_key || (connection.config?.access_key);
-        configData.secret_key = connection.secret_key || (connection.config?.secret_key);
-      } else if (connectionType === 'gcp') {
-        configData.project_id = connection.project_id || (connection.config?.project_id);
-        configData.bucket_name = connection.bucket_name || (connection.config?.bucket_name);
-        configData.client_email = connection.client_email || (connection.config?.client_email);
-        configData.private_key = connection.private_key || (connection.config?.private_key);
-      } else if (connectionType === 'azure') {
-        configData.account_name = connection.account_name || (connection.config?.account_name);
-        configData.account_key = connection.account_key || (connection.config?.account_key);
-        configData.container_name = connection.container_name || (connection.config?.container_name);
-      }
-      
-      console.log('Config data for testing:', configData);
-      
-      const result = await testConnection(configData);
+      // For saved connections, use the new endpoint that fetches and decrypts credentials from database
+      const result = await testSavedConnection(connection.id);
       
       console.log('Test result:', result);
       
