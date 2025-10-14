@@ -32,6 +32,14 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
     onSchemaChange(updatedSchema);
   };
 
+  // Helper to determine if connection is a database (not cloud storage)
+  const isDatabase = () => {
+    if (!connection) return false;
+    const type = connection.type?.toLowerCase();
+    const cloudTypes = ['aws', 's3', 'gcp', 'google', 'azure', 'blob'];
+    return !cloudTypes.some(ct => type?.includes(ct));
+  };
+
   const getConnectionTypeSettings = () => {
     if (!connection) return null;
 
@@ -84,33 +92,7 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
             </div>
           </div>
         );
-      case 'aws':
-      case 's3':
-        return (
-          <div className="connection-specific-settings">
-            <h4>S3 Settings</h4>
-            <div className="setting-group">
-              <label>File Format</label>
-              <select 
-                value={settings.fileFormat || 'parquet'}
-                onChange={(e) => handleSettingChange('fileFormat', e.target.value)}
-              >
-                <option value="parquet">Parquet</option>
-                <option value="csv">CSV</option>
-                <option value="json">JSON</option>
-              </select>
-            </div>
-            <div className="setting-group">
-              <label>S3 Path</label>
-              <input 
-                type="text" 
-                value={settings.s3Path || ''}
-                onChange={(e) => handleSettingChange('s3Path', e.target.value)}
-                placeholder="data/transformed/"
-              />
-            </div>
-          </div>
-        );
+      // Cloud storage settings removed - should be configured in Connections only
       default:
         return null;
     }
@@ -154,18 +136,21 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
             </div>
           </div>
 
-          <div className="setting-row">
-            <div className="setting-group">
-              <label>
-                <input 
-                  type="checkbox" 
-                  checked={settings.createTable}
-                  onChange={(e) => handleSettingChange('createTable', e.target.checked)}
-                />
-                Create table if it doesn't exist
-              </label>
+          {/* Only show create table checkbox for database targets */}
+          {isDatabase() && (
+            <div className="setting-row">
+              <div className="setting-group">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    checked={settings.createTable}
+                    onChange={(e) => handleSettingChange('createTable', e.target.checked)}
+                  />
+                  Create table if it doesn't exist
+                </label>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Connection-specific Settings */}
@@ -272,25 +257,27 @@ const TargetSchemaEditor = ({ connection, schema, onSchemaChange }) => {
           )}
         </div>
 
-        {/* Preview SQL */}
-        <div className="sql-preview-section">
-          <h3>Generated DDL Preview</h3>
-          <div className="sql-preview">
-            <code>
-              {`CREATE TABLE ${settings.tableName} (\n`}
-              {schema.map((col, index) => 
-                `  ${col.name} ${col.type.toUpperCase()}${col.nullable ? '' : ' NOT NULL'}${index < schema.length - 1 ? ',' : ''}\n`
-              ).join('')}
-              {settings.primaryKey && `  PRIMARY KEY (${settings.primaryKey})\n`}
-              {`);\n`}
-              {settings.indexColumns.length > 0 && 
-                settings.indexColumns.map(indexCol => 
-                  `CREATE INDEX idx_${settings.tableName}_${indexCol} ON ${settings.tableName}(${indexCol});\n`
-                ).join('')
-              }
-            </code>
+        {/* Preview SQL - Only for database targets */}
+        {isDatabase() && (
+          <div className="sql-preview-section">
+            <h3>Generated DDL Preview</h3>
+            <div className="sql-preview">
+              <code>
+                {`CREATE TABLE ${settings.tableName} (\n`}
+                {schema.map((col, index) => 
+                  `  ${col.name} ${col.type.toUpperCase()}${col.nullable ? '' : ' NOT NULL'}${index < schema.length - 1 ? ',' : ''}\n`
+                ).join('')}
+                {settings.primaryKey && `  PRIMARY KEY (${settings.primaryKey})\n`}
+                {`);\n`}
+                {settings.indexColumns.length > 0 && 
+                  settings.indexColumns.map(indexCol => 
+                    `CREATE INDEX idx_${settings.tableName}_${indexCol} ON ${settings.tableName}(${indexCol});\n`
+                  ).join('')
+                }
+              </code>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
