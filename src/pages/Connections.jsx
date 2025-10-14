@@ -28,14 +28,25 @@ const Connections = () => {
   const [dropLocationLoading, setDropLocationLoading] = useState(false);
   const [showDropLocationForm, setShowDropLocationForm] = useState(false);
   const [dropLocationFormData, setDropLocationFormData] = useState({
-    storage_type: 's3',
+    provider: 'aws',
+    // AWS fields
     region: '',
     bucket: '',
-    path_prefix: '',
     access_key_id: '',
     secret_access_key: '',
     endpoint: '',
-    use_ssl: true
+    use_ssl: true,
+    // GCP fields
+    project_id: '',
+    service_account_json: '',
+    gcp_bucket: '',
+    // Azure fields
+    account_name: '',
+    account_key: '',
+    container_name: '',
+    azure_endpoint: '',
+    // Common
+    path_prefix: ''
   });
   
   const isAdmin = currentUser?.roles?.includes('Admin');
@@ -125,17 +136,29 @@ const Connections = () => {
       });
       
       if (response.data.configured) {
-        setDropLocationConfig(response.data.config);
+        const config = response.data.config;
+        setDropLocationConfig(config);
         setDropLocationConfigured(true);
         setDropLocationFormData({
-          storage_type: response.data.config.storage_type || 's3',
-          region: response.data.config.region || '',
-          bucket: response.data.config.bucket || '',
-          path_prefix: response.data.config.path_prefix || '',
+          provider: config.provider || 'aws',
+          // AWS fields
+          region: config.region || '',
+          bucket: config.bucket || '',
           access_key_id: '',
           secret_access_key: '',
-          endpoint: response.data.config.endpoint || '',
-          use_ssl: response.data.config.use_ssl ?? true
+          endpoint: config.endpoint || '',
+          use_ssl: config.use_ssl ?? true,
+          // GCP fields
+          project_id: config.project_id || '',
+          service_account_json: '',
+          gcp_bucket: config.gcp_bucket || '',
+          // Azure fields
+          account_name: config.account_name || '',
+          account_key: '',
+          container_name: config.container_name || '',
+          azure_endpoint: config.azure_endpoint || '',
+          // Common
+          path_prefix: config.path_prefix || ''
         });
       }
     } catch (err) {
@@ -181,14 +204,25 @@ const Connections = () => {
       setDropLocationConfig(null);
       setDropLocationConfigured(false);
       setDropLocationFormData({
-        storage_type: 's3',
+        provider: 'aws',
+        // AWS fields
         region: '',
         bucket: '',
-        path_prefix: '',
         access_key_id: '',
         secret_access_key: '',
         endpoint: '',
-        use_ssl: true
+        use_ssl: true,
+        // GCP fields
+        project_id: '',
+        service_account_json: '',
+        gcp_bucket: '',
+        // Azure fields
+        account_name: '',
+        account_key: '',
+        container_name: '',
+        azure_endpoint: '',
+        // Common
+        path_prefix: ''
       });
     } catch (err) {
       console.error('Error removing drop location config:', err);
@@ -1140,15 +1174,6 @@ const Connections = () => {
     <div className="connections-container">
       <div className="connections-header">
         <h1>Cloud Storage Connections</h1>
-        {hasWritePermission('connections') ? (
-          <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
-            <FiPlus /> Add Connection
-          </button>
-        ) : (
-          <div className="permission-notice">
-            You don't have permission to create connections
-          </div>
-        )}
       </div>
       
       {/* Drop Location Configuration (Admin Only) */}
@@ -1158,7 +1183,7 @@ const Connections = () => {
             <div>
               <h2><FiUploadCloud style={{ marginRight: '0.5rem' }} />Drop File Location</h2>
               <p className="drop-location-subtitle">
-                Configure a single S3 location for quick file uploads without profiling
+                Configure a single cloud storage location for quick file uploads without profiling
               </p>
             </div>
             {dropLocationConfigured && !showDropLocationForm && (
@@ -1173,33 +1198,197 @@ const Connections = () => {
           
           {showDropLocationForm ? (
             <form onSubmit={handleDropLocationSubmit} style={{ marginTop: '1rem' }}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="drop_region">AWS Region</label>
-                  <input
-                    type="text"
-                    id="drop_region"
-                    className="form-control"
-                    value={dropLocationFormData.region}
-                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, region: e.target.value})}
-                    placeholder="us-east-1"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="drop_bucket">S3 Bucket *</label>
-                  <input
-                    type="text"
-                    id="drop_bucket"
-                    className="form-control"
-                    value={dropLocationFormData.bucket}
-                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, bucket: e.target.value})}
-                    required
-                    placeholder="my-drop-bucket"
-                  />
-                </div>
+              <div className="form-group">
+                <label htmlFor="drop_provider">Cloud Provider *</label>
+                <select
+                  id="drop_provider"
+                  className="form-control"
+                  value={dropLocationFormData.provider}
+                  onChange={(e) => setDropLocationFormData({...dropLocationFormData, provider: e.target.value})}
+                  required
+                >
+                  <option value="aws">AWS S3</option>
+                  <option value="gcp">Google Cloud Storage</option>
+                  <option value="azure">Azure Blob Storage</option>
+                </select>
               </div>
-              
+
+              {/* AWS S3 Fields */}
+              {dropLocationFormData.provider === 'aws' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="drop_region">AWS Region</label>
+                      <input
+                        type="text"
+                        id="drop_region"
+                        className="form-control"
+                        value={dropLocationFormData.region}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, region: e.target.value})}
+                        placeholder="us-east-1"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="drop_bucket">S3 Bucket *</label>
+                      <input
+                        type="text"
+                        id="drop_bucket"
+                        className="form-control"
+                        value={dropLocationFormData.bucket}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, bucket: e.target.value})}
+                        required
+                        placeholder="my-drop-bucket"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="drop_access_key">Access Key ID</label>
+                      <input
+                        type="text"
+                        id="drop_access_key"
+                        className="form-control"
+                        value={dropLocationFormData.access_key_id}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, access_key_id: e.target.value})}
+                        placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="drop_secret_key">Secret Access Key</label>
+                      <input
+                        type="password"
+                        id="drop_secret_key"
+                        className="form-control"
+                        value={dropLocationFormData.secret_access_key}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, secret_access_key: e.target.value})}
+                        placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="drop_endpoint">Custom Endpoint (Optional)</label>
+                    <input
+                      type="text"
+                      id="drop_endpoint"
+                      className="form-control"
+                      value={dropLocationFormData.endpoint}
+                      onChange={(e) => setDropLocationFormData({...dropLocationFormData, endpoint: e.target.value})}
+                      placeholder="https://s3.custom-endpoint.com"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* GCP Storage Fields */}
+              {dropLocationFormData.provider === 'gcp' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="drop_project_id">GCP Project ID *</label>
+                      <input
+                        type="text"
+                        id="drop_project_id"
+                        className="form-control"
+                        value={dropLocationFormData.project_id}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, project_id: e.target.value})}
+                        required
+                        placeholder="my-gcp-project"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="drop_gcp_bucket">Storage Bucket *</label>
+                      <input
+                        type="text"
+                        id="drop_gcp_bucket"
+                        className="form-control"
+                        value={dropLocationFormData.gcp_bucket}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, gcp_bucket: e.target.value})}
+                        required
+                        placeholder="my-drop-bucket"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="drop_service_account">Service Account JSON *</label>
+                    <textarea
+                      id="drop_service_account"
+                      className="form-control"
+                      rows="4"
+                      value={dropLocationFormData.service_account_json}
+                      onChange={(e) => setDropLocationFormData({...dropLocationFormData, service_account_json: e.target.value})}
+                      placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : 'Paste your service account JSON key here'}
+                    />
+                    <small className="form-text text-muted">
+                      Service account must have Storage Object Admin role
+                    </small>
+                  </div>
+                </>
+              )}
+
+              {/* Azure Blob Storage Fields */}
+              {dropLocationFormData.provider === 'azure' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="drop_account_name">Storage Account Name *</label>
+                      <input
+                        type="text"
+                        id="drop_account_name"
+                        className="form-control"
+                        value={dropLocationFormData.account_name}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, account_name: e.target.value})}
+                        required
+                        placeholder="mystorageaccount"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="drop_container_name">Container Name *</label>
+                      <input
+                        type="text"
+                        id="drop_container_name"
+                        className="form-control"
+                        value={dropLocationFormData.container_name}
+                        onChange={(e) => setDropLocationFormData({...dropLocationFormData, container_name: e.target.value})}
+                        required
+                        placeholder="my-drop-container"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="drop_account_key">Account Key</label>
+                    <input
+                      type="password"
+                      id="drop_account_key"
+                      className="form-control"
+                      value={dropLocationFormData.account_key}
+                      onChange={(e) => setDropLocationFormData({...dropLocationFormData, account_key: e.target.value})}
+                      placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : 'Enter your storage account key'}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="drop_azure_endpoint">Custom Endpoint (Optional)</label>
+                    <input
+                      type="text"
+                      id="drop_azure_endpoint"
+                      className="form-control"
+                      value={dropLocationFormData.azure_endpoint}
+                      onChange={(e) => setDropLocationFormData({...dropLocationFormData, azure_endpoint: e.target.value})}
+                      placeholder="https://mystorageaccount.blob.core.windows.net"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Common Fields */}
               <div className="form-group">
                 <label htmlFor="drop_path_prefix">Path Prefix (Optional)</label>
                 <input
@@ -1211,34 +1400,8 @@ const Connections = () => {
                   placeholder="uploads/drop-files"
                 />
                 <small className="form-text text-muted">
-                  Optional folder path within bucket
+                  Optional folder path within {dropLocationFormData.provider === 'azure' ? 'container' : 'bucket'}
                 </small>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="drop_access_key">Access Key ID</label>
-                  <input
-                    type="text"
-                    id="drop_access_key"
-                    className="form-control"
-                    value={dropLocationFormData.access_key_id}
-                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, access_key_id: e.target.value})}
-                    placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="drop_secret_key">Secret Access Key</label>
-                  <input
-                    type="password"
-                    id="drop_secret_key"
-                    className="form-control"
-                    value={dropLocationFormData.secret_access_key}
-                    onChange={(e) => setDropLocationFormData({...dropLocationFormData, secret_access_key: e.target.value})}
-                    placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
-                  />
-                </div>
               </div>
               
               <div className="form-actions">
@@ -1271,13 +1434,49 @@ const Connections = () => {
             <div className="drop-location-info">
               <div className="info-grid">
                 <div className="info-item">
-                  <strong>Bucket:</strong> {dropLocationConfig.bucket}
+                  <strong>Provider:</strong> {
+                    dropLocationConfig.provider === 'aws' ? 'AWS S3' :
+                    dropLocationConfig.provider === 'gcp' ? 'Google Cloud Storage' :
+                    dropLocationConfig.provider === 'azure' ? 'Azure Blob Storage' :
+                    dropLocationConfig.provider || 'AWS S3'
+                  }
                 </div>
-                {dropLocationConfig.region && (
-                  <div className="info-item">
-                    <strong>Region:</strong> {dropLocationConfig.region}
-                  </div>
+                
+                {dropLocationConfig.provider === 'aws' && (
+                  <>
+                    <div className="info-item">
+                      <strong>Bucket:</strong> {dropLocationConfig.bucket}
+                    </div>
+                    {dropLocationConfig.region && (
+                      <div className="info-item">
+                        <strong>Region:</strong> {dropLocationConfig.region}
+                      </div>
+                    )}
+                  </>
                 )}
+                
+                {dropLocationConfig.provider === 'gcp' && (
+                  <>
+                    <div className="info-item">
+                      <strong>Bucket:</strong> {dropLocationConfig.gcp_bucket}
+                    </div>
+                    <div className="info-item">
+                      <strong>Project:</strong> {dropLocationConfig.project_id}
+                    </div>
+                  </>
+                )}
+                
+                {dropLocationConfig.provider === 'azure' && (
+                  <>
+                    <div className="info-item">
+                      <strong>Container:</strong> {dropLocationConfig.container_name}
+                    </div>
+                    <div className="info-item">
+                      <strong>Account:</strong> {dropLocationConfig.account_name}
+                    </div>
+                  </>
+                )}
+                
                 {dropLocationConfig.path_prefix && (
                   <div className="info-item">
                     <strong>Path Prefix:</strong> {dropLocationConfig.path_prefix}
@@ -1290,7 +1489,7 @@ const Connections = () => {
             </div>
           ) : (
             <div className="drop-location-empty">
-              <p>No drop location configured. Configure an S3 location to enable drop file uploads.</p>
+              <p>No drop location configured. Configure a cloud storage location to enable drop file uploads.</p>
               <button 
                 className="btn btn-primary"
                 onClick={() => setShowDropLocationForm(true)}
@@ -1326,6 +1525,15 @@ const Connections = () => {
         </div>
       ) : (
         <div className="connections-content">
+          {/* Add Connection button inside tab */}
+          {!showForm && hasWritePermission('connections') && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+              <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
+                <FiPlus /> Add Connection
+              </button>
+            </div>
+          )}
+          
           {showForm ? (
             <Card className="connection-form-container">
               <h2>{editMode ? 'Edit Connection' : 'Add New Connection'}</h2>

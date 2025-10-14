@@ -1314,49 +1314,140 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     
     // Decrypt credentials
     const { decrypt } = require('./backend/utils/encryption');
+    const provider = dropConfig.provider || 'aws';
     
-    // Upload to S3
-    const AWS = require('aws-sdk');
-    const s3 = new AWS.S3({
-      accessKeyId: decrypt(dropConfig.access_key_id),
-      secretAccessKey: decrypt(dropConfig.secret_access_key),
-      region: dropConfig.region || 'us-east-1',
-      ...(dropConfig.endpoint && { endpoint: dropConfig.endpoint }),
-      ...(dropConfig.use_ssl !== null && { sslEnabled: dropConfig.use_ssl })
-    });
+    let uploadResult;
+    let storageKey;
+    let storageLocation;
     
-    const s3Key = dropConfig.path_prefix 
-      ? `${dropConfig.path_prefix}/${file.originalname}`
-      : file.originalname;
-    
-    const fileStream = fs.createReadStream(file.path);
-    const uploadParams = {
-      Bucket: dropConfig.bucket,
-      Key: s3Key,
-      Body: fileStream,
-      ContentType: file.mimetype,
-      Metadata: {
-        'uploaded-by': userId.toString(),
-        'original-filename': file.originalname,
-        'upload-timestamp': new Date().toISOString()
-      }
-    };
-    
-    const s3Upload = await s3.upload(uploadParams).promise();
-    
-    logger.info('File dropped to S3', {
-      fileId,
-      filename: file.originalname,
-      s3Location: s3Upload.Location,
-      bucket: dropConfig.bucket,
-      key: s3Key,
-      userId
-    });
+    // Upload based on provider
+    if (provider === 'aws') {
+      // AWS S3 Upload
+      const AWS = require('aws-sdk');
+      const s3 = new AWS.S3({
+        accessKeyId: decrypt(dropConfig.access_key_id),
+        secretAccessKey: decrypt(dropConfig.secret_access_key),
+        region: dropConfig.region || 'us-east-1',
+        ...(dropConfig.endpoint && { endpoint: dropConfig.endpoint }),
+        ...(dropConfig.use_ssl !== null && { sslEnabled: dropConfig.use_ssl })
+      });
+      
+      storageKey = dropConfig.path_prefix 
+        ? `${dropConfig.path_prefix}/${file.originalname}`
+        : file.originalname;
+      
+      const fileStream = fs.createReadStream(file.path);
+      const uploadParams = {
+        Bucket: dropConfig.bucket,
+        Key: storageKey,
+        Body: fileStream,
+        ContentType: file.mimetype,
+        Metadata: {
+          'uploaded-by': userId.toString(),
+          'original-filename': file.originalname,
+          'upload-timestamp': new Date().toISOString()
+        }
+      };
+      
+      uploadResult = await s3.upload(uploadParams).promise();
+      storageLocation = uploadResult.Location;
+      
+      logger.info('File dropped to AWS S3', {
+        fileId,
+        filename: file.originalname,
+        s3Location: uploadResult.Location,
+        bucket: dropConfig.bucket,
+        key: storageKey,
+        userId
+      });
+    } else if (provider === 'gcp') {
+      // Google Cloud Storage Upload
+      const { Storage } = require('@google-cloud/storage');
+      const serviceAccountJson = JSON.parse(decrypt(dropConfig.service_account_json));
+      
+      const storage = new Storage({
+        projectId: dropConfig.project_id,
+        credentials: serviceAccountJson
+      });
+      
+      const bucket = storage.bucket(dropConfig.gcp_bucket);
+      storageKey = dropConfig.path_prefix 
+        ? `${dropConfig.path_prefix}/${file.originalname}`
+        : file.originalname;
+      
+      const blob = bucket.file(storageKey);
+      const blobStream = blob.createWriteStream({
+        resumable: false,
+        metadata: {
+          contentType: file.mimetype,
+          metadata: {
+            uploadedBy: userId.toString(),
+            originalFilename: file.originalname,
+            uploadTimestamp: new Date().toISOString()
+          }
+        }
+      });
+      
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(file.path)
+          .pipe(blobStream)
+          .on('error', reject)
+          .on('finish', resolve);
+      });
+      
+      storageLocation = `gs://${dropConfig.gcp_bucket}/${storageKey}`;
+      
+      logger.info('File dropped to GCP Storage', {
+        fileId,
+        filename: file.originalname,
+        gcsLocation: storageLocation,
+        bucket: dropConfig.gcp_bucket,
+        key: storageKey,
+        userId
+      });
+    } else if (provider === 'azure') {
+      // Azure Blob Storage Upload
+      const { BlobServiceClient } = require('@azure-sdk/storage-blob');
+      const accountKey = decrypt(dropConfig.account_key);
+      
+      const connectionString = `DefaultEndpointsProtocol=https;AccountName=${dropConfig.account_name};AccountKey=${accountKey};EndpointSuffix=core.windows.net`;
+      const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+      const containerClient = blobServiceClient.getContainerClient(dropConfig.container_name);
+      
+      storageKey = dropConfig.path_prefix 
+        ? `${dropConfig.path_prefix}/${file.originalname}`
+        : file.originalname;
+      
+      const blockBlobClient = containerClient.getBlockBlobClient(storageKey);
+      await blockBlobClient.uploadFile(file.path, {
+        blobHTTPHeaders: {
+          blobContentType: file.mimetype
+        },
+        metadata: {
+          uploadedBy: userId.toString(),
+          originalFilename: file.originalname,
+          uploadTimestamp: new Date().toISOString()
+        }
+      });
+      
+      storageLocation = blockBlobClient.url;
+      
+      logger.info('File dropped to Azure Blob Storage', {
+        fileId,
+        filename: file.originalname,
+        blobLocation: storageLocation,
+        container: dropConfig.container_name,
+        key: storageKey,
+        userId
+      });
+    } else {
+      throw new Error(`Unsupported provider: ${provider}`);
+    }
     
     // Clean up local file
     try { fs.unlinkSync(file.path); } catch (e) {}
     
-    // Optionally log to database (without profiling)
+    // Log to database (without profiling)
     await dbPool.query(
       `INSERT INTO files (file_id, filename, file_type, file_size, upload_date, uploaded_by, storage_location)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -1367,21 +1458,21 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         file.size,
         new Date(),
         userId,
-        s3Upload.Location
+        storageLocation
       ]
     );
     
     res.json({
       success: true,
       fileId,
-      message: 'File uploaded successfully to drop location',
+      message: `File uploaded successfully to ${provider.toUpperCase()} drop location`,
       file: {
         file_id: fileId,
         filename: file.originalname,
         file_size: file.size,
-        s3_location: s3Upload.Location,
-        bucket: dropConfig.bucket,
-        key: s3Key
+        storage_location: storageLocation,
+        provider: provider,
+        key: storageKey
       }
     });
     

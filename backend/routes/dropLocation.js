@@ -20,7 +20,10 @@ const requireAdmin = (req, res, next) => {
 router.get('/config', requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT id, storage_type, region, bucket, path_prefix, endpoint, use_ssl, is_active, created_at, updated_at
+      `SELECT id, provider, storage_type, region, bucket, path_prefix, endpoint, use_ssl, 
+              project_id, gcp_bucket, account_name, container_name, azure_endpoint,
+              access_key_id, secret_access_key, service_account_json, account_key,
+              is_active, created_at, updated_at
        FROM drop_location_config
        WHERE is_active = true
        LIMIT 1`
@@ -32,11 +35,24 @@ router.get('/config', requireAdmin, async (req, res) => {
 
     const config = result.rows[0];
     
+    // Check credentials based on provider
+    let hasCredentials = false;
+    if (config.provider === 'aws' || !config.provider) {
+      hasCredentials = !!config.access_key_id;
+    } else if (config.provider === 'gcp') {
+      hasCredentials = !!config.service_account_json;
+    } else if (config.provider === 'azure') {
+      hasCredentials = !!config.account_key;
+    }
+    
+    // Remove encrypted credentials from response
+    const { access_key_id, secret_access_key, service_account_json, account_key, ...publicConfig } = config;
+    
     res.json({
       configured: true,
       config: {
-        ...config,
-        hasCredentials: config.access_key_id ? true : false
+        ...publicConfig,
+        hasCredentials
       }
     });
   } catch (error) {
@@ -48,55 +64,111 @@ router.get('/config', requireAdmin, async (req, res) => {
 router.post('/config', requireAdmin, async (req, res) => {
   try {
     const {
+      provider = 'aws',
       storage_type = 's3',
+      // AWS fields
       region,
       bucket,
-      path_prefix = '',
       access_key_id,
       secret_access_key,
       endpoint,
-      use_ssl = true
+      use_ssl = true,
+      // GCP fields
+      project_id,
+      service_account_json,
+      gcp_bucket,
+      // Azure fields
+      account_name,
+      account_key,
+      container_name,
+      azure_endpoint,
+      // Common
+      path_prefix = ''
     } = req.body;
 
-    if (!bucket) {
-      return res.status(400).json({ error: 'Bucket name is required' });
+    // Validate required fields based on provider
+    if (provider === 'aws' && !bucket) {
+      return res.status(400).json({ error: 'Bucket name is required for AWS S3' });
+    }
+    if (provider === 'gcp' && (!project_id || !gcp_bucket)) {
+      return res.status(400).json({ error: 'Project ID and bucket name are required for GCP' });
+    }
+    if (provider === 'azure' && (!account_name || !container_name)) {
+      return res.status(400).json({ error: 'Account name and container name are required for Azure' });
     }
 
-    const encryptedAccessKey = access_key_id ? encrypt(access_key_id) : null;
-    const encryptedSecretKey = secret_access_key ? encrypt(secret_access_key) : null;
+    // Encrypt credentials based on provider
+    let encryptedAccessKey = null;
+    let encryptedSecretKey = null;
+    let encryptedServiceAccount = null;
+    let encryptedAccountKey = null;
+
+    if (provider === 'aws') {
+      encryptedAccessKey = access_key_id ? encrypt(access_key_id) : null;
+      encryptedSecretKey = secret_access_key ? encrypt(secret_access_key) : null;
+    } else if (provider === 'gcp') {
+      encryptedServiceAccount = service_account_json ? encrypt(service_account_json) : null;
+    } else if (provider === 'azure') {
+      encryptedAccountKey = account_key ? encrypt(account_key) : null;
+    }
 
     const existingResult = await db.query(
-      'SELECT id FROM drop_location_config WHERE is_active = true LIMIT 1'
+      'SELECT id, provider, access_key_id, secret_access_key, service_account_json, account_key FROM drop_location_config WHERE is_active = true LIMIT 1'
     );
 
     let result;
     if (existingResult.rows.length > 0) {
+      const existing = existingResult.rows[0];
+      
+      // Keep existing credentials if new ones aren't provided
+      if (provider === 'aws') {
+        encryptedAccessKey = encryptedAccessKey || existing.access_key_id;
+        encryptedSecretKey = encryptedSecretKey || existing.secret_access_key;
+      } else if (provider === 'gcp') {
+        encryptedServiceAccount = encryptedServiceAccount || existing.service_account_json;
+      } else if (provider === 'azure') {
+        encryptedAccountKey = encryptedAccountKey || existing.account_key;
+      }
+      
       result = await db.query(
         `UPDATE drop_location_config 
-         SET storage_type = $1, region = $2, bucket = $3, path_prefix = $4,
-             access_key_id = $5, secret_access_key = $6, endpoint = $7, use_ssl = $8,
-             updated_at = CURRENT_TIMESTAMP, updated_by = $9
-         WHERE id = $10
-         RETURNING id, storage_type, region, bucket, path_prefix, endpoint, use_ssl, is_active`,
-        [storage_type, region, bucket, path_prefix, encryptedAccessKey, encryptedSecretKey, 
-         endpoint, use_ssl, req.user.id, existingResult.rows[0].id]
+         SET provider = $1, storage_type = $2, region = $3, bucket = $4, path_prefix = $5,
+             access_key_id = $6, secret_access_key = $7, endpoint = $8, use_ssl = $9,
+             project_id = $10, service_account_json = $11, gcp_bucket = $12,
+             account_name = $13, account_key = $14, container_name = $15, azure_endpoint = $16,
+             updated_at = CURRENT_TIMESTAMP, updated_by = $17
+         WHERE id = $18
+         RETURNING id, provider, storage_type, region, bucket, path_prefix, endpoint, use_ssl, 
+                   project_id, gcp_bucket, account_name, container_name, azure_endpoint, is_active`,
+        [provider, storage_type, region, bucket, path_prefix, 
+         encryptedAccessKey, encryptedSecretKey, endpoint, use_ssl,
+         project_id, encryptedServiceAccount, gcp_bucket,
+         account_name, encryptedAccountKey, container_name, azure_endpoint,
+         req.user.id, existing.id]
       );
     } else {
       result = await db.query(
         `INSERT INTO drop_location_config 
-         (storage_type, region, bucket, path_prefix, access_key_id, secret_access_key, 
-          endpoint, use_ssl, is_active, created_by, updated_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $9)
-         RETURNING id, storage_type, region, bucket, path_prefix, endpoint, use_ssl, is_active`,
-        [storage_type, region, bucket, path_prefix, encryptedAccessKey, encryptedSecretKey,
-         endpoint, use_ssl, req.user.id]
+         (provider, storage_type, region, bucket, path_prefix, 
+          access_key_id, secret_access_key, endpoint, use_ssl,
+          project_id, service_account_json, gcp_bucket,
+          account_name, account_key, container_name, azure_endpoint,
+          is_active, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, true, $17, $17)
+         RETURNING id, provider, storage_type, region, bucket, path_prefix, endpoint, use_ssl, 
+                   project_id, gcp_bucket, account_name, container_name, azure_endpoint, is_active`,
+        [provider, storage_type, region, bucket, path_prefix,
+         encryptedAccessKey, encryptedSecretKey, endpoint, use_ssl,
+         project_id, encryptedServiceAccount, gcp_bucket,
+         account_name, encryptedAccountKey, container_name, azure_endpoint,
+         req.user.id]
       );
     }
 
     systemLogger.info('Drop location config saved', { 
       userId: req.user.id,
-      bucket,
-      storageType: storage_type
+      provider,
+      bucket: bucket || gcp_bucket || container_name
     });
 
     res.json({
@@ -125,7 +197,7 @@ router.delete('/config', requireAdmin, async (req, res) => {
 router.get('/credentials', requireAdmin, async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT access_key_id, secret_access_key
+      `SELECT provider, access_key_id, secret_access_key, service_account_json, account_key
        FROM drop_location_config
        WHERE is_active = true
        LIMIT 1`
@@ -136,11 +208,21 @@ router.get('/credentials', requireAdmin, async (req, res) => {
     }
 
     const config = result.rows[0];
+    const provider = config.provider || 'aws';
     
-    res.json({
-      access_key_id: config.access_key_id ? decrypt(config.access_key_id) : null,
-      secret_access_key: config.secret_access_key ? decrypt(config.secret_access_key) : null
-    });
+    // Return decrypted credentials based on provider
+    const credentials = { provider };
+    
+    if (provider === 'aws') {
+      credentials.access_key_id = config.access_key_id ? decrypt(config.access_key_id) : null;
+      credentials.secret_access_key = config.secret_access_key ? decrypt(config.secret_access_key) : null;
+    } else if (provider === 'gcp') {
+      credentials.service_account_json = config.service_account_json ? decrypt(config.service_account_json) : null;
+    } else if (provider === 'azure') {
+      credentials.account_key = config.account_key ? decrypt(config.account_key) : null;
+    }
+    
+    res.json(credentials);
   } catch (error) {
     systemLogger.error('Error fetching drop location credentials', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch credentials' });
