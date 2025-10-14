@@ -24,7 +24,8 @@ import {
   FiLayers,
   FiMapPin,
   FiFilter,
-  FiPlusCircle
+  FiPlusCircle,
+  FiFileText
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import OnboardingWizard from './OnboardingWizard';
@@ -393,6 +394,16 @@ function Sidebar() {
                     <NavLink to="/dashboard-settings" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiSettings className="icon" />
                       <span>Dashboard Settings</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {/* Audit Trail - Admin only */}
+                {isAdmin && (
+                  <li>
+                    <NavLink to="/audit-trail" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiFileText className="icon" />
+                      <span>Audit Trail</span>
                     </NavLink>
                   </li>
                 )}
