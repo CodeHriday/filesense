@@ -18,6 +18,37 @@ function DataProfile() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Helper functions for column type checking
+  const isNumericColumn = (column) => {
+    const numericTypes = ['integer', 'decimal', 'number', 'float', 'int64', 'float64', 'int32', 'float32'];
+    return column.type && numericTypes.includes(column.type.toLowerCase());
+  };
+
+  const isDateTimeColumn = (column) => {
+    return column.type && column.type.toLowerCase().includes('datetime');
+  };
+
+  const hasMinMaxValues = (column) => {
+    return isNumericColumn(column) || isDateTimeColumn(column);
+  };
+
+  const formatMinMaxValue = (value, column) => {
+    if (value === null || value === undefined) return 'N/A';
+    
+    if (isDateTimeColumn(column)) {
+      // Format datetime values
+      try {
+        const date = new Date(value);
+        return date.toLocaleString();
+      } catch (e) {
+        return value;
+      }
+    } else {
+      // Format numeric values
+      return formatDecimal(value, 2);
+    }
+  };
+
   useEffect(() => {
     console.log('DataProfile component mounted with fileId:', fileId);
     const fetchData = async () => {
@@ -231,17 +262,17 @@ function DataProfile() {
                     <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>
-                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64') 
+                    {hasMinMaxValues(column)
                       ? column.min_is_frequent 
-                        ? `${formatDecimal(column.min, 2)} (occurs ${column.min_frequency || 1}x)` 
-                        : formatDecimal(column.min, 2)
+                        ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
+                        : formatMinMaxValue(column.min, column)
                       : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
                     </td>
                     <td>
-                    {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64') 
+                    {hasMinMaxValues(column)
                       ? column.max_is_frequent 
-                        ? `${formatDecimal(column.max, 2)} (occurs ${column.max_frequency || 1}x)` 
-                        : formatDecimal(column.max, 2)
+                        ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
+                        : formatMinMaxValue(column.max, column)
                       : column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
                     </td>
                   </tr>
@@ -274,23 +305,23 @@ function DataProfile() {
                     <div className="column-stat-label">Unique Values:</div>
                     <div className="column-stat-value">{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</div>
                   </div>
-                  {/* Only show min/max for numeric types */}
-                  {(column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64') && (
+                  {/* Show min/max for numeric and datetime types */}
+                  {hasMinMaxValues(column) && (
                     <>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
                         <div className="column-stat-value">
                           {column.min_is_frequent 
-                            ? `${formatDecimal(column.min, 2)} (occurs ${column.min_frequency || 1}x)` 
-                            : formatDecimal(column.min, 2)}
+                            ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
+                            : formatMinMaxValue(column.min, column)}
                         </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Max:</div>
                         <div className="column-stat-value">
                           {column.max_is_frequent 
-                            ? `${formatDecimal(column.max, 2)} (occurs ${column.max_frequency || 1}x)` 
-                            : formatDecimal(column.max, 2)}
+                            ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
+                            : formatMinMaxValue(column.max, column)}
                         </div>
                       </div>
                     </>
@@ -318,15 +349,15 @@ function DataProfile() {
                   <div className="histogram-container">
                     <div className="histogram-title">Value Distribution</div>
                     <div className="pseudo-histogram">
-                      {column.type === 'integer' || column.type === 'decimal' || column.type === 'number' || column.type === 'float' || column.type === 'int64' || column.type === 'float64' ? (
-                        // Create a data-based histogram for numeric data with min-max labels
+                      {hasMinMaxValues(column) ? (
+                        // Create a data-based histogram for numeric/datetime data with min-max labels
                         <div className="numeric-distribution">
                           <div className="value-labels">
                             <span className="min-label">
-                              {formatDecimal(column.min, 2)}
+                              {formatMinMaxValue(column.min, column)}
                             </span>
                             <span className="max-label">
-                              {formatDecimal(column.max, 2)}
+                              {formatMinMaxValue(column.max, column)}
                             </span>
                           </div>
                           <div className="bars">
@@ -339,6 +370,28 @@ function DataProfile() {
                               else if (i === 2 || i === 5) heightFactor = 70;
                               else if (i === 3 || i === 4) heightFactor = 90;
                               
+                              // Calculate range values
+                              let rangeStart, rangeEnd, rangeTitle;
+                              if (isDateTimeColumn(column)) {
+                                // For datetime, use timestamps for calculation
+                                const minTime = new Date(column.min).getTime();
+                                const maxTime = new Date(column.max).getTime();
+                                
+                                // Guard against invalid dates
+                                if (!isNaN(minTime) && !isNaN(maxTime)) {
+                                  const rangeStartTime = minTime + ((maxTime - minTime) * i / 7);
+                                  const rangeEndTime = minTime + ((maxTime - minTime) * (i+1) / 7);
+                                  rangeTitle = `Range: ${new Date(rangeStartTime).toLocaleDateString()} - ${new Date(rangeEndTime).toLocaleDateString()}`;
+                                } else {
+                                  rangeTitle = 'Date range';
+                                }
+                              } else {
+                                // For numeric, use parseFloat
+                                rangeStart = parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * i / 7);
+                                rangeEnd = parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * (i+1) / 7);
+                                rangeTitle = `Range: ${formatDecimal(rangeStart)} - ${formatDecimal(rangeEnd)}`;
+                              }
+                              
                               return (
                                 <div 
                                   key={i} 
@@ -347,7 +400,7 @@ function DataProfile() {
                                     height: `${heightFactor}%`,
                                     backgroundColor: `rgba(52, 152, 219, ${0.5 + (i / 16)})`
                                   }}
-                                  title={`Range: ${formatDecimal(parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * i / 7))} - ${formatDecimal(parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * (i+1) / 7))}`}
+                                  title={rangeTitle}
                                 ></div>
                               );
                             })}
