@@ -824,7 +824,7 @@ function Mappings() {
 
   // Transform Handlers
   const handleOpenTransform = () => {
-    window.open('https://blume-etl-blumetra.replit.app/', '_blank', 'noopener,noreferrer');
+    navigate('/transform');
   };
 
   return (
@@ -832,8 +832,8 @@ function Mappings() {
       <div className="mappings-header">
         <h1>Data Transformations & Mappings</h1>
         <div className="d-flex">
-          <button className="btn btn-primary external-link-btn" onClick={handleOpenTransform}>
-            <FiExternalLink className="btn-icon" />
+          <button className="btn btn-primary" onClick={handleOpenTransform}>
+            <FiPlus className="btn-icon" />
             Create Mapping
           </button>
         </div>
@@ -1167,7 +1167,7 @@ function Mappings() {
               <div className="section-header transformations-header">
                 <h2>Data Transformations with Transform</h2>
                 <button onClick={handleOpenTransform} className="btn btn-sm btn-primary">
-                  <FiExternalLink className="btn-icon" />
+                  <FiPlus className="btn-icon" />
                   Create Mapping
                 </button>
               </div>
@@ -1181,7 +1181,7 @@ function Mappings() {
                     designed to handle complex transformations with advanced features and better performance.
                   </p>
                   <button onClick={handleOpenTransform} className="btn btn-primary">
-                    <FiExternalLink className="btn-icon" />
+                    <FiPlus className="btn-icon" />
                     Create Mapping
                   </button>
                 </div>
