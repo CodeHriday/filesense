@@ -38,6 +38,8 @@ const Connections = () => {
   const [dropLocationConfigured, setDropLocationConfigured] = useState(false);
   const [dropLocationLoading, setDropLocationLoading] = useState(false);
   const [showDropLocationForm, setShowDropLocationForm] = useState(false);
+  const [testingDropLocation, setTestingDropLocation] = useState(false);
+  const [dropLocationTestResult, setDropLocationTestResult] = useState(null);
   const [dropLocationFormData, setDropLocationFormData] = useState({
     provider: 'aws',
     // AWS fields
@@ -240,6 +242,29 @@ const Connections = () => {
       console.error('Error removing drop location config:', err);
       setError('Failed to remove drop location configuration');
       setShowDeleteDropLocationModal(false);
+    }
+  };
+  
+  const handleTestDropLocation = async () => {
+    try {
+      setTestingDropLocation(true);
+      setDropLocationTestResult(null);
+      
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/drop-location/test`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log('Drop location test result:', response.data);
+      setDropLocationTestResult(response.data);
+    } catch (err) {
+      console.error('Error testing drop location:', err);
+      setDropLocationTestResult({
+        success: false,
+        message: err.response?.data?.message || `Test failed: ${err.message}`
+      });
+    } finally {
+      setTestingDropLocation(false);
     }
   };
   
@@ -1565,6 +1590,26 @@ const Connections = () => {
                 <div className="info-item">
                   <strong>Credentials:</strong> {dropLocationConfig.hasCredentials ? 'Configured' : 'Not set'}
                 </div>
+              </div>
+              
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleTestDropLocation}
+                  disabled={testingDropLocation || !dropLocationConfig.hasCredentials}
+                >
+                  {testingDropLocation ? 'Testing...' : 'Test Connection'}
+                </button>
+                
+                {dropLocationTestResult && (
+                  <div className={`test-result ${dropLocationTestResult.success ? 'success' : 'error'}`}>
+                    {dropLocationTestResult.success ? (
+                      <><FiCheckCircle /> {dropLocationTestResult.message}</>
+                    ) : (
+                      <><FiAlertCircle /> {dropLocationTestResult.message}</>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ) : (

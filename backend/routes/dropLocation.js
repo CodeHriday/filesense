@@ -171,9 +171,33 @@ router.post('/config', requireAdmin, async (req, res) => {
       bucket: bucket || gcp_bucket || container_name
     });
 
+    // Query to get the saved configuration with credentials to determine hasCredentials
+    const savedResult = await db.query(
+      `SELECT provider, access_key_id, secret_access_key, service_account_json, account_key
+       FROM drop_location_config
+       WHERE is_active = true
+       LIMIT 1`
+    );
+    
+    const savedConfig = result.rows[0];
+    const credConfig = savedResult.rows[0];
+    
+    // Check if credentials exist based on provider
+    let hasCredentials = false;
+    if (credConfig.provider === 'aws' || !credConfig.provider) {
+      hasCredentials = !!(credConfig.access_key_id && credConfig.secret_access_key);
+    } else if (credConfig.provider === 'gcp') {
+      hasCredentials = !!credConfig.service_account_json;
+    } else if (credConfig.provider === 'azure') {
+      hasCredentials = !!credConfig.account_key;
+    }
+
     res.json({
       message: 'Drop location configuration saved successfully',
-      config: result.rows[0]
+      config: {
+        ...savedConfig,
+        hasCredentials
+      }
     });
   } catch (error) {
     systemLogger.error('Error saving drop location config', { error: error.message });
@@ -228,5 +252,261 @@ router.get('/credentials', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch credentials' });
   }
 });
+
+router.get('/test', requireAdmin, async (req, res) => {
+  try {
+    console.log('[TEST DROP LOCATION] Starting connection test');
+    
+    // Fetch the active drop location configuration
+    const result = await db.query(
+      `SELECT provider, storage_type, region, bucket, path_prefix, endpoint, use_ssl,
+              project_id, gcp_bucket, account_name, container_name, azure_endpoint,
+              access_key_id, secret_access_key, service_account_json, account_key
+       FROM drop_location_config
+       WHERE is_active = true
+       LIMIT 1`
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'No active drop location configuration found. Please configure a drop location first.' 
+      });
+    }
+
+    const config = result.rows[0];
+    const provider = config.provider || 'aws';
+    
+    console.log('[TEST DROP LOCATION] Provider:', provider);
+    console.log('[TEST DROP LOCATION] Has encrypted credentials:', !!config.access_key_id || !!config.service_account_json || !!config.account_key);
+    
+    let testResult = { success: false, message: 'Connection test not implemented' };
+    
+    // Test based on provider
+    if (provider === 'aws') {
+      testResult = await testAWSDropLocation(config);
+    } else if (provider === 'gcp') {
+      testResult = await testGCPDropLocation(config);
+    } else if (provider === 'azure') {
+      testResult = await testAzureDropLocation(config);
+    } else {
+      testResult = { 
+        success: false, 
+        message: `Provider '${provider}' test not implemented` 
+      };
+    }
+    
+    console.log('[TEST DROP LOCATION] Test result:', testResult.success ? 'SUCCESS' : 'FAILED');
+    
+    res.json(testResult);
+  } catch (error) {
+    console.error('[TEST DROP LOCATION] Error:', error);
+    systemLogger.error('Error testing drop location', { error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: `Connection test failed: ${error.message}` 
+    });
+  }
+});
+
+// Helper function to test AWS S3 drop location
+async function testAWSDropLocation(config) {
+  const AWS = require('aws-sdk');
+  
+  try {
+    const { region, bucket, access_key_id, secret_access_key, endpoint, use_ssl } = config;
+    
+    if (!access_key_id || !secret_access_key) {
+      return {
+        success: false,
+        message: 'Missing AWS credentials. Please configure access key and secret key.'
+      };
+    }
+    
+    if (!bucket) {
+      return {
+        success: false,
+        message: 'Missing AWS bucket name'
+      };
+    }
+    
+    // Decrypt credentials
+    const decryptedAccessKey = decrypt(access_key_id);
+    const decryptedSecretKey = decrypt(secret_access_key);
+    
+    console.log('[TEST AWS] Testing with bucket:', bucket);
+    console.log('[TEST AWS] Region:', region);
+    
+    // Configure AWS SDK
+    const s3Config = {
+      accessKeyId: decryptedAccessKey,
+      secretAccessKey: decryptedSecretKey,
+      region: region || 'us-east-1'
+    };
+    
+    if (endpoint) {
+      s3Config.endpoint = endpoint;
+      s3Config.s3ForcePathStyle = true;
+    }
+    
+    if (use_ssl !== undefined) {
+      s3Config.sslEnabled = use_ssl;
+    }
+    
+    const s3 = new AWS.S3(s3Config);
+    
+    // Test connection by checking if bucket exists and is accessible
+    await s3.headBucket({ Bucket: bucket }).promise();
+    
+    return {
+      success: true,
+      message: `Successfully connected to AWS S3 bucket '${bucket}' in region '${region || 'us-east-1'}'`
+    };
+  } catch (error) {
+    console.error('[TEST AWS] Connection test failed:', error);
+    
+    if (error.code === 'NoSuchBucket') {
+      return {
+        success: false,
+        message: `Bucket '${config.bucket}' does not exist`
+      };
+    } else if (error.code === 'InvalidAccessKeyId') {
+      return {
+        success: false,
+        message: 'Invalid AWS access key ID'
+      };
+    } else if (error.code === 'SignatureDoesNotMatch') {
+      return {
+        success: false,
+        message: 'Invalid AWS secret access key'
+      };
+    } else if (error.code === 'Forbidden' || error.code === 'AccessDenied') {
+      return {
+        success: false,
+        message: 'Access denied. Check your credentials and bucket permissions'
+      };
+    } else {
+      return {
+        success: false,
+        message: `AWS connection failed: ${error.message}`
+      };
+    }
+  }
+}
+
+// Helper function to test GCP Storage drop location
+async function testGCPDropLocation(config) {
+  const { Storage } = require('@google-cloud/storage');
+  
+  try {
+    const { project_id, gcp_bucket, service_account_json } = config;
+    
+    if (!service_account_json) {
+      return {
+        success: false,
+        message: 'Missing GCP service account credentials'
+      };
+    }
+    
+    if (!gcp_bucket || !project_id) {
+      return {
+        success: false,
+        message: 'Missing GCP bucket name or project ID'
+      };
+    }
+    
+    // Decrypt and parse service account JSON
+    const decryptedServiceAccount = decrypt(service_account_json);
+    const credentials = JSON.parse(decryptedServiceAccount);
+    
+    console.log('[TEST GCP] Testing with bucket:', gcp_bucket);
+    console.log('[TEST GCP] Project:', project_id);
+    
+    // Configure GCP Storage client
+    const storage = new Storage({
+      projectId: project_id,
+      credentials: credentials
+    });
+    
+    // Test connection by checking if bucket exists
+    const bucket = storage.bucket(gcp_bucket);
+    const [exists] = await bucket.exists();
+    
+    if (!exists) {
+      return {
+        success: false,
+        message: `Bucket '${gcp_bucket}' does not exist`
+      };
+    }
+    
+    return {
+      success: true,
+      message: `Successfully connected to GCP Storage bucket '${gcp_bucket}'`
+    };
+  } catch (error) {
+    console.error('[TEST GCP] Connection test failed:', error);
+    return {
+      success: false,
+      message: `GCP connection failed: ${error.message}`
+    };
+  }
+}
+
+// Helper function to test Azure Blob Storage drop location
+async function testAzureDropLocation(config) {
+  const { BlobServiceClient } = require('@azure/storage-blob');
+  
+  try {
+    const { account_name, account_key, container_name, azure_endpoint } = config;
+    
+    if (!account_key) {
+      return {
+        success: false,
+        message: 'Missing Azure account key'
+      };
+    }
+    
+    if (!container_name || !account_name) {
+      return {
+        success: false,
+        message: 'Missing Azure container name or account name'
+      };
+    }
+    
+    // Decrypt credentials
+    const decryptedAccountKey = decrypt(account_key);
+    
+    console.log('[TEST Azure] Testing with container:', container_name);
+    console.log('[TEST Azure] Account:', account_name);
+    
+    // Build connection string
+    const connectionString = `DefaultEndpointsProtocol=https;AccountName=${account_name};AccountKey=${decryptedAccountKey};EndpointSuffix=core.windows.net`;
+    
+    // Configure Azure Blob Service Client
+    const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+    const containerClient = blobServiceClient.getContainerClient(container_name);
+    
+    // Test connection by checking if container exists
+    const exists = await containerClient.exists();
+    
+    if (!exists) {
+      return {
+        success: false,
+        message: `Container '${container_name}' does not exist`
+      };
+    }
+    
+    return {
+      success: true,
+      message: `Successfully connected to Azure Blob Storage container '${container_name}'`
+    };
+  } catch (error) {
+    console.error('[TEST Azure] Connection test failed:', error);
+    return {
+      success: false,
+      message: `Azure connection failed: ${error.message}`
+    };
+  }
+}
 
 module.exports = router;
