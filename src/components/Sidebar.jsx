@@ -280,13 +280,13 @@ function Sidebar() {
               </NavLink>
             </li>
             
-            {/* DBT Transformations */}
-            <li>
+            {/* DBT Transformations - HIDDEN FOR NOW (can be restored later) */}
+            {/* <li>
               <NavLink to="/dbt-transformations" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiCpu className="icon" />
                 <span>DBT Transformations</span>
               </NavLink>
-            </li>
+            </li> */}
             
             {/* Jobs and Monitoring section */}
             {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 

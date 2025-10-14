@@ -20,6 +20,15 @@ The application utilizes a hybrid architecture:
 
 ## Recent Updates
 
+### UI Update: DBT Transformations Hidden (October 14, 2025)
+**Status**: ✅ Completed
+
+**Changes**:
+- Hidden "DBT Transformations" menu item from the Apply Transformations section in sidebar navigation
+- Only "UI Transformations" is now visible under Apply Transformations
+- DBT functionality code remains intact and can be easily restored by uncommenting in `src/components/Sidebar.jsx` (lines 286-292)
+- Backend DBT routes and services remain fully functional but inaccessible from UI
+
 ### Phase 6.1: Multi-Cloud Drop Location Support (October 14, 2025)
 **Status**: ✅ Completed
 
