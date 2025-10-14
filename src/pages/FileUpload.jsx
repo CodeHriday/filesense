@@ -17,6 +17,7 @@ function FileUpload() {
   const [duplicateFileInfo, setDuplicateFileInfo] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingProgressHandler, setPendingProgressHandler] = useState(null);
+  const [dropzoneKey, setDropzoneKey] = useState(0);
   const navigate = useNavigate();
   const { hasWritePermission } = useAuth();
   
@@ -232,6 +233,7 @@ function FileUpload() {
     setPendingProgressHandler(null);
     setDuplicateFileInfo(null);
     setUploadStatus(null);
+    setDropzoneKey(prev => prev + 1); // Reset FileDropzone component
   };
   
   const handleViewProfile = () => {
@@ -265,14 +267,15 @@ function FileUpload() {
           <h2>Add a new file to the observatory</h2>
           <p>
             Upload a data file to analyze its structure, profile its content, and track
-            changes over time. Supported file types include CSV, JSON, and Parquet.
+            changes over time. Supported file types include CSV, JSON, Parquet, Excel, and XML.
           </p>
         </div>
         
         {hasWritePermission('file') ? (
           <FileDropzone 
+            key={dropzoneKey}
             onFileDrop={handleFileDrop}
-            acceptedFileTypes={['.csv', '.json', '.parquet']}
+            acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
             maxSizeMB={50}
           />
         ) : (
