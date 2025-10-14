@@ -169,19 +169,8 @@ const ColumnMapper = ({ sourceSchema, targetSchema, mappings, onMappingsChange, 
     }
   }, [mappings]);
 
-  // Initialize target schema if empty
-  useEffect(() => {
-    if (localTargetSchema.length === 0 && sourceSchema.length > 0) {
-      const initialSchema = sourceSchema.slice(0, 3).map((col, index) => ({
-        id: `target_${index + 1}`,
-        name: col.name,
-        type: col.type,
-        nullable: col.nullable
-      }));
-      setLocalTargetSchema(initialSchema);
-      setNextColumnId(initialSchema.length + 1);
-    }
-  }, [sourceSchema.length]);
+  // Do NOT initialize target schema - it should start empty
+  // User will manually map columns from source to target
 
   // Sync with parent component - only when data actually changes
   useEffect(() => {
