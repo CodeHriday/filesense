@@ -268,6 +268,33 @@ const Connections = () => {
     }
   };
   
+  const handleTestDropLocationInModal = async () => {
+    try {
+      setTestingDropLocation(true);
+      setDropLocationTestResult(null);
+      
+      const token = localStorage.getItem('token');
+      
+      // Test with form data (backend will merge with saved credentials if needed)
+      const response = await axios.post(
+        `${API_BASE_URL}/api/drop-location/test`,
+        dropLocationFormData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      console.log('Drop location modal test result:', response.data);
+      setDropLocationTestResult(response.data);
+    } catch (err) {
+      console.error('Error testing drop location in modal:', err);
+      setDropLocationTestResult({
+        success: false,
+        message: err.response?.data?.message || `Test failed: ${err.message}`
+      });
+    } finally {
+      setTestingDropLocation(false);
+    }
+  };
+  
   const handleAddNew = () => {
     setFormData({
       connection_name: '',
@@ -1294,7 +1321,10 @@ const Connections = () => {
             {dropLocationConfigured && !showDropLocationForm && (
               <button 
                 className="btn btn-outline"
-                onClick={() => setShowDropLocationForm(true)}
+                onClick={() => {
+                  setShowDropLocationForm(true);
+                  setDropLocationTestResult(null);
+                }}
               >
                 <FiEdit2 /> Edit
               </button>
@@ -1357,8 +1387,13 @@ const Connections = () => {
                         className="form-control"
                         value={dropLocationFormData.access_key_id}
                         onChange={(e) => setDropLocationFormData({...dropLocationFormData, access_key_id: e.target.value})}
-                        placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
+                        placeholder={dropLocationConfig?.hasCredentials ? '(saved - leave blank to keep)' : ''}
                       />
+                      {dropLocationConfig?.hasCredentials && (
+                        <small className="form-text text-muted">
+                          ✓ Access key is saved. Leave blank to keep existing, or enter new value to update.
+                        </small>
+                      )}
                     </div>
                     
                     <div className="form-group">
@@ -1369,8 +1404,13 @@ const Connections = () => {
                         className="form-control"
                         value={dropLocationFormData.secret_access_key}
                         onChange={(e) => setDropLocationFormData({...dropLocationFormData, secret_access_key: e.target.value})}
-                        placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : ''}
+                        placeholder={dropLocationConfig?.hasCredentials ? '(saved - leave blank to keep)' : ''}
                       />
+                      {dropLocationConfig?.hasCredentials && (
+                        <small className="form-text text-muted">
+                          ✓ Secret key is saved. Leave blank to keep existing, or enter new value to update.
+                        </small>
+                      )}
                     </div>
                   </div>
 
@@ -1427,11 +1467,17 @@ const Connections = () => {
                       rows="4"
                       value={dropLocationFormData.service_account_json}
                       onChange={(e) => setDropLocationFormData({...dropLocationFormData, service_account_json: e.target.value})}
-                      placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : 'Paste your service account JSON key here'}
+                      placeholder={dropLocationConfig?.hasCredentials ? '(saved - leave blank to keep)' : 'Paste your service account JSON key here'}
                     />
-                    <small className="form-text text-muted">
-                      Service account must have Storage Object Admin role
-                    </small>
+                    {dropLocationConfig?.hasCredentials ? (
+                      <small className="form-text text-muted">
+                        ✓ Service account is saved. Leave blank to keep existing, or enter new value to update.
+                      </small>
+                    ) : (
+                      <small className="form-text text-muted">
+                        Service account must have Storage Object Admin role
+                      </small>
+                    )}
                   </div>
                 </>
               )}
@@ -1475,8 +1521,13 @@ const Connections = () => {
                       className="form-control"
                       value={dropLocationFormData.account_key}
                       onChange={(e) => setDropLocationFormData({...dropLocationFormData, account_key: e.target.value})}
-                      placeholder={dropLocationConfig?.hasCredentials ? '(unchanged)' : 'Enter your storage account key'}
+                      placeholder={dropLocationConfig?.hasCredentials ? '(saved - leave blank to keep)' : 'Enter your storage account key'}
                     />
+                    {dropLocationConfig?.hasCredentials && (
+                      <small className="form-text text-muted">
+                        ✓ Account key is saved. Leave blank to keep existing, or enter new value to update.
+                      </small>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -1509,13 +1560,35 @@ const Connections = () => {
                 </small>
               </div>
               
+              {/* Test Connection in Modal */}
+              {dropLocationTestResult && (
+                <div className={`test-result ${dropLocationTestResult.success ? 'success' : 'error'}`} style={{ marginBottom: '1rem' }}>
+                  {dropLocationTestResult.success ? (
+                    <><FiCheckCircle /> {dropLocationTestResult.message}</>
+                  ) : (
+                    <><FiAlertCircle /> {dropLocationTestResult.message}</>
+                  )}
+                </div>
+              )}
+              
               <div className="form-actions">
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => setShowDropLocationForm(false)}
+                  onClick={() => {
+                    setShowDropLocationForm(false);
+                    setDropLocationTestResult(null);
+                  }}
                 >
                   Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={handleTestDropLocationInModal}
+                  disabled={testingDropLocation}
+                >
+                  {testingDropLocation ? 'Testing...' : 'Test Connection'}
                 </button>
                 <button 
                   type="submit" 
@@ -1617,7 +1690,10 @@ const Connections = () => {
               <p>No drop location configured. Configure a cloud storage location to enable drop file uploads.</p>
               <button 
                 className="btn btn-primary"
-                onClick={() => setShowDropLocationForm(true)}
+                onClick={() => {
+                  setShowDropLocationForm(true);
+                  setDropLocationTestResult(null);
+                }}
               >
                 <FiPlus /> Configure Drop Location
               </button>

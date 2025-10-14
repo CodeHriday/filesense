@@ -309,6 +309,98 @@ router.get('/test', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/test', requireAdmin, async (req, res) => {
+  try {
+    const formData = req.body;
+    const provider = formData.provider || 'aws';
+    
+    console.log('[TEST DROP LOCATION WITH FORM] Provider:', provider);
+    console.log('[TEST DROP LOCATION WITH FORM] Form data keys:', Object.keys(formData));
+    
+    // Fetch saved configuration to merge with form data
+    const savedResult = await db.query(
+      `SELECT provider, storage_type, region, bucket, path_prefix, endpoint, use_ssl,
+              project_id, gcp_bucket, account_name, container_name, azure_endpoint,
+              access_key_id, secret_access_key, service_account_json, account_key
+       FROM drop_location_config
+       WHERE is_active = true
+       LIMIT 1`
+    );
+    
+    // Merge form data with saved config
+    const mergedConfig = { ...formData };
+    
+    if (savedResult.rows.length > 0) {
+      const savedConfig = savedResult.rows[0];
+      
+      // Preserve and decrypt saved credentials if not provided in form
+      if (provider === 'aws') {
+        if (!formData.access_key_id && savedConfig.access_key_id) {
+          mergedConfig.access_key_id = savedConfig.access_key_id;
+          console.log('[TEST DROP LOCATION WITH FORM] Using saved access_key_id (encrypted)');
+        }
+        if (!formData.secret_access_key && savedConfig.secret_access_key) {
+          mergedConfig.secret_access_key = savedConfig.secret_access_key;
+          console.log('[TEST DROP LOCATION WITH FORM] Using saved secret_access_key (encrypted)');
+        }
+      } else if (provider === 'gcp') {
+        if (!formData.service_account_json && savedConfig.service_account_json) {
+          mergedConfig.service_account_json = savedConfig.service_account_json;
+          console.log('[TEST DROP LOCATION WITH FORM] Using saved service_account_json (encrypted)');
+        }
+      } else if (provider === 'azure') {
+        if (!formData.account_key && savedConfig.account_key) {
+          mergedConfig.account_key = savedConfig.account_key;
+          console.log('[TEST DROP LOCATION WITH FORM] Using saved account_key (encrypted)');
+        }
+      }
+    }
+    
+    // Note: testAWSDropLocation, testGCPDropLocation, and testAzureDropLocation
+    // already handle decryption of encrypted credentials (they check for IV:data format)
+    
+    let testResult = { success: false, message: 'Connection test not implemented' };
+    
+    // Test based on provider with merged config
+    if (provider === 'aws') {
+      testResult = await testAWSDropLocation(mergedConfig);
+    } else if (provider === 'gcp') {
+      testResult = await testGCPDropLocation(mergedConfig);
+    } else if (provider === 'azure') {
+      testResult = await testAzureDropLocation(mergedConfig);
+    } else {
+      testResult = { 
+        success: false, 
+        message: `Provider '${provider}' test not implemented` 
+      };
+    }
+    
+    console.log('[TEST DROP LOCATION WITH FORM] Test result:', testResult.success ? 'SUCCESS' : 'FAILED');
+    
+    res.json(testResult);
+  } catch (error) {
+    console.error('[TEST DROP LOCATION WITH FORM] Error:', error);
+    systemLogger.error('Error testing drop location with form data', { error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: `Connection test failed: ${error.message}` 
+    });
+  }
+});
+
+// Helper function to safely decrypt a value
+// Returns decrypted value if successful, otherwise returns original value
+function safeDecrypt(value) {
+  if (!value || typeof value !== 'string') return value;
+  
+  try {
+    return decrypt(value);
+  } catch (error) {
+    // If decryption fails, value is plain text
+    return value;
+  }
+}
+
 // Helper function to test AWS S3 drop location
 async function testAWSDropLocation(config) {
   const AWS = require('aws-sdk');
@@ -330,9 +422,9 @@ async function testAWSDropLocation(config) {
       };
     }
     
-    // Decrypt credentials
-    const decryptedAccessKey = decrypt(access_key_id);
-    const decryptedSecretKey = decrypt(secret_access_key);
+    // Safely decrypt credentials (handles both encrypted and plain text)
+    const decryptedAccessKey = safeDecrypt(access_key_id);
+    const decryptedSecretKey = safeDecrypt(secret_access_key);
     
     console.log('[TEST AWS] Testing with bucket:', bucket);
     console.log('[TEST AWS] Region:', region);
@@ -415,8 +507,8 @@ async function testGCPDropLocation(config) {
       };
     }
     
-    // Decrypt and parse service account JSON
-    const decryptedServiceAccount = decrypt(service_account_json);
+    // Safely decrypt and parse service account JSON (handles both encrypted and plain text)
+    const decryptedServiceAccount = safeDecrypt(service_account_json);
     const credentials = JSON.parse(decryptedServiceAccount);
     
     console.log('[TEST GCP] Testing with bucket:', gcp_bucket);
@@ -473,8 +565,8 @@ async function testAzureDropLocation(config) {
       };
     }
     
-    // Decrypt credentials
-    const decryptedAccountKey = decrypt(account_key);
+    // Safely decrypt credentials (handles both encrypted and plain text)
+    const decryptedAccountKey = safeDecrypt(account_key);
     
     console.log('[TEST Azure] Testing with container:', container_name);
     console.log('[TEST Azure] Account:', account_name);
