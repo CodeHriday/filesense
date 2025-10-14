@@ -32,6 +32,7 @@ router.get('/', async (req, res) => {
         account_name: config.account_name,
         container_name: config.container_name,
         project_id: config.project_id,
+        client_email: config.client_email,
         snowflake_account: config.snowflake_account,
         snowflake_username: config.snowflake_username,
         snowflake_warehouse: config.snowflake_warehouse,
@@ -48,7 +49,16 @@ router.get('/', async (req, res) => {
         outlook_tenant_id: config.outlook_tenant_id,
         outlook_client_id: config.outlook_client_id,
         outlook_user_email: config.outlook_user_email,
-        outlook_folder_path: config.outlook_folder_path
+        outlook_folder_path: config.outlook_folder_path,
+        // Credential existence flags (for security, don't send actual credentials)
+        has_access_key: !!config.access_key,
+        has_secret_key: !!config.secret_key,
+        has_private_key: !!config.private_key,
+        has_account_key: !!config.account_key,
+        has_snowflake_password: !!config.snowflake_password,
+        has_databricks_token: !!config.databricks_token,
+        has_sharepoint_client_secret: !!config.sharepoint_client_secret,
+        has_outlook_client_secret: !!config.outlook_client_secret
       };
     });
     
@@ -82,6 +92,7 @@ router.get('/:id', async (req, res) => {
       account_name: config.account_name,
       container_name: config.container_name,
       project_id: config.project_id,
+      client_email: config.client_email,
       snowflake_account: config.snowflake_account,
       snowflake_username: config.snowflake_username,
       snowflake_warehouse: config.snowflake_warehouse,
@@ -98,7 +109,16 @@ router.get('/:id', async (req, res) => {
       outlook_tenant_id: config.outlook_tenant_id,
       outlook_client_id: config.outlook_client_id,
       outlook_user_email: config.outlook_user_email,
-      outlook_folder_path: config.outlook_folder_path
+      outlook_folder_path: config.outlook_folder_path,
+      // Credential existence flags (for security, don't send actual credentials)
+      has_access_key: !!config.access_key,
+      has_secret_key: !!config.secret_key,
+      has_private_key: !!config.private_key,
+      has_account_key: !!config.account_key,
+      has_snowflake_password: !!config.snowflake_password,
+      has_databricks_token: !!config.databricks_token,
+      has_sharepoint_client_secret: !!config.sharepoint_client_secret,
+      has_outlook_client_secret: !!config.outlook_client_secret
     };
     
     res.json(sanitizedConnection);

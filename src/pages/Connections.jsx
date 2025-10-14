@@ -281,8 +281,11 @@ const Connections = () => {
         ...newFormData,
         region: connection.region || '',
         bucket_name: connection.bucket_name || '',
-        access_key: connection.access_key || '',
-        secret_key: '' // Don't prefill secret key for security
+        access_key: '', // Don't prefill for security
+        secret_key: '', // Don't prefill for security
+        // Store flags to show credential status in UI
+        has_access_key: connection.has_access_key,
+        has_secret_key: connection.has_secret_key
       };
     } else if (connection_type === 'gcp') {
       newFormData = {
@@ -290,40 +293,44 @@ const Connections = () => {
         project_id: connection.project_id || '',
         bucket_name: connection.bucket_name || '',
         client_email: connection.client_email || '',
-        private_key: '' // Don't prefill private key for security
+        private_key: '', // Don't prefill for security
+        has_private_key: connection.has_private_key
       };
     } else if (connection_type === 'azure') {
       newFormData = {
         ...newFormData,
         account_name: connection.account_name || '',
         container_name: connection.container_name || '',
-        account_key: '' // Don't prefill account key for security
+        account_key: '', // Don't prefill for security
+        has_account_key: connection.has_account_key
       };
     } else if (connection_type === 'snowflake') {
       newFormData = {
         ...newFormData,
         snowflake_account: connection.snowflake_account || '',
         snowflake_username: connection.snowflake_username || '',
-        snowflake_password: '', // Don't prefill password for security
+        snowflake_password: '', // Don't prefill for security
         snowflake_warehouse: connection.snowflake_warehouse || '',
         snowflake_database: connection.snowflake_database || '',
         snowflake_schema: connection.snowflake_schema || '',
-        snowflake_role: connection.snowflake_role || ''
+        snowflake_role: connection.snowflake_role || '',
+        has_snowflake_password: connection.has_snowflake_password
       };
     } else if (connection_type === 'databricks') {
       newFormData = {
         ...newFormData,
         databricks_host: connection.databricks_host || '',
-        databricks_token: '', // Don't prefill token for security
+        databricks_token: '', // Don't prefill for security
         databricks_catalog: connection.databricks_catalog || '',
-        databricks_schema: connection.databricks_schema || ''
+        databricks_schema: connection.databricks_schema || '',
+        has_databricks_token: connection.has_databricks_token
       };
     } else if (connection_type === 'sharepoint') {
       newFormData = {
         ...newFormData,
         sharepoint_tenant_id: connection.sharepoint_tenant_id || '',
         sharepoint_client_id: connection.sharepoint_client_id || '',
-        sharepoint_client_secret: '', // Don't prefill secret for security
+        sharepoint_client_secret: '', // Don't prefill for security
         sharepoint_site_url: connection.sharepoint_site_url || '',
         sharepoint_document_library: connection.sharepoint_document_library || ''
       };
@@ -443,9 +450,22 @@ const Connections = () => {
       setTestingInModal(true);
       setModalTestResult(null);
       
+      // Strip UI-only flags before testing
+      const { 
+        has_access_key, 
+        has_secret_key, 
+        has_private_key, 
+        has_account_key,
+        has_snowflake_password,
+        has_databricks_token,
+        has_sharepoint_client_secret,
+        has_outlook_client_secret,
+        ...cleanFormData 
+      } = formData;
+      
       const configData = {
-        connection_type: formData.connection_type,
-        ...formData
+        connection_type: cleanFormData.connection_type,
+        ...cleanFormData
       };
       
       console.log('Testing connection in modal:', configData);
@@ -528,10 +548,23 @@ const Connections = () => {
     e.preventDefault();
     
     try {
+      // Strip UI-only flags before sending to API
+      const { 
+        has_access_key, 
+        has_secret_key, 
+        has_private_key, 
+        has_account_key,
+        has_snowflake_password,
+        has_databricks_token,
+        has_sharepoint_client_secret,
+        has_outlook_client_secret,
+        ...cleanFormData 
+      } = formData;
+      
       if (editMode) {
-        await updateConnection(editId, formData);
+        await updateConnection(editId, cleanFormData);
       } else {
-        await createConnection(formData);
+        await createConnection(cleanFormData);
       }
       
       // Reset form and fetch updated connections
@@ -661,8 +694,14 @@ const Connections = () => {
               className="form-control"
               value={formData.access_key}
               onChange={handleInputChange}
-              required
+              required={!editMode || !formData.has_access_key}
+              placeholder={editMode && formData.has_access_key ? '(saved - leave blank to keep)' : ''}
             />
+            {editMode && formData.has_access_key && (
+              <small className="form-text text-muted">
+                ✓ Access key is saved. Leave blank to keep existing, or enter new value to update.
+              </small>
+            )}
           </div>
           
           <div className="form-group">
@@ -674,12 +713,12 @@ const Connections = () => {
               className="form-control"
               value={formData.secret_key}
               onChange={handleInputChange}
-              required={!editMode}
-              placeholder={editMode ? '(unchanged)' : ''}
+              required={!editMode || !formData.has_secret_key}
+              placeholder={editMode && formData.has_secret_key ? '(saved - leave blank to keep)' : ''}
             />
-            {editMode && (
+            {editMode && formData.has_secret_key && (
               <small className="form-text text-muted">
-                Leave blank to keep the existing secret key.
+                ✓ Secret key is saved. Leave blank to keep existing, or enter new value to update.
               </small>
             )}
           </div>

@@ -4,8 +4,127 @@ const { Storage } = require('@google-cloud/storage');
 const { BlobServiceClient } = require('@azure/storage-blob');
 const snowflake = require('snowflake-sdk');
 const axios = require('axios');
+const { encrypt, decrypt } = require('../utils/encryption');
 
 class ConnectionService {
+  /**
+   * Encrypt sensitive credentials in config based on connection type
+   * @param {string} type - Connection type
+   * @param {Object} config - Configuration object
+   * @returns {Object} - Config with encrypted sensitive fields
+   */
+  encryptSensitiveFields(type, config) {
+    const encryptedConfig = { ...config };
+    
+    switch (type) {
+      case 'aws':
+        if (config.access_key) {
+          encryptedConfig.access_key = encrypt(config.access_key);
+        }
+        if (config.secret_key) {
+          encryptedConfig.secret_key = encrypt(config.secret_key);
+        }
+        break;
+      
+      case 'gcp':
+        if (config.private_key) {
+          encryptedConfig.private_key = encrypt(config.private_key);
+        }
+        break;
+      
+      case 'azure':
+        if (config.account_key) {
+          encryptedConfig.account_key = encrypt(config.account_key);
+        }
+        break;
+      
+      case 'snowflake':
+        if (config.snowflake_password) {
+          encryptedConfig.snowflake_password = encrypt(config.snowflake_password);
+        }
+        break;
+      
+      case 'databricks':
+        if (config.databricks_token) {
+          encryptedConfig.databricks_token = encrypt(config.databricks_token);
+        }
+        break;
+      
+      case 'sharepoint':
+        if (config.sharepoint_client_secret) {
+          encryptedConfig.sharepoint_client_secret = encrypt(config.sharepoint_client_secret);
+        }
+        break;
+      
+      case 'outlook':
+        if (config.outlook_client_secret) {
+          encryptedConfig.outlook_client_secret = encrypt(config.outlook_client_secret);
+        }
+        break;
+    }
+    
+    return encryptedConfig;
+  }
+
+  /**
+   * Decrypt sensitive credentials in config based on connection type
+   * @param {string} type - Connection type
+   * @param {Object} config - Configuration object with encrypted fields
+   * @returns {Object} - Config with decrypted sensitive fields
+   */
+  decryptSensitiveFields(type, config) {
+    const decryptedConfig = { ...config };
+    
+    switch (type) {
+      case 'aws':
+        if (config.access_key) {
+          decryptedConfig.access_key = decrypt(config.access_key);
+        }
+        if (config.secret_key) {
+          decryptedConfig.secret_key = decrypt(config.secret_key);
+        }
+        break;
+      
+      case 'gcp':
+        if (config.private_key) {
+          decryptedConfig.private_key = decrypt(config.private_key);
+        }
+        break;
+      
+      case 'azure':
+        if (config.account_key) {
+          decryptedConfig.account_key = decrypt(config.account_key);
+        }
+        break;
+      
+      case 'snowflake':
+        if (config.snowflake_password) {
+          decryptedConfig.snowflake_password = decrypt(config.snowflake_password);
+        }
+        break;
+      
+      case 'databricks':
+        if (config.databricks_token) {
+          decryptedConfig.databricks_token = decrypt(config.databricks_token);
+        }
+        break;
+      
+      case 'sharepoint':
+        if (config.sharepoint_client_secret) {
+          decryptedConfig.sharepoint_client_secret = decrypt(config.sharepoint_client_secret);
+        }
+        break;
+      
+      case 'outlook':
+        if (config.outlook_client_secret) {
+          decryptedConfig.outlook_client_secret = decrypt(config.outlook_client_secret);
+        }
+        break;
+    }
+    
+    return decryptedConfig;
+  }
+
   /**
    * Get all connections from the shared table
    * 
@@ -85,6 +204,9 @@ class ConnectionService {
         throw new Error('Missing required connection fields');
       }
       
+      // Encrypt sensitive credentials before saving
+      const encryptedConfig = this.encryptSensitiveFields(type, config);
+      
       // Insert the connection
       const result = await client.query(`
         INSERT INTO transform_connections (
@@ -99,7 +221,7 @@ class ConnectionService {
       `, [
         name,
         type,
-        config,
+        encryptedConfig,
         created_by || null,
         description || null,
         'data_observatory'
@@ -141,6 +263,9 @@ class ConnectionService {
         throw new Error(`Connection with ID ${id} not found`);
       }
       
+      const existingConnection = checkResult.rows[0];
+      const existingConfig = existingConnection.config || {};
+      
       // Extract fields to update
       const { name, type, config, is_active, description } = connectionData;
       
@@ -160,8 +285,41 @@ class ConnectionService {
       }
       
       if (config !== undefined) {
+        // Merge new config with existing config
+        const mergedConfig = { ...existingConfig };
+        
+        // Define sensitive fields per connection type
+        const sensitiveFields = {
+          aws: ['access_key', 'secret_key'],
+          gcp: ['private_key'],
+          azure: ['account_key'],
+          snowflake: ['snowflake_password'],
+          databricks: ['databricks_token'],
+          sharepoint: ['sharepoint_client_secret'],
+          outlook: ['outlook_client_secret']
+        };
+        
+        const connectionType = type || existingConnection.type;
+        const sensFields = sensitiveFields[connectionType] || [];
+        
+        // Update non-sensitive fields first
+        for (const [key, value] of Object.entries(config)) {
+          if (!sensFields.includes(key)) {
+            mergedConfig[key] = value;
+          }
+        }
+        
+        // Handle sensitive fields: preserve existing encrypted credentials if new ones are not provided or are empty
+        for (const field of sensFields) {
+          if (config[field] && config[field] !== '') {
+            // Encrypt and store the new value
+            mergedConfig[field] = encrypt(config[field]);
+          }
+          // If field is empty/missing in config, keep existing encrypted value (already in mergedConfig)
+        }
+        
         updateFields.push(`config = $${updateValues.length + 1}`);
-        updateValues.push(config);
+        updateValues.push(mergedConfig);
       }
       
       if (is_active !== undefined) {
@@ -178,8 +336,8 @@ class ConnectionService {
       updateFields.push(`updated_at = NOW()`);
       
       // If no fields to update, return the existing connection
-      if (updateFields.length === 0) {
-        return checkResult.rows[0];
+      if (updateFields.length === 1) { // Only updated_at
+        return existingConnection;
       }
       
       updateQuery += updateFields.join(', ');
@@ -240,27 +398,31 @@ class ConnectionService {
       // Log the test attempt
       console.log('Testing connection:', type);
       
+      // Decrypt sensitive credentials if they're encrypted
+      // (credentials from database are encrypted, but new credentials from form are not)
+      const decryptedConfig = this.decryptSensitiveFieldsIfNeeded(type, config);
+      
       let testResult = { success: false, message: 'Connection test not implemented' };
       
       switch (type) {
         case 'aws':
-          testResult = await this.testAWSConnection(config);
+          testResult = await this.testAWSConnection(decryptedConfig);
           break;
           
         case 'gcp':
-          testResult = await this.testGCPConnection(config);
+          testResult = await this.testGCPConnection(decryptedConfig);
           break;
           
         case 'azure':
-          testResult = await this.testAzureConnection(config);
+          testResult = await this.testAzureConnection(decryptedConfig);
           break;
           
         case 'snowflake':
-          testResult = await this.testSnowflakeConnection(config);
+          testResult = await this.testSnowflakeConnection(decryptedConfig);
           break;
           
         case 'databricks':
-          testResult = await this.testDatabricksConnection(config);
+          testResult = await this.testDatabricksConnection(decryptedConfig);
           break;
           
         case 'sharepoint':
@@ -286,6 +448,70 @@ class ConnectionService {
         message: `Connection test failed: ${error.message}` 
       };
     }
+  }
+
+  /**
+   * Decrypt sensitive fields only if they appear to be encrypted (contain ':' separator)
+   * @param {string} type - Connection type
+   * @param {Object} config - Configuration object
+   * @returns {Object} - Config with decrypted fields
+   */
+  decryptSensitiveFieldsIfNeeded(type, config) {
+    const decryptedConfig = { ...config };
+    
+    // Check if a value looks encrypted (has IV:data format)
+    const isEncrypted = (value) => {
+      return value && typeof value === 'string' && value.includes(':') && value.split(':').length === 2;
+    };
+    
+    switch (type) {
+      case 'aws':
+        if (isEncrypted(config.access_key)) {
+          decryptedConfig.access_key = decrypt(config.access_key);
+        }
+        if (isEncrypted(config.secret_key)) {
+          decryptedConfig.secret_key = decrypt(config.secret_key);
+        }
+        break;
+      
+      case 'gcp':
+        if (isEncrypted(config.private_key)) {
+          decryptedConfig.private_key = decrypt(config.private_key);
+        }
+        break;
+      
+      case 'azure':
+        if (isEncrypted(config.account_key)) {
+          decryptedConfig.account_key = decrypt(config.account_key);
+        }
+        break;
+      
+      case 'snowflake':
+        if (isEncrypted(config.snowflake_password)) {
+          decryptedConfig.snowflake_password = decrypt(config.snowflake_password);
+        }
+        break;
+      
+      case 'databricks':
+        if (isEncrypted(config.databricks_token)) {
+          decryptedConfig.databricks_token = decrypt(config.databricks_token);
+        }
+        break;
+      
+      case 'sharepoint':
+        if (isEncrypted(config.sharepoint_client_secret)) {
+          decryptedConfig.sharepoint_client_secret = decrypt(config.sharepoint_client_secret);
+        }
+        break;
+      
+      case 'outlook':
+        if (isEncrypted(config.outlook_client_secret)) {
+          decryptedConfig.outlook_client_secret = decrypt(config.outlook_client_secret);
+        }
+        break;
+    }
+    
+    return decryptedConfig;
   }
   
   /**
