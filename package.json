@@ -75,6 +75,7 @@
     "redis": "^5.8.3",
     "reselect": "^5.1.1",
     "simple-statistics": "^7.8.8",
+    "snowflake-sdk": "^2.3.1",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
     "uuid": "^11.1.0",
