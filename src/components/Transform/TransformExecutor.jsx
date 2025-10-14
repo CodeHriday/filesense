@@ -154,7 +154,7 @@ const TransformExecutor = ({ config, onExecute }) => {
   return (
     <div className="transform-executor">
       <div className="executor-header">
-        <h2>Execute Transform</h2>
+        <h2>Execute Mapping</h2>
         <p>Review your configuration and run the transformation.</p>
       </div>
 
@@ -189,7 +189,7 @@ const TransformExecutor = ({ config, onExecute }) => {
         <div className="control-buttons">
           {executionStatus === 'ready' && (
             <button className="btn btn-primary btn-lg" onClick={handleStart}>
-              <FiPlay /> Execute Transform
+              <FiPlay /> Execute Mapping
             </button>
           )}
           {executionStatus === 'running' && (
