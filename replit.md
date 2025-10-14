@@ -46,6 +46,12 @@ The application employs a hybrid architecture combining:
 - **Structured Logging** (`utils/logger.py`): Comprehensive logging with file rotation
 - **Performance Monitoring**: Execution time tracking and metrics
 - **Error Handling**: Robust error management across all layers
+- **Audit System** (`backend/services/AuditService.js`): Enterprise-grade audit logging for compliance
+  - Automatic API request/response logging via middleware
+  - Execution state tracking (file processing, job runs)
+  - Data access logging (file previews, downloads, queries)
+  - Configuration change history with before/after state
+  - Security event logging (login, permission changes)
 
 ## Data Flow
 
@@ -200,14 +206,67 @@ The application employs a hybrid architecture combining:
 - Cache TTL: 300s (list/preview), 600s (details/profile/quality/insights)
 - Security: Per-user cache keys for authenticated endpoints, protected admin endpoints
 
+### Phase 5: DBT Integration & Audit Logging (In Progress)
+**Status**: 🚧 Phase 1 Complete (October 2025)
+
+**Achievements**:
+- **DBT Project Setup**: dbt-core and dbt-postgres installed and configured
+- **Comprehensive Audit System**: Enterprise-grade audit logging for compliance
+- **Audit Trail UI**: Full-featured audit log viewer with search, filter, and export
+- **Database Schema**: Complete audit and job dependency tables
+
+**Audit Logging Implementation**:
+- **5 Audit Tables Created**:
+  - `audit_log`: Master audit table tracking all system actions
+  - `execution_audit`: Job and transformation execution tracking
+  - `data_access_log`: File and data access tracking (GDPR compliance)
+  - `config_change_history`: Configuration change tracking with rollback support
+  - `security_audit_log`: Security events (login, permissions, access denial)
+  
+- **Automatic Logging**:
+  - Audit middleware logs all API requests/responses
+  - File processing worker logs execution state changes
+  - Data access logging for file previews and downloads
+  
+- **AuditService** (`backend/services/AuditService.js`):
+  - Centralized audit logging with context management
+  - Before/after state diff calculation
+  - Query methods for retrieving audit history
+  
+- **Audit Trail UI** (`src/pages/AuditTrail.jsx`):
+  - Advanced search and filtering
+  - Detailed view with change diffs
+  - CSV export functionality
+  - Real-time audit log streaming
+
+**DBT Implementation**:
+- DBT project structure with staging/intermediate/marts layers
+- Database connection via environment variables
+- Initial staging models for uploaded files
+- Job dependency tables for scheduling system
+
+**Dependencies Added**:
+- `dbt-core>=1.10.0` (DBT framework)
+- `dbt-postgres>=1.9.0` (PostgreSQL adapter)
+
+**Database Tables Added**:
+- `job_dependencies`: Job-to-job dependencies
+- `job_group_schedules`: Group-level scheduling
+- `job_group_dependencies`: Group-to-group dependencies
+- `dbt_models`: DBT model registry
+- `dbt_executions`: DBT run tracking
+
 ### Future Phases (Planned)
-- **Phase 5**: Cloud deployment configs (Docker, AWS/GCP documentation)
-- **Phase 6**: Real-world testing (1GB+ files, 1,000 concurrent users)
+- **Phase 5.1**: DBT orchestration service and UI integration
+- **Phase 5.2**: Job dependency resolver and group execution
+- **Phase 6**: Cloud deployment configs (Docker, AWS/GCP documentation)
+- **Phase 7**: Real-world testing (1GB+ files, 1,000 concurrent users)
 
 ## Changelog
 
 ```
 Changelog:
+- October 14, 2025. Phase 5: DBT integration & audit logging - comprehensive audit system with 5 audit tables, UI, and automatic logging
 - October 12, 2025. Phase 4: Multi-layer caching - Redis/in-memory cache with response caching middleware
 - October 12, 2025. Phase 3: Database optimization complete - connection pool, 19 indexes, read replica docs
 - October 12, 2025. Phase 2.1: Production enhancements - file cleanup, queue metrics, configuration docs

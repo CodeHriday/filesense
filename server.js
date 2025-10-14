@@ -25,7 +25,8 @@ const queue = getQueue();
 const fileWorker = new FileProcessingWorker(
   queue,
   diContainer.get('dbPool'),
-  diContainer.get('logger')
+  diContainer.get('logger'),
+  diContainer.get('auditService')
 );
 fileWorker.start();
 
@@ -846,6 +847,25 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     // Limit preview data to requested rows
     const limitedPreviewData = previewData.slice(0, rowLimit);
     
+    // Log data access for audit trail
+    if (req.auditService) {
+      await req.auditService.logDataAccess({
+        userId: req.user?.id,
+        userRole: req.user?.roles?.[0],
+        accessType: 'PREVIEW',
+        fileId,
+        fileName: file.filename,
+        columnNames: columns.map(c => c.name),
+        accessMethod: 'UI',
+        rowsAccessed: limitedPreviewData.length,
+        metadata: {
+          totalRows: file.row_count,
+          rowLimit: rowLimit
+        },
+        context: req.auditContext
+      });
+    }
+    
     res.json({
       fileId,
       columns,
@@ -1242,6 +1262,148 @@ app.use('/api/connections', connectionRoutes);
 // Cache routes
 const cacheRoutes = require('./backend/routes/cacheRoutes');
 app.use('/api/cache', cacheRoutes);
+
+// Admin authorization middleware for sensitive routes
+const requireAdmin = (req, res, next) => {
+  if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
+    logger.warn('Unauthorized audit access attempt', {
+      userId: req.user?.id,
+      roles: req.user?.roles,
+      path: req.path
+    });
+    return res.status(403).json({ error: 'Access denied. Admin role required.' });
+  }
+  next();
+};
+
+// Audit routes (Admin only)
+app.get('/api/audit/logs', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const auditService = diContainer.get('auditService');
+    const {
+      userId,
+      entityType,
+      entityId,
+      actionType,
+      startDate,
+      endDate,
+      limit = 100,
+      offset = 0
+    } = req.query;
+
+    const logs = await auditService.getAuditLogs({
+      userId,
+      entityType,
+      entityId,
+      actionType,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json(logs);
+  } catch (error) {
+    logger.error('Error fetching audit logs', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
+app.get('/api/audit/logs/:auditId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { auditId } = req.params;
+    const result = await dbPool.query('SELECT * FROM audit_log WHERE audit_id = $1', [auditId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Audit log not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    logger.error('Error fetching audit log', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch audit log' });
+  }
+});
+
+app.get('/api/audit/executions/:executionId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const auditService = diContainer.get('auditService');
+    const { executionId } = req.params;
+    const logs = await auditService.getExecutionAudit(executionId);
+    res.json(logs);
+  } catch (error) {
+    logger.error('Error fetching execution audit', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch execution audit' });
+  }
+});
+
+app.get('/api/audit/data-access', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const auditService = diContainer.get('auditService');
+    const {
+      userId,
+      fileId,
+      containsPii,
+      startDate,
+      endDate,
+      limit = 100,
+      offset = 0
+    } = req.query;
+
+    const logs = await auditService.getDataAccessLogs({
+      userId,
+      fileId,
+      containsPii: containsPii === 'true' ? true : containsPii === 'false' ? false : null,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json(logs);
+  } catch (error) {
+    logger.error('Error fetching data access logs', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch data access logs' });
+  }
+});
+
+app.post('/api/audit/export', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const auditService = diContainer.get('auditService');
+    const {
+      userId,
+      entityType,
+      entityId,
+      actionType,
+      startDate,
+      endDate
+    } = req.body;
+
+    const logs = await auditService.getAuditLogs({
+      userId,
+      entityType,
+      entityId,
+      actionType,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      limit: 10000
+    });
+
+    const csv = [
+      'Timestamp,User ID,User Email,Action Type,Entity Type,Entity ID,Status,IP Address',
+      ...logs.map(log => 
+        `"${log.timestamp}","${log.user_id || ''}","${log.user_email || ''}","${log.action_type}","${log.entity_type}","${log.entity_id}","${log.status}","${log.ip_address || ''}"`
+      )
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=audit-logs.csv');
+    res.send(csv);
+  } catch (error) {
+    logger.error('Error exporting audit logs', { error: error.message });
+    res.status(500).json({ error: 'Failed to export audit logs' });
+  }
+});
 
 // Initialize cache service
 const cacheService = require('./backend/services/cacheService');

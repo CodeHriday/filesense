@@ -33,6 +33,7 @@ import DashboardSettings from './pages/DashboardSettings';
 import Login from './pages/Login';
 import UserManagement from './pages/UserManagement';
 import RoleManagement from './pages/RoleManagement';
+import AuditTrail from './pages/AuditTrail';
 import HooksDemo from './pages/HooksDemo';
 // Business Process Management imports
 import Groups from './pages/Groups';
@@ -207,6 +208,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                 <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
+                <Route path="/audit-trail" element={<ProtectedRoute><AuditTrail /></ProtectedRoute>} />
                 {/* Business Process Management routes */}
                 <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
                 <Route path="/business-processes" element={<ProtectedRoute><BusinessProcesses /></ProtectedRoute>} />

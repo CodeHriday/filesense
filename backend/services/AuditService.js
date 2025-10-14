@@ -3,38 +3,29 @@ const { v4: uuidv4 } = require('uuid');
 class AuditService {
   constructor(dbPool) {
     this.dbPool = dbPool;
-    this.currentContext = {};
   }
 
-  setContext(context) {
-    this.currentContext = {
-      ...this.currentContext,
-      ...context,
-      timestamp: new Date()
-    };
+  createContext() {
+    return {};
   }
 
-  clearContext() {
-    this.currentContext = {};
+  getCurrentIp(context) {
+    return context?.ipAddress || null;
   }
 
-  getCurrentIp() {
-    return this.currentContext.ipAddress || null;
+  getCurrentSession(context) {
+    return context?.sessionId || null;
   }
 
-  getCurrentSession() {
-    return this.currentContext.sessionId || null;
+  getRequestId(context) {
+    return context?.requestId || null;
   }
 
-  getRequestId() {
-    return this.currentContext.requestId || null;
-  }
-
-  getCurrentUser() {
+  getCurrentUser(context) {
     return {
-      userId: this.currentContext.userId || null,
-      userEmail: this.currentContext.userEmail || null,
-      userRole: this.currentContext.userRole || null
+      userId: context?.userId || null,
+      userEmail: context?.userEmail || null,
+      userRole: context?.userRole || null
     };
   }
 
@@ -85,10 +76,11 @@ class AuditService {
     newValues,
     metadata,
     status = 'SUCCESS',
-    errorMessage = null
+    errorMessage = null,
+    context = null
   }) {
     try {
-      const user = this.getCurrentUser();
+      const user = this.getCurrentUser(context);
       const changes = this.calculateDiff(oldValues, newValues);
 
       const result = await this.dbPool.query(`
@@ -105,9 +97,9 @@ class AuditService {
         userId || user.userId,
         userEmail || user.userEmail,
         userRole || user.userRole,
-        this.getCurrentIp(),
-        this.getCurrentSession(),
-        this.getRequestId(),
+        this.getCurrentIp(context),
+        this.getCurrentSession(context),
+        this.getRequestId(context),
         actionType,
         entityType,
         entityId,
@@ -119,8 +111,8 @@ class AuditService {
         status,
         errorMessage,
         metadata ? JSON.stringify(metadata) : null,
-        this.currentContext.apiEndpoint || null,
-        this.currentContext.httpMethod || null
+        context?.apiEndpoint || null,
+        context?.httpMethod || null
       ]);
 
       return result.rows[0].audit_id;
@@ -191,10 +183,11 @@ class AuditService {
     recordsAffected = null,
     qualityScore = null,
     validationErrors = null,
-    metadata = null
+    metadata = null,
+    context = null
   }) {
     try {
-      const user = this.getCurrentUser();
+      const user = this.getCurrentUser(context);
 
       await this.dbPool.query(`
         INSERT INTO execution_audit (
@@ -250,10 +243,11 @@ class AuditService {
     projectName = null,
     containsPii = false,
     dataClassification = 'internal',
-    metadata = null
+    metadata = null,
+    context = null
   }) {
     try {
-      const user = this.getCurrentUser();
+      const user = this.getCurrentUser(context);
 
       await this.dbPool.query(`
         INSERT INTO data_access_log (
@@ -268,7 +262,7 @@ class AuditService {
       `, [
         userId || user.userId,
         userRole || user.userRole,
-        this.getCurrentIp(),
+        this.getCurrentIp(context),
         accessType,
         fileId,
         fileName,
@@ -305,10 +299,11 @@ class AuditService {
     requiresApproval = false,
     canRollback = true,
     rollbackScript = null,
-    metadata = null
+    metadata = null,
+    context = null
   }) {
     try {
-      const user = this.getCurrentUser();
+      const user = this.getCurrentUser(context);
 
       await this.dbPool.query(`
         INSERT INTO config_change_history (
@@ -352,7 +347,8 @@ class AuditService {
     denialReason = null,
     riskScore = 0,
     flags = null,
-    metadata = null
+    metadata = null,
+    context = null
   }) {
     try {
       await this.dbPool.query(`
@@ -369,8 +365,8 @@ class AuditService {
         severity,
         userId,
         username,
-        this.getCurrentIp(),
-        this.currentContext.userAgent || null,
+        this.getCurrentIp(context),
+        context?.userAgent || null,
         authenticationMethod,
         permissionRequired,
         permissionGranted,

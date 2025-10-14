@@ -15,10 +15,11 @@ const path = require('path');
 const fs = require('fs');
 
 class FileProcessingWorker {
-  constructor(queue, dbPool, logger) {
+  constructor(queue, dbPool, logger, auditService = null) {
     this.queue = queue;
     this.dbPool = dbPool;
     this.logger = logger;
+    this.auditService = auditService;
   }
 
   /**
@@ -48,6 +49,7 @@ class FileProcessingWorker {
    */
   async processJob(jobId, job) {
     const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash } = job.data;
+    const startTime = Date.now();
 
     this.logger.info('Processing file job', {
       jobId,
@@ -55,6 +57,26 @@ class FileProcessingWorker {
       fileName: originalName,
       fileSize
     });
+
+    // Audit log: File processing started
+    if (this.auditService) {
+      await this.auditService.logExecutionStateChange({
+        executionId: jobId,
+        executionType: 'file_processing',
+        entityId: fileId,
+        entityName: originalName,
+        previousStatus: 'queued',
+        newStatus: 'processing',
+        triggeredByUser: userId,
+        triggerType: 'upload',
+        metadata: {
+          fileSize,
+          fileType,
+          fileHash
+        },
+        context: null
+      });
+    }
 
     try {
       // Mark job as active
@@ -119,6 +141,8 @@ class FileProcessingWorker {
 
       await this.queue.updateProgress(jobId, 100);
 
+      const processingDuration = Date.now() - startTime;
+
       // Complete job
       await this.queue.completeJob(jobId, {
         success: true,
@@ -127,6 +151,29 @@ class FileProcessingWorker {
         columnCount: fileInfo.column_count,
         processingTime: fileInfo.processing_time_seconds
       });
+
+      // Audit log: File processing completed
+      if (this.auditService) {
+        await this.auditService.logExecutionStateChange({
+          executionId: jobId,
+          executionType: 'file_processing',
+          entityId: fileId,
+          entityName: originalName,
+          previousStatus: 'processing',
+          newStatus: 'completed',
+          triggeredByUser: userId,
+          triggerType: 'upload',
+          executionDurationMs: processingDuration,
+          rowsProcessed: fileInfo.row_count,
+          metadata: {
+            columnCount: fileInfo.column_count,
+            duplicateCount: duplicateStats.duplicate_count,
+            duplicatePercentage: duplicateStats.duplicate_percentage,
+            fileHash
+          },
+          context: null
+        });
+      }
 
       // Cleanup: Delete uploaded file after successful processing
       await this.cleanupUploadedFile(filePath, 'success');
@@ -138,6 +185,28 @@ class FileProcessingWorker {
         error: error.message,
         stack: error.stack
       });
+
+      const processingDuration = Date.now() - startTime;
+
+      // Audit log: File processing failed
+      if (this.auditService) {
+        await this.auditService.logExecutionStateChange({
+          executionId: jobId,
+          executionType: 'file_processing',
+          entityId: fileId,
+          entityName: originalName,
+          previousStatus: 'processing',
+          newStatus: 'failed',
+          statusReason: error.message,
+          triggeredByUser: userId,
+          triggerType: 'upload',
+          executionDurationMs: processingDuration,
+          metadata: {
+            errorStack: error.stack
+          },
+          context: null
+        });
+      }
 
       // Cleanup: Delete or quarantine failed file
       await this.cleanupUploadedFile(filePath, 'failure');

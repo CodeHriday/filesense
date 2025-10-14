@@ -109,8 +109,7 @@ function createAuditMiddleware(auditService) {
       userAgent: req.headers['user-agent']
     };
     
-    auditService.setContext(auditContext);
-    
+    req.auditContext = auditContext;
     req.auditService = auditService;
     
     const originalJson = res.json.bind(res);
@@ -169,13 +168,12 @@ function createAuditMiddleware(auditService) {
             : null,
           metadata,
           status,
-          errorMessage: res.statusCode >= 400 ? metadata.error : null
+          errorMessage: res.statusCode >= 400 ? metadata.error : null,
+          context: req.auditContext
         });
         
       } catch (error) {
         console.error('Error in audit middleware:', error);
-      } finally {
-        auditService.clearContext();
       }
     };
     
