@@ -32,6 +32,7 @@ fileWorker.start();
 // Import validation middleware and schemas
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
 const { cacheMiddleware, invalidateCache } = require('./backend/middleware/cacheMiddleware');
+const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 
 // Initialize Express app
 const app = express();
@@ -358,6 +359,10 @@ app.use((req, res, next) => {
   req.logger = logger;
   next();
 });
+
+// Audit middleware - logs all API requests and responses
+const auditService = diContainer.get('auditService');
+app.use(createAuditMiddleware(auditService));
 
 // Request timeout configuration to prevent slowloris attacks and resource exhaustion
 app.use((req, res, next) => {
