@@ -562,19 +562,17 @@ class FileService extends ServiceBase {
       // Format columns
       if (file.columns && file.columns.length > 0) {
         profile.columns = file.columns.map(column => {
-          const stats = column.stats || {};
-          
           return {
             name: column.column_name,
             type: column.column_type,
-            unique: stats.unique_count || null,
-            missing: stats.null_count || 0,
-            min: stats.min_value || null,
-            max: stats.max_value || null,
-            histogram: stats.histogram || null,
-            most_frequent_value: stats.most_frequent_value || null,
-            least_frequent_value: stats.least_frequent_value || null,
-            top_values: stats.top_values || null
+            unique: column.unique_count || null,
+            missing: column.null_count || 0,
+            min: column.min_value || null,
+            max: column.max_value || null,
+            histogram: column.histogram || null,
+            most_frequent_value: column.most_frequent_value || null,
+            least_frequent_value: column.least_frequent_value || null,
+            top_values: column.top_values || null
           };
         });
       }
