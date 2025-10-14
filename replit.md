@@ -1,213 +1,54 @@
 # Data File Observatory
 
 ## Overview
+Data File Observatory is a comprehensive data quality monitoring and observability platform designed to upload, analyze, and monitor data files. It combines Python-based analytics with a modern web interface, offering advanced quality checks, profiling capabilities, and visualization features. The platform aims to provide robust data handling for various file types, ensuring data integrity and offering insights through a user-friendly interface.
 
-Data File Observatory is a comprehensive data quality monitoring and observability platform that combines Python-based analytics with a modern web interface. The system enables users to upload, analyze, and monitor data files with advanced quality checks, profiling capabilities, and visualization features.
+## User Preferences
+Preferred communication style: Simple, everyday language.
 
 ## System Architecture
+The application utilizes a hybrid architecture:
+-   **Backend**: Python/Streamlit for data processing, quality analysis, and file operations.
+    -   **Data Processing**: Handles CSV, JSON, and Parquet files with streaming capabilities for large files (10GB+) using constant memory (<1GB). Includes data profiling, quality assessment (completeness, consistency, validity, uniqueness), and asynchronous processing with memory safeguards.
+    -   **Memory Management**: Implements memory monitoring and circuit breaker protection to prevent exhaustion.
+-   **API Server**: Node.js/Express provides a REST API layer for frontend communication with JWT authentication, rate limiting, and CORS configuration. It supports asynchronous job queues for background processing of file uploads and includes an enterprise-grade audit system for compliance.
+-   **Frontend**: React (TypeScript, Vite) offers a modern single-page application with UI components, Chart.js integration for data visualization, and drag-and-drop file upload.
+-   **Database**: PostgreSQL for persistent storage of metadata, user management, file catalogs, and audit logs. Optimized with connection pooling and performance indexes.
+-   **File Storage**: Local file system with integrated support for cloud storage solutions like AWS S3, Google Cloud, and Azure Blob Storage.
+-   **Caching**: Multi-layer caching with Redis and in-memory fallback for frequently accessed data and API responses, with automatic invalidation.
+-   **DBT Integration**: Configured for DBT Core and dbt-postgres to manage data transformations, including a UI for model discovery, execution, and monitoring.
 
-### Hybrid Architecture
-The application employs a hybrid architecture combining:
-- **Python/Streamlit Backend**: Core data processing, quality analysis, and file operations
-- **Node.js/Express API Server**: REST API layer for web frontend communication
-- **React Frontend**: Modern web interface built with Vite
-- **PostgreSQL Database**: Persistent storage for metadata, user management, and business processes
-- **File Storage**: Local file system with support for cloud storage (AWS S3, Google Cloud, Azure)
+## Recent Updates
 
-## Key Components
-
-### Data Processing Layer
-- **File Processing Module** (`file_processing.py`): Handles CSV, JSON, and Parquet file loading and schema extraction
-- **Streaming Processors** (`utils/streaming_processors.py`): True streaming for 10 GB+ files with constant memory usage (<1 GB)
-- **Data Profiling Engine** (`data_profiling.py`): Generates comprehensive statistical profiles of datasets
-- **Quality Assessment System** (`quality_checks.py`): Performs completeness, consistency, validity, and uniqueness checks
-- **Asynchronous Processing** (`utils/async_file_processor.py`): Enhanced performance for large file processing with memory safeguards
-- **Memory Monitoring** (`utils/memory_monitor.py`, `backend/utils/memoryMonitor.js`): Circuit breaker protection against memory exhaustion
-
-### Web Interface Layer
-- **React Frontend**: TypeScript-based SPA with modern UI components
-- **Vite Build System**: Fast development and production builds
-- **Chart.js Integration**: Data visualization capabilities
-- **Drag-and-Drop File Upload**: User-friendly file handling
-
-### API Layer
-- **Express.js Server**: RESTful API with JWT authentication
-- **Multer File Upload**: Handles large file uploads (up to 1GB)
-- **Rate Limiting**: Security middleware for API protection
-- **CORS Configuration**: Cross-origin request handling
-
-### Database Layer
-- **PostgreSQL**: Primary database for structured data
-- **User Management**: Authentication and authorization system
-- **File Catalog**: Metadata storage for processed files
-- **Business Process Management**: Organizational features (currently disabled)
-
-### Logging and Monitoring
-- **Structured Logging** (`utils/logger.py`): Comprehensive logging with file rotation
-- **Performance Monitoring**: Execution time tracking and metrics
-- **Error Handling**: Robust error management across all layers
-- **Audit System** (`backend/services/AuditService.js`): Enterprise-grade audit logging for compliance
-  - Automatic API request/response logging via middleware
-  - Execution state tracking (file processing, job runs)
-  - Data access logging (file previews, downloads, queries)
-  - Configuration change history with before/after state
-  - Security event logging (login, permission changes)
-
-## Data Flow
-
-1. **File Upload**: Users upload files through React frontend or Streamlit interface
-2. **Processing Pipeline**: Files are processed asynchronously with schema detection and profiling
-3. **Quality Analysis**: Automated quality checks assess data completeness and consistency
-4. **Metadata Storage**: File information and analysis results stored in PostgreSQL
-5. **Visualization**: Results displayed through interactive charts and dashboards
-6. **Monitoring**: Continuous monitoring of file quality metrics and system performance
-
-## External Dependencies
-
-### Core Technologies
-- **Python 3.11+**: Primary runtime for data processing
-- **Node.js 20**: JavaScript runtime for API server
-- **PostgreSQL 16**: Database management system
-- **React 18**: Frontend framework
-
-### Key Libraries
-- **Data Processing**: pandas, numpy, plotly
-- **Web Framework**: Express.js, Streamlit
-- **Database**: pg (PostgreSQL client)
-- **Authentication**: bcrypt, jsonwebtoken
-- **File Handling**: multer, AWS SDK
-- **Development**: TypeScript, ESLint, Prettier
-
-### Cloud Storage Support
-- AWS S3 integration
-- Google Cloud Storage
-- Azure Blob Storage
-
-## Deployment Strategy
-
-### Development Environment
-- **Replit Configuration**: Optimized for Replit development environment
-- **Hot Reload**: Vite dev server with HMR for frontend development
-- **Parallel Execution**: Simultaneous frontend and backend development servers
-
-### Production Considerations
-- **Autoscale Deployment**: Configured for automatic scaling
-- **Environment Variables**: Comprehensive configuration management
-- **Security Headers**: Helmet.js for security hardening
-- **Rate Limiting**: API protection against abuse
-
-### Database Migration
-- **Schema Management**: Structured table creation scripts
-- **Business Process Tables**: Prepared but currently disabled
-- **Data Integrity**: Foreign key constraints and validation
-
-## Scalability Enhancements
-
-### Phase 1: Streaming Engine & Memory Management (Completed)
-**Status**: ✅ Production-ready (October 2025)
+### Phase 5.1: DBT Management UI (October 14, 2025)
+**Status**: ✅ Completed
 
 **Achievements**:
-- **10 GB File Support**: True streaming for JSON, Parquet, and CSV files
-- **Constant Memory Usage**: <1 GB memory regardless of file size (vs. 20-30 GB before)
-- **Circuit Breaker Protection**: Automatic rejection of requests at 85% memory to prevent crashes
-- **Memory Guard**: Context manager for safe file processing operations
-- **Cloud-Ready**: All code portable to AWS/GCP with zero changes
+- **DBT Management UI** (`src/pages/DBTTransformations.jsx`):
+  - Model discovery and listing with metadata
+  - Execute DBT commands (run, test, compile, build)
+  - Execution history and monitoring
+  - Real-time execution status tracking
+  - Model selection and batch execution
+- **DBT Service** (`backend/services/DBTService.js`):
+  - Secure command execution with whitelist validation
+  - Command injection protection via input sanitization
+  - Model discovery from file system
+  - Execution tracking and audit logging
+- **DBT API Endpoints** (`backend/routes/dbt.js`):
+  - `/api/dbt/models` - List all DBT models
+  - `/api/dbt/discover` - Discover models from project
+  - `/api/dbt/execute` - Execute DBT commands securely
+  - `/api/dbt/executions` - Get execution history
+- **Navigation**: Added "Apply Transformations" section in sidebar with Transform and DBT Transformations subsections
 
-**Implementation**:
-- JSON streaming with ijson library (constant ~100-500 MB memory)
-- Parquet streaming with PyArrow batch iteration (constant ~200-800 MB memory)
-- Enhanced CSV streaming with compression and encoding detection
-- Python & Node.js memory monitoring systems
-- Integrated circuit breaker pattern throughout processing pipeline
+**Security Enhancements**:
+- Whitelisted allowed DBT commands (run, test, compile, build, snapshot, seed, docs)
+- Input validation with regex to prevent command injection
+- Safe process spawning without shell execution
 
-**Dependencies Added**:
-- `ijson` (JSON streaming)
-- `pyarrow>=19.0.1` (Parquet streaming)
-- `psutil` (memory monitoring)
-
-### Phase 2: Async Job Queue System (Completed)
-**Status**: ✅ Production-ready (October 2025)
-
-**Achievements**:
-- **Non-Blocking Uploads**: File uploads return immediately with job ID
-- **Background Processing**: Worker processes files asynchronously with retry logic (3 attempts with exponential backoff)
-- **Job Status Tracking**: Real-time job progress monitoring via status endpoint
-- **Cloud-Agnostic Queue**: Abstract queue interface supporting in-memory (Replit), BullMQ/Redis, AWS SQS, and GCP Tasks
-- **Auto-Retry on Failure**: Failed jobs automatically retry with configurable delays (5s, 10s, 20s)
-
-**Implementation**:
-- Queue factory pattern with pluggable backends (`backend/queue/queueFactory.js`)
-- File processing worker with Python integration (`backend/workers/fileProcessingWorker.js`)
-- Job status API endpoint (`GET /api/files/:fileId/job-status`)
-- Async upload endpoint (`POST /api/files/upload`)
-- PYTHONPATH configuration for seamless Python module imports
-
-**Dependencies Added**:
-- `bullmq` (Redis-backed job queue - optional)
-- Queue abstraction layer (in-memory fallback for Replit)
-
-### Phase 2.1: Production Enhancements (Completed)
-**Status**: ✅ Production-ready (October 2025)
-
-**Achievements**:
-- **Automatic File Cleanup**: Uploaded files automatically deleted after processing to prevent storage bloat
-- **Queue Metrics Endpoint**: Real-time monitoring of queue performance and health (`GET /api/queue/metrics`)
-- **Comprehensive Configuration**: Documented environment variables and deployment configurations
-
-**Implementation**:
-- File cleanup with quarantine option for failed uploads (`backend/workers/fileProcessingWorker.js`)
-- Metrics tracking in queue: success rate, processing time, retry counts (`backend/queue/MemoryQueue.js`)
-- Configuration documentation covering all queue backends and deployment scenarios (`docs/CONFIGURATION.md`)
-
-**Features**:
-- **Metrics Available**:
-  - Total jobs processed (success/failure counts)
-  - Success rate percentage
-  - Average processing time in milliseconds
-  - Queue state breakdown (waiting, active, completed, failed, delayed)
-  - Queue uptime (human-readable format)
-- **Configurable Cleanup**:
-  - `CLEANUP_FILES=true` (default): Delete files after processing
-  - `CLEANUP_FILES=false`: Keep files for debugging
-  - `QUARANTINE_FAILED=true`: Move failed files to quarantine folder
-
-### Phase 3: Database Optimization (Completed)
-**Status**: ✅ Completed (October 2025)
-
-**Achievements**:
-- **Connection Pool Scaling**: Increased from 10 to 100 connections with production-optimized settings
-- **Performance Indexes**: Created 19 indexes for optimized query performance
-- **Read Replica Documentation**: Complete setup guide for AWS/GCP/Azure
-
-**Implementation**:
-- Database pool configuration in DI container (`backend/di/bootstrapper.js`)
-- Configurable via environment variables: DB_POOL_MAX, DB_POOL_MIN, DB_IDLE_TIMEOUT, DB_CONNECT_TIMEOUT
-- Added pool metrics logging on startup
-- Automated index migration (`backend/migrations/addPerformanceIndexes.js`)
-  - 9 foreign key indexes (JOIN optimization)
-  - 5 filter indexes (WHERE clause optimization)
-  - 5 sort indexes (ORDER BY optimization)
-- Read replica guide with load balancing strategies (`docs/READ_REPLICA_CONFIG.md`)
-
-### Phase 4: Multi-Layer Caching (Completed)
-**Status**: ✅ Completed (October 2025)
-
-**Achievements**:
-- **Redis Caching Layer**: Implemented with automatic fallback to in-memory cache (node-cache)
-- **Response Caching**: File metadata endpoints automatically cached (5-10 minute TTL)
-- **Cache Invalidation**: Automatic cache clearing on file uploads/modifications
-- **Dashboard Data Caching**: All dashboard-feeding endpoints cached (files, profiles, quality, insights)
-
-**Implementation**:
-- Cache service with Redis/memory fallback (`backend/services/cacheService.js`)
-- Automatic response caching middleware (`backend/middleware/cacheMiddleware.js`)
-- Cache management API with authentication (`GET /api/cache/stats`, `DELETE /api/cache/flush`)
-- Cached endpoints: file list, file details, preview, profile, quality, insights
-- Cache TTL: 300s (list/preview), 600s (details/profile/quality/insights)
-- Security: Per-user cache keys for authenticated endpoints, protected admin endpoints
-
-### Phase 5: DBT Integration & Audit Logging (In Progress)
-**Status**: 🚧 Phase 1 Complete (October 2025)
+### Phase 5: DBT Integration & Audit Logging (October 14, 2025)
+**Status**: ✅ Completed
 
 **Achievements**:
 - **DBT Project Setup**: dbt-core and dbt-postgres installed and configured
@@ -222,32 +63,9 @@ The application employs a hybrid architecture combining:
   - `data_access_log`: File and data access tracking (GDPR compliance)
   - `config_change_history`: Configuration change tracking with rollback support
   - `security_audit_log`: Security events (login, permissions, access denial)
-  
-- **Automatic Logging**:
-  - Audit middleware logs all API requests/responses
-  - File processing worker logs execution state changes
-  - Data access logging for file previews and downloads
-  
-- **AuditService** (`backend/services/AuditService.js`):
-  - Centralized audit logging with context management
-  - Before/after state diff calculation
-  - Query methods for retrieving audit history
-  
-- **Audit Trail UI** (`src/pages/AuditTrail.jsx`):
-  - Advanced search and filtering
-  - Detailed view with change diffs
-  - CSV export functionality
-  - Real-time audit log streaming
-
-**DBT Implementation**:
-- DBT project structure with staging/intermediate/marts layers
-- Database connection via environment variables
-- Initial staging models for uploaded files
-- Job dependency tables for scheduling system
-
-**Dependencies Added**:
-- `dbt-core>=1.10.0` (DBT framework)
-- `dbt-postgres>=1.9.0` (PostgreSQL adapter)
+- **Automatic Logging**: Audit middleware logs all API requests/responses
+- **AuditService** (`backend/services/AuditService.js`): Centralized audit logging with context management
+- **Audit Trail UI** (`src/pages/AuditTrail.jsx`): Advanced search, filtering, and CSV export
 
 **Database Tables Added**:
 - `job_dependencies`: Job-to-job dependencies
@@ -256,27 +74,17 @@ The application employs a hybrid architecture combining:
 - `dbt_models`: DBT model registry
 - `dbt_executions`: DBT run tracking
 
-### Future Phases (Planned)
-- **Phase 5.1**: DBT orchestration service and UI integration
-- **Phase 5.2**: Job dependency resolver and group execution
-- **Phase 6**: Cloud deployment configs (Docker, AWS/GCP documentation)
-- **Phase 7**: Real-world testing (1GB+ files, 1,000 concurrent users)
-
-## Changelog
-
-```
-Changelog:
-- October 14, 2025. Phase 5: DBT integration & audit logging - comprehensive audit system with 5 audit tables, UI, and automatic logging
-- October 12, 2025. Phase 4: Multi-layer caching - Redis/in-memory cache with response caching middleware
-- October 12, 2025. Phase 3: Database optimization complete - connection pool, 19 indexes, read replica docs
-- October 12, 2025. Phase 2.1: Production enhancements - file cleanup, queue metrics, configuration docs
-- October 12, 2025. Phase 2: Async job queue system complete - non-blocking uploads with background processing
-- October 12, 2025. Phase 1: Streaming engine & memory management complete - 10 GB file support
-- June 27, 2025. Initial setup
-```
-
-## User Preferences
-
-```
-Preferred communication style: Simple, everyday language.
-```
+## External Dependencies
+-   **Runtimes**: Python 3.11+, Node.js 20
+-   **Database**: PostgreSQL 16
+-   **Frontend Framework**: React 18
+-   **Key Libraries**:
+    -   **Data Processing**: pandas, numpy, plotly, ijson, pyarrow, psutil
+    -   **Web Frameworks**: Express.js, Streamlit
+    -   **Database Client**: pg
+    -   **Authentication**: bcrypt, jsonwebtoken
+    -   **File Handling**: multer, AWS SDK
+    -   **Development**: TypeScript, ESLint, Prettier
+    -   **Job Queues**: bullmq (optional, for Redis-backed queues)
+    -   **DBT**: dbt-core, dbt-postgres
+-   **Cloud Storage**: AWS S3, Google Cloud Storage, Azure Blob Storage

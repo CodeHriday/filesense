@@ -5,7 +5,7 @@ const { getContainer } = require('../di/bootstrapper');
 router.get('/models', async (req, res) => {
   try {
     const container = getContainer();
-    const dbtService = container.get('dbtService');
+    const dbtService = container.get('dBTService');
     
     const models = await dbtService.listModels();
     res.json(models);
@@ -18,7 +18,7 @@ router.get('/models', async (req, res) => {
 router.get('/models/:modelId', async (req, res) => {
   try {
     const container = getContainer();
-    const dbtService = container.get('dbtService');
+    const dbtService = container.get('dBTService');
     
     const model = await dbtService.getModel(req.params.modelId);
     if (!model) {
@@ -35,7 +35,7 @@ router.get('/models/:modelId', async (req, res) => {
 router.post('/discover', async (req, res) => {
   try {
     const container = getContainer();
-    const dbtService = container.get('dbtService');
+    const dbtService = container.get('dBTService');
     const userId = req.user?.username || 'system';
     
     const result = await dbtService.discoverModels(userId);
@@ -49,7 +49,7 @@ router.post('/discover', async (req, res) => {
 router.post('/execute', async (req, res) => {
   try {
     const container = getContainer();
-    const dbtService = container.get('dbtService');
+    const dbtService = container.get('dBTService');
     const userId = req.user?.username || 'system';
     
     const { command = 'run', modelsSelector, triggerType = 'manual' } = req.body;
@@ -69,7 +69,7 @@ router.post('/execute', async (req, res) => {
 router.get('/executions', async (req, res) => {
   try {
     const container = getContainer();
-    const dbtService = container.get('dbtService');
+    const dbtService = container.get('dBTService');
     
     const limit = parseInt(req.query.limit) || 50;
     const executions = await dbtService.getExecutions(limit);
@@ -84,7 +84,7 @@ router.get('/executions', async (req, res) => {
 router.get('/executions/:executionId', async (req, res) => {
   try {
     const container = getContainer();
-    const dbtService = container.get('dbtService');
+    const dbtService = container.get('dBTService');
     
     const execution = await dbtService.getExecution(req.params.executionId);
     if (!execution) {
