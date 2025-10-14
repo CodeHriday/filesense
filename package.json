@@ -31,6 +31,7 @@
     "body-parser": "^2.2.0",
     "bullmq": "^5.61.0",
     "chart.js": "^4.4.9",
+    "clamscan": "^2.4.0",
     "clsx": "^2.1.1",
     "compression": "^1.8.0",
     "cookie-parser": "^1.4.7",
