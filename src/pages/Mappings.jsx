@@ -834,7 +834,7 @@ function Mappings() {
         <div className="d-flex">
           <button className="btn btn-primary external-link-btn" onClick={handleOpenTransform}>
             <FiExternalLink className="btn-icon" />
-            Open Transform
+            Create Mapping
           </button>
         </div>
       </div>
@@ -1168,7 +1168,7 @@ function Mappings() {
                 <h2>Data Transformations with Transform</h2>
                 <button onClick={handleOpenTransform} className="btn btn-sm btn-primary">
                   <FiExternalLink className="btn-icon" />
-                  Open Transform
+                  Create Mapping
                 </button>
               </div>
               
@@ -1182,7 +1182,7 @@ function Mappings() {
                   </p>
                   <button onClick={handleOpenTransform} className="btn btn-primary">
                     <FiExternalLink className="btn-icon" />
-                    Open Transform
+                    Create Mapping
                   </button>
                 </div>
               </Card>
