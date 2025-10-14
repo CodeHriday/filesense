@@ -28,7 +28,7 @@ const TransformBuilder = () => {
     { id: 2, title: 'Select Source File', description: 'Pick a file from the source connection' },
     { id: 3, title: 'Map Columns', description: 'Drag and drop columns to create mappings' },
     { id: 4, title: 'Configure Target', description: 'Set up target schema and settings' },
-    { id: 5, title: 'Execute Transform', description: 'Run the transformation and load data' }
+    { id: 5, title: 'Execute Mapping', description: 'Run the transformation and load data' }
   ];
 
   const updateConfig = useCallback((key, value) => {
@@ -117,8 +117,16 @@ const TransformBuilder = () => {
           <button className="btn btn-secondary">
             <FiSave /> Save Draft
           </button>
-          <button className="btn btn-primary" disabled={!canProceedToStep(5)}>
-            <FiPlay /> Execute Transform
+          <button 
+            className="btn btn-primary" 
+            disabled={!canProceedToStep(5)}
+            onClick={() => {
+              if (canProceedToStep(5)) {
+                setCurrentStep(5);
+              }
+            }}
+          >
+            <FiPlay /> Execute Mapping
           </button>
         </div>
       </div>
