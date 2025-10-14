@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiUploadCloud } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
@@ -21,6 +22,12 @@ const Connections = () => {
   const [testingConnection, setTestingConnection] = useState(null);
   const [testResults, setTestResults] = useState({});
   const [activeTab, setActiveTab] = useState('source');
+  
+  // Delete confirmation modal state
+  const [showDeleteConnectionModal, setShowDeleteConnectionModal] = useState(false);
+  const [connectionToDelete, setConnectionToDelete] = useState(null);
+  const [isDeletingConnection, setIsDeletingConnection] = useState(false);
+  const [showDeleteDropLocationModal, setShowDeleteDropLocationModal] = useState(false);
   
   // Drop Location state
   const [dropLocationConfig, setDropLocationConfig] = useState(null);
@@ -190,11 +197,11 @@ const Connections = () => {
     }
   };
   
-  const handleDropLocationRemove = async () => {
-    if (!window.confirm('Are you sure you want to remove the drop location configuration?')) {
-      return;
-    }
-    
+  const handleDropLocationRemove = () => {
+    setShowDeleteDropLocationModal(true);
+  };
+  
+  const confirmDropLocationRemove = async () => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_BASE_URL}/api/drop-location/config`, {
@@ -224,9 +231,11 @@ const Connections = () => {
         // Common
         path_prefix: ''
       });
+      setShowDeleteDropLocationModal(false);
     } catch (err) {
       console.error('Error removing drop location config:', err);
       setError('Failed to remove drop location configuration');
+      setShowDeleteDropLocationModal(false);
     }
   };
   
@@ -330,19 +339,33 @@ const Connections = () => {
     setShowForm(true);
   };
   
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this connection?')) {
-      return;
-    }
+  const handleDelete = (id) => {
+    const connection = connections.find(conn => conn.id === id);
+    setConnectionToDelete(connection);
+    setShowDeleteConnectionModal(true);
+  };
+  
+  const confirmDeleteConnection = async () => {
+    if (!connectionToDelete) return;
     
+    setIsDeletingConnection(true);
     try {
-      await deleteConnection(id);
+      await deleteConnection(connectionToDelete.id);
       // Update local state without refetching
-      setConnections(connections.filter(conn => conn.id !== id));
+      setConnections(connections.filter(conn => conn.id !== connectionToDelete.id));
+      setShowDeleteConnectionModal(false);
+      setConnectionToDelete(null);
     } catch (err) {
       console.error('Error deleting connection:', err);
       setError('Failed to delete connection. Please try again.');
+    } finally {
+      setIsDeletingConnection(false);
     }
+  };
+  
+  const closeDeleteConnectionModal = () => {
+    setShowDeleteConnectionModal(false);
+    setConnectionToDelete(null);
   };
   
   const handleInputChange = (e) => {
@@ -1863,6 +1886,24 @@ const Connections = () => {
           )}
         </div>
       )}
+      
+      {/* Delete Connection Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteConnectionModal}
+        onClose={closeDeleteConnectionModal}
+        onConfirm={confirmDeleteConnection}
+        fileName={connectionToDelete?.connection_name}
+        isDeleting={isDeletingConnection}
+      />
+      
+      {/* Delete Drop Location Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteDropLocationModal}
+        onClose={() => setShowDeleteDropLocationModal(false)}
+        onConfirm={confirmDropLocationRemove}
+        fileName="Drop Location Configuration"
+        isDeleting={false}
+      />
     </div>
   );
 };
