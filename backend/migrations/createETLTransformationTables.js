@@ -31,6 +31,9 @@ async function initETLTransformationTables(pool) {
         target_table_name VARCHAR(255),
         target_schema JSONB,
         
+        -- Anomaly detection rules
+        anomaly_rules JSONB,
+        
         -- Metadata
         created_by INTEGER,
         status VARCHAR(50) DEFAULT 'draft',

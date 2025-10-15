@@ -89,7 +89,7 @@ router.post('/', async (req, res) => {
       source_connection_id,
       source_file_pattern,
       target_connection_id,
-      target_table,
+      target_table_name,
       field_mappings = [],
       anomaly_rules = null,
       status = 'draft'
@@ -118,14 +118,14 @@ router.post('/', async (req, res) => {
     const result = await pool.query(`
       INSERT INTO transformation_mappings (
         mapping_id, mapping_name, source_connection_id, source_file_pattern,
-        target_connection_id, target_table, field_mappings, anomaly_rules,
+        target_connection_id, target_table_name, field_mappings, anomaly_rules,
         status, created_by
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `, [
       mappingId, mapping_name, source_connection_id, source_file_pattern,
-      target_connection_id, target_table, JSON.stringify(field_mappings),
-      JSON.stringify(anomaly_rules), status, req.user?.id || 'system'
+      target_connection_id, target_table_name, JSON.stringify(field_mappings),
+      JSON.stringify(anomaly_rules), status, req.user?.id || null
     ]);
     
     systemLogger.info('Transformation mapping created', { mappingId, mapping_name });
@@ -150,7 +150,7 @@ router.put('/:id', async (req, res) => {
       source_connection_id,
       source_file_pattern,
       target_connection_id,
-      target_table,
+      target_table_name,
       field_mappings,
       anomaly_rules,
       status
@@ -191,9 +191,9 @@ router.put('/:id', async (req, res) => {
       values.push(target_connection_id);
       paramIndex++;
     }
-    if (target_table !== undefined) {
-      updates.push(`target_table = $${paramIndex}`);
-      values.push(target_table);
+    if (target_table_name !== undefined) {
+      updates.push(`target_table_name = $${paramIndex}`);
+      values.push(target_table_name);
       paramIndex++;
     }
     if (field_mappings !== undefined) {
