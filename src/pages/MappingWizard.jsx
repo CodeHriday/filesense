@@ -412,7 +412,10 @@ function MappingWizard() {
                 <ul>
                   {matchingFiles.slice(0, 10).map((file, idx) => (
                     <li key={idx}>
-                      {file.filename || file} {file.rowCount && `(${file.rowCount} rows)`}
+                      {file.filename || file}
+                      {file.rowCount && ` (${file.rowCount} rows)`}
+                      {file.size && ` (${(file.size / 1024).toFixed(2)} KB)`}
+                      {file.source && ` [${file.source.toUpperCase()}]`}
                     </li>
                   ))}
                   {matchingFiles.length > 10 && (

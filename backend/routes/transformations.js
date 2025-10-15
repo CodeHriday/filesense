@@ -316,11 +316,42 @@ router.post('/validate-pattern', async (req, res) => {
       return res.status(400).json({ error: 'File pattern is required' });
     }
     
-    // Find matching files
-    const matchingFiles = await findMatchingFiles(pool, source_file_pattern, { 
-      connectionId: source_connection_id,
-      limit: 10 
-    });
+    let matchingFiles = [];
+    
+    // If connection is provided, list files from cloud storage
+    if (source_connection_id) {
+      const { listAndFilterFiles } = require('../utils/cloudStorageFileList');
+      
+      try {
+        const cloudFiles = await listAndFilterFiles(pool, source_connection_id, source_file_pattern);
+        
+        // Format cloud files to match expected structure
+        matchingFiles = cloudFiles.map(f => ({
+          filename: f.filename,
+          rowCount: null, // Row count not available from cloud listing
+          size: f.size,
+          lastModified: f.lastModified,
+          source: f.source
+        }));
+      } catch (cloudError) {
+        systemLogger.error('Error listing files from cloud storage:', cloudError);
+        return res.status(500).json({ 
+          error: `Failed to list files from connection: ${cloudError.message}` 
+        });
+      }
+    } else {
+      // No connection - check database files
+      const dbFiles = await findMatchingFiles(pool, source_file_pattern, { 
+        connectionId: source_connection_id,
+        limit: 100 
+      });
+      
+      matchingFiles = dbFiles.map(f => ({
+        fileId: f.file_id,
+        filename: f.filename,
+        rowCount: f.row_count
+      }));
+    }
     
     if (matchingFiles.length === 0) {
       return res.json({
@@ -331,21 +362,11 @@ router.post('/validate-pattern', async (req, res) => {
       });
     }
     
-    // Validate schema consistency
-    const fileIds = matchingFiles.map(f => f.file_id);
-    const schemaValidation = await validateSchemaConsistency(pool, fileIds);
-    
     res.json({
-      valid: schemaValidation.isConsistent,
+      valid: true,
       matchCount: matchingFiles.length,
-      message: schemaValidation.message,
-      samples: matchingFiles.slice(0, 5).map(f => ({
-        fileId: f.file_id,
-        filename: f.filename,
-        rowCount: f.row_count
-      })),
-      schemaConsistent: schemaValidation.isConsistent,
-      inconsistencies: schemaValidation.inconsistencies || []
+      message: `Found ${matchingFiles.length} matching file(s)`,
+      samples: matchingFiles.slice(0, 10)
     });
     
   } catch (error) {
