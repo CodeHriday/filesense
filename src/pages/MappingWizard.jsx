@@ -359,11 +359,11 @@ function MappingWizard() {
               <select
                 className="form-control"
                 value={sourceConnectionId}
-                onChange={(e) => setSourceConnectionId(e.target.value)}
+                onChange={(e) => setSourceConnectionId(e.target.value ? parseInt(e.target.value) : '')}
               >
                 <option value="">Local Files</option>
                 {connections.filter(c => c.connection_direction === 'source').map(conn => (
-                  <option key={conn.connection_id} value={conn.connection_id}>
+                  <option key={conn.id} value={conn.id}>
                     {conn.name} ({conn.type})
                   </option>
                 ))}
@@ -564,11 +564,11 @@ function MappingWizard() {
               <select
                 className="form-control"
                 value={targetConnectionId}
-                onChange={(e) => setTargetConnectionId(e.target.value)}
+                onChange={(e) => setTargetConnectionId(e.target.value ? parseInt(e.target.value) : '')}
               >
                 <option value="">Local Files</option>
                 {connections.filter(c => c.connection_direction === 'target').map(conn => (
-                  <option key={conn.connection_id} value={conn.connection_id}>
+                  <option key={conn.id} value={conn.id}>
                     {conn.name} ({conn.type})
                   </option>
                 ))}
