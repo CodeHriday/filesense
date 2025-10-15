@@ -1,0 +1,362 @@
+.table-based-mapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.mapper-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.mapper-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.mapper-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mapper-panels {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.source-panel,
+.target-panel {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.source-panel h4,
+.target-panel h4 {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: #e9ecef;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.field-search {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.field-search input {
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.source-fields-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.source-field-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  gap: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+}
+
+.source-field-item:hover {
+  background-color: #f8f9fa;
+}
+
+.source-field-item input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.source-field-item label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #495057;
+  user-select: none;
+}
+
+.target-table-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.target-mapping-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.target-mapping-table thead {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  z-index: 1;
+}
+
+.target-mapping-table th {
+  text-align: left;
+  padding: 0.75rem;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.target-mapping-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+.target-mapping-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.status-cell {
+  text-align: center;
+}
+
+.status-icon {
+  font-size: 1rem;
+}
+
+.status-icon.mapped {
+  color: #28a745;
+}
+
+.name-cell {
+  font-weight: 500;
+  color: #212529;
+}
+
+.target-name-input {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  background: white;
+  transition: border-color 0.15s;
+}
+
+.target-name-input:focus {
+  outline: none;
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.arrow-icon {
+  color: #6c757d;
+  font-size: 0.875rem;
+  margin-right: 0.25rem;
+}
+
+.btn-icon-small {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #6c757d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.btn-icon-small:hover {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.expression-cell {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  color: #0066cc;
+}
+
+.expression-text {
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  display: inline-block;
+  transition: background-color 0.15s;
+}
+
+.expression-text:hover {
+  background-color: #e7f3ff;
+}
+
+.no-mappings {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 2rem !important;
+}
+
+.expression-editor-modal .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+.expression-editor-modal .modal-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.expression-editor-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.expression-editor-modal .modal-header h4 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.expression-editor-modal .btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6c757d;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.expression-editor-modal .btn-close:hover {
+  background-color: #f8f9fa;
+  color: #495057;
+}
+
+.expression-editor-modal .modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.expression-editor-modal .form-group {
+  margin-bottom: 1rem;
+}
+
+.expression-editor-modal .form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.expression-editor-modal .form-control {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  transition: border-color 0.15s;
+}
+
+.expression-editor-modal .form-control:focus {
+  outline: none;
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.expression-editor-modal .form-control:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+.expression-preview {
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  color: #0066cc;
+  font-size: 0.875rem;
+  word-break: break-all;
+}
+
+.expression-editor-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.mapping-summary {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.mapping-summary p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-weight: 500;
+}
