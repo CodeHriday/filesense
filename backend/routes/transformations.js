@@ -371,6 +371,37 @@ router.post('/validate-pattern', async (req, res) => {
 });
 
 /**
+ * POST /api/transformations/extract-schema
+ * Extract schema from cloud storage files
+ */
+router.post('/extract-schema', async (req, res) => {
+  try {
+    const { source_connection_id, file_pattern } = req.body;
+    
+    if (!source_connection_id) {
+      return res.status(400).json({ error: 'Source connection is required' });
+    }
+    
+    if (!file_pattern) {
+      return res.status(400).json({ error: 'File pattern is required' });
+    }
+    
+    const { extractSchemaFromCloud } = require('../services/schemaService');
+    
+    const schema = await extractSchemaFromCloud(pool, source_connection_id, file_pattern);
+    
+    res.json({
+      schema: schema,
+      message: `Extracted schema with ${schema.length} fields`
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error extracting schema:', error);
+    res.status(500).json({ error: error.message || 'Failed to extract schema' });
+  }
+});
+
+/**
  * POST /api/transformations/:id/validate-pattern
  * Validate file pattern and check schema consistency (with mapping ID)
  */

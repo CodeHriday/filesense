@@ -336,6 +336,207 @@ async function detectSchemaDrift(pool, fileId, currentSchema) {
   }
 }
 
+/**
+ * Extract schema from cloud storage files
+ * @param {Pool} pool - Database connection pool
+ * @param {number} connectionId - Cloud storage connection ID
+ * @param {string} filePattern - File pattern to match
+ * @returns {Promise<Array>} - Schema fields array
+ */
+async function extractSchemaFromCloud(pool, connectionId, filePattern) {
+  try {
+    const { listAndFilterFiles } = require('../utils/cloudStorageFileList');
+    const AWS = require('aws-sdk');
+    const { Storage } = require('@google-cloud/storage');
+    const { BlobServiceClient } = require('@azure/storage-blob');
+    const { decryptCredentials } = require('../utils/encryption');
+    const csv = require('csv-parser');
+    const { Readable } = require('stream');
+    
+    // Get matching files from cloud storage
+    const files = await listAndFilterFiles(pool, connectionId, filePattern);
+    
+    if (files.length === 0) {
+      throw new Error('No files match the pattern');
+    }
+    
+    // Get the first file to extract schema
+    const sampleFile = files[0];
+    
+    // Get connection details
+    const connResult = await pool.query(
+      'SELECT * FROM transform_connections WHERE id = $1',
+      [connectionId]
+    );
+    
+    if (connResult.rows.length === 0) {
+      throw new Error('Connection not found');
+    }
+    
+    const connection = connResult.rows[0];
+    const config = decryptCredentials(connection.type, connection.config || {});
+    
+    // Download file content based on connection type
+    let fileContent;
+    let fileExtension = sampleFile.filename.split('.').pop().toLowerCase();
+    
+    switch (connection.type.toLowerCase()) {
+      case 'aws':
+      case 's3':
+        const s3 = new AWS.S3({
+          accessKeyId: config.access_key,
+          secretAccessKey: config.secret_key,
+          region: config.region
+        });
+        const s3Data = await s3.getObject({
+          Bucket: config.bucket_name,
+          Key: sampleFile.filename
+        }).promise();
+        fileContent = s3Data.Body;
+        break;
+        
+      case 'gcs':
+      case 'google':
+        const storage = new Storage({
+          projectId: config.project_id,
+          credentials: {
+            client_email: config.client_email,
+            private_key: config.private_key
+          }
+        });
+        const file = storage.bucket(config.bucket_name).file(sampleFile.filename);
+        const [gcsData] = await file.download();
+        fileContent = gcsData;
+        break;
+        
+      case 'azure':
+      case 'blob':
+        const blobServiceClient = BlobServiceClient.fromConnectionString(
+          `DefaultEndpointsProtocol=https;AccountName=${config.account_name};AccountKey=${config.account_key};EndpointSuffix=core.windows.net`
+        );
+        const containerClient = blobServiceClient.getContainerClient(config.container_name);
+        const blobClient = containerClient.getBlobClient(sampleFile.filename);
+        const downloadResponse = await blobClient.download();
+        fileContent = await streamToBuffer(downloadResponse.readableStreamBody);
+        break;
+        
+      default:
+        throw new Error(`Unsupported connection type: ${connection.type}`);
+    }
+    
+    // Parse file content based on extension
+    const schema = await parseFileSchema(fileContent, fileExtension);
+    
+    return schema;
+    
+  } catch (error) {
+    systemLogger.error('Error extracting schema from cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Parse file content to extract schema
+ * @param {Buffer} fileContent - File content buffer
+ * @param {string} fileExtension - File extension (csv, json, parquet)
+ * @returns {Promise<Array>} - Schema fields
+ */
+async function parseFileSchema(fileContent, fileExtension) {
+  const schema = [];
+  
+  switch (fileExtension) {
+    case 'csv':
+      return new Promise((resolve, reject) => {
+        const columns = [];
+        const stream = Readable.from(fileContent.toString());
+        
+        stream
+          .pipe(csv())
+          .on('headers', (headers) => {
+            headers.forEach((header, index) => {
+              columns.push({
+                name: header,
+                type: 'string',
+                index: index
+              });
+            });
+          })
+          .on('data', (row) => {
+            // Infer types from first row
+            if (columns.length > 0 && columns[0].type === 'string') {
+              Object.keys(row).forEach((key, index) => {
+                const value = row[key];
+                if (value) {
+                  columns[index].type = inferDataType(value);
+                }
+              });
+            }
+          })
+          .on('end', () => {
+            resolve(columns);
+          })
+          .on('error', reject);
+      });
+      
+    case 'json':
+      try {
+        const jsonData = JSON.parse(fileContent.toString());
+        const firstRecord = Array.isArray(jsonData) ? jsonData[0] : jsonData;
+        
+        if (firstRecord) {
+          Object.keys(firstRecord).forEach((key, index) => {
+            schema.push({
+              name: key,
+              type: inferDataType(firstRecord[key]),
+              index: index
+            });
+          });
+        }
+        return schema;
+      } catch (error) {
+        throw new Error(`Failed to parse JSON: ${error.message}`);
+      }
+      
+    default:
+      throw new Error(`Unsupported file type: ${fileExtension}`);
+  }
+}
+
+/**
+ * Infer data type from value
+ * @param {*} value - Value to infer type from
+ * @returns {string} - Inferred type
+ */
+function inferDataType(value) {
+  if (value === null || value === undefined || value === '') return 'string';
+  
+  if (!isNaN(value) && !isNaN(parseFloat(value))) {
+    return value.includes('.') ? 'float' : 'integer';
+  }
+  
+  if (value === 'true' || value === 'false') return 'boolean';
+  
+  // Check if it's a date
+  const datePattern = /^\d{4}-\d{2}-\d{2}/;
+  if (datePattern.test(value)) return 'date';
+  
+  return 'string';
+}
+
+/**
+ * Convert stream to buffer
+ * @param {Stream} stream - Readable stream
+ * @returns {Promise<Buffer>} - Buffer
+ */
+async function streamToBuffer(stream) {
+  const chunks = [];
+  return new Promise((resolve, reject) => {
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
+}
+
 module.exports = {
   extractSchemaFromColumns,
   generateSchemaHash,
@@ -343,5 +544,6 @@ module.exports = {
   validateSchemaConsistency,
   getFileSchema,
   saveSchemaSnapshot,
-  detectSchemaDrift
+  detectSchemaDrift,
+  extractSchemaFromCloud
 };
