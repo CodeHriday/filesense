@@ -446,7 +446,6 @@ function FileUpload() {
               maxSizeMB={50}
               multiple={true}
               virusScan={uploadedFile?.virusScan}
-              externalStatus={uploadStatus}
             />
           ) : (
             <div className="access-denied-message">
