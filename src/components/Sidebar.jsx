@@ -391,18 +391,8 @@ function Sidebar() {
             {showInsightsSection && (
               <>
                 <li className="nav-divider">
-                  <span>Insights & Badges</span>
+                  <span>Insights</span>
                 </li>
-                
-                {/* Only show badges if permission exists */}
-                {checkPermissions(['badges', 'badges:read', 'badge:read']) && (
-                  <li>
-                    <NavLink to="/badges" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiAward className="icon" />
-                      <span>Achievement Badges</span>
-                    </NavLink>
-                  </li>
-                )}
                 
                 {/* Only show recommendations if permission exists */}
                 {checkPermissions(['recommendations', 'recommendations:read', 'recommendation:read']) && (
@@ -433,29 +423,6 @@ function Sidebar() {
                     </NavLink>
                   </li>
                 )}
-              </>
-            )}
-            
-            {/* Developer Tools Section - only for Admins */}
-            {isAdmin && (
-              <>
-                <li className="nav-divider">
-                  <span>Developer Tools</span>
-                </li>
-                
-                <li>
-                  <NavLink to="/hooks-demo" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiCpu className="icon" />
-                    <span>Hooks Demo</span>
-                  </NavLink>
-                </li>
-                
-                <li>
-                  <NavLink to="/performance-optimizations" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiTrendingUp className="icon" />
-                    <span>Performance Optimizations</span>
-                  </NavLink>
-                </li>
               </>
             )}
           </ul>
