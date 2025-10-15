@@ -19,8 +19,8 @@ router.get('/', async (req, res) => {
     let query = `
       SELECT 
         tm.*,
-        sc.name as source_connection_name,
-        tc.name as target_connection_name
+        sc.connection_name as source_connection_name,
+        tc.connection_name as target_connection_name
       FROM transformation_mappings tm
       LEFT JOIN connections sc ON tm.source_connection_id = sc.id
       LEFT JOIN connections tc ON tm.target_connection_id = tc.id
