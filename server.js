@@ -5400,20 +5400,8 @@ app.delete('/api/job-groups/:id/jobs/:jobId', authenticateToken, async (req, res
   }
 });
 
-// Add direct access to transformations API without authentication
-const transformationRoutes = require('./backend/routes/transformationRoutes');
-const aiRoutes = require('./backend/routes/aiRoutes');
-app.use('/api/transformations-noauth', (req, res, next) => {
-  // Set a default admin user to prevent 'undefined' errors
-  req.user = { 
-    id: 2,  // Admin ID
-    roles: ['Admin']
-  };
-  next();
-}, transformationRoutes);
-console.log('Added unauthenticated transformation routes');
-
 // Add AI routes (temporarily commented out until model integration is complete)
+const aiRoutes = require('./backend/routes/aiRoutes');
 app.use('/api/ai', authenticateToken, aiRoutes(diContainer));
 console.log('Added AI routes');
 
