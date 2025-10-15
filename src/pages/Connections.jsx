@@ -1597,15 +1597,6 @@ const Connections = () => {
                 >
                   {dropLocationLoading ? 'Saving...' : 'Save Configuration'}
                 </button>
-                {dropLocationConfigured && (
-                  <button 
-                    type="button" 
-                    className="btn btn-danger"
-                    onClick={handleDropLocationRemove}
-                  >
-                    <FiTrash2 /> Remove
-                  </button>
-                )}
               </div>
             </form>
           ) : dropLocationConfigured ? (
