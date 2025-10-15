@@ -209,6 +209,10 @@ function MappingWizard() {
         setError('Please enter a mapping name');
         return;
       }
+      if (!sourceConnectionId) {
+        setError('Please select a source connection');
+        return;
+      }
       setError(null);
       setCurrentStep(2);
     } else if (currentStep === 2) {

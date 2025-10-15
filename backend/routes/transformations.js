@@ -316,58 +316,45 @@ router.post('/validate-pattern', async (req, res) => {
       return res.status(400).json({ error: 'File pattern is required' });
     }
     
-    let matchingFiles = [];
+    if (!source_connection_id) {
+      return res.status(400).json({ error: 'Connection is required for pattern validation' });
+    }
     
-    // If connection is provided, list files from cloud storage
-    if (source_connection_id) {
-      const { listAndFilterFiles } = require('../utils/cloudStorageFileList');
+    const { listAndFilterFiles } = require('../utils/cloudStorageFileList');
+    
+    try {
+      const cloudFiles = await listAndFilterFiles(pool, source_connection_id, source_file_pattern);
       
-      try {
-        const cloudFiles = await listAndFilterFiles(pool, source_connection_id, source_file_pattern);
-        
-        // Format cloud files to match expected structure
-        matchingFiles = cloudFiles.map(f => ({
-          filename: f.filename,
-          rowCount: null, // Row count not available from cloud listing
-          size: f.size,
-          lastModified: f.lastModified,
-          source: f.source
-        }));
-      } catch (cloudError) {
-        systemLogger.error('Error listing files from cloud storage:', cloudError);
-        return res.status(500).json({ 
-          error: `Failed to list files from connection: ${cloudError.message}` 
+      // Format cloud files to match expected structure
+      const matchingFiles = cloudFiles.map(f => ({
+        filename: f.filename,
+        rowCount: null, // Row count not available from cloud listing
+        size: f.size,
+        lastModified: f.lastModified,
+        source: f.source
+      }));
+      
+      if (matchingFiles.length === 0) {
+        return res.json({
+          valid: true,
+          matchCount: 0,
+          message: 'No files match the pattern in the selected connection',
+          samples: []
         });
       }
-    } else {
-      // No connection - check database files
-      const dbFiles = await findMatchingFiles(pool, source_file_pattern, { 
-        connectionId: source_connection_id,
-        limit: 100 
-      });
       
-      matchingFiles = dbFiles.map(f => ({
-        fileId: f.file_id,
-        filename: f.filename,
-        rowCount: f.row_count
-      }));
-    }
-    
-    if (matchingFiles.length === 0) {
-      return res.json({
+      res.json({
         valid: true,
-        matchCount: 0,
-        message: 'No files match the pattern',
-        samples: []
+        matchCount: matchingFiles.length,
+        message: `Found ${matchingFiles.length} matching file(s)`,
+        samples: matchingFiles.slice(0, 10)
+      });
+    } catch (cloudError) {
+      systemLogger.error('Error listing files from cloud storage:', cloudError);
+      return res.status(500).json({ 
+        error: `Failed to list files from connection: ${cloudError.message}` 
       });
     }
-    
-    res.json({
-      valid: true,
-      matchCount: matchingFiles.length,
-      message: `Found ${matchingFiles.length} matching file(s)`,
-      samples: matchingFiles.slice(0, 10)
-    });
     
   } catch (error) {
     systemLogger.error('Error validating pattern:', error);
