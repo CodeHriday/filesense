@@ -430,6 +430,7 @@ function FileUpload() {
               onFileDrop={handleFileDrop}
               acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
               maxSizeMB={50}
+              externalStatus={uploadStatus}
             />
           ) : (
             <div className="access-denied-message">
@@ -445,6 +446,7 @@ function FileUpload() {
               maxSizeMB={50}
               multiple={true}
               virusScan={uploadedFile?.virusScan}
+              externalStatus={uploadStatus}
             />
           ) : (
             <div className="access-denied-message">

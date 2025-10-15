@@ -1,8 +1,8 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import './FileDropzone.css';
 
-function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null }) {
+function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null, externalStatus = null }) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -255,16 +255,25 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
     }
   }, [validateFile, processFileUpload, multiple]);
   
+  // Use externalStatus if provided, otherwise use internal uploadStatus
+  const currentStatus = externalStatus || uploadStatus;
+  
   return (
     <div 
-      className={`file-dropzone ${isDragging ? 'dragging' : ''} ${uploadStatus ? `status-${uploadStatus}` : ''}`}
+      className={`file-dropzone ${isDragging ? 'dragging' : ''} ${currentStatus ? `status-${currentStatus}` : ''}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
       <div className="dropzone-content">
-        {uploadStatus === 'success' ? (
+        {currentStatus === 'checking' ? (
+          <div className="upload-scanning">
+            <FiLoader className="scanning-icon" />
+            <p className="scanning-text">Scanning file for viruses...</p>
+            <p className="scanning-subtext">Please wait while we ensure your file is safe</p>
+          </div>
+        ) : currentStatus === 'success' ? (
           <div className="upload-success">
             <FiCheckCircle className="success-icon" />
             {multiple && uploadingFiles.length > 0 ? (
