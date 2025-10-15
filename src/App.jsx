@@ -20,6 +20,7 @@ import QualityReport from './pages/QualityReport';
 import Alerts from './pages/Alerts';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
+import MappingWizard from './pages/MappingWizard';
 import Transform from './pages/Transform';
 import FileLineage from './pages/FileLineage';
 import LineageImpact from './pages/LineageImpact';
@@ -188,6 +189,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
                 <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
                 <Route path="/mappings" element={<ProtectedRoute><Mappings /></ProtectedRoute>} />
+                <Route path="/mappings/create" element={<ProtectedRoute><MappingWizard /></ProtectedRoute>} />
+                <Route path="/mappings/edit/:mappingId" element={<ProtectedRoute><MappingWizard /></ProtectedRoute>} />
                 <Route path="/transformations" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/transform" element={<ProtectedRoute><Transform /></ProtectedRoute>} />
                 <Route path="/lineage" element={<ProtectedRoute><FileLineage /></ProtectedRoute>} />
