@@ -320,10 +320,18 @@ router.post('/validate-pattern', async (req, res) => {
       return res.status(400).json({ error: 'Connection is required for pattern validation' });
     }
     
+    // Validate connection ID is a valid integer
+    const connectionId = parseInt(source_connection_id);
+    if (isNaN(connectionId) || connectionId <= 0) {
+      return res.status(400).json({ 
+        error: 'Invalid connection ID. Please select a valid connection.' 
+      });
+    }
+    
     const { listAndFilterFiles } = require('../utils/cloudStorageFileList');
     
     try {
-      const cloudFiles = await listAndFilterFiles(pool, source_connection_id, source_file_pattern);
+      const cloudFiles = await listAndFilterFiles(pool, connectionId, source_file_pattern);
       
       // Format cloud files to match expected structure
       const matchingFiles = cloudFiles.map(f => ({
