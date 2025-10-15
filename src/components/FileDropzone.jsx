@@ -83,10 +83,9 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
       const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
       setUploadProgress(percentCompleted);
       
-      // For multi-file, update status to uploading when progress starts
-      if (isMultiFile && updateFileStatus && percentCompleted > 0) {
-        updateFileStatus(file.name, 'uploading', percentCompleted);
-      }
+      // Note: For multi-file uploads, we keep the 'scanning' status set earlier
+      // The virus scan happens on the server AFTER file upload completes
+      // Status will change to 'success' after the entire upload + scan process completes
       
       // Track processing steps based on progress
       if (percentCompleted < 50) {
