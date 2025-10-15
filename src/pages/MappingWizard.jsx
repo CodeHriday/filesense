@@ -192,8 +192,8 @@ function MappingWizard() {
       // Initialize field mappings
       if (fieldMappings.length === 0) {
         setFieldMappings(extractedSchema.map(field => ({
-          source_field: field.column_name,
-          target_field: field.column_name,
+          source_field: field.name,
+          target_field: field.name,
           transformation: 'none',
           transformation_params: {}
         })));
