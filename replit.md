@@ -26,3 +26,23 @@ The application features a hybrid architecture:
 -   **Key Libraries**: pandas, numpy, plotly, ijson, pyarrow, psutil, Express.js, Streamlit, pg, bcrypt, jsonwebtoken, multer, AWS SDK, TypeScript, ESLint, Prettier, bullmq, dbt-core, dbt-postgres.
 -   **Cloud Storage**: AWS S3, Google Cloud Storage, Azure Blob Storage
 -   **Security**: ClamAV
+
+## Recent Updates
+
+### Multi-File Upload Visual Indicators (October 15, 2025)
+**Status**: ✅ Completed
+
+**Problem Fixed**:
+Multi-file uploads were taking 15-18 seconds per file for virus scanning but showed no visual feedback, causing confusion as files appeared to upload instantly after long delays.
+
+**Solution**:
+- **Individual File Status Tracking**: Each file now shows real-time status (Waiting → Scanning → Uploading → Complete/Failed)
+- **Visual Indicators**: Spinning icon during virus scan, progress percentage during upload, completion/error icons
+- **Enhanced UI**: Clear feedback for each file's current state throughout the entire upload process
+- **Status Flow**: `pending → scanning (15-18s) → uploading (with %) → success/error`
+
+**Technical Implementation**:
+- Updated `FileDropzone.jsx` with multi-file status callbacks
+- Added `updateFileStatus` function to track individual file progress
+- Enhanced processFileUpload to support multi-file mode with scanning phase
+- File state structure: `{ name, status, progress, error? }`
