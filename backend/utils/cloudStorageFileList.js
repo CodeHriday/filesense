@@ -101,9 +101,9 @@ async function listAzureFiles(config) {
  */
 async function listFilesFromConnection(pool, connectionId) {
   try {
-    // Get connection details
+    // Get connection details from transform_connections table
     const result = await pool.query(
-      'SELECT * FROM storage_connections WHERE connection_id = $1',
+      'SELECT * FROM transform_connections WHERE connection_id = $1',
       [connectionId]
     );
 
