@@ -1319,15 +1319,24 @@ const Connections = () => {
               </p>
             </div>
             {dropLocationConfigured && !showDropLocationForm && (
-              <button 
-                className="btn btn-outline"
-                onClick={() => {
-                  setShowDropLocationForm(true);
-                  setDropLocationTestResult(null);
-                }}
-              >
-                <FiEdit2 /> Edit
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setShowDropLocationForm(true);
+                    setDropLocationTestResult(null);
+                  }}
+                >
+                  <FiEdit2 /> Edit
+                </button>
+                <button 
+                  className="btn btn-danger"
+                  onClick={handleDropLocationRemove}
+                  title="Delete drop location"
+                >
+                  <FiTrash2 />
+                </button>
+              </div>
             )}
           </div>
           
