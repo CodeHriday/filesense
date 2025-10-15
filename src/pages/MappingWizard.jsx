@@ -18,7 +18,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
-import VisualFieldMapper from '../components/VisualFieldMapper';
+import TableBasedMapper from '../components/TableBasedMapper';
 import './MappingWizard.css';
 
 const TRANSFORMATION_FUNCTIONS = {
@@ -440,12 +440,12 @@ function MappingWizard() {
         {/* Step 3: Schema & Field Mapping */}
         {currentStep === 3 && (
           <div className="wizard-step-content">
-            <h2><FiEdit /> Visual Field Mapping</h2>
+            <h2><FiEdit /> Field Mapping</h2>
             
             {loadingSchema ? (
               <LoadingSpinner size="small" />
             ) : schema && schema.length > 0 ? (
-              <VisualFieldMapper
+              <TableBasedMapper
                 schema={schema}
                 fieldMappings={fieldMappings}
                 onMappingsChange={setFieldMappings}
