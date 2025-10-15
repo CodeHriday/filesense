@@ -18,6 +18,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
+import VisualFieldMapper from '../components/VisualFieldMapper';
 import './MappingWizard.css';
 
 const TRANSFORMATION_FUNCTIONS = {
@@ -439,122 +440,20 @@ function MappingWizard() {
         {/* Step 3: Schema & Field Mapping */}
         {currentStep === 3 && (
           <div className="wizard-step-content">
-            <h2><FiEdit /> Field Mapping & Transformations</h2>
+            <h2><FiEdit /> Visual Field Mapping</h2>
             
             {loadingSchema ? (
               <LoadingSpinner size="small" />
+            ) : schema && schema.length > 0 ? (
+              <VisualFieldMapper
+                schema={schema}
+                fieldMappings={fieldMappings}
+                onMappingsChange={setFieldMappings}
+              />
             ) : (
-              <>
-                <div className="field-mappings-header">
-                  <button className="btn btn-sm" onClick={addFieldMapping}>
-                    <FiPlus /> Add Field
-                  </button>
-                </div>
-
-                <div className="field-mappings-list">
-                  {fieldMappings.map((mapping, idx) => (
-                    <div key={idx} className="field-mapping-row">
-                      <div className="field-mapping-inputs">
-                        <div className="form-group">
-                          <label>Source Field</label>
-                          <select
-                            className="form-control"
-                            value={mapping.source_field}
-                            onChange={(e) => updateFieldMapping(idx, 'source_field', e.target.value)}
-                          >
-                            <option value="">Select source field</option>
-                            {schema.map(field => (
-                              <option key={field.column_name} value={field.column_name}>
-                                {field.column_name} ({field.data_type})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <FiArrowRight className="arrow-icon" />
-
-                        <div className="form-group">
-                          <label>Target Field</label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={mapping.target_field}
-                            onChange={(e) => updateFieldMapping(idx, 'target_field', e.target.value)}
-                            placeholder="Target field name"
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label>Transformation</label>
-                          <select
-                            className="form-control"
-                            value={mapping.transformation}
-                            onChange={(e) => updateFieldMapping(idx, 'transformation', e.target.value)}
-                          >
-                            <option value="none">None (Direct Copy)</option>
-                            <optgroup label="Null Handling">
-                              <option value="null-to-value">Replace Null</option>
-                              <option value="coalesce">Coalesce</option>
-                            </optgroup>
-                            <optgroup label="String Operations">
-                              <option value="UPPER">UPPERCASE</option>
-                              <option value="LOWER">lowercase</option>
-                              <option value="TRIM">Trim</option>
-                              <option value="SUBSTRING">Substring</option>
-                              <option value="REPLACE">Find & Replace</option>
-                              <option value="concat">Concatenate</option>
-                            </optgroup>
-                            <optgroup label="Numeric Operations">
-                              <option value="ROUND">Round</option>
-                              <option value="FLOOR">Floor</option>
-                              <option value="CEIL">Ceiling</option>
-                              <option value="add">Add</option>
-                              <option value="multiply">Multiply</option>
-                            </optgroup>
-                            <optgroup label="Date/Time">
-                              <option value="date-format">Format Date</option>
-                              <option value="current-date">Current Date</option>
-                            </optgroup>
-                            <optgroup label="Type Casting">
-                              <option value="cast-string">To String</option>
-                              <option value="cast-integer">To Integer</option>
-                              <option value="cast-float">To Float</option>
-                            </optgroup>
-                          </select>
-                        </div>
-
-                        <button
-                          className="btn-icon-danger"
-                          onClick={() => removeFieldMapping(idx)}
-                          title="Remove field"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </div>
-
-                      {mapping.transformation !== 'none' && TRANSFORMATION_FUNCTIONS[mapping.transformation]?.params.length > 0 && (
-                        <div className="transformation-params">
-                          {TRANSFORMATION_FUNCTIONS[mapping.transformation].params.map(param => (
-                            <div key={param} className="form-group-inline">
-                              <label>{param}:</label>
-                              <input
-                                type="text"
-                                className="form-control-sm"
-                                value={mapping.transformation_params?.[param] || ''}
-                                onChange={(e) => updateFieldMapping(idx, 'transformation_params', {
-                                  ...mapping.transformation_params,
-                                  [param]: e.target.value
-                                })}
-                                placeholder={`Enter ${param}`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
+              <div className="alert alert-warning">
+                <FiAlertCircle /> No schema available. Please go back and validate the file pattern first.
+              </div>
             )}
           </div>
         )}

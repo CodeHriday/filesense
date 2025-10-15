@@ -1,0 +1,244 @@
+.visual-field-mapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+}
+
+.mapper-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.mapper-toolbar h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+
+.mapper-toolbar p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mapper-container {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-height: 500px;
+  position: relative;
+}
+
+.mapper-canvas {
+  flex: 1;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.field-node {
+  padding: 0.5rem 1rem;
+  background: white;
+  border-radius: 6px;
+  min-width: 150px;
+}
+
+.field-name {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.field-type {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.transformation-panel {
+  width: 320px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  max-height: 500px;
+}
+
+.panel-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8f9fa;
+}
+
+.panel-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.btn-icon:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.panel-body {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.connection-info {
+  padding: 0.75rem;
+  background: #f1f5f9;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+.connection-info strong {
+  color: #1e293b;
+}
+
+.mapping-summary {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.mapping-summary h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.mappings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.mapping-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  border: 1px solid #e2e8f0;
+}
+
+.mapping-source {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.mapping-transform {
+  color: #7c3aed;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  background: #f3e8ff;
+  border-radius: 4px;
+}
+
+.mapping-arrow {
+  color: #64748b;
+}
+
+.mapping-target {
+  color: #059669;
+  font-weight: 500;
+}
+
+.no-mappings {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  padding: 2rem 1rem;
+  margin: 0;
+}
+
+/* React Flow Customizations */
+.react-flow__node {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.react-flow__node-input .field-node {
+  border: 2px solid #2563eb;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+}
+
+.react-flow__node-output .field-node {
+  border: 2px solid #059669;
+  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.1);
+}
+
+.react-flow__edge-path {
+  stroke: #4F46E5;
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #7c3aed;
+  stroke-width: 3;
+}
+
+.react-flow__handle {
+  width: 12px;
+  height: 12px;
+  background: #4F46E5;
+  border: 2px solid white;
+}
+
+.react-flow__handle:hover {
+  background: #7c3aed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .mapper-container {
+    flex-direction: column;
+  }
+
+  .transformation-panel {
+    width: 100%;
+    max-height: 300px;
+  }
+}
