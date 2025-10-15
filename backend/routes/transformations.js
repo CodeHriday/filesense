@@ -84,6 +84,8 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
+    systemLogger.info('POST /api/transformations called', { body: req.body });
+    
     const {
       mapping_name,
       source_connection_id,
@@ -95,8 +97,19 @@ router.post('/', async (req, res) => {
       status = 'draft'
     } = req.body;
     
+    systemLogger.info('Extracted fields', { 
+      mapping_name, 
+      source_connection_id, 
+      source_file_pattern,
+      target_connection_id,
+      target_table_name,
+      field_mappings_count: field_mappings?.length,
+      anomaly_rules_type: typeof anomaly_rules
+    });
+    
     // Validation
     if (!mapping_name || !source_connection_id || !source_file_pattern) {
+      systemLogger.warn('Missing required fields');
       return res.status(400).json({ 
         error: 'Missing required fields: mapping_name, source_connection_id, source_file_pattern' 
       });
