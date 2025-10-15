@@ -21,6 +21,7 @@ import Alerts from './pages/Alerts';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
 import MappingWizard from './pages/MappingWizard';
+import ETLJobDetails from './pages/ETLJobDetails';
 import Transform from './pages/Transform';
 import FileLineage from './pages/FileLineage';
 import LineageImpact from './pages/LineageImpact';
@@ -220,6 +221,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/business-processes/:processId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs/:jobId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+                <Route path="/etl-jobs/:jobId" element={<ProtectedRoute><ETLJobDetails /></ProtectedRoute>} />
                 <Route path="/process-management-wizard" element={<ProtectedRoute><ProcessManagementWizard /></ProtectedRoute>} />
                 {/* Development Routes */}
                 <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />

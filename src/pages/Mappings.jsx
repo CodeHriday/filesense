@@ -106,7 +106,7 @@ function Mappings() {
   };
 
   const handleViewJob = (jobId) => {
-    navigate(`/jobs/${jobId}`);
+    navigate(`/etl-jobs/${jobId}`);
   };
 
   const getStatusBadge = (status) => {
