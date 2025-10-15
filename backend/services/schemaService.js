@@ -1,5 +1,11 @@
 const crypto = require('crypto');
 const { systemLogger } = require('../utils/logger');
+const { Readable } = require('stream');
+const csv = require('csv-parser');
+const AWS = require('aws-sdk');
+const { Storage } = require('@google-cloud/storage');
+const { BlobServiceClient } = require('@azure/storage-blob');
+const { decryptCredentials } = require('../utils/encryption');
 
 /**
  * Schema Extraction and Validation Service
@@ -346,12 +352,6 @@ async function detectSchemaDrift(pool, fileId, currentSchema) {
 async function extractSchemaFromCloud(pool, connectionId, filePattern) {
   try {
     const { listAndFilterFiles } = require('../utils/cloudStorageFileList');
-    const AWS = require('aws-sdk');
-    const { Storage } = require('@google-cloud/storage');
-    const { BlobServiceClient } = require('@azure/storage-blob');
-    const { decryptCredentials } = require('../utils/encryption');
-    const csv = require('csv-parser');
-    const { Readable } = require('stream');
     
     // Get matching files from cloud storage
     const files = await listAndFilterFiles(pool, connectionId, filePattern);
