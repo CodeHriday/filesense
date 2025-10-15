@@ -103,7 +103,7 @@ async function listFilesFromConnection(pool, connectionId) {
   try {
     // Get connection details from transform_connections table
     const result = await pool.query(
-      'SELECT * FROM transform_connections WHERE connection_id = $1',
+      'SELECT * FROM transform_connections WHERE id = $1',
       [connectionId]
     );
 
