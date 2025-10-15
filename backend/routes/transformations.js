@@ -16,15 +16,23 @@ router.get('/', async (req, res) => {
   try {
     const { status, limit = 100, offset = 0 } = req.query;
     
-    let query = 'SELECT * FROM transformation_mappings';
+    let query = `
+      SELECT 
+        tm.*,
+        sc.name as source_connection_name,
+        tc.name as target_connection_name
+      FROM transformation_mappings tm
+      LEFT JOIN connections sc ON tm.source_connection_id = sc.id
+      LEFT JOIN connections tc ON tm.target_connection_id = tc.id
+    `;
     const params = [];
     
     if (status) {
-      query += ' WHERE status = $1';
+      query += ' WHERE tm.status = $1';
       params.push(status);
     }
     
-    query += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    query += ' ORDER BY tm.created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
     params.push(limit, offset);
     
     const result = await pool.query(query, params);

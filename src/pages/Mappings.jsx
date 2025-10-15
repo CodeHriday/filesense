@@ -34,6 +34,8 @@ function Mappings() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [mappingToDelete, setMappingToDelete] = useState(null);
+  const [executionModalOpen, setExecutionModalOpen] = useState(false);
+  const [executionResult, setExecutionResult] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -107,13 +109,34 @@ function Mappings() {
       );
       
       const jobId = response.data.jobId;
-      alert(`Mapping execution started! Job ID: ${jobId}`);
+      setExecutionResult({
+        success: true,
+        jobId: jobId,
+        message: 'Mapping execution started successfully!'
+      });
+      setExecutionModalOpen(true);
       
       setActiveTab('jobs');
       fetchData();
     } catch (err) {
       console.error('Error executing mapping:', err);
-      alert(err.response?.data?.error || 'Failed to execute mapping');
+      setExecutionResult({
+        success: false,
+        message: err.response?.data?.error || 'Failed to execute mapping'
+      });
+      setExecutionModalOpen(true);
+    }
+  };
+
+  const closeExecutionModal = () => {
+    setExecutionModalOpen(false);
+    setExecutionResult(null);
+  };
+
+  const viewExecutionJob = () => {
+    if (executionResult?.jobId) {
+      navigate(`/etl-jobs/${executionResult.jobId}`);
+      closeExecutionModal();
     }
   };
 
@@ -234,7 +257,7 @@ function Mappings() {
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <FiServer size={14} style={{ color: '#64748b' }} />
-                              {mapping.source_connection_id || 'Local'}
+                              {mapping.source_connection_name || 'Local'}
                             </div>
                           </td>
                           <td>
@@ -246,7 +269,7 @@ function Mappings() {
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <FiTarget size={14} style={{ color: '#64748b' }} />
-                              {mapping.target_connection_id || 'Local'}
+                              {mapping.target_connection_name || 'Local'}
                             </div>
                           </td>
                           <td style={{ textAlign: 'center' }}>{fieldCount}</td>
@@ -378,6 +401,47 @@ function Mappings() {
               <button className="btn btn-danger" onClick={confirmDelete}>
                 <FiTrash2 /> Delete Mapping
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Execution Result Modal */}
+      {executionModalOpen && executionResult && (
+        <div className="modal-overlay" onClick={closeExecutionModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{executionResult.success ? 'Execution Started' : 'Execution Failed'}</h2>
+              <button className="modal-close" onClick={closeExecutionModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                {executionResult.success ? (
+                  <FiCheckCircle size={48} style={{ color: '#10b981', flexShrink: 0 }} />
+                ) : (
+                  <FiXCircle size={48} style={{ color: '#ef4444', flexShrink: 0 }} />
+                )}
+                <div>
+                  <p style={{ margin: 0, marginBottom: '0.5rem', fontWeight: 500 }}>
+                    {executionResult.message}
+                  </p>
+                  {executionResult.jobId && (
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.9em' }}>
+                      Job ID: <code style={{ background: '#f1f5f9', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>{executionResult.jobId}</code>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={closeExecutionModal}>
+                Close
+              </button>
+              {executionResult.success && executionResult.jobId && (
+                <button className="btn btn-primary" onClick={viewExecutionJob}>
+                  <FiArrowRight /> View Job Details
+                </button>
+              )}
             </div>
           </div>
         </div>
