@@ -32,6 +32,8 @@ function Mappings() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('mappings');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [mappingToDelete, setMappingToDelete] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -68,20 +70,30 @@ function Mappings() {
     navigate(`/mappings/edit/${mappingId}`);
   };
 
-  const handleDeleteMapping = async (mappingId) => {
-    if (!window.confirm('Are you sure you want to delete this mapping?')) {
-      return;
-    }
+  const handleDeleteMapping = (mappingId, mappingName) => {
+    setMappingToDelete({ id: mappingId, name: mappingName });
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!mappingToDelete) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/transformations/${mappingId}`, {
+      await axios.delete(`${API_BASE_URL}/api/transformations/${mappingToDelete.id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setMappings(mappings.filter(m => m.id !== mappingId));
+      setMappings(mappings.filter(m => m.mapping_id !== mappingToDelete.id));
+      setDeleteModalOpen(false);
+      setMappingToDelete(null);
     } catch (err) {
       console.error('Error deleting mapping:', err);
       alert(err.response?.data?.error || 'Failed to delete mapping');
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteModalOpen(false);
+    setMappingToDelete(null);
   };
 
   const handleExecuteMapping = async (mappingId) => {
@@ -141,7 +153,7 @@ function Mappings() {
       <div className="page-header">
         <div className="header-content">
           <h1>ETL Mappings</h1>
-          <p>Create and manage data transformation mappings with file pattern matching and quality checks</p>
+          <p style={{ color: 'white' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
         </div>
         <div className="header-actions">
           <button 
@@ -178,7 +190,7 @@ function Mappings() {
           )}
 
           {activeTab === 'mappings' && (
-            <div className="mappings-grid">
+            <div className="mappings-table-container">
               {mappings.length === 0 ? (
                 <div className="empty-state">
                   <FiLayers size={48} />
@@ -192,82 +204,84 @@ function Mappings() {
                   </button>
                 </div>
               ) : (
-                mappings.map(mapping => (
-                  <Card key={mapping.id} className="mapping-card">
-                    <div className="mapping-card-header">
-                      <h3>{mapping.mapping_name}</h3>
-                      <div className="mapping-card-actions">
-                        <button
-                          className="icon-btn"
-                          onClick={() => handleExecuteMapping(mapping.mapping_id)}
-                          title="Execute mapping"
-                        >
-                          <FiPlay />
-                        </button>
-                        <button
-                          className="icon-btn"
-                          onClick={() => handleEditMapping(mapping.mapping_id)}
-                          title="Edit mapping"
-                        >
-                          <FiEdit2 />
-                        </button>
-                        <button
-                          className="icon-btn danger"
-                          onClick={() => handleDeleteMapping(mapping.mapping_id)}
-                          title="Delete mapping"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mapping-card-body">
-                      <div className="mapping-detail">
-                        <FiServer className="detail-icon" />
-                        <div>
-                          <span className="detail-label">Source</span>
-                          <span className="detail-value">
-                            {mapping.source_connection_id || 'Local Files'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mapping-detail">
-                        <FiFilter className="detail-icon" />
-                        <div>
-                          <span className="detail-label">File Pattern</span>
-                          <span className="detail-value">
-                            {mapping.file_path && mapping.file_path !== '' ? `${mapping.file_path}` : ''}
-                            {mapping.file_name_pattern || mapping.source_file_pattern}
-                          </span>
-                        </div>
-                      </div>
-
-                      <FiArrowRight className="flow-arrow" />
-
-                      <div className="mapping-detail">
-                        <FiTarget className="detail-icon" />
-                        <div>
-                          <span className="detail-label">Target</span>
-                          <span className="detail-value">
-                            {mapping.target_connection_id || 'Local Files'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mapping-card-footer">
-                      <div className="mapping-stats">
-                        <span>{Array.isArray(mapping.field_mappings) ? mapping.field_mappings.length : (typeof mapping.field_mappings === 'string' ? JSON.parse(mapping.field_mappings).length : 0)} fields mapped</span>
-                        <span>•</span>
-                        <span>{mapping.anomaly_rules ? (typeof mapping.anomaly_rules === 'object' ? Object.keys(mapping.anomaly_rules).length : 0) : 0} quality rules</span>
-                      </div>
-                      <div className="mapping-meta">
-                        Created {formatDate(mapping.created_at)}
-                      </div>
-                    </div>
-                  </Card>
-                ))
+                <table className="mappings-table">
+                  <thead>
+                    <tr>
+                      <th>Mapping Name</th>
+                      <th>Source</th>
+                      <th>File Pattern</th>
+                      <th>Target</th>
+                      <th>Fields</th>
+                      <th>Quality Rules</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mappings.map(mapping => {
+                      const fieldCount = Array.isArray(mapping.field_mappings) 
+                        ? mapping.field_mappings.length 
+                        : (typeof mapping.field_mappings === 'string' ? JSON.parse(mapping.field_mappings).length : 0);
+                      const rulesCount = mapping.anomaly_rules 
+                        ? (typeof mapping.anomaly_rules === 'object' ? Object.keys(mapping.anomaly_rules).length : 0) 
+                        : 0;
+                      
+                      return (
+                        <tr key={mapping.id}>
+                          <td className="mapping-name-cell">
+                            <strong>{mapping.mapping_name}</strong>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <FiServer size={14} style={{ color: '#64748b' }} />
+                              {mapping.source_connection_id || 'Local'}
+                            </div>
+                          </td>
+                          <td>
+                            <code style={{ fontSize: '0.85em', background: '#f1f5f9', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>
+                              {mapping.file_path && mapping.file_path !== '' ? `${mapping.file_path}` : ''}
+                              {mapping.file_name_pattern || mapping.source_file_pattern}
+                            </code>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <FiTarget size={14} style={{ color: '#64748b' }} />
+                              {mapping.target_connection_id || 'Local'}
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>{fieldCount}</td>
+                          <td style={{ textAlign: 'center' }}>{rulesCount}</td>
+                          <td>{formatDate(mapping.created_at)}</td>
+                          <td>
+                            <div className="table-actions">
+                              <button
+                                className="icon-btn"
+                                onClick={() => handleExecuteMapping(mapping.mapping_id)}
+                                title="Execute mapping"
+                              >
+                                <FiPlay />
+                              </button>
+                              <button
+                                className="icon-btn"
+                                onClick={() => handleEditMapping(mapping.mapping_id)}
+                                title="Edit mapping"
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button
+                                className="icon-btn danger"
+                                onClick={() => handleDeleteMapping(mapping.mapping_id, mapping.mapping_name)}
+                                title="Delete mapping"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               )}
             </div>
           )}
@@ -332,6 +346,42 @@ function Mappings() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="modal-overlay" onClick={cancelDelete}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Delete Mapping</h2>
+              <button className="modal-close" onClick={cancelDelete}>×</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                <FiAlertCircle size={48} style={{ color: '#ef4444', flexShrink: 0 }} />
+                <div>
+                  <p style={{ margin: 0, marginBottom: '0.5rem', fontWeight: 500 }}>
+                    Are you sure you want to delete this mapping?
+                  </p>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9em' }}>
+                    Mapping: <strong>{mappingToDelete?.name}</strong>
+                  </p>
+                  <p style={{ margin: 0, marginTop: '0.5rem', color: '#64748b', fontSize: '0.875em' }}>
+                    This action cannot be undone. All field mappings and quality rules will be permanently deleted.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={cancelDelete}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" onClick={confirmDelete}>
+                <FiTrash2 /> Delete Mapping
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

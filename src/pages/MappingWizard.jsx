@@ -62,6 +62,8 @@ function MappingWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [savedMappingId, setSavedMappingId] = useState(null);
 
   // Step 1: Basic Info & Source
   const [mappingName, setMappingName] = useState('');
@@ -242,25 +244,28 @@ function MappingWizard() {
         anomaly_rules: anomalyRulesObject
       };
 
+      let response;
       if (isEditMode) {
-        await axios.put(
+        response = await axios.put(
           `${API_BASE_URL}/api/transformations/${mappingId}`,
           mappingData,
           {
             headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
           }
         );
+        setSavedMappingId(mappingId);
       } else {
-        await axios.post(
+        response = await axios.post(
           `${API_BASE_URL}/api/transformations`,
           mappingData,
           {
             headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
           }
         );
+        setSavedMappingId(response.data.mapping_id);
       }
 
-      navigate('/mappings');
+      setSaveSuccess(true);
     } catch (err) {
       console.error('Save mapping error:', err);
       console.error('Error response:', err.response);
@@ -288,6 +293,27 @@ function MappingWizard() {
       transformation: 'none',
       transformation_params: {}
     }]);
+  };
+
+  const handleExecuteMapping = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post(
+        `${API_BASE_URL}/api/transformations/${savedMappingId}/execute`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+      
+      const jobId = response.data.jobId;
+      navigate(`/etl-jobs/${jobId}`);
+    } catch (err) {
+      console.error('Error executing mapping:', err);
+      setError(err.response?.data?.error || 'Failed to execute mapping');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderStepIndicator = () => {
@@ -328,7 +354,7 @@ function MappingWizard() {
         <h1>{isEditMode ? 'Edit' : 'Create'} Mapping</h1>
       </div>
 
-      {renderStepIndicator()}
+      {!saveSuccess && renderStepIndicator()}
 
       {error && (
         <div className="error-message">
@@ -336,7 +362,42 @@ function MappingWizard() {
         </div>
       )}
 
-      <Card className="wizard-content">
+      {saveSuccess ? (
+        <Card className="success-screen" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <FiCheckCircle size={64} style={{ color: '#10b981', marginBottom: '1rem' }} />
+            <h2 style={{ marginBottom: '0.5rem' }}>Mapping Saved Successfully!</h2>
+            <p style={{ color: '#64748b', marginBottom: '2rem' }}>
+              Your ETL mapping "{mappingName}" has been {isEditMode ? 'updated' : 'created'} successfully.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button 
+              className="btn btn-primary"
+              onClick={handleExecuteMapping}
+              disabled={loading}
+            >
+              <FiPlay /> {loading ? 'Starting...' : 'Execute Now'}
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => navigate('/mappings')}
+              disabled={loading}
+            >
+              View All Mappings
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => navigate(`/mappings/edit/${savedMappingId}`)}
+              disabled={loading}
+            >
+              <FiEdit2 /> Edit Mapping
+            </button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="wizard-content">
         {/* Step 1: Basic Info & Source */}
         {currentStep === 1 && (
           <div className="wizard-step-content">
@@ -521,7 +582,8 @@ function MappingWizard() {
           </div>
         </div>
       </Card>
-    </div>
+      )}
+      </div>
   );
 }
 

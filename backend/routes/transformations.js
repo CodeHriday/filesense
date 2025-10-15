@@ -375,24 +375,31 @@ router.post('/:id/execute', async (req, res) => {
     
     const userId = req.user?.id || 'system';
     
-    // Execute job asynchronously
-    executeTransformationJob(pool, id, userId, {
+    systemLogger.info('Starting transformation job execution', { mappingId: id, userId });
+    
+    // Execute job and wait for job creation (not completion)
+    const result = await executeTransformationJob(pool, id, userId, {
       runSchemaValidation,
       runProfilingChecks,
       dryRun
-    }).catch(error => {
-      systemLogger.error('Async job execution error:', error);
     });
     
-    // Return immediately with job info
+    systemLogger.info('Transformation job created', { jobId: result.jobId, mappingId: id });
+    
+    // Return job info
     res.status(202).json({ 
       message: 'Job execution started',
-      mappingId: id
+      jobId: result.jobId,
+      mappingId: id,
+      status: result.status
     });
     
   } catch (error) {
     systemLogger.error('Error starting job execution:', error);
-    res.status(500).json({ error: 'Failed to start job execution' });
+    res.status(500).json({ 
+      error: error.message || 'Failed to start job execution',
+      details: error.stack
+    });
   }
 });
 
