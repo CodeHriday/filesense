@@ -314,7 +314,8 @@ function FileUpload() {
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
-        s3Location: response.data.file.s3_location
+        s3Location: response.data.file.storage_location || response.data.file.s3_location,
+        virusScan: response.data.virusScan
       };
       
       setUploadedFile(fileDetails);
@@ -443,6 +444,7 @@ function FileUpload() {
               acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
               maxSizeMB={50}
               multiple={true}
+              virusScan={uploadedFile?.virusScan}
             />
           ) : (
             <div className="access-denied-message">

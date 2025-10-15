@@ -1254,6 +1254,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     
     // Virus scan the uploaded file
     const virusScanner = require('./backend/services/VirusScanService');
+    let virusScanResult = { scanned: false, clean: false, skipped: false };
+    
     try {
       const scanResult = await virusScanner.scanFile(file.path);
       
@@ -1274,6 +1276,14 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           viruses: scanResult.viruses
         });
       }
+      
+      // Store scan result for response
+      virusScanResult = {
+        scanned: true,
+        clean: true,
+        skipped: scanResult.skipped || false,
+        message: scanResult.skipped ? 'Scan skipped - virus definitions unavailable' : 'No threats detected'
+      };
       
       logger.info('Drop file passed virus scan', {
         fileId,
@@ -1480,7 +1490,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         storage_location: storageLocation,
         provider: provider,
         key: storageKey
-      }
+      },
+      virusScan: virusScanResult
     });
     
   } catch (error) {

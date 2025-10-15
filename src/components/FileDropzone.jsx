@@ -2,7 +2,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import './FileDropzone.css';
 
-function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false }) {
+function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null }) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -270,6 +270,24 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
             {multiple && uploadingFiles.length > 0 ? (
               <div>
                 <p>{completedFiles.length} file(s) uploaded successfully!</p>
+                {virusScan && (
+                  <div style={{ 
+                    marginTop: '1rem', 
+                    marginBottom: '1rem',
+                    padding: '0.75rem', 
+                    backgroundColor: virusScan.skipped ? '#fff3cd' : '#d4edda',
+                    borderRadius: '4px',
+                    fontSize: '0.9rem'
+                  }}>
+                    <strong>Security Scan: </strong>
+                    {virusScan.clean && !virusScan.skipped && (
+                      <span style={{ color: '#155724' }}>✓ Files scanned - No vulnerabilities found</span>
+                    )}
+                    {virusScan.skipped && (
+                      <span style={{ color: '#856404' }}>⚠ {virusScan.message}</span>
+                    )}
+                  </div>
+                )}
                 <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
                   {uploadingFiles.map((file, idx) => (
                     <div key={idx} style={{ 
@@ -290,7 +308,26 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
                 </div>
               </div>
             ) : (
-              <p>File uploaded successfully!</p>
+              <div>
+                <p>File uploaded successfully!</p>
+                {virusScan && (
+                  <div style={{ 
+                    marginTop: '1rem', 
+                    padding: '0.75rem', 
+                    backgroundColor: virusScan.skipped ? '#fff3cd' : '#d4edda',
+                    borderRadius: '4px',
+                    fontSize: '0.9rem'
+                  }}>
+                    <strong>Security Scan: </strong>
+                    {virusScan.clean && !virusScan.skipped && (
+                      <span style={{ color: '#155724' }}>✓ File scanned - No vulnerabilities found</span>
+                    )}
+                    {virusScan.skipped && (
+                      <span style={{ color: '#856404' }}>⚠ {virusScan.message}</span>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         ) : uploadStatus === 'error' ? (

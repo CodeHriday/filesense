@@ -6,6 +6,40 @@
   margin-bottom: var(--space-5);
 }
 
+/* Tab Styles */
+.upload-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  background-color: var(--bg-base);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.tab-button {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.tab-button.active {
+  background-color: var(--color-primary);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .upload-instructions {
   margin-bottom: var(--space-8);
 }
