@@ -172,10 +172,247 @@ async function listAndFilterFiles(pool, connectionId, pattern) {
   }
 }
 
+/**
+ * Download file from AWS S3
+ */
+async function downloadS3File(config, filename) {
+  try {
+    const s3 = new AWS.S3({
+      accessKeyId: config.access_key,
+      secretAccessKey: config.secret_key,
+      region: config.region
+    });
+
+    const params = {
+      Bucket: config.bucket_name,
+      Key: filename
+    };
+
+    const data = await s3.getObject(params).promise();
+    return data.Body;
+  } catch (error) {
+    console.error('Error downloading S3 file:', error);
+    throw new Error(`Failed to download S3 file: ${error.message}`);
+  }
+}
+
+/**
+ * Download file from Google Cloud Storage
+ */
+async function downloadGCSFile(config, filename) {
+  try {
+    const storage = new Storage({
+      projectId: config.project_id,
+      credentials: {
+        client_email: config.client_email,
+        private_key: config.private_key
+      }
+    });
+
+    const file = storage.bucket(config.bucket_name).file(filename);
+    const [contents] = await file.download();
+    return contents;
+  } catch (error) {
+    console.error('Error downloading GCS file:', error);
+    throw new Error(`Failed to download GCS file: ${error.message}`);
+  }
+}
+
+/**
+ * Download file from Azure Blob Storage
+ */
+async function downloadAzureFile(config, filename) {
+  try {
+    const blobServiceClient = BlobServiceClient.fromConnectionString(
+      `DefaultEndpointsProtocol=https;AccountName=${config.account_name};AccountKey=${config.account_key};EndpointSuffix=core.windows.net`
+    );
+
+    const containerClient = blobServiceClient.getContainerClient(config.container_name);
+    const blobClient = containerClient.getBlobClient(filename);
+    const downloadResponse = await blobClient.download(0);
+    
+    return await streamToBuffer(downloadResponse.readableStreamBody);
+  } catch (error) {
+    console.error('Error downloading Azure file:', error);
+    throw new Error(`Failed to download Azure file: ${error.message}`);
+  }
+}
+
+/**
+ * Upload file to AWS S3
+ */
+async function uploadS3File(config, filename, buffer) {
+  try {
+    const s3 = new AWS.S3({
+      accessKeyId: config.access_key,
+      secretAccessKey: config.secret_key,
+      region: config.region
+    });
+
+    const params = {
+      Bucket: config.bucket_name,
+      Key: filename,
+      Body: buffer
+    };
+
+    await s3.putObject(params).promise();
+    return { success: true, location: `s3://${config.bucket_name}/${filename}` };
+  } catch (error) {
+    console.error('Error uploading S3 file:', error);
+    throw new Error(`Failed to upload S3 file: ${error.message}`);
+  }
+}
+
+/**
+ * Upload file to Google Cloud Storage
+ */
+async function uploadGCSFile(config, filename, buffer) {
+  try {
+    const storage = new Storage({
+      projectId: config.project_id,
+      credentials: {
+        client_email: config.client_email,
+        private_key: config.private_key
+      }
+    });
+
+    const file = storage.bucket(config.bucket_name).file(filename);
+    await file.save(buffer);
+    return { success: true, location: `gs://${config.bucket_name}/${filename}` };
+  } catch (error) {
+    console.error('Error uploading GCS file:', error);
+    throw new Error(`Failed to upload GCS file: ${error.message}`);
+  }
+}
+
+/**
+ * Upload file to Azure Blob Storage
+ */
+async function uploadAzureFile(config, filename, buffer) {
+  try {
+    const blobServiceClient = BlobServiceClient.fromConnectionString(
+      `DefaultEndpointsProtocol=https;AccountName=${config.account_name};AccountKey=${config.account_key};EndpointSuffix=core.windows.net`
+    );
+
+    const containerClient = blobServiceClient.getContainerClient(config.container_name);
+    const blockBlobClient = containerClient.getBlockBlobClient(filename);
+    await blockBlobClient.upload(buffer, buffer.length);
+    
+    return { success: true, location: `https://${config.account_name}.blob.core.windows.net/${config.container_name}/${filename}` };
+  } catch (error) {
+    console.error('Error uploading Azure file:', error);
+    throw new Error(`Failed to upload Azure file: ${error.message}`);
+  }
+}
+
+/**
+ * Download file from cloud storage connection
+ */
+async function downloadFileFromConnection(pool, connectionId, filename) {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM transform_connections WHERE id = $1',
+      [connectionId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Connection not found');
+    }
+
+    const connection = result.rows[0];
+    const config = connection.config || {};
+    const decryptedConfig = decryptCredentials(connection.type, config);
+
+    switch (connection.type.toLowerCase()) {
+      case 'aws':
+      case 's3':
+        return await downloadS3File(decryptedConfig, filename);
+      
+      case 'gcs':
+      case 'google':
+        return await downloadGCSFile(decryptedConfig, filename);
+      
+      case 'azure':
+      case 'blob':
+        return await downloadAzureFile(decryptedConfig, filename);
+      
+      default:
+        throw new Error(`Unsupported connection type: ${connection.type}`);
+    }
+  } catch (error) {
+    console.error('Error downloading file from connection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload file to cloud storage connection
+ */
+async function uploadFileToConnection(pool, connectionId, filename, buffer) {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM transform_connections WHERE id = $1',
+      [connectionId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Connection not found');
+    }
+
+    const connection = result.rows[0];
+    const config = connection.config || {};
+    const decryptedConfig = decryptCredentials(connection.type, config);
+
+    switch (connection.type.toLowerCase()) {
+      case 'aws':
+      case 's3':
+        return await uploadS3File(decryptedConfig, filename, buffer);
+      
+      case 'gcs':
+      case 'google':
+        return await uploadGCSFile(decryptedConfig, filename, buffer);
+      
+      case 'azure':
+      case 'blob':
+        return await uploadAzureFile(decryptedConfig, filename, buffer);
+      
+      default:
+        throw new Error(`Unsupported connection type: ${connection.type}`);
+    }
+  } catch (error) {
+    console.error('Error uploading file to connection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Convert stream to buffer (for Azure)
+ */
+async function streamToBuffer(readableStream) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    readableStream.on('data', (data) => {
+      chunks.push(data instanceof Buffer ? data : Buffer.from(data));
+    });
+    readableStream.on('end', () => {
+      resolve(Buffer.concat(chunks));
+    });
+    readableStream.on('error', reject);
+  });
+}
+
 module.exports = {
   listS3Files,
   listGCSFiles,
   listAzureFiles,
   listFilesFromConnection,
-  listAndFilterFiles
+  listAndFilterFiles,
+  downloadS3File,
+  downloadGCSFile,
+  downloadAzureFile,
+  uploadS3File,
+  uploadGCSFile,
+  uploadAzureFile,
+  downloadFileFromConnection,
+  uploadFileToConnection
 };
