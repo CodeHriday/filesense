@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiAlertTriangle, FiDownload, FiTable, FiLink, FiMessageCircle, FiCopy } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
-import { RelatedDatasetsList } from '../components/RelatedDatasets';
-import { ChatInterface } from '../components/ChatWithDataset';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import './DataProfile.css';
@@ -518,26 +516,6 @@ function DataProfile() {
     );
   };
 
-  const renderRelatedTab = () => {
-    if (!fileId || !file) return null;
-    
-    return (
-      <div className="related-tab">
-        <RelatedDatasetsList fileId={fileId} />
-      </div>
-    );
-  };
-
-  const renderChatTab = () => {
-    if (!fileId || !file) return null;
-    
-    return (
-      <div className="chat-tab">
-        <ChatInterface fileId={fileId} filename={file.filename} />
-      </div>
-    );
-  };
-
   return (
     <div className="data-profile-container">
       {loading ? (
@@ -582,13 +560,6 @@ function DataProfile() {
                 )}
               </div>
             </div>
-            
-            <div className="profile-actions">
-              <Link to={`/quality/${fileId}`} className="btn btn-primary">
-                <FiAlertTriangle className="btn-icon" />
-                View Quality Checks
-              </Link>
-            </div>
           </div>
           
           <div className="profile-tabs">
@@ -616,18 +587,6 @@ function DataProfile() {
             >
               <FiTable className="tab-icon" /> Preview
             </button>
-            <button 
-              className={`tab-button ${activeTab === 'related' ? 'active' : ''}`}
-              onClick={() => setActiveTab('related')}
-            >
-              <FiLink className="tab-icon" /> Related Datasets
-            </button>
-            <button 
-              className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
-              onClick={() => setActiveTab('chat')}
-            >
-              <FiMessageCircle className="tab-icon" /> Chat
-            </button>
           </div>
           
           <div className="profile-content">
@@ -635,8 +594,6 @@ function DataProfile() {
             {activeTab === 'columns' && renderColumnsTab()}
             {activeTab === 'distribution' && renderDistributionTab()}
             {activeTab === 'preview' && renderPreviewTab()}
-            {activeTab === 'related' && renderRelatedTab()}
-            {activeTab === 'chat' && renderChatTab()}
           </div>
         </>
       ) : (

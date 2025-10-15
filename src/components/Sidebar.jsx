@@ -269,27 +269,6 @@ function Sidebar() {
               </NavLink>
             </li>
             
-            {/* Apply Transformations section */}
-            <li className="nav-divider">
-              <span>Apply Transformations</span>
-            </li>
-            
-            {/* Transform Builder */}
-            <li>
-              <NavLink to="/transform" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiLayers className="icon" />
-                <span>UI Transformations</span>
-              </NavLink>
-            </li>
-            
-            {/* DBT Transformations - HIDDEN FOR NOW (can be restored later) */}
-            {/* <li>
-              <NavLink to="/dbt-transformations" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiCpu className="icon" />
-                <span>DBT Transformations</span>
-              </NavLink>
-            </li> */}
-            
             {/* Jobs and Monitoring section */}
             {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 
               checkPermissions(['alerts', 'alerts:read', 'alert_view']) || 
