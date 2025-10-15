@@ -1452,16 +1452,20 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     
     // Log to database (without profiling)
     await dbPool.query(
-      `INSERT INTO files (file_id, filename, file_type, file_size, upload_date, uploaded_by, storage_location)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO files (file_id, filename, file_type, file_size, metadata, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
       [
         fileId,
         file.originalname,
         path.extname(file.originalname).substring(1).toLowerCase(),
         file.size,
-        new Date(),
-        userId,
-        storageLocation
+        JSON.stringify({
+          storage_location: storageLocation,
+          uploaded_by: userId,
+          provider: provider,
+          storage_key: storageKey,
+          drop_file: true
+        })
       ]
     );
     
