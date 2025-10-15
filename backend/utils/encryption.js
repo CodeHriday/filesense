@@ -98,7 +98,62 @@ function decrypt(text) {
   }
 }
 
+/**
+ * Decrypt cloud storage credentials based on connection type
+ * @param {string} connectionType - Type of connection (aws, gcs, azure)
+ * @param {Object} config - Configuration object with encrypted credentials
+ * @returns {Object} Configuration object with decrypted credentials
+ */
+function decryptCredentials(connectionType, config) {
+  if (!config) return {};
+  
+  const decryptedConfig = { ...config };
+  
+  try {
+    switch (connectionType.toLowerCase()) {
+      case 'aws':
+      case 's3':
+        // Decrypt AWS credentials
+        if (config.access_key) {
+          decryptedConfig.access_key = decrypt(config.access_key);
+        }
+        if (config.secret_key) {
+          decryptedConfig.secret_key = decrypt(config.secret_key);
+        }
+        break;
+      
+      case 'gcs':
+      case 'google':
+        // Decrypt GCS credentials
+        if (config.private_key) {
+          decryptedConfig.private_key = decrypt(config.private_key);
+        }
+        break;
+      
+      case 'azure':
+      case 'blob':
+        // Decrypt Azure credentials
+        if (config.account_key) {
+          decryptedConfig.account_key = decrypt(config.account_key);
+        }
+        break;
+      
+      default:
+        systemLogger.warn('Unknown connection type for credential decryption', { connectionType });
+    }
+    
+    return decryptedConfig;
+  } catch (error) {
+    systemLogger.error('Failed to decrypt credentials', { 
+      connectionType, 
+      error: error.message 
+    });
+    throw new Error(`Failed to decrypt credentials: ${error.message}`);
+  }
+}
+
 module.exports = {
   encrypt,
-  decrypt
+  decrypt,
+  decryptCredentials
 };
