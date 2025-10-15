@@ -49,7 +49,7 @@ function Mappings() {
         })
       ]);
       
-      setMappings(mappingsRes.data || []);
+      setMappings(mappingsRes.data?.mappings || []);
       setJobs(jobsRes.data?.jobs || []);
       setError(null);
     } catch (err) {

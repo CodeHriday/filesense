@@ -48,7 +48,7 @@ Multi-file uploads were taking 15-18 seconds per file for virus scanning but sho
 - File state structure: `{ name, status, progress, error? }`
 
 ### ETL Transformation System (October 15, 2025)
-**Status**: ✅ Backend Complete | ⏳ UI In Progress
+**Status**: ✅ Complete
 
 **Overview**:
 Comprehensive ETL (Extract, Transform, Load) transformation system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail.
@@ -98,12 +98,22 @@ Comprehensive ETL (Extract, Transform, Load) transformation system with file pat
 - **Historical Baselines**: 7-day lookback for trend detection vs. static thresholds
 - **Quality Scoring**: Severity-weighted deductions from 100 (high=-15, medium=-10, low=-5)
 
+**UI Components**:
+- **Mappings Dashboard** (`src/pages/Mappings.jsx`): Lists all ETL mappings with tabs for Mappings and Recent Jobs, execute/edit/delete actions
+- **Mapping Wizard** (`src/pages/MappingWizard.jsx`): 4-step wizard for creating/editing mappings:
+  1. Name & Source Connection selection
+  2. File Pattern with wildcard validation (`*.csv`, `sales_*.json`)
+  3. Field Mapping with 25+ transformation function options
+  4. Target Connection & Anomaly Rules (numeric deviation, row count, null spikes, type mismatches)
+- **ETL Job Details** (`src/pages/ETLJobDetails.jsx`): Job monitoring with tabs for Overview, Logs, Anomalies, and Metrics
+- **Navigation**: Added "Mappings" tab in sidebar under "Process Management" section
+
 **Key Files**:
 - Backend Services: `backend/services/{transformationEngine,profilingService,anomalyRulesEngine,jobExecutionEngine,schemaService,anomalyService}.js`
-- Utilities: `backend/utils/filePatternMatcher.js`
+- Utilities: `backend/utils/filePatternMatcher.js`, `backend/db.js`
 - API Routes: `backend/routes/{transformations,jobs}.js`
 - Database: `backend/migrations/createETLTransformationTables.js`
+- Frontend: `src/pages/{Mappings,MappingWizard,ETLJobDetails}.jsx`
 
-**Remaining Work**:
-- UI components for transformation creation and job monitoring
-- End-to-end integration testing
+**Known Issues Fixed**:
+- API response format mismatch: Changed `mappingsRes.data` to `mappingsRes.data.mappings` to handle nested response structure
