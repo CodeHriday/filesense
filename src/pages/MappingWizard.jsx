@@ -296,7 +296,10 @@ function MappingWizard() {
 
       navigate('/mappings');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save mapping');
+      console.error('Save mapping error:', err);
+      console.error('Error response:', err.response);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to save mapping';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
