@@ -201,6 +201,11 @@ router.post('/:id/cancel', async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
     
+    // Handle conflict error (job already in terminal state)
+    if (error.statusCode === 409) {
+      return res.status(409).json({ error: error.message });
+    }
+    
     systemLogger.error('Error cancelling job:', error);
     res.status(500).json({ error: 'Failed to cancel job' });
   }

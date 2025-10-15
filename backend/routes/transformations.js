@@ -3,7 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
-const { executeTransformationJob, getJobStatus, cancelJob } = require('../services/jobExecutionEngine');
+const { executeTransformationJob, getJobStatus, cancelJob, createJob, updateJob, logJobExecution } = require('../services/jobExecutionEngine');
 const { getMappingRules, saveMappingRules, validateRules } = require('../services/anomalyRulesEngine');
 const { findMatchingFiles, countMatchingFiles } = require('../utils/filePatternMatcher');
 const { validateSchemaConsistency } = require('../services/schemaService');
@@ -386,22 +386,60 @@ router.post('/:id/execute', async (req, res) => {
     systemLogger.info('Starting transformation job execution', { mappingId: id, userId });
     
     // Create job record immediately
-    const { createJob } = require('../services/jobExecutionEngine');
     const job = await createJob(pool, id, userId);
     
     systemLogger.info('Transformation job created and queued', { jobId: job.job_id, mappingId: id });
     
-    // Start job execution asynchronously in the background
-    // Don't await - let it run and return immediately
-    executeTransformationJob(pool, id, userId, {
-      runSchemaValidation,
-      runProfilingChecks,
-      dryRun,
-      existingJob: job
-    }).then(result => {
-      systemLogger.info('Transformation job completed', { jobId: result.jobId, mappingId: id, status: result.status });
-    }).catch(error => {
-      systemLogger.error('Transformation job failed', { mappingId: id, error: error.message, stack: error.stack });
+    // Log job start immediately to ensure it appears in logs
+    await logJobExecution(pool, job.job_id, 'info', 'Job queued for execution', { 
+      mappingId: id, 
+      userId,
+      options: { runSchemaValidation, runProfilingChecks, dryRun }
+    });
+    
+    // Start job execution asynchronously in the background with robust error handling
+    // Use setImmediate to ensure it runs after response is sent
+    setImmediate(() => {
+      (async () => {
+        try {
+          const result = await executeTransformationJob(pool, id, userId, {
+            runSchemaValidation,
+            runProfilingChecks,
+            dryRun,
+            existingJob: job
+          });
+          systemLogger.info('Transformation job completed', { 
+            jobId: result.jobId, 
+            mappingId: id, 
+            status: result.status,
+            filesProcessed: result.filesProcessed 
+          });
+        } catch (error) {
+          systemLogger.error('Transformation job failed during execution', { 
+            jobId: job.job_id,
+            mappingId: id, 
+            error: error.message, 
+            stack: error.stack 
+          });
+          
+          // Update job status to failed and log error
+          try {
+            await updateJob(pool, job.job_id, {
+              status: 'failed',
+              error_message: error.message,
+              end_time: new Date()
+            });
+            await logJobExecution(pool, job.job_id, 'error', `Job execution failed: ${error.message}`, {
+              error: error.stack
+            });
+          } catch (updateError) {
+            systemLogger.error('Failed to update job after error', { 
+              jobId: job.job_id, 
+              updateError: updateError.message 
+            });
+          }
+        }
+      })();
     });
     
     // Return job info immediately

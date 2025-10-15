@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FiEye, FiX, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -9,11 +9,17 @@ import '../styles/Jobs.css';
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [jobDetailsModalOpen, setJobDetailsModalOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobLogs, setJobLogs] = useState([]);
   const [loadingJobDetails, setLoadingJobDetails] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [jobToCancel, setJobToCancel] = useState(null);
+  const [cancelResult, setCancelResult] = useState(null);
+  const [cancelResultModalOpen, setCancelResultModalOpen] = useState(false);
+  const isFetching = useRef(false);
 
   useEffect(() => {
     fetchJobs();
@@ -22,7 +28,13 @@ const Jobs = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (isManualRefresh = false) => {
+    // Prevent concurrent fetches
+    if (isFetching.current) return;
+    
+    isFetching.current = true;
+    if (isManualRefresh) setRefreshing(true);
+    
     try {
       const response = await axios.get(`${API_BASE_URL}/api/jobs?limit=100`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -34,7 +46,13 @@ const Jobs = () => {
       setError(err.response?.data?.error || 'Failed to load jobs');
     } finally {
       setLoading(false);
+      if (isManualRefresh) setRefreshing(false);
+      isFetching.current = false;
     }
+  };
+
+  const handleRefresh = () => {
+    fetchJobs(true);
   };
 
   const handleViewJob = async (jobId) => {
@@ -63,18 +81,45 @@ const Jobs = () => {
     }
   };
 
-  const handleCancelJob = async (jobId) => {
-    if (!window.confirm('Are you sure you want to cancel this job?')) return;
+  const openCancelModal = (jobId) => {
+    setJobToCancel(jobId);
+    setCancelModalOpen(true);
+  };
+
+  const closeCancelModal = () => {
+    setCancelModalOpen(false);
+    setJobToCancel(null);
+  };
+
+  const confirmCancelJob = async () => {
+    if (!jobToCancel) return;
+
+    closeCancelModal();
 
     try {
-      await axios.post(`${API_BASE_URL}/api/jobs/${jobId}/cancel`, {}, {
+      const response = await axios.post(`${API_BASE_URL}/api/jobs/${jobToCancel}/cancel`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      
+      setCancelResult({
+        success: true,
+        message: response.data.message || 'Job cancelled successfully'
+      });
+      setCancelResultModalOpen(true);
       fetchJobs();
     } catch (err) {
       console.error('Error cancelling job:', err);
-      alert(err.response?.data?.error || 'Failed to cancel job');
+      setCancelResult({
+        success: false,
+        message: err.response?.data?.error || 'Failed to cancel job'
+      });
+      setCancelResultModalOpen(true);
     }
+  };
+
+  const closeCancelResultModal = () => {
+    setCancelResultModalOpen(false);
+    setCancelResult(null);
   };
 
   const closeJobDetailsModal = () => {
@@ -133,10 +178,12 @@ const Jobs = () => {
         <div className="header-actions">
           <button 
             className="btn btn-secondary"
-            onClick={fetchJobs}
+            onClick={handleRefresh}
+            disabled={refreshing}
             title="Refresh jobs"
           >
-            <FiRefreshCw /> Refresh
+            <FiRefreshCw className={refreshing ? 'spinning' : ''} /> 
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -208,7 +255,7 @@ const Jobs = () => {
                         {job.status === 'running' && (
                           <button
                             className="icon-btn danger"
-                            onClick={() => handleCancelJob(job.job_id)}
+                            onClick={() => openCancelModal(job.job_id)}
                             title="Cancel job"
                           >
                             <FiX />
@@ -325,6 +372,77 @@ const Jobs = () => {
               ) : (
                 <div>No job details available</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancelModalOpen && (
+        <div className="modal-overlay" onClick={closeCancelModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Cancel Job</h2>
+              <button className="modal-close" onClick={closeCancelModal}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                <FiAlertCircle size={48} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                <div>
+                  <p style={{ margin: 0, marginBottom: '0.5rem', fontWeight: 500 }}>
+                    Are you sure you want to cancel this job?
+                  </p>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9em' }}>
+                    Job ID: <code>{jobToCancel}</code>
+                  </p>
+                  <p style={{ margin: 0, marginTop: '0.5rem', color: '#64748b', fontSize: '0.875em' }}>
+                    This action will stop the job execution. Any partially processed data will not be saved.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={closeCancelModal}>
+                No, Keep Running
+              </button>
+              <button className="btn btn-danger" onClick={confirmCancelJob}>
+                <FiX /> Yes, Cancel Job
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Result Modal */}
+      {cancelResultModalOpen && cancelResult && (
+        <div className="modal-overlay" onClick={closeCancelResultModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{cancelResult.success ? 'Job Cancelled' : 'Cancellation Failed'}</h2>
+              <button className="modal-close" onClick={closeCancelResultModal}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                {cancelResult.success ? (
+                  <FiCheckCircle size={48} style={{ color: '#10b981', flexShrink: 0 }} />
+                ) : (
+                  <FiXCircle size={48} style={{ color: '#ef4444', flexShrink: 0 }} />
+                )}
+                <div>
+                  <p style={{ margin: 0, fontWeight: 500 }}>
+                    {cancelResult.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={closeCancelResultModal}>
+                Close
+              </button>
             </div>
           </div>
         </div>

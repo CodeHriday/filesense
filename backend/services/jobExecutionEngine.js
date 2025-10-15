@@ -281,6 +281,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     let totalRowsRead = 0;
     let totalRowsWritten = 0;
     let totalRowsFailed = 0;
+    let filesProcessedSoFar = 0;
     
     for (const file of matchingFiles) {
       await logJobExecution(pool, jobId, 'info', `Processing file: ${file.filename}`, {
@@ -293,12 +294,22 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         totalRowsRead += fileResult.rowsRead;
         totalRowsWritten += fileResult.rowsWritten;
         totalRowsFailed += fileResult.rowsFailed;
+        filesProcessedSoFar++;
+        
+        // Update job progress immediately after each file for real-time tracking
+        await updateJob(pool, jobId, {
+          files_processed: filesProcessedSoFar,
+          rows_read: totalRowsRead,
+          rows_written: totalRowsWritten,
+          rows_failed: totalRowsFailed
+        });
         
         await logJobExecution(pool, jobId, 'info', `File processed: ${file.filename}`, {
           fileId: file.file_id,
           rowsRead: fileResult.rowsRead,
           rowsWritten: fileResult.rowsWritten,
-          rowsFailed: fileResult.rowsFailed
+          rowsFailed: fileResult.rowsFailed,
+          progressMessage: `Completed ${filesProcessedSoFar} of ${matchingFiles.length} files`
         });
         
         // Step 4: Run profiling and anomaly detection (if enabled)
@@ -667,6 +678,26 @@ async function getJobStatus(pool, jobId) {
  */
 async function cancelJob(pool, jobId) {
   try {
+    // Check current job status
+    const jobResult = await pool.query(
+      'SELECT * FROM transformation_jobs WHERE job_id = $1',
+      [jobId]
+    );
+    
+    if (jobResult.rows.length === 0) {
+      throw new Error(`Job not found: ${jobId}`);
+    }
+    
+    const currentStatus = jobResult.rows[0].status;
+    
+    // Check if job is in a terminal state
+    if (currentStatus === 'completed' || currentStatus === 'failed' || currentStatus === 'cancelled') {
+      const error = new Error(`Cannot cancel job: Job is already ${currentStatus}`);
+      error.statusCode = 409; // Conflict
+      throw error;
+    }
+    
+    // Only cancel if job is in a cancellable state (pending, running)
     const result = await updateJob(pool, jobId, {
       status: 'cancelled',
       end_time: new Date()
@@ -674,7 +705,7 @@ async function cancelJob(pool, jobId) {
     
     await logJobExecution(pool, jobId, 'info', 'Job cancelled by user');
     
-    systemLogger.info('Job cancelled', { jobId });
+    systemLogger.info('Job cancelled', { jobId, previousStatus: currentStatus });
     
     return result;
     
