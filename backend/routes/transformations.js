@@ -115,9 +115,9 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Validate source connection exists
+    // Validate source connection exists in transform_connections
     const sourceConnCheck = await pool.query(
-      'SELECT id FROM connections WHERE id = $1',
+      'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
       [source_connection_id]
     );
     
@@ -130,7 +130,7 @@ router.post('/', async (req, res) => {
     // Validate target connection exists (if provided)
     if (target_connection_id) {
       const targetConnCheck = await pool.query(
-        'SELECT id FROM connections WHERE id = $1',
+        'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
         [target_connection_id]
       );
       
@@ -209,7 +209,7 @@ router.put('/:id', async (req, res) => {
     // Validate source connection exists (if being updated)
     if (source_connection_id !== undefined) {
       const sourceConnCheck = await pool.query(
-        'SELECT id FROM connections WHERE id = $1',
+        'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
         [source_connection_id]
       );
       
@@ -223,7 +223,7 @@ router.put('/:id', async (req, res) => {
     // Validate target connection exists (if being updated)
     if (target_connection_id !== undefined) {
       const targetConnCheck = await pool.query(
-        'SELECT id FROM connections WHERE id = $1',
+        'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
         [target_connection_id]
       );
       
