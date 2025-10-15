@@ -1,5 +1,6 @@
-// Import our transformation tables migration
+// Import our transformation tables migrations
 const initTransformationTables = require('./backend/migrations/createTransformationTables');
+const initETLTransformationTables = require('./backend/migrations/createETLTransformationTables');
 
 // Function to initialize business process-related tables
 const initBusinessProcessTables = async (pool) => {
@@ -127,6 +128,9 @@ const initBusinessProcessTables = async (pool) => {
     
     // Initialize transformation tables
     await initTransformationTables(pool);
+    
+    // Initialize ETL transformation system tables
+    await initETLTransformationTables(pool);
   } catch (error) {
     console.error('Error initializing business process tables:', error);
   }
