@@ -71,6 +71,7 @@ function MappingWizard() {
   const [filePattern, setFilePattern] = useState('*.csv');
   const [matchingFiles, setMatchingFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [validationStatus, setValidationStatus] = useState(null); // 'success', 'error', or null
 
   // Step 3: Schema & Field Mapping
   const [schema, setSchema] = useState([]);
@@ -130,6 +131,9 @@ function MappingWizard() {
   const validateFilePattern = async () => {
     try {
       setLoadingFiles(true);
+      setValidationStatus(null);
+      setError(null);
+      
       const response = await axios.post(
         `${API_BASE_URL}/api/transformations/validate-pattern`,
         { 
@@ -141,13 +145,22 @@ function MappingWizard() {
         }
       );
       
-      setMatchingFiles(response.data.samples || []);
-      return true;
+      const files = response.data.samples || [];
+      setMatchingFiles(files);
+      setValidationStatus('success');
+      
+      if (files.length === 0) {
+        setError('Pattern is valid but no files matched. Please adjust your pattern or upload files first.');
+      }
+      
+      return files.length > 0;
     } catch (err) {
       const errorMsg = typeof err.response?.data?.error === 'string' 
         ? err.response.data.error 
         : err.response?.data?.error?.message || 'Failed to validate file pattern';
       setError(errorMsg);
+      setValidationStatus('error');
+      setMatchingFiles([]);
       return false;
     } finally {
       setLoadingFiles(false);
@@ -199,11 +212,13 @@ function MappingWizard() {
       setError(null);
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      const isValid = await validateFilePattern();
-      if (isValid && matchingFiles.length > 0) {
-        setCurrentStep(3);
-        await extractSchema();
+      // Check if validation was successful
+      if (validationStatus !== 'success' || matchingFiles.length === 0) {
+        setError('Please validate the file pattern first and ensure files are matched.');
+        return;
       }
+      setCurrentStep(3);
+      await extractSchema();
     } else if (currentStep === 3) {
       setCurrentStep(4);
     }
@@ -365,7 +380,11 @@ function MappingWizard() {
                 type="text"
                 className="form-control"
                 value={filePattern}
-                onChange={(e) => setFilePattern(e.target.value)}
+                onChange={(e) => {
+                  setFilePattern(e.target.value);
+                  setValidationStatus(null);
+                  setMatchingFiles([]);
+                }}
                 placeholder="e.g., sales_*.csv or data_2024*.parquet"
               />
               <small className="form-help">
@@ -380,6 +399,12 @@ function MappingWizard() {
             >
               {loadingFiles ? 'Validating...' : 'Validate Pattern'}
             </button>
+
+            {validationStatus === 'success' && matchingFiles.length > 0 && (
+              <div className="alert alert-success" style={{ marginTop: '1rem' }}>
+                ✓ Validation successful! Found {matchingFiles.length} matching file(s).
+              </div>
+            )}
 
             {matchingFiles.length > 0 && (
               <div className="matched-files">
