@@ -134,6 +134,11 @@ function MappingWizard() {
       setValidationStatus(null);
       setError(null);
       
+      // Validate connection ID if provided
+      if (sourceConnectionId && (typeof sourceConnectionId !== 'number' || isNaN(sourceConnectionId))) {
+        throw new Error('Invalid connection ID. Please select a valid connection.');
+      }
+      
       const response = await axios.post(
         `${API_BASE_URL}/api/transformations/validate-pattern`,
         { 
