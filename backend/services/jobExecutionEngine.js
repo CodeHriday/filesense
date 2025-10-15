@@ -140,34 +140,52 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Get mapping configuration
     const mapping = await getMappingConfig(pool, mappingId);
     
-    // Step 1: Find matching files from cloud storage
+    // Step 1: Build full file path and find matching files from cloud storage
+    const filePath = mapping.file_path || '';
+    const fileNamePattern = mapping.file_name_pattern || mapping.source_file_pattern;
+    
+    // Build full pattern: file_path + file_name_pattern
+    const fullPattern = filePath ? `${filePath.replace(/^\//, '')}${fileNamePattern}` : fileNamePattern;
+    
+    // Check if this is a single file (no wildcards) or a pattern
+    const isSingleFile = !fileNamePattern.includes('*') && !fileNamePattern.includes('?');
+    
     await logJobExecution(pool, jobId, 'info', 'Finding matching files from cloud storage', { 
-      pattern: mapping.source_file_pattern,
+      file_path: filePath,
+      file_name_pattern: fileNamePattern,
+      full_pattern: fullPattern,
+      is_single_file: isSingleFile,
       connection_id: mapping.source_connection_id
     });
     
     const cloudFiles = await listAndFilterFiles(
       pool, 
       mapping.source_connection_id, 
-      mapping.source_file_pattern
+      fullPattern
     );
     
     if (cloudFiles.length === 0) {
+      const errorMessage = isSingleFile 
+        ? `File not found: ${fullPattern}. Please verify the file path and name are correct.`
+        : `No files matched the pattern '${fullPattern}' in cloud storage`;
+      
       await updateJob(pool, jobId, { 
-        status: 'completed', 
-        error_message: 'No files matched the pattern in cloud storage',
+        status: 'failed', 
+        error_message: errorMessage,
         end_time: new Date()
       });
       
-      await logJobExecution(pool, jobId, 'warn', 'No files matched pattern in cloud storage', { 
-        pattern: mapping.source_file_pattern 
+      await logJobExecution(pool, jobId, 'error', errorMessage, { 
+        full_pattern: fullPattern,
+        file_path: filePath,
+        file_name_pattern: fileNamePattern
       });
       
       return { 
         jobId, 
-        status: 'completed', 
+        status: 'failed', 
         filesProcessed: 0,
-        message: 'No files matched the pattern in cloud storage' 
+        message: errorMessage
       };
     }
     
@@ -181,10 +199,72 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       row_count: 0 // Will be determined during processing
     }));
     
-    // Step 2: Schema validation skipped for cloud files
-    // (Cloud files don't have file_id in database, schema is validated during processing)
-    if (runSchemaValidation) {
-      await logJobExecution(pool, jobId, 'info', 'Schema validation will be performed during file processing');
+    // Step 2: Schema validation for file patterns (multiple files)
+    if (runSchemaValidation && !isSingleFile && cloudFiles.length > 1) {
+      await logJobExecution(pool, jobId, 'info', 'Validating schema consistency across matched files');
+      
+      try {
+        // Download first few bytes of each file to extract schema
+        const schemas = [];
+        for (const file of cloudFiles) {
+          try {
+            const { extractSchemaFromBuffer } = require('./schemaService');
+            const fileBuffer = await downloadFileFromConnection(pool, mapping.source_connection_id, file.filename, { partial: true, maxBytes: 1024 * 1024 });
+            const schema = await extractSchemaFromBuffer(fileBuffer, file.filename);
+            schemas.push({ filename: file.filename, schema });
+          } catch (err) {
+            await logJobExecution(pool, jobId, 'warn', `Could not extract schema from ${file.filename}: ${err.message}`);
+          }
+        }
+        
+        // Check for schema mismatches
+        if (schemas.length > 1) {
+          const baseSchema = schemas[0].schema;
+          const mismatches = [];
+          
+          for (let i = 1; i < schemas.length; i++) {
+            const currentSchema = schemas[i].schema;
+            const baseFields = baseSchema.map(f => f.name).sort().join(',');
+            const currentFields = currentSchema.map(f => f.name).sort().join(',');
+            
+            if (baseFields !== currentFields) {
+              mismatches.push({
+                file: schemas[i].filename,
+                baseFile: schemas[0].filename,
+                baseFields: baseSchema.map(f => f.name),
+                currentFields: currentSchema.map(f => f.name)
+              });
+            }
+          }
+          
+          if (mismatches.length > 0) {
+            const errorMessage = `Schema mismatch detected across ${mismatches.length} file(s). All files matching a pattern must have identical schemas.`;
+            
+            await updateJob(pool, jobId, { 
+              status: 'failed', 
+              error_message: errorMessage,
+              end_time: new Date()
+            });
+            
+            await logJobExecution(pool, jobId, 'error', errorMessage, { 
+              mismatches,
+              totalFilesChecked: schemas.length
+            });
+            
+            return { 
+              jobId, 
+              status: 'failed', 
+              filesProcessed: 0,
+              message: errorMessage,
+              details: mismatches
+            };
+          }
+          
+          await logJobExecution(pool, jobId, 'info', `Schema validation passed: All ${schemas.length} files have consistent schemas`);
+        }
+      } catch (schemaError) {
+        await logJobExecution(pool, jobId, 'warn', `Schema validation error: ${schemaError.message}. Continuing with file processing.`);
+      }
     }
     
     // Step 3: Process each file
