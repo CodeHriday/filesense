@@ -195,25 +195,25 @@ function Mappings() {
                 mappings.map(mapping => (
                   <Card key={mapping.id} className="mapping-card">
                     <div className="mapping-card-header">
-                      <h3>{mapping.name}</h3>
+                      <h3>{mapping.mapping_name}</h3>
                       <div className="mapping-card-actions">
                         <button
                           className="icon-btn"
-                          onClick={() => handleExecuteMapping(mapping.id)}
+                          onClick={() => handleExecuteMapping(mapping.mapping_id)}
                           title="Execute mapping"
                         >
                           <FiPlay />
                         </button>
                         <button
                           className="icon-btn"
-                          onClick={() => handleEditMapping(mapping.id)}
+                          onClick={() => handleEditMapping(mapping.mapping_id)}
                           title="Edit mapping"
                         >
                           <FiEdit2 />
                         </button>
                         <button
                           className="icon-btn danger"
-                          onClick={() => handleDeleteMapping(mapping.id)}
+                          onClick={() => handleDeleteMapping(mapping.mapping_id)}
                           title="Delete mapping"
                         >
                           <FiTrash2 />
@@ -236,7 +236,7 @@ function Mappings() {
                         <FiFilter className="detail-icon" />
                         <div>
                           <span className="detail-label">File Pattern</span>
-                          <span className="detail-value">{mapping.file_pattern}</span>
+                          <span className="detail-value">{mapping.source_file_pattern}</span>
                         </div>
                       </div>
 
@@ -255,9 +255,9 @@ function Mappings() {
 
                     <div className="mapping-card-footer">
                       <div className="mapping-stats">
-                        <span>{mapping.field_mappings?.length || 0} fields mapped</span>
+                        <span>{Array.isArray(mapping.field_mappings) ? mapping.field_mappings.length : (typeof mapping.field_mappings === 'string' ? JSON.parse(mapping.field_mappings).length : 0)} fields mapped</span>
                         <span>•</span>
-                        <span>{mapping.anomaly_rules?.length || 0} quality rules</span>
+                        <span>{mapping.anomaly_rules ? (typeof mapping.anomaly_rules === 'object' ? Object.keys(mapping.anomaly_rules).length : 0) : 0} quality rules</span>
                       </div>
                       <div className="mapping-meta">
                         Created {formatDate(mapping.created_at)}
