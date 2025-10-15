@@ -442,6 +442,7 @@ function FileUpload() {
               onFileDrop={handleDropFile}
               acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
               maxSizeMB={50}
+              multiple={true}
             />
           ) : (
             <div className="access-denied-message">
@@ -450,7 +451,7 @@ function FileUpload() {
           )
         )}
         
-        {uploadStatus === 'success' && uploadedFile && (
+        {uploadStatus === 'success' && uploadedFile && activeTab === 'upload-profile' && (
           <>
             <div className="upload-success-actions">
               <button 

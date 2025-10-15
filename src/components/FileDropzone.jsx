@@ -2,7 +2,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import './FileDropzone.css';
 
-function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500 }) {
+function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false }) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -10,6 +10,8 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
   const [fileSize, setFileSize] = useState(null);
   const [fileName, setFileName] = useState(null);
   const [processingStep, setProcessingStep] = useState(null);
+  const [uploadingFiles, setUploadingFiles] = useState([]);
+  const [completedFiles, setCompletedFiles] = useState([]);
   
   const handleDragEnter = useCallback((e) => {
     e.preventDefault();
@@ -100,54 +102,158 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         setFileError(err.message || 'Failed to upload file');
         setUploadStatus('error');
         setProcessingStep(null);
+        // Rethrow to allow caller to handle the error
+        throw err;
       });
   }, [onFileDrop]);
   
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback(async (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     
-    const files = e.dataTransfer.files;
+    const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      const file = files[0];
-      const error = validateFile(file);
-      
-      if (error) {
-        setFileError(error);
-        setUploadStatus('error');
-        return;
+      if (multiple) {
+        // Handle multiple files
+        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending' })));
+        setCompletedFiles([]);
+        setUploadStatus('uploading');
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const file of files) {
+          const error = validateFile(file);
+          if (error) {
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'error', error } : f
+            ));
+            errorCount++;
+            continue;
+          }
+          
+          setUploadingFiles(prev => prev.map(f => 
+            f.name === file.name ? { ...f, status: 'uploading' } : f
+          ));
+          
+          try {
+            await processFileUpload(file);
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'success' } : f
+            ));
+            setCompletedFiles(prev => [...prev, file.name]);
+            successCount++;
+          } catch (err) {
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'error', error: err.message } : f
+            ));
+            errorCount++;
+          }
+        }
+        
+        // Set status based on results
+        if (successCount > 0 && errorCount === 0) {
+          setUploadStatus('success');
+        } else if (successCount === 0 && errorCount > 0) {
+          setUploadStatus('error');
+          setFileError(`All ${errorCount} file(s) failed to upload`);
+        } else if (successCount > 0 && errorCount > 0) {
+          setUploadStatus('partial');
+          setFileError(`${errorCount} of ${files.length} file(s) failed to upload`);
+        }
+      } else {
+        // Handle single file
+        const file = files[0];
+        const error = validateFile(file);
+        
+        if (error) {
+          setFileError(error);
+          setUploadStatus('error');
+          return;
+        }
+        
+        setFileError(null);
+        setUploadStatus('uploading');
+        setUploadProgress(0);
+        
+        // Process the file upload
+        processFileUpload(file);
       }
-      
-      setFileError(null);
-      setUploadStatus('uploading');
-      setUploadProgress(0);
-      
-      // Process the file upload
-      processFileUpload(file);
     }
-  }, [validateFile, processFileUpload]);
+  }, [validateFile, processFileUpload, multiple]);
   
-  const handleFileSelect = useCallback((e) => {
-    const files = e.target.files;
+  const handleFileSelect = useCallback(async (e) => {
+    const files = Array.from(e.target.files);
     if (files.length > 0) {
-      const file = files[0];
-      const error = validateFile(file);
-      
-      if (error) {
-        setFileError(error);
-        setUploadStatus('error');
-        return;
+      if (multiple) {
+        // Handle multiple files
+        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending' })));
+        setCompletedFiles([]);
+        setUploadStatus('uploading');
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        for (const file of files) {
+          const error = validateFile(file);
+          if (error) {
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'error', error } : f
+            ));
+            errorCount++;
+            continue;
+          }
+          
+          setUploadingFiles(prev => prev.map(f => 
+            f.name === file.name ? { ...f, status: 'uploading' } : f
+          ));
+          
+          try {
+            await processFileUpload(file);
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'success' } : f
+            ));
+            setCompletedFiles(prev => [...prev, file.name]);
+            successCount++;
+          } catch (err) {
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'error', error: err.message } : f
+            ));
+            errorCount++;
+          }
+        }
+        
+        // Set status based on results
+        if (successCount > 0 && errorCount === 0) {
+          setUploadStatus('success');
+        } else if (successCount === 0 && errorCount > 0) {
+          setUploadStatus('error');
+          setFileError(`All ${errorCount} file(s) failed to upload`);
+        } else if (successCount > 0 && errorCount > 0) {
+          setUploadStatus('partial');
+          setFileError(`${errorCount} of ${files.length} file(s) failed to upload`);
+        }
+      } else {
+        // Handle single file
+        const file = files[0];
+        const error = validateFile(file);
+        
+        if (error) {
+          setFileError(error);
+          setUploadStatus('error');
+          return;
+        }
+        
+        setFileError(null);
+        setUploadStatus('uploading');
+        setUploadProgress(0);
+        
+        // Process the file upload
+        processFileUpload(file);
       }
-      
-      setFileError(null);
-      setUploadStatus('uploading');
-      setUploadProgress(0);
-      
-      // Process the file upload
-      processFileUpload(file);
     }
-  }, [validateFile, processFileUpload]);
+  }, [validateFile, processFileUpload, multiple]);
   
   return (
     <div 
@@ -161,30 +267,125 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         {uploadStatus === 'success' ? (
           <div className="upload-success">
             <FiCheckCircle className="success-icon" />
-            <p>File uploaded successfully!</p>
+            {multiple && uploadingFiles.length > 0 ? (
+              <div>
+                <p>{completedFiles.length} file(s) uploaded successfully!</p>
+                <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+                  {uploadingFiles.map((file, idx) => (
+                    <div key={idx} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      padding: '0.5rem', 
+                      borderBottom: '1px solid #eee' 
+                    }}>
+                      <span style={{ flex: 1 }}>{file.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
+                        {file.status === 'success' && <FiCheckCircle style={{ color: 'green' }} />}
+                        {file.status === 'error' && <FiAlertCircle style={{ color: 'red' }} />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p>File uploaded successfully!</p>
+            )}
           </div>
         ) : uploadStatus === 'error' ? (
           <div className="upload-error">
             <FiAlertCircle className="error-icon" />
             <p>{fileError}</p>
+            {multiple && uploadingFiles.length > 0 && (
+              <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+                {uploadingFiles.map((file, idx) => (
+                  <div key={idx} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '0.5rem', 
+                    borderBottom: '1px solid #eee' 
+                  }}>
+                    <span style={{ flex: 1 }}>{file.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
+                      <FiAlertCircle style={{ color: 'red' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : uploadStatus === 'partial' ? (
+          <div className="upload-error">
+            <FiAlertCircle className="error-icon" />
+            <p>{fileError}</p>
+            {multiple && uploadingFiles.length > 0 && (
+              <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+                {uploadingFiles.map((file, idx) => (
+                  <div key={idx} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '0.5rem', 
+                    borderBottom: '1px solid #eee' 
+                  }}>
+                    <span style={{ flex: 1 }}>{file.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
+                      {file.status === 'success' && <FiCheckCircle style={{ color: 'green' }} />}
+                      {file.status === 'error' && <FiAlertCircle style={{ color: 'red' }} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : uploadStatus === 'uploading' ? (
           <div className="upload-progress">
-            <div className="file-info">
-              {fileName && <p className="file-name">{fileName}</p>}
-              {fileSize && <p className="file-size">{fileSize}</p>}
-            </div>
-            
-            <div className="progress-container">
-              <div 
-                className="progress-bar" 
-                style={{ width: `${uploadProgress}%` }}
-              >
-                <span className="progress-text">{uploadProgress}%</span>
+            {multiple && uploadingFiles.length > 0 ? (
+              <div>
+                <p>Uploading {uploadingFiles.length} file(s)...</p>
+                <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
+                  {uploadingFiles.map((file, idx) => (
+                    <div key={idx} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      padding: '0.5rem', 
+                      borderBottom: '1px solid #eee' 
+                    }}>
+                      <span>{file.name}</span>
+                      <span style={{ 
+                        color: file.status === 'success' ? 'green' : 
+                               file.status === 'error' ? 'red' : 
+                               file.status === 'uploading' ? 'blue' : 'gray' 
+                      }}>
+                        {file.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            
-            {processingStep && <p className="processing-step">{processingStep}</p>}
+            ) : (
+              <>
+                <div className="file-info">
+                  {fileName && <p className="file-name">{fileName}</p>}
+                  {fileSize && <p className="file-size">{fileSize}</p>}
+                </div>
+                
+                <div className="progress-container">
+                  <div 
+                    className="progress-bar" 
+                    style={{ width: `${uploadProgress}%` }}
+                  >
+                    <span className="progress-text">{uploadProgress}%</span>
+                  </div>
+                </div>
+                
+                {processingStep && <p className="processing-step">{processingStep}</p>}
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -192,7 +393,7 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
               <FiUpload />
             </div>
             <div className="dropzone-text">
-              <p>Drag and drop file here, or</p>
+              <p>Drag and drop {multiple ? 'files' : 'file'} here, or</p>
               <label className="file-select-button">
                 <span>Browse Files</span>
                 <input 
@@ -200,6 +401,7 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
                   className="file-input" 
                   onChange={handleFileSelect}
                   accept={acceptedFileTypes.join(',')}
+                  multiple={multiple}
                 />
               </label>
             </div>
