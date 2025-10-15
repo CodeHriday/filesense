@@ -125,14 +125,17 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
   const {
     runSchemaValidation = true,
     runProfilingChecks = true,
-    dryRun = false
+    dryRun = false,
+    existingJob = null
   } = options;
   
-  let job = null;
+  let job = existingJob;
   
   try {
-    // Create job
-    job = await createJob(pool, mappingId, userId);
+    // Create job only if not provided
+    if (!job) {
+      job = await createJob(pool, mappingId, userId);
+    }
     const jobId = job.job_id;
     
     await logJobExecution(pool, jobId, 'info', 'Job execution started', { mappingId, userId });

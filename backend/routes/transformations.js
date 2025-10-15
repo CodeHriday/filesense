@@ -19,11 +19,11 @@ router.get('/', async (req, res) => {
     let query = `
       SELECT 
         tm.*,
-        sc.connection_name as source_connection_name,
-        tc.connection_name as target_connection_name
+        sc.name as source_connection_name,
+        tc.name as target_connection_name
       FROM transformation_mappings tm
-      LEFT JOIN connections sc ON tm.source_connection_id = sc.id
-      LEFT JOIN connections tc ON tm.target_connection_id = tc.id
+      LEFT JOIN transform_connections sc ON tm.source_connection_id = sc.id
+      LEFT JOIN transform_connections tc ON tm.target_connection_id = tc.id
     `;
     const params = [];
     
@@ -385,21 +385,31 @@ router.post('/:id/execute', async (req, res) => {
     
     systemLogger.info('Starting transformation job execution', { mappingId: id, userId });
     
-    // Execute job and wait for job creation (not completion)
-    const result = await executeTransformationJob(pool, id, userId, {
+    // Create job record immediately
+    const { createJob } = require('../services/jobExecutionEngine');
+    const job = await createJob(pool, id, userId);
+    
+    systemLogger.info('Transformation job created and queued', { jobId: job.job_id, mappingId: id });
+    
+    // Start job execution asynchronously in the background
+    // Don't await - let it run and return immediately
+    executeTransformationJob(pool, id, userId, {
       runSchemaValidation,
       runProfilingChecks,
-      dryRun
+      dryRun,
+      existingJob: job
+    }).then(result => {
+      systemLogger.info('Transformation job completed', { jobId: result.jobId, mappingId: id, status: result.status });
+    }).catch(error => {
+      systemLogger.error('Transformation job failed', { mappingId: id, error: error.message, stack: error.stack });
     });
     
-    systemLogger.info('Transformation job created', { jobId: result.jobId, mappingId: id });
-    
-    // Return job info
+    // Return job info immediately
     res.status(202).json({ 
       message: 'Job execution started',
-      jobId: result.jobId,
+      jobId: job.job_id,
       mappingId: id,
-      status: result.status
+      status: 'running'
     });
     
   } catch (error) {

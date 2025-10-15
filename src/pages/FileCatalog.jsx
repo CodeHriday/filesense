@@ -445,13 +445,13 @@ export const FileCatalog = ({ onFileSelect }) => {
                     <span className="file-name">{file.filename}</span>
                   </td>
                   <td>
-                    <span className="file-type-badge">{file.file_type.toUpperCase()}</span>
+                    <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
                   </td>
-                  <td>{formatBytes(parseInt(file.file_size))}</td>
-                  <td>{file.row_count.toLocaleString()}</td>
-                  <td>{file.column_count}</td>
-                  <td title={formatDate(file.created_at)}>
-                    {getTimeSince(file.created_at)}
+                  <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
+                  <td>{file.row_count != null ? file.row_count.toLocaleString() : '-'}</td>
+                  <td>{file.column_count || '-'}</td>
+                  <td title={file.created_at ? formatDate(file.created_at) : ''}>
+                    {file.created_at ? getTimeSince(file.created_at) : '-'}
                   </td>
                   <td>
                     <QualityTooltip 
