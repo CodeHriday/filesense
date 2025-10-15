@@ -114,9 +114,9 @@ function MappingWizard() {
       });
       
       const mapping = response.data;
-      setMappingName(mapping.name);
+      setMappingName(mapping.mapping_name || mapping.name);
       setSourceConnectionId(mapping.source_connection_id || '');
-      setFilePattern(mapping.file_pattern);
+      setFilePattern(mapping.source_file_pattern || mapping.file_pattern);
       setTargetConnectionId(mapping.target_connection_id || '');
       setFieldMappings(mapping.field_mappings || []);
       setAnomalyRules(mapping.anomaly_rules || anomalyRules);
@@ -244,9 +244,9 @@ function MappingWizard() {
       setLoading(true);
       
       const mappingData = {
-        name: mappingName,
+        mapping_name: mappingName,
         source_connection_id: sourceConnectionId || null,
-        file_pattern: filePattern,
+        source_file_pattern: filePattern,
         target_connection_id: targetConnectionId || null,
         field_mappings: fieldMappings,
         anomaly_rules: anomalyRules.filter(r => r.enabled)
