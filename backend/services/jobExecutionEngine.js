@@ -641,7 +641,7 @@ async function getJobStatus(pool, jobId) {
     }
     
     const logsResult = await pool.query(
-      'SELECT * FROM transformation_logs WHERE job_id = $1 ORDER BY created_at ASC',
+      'SELECT * FROM transformation_logs WHERE job_id = $1 ORDER BY timestamp ASC',
       [jobId]
     );
     
