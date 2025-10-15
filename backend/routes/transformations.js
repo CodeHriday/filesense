@@ -305,8 +305,58 @@ router.post('/:id/execute', async (req, res) => {
 });
 
 /**
+ * POST /api/transformations/validate-pattern
+ * Validate file pattern and check schema consistency (without mapping ID)
+ */
+router.post('/validate-pattern', async (req, res) => {
+  try {
+    const { source_file_pattern, source_connection_id } = req.body;
+    
+    if (!source_file_pattern) {
+      return res.status(400).json({ error: 'File pattern is required' });
+    }
+    
+    // Find matching files
+    const matchingFiles = await findMatchingFiles(pool, source_file_pattern, { 
+      connectionId: source_connection_id,
+      limit: 10 
+    });
+    
+    if (matchingFiles.length === 0) {
+      return res.json({
+        valid: true,
+        matchCount: 0,
+        message: 'No files match the pattern',
+        samples: []
+      });
+    }
+    
+    // Validate schema consistency
+    const fileIds = matchingFiles.map(f => f.file_id);
+    const schemaValidation = await validateSchemaConsistency(pool, fileIds);
+    
+    res.json({
+      valid: schemaValidation.isConsistent,
+      matchCount: matchingFiles.length,
+      message: schemaValidation.message,
+      samples: matchingFiles.slice(0, 5).map(f => ({
+        fileId: f.file_id,
+        filename: f.filename,
+        rowCount: f.row_count
+      })),
+      schemaConsistent: schemaValidation.isConsistent,
+      inconsistencies: schemaValidation.inconsistencies || []
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error validating pattern:', error);
+    res.status(500).json({ error: 'Failed to validate pattern' });
+  }
+});
+
+/**
  * POST /api/transformations/:id/validate-pattern
- * Validate file pattern and check schema consistency
+ * Validate file pattern and check schema consistency (with mapping ID)
  */
 router.post('/:id/validate-pattern', async (req, res) => {
   try {

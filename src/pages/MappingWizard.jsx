@@ -134,17 +134,20 @@ function MappingWizard() {
         `${API_BASE_URL}/api/transformations/validate-pattern`,
         { 
           source_connection_id: sourceConnectionId || null,
-          file_pattern: filePattern 
+          source_file_pattern: filePattern 
         },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         }
       );
       
-      setMatchingFiles(response.data.matched_files || []);
+      setMatchingFiles(response.data.samples || []);
       return true;
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to validate file pattern');
+      const errorMsg = typeof err.response?.data?.error === 'string' 
+        ? err.response.data.error 
+        : err.response?.data?.error?.message || 'Failed to validate file pattern';
+      setError(errorMsg);
       return false;
     } finally {
       setLoadingFiles(false);
