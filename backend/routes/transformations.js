@@ -102,6 +102,32 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Validate source connection exists
+    const sourceConnCheck = await pool.query(
+      'SELECT id FROM connections WHERE id = $1',
+      [source_connection_id]
+    );
+    
+    if (sourceConnCheck.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'Source connection not found. Please select a valid source connection.' 
+      });
+    }
+    
+    // Validate target connection exists (if provided)
+    if (target_connection_id) {
+      const targetConnCheck = await pool.query(
+        'SELECT id FROM connections WHERE id = $1',
+        [target_connection_id]
+      );
+      
+      if (targetConnCheck.rows.length === 0) {
+        return res.status(400).json({ 
+          error: 'Target connection not found. Please select a valid target connection.' 
+        });
+      }
+    }
+    
     // Validate anomaly rules if provided
     if (anomaly_rules) {
       const validation = validateRules(anomaly_rules);
@@ -163,6 +189,34 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ 
           error: 'Invalid anomaly rules', 
           details: validation.errors 
+        });
+      }
+    }
+    
+    // Validate source connection exists (if being updated)
+    if (source_connection_id !== undefined) {
+      const sourceConnCheck = await pool.query(
+        'SELECT id FROM connections WHERE id = $1',
+        [source_connection_id]
+      );
+      
+      if (sourceConnCheck.rows.length === 0) {
+        return res.status(400).json({ 
+          error: 'Source connection not found. Please select a valid source connection.' 
+        });
+      }
+    }
+    
+    // Validate target connection exists (if being updated)
+    if (target_connection_id !== undefined) {
+      const targetConnCheck = await pool.query(
+        'SELECT id FROM connections WHERE id = $1',
+        [target_connection_id]
+      );
+      
+      if (targetConnCheck.rows.length === 0) {
+        return res.status(400).json({ 
+          error: 'Target connection not found. Please select a valid target connection.' 
         });
       }
     }
