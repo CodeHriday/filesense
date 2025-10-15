@@ -39,6 +39,7 @@ class VirusScanService {
           debugMode: false,
           clamscan: {
             path: '/nix/store/4s7jsmyxy0nn45qv0s32pbp8c6z05gnq-clamav-1.3.1/bin/clamscan',
+            db: '/home/runner/workspace/clamav-db', // Custom database directory
             active: true
           },
           clamdscan: {
