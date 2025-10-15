@@ -83,7 +83,7 @@ function MappingWizard() {
   const [targetConnectionId, setTargetConnectionId] = useState('');
   const [anomalyRules, setAnomalyRules] = useState([
     { metric: 'numeric_deviation', threshold: 10, enabled: true },
-    { metric: 'row_count_change', threshold: 20, enabled: true },
+    { metric: 'row_count_anomaly', threshold: 20, enabled: true },
     { metric: 'null_spike', threshold: 15, enabled: true },
     { metric: 'type_mismatch', threshold: 5, enabled: true }
   ]);
@@ -119,7 +119,20 @@ function MappingWizard() {
       setFilePattern(mapping.source_file_pattern || mapping.file_pattern);
       setTargetConnectionId(mapping.target_connection_id || '');
       setFieldMappings(mapping.field_mappings || []);
-      setAnomalyRules(mapping.anomaly_rules || anomalyRules);
+      
+      // Convert anomaly rules from object format to array format
+      if (mapping.anomaly_rules && typeof mapping.anomaly_rules === 'object' && !Array.isArray(mapping.anomaly_rules)) {
+        const rulesArray = Object.entries(mapping.anomaly_rules).map(([metric, config]) => ({
+          metric,
+          threshold: config.threshold ?? 10,
+          enabled: config.enabled !== false
+        }));
+        setAnomalyRules(rulesArray);
+      } else if (Array.isArray(mapping.anomaly_rules)) {
+        setAnomalyRules(mapping.anomaly_rules);
+      } else {
+        setAnomalyRules(anomalyRules);
+      }
       
       setError(null);
     } catch (err) {
@@ -243,13 +256,24 @@ function MappingWizard() {
     try {
       setLoading(true);
       
+      // Convert anomaly rules array to object format expected by backend
+      const anomalyRulesObject = {};
+      anomalyRules
+        .filter(r => r.enabled)
+        .forEach(rule => {
+          anomalyRulesObject[rule.metric] = {
+            enabled: rule.enabled,
+            threshold: rule.threshold
+          };
+        });
+      
       const mappingData = {
         mapping_name: mappingName,
         source_connection_id: sourceConnectionId || null,
         source_file_pattern: filePattern,
         target_connection_id: targetConnectionId || null,
         field_mappings: fieldMappings,
-        anomaly_rules: anomalyRules.filter(r => r.enabled)
+        anomaly_rules: anomalyRulesObject
       };
 
       if (isEditMode) {
