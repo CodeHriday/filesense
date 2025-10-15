@@ -56,11 +56,8 @@ async function findMatchingFiles(pool, pattern, options = {}) {
       const params = [pattern];
       let paramIndex = 2;
       
-      if (connectionId) {
-        query += ` AND connection_id = $${paramIndex}`;
-        params.push(connectionId);
-        paramIndex++;
-      }
+      // Note: connectionId filtering removed as files table doesn't have connection_id column
+      // Connection info is stored in metadata JSONB field
       
       if (fileType) {
         query += ` AND file_type = $${paramIndex}`;
@@ -88,18 +85,24 @@ async function findMatchingFiles(pool, pattern, options = {}) {
       }
       
       const result = await pool.query(query, params);
-      return result.rows;
+      
+      // Filter by connectionId if provided (check metadata field)
+      let rows = result.rows;
+      if (connectionId) {
+        rows = rows.filter(file => {
+          const metadata = file.metadata || {};
+          return metadata.connection_id === connectionId;
+        });
+      }
+      
+      return rows;
     } else {
       // Wildcard pattern - fetch all files and filter in memory
       let query = 'SELECT * FROM files WHERE 1=1';
       const params = [];
       let paramIndex = 1;
       
-      if (connectionId) {
-        query += ` AND connection_id = $${paramIndex}`;
-        params.push(connectionId);
-        paramIndex++;
-      }
+      // Note: connectionId filtering removed from SQL as files table doesn't have connection_id column
       
       if (fileType) {
         query += ` AND file_type = $${paramIndex}`;
@@ -126,6 +129,14 @@ async function findMatchingFiles(pool, pattern, options = {}) {
       // Filter files by pattern
       const regex = patternToRegex(pattern);
       let matchedFiles = result.rows.filter(file => regex.test(file.filename));
+      
+      // Filter by connectionId if provided (check metadata field)
+      if (connectionId) {
+        matchedFiles = matchedFiles.filter(file => {
+          const metadata = file.metadata || {};
+          return metadata.connection_id === connectionId;
+        });
+      }
       
       // Apply limit if specified
       if (limit) {

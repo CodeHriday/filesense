@@ -386,7 +386,9 @@ function MappingWizard() {
                 <h4>Matched Files ({matchingFiles.length})</h4>
                 <ul>
                   {matchingFiles.slice(0, 10).map((file, idx) => (
-                    <li key={idx}>{file}</li>
+                    <li key={idx}>
+                      {file.filename || file} {file.rowCount && `(${file.rowCount} rows)`}
+                    </li>
                   ))}
                   {matchingFiles.length > 10 && (
                     <li className="more-files">...and {matchingFiles.length - 10} more</li>
