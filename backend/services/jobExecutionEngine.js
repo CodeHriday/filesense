@@ -145,7 +145,14 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     const fileNamePattern = mapping.file_name_pattern || mapping.source_file_pattern;
     
     // Build full pattern: file_path + file_name_pattern
-    const fullPattern = filePath ? `${filePath.replace(/^\//, '')}${fileNamePattern}` : fileNamePattern;
+    // Ensure exactly one separator between path and pattern
+    let fullPattern;
+    if (filePath) {
+      const normalizedPath = filePath.replace(/^\//, '').replace(/\/$/, ''); // Remove leading/trailing slashes
+      fullPattern = normalizedPath ? `${normalizedPath}/${fileNamePattern}` : fileNamePattern;
+    } else {
+      fullPattern = fileNamePattern;
+    }
     
     // Check if this is a single file (no wildcards) or a pattern
     const isSingleFile = !fileNamePattern.includes('*') && !fileNamePattern.includes('?');

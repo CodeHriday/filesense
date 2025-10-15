@@ -482,7 +482,14 @@ router.post('/extract-schema', async (req, res) => {
     const { extractSchemaFromCloud } = require('../services/schemaService');
     
     // Build full file path pattern: file_path + file_name_pattern
-    const fullPattern = file_path ? `${file_path.replace(/^\//, '')}${actualPattern}` : actualPattern;
+    // Ensure exactly one separator between path and pattern
+    let fullPattern;
+    if (file_path) {
+      const normalizedPath = file_path.replace(/^\//, '').replace(/\/$/, ''); // Remove leading/trailing slashes
+      fullPattern = normalizedPath ? `${normalizedPath}/${actualPattern}` : actualPattern;
+    } else {
+      fullPattern = actualPattern;
+    }
     
     const schema = await extractSchemaFromCloud(pool, source_connection_id, fullPattern);
     
