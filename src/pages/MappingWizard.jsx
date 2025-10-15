@@ -68,8 +68,10 @@ function MappingWizard() {
   const [sourceConnectionId, setSourceConnectionId] = useState('');
   const [connections, setConnections] = useState([]);
 
-  // Step 2: File Pattern
-  const [filePattern, setFilePattern] = useState('*.csv');
+  // Step 2: Source Configuration
+  const [sourceType, setSourceType] = useState('files');
+  const [filePath, setFilePath] = useState('');
+  const [fileNamePattern, setFileNamePattern] = useState('*.csv');
   const [matchingFiles, setMatchingFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [validationStatus, setValidationStatus] = useState(null); // 'success', 'error', or null
@@ -116,7 +118,9 @@ function MappingWizard() {
       const mapping = response.data;
       setMappingName(mapping.mapping_name || mapping.name);
       setSourceConnectionId(mapping.source_connection_id || '');
-      setFilePattern(mapping.source_file_pattern || mapping.file_pattern);
+      setSourceType(mapping.source_type || 'files');
+      setFilePath(mapping.file_path || '');
+      setFileNamePattern(mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern || '*.csv');
       setTargetConnectionId(mapping.target_connection_id || '');
       setFieldMappings(mapping.field_mappings || []);
       
@@ -142,49 +146,7 @@ function MappingWizard() {
     }
   };
 
-  const validateFilePattern = async () => {
-    try {
-      setLoadingFiles(true);
-      setValidationStatus(null);
-      setError(null);
-      
-      // Validate connection ID if provided
-      if (sourceConnectionId && (typeof sourceConnectionId !== 'number' || isNaN(sourceConnectionId))) {
-        throw new Error('Invalid connection ID. Please select a valid connection.');
-      }
-      
-      const response = await axios.post(
-        `${API_BASE_URL}/api/transformations/validate-pattern`,
-        { 
-          source_connection_id: sourceConnectionId || null,
-          source_file_pattern: filePattern 
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }
-      );
-      
-      const files = response.data.samples || [];
-      setMatchingFiles(files);
-      setValidationStatus('success');
-      
-      if (files.length === 0) {
-        setError('Pattern is valid but no files matched. Please adjust your pattern or upload files first.');
-      }
-      
-      return files.length > 0;
-    } catch (err) {
-      const errorMsg = typeof err.response?.data?.error === 'string' 
-        ? err.response.data.error 
-        : err.response?.data?.error?.message || 'Failed to validate file pattern';
-      setError(errorMsg);
-      setValidationStatus('error');
-      setMatchingFiles([]);
-      return false;
-    } finally {
-      setLoadingFiles(false);
-    }
-  };
+  // Removed validation function - validation happens during job execution
 
   const extractSchema = async () => {
     try {
@@ -193,7 +155,9 @@ function MappingWizard() {
         `${API_BASE_URL}/api/transformations/extract-schema`,
         { 
           source_connection_id: sourceConnectionId || null,
-          file_pattern: filePattern 
+          source_type: sourceType,
+          file_path: filePath,
+          file_name_pattern: fileNamePattern
         },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -235,11 +199,11 @@ function MappingWizard() {
       setError(null);
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      // Check if validation was successful
-      if (validationStatus !== 'success' || matchingFiles.length === 0) {
-        setError('Please validate the file pattern first and ensure files are matched.');
+      if (!fileNamePattern.trim()) {
+        setError('Please enter a file name or pattern');
         return;
       }
+      setError(null);
       setCurrentStep(3);
       await extractSchema();
     } else if (currentStep === 3) {
@@ -270,7 +234,9 @@ function MappingWizard() {
       const mappingData = {
         mapping_name: mappingName,
         source_connection_id: sourceConnectionId || null,
-        source_file_pattern: filePattern,
+        source_type: sourceType,
+        file_path: filePath,
+        file_name_pattern: fileNamePattern,
         target_connection_id: targetConnectionId || null,
         field_mappings: fieldMappings,
         anomaly_rules: anomalyRulesObject
@@ -327,7 +293,7 @@ function MappingWizard() {
   const renderStepIndicator = () => {
     const steps = [
       { num: 1, label: 'Source & Name' },
-      { num: 2, label: 'File Pattern' },
+      { num: 2, label: 'Source Configuration' },
       { num: 3, label: 'Field Mapping' },
       { num: 4, label: 'Target & Rules' }
     ];
@@ -406,61 +372,53 @@ function MappingWizard() {
           </div>
         )}
 
-        {/* Step 2: File Pattern */}
+        {/* Step 2: Source Configuration */}
         {currentStep === 2 && (
           <div className="wizard-step-content">
-            <h2><FiFilter /> File Pattern Selection</h2>
+            <h2><FiFilter /> Source Configuration</h2>
             
             <div className="form-group">
-              <label>File Pattern *</label>
+              <label>Source Type *</label>
+              <select
+                className="form-control"
+                value={sourceType}
+                onChange={(e) => setSourceType(e.target.value)}
+              >
+                <option value="files">Files</option>
+              </select>
+              <small className="form-help">Type of data source (currently supports Files only)</small>
+            </div>
+
+            <div className="form-group">
+              <label>File Path</label>
               <input
                 type="text"
                 className="form-control"
-                value={filePattern}
-                onChange={(e) => {
-                  setFilePattern(e.target.value);
-                  setValidationStatus(null);
-                  setMatchingFiles([]);
-                }}
-                placeholder="e.g., sales_*.csv or data_2024*.parquet"
+                value={filePath}
+                onChange={(e) => setFilePath(e.target.value)}
+                placeholder="e.g., /year/month/day/ or leave blank for root"
               />
               <small className="form-help">
-                Use * for multiple characters, ? for single character
+                Leave blank if file is in the main bucket. For files in subfolders, provide the path starting with /.<br/>
+                Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
               </small>
             </div>
 
-            <button 
-              className="btn btn-secondary"
-              onClick={validateFilePattern}
-              disabled={loadingFiles}
-            >
-              {loadingFiles ? 'Validating...' : 'Validate Pattern'}
-            </button>
-
-            {validationStatus === 'success' && matchingFiles.length > 0 && (
-              <div className="alert alert-success" style={{ marginTop: '1rem' }}>
-                ✓ Validation successful! Found {matchingFiles.length} matching file(s).
-              </div>
-            )}
-
-            {matchingFiles.length > 0 && (
-              <div className="matched-files">
-                <h4>Matched Files ({matchingFiles.length})</h4>
-                <ul>
-                  {matchingFiles.slice(0, 10).map((file, idx) => (
-                    <li key={idx}>
-                      {file.filename || file}
-                      {file.rowCount && ` (${file.rowCount} rows)`}
-                      {file.size && ` (${(file.size / 1024).toFixed(2)} KB)`}
-                      {file.source && ` [${file.source.toUpperCase()}]`}
-                    </li>
-                  ))}
-                  {matchingFiles.length > 10 && (
-                    <li className="more-files">...and {matchingFiles.length - 10} more</li>
-                  )}
-                </ul>
-              </div>
-            )}
+            <div className="form-group">
+              <label>File Name/Pattern *</label>
+              <input
+                type="text"
+                className="form-control"
+                value={fileNamePattern}
+                onChange={(e) => setFileNamePattern(e.target.value)}
+                placeholder="e.g., sales_data.csv or sales_*.csv"
+              />
+              <small className="form-help">
+                Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
+                Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
+                File existence will be validated during job execution.
+              </small>
+            </div>
           </div>
         )}
 

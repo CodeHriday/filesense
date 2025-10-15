@@ -89,6 +89,9 @@ router.post('/', async (req, res) => {
     const {
       mapping_name,
       source_connection_id,
+      source_type = 'files',
+      file_path = '',
+      file_name_pattern,
       source_file_pattern,
       target_connection_id,
       target_table_name,
@@ -97,10 +100,14 @@ router.post('/', async (req, res) => {
       status = 'draft'
     } = req.body;
     
+    const actualFilePattern = file_name_pattern || source_file_pattern;
+    
     systemLogger.info('Extracted fields', { 
       mapping_name, 
-      source_connection_id, 
-      source_file_pattern,
+      source_connection_id,
+      source_type,
+      file_path,
+      file_name_pattern: actualFilePattern,
       target_connection_id,
       target_table_name,
       field_mappings_count: field_mappings?.length,
@@ -108,10 +115,10 @@ router.post('/', async (req, res) => {
     });
     
     // Validation
-    if (!mapping_name || !source_connection_id || !source_file_pattern) {
+    if (!mapping_name || !source_connection_id || !actualFilePattern) {
       systemLogger.warn('Missing required fields');
       return res.status(400).json({ 
-        error: 'Missing required fields: mapping_name, source_connection_id, source_file_pattern' 
+        error: 'Missing required fields: mapping_name, source_connection_id, file_name_pattern' 
       });
     }
     
@@ -156,15 +163,15 @@ router.post('/', async (req, res) => {
     
     const result = await pool.query(`
       INSERT INTO transformation_mappings (
-        mapping_id, mapping_name, source_connection_id, source_file_pattern,
-        target_connection_id, target_table_name, field_mappings, anomaly_rules,
-        status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        mapping_id, mapping_name, source_connection_id, source_type, file_path,
+        file_name_pattern, source_file_pattern, target_connection_id, target_table_name, 
+        field_mappings, anomaly_rules, status, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `, [
-      mappingId, mapping_name, source_connection_id, source_file_pattern,
-      target_connection_id, target_table_name, JSON.stringify(field_mappings),
-      JSON.stringify(anomaly_rules), status, req.user?.id || null
+      mappingId, mapping_name, source_connection_id, source_type, file_path,
+      actualFilePattern, actualFilePattern, target_connection_id, target_table_name, 
+      JSON.stringify(field_mappings), JSON.stringify(anomaly_rules), status, req.user?.id || null
     ]);
     
     systemLogger.info('Transformation mapping created', { mappingId, mapping_name });
@@ -187,6 +194,9 @@ router.put('/:id', async (req, res) => {
     const {
       mapping_name,
       source_connection_id,
+      source_type,
+      file_path,
+      file_name_pattern,
       source_file_pattern,
       target_connection_id,
       target_table_name,
@@ -194,6 +204,8 @@ router.put('/:id', async (req, res) => {
       anomaly_rules,
       status
     } = req.body;
+    
+    const actualFilePattern = file_name_pattern || source_file_pattern;
     
     // Validate anomaly rules if provided
     if (anomaly_rules) {
@@ -248,9 +260,22 @@ router.put('/:id', async (req, res) => {
       values.push(source_connection_id);
       paramIndex++;
     }
-    if (source_file_pattern !== undefined) {
+    if (source_type !== undefined) {
+      updates.push(`source_type = $${paramIndex}`);
+      values.push(source_type);
+      paramIndex++;
+    }
+    if (file_path !== undefined) {
+      updates.push(`file_path = $${paramIndex}`);
+      values.push(file_path);
+      paramIndex++;
+    }
+    if (actualFilePattern !== undefined) {
+      updates.push(`file_name_pattern = $${paramIndex}`);
+      values.push(actualFilePattern);
+      paramIndex++;
       updates.push(`source_file_pattern = $${paramIndex}`);
-      values.push(source_file_pattern);
+      values.push(actualFilePattern);
       paramIndex++;
     }
     if (target_connection_id !== undefined) {
@@ -443,19 +468,23 @@ router.post('/validate-pattern', async (req, res) => {
  */
 router.post('/extract-schema', async (req, res) => {
   try {
-    const { source_connection_id, file_pattern } = req.body;
+    const { source_connection_id, source_type, file_path = '', file_name_pattern, file_pattern } = req.body;
     
     if (!source_connection_id) {
       return res.status(400).json({ error: 'Source connection is required' });
     }
     
-    if (!file_pattern) {
-      return res.status(400).json({ error: 'File pattern is required' });
+    const actualPattern = file_name_pattern || file_pattern;
+    if (!actualPattern) {
+      return res.status(400).json({ error: 'File name/pattern is required' });
     }
     
     const { extractSchemaFromCloud } = require('../services/schemaService');
     
-    const schema = await extractSchemaFromCloud(pool, source_connection_id, file_pattern);
+    // Build full file path pattern: file_path + file_name_pattern
+    const fullPattern = file_path ? `${file_path.replace(/^\//, '')}${actualPattern}` : actualPattern;
+    
+    const schema = await extractSchemaFromCloud(pool, source_connection_id, fullPattern);
     
     res.json({
       schema: schema,

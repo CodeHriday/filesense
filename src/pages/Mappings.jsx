@@ -236,7 +236,10 @@ function Mappings() {
                         <FiFilter className="detail-icon" />
                         <div>
                           <span className="detail-label">File Pattern</span>
-                          <span className="detail-value">{mapping.source_file_pattern}</span>
+                          <span className="detail-value">
+                            {mapping.file_path && mapping.file_path !== '' ? `${mapping.file_path}` : ''}
+                            {mapping.file_name_pattern || mapping.source_file_pattern}
+                          </span>
                         </div>
                       </div>
 
