@@ -69,14 +69,24 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
   }, [acceptedFileTypes, maxSizeMB]);
   
   // Helper to process file upload with progress tracking
-  const processFileUpload = useCallback((file) => {
+  const processFileUpload = useCallback((file, isMultiFile = false, updateFileStatus = null) => {
     setFileSize(formatFileSize(file.size));
     setFileName(file.name);
+    
+    // For multi-file, update individual file status to scanning
+    if (isMultiFile && updateFileStatus) {
+      updateFileStatus(file.name, 'scanning');
+    }
     
     // Create handlers for upload progress tracking
     const uploadProgressHandler = (progressEvent) => {
       const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
       setUploadProgress(percentCompleted);
+      
+      // For multi-file, update status to uploading when progress starts
+      if (isMultiFile && updateFileStatus && percentCompleted > 0) {
+        updateFileStatus(file.name, 'uploading', percentCompleted);
+      }
       
       // Track processing steps based on progress
       if (percentCompleted < 50) {
@@ -116,12 +126,19 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
     if (files.length > 0) {
       if (multiple) {
         // Handle multiple files
-        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending' })));
+        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
         setCompletedFiles([]);
         setUploadStatus('uploading');
         
         let successCount = 0;
         let errorCount = 0;
+        
+        // Helper to update individual file status
+        const updateFileStatus = (fileName, status, progress = 0) => {
+          setUploadingFiles(prev => prev.map(f => 
+            f.name === fileName ? { ...f, status, progress } : f
+          ));
+        };
         
         for (const file of files) {
           const error = validateFile(file);
@@ -133,14 +150,10 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
             continue;
           }
           
-          setUploadingFiles(prev => prev.map(f => 
-            f.name === file.name ? { ...f, status: 'uploading' } : f
-          ));
-          
           try {
-            await processFileUpload(file);
+            await processFileUpload(file, true, updateFileStatus);
             setUploadingFiles(prev => prev.map(f => 
-              f.name === file.name ? { ...f, status: 'success' } : f
+              f.name === file.name ? { ...f, status: 'success', progress: 100 } : f
             ));
             setCompletedFiles(prev => [...prev, file.name]);
             successCount++;
@@ -188,12 +201,19 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
     if (files.length > 0) {
       if (multiple) {
         // Handle multiple files
-        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending' })));
+        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
         setCompletedFiles([]);
         setUploadStatus('uploading');
         
         let successCount = 0;
         let errorCount = 0;
+        
+        // Helper to update individual file status
+        const updateFileStatus = (fileName, status, progress = 0) => {
+          setUploadingFiles(prev => prev.map(f => 
+            f.name === fileName ? { ...f, status, progress } : f
+          ));
+        };
         
         for (const file of files) {
           const error = validateFile(file);
@@ -205,14 +225,10 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
             continue;
           }
           
-          setUploadingFiles(prev => prev.map(f => 
-            f.name === file.name ? { ...f, status: 'uploading' } : f
-          ));
-          
           try {
-            await processFileUpload(file);
+            await processFileUpload(file, true, updateFileStatus);
             setUploadingFiles(prev => prev.map(f => 
-              f.name === file.name ? { ...f, status: 'success' } : f
+              f.name === file.name ? { ...f, status: 'success', progress: 100 } : f
             ));
             setCompletedFiles(prev => [...prev, file.name]);
             successCount++;
@@ -392,23 +408,49 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
           <div className="upload-progress">
             {multiple && uploadingFiles.length > 0 ? (
               <div>
-                <p>Uploading {uploadingFiles.length} file(s)...</p>
+                <p>Processing {uploadingFiles.length} file(s)...</p>
                 <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
                   {uploadingFiles.map((file, idx) => (
                     <div key={idx} style={{ 
                       display: 'flex', 
                       justifyContent: 'space-between', 
+                      alignItems: 'center',
                       padding: '0.5rem', 
                       borderBottom: '1px solid #eee' 
                     }}>
-                      <span>{file.name}</span>
-                      <span style={{ 
-                        color: file.status === 'success' ? 'green' : 
-                               file.status === 'error' ? 'red' : 
-                               file.status === 'uploading' ? 'blue' : 'gray' 
-                      }}>
-                        {file.status}
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {file.name}
                       </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '120px', justifyContent: 'flex-end' }}>
+                        {file.status === 'scanning' && (
+                          <>
+                            <FiLoader className="scanning-icon" style={{ fontSize: '1rem', animation: 'spin 1s linear infinite' }} />
+                            <span style={{ color: '#0066cc', fontSize: '0.85rem' }}>Scanning...</span>
+                          </>
+                        )}
+                        {file.status === 'uploading' && (
+                          <>
+                            <span style={{ color: '#0066cc', fontSize: '0.85rem' }}>
+                              {file.progress > 0 ? `${file.progress}%` : 'Uploading...'}
+                            </span>
+                          </>
+                        )}
+                        {file.status === 'success' && (
+                          <>
+                            <FiCheckCircle style={{ color: 'green' }} />
+                            <span style={{ color: 'green', fontSize: '0.85rem' }}>Complete</span>
+                          </>
+                        )}
+                        {file.status === 'error' && (
+                          <>
+                            <FiAlertCircle style={{ color: 'red' }} />
+                            <span style={{ color: 'red', fontSize: '0.85rem' }}>Failed</span>
+                          </>
+                        )}
+                        {file.status === 'pending' && (
+                          <span style={{ color: 'gray', fontSize: '0.85rem' }}>Waiting...</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
