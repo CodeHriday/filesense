@@ -118,10 +118,9 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
 const authenticateToken = async (req, res, next) => {
   console.log('==== authenticateToken middleware called ====');
   
-  // Skip auth for Business Process Management routes, but set a default user
+  // Skip auth for Business Process Management routes only, but set a default user
   if (req.path.match(/^\/api\/groups/) || 
-      req.path.match(/^\/api\/business-processes/) || 
-      req.path.match(/^\/api\/jobs/)) {
+      req.path.match(/^\/api\/business-processes/)) {
     console.log('Skipping auth for BPM route:', req.path);
     // Set a default admin user to prevent 'undefined' errors
     req.user = { 
@@ -1604,6 +1603,14 @@ app.use('/api/dbt', authenticateToken, dbtRoutes);
 // Drop location routes (admin only)
 const dropLocationRoutes = require('./backend/routes/dropLocation');
 app.use('/api/drop-location', authenticateToken, dropLocationRoutes);
+
+// Transformation routes
+const transformationRoutes = require('./backend/routes/transformations');
+app.use('/api/transformations', authenticateToken, transformationRoutes);
+
+// Job routes
+const jobRoutes = require('./backend/routes/jobs');
+app.use('/api/jobs', authenticateToken, jobRoutes);
 
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
