@@ -164,7 +164,7 @@ router.get('/:id/logs', async (req, res) => {
       params.push(level);
     }
     
-    query += ' ORDER BY created_at ASC LIMIT $' + (params.length + 1);
+    query += ' ORDER BY timestamp ASC LIMIT $' + (params.length + 1);
     params.push(limit);
     
     const result = await pool.query(query, params);
