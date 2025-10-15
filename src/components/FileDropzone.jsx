@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import './FileDropzone.css';
 
@@ -134,9 +135,19 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         
         // Helper to update individual file status
         const updateFileStatus = (fileName, status, progress = 0) => {
-          setUploadingFiles(prev => prev.map(f => 
-            f.name === fileName ? { ...f, status, progress } : f
-          ));
+          // Use flushSync for 'scanning' status to force immediate render
+          // This ensures users see the scanning indicator during the 15-18s virus scan
+          if (status === 'scanning') {
+            flushSync(() => {
+              setUploadingFiles(prev => prev.map(f => 
+                f.name === fileName ? { ...f, status, progress } : f
+              ));
+            });
+          } else {
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === fileName ? { ...f, status, progress } : f
+            ));
+          }
         };
         
         for (const file of files) {
@@ -209,9 +220,19 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         
         // Helper to update individual file status
         const updateFileStatus = (fileName, status, progress = 0) => {
-          setUploadingFiles(prev => prev.map(f => 
-            f.name === fileName ? { ...f, status, progress } : f
-          ));
+          // Use flushSync for 'scanning' status to force immediate render
+          // This ensures users see the scanning indicator during the 15-18s virus scan
+          if (status === 'scanning') {
+            flushSync(() => {
+              setUploadingFiles(prev => prev.map(f => 
+                f.name === fileName ? { ...f, status, progress } : f
+              ));
+            });
+          } else {
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === fileName ? { ...f, status, progress } : f
+            ));
+          }
         };
         
         for (const file of files) {
