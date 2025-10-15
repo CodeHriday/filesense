@@ -1,572 +1,333 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FiPlus, FiEdit, FiTrash, FiPlay, FiClock, FiCheck, FiX } from 'react-icons/fi';
-import { getJobs, createJob, updateJob, deleteJob, startJob } from '../api/jobsService';
-import { getBusinessProcesses } from '../api/businessProcessesService';
-import Modal from '../components/Modal';
-import Button from '../components/common/Button';
+import { FiEye, FiX, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
+import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import LoadingSpinner from '../components/LoadingSpinner';
-import PageHeader from '../components/PageHeader';
+import { formatDate } from '../utils/formatters';
 import '../styles/Jobs.css';
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
-  const [businessProcesses, setBusinessProcesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [currentJob, setCurrentJob] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    business_process_id: '',
-    status: 'active',
-    source_connection_id: null,
-    target_connection_id: null,
-    validation_settings: {},
-    error_handling_settings: {},
-    notification_settings: {},
-    schedule_settings: {}
-  });
+  const [jobDetailsModalOpen, setJobDetailsModalOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [jobLogs, setJobLogs] = useState([]);
+  const [loadingJobDetails, setLoadingJobDetails] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchJobs();
+    // Refresh jobs every 10 seconds
+    const interval = setInterval(fetchJobs, 10000);
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchJobs = async () => {
     try {
-      console.log('========== FETCHING JOBS DATA ==========');
-      
-      // Fetch jobs
-      console.log('Fetching jobs list...');
-      const jobsResponse = await getJobs();
-      console.log('Jobs API response:', jobsResponse);
-      
-      if (jobsResponse.success) {
-        console.log('Setting jobs data:', jobsResponse.data);
-        setJobs(jobsResponse.data || []);
-      } else {
-        console.error('Failed to fetch jobs:', jobsResponse.message);
-        setError(jobsResponse.message || 'Failed to fetch jobs');
-      }
-      
-      // Fetch business processes for dropdown
-      console.log('Fetching business processes...');
-      const processesResponse = await getBusinessProcesses();
-      console.log('Business processes API response:', processesResponse);
-      
-      if (processesResponse.success) {
-        console.log('Setting business processes data:', processesResponse.data);
-        setBusinessProcesses(processesResponse.data || []);
-      } else {
-        console.error('Failed to fetch business processes:', processesResponse.message);
-      }
+      const response = await axios.get(`${API_BASE_URL}/api/jobs?limit=100`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setJobs(response.data?.jobs || []);
+      setError(null);
     } catch (err) {
-      setError('An error occurred while fetching data');
-      console.error('Exception in fetchData:', err);
+      console.error('Error fetching jobs:', err);
+      setError(err.response?.data?.error || 'Failed to load jobs');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenModal = async (job = null) => {
-    console.log("Opening modal for job:", job);
-    console.log("Available business processes:", businessProcesses);
-    
-    // If no business processes, try to create a default one
-    if (businessProcesses.length === 0) {
-      console.log("No business processes available, attempting to create default");
-      const success = await ensureBusinessProcessExists();
-      if (!success) {
-        setError("Couldn't create a business process. Please create one manually before creating jobs.");
-        return;
-      }
-    }
-    
-    if (job) {
-      setCurrentJob(job);
-      setFormData({
-        name: job.name,
-        description: job.description || '',
-        business_process_id: job.business_process_id,
-        status: job.status || 'active',
-        source_connection_id: job.source_connection_id || null,
-        target_connection_id: job.target_connection_id || null,
-        validation_settings: job.validation_settings || {},
-        error_handling_settings: job.error_handling_settings || {},
-        notification_settings: job.notification_settings || {},
-        schedule_settings: job.schedule_settings || {}
-      });
-    } else {
-      setCurrentJob(null);
-      // Set default business_process_id to first available process if exists
-      setFormData({
-        name: '',
-        description: '',
-        business_process_id: businessProcesses.length > 0 ? businessProcesses[0].id : '',
-        status: 'active',
-        source_connection_id: null,
-        target_connection_id: null,
-        validation_settings: {},
-        error_handling_settings: {},
-        notification_settings: {},
-        schedule_settings: {}
-      });
-    }
-    
-    setShowModal(true);
-    console.log("Modal opened with form data:", formData);
-  };
+  const handleViewJob = async (jobId) => {
+    setLoadingJobDetails(true);
+    setJobDetailsModalOpen(true);
+    setSelectedJob(null);
+    setJobLogs([]);
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setCurrentJob(null);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("==================== JOB FORM SUBMISSION ====================");
-    console.log("Form submitted with data:", formData);
-    
-    if (!formData.name.trim()) {
-      setError('Job name is required');
-      console.error("Validation error: Job name is required");
-      return;
-    }
-    
-    if (!formData.business_process_id) {
-      setError('Business process is required');
-      console.error("Validation error: Business process is required");
-      return;
-    }
-    
     try {
-      let response;
-      
-      // Ensure business_process_id is an integer (not UUID)
-      const jobData = {
-        ...formData,
-        business_process_id: parseInt(formData.business_process_id, 10),
-        // Set created_by field (this is required by the server)
-        created_by: 2,  // Using the admin user ID
-        // Add default values for required fields
-        status: formData.status || 'active',
-        validation_settings: formData.validation_settings || {},
-        error_handling_settings: formData.error_handling_settings || {},
-        notification_settings: formData.notification_settings || {},
-        schedule_settings: formData.schedule_settings || {}
-      };
-      
-      console.log("Sending job data to API:", JSON.stringify(jobData, null, 2));
-      console.log("Business process ID:", jobData.business_process_id, "Type:", typeof jobData.business_process_id);
-      
-      if (currentJob) {
-        // Update existing job
-        console.log(`Updating job with ID: ${currentJob.id}`);
-        response = await updateJob(currentJob.id, jobData);
-      } else {
-        // Create new job
-        console.log('Creating new job via createJob API call');
-        response = await createJob(jobData);
-      }
-      
-      console.log("API response:", response);
-      
-      if (response && response.success) {
-        console.log("Job saved successfully!");
-        fetchData();
-        handleCloseModal();
-      } else {
-        console.error("Failed to save job. Response:", response);
-        if (response && response.status === 401) {
-          console.error("Authentication error - token may be invalid or expired");
-          setError('Authentication error. Please refresh the page and try again.');
-        } else {
-          setError((response && response.message) || 'Failed to save job');
-        }
-      }
-    } catch (err) {
-      console.error("Caught exception while saving job:", err);
-      console.error("Error details:", err.stack || 'No stack trace available');
-      setError('An error occurred while saving the job');
-    }
-    console.log("==================== END JOB FORM SUBMISSION ====================");
-  };
+      const [jobRes, logsRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/jobs/${jobId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }),
+        axios.get(`${API_BASE_URL}/api/jobs/${jobId}/logs`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        })
+      ]);
 
-  const handleDeleteJob = async (jobId) => {
-    if (window.confirm('Are you sure you want to delete this job?')) {
-      try {
-        const response = await deleteJob(jobId);
-        
-        if (response.success) {
-          fetchData();
-        } else {
-          setError(response.message || 'Failed to delete job');
-        }
-      } catch (err) {
-        setError('An error occurred while deleting the job');
-        console.error(err);
-      }
-    }
-  };
-
-  const handleRunJob = async (jobId) => {
-    try {
-      setLoading(true);
-      const response = await startJob(jobId);
-      
-      if (response.success) {
-        // Show success message
-        alert('Job started successfully');
-        // Refresh job data after a short delay
-        setTimeout(() => {
-          fetchData();
-        }, 1000);
-      } else {
-        setError(response.message || 'Failed to run job');
-      }
+      setSelectedJob(jobRes.data);
+      setJobLogs(logsRes.data?.logs || []);
     } catch (err) {
-      setError('An error occurred while running the job');
-      console.error(err);
+      console.error('Error fetching job details:', err);
+      setError('Failed to load job details');
     } finally {
-      setLoading(false);
+      setLoadingJobDetails(false);
     }
   };
 
-  // Helper to get business process name from ID
-  const getProcessName = (processId) => {
-    // Ensure processId is treated as a number for comparison
-    const numericId = typeof processId === 'string' ? parseInt(processId, 10) : processId;
-    console.log("Looking for process with ID:", numericId, "Type:", typeof numericId);
-    console.log("Available processes:", businessProcesses);
-    
-    const process = businessProcesses.find(p => p.id === numericId);
-    return process ? process.name : 'Unknown Process';
-  };
+  const handleCancelJob = async (jobId) => {
+    if (!window.confirm('Are you sure you want to cancel this job?')) return;
 
-  // Format last run time
-  const formatLastRunTime = (timestamp) => {
-    if (!timestamp) return 'Never';
-    
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
-  
-  // Create business process as needed
-  const ensureBusinessProcessExists = async () => {
     try {
-      console.log("Checking if we need to create a default business process");
-      // If no business processes exist, create a default one
-      if (businessProcesses.length === 0) {
-        console.log("No business processes found, creating a default process");
-        
-        // First, get the default group ID
-        const { API_BASE_URL } = await import('../config');
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-          console.error("No token available for creating business process");
-          setError("Authentication required to create business process");
-          return false;
-        }
-        
-        // The server will now handle finding/creating the default group
-        console.log("Creating default business process without specific group_id");
-        
-        const defaultProcess = {
-          name: "Default Process",
-          description: "Automatically created default business process",
-          created_by: 2, // Admin user ID
-          status: "active"
-        };
-        
-        console.log("Sending API request to create business process with data:", defaultProcess);
-        const response = await fetch(`${API_BASE_URL}/api/business-processes`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(defaultProcess)
-        });
-        
-        if (!response.ok) {
-          console.error("Failed to create default business process", response.status);
-          const text = await response.text();
-          console.error("Error response:", text);
-          
-          // If we're still having issues, try to diagnose them
-          if (response.status === 500) {
-            try {
-              // Try to get more detailed error info from the server
-              const serverError = JSON.parse(text);
-              if (serverError.details) {
-                console.error("Server error details:", serverError.details);
-                setError(`Failed to create business process: ${serverError.details}`);
-              } else {
-                setError("Server error creating business process. Check console for details.");
-              }
-            } catch (e) {
-              setError("Failed to create default business process");
-            }
-          } else {
-            setError("Failed to create default business process");
-          }
-          return false;
-        }
-        
-        const result = await response.json();
-        console.log("Created default business process:", result);
-        
-        // Update business processes state with the new process
-        setBusinessProcesses([result]);
-        return true;
-      }
-      
-      return true; // Business processes already exist
+      await axios.post(`${API_BASE_URL}/api/jobs/${jobId}/cancel`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchJobs();
     } catch (err) {
-      console.error("Error ensuring business process exists:", err);
-      setError(`Failed to create business process: ${err.message}`);
-      return false;
+      console.error('Error cancelling job:', err);
+      alert(err.response?.data?.error || 'Failed to cancel job');
     }
   };
+
+  const closeJobDetailsModal = () => {
+    setJobDetailsModalOpen(false);
+    setSelectedJob(null);
+    setJobLogs([]);
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      pending: { icon: FiClock, color: '#64748b', bg: '#f1f5f9', text: 'Pending' },
+      running: { icon: FiRefreshCw, color: '#3b82f6', bg: '#dbeafe', text: 'Running' },
+      completed: { icon: FiCheckCircle, color: '#10b981', bg: '#d1fae5', text: 'Completed' },
+      failed: { icon: FiXCircle, color: '#ef4444', bg: '#fee2e2', text: 'Failed' },
+      cancelled: { icon: FiAlertCircle, color: '#f59e0b', bg: '#fef3c7', text: 'Cancelled' }
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <span 
+        style={{ 
+          display: 'inline-flex', 
+          alignItems: 'center', 
+          gap: '0.35rem',
+          padding: '0.25rem 0.75rem',
+          borderRadius: '12px',
+          fontSize: '0.8rem',
+          fontWeight: '500',
+          color: config.color,
+          backgroundColor: config.bg
+        }}
+      >
+        <Icon size={12} />
+        {config.text}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
-    <div className="jobs-container">
-      <PageHeader
-        title="Jobs"
-        icon={<FiPlay />}
-        description="Create and manage jobs for your business processes"
-      />
-      
-      <div className="jobs-actions">
-        <Button 
-          primary 
-          onClick={async () => {
-            console.log("Create Job button clicked!");
-            console.log("Business processes available:", businessProcesses.length);
-            await handleOpenModal();
-          }} 
-          icon={<FiPlus />}
-        >
-          Create Job
-        </Button>
+    <div className="page-container">
+      <div className="page-header">
+        <div className="header-content">
+          <h1>Transformation Jobs</h1>
+          <p style={{ color: 'white' }}>Monitor and manage ETL transformation job executions</p>
+        </div>
+        <div className="header-actions">
+          <button 
+            className="btn btn-secondary"
+            onClick={fetchJobs}
+            title="Refresh jobs"
+          >
+            <FiRefreshCw /> Refresh
+          </button>
+        </div>
       </div>
-      
-      {error && <div className="alert alert-error">{error}</div>}
-      
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="jobs-list">
-          {jobs.length === 0 ? (
-            <div className="empty-state">
-              <FiPlay size={48} />
-              <h3>No Jobs Found</h3>
-              <p>Create your first job to start processing data</p>
-              {businessProcesses.length === 0 ? (
-                <div>
-                  <div className="alert alert-info">
-                    Click the Create Job button to set up your first job. A default business process will be created automatically.
-                  </div>
-                  <Button primary onClick={async () => {
-                    console.log("Empty state Create Job button clicked (no process)!");
-                    await handleOpenModal();
-                  }}>Create Job with Default Process</Button>
-                </div>
-              ) : (
-                <Button primary onClick={async () => {
-                  console.log("Empty state Create Job button clicked!");
-                  console.log("Business processes available:", businessProcesses.length);
-                  await handleOpenModal();
-                }}>Create Job</Button>
-              )}
-            </div>
-          ) : (
-            <div className="jobs-table-container">
-              <table className="jobs-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Business Process</th>
-                    <th>Status</th>
-                    <th>Last Run</th>
-                    <th>Run Count</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobs.map((job) => (
-                    <tr key={job.id}>
-                      <td>
-                        <Link to={`/jobs/${job.id}`} className="job-name-link">
-                          {job.name}
-                        </Link>
-                        {job.description && (
-                          <div className="job-description">{job.description}</div>
-                        )}
-                      </td>
-                      <td>{getProcessName(job.business_process_id)}</td>
-                      <td>
-                        <span className={`status-badge status-${job.status || 'active'}`}>
-                          {job.status || 'Active'}
-                        </span>
-                      </td>
-                      <td>{formatLastRunTime(job.last_run_time)}</td>
-                      <td>{job.run_count || 0}</td>
-                      <td>
-                        <div className="table-actions">
-                          <button
-                            className="icon-button"
-                            onClick={() => handleRunJob(job.id)}
-                            title="Run Job"
-                            disabled={job.status === 'inactive'}
-                          >
-                            <FiPlay />
-                          </button>
-                          <button
-                            className="icon-button"
-                            onClick={() => handleOpenModal(job)}
-                            title="Edit Job"
-                          >
-                            <FiEdit />
-                          </button>
-                          <button
-                            className="icon-button"
-                            onClick={() => handleDeleteJob(job.id)}
-                            title="Delete Job"
-                          >
-                            <FiTrash />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+
+      {error && (
+        <div className="error-message" style={{ margin: '1rem' }}>
+          <FiAlertCircle /> {error}
         </div>
       )}
-      
-      {showModal && (
-        <Modal
-          title={currentJob ? `Edit Job: ${currentJob.name}` : 'Create New Job'}
-          onClose={handleCloseModal}
-        >
-          <form 
-            onSubmit={(e) => {
-              console.log("********** FORM SUBMIT EVENT CAPTURED **********");
-              console.log("Form event:", e);
-              e.preventDefault(); // Add explicit preventDefault
-              console.log("Form data state:", formData);
-              console.log("Business processes:", businessProcesses);
-              handleSubmit(e);
-            }} 
-            className="job-form"
-          >
-            <div className="form-group">
-              <label htmlFor="name">Job Name*</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                placeholder="Enter job name"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="description">Description</label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-                placeholder="Enter job description (optional)"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="business_process_id">Business Process*</label>
-              <select
-                id="business_process_id"
-                name="business_process_id"
-                value={formData.business_process_id}
-                onChange={(e) => {
-                  console.log("Selected process ID:", e.target.value);
-                  handleInputChange(e);
-                }}
-                required
-              >
-                <option value="">Select a business process</option>
-                {businessProcesses.map((process) => (
-                  <option key={process.id} value={process.id}>
-                    {process.name}
-                  </option>
+
+      <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+        {jobs.length === 0 ? (
+          <div className="empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
+            <FiClock size={48} style={{ color: '#94a3b8', marginBottom: '1rem' }} />
+            <h3>No jobs yet</h3>
+            <p>Job executions will appear here when mappings are executed</p>
+          </div>
+        ) : (
+          <div className="jobs-table-container">
+            <table className="jobs-table">
+              <thead>
+                <tr>
+                  <th>Job ID</th>
+                  <th>Mapping</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'center' }}>Files Processed</th>
+                  <th>Rows</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Duration</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map(job => (
+                  <tr key={job.job_id}>
+                    <td className="job-id-cell">
+                      <code style={{ fontSize: '0.8em' }}>{job.job_id}</code>
+                    </td>
+                    <td>{job.mapping_name}</td>
+                    <td>{getStatusBadge(job.status)}</td>
+                    <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
+                    <td>
+                      {job.rows_read ? (
+                        <span style={{ fontSize: '0.9em' }}>
+                          {job.rows_read.toLocaleString()}
+                          {job.rows_written && ` → ${job.rows_written.toLocaleString()}`}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td style={{ fontSize: '0.9em' }}>
+                      {job.start_time ? formatDate(job.start_time) : '-'}
+                    </td>
+                    <td style={{ fontSize: '0.9em' }}>
+                      {job.end_time ? formatDate(job.end_time) : '-'}
+                    </td>
+                    <td>
+                      {job.duration_ms ? `${(job.duration_ms / 1000).toFixed(2)}s` : '-'}
+                    </td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="icon-btn"
+                          onClick={() => handleViewJob(job.job_id)}
+                          title="View job details"
+                        >
+                          <FiEye />
+                        </button>
+                        {job.status === 'running' && (
+                          <button
+                            className="icon-btn danger"
+                            onClick={() => handleCancelJob(job.job_id)}
+                            title="Cancel job"
+                          >
+                            <FiX />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </select>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Job Details Modal */}
+      {jobDetailsModalOpen && (
+        <div className="modal-overlay" onClick={closeJobDetailsModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+            <div className="modal-header">
+              <h2>Job Details</h2>
+              <button className="modal-close" onClick={closeJobDetailsModal}>
+                <FiX />
+              </button>
             </div>
             
-            {currentJob && (
-              <div className="form-group">
-                <label htmlFor="status">Status</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-            )}
-            
-            {/* In a full implementation, we would add fields for:
-                - Source and target connections
-                - Validation settings
-                - Error handling
-                - Notifications
-                - Schedule settings
-            */}
-            
-            <div className="form-actions">
-              <Button secondary onClick={handleCloseModal}>Cancel</Button>
-              <Button 
-                primary 
-                type="button" 
-                onClick={(e) => {
-                  console.log("Manual submit button clicked");
-                  if (!formData.name || !formData.business_process_id) {
-                    console.error("Form validation failed - missing required fields");
-                    setError("Please fill in all required fields");
-                    return;
-                  }
-                  
-                  console.log("Manual form submission with data:", formData);
-                  // Call handleSubmit with a mock event
-                  handleSubmit({
-                    preventDefault: () => console.log("Mock preventDefault called")
-                  });
-                }}
-              >
-                {currentJob ? 'Update Job' : 'Create Job'}
-              </Button>
+            <div className="modal-body">
+              {loadingJobDetails ? (
+                <div style={{ padding: '2rem', textAlign: 'center' }}>
+                  <LoadingSpinner />
+                </div>
+              ) : selectedJob ? (
+                <div>
+                  <div className="job-details-grid" style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: '1rem', 
+                    marginBottom: '2rem',
+                    padding: '1rem',
+                    background: '#f8fafc',
+                    borderRadius: '8px'
+                  }}>
+                    <div>
+                      <strong>Job ID:</strong>
+                      <div><code>{selectedJob.job_id}</code></div>
+                    </div>
+                    <div>
+                      <strong>Mapping:</strong>
+                      <div>{selectedJob.mapping_name}</div>
+                    </div>
+                    <div>
+                      <strong>Status:</strong>
+                      <div>{getStatusBadge(selectedJob.status)}</div>
+                    </div>
+                    <div>
+                      <strong>Files Processed:</strong>
+                      <div>{selectedJob.files_processed || 0}</div>
+                    </div>
+                    <div>
+                      <strong>Rows Read:</strong>
+                      <div>{selectedJob.rows_read?.toLocaleString() || 0}</div>
+                    </div>
+                    <div>
+                      <strong>Rows Written:</strong>
+                      <div>{selectedJob.rows_written?.toLocaleString() || 0}</div>
+                    </div>
+                    <div>
+                      <strong>Start Time:</strong>
+                      <div>{selectedJob.start_time ? formatDate(selectedJob.start_time) : '-'}</div>
+                    </div>
+                    <div>
+                      <strong>End Time:</strong>
+                      <div>{selectedJob.end_time ? formatDate(selectedJob.end_time) : '-'}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 style={{ marginBottom: '1rem' }}>Execution Logs</h3>
+                    <div style={{ 
+                      maxHeight: '400px', 
+                      overflowY: 'auto', 
+                      background: '#1e293b', 
+                      padding: '1rem', 
+                      borderRadius: '8px',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem'
+                    }}>
+                      {jobLogs.length === 0 ? (
+                        <div style={{ color: '#94a3b8' }}>No logs available</div>
+                      ) : (
+                        jobLogs.map((log, index) => (
+                          <div 
+                            key={index} 
+                            style={{ 
+                              marginBottom: '0.5rem',
+                              color: log.log_level === 'error' ? '#fca5a5' : 
+                                     log.log_level === 'warn' ? '#fcd34d' : 
+                                     log.log_level === 'info' ? '#93c5fd' : '#e2e8f0'
+                            }}
+                          >
+                            <span style={{ color: '#64748b' }}>
+                              [{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ''}]
+                            </span>{' '}
+                            <span style={{ color: '#94a3b8', textTransform: 'uppercase' }}>
+                              [{log.log_level}]
+                            </span>{' '}
+                            {log.message}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>No job details available</div>
+              )}
             </div>
-          </form>
-        </Modal>
+          </div>
+        </div>
       )}
     </div>
   );
