@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ConfirmModal from '../components/ConfirmModal';
 import { PageTransition } from '../components/MicroAnimations';
 import '../components/styles/PageActions.css';
 import axios from 'axios';
@@ -12,6 +13,8 @@ const MappingGroups = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [executing, setExecuting] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedGroupForDelete, setSelectedGroupForDelete] = useState(null);
 
   useEffect(() => {
     fetchMappingGroups();
@@ -46,14 +49,19 @@ const MappingGroups = () => {
     }
   };
 
-  const handleDelete = async (groupId) => {
-    if (!window.confirm('Are you sure you want to delete this mapping group?')) {
-      return;
-    }
+  const handleDelete = (groupId, groupName) => {
+    setSelectedGroupForDelete({ id: groupId, name: groupName });
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedGroupForDelete) return;
 
     try {
-      await axios.delete(`/api/mapping-groups/${groupId}`);
-      setGroups(groups.filter(g => g.group_id !== groupId));
+      await axios.delete(`/api/mapping-groups/${selectedGroupForDelete.id}`);
+      setGroups(groups.filter(g => g.group_id !== selectedGroupForDelete.id));
+      setIsDeleteModalOpen(false);
+      setSelectedGroupForDelete(null);
     } catch (err) {
       console.error('Error deleting mapping group:', err);
       alert('Failed to delete mapping group');
@@ -131,7 +139,7 @@ const MappingGroups = () => {
                           <FiEdit2 />
                         </Link>
                         <button
-                          onClick={() => handleDelete(group.id || group.group_id)}
+                          onClick={() => handleDelete(group.id || group.group_id, group.name || group.group_name)}
                           className="icon-btn icon-btn-danger"
                           title="Delete"
                         >
@@ -145,6 +153,17 @@ const MappingGroups = () => {
             </table>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setSelectedGroupForDelete(null);
+          }}
+          onConfirm={confirmDelete}
+          title="Delete Mapping Group"
+          message={`Are you sure you want to delete "${selectedGroupForDelete?.name}"? This action cannot be undone.`}
+        />
       </div>
     </PageTransition>
   );
