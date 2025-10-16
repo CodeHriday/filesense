@@ -549,6 +549,11 @@ function applyTransformationChain(value, transformations) {
  * @returns {Object} - Transformed row
  */
 function transformRow(row, fieldMappings) {
+  // If no field mappings provided, pass through original row
+  if (!fieldMappings || fieldMappings.length === 0) {
+    return row;
+  }
+  
   const transformedRow = {};
   
   for (const mapping of fieldMappings) {

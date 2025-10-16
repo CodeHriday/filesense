@@ -461,6 +461,11 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     const fileExtension = file.filename.split('.').pop().toLowerCase();
     
     // Step 3: Parse file and apply transformations
+    await logJobExecution(pool, jobId, 'info', `Parsing and transforming ${fileExtension.toUpperCase()} file`, {
+      filename: file.filename,
+      field_mappings_count: mapping.field_mappings?.length || 0
+    });
+    
     if (fileExtension === 'csv') {
       const parseResult = await parseAndTransformCSV(
         fileBuffer, 
@@ -472,6 +477,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rowsWritten = parseResult.rowsWritten;
       rowsFailed = parseResult.rowsFailed;
       transformedRows.push(...parseResult.transformedRows);
+      
+      await logJobExecution(pool, jobId, 'info', `Transformation complete`, {
+        rows_read: rowsRead,
+        rows_transformed: transformedRows.length,
+        rows_failed: rowsFailed
+      });
       
     } else if (fileExtension === 'json') {
       const parseResult = await parseAndTransformJSON(
@@ -541,6 +552,7 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
     let rowsRead = 0;
     let rowsWritten = 0;
     let rowsFailed = 0;
+    let firstRow = null;
     
     const stream = Readable.from(buffer);
     
@@ -548,19 +560,46 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
       .pipe(csv())
       .on('data', (row) => {
         rowsRead++;
+        
+        // Log first row for debugging (only column names, not data)
+        if (rowsRead === 1) {
+          firstRow = row;
+          systemLogger.info('CSV first row columns:', { 
+            columns: Object.keys(row),
+            fieldMappingsCount: fieldMappings?.length || 0
+          });
+        }
+        
         try {
           const transformedRow = transformRow(row, fieldMappings);
+          
+          // Check if transformedRow has any data
+          if (Object.keys(transformedRow).length === 0) {
+            systemLogger.warn('Transformed row is empty', {
+              rowNumber: rowsRead,
+              columnCount: Object.keys(row).length
+            });
+          }
+          
           transformedRows.push(transformedRow);
           rowsWritten++;
         } catch (error) {
           rowsFailed++;
           systemLogger.error('Row transformation error', { 
             row: rowsRead, 
-            error: error.message 
+            error: error.message
           });
         }
       })
       .on('end', () => {
+        systemLogger.info('CSV parsing complete', {
+          rowsRead,
+          rowsWritten,
+          rowsFailed,
+          transformedRowsCount: transformedRows.length,
+          hasData: transformedRows.length > 0
+        });
+        
         resolve({ 
           transformedRows, 
           rowsRead, 
