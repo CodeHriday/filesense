@@ -38,9 +38,9 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
     // 2. Fetch all member mappings
     const membersQuery = await pool.query(`
       SELECT mgm.*, tm.name, tm.source_connection_id, tm.target_connection_id, 
-             tm.file_pattern, tm.field_mappings
+             tm.file_pattern, tm.field_mappings, tm.mapping_id as tm_mapping_id
       FROM mapping_group_members mgm
-      JOIN transformation_mappings tm ON mgm.mapping_id = tm.id
+      JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
       WHERE mgm.group_id = $1
       ORDER BY mgm.execution_order ASC, mgm.id ASC
     `, [groupId]);
