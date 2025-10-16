@@ -1612,6 +1612,18 @@ app.use('/api/transformations', authenticateToken, transformationRoutes);
 const jobRoutes = require('./backend/routes/jobs');
 app.use('/api/jobs', authenticateToken, jobRoutes);
 
+// Mapping Groups routes
+const mappingGroupsRoutes = require('./backend/routes/mappingGroups');
+app.use('/api/mapping-groups', authenticateToken, mappingGroupsRoutes);
+
+// Workflow Steps routes
+const workflowStepsRoutes = require('./backend/routes/workflowSteps');
+app.use('/api/workflow-steps', authenticateToken, workflowStepsRoutes);
+
+// Scheduler routes
+const schedulerRoutes = require('./backend/routes/scheduler');
+app.use('/api/scheduler', authenticateToken, schedulerRoutes);
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
