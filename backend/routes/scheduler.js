@@ -80,8 +80,14 @@ router.post('/', async (req, res) => {
       interval_value,
       interval_unit,
       timezone,
-      created_by
+      created_by,
+      is_active
     });
+    
+    // Map is_active to enabled in response
+    if (result.schedule && result.schedule.is_active !== undefined) {
+      result.schedule.enabled = result.schedule.is_active;
+    }
     
     res.status(201).json(result);
   } catch (error) {
