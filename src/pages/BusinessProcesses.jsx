@@ -97,7 +97,7 @@ const BusinessProcesses = () => {
       if (processesResponse.success) {
         setProcesses(processesResponse.data || []);
       } else {
-        setError(processesResponse.message || 'Failed to fetch business processes');
+        setError(processesResponse.message || 'Failed to fetch workflows');
       }
       
       // Fetch user groups for dropdown
@@ -173,26 +173,26 @@ const BusinessProcesses = () => {
         fetchData();
         handleCloseModal();
       } else {
-        setError(response.message || 'Failed to save business process');
+        setError(response.message || 'Failed to save workflow');
       }
     } catch (err) {
-      setError('An error occurred while saving the business process');
+      setError('An error occurred while saving the workflow');
       console.error(err);
     }
   };
 
   const handleDeleteProcess = async (processId) => {
-    if (window.confirm('Are you sure you want to delete this business process? All associated jobs will also be deleted.')) {
+    if (window.confirm('Are you sure you want to delete this workflow? All associated jobs will also be deleted.')) {
       try {
         const response = await deleteBusinessProcess(processId);
         
         if (response.success) {
           fetchData();
         } else {
-          setError(response.message || 'Failed to delete business process');
+          setError(response.message || 'Failed to delete workflow');
         }
       } catch (err) {
-        setError('An error occurred while deleting the business process');
+        setError('An error occurred while deleting the workflow');
         console.error(err);
       }
     }
@@ -207,9 +207,9 @@ const BusinessProcesses = () => {
   return (
     <div className="business-processes-container">
       <PageHeader
-        title="Business Processes"
+        title="Workflows"
         icon={<FiBriefcase />}
-        description="Create and manage business processes to organize your data workflows"
+        description="Create and manage workflows to organize your data processes"
       />
       
       <div style={{ marginBottom: '20px' }}>
@@ -231,7 +231,7 @@ const BusinessProcesses = () => {
             gap: '8px'
           }}
         >
-          <FiPlus /> Create Business Process
+          <FiPlus /> Create Workflow
         </button>
       </div>
       
@@ -253,8 +253,8 @@ const BusinessProcesses = () => {
               borderRadius: '8px'
             }}>
               <FiBriefcase size={48} style={{ marginBottom: '16px', color: '#999' }} />
-              <h3>No Business Processes Found</h3>
-              <p>Create your first business process to organize your data workflows</p>
+              <h3>No Workflows Found</h3>
+              <p>Create your first workflow to organize your data processes</p>
               {userGroups.length === 0 ? (
                 <div style={{ 
                   color: '#856404', 
@@ -263,7 +263,7 @@ const BusinessProcesses = () => {
                   borderRadius: '4px', 
                   marginTop: '16px'
                 }}>
-                  You need to create a group first before you can create a business process
+                  You need to create a group first before you can create a workflow
                 </div>
               ) : (
                 <button 
@@ -278,7 +278,7 @@ const BusinessProcesses = () => {
                     marginTop: '16px'
                   }}
                 >
-                  Create Business Process
+                  Create Workflow
                 </button>
               )}
             </div>
@@ -379,7 +379,7 @@ const BusinessProcesses = () => {
       
       <SimpleModal
         show={showModal}
-        title={currentProcess ? `Edit Process: ${currentProcess.name}` : 'Create New Business Process'}
+        title={currentProcess ? `Edit Process: ${currentProcess.name}` : 'Create New Workflow'}
         onClose={handleCloseModal}
       >
         <form onSubmit={handleSubmit}>

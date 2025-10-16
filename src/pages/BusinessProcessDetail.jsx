@@ -37,10 +37,10 @@ const BusinessProcessDetail = () => {
           group_id: response.data.group_id
         });
       } else {
-        setError(response.error || 'Failed to fetch business process');
+        setError(response.error || 'Failed to fetch workflow');
       }
     } catch (err) {
-      setError('An error occurred while fetching business process');
+      setError('An error occurred while fetching workflow');
       console.error(err);
     } finally {
       setLoading(false);
@@ -70,25 +70,25 @@ const BusinessProcessDetail = () => {
         setIsEditing(false);
         fetchProcess();
       } else {
-        setError(response.error || 'Failed to update business process');
+        setError(response.error || 'Failed to update workflow');
       }
     } catch (err) {
-      setError('An error occurred while updating business process');
+      setError('An error occurred while updating workflow');
       console.error(err);
     }
   };
   
   const handleDeleteProcess = async () => {
-    if (window.confirm('Are you sure you want to delete this business process? All associated jobs will also be deleted.')) {
+    if (window.confirm('Are you sure you want to delete this workflow? All associated jobs will also be deleted.')) {
       try {
         const response = await deleteBusinessProcess(id);
         if (response.success) {
           navigate('/business-processes');
         } else {
-          setError(response.error || 'Failed to delete business process');
+          setError(response.error || 'Failed to delete workflow');
         }
       } catch (err) {
-        setError('An error occurred while deleting business process');
+        setError('An error occurred while deleting workflow');
         console.error(err);
       }
     }
@@ -111,17 +111,17 @@ const BusinessProcessDetail = () => {
   };
   
   if (loading) {
-    return <div className="loading">Loading business process...</div>;
+    return <div className="loading">Loading workflow...</div>;
   }
   
   if (!process) {
     return (
       <div className="business-process-detail-container">
         <div className="error-message">
-          Business process not found or you don't have permission to view it.
+          Workflow not found or you don't have permission to view it.
         </div>
         <Link to="/business-processes" className="back-link">
-          Back to Business Processes
+          Back to Workflows
         </Link>
       </div>
     );
@@ -132,7 +132,7 @@ const BusinessProcessDetail = () => {
       <div className="page-header">
         <div className="header-left">
           <Link to="/business-processes" className="back-link">
-            <i className="fas fa-arrow-left"></i> Back to Business Processes
+            <i className="fas fa-arrow-left"></i> Back to Workflows
           </Link>
           {!isEditing && <h1>{process.name}</h1>}
         </div>
@@ -337,7 +337,7 @@ const BusinessProcessDetail = () => {
         </div>
       ) : (
         <div className="no-data">
-          <p>No jobs have been added to this business process yet.</p>
+          <p>No jobs have been added to this workflow yet.</p>
           {hasFeaturePermission('job', 'write') && (
             <button 
               className="primary-button"

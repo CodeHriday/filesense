@@ -243,14 +243,14 @@ const ProcessManagementWizard = () => {
       setSelectedBusinessProcess(response.data);
       setNewProcessName('');
       setNewProcessDesc('');
-      setSuccess('Business process created successfully');
+      setSuccess('Workflow created successfully');
       setLoading(false);
       
       // Move to next step
       setCurrentStep(currentStep + 1);
     } catch (err) {
       console.error('Error creating business process:', err);
-      setError('Failed to create business process. Please try again.');
+      setError('Failed to create workflow. Please try again.');
       setLoading(false);
     }
   };
@@ -596,12 +596,12 @@ const ProcessManagementWizard = () => {
   
   const renderBusinessProcessStep = () => (
     <div className="step-container">
-      <h3>Step 2: Select or Create Business Process</h3>
+      <h3>Step 2: Select or Create Workflow</h3>
       
       {/* Show business processes if a group is selected */}
       {selectedGroup && businessProcesses.length > 0 && (
         <div className="existing-items">
-          <h4>Select Existing Business Process</h4>
+          <h4>Select Existing Workflow</h4>
           <div className="items-grid">
             {businessProcesses
               .filter(process => process.group_id === selectedGroup.id)
@@ -624,7 +624,7 @@ const ProcessManagementWizard = () => {
       )}
       
       <div className="create-new-item">
-        <h4>Create New Business Process</h4>
+        <h4>Create New Workflow</h4>
         <div className="form-row">
           <div className="form-group">
             <label>Process Name</label>
@@ -710,7 +710,7 @@ const ProcessManagementWizard = () => {
           <strong>{selectedGroup ? selectedGroup.name : 'None'}</strong>
         </div>
         <div className="summary-item">
-          <span>Business Process:</span>
+          <span>Workflow:</span>
           <strong>{selectedBusinessProcess ? selectedBusinessProcess.name : 'None'}</strong>
         </div>
       </div>

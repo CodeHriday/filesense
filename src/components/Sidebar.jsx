@@ -257,7 +257,7 @@ function Sidebar() {
             <li>
               <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiBriefcase className="icon" />
-                <span>Business Processes</span>
+                <span>Workflows</span>
               </NavLink>
             </li>
             

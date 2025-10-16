@@ -72,10 +72,10 @@ const JobCreate = () => {
         if (response.success) {
           setBusinessProcesses(response.data);
         } else {
-          setError(response.error || 'Failed to fetch business processes');
+          setError(response.error || 'Failed to fetch workflows');
         }
       } catch (err) {
-        setError('An error occurred while fetching business processes');
+        setError('An error occurred while fetching workflows');
         console.error(err);
       } finally {
         setLoading(false);
@@ -254,7 +254,7 @@ const JobCreate = () => {
         />
       </div>
       <div className="form-group">
-        <label htmlFor="business_process_id">Business Process<span className="required">*</span></label>
+        <label htmlFor="business_process_id">Workflow<span className="required">*</span></label>
         <select
           id="business_process_id"
           name="business_process_id"
@@ -262,7 +262,7 @@ const JobCreate = () => {
           onChange={handleInputChange}
           required
         >
-          <option value="">Select a business process</option>
+          <option value="">Select a workflow</option>
           {businessProcesses.map(process => (
             <option key={process.id} value={process.id}>
               {process.name}
@@ -630,7 +630,7 @@ const JobCreate = () => {
           <span className="summary-value">{jobData.name}</span>
         </div>
         <div className="summary-item">
-          <span className="summary-label">Business Process:</span>
+          <span className="summary-label">Workflow:</span>
           <span className="summary-value">
             {businessProcesses.find(p => p.id == jobData.business_process_id)?.name || 'None'}
           </span>

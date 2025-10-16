@@ -238,7 +238,7 @@ const JobDetail = () => {
             <h3>Details</h3>
             <div className="details-grid">
               <div className="detail-item">
-                <span className="detail-label">Business Process:</span>
+                <span className="detail-label">Workflow:</span>
                 <span className="detail-value">
                   <Link to={`/business-processes/${job.business_process_id}`}>
                     {job.business_process_name || businessProcess?.name || 'Unknown'}
