@@ -3,6 +3,17 @@
 ## Overview
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
+## Recent Changes
+- **October 16, 2025**: Added complete UI for ETL Orchestration features
+  - Created three new pages: Mapping Groups, Workflows, and ETL Scheduler
+  - Added list/create/edit functionality for all orchestration features
+  - Integrated routing in App.jsx with protected routes
+  - Added "ETL Orchestration" section in sidebar with navigation items:
+    - Batch Groups (Mapping Groups with concurrency control)
+    - Workflow Steps (Multi-step processes with dependencies)
+    - ETL Scheduler (Cron and interval-based scheduling)
+  - Added CSS styling for orchestration pages
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 

@@ -45,8 +45,11 @@ import Jobs from './pages/Jobs';
 import ProcessManagementWizard from './pages/ProcessManagementWizard';
 // ETL Orchestration imports
 import MappingGroups from './pages/MappingGroups';
+import MappingGroupForm from './pages/MappingGroupForm';
 import Workflows from './pages/Workflows';
+import WorkflowForm from './pages/WorkflowForm';
 import ETLScheduler from './pages/ETLScheduler';
+import SchedulerForm from './pages/SchedulerForm';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -230,14 +233,14 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/process-management-wizard" element={<ProtectedRoute><ProcessManagementWizard /></ProtectedRoute>} />
                 {/* ETL Orchestration routes */}
                 <Route path="/mapping-groups" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />
-                <Route path="/mapping-groups/create" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />
-                <Route path="/mapping-groups/:groupId/edit" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />
+                <Route path="/mapping-groups/create" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
+                <Route path="/mapping-groups/:groupId/edit" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
                 <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
-                <Route path="/workflows/create" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
-                <Route path="/workflows/:workflowName/edit" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+                <Route path="/workflows/create" element={<ProtectedRoute><WorkflowForm /></ProtectedRoute>} />
+                <Route path="/workflows/:workflowName/edit" element={<ProtectedRoute><WorkflowForm /></ProtectedRoute>} />
                 <Route path="/etl-scheduler" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
-                <Route path="/etl-scheduler/create" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
-                <Route path="/etl-scheduler/:scheduleId/edit" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
+                <Route path="/etl-scheduler/create" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
+                <Route path="/etl-scheduler/:scheduleId/edit" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
                 {/* Development Routes */}
                 <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
                 <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
