@@ -423,6 +423,74 @@ router.delete('/:id/steps/:stepId/assets/:assetId', async (req, res) => {
 });
 
 /**
+ * DELETE /api/n-step-workflows/:id/steps/:stepId
+ * Delete a step and all its assets
+ */
+router.delete('/:id/steps/:stepId', async (req, res) => {
+  try {
+    const { id, stepId } = req.params;
+    
+    // First, delete all assets associated with this step
+    await pool.query(
+      'DELETE FROM n_step_workflow_assets WHERE step_id = $1',
+      [stepId]
+    );
+    
+    // Get the step to be deleted
+    const stepResult = await pool.query(
+      'SELECT step_index FROM n_step_workflow_steps WHERE id = $1 AND workflow_id = $2',
+      [stepId, id]
+    );
+    
+    if (stepResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Step not found'
+      });
+    }
+    
+    const deletedStepIndex = stepResult.rows[0].step_index;
+    
+    // Delete the step
+    await pool.query(
+      'DELETE FROM n_step_workflow_steps WHERE id = $1',
+      [stepId]
+    );
+    
+    // Renumber remaining steps to fill the gap
+    await pool.query(`
+      UPDATE n_step_workflow_steps
+      SET step_index = step_index - 1
+      WHERE workflow_id = $1 AND step_index > $2
+    `, [id, deletedStepIndex]);
+    
+    // If the deleted step was active, make step 1 active (if it exists)
+    const activeStepExists = await pool.query(
+      'SELECT id FROM n_step_workflow_steps WHERE workflow_id = $1 AND is_active = true',
+      [id]
+    );
+    
+    if (activeStepExists.rows.length === 0) {
+      await pool.query(
+        'UPDATE n_step_workflow_steps SET is_active = true WHERE workflow_id = $1 AND step_index = 1',
+        [id]
+      );
+    }
+    
+    res.json({
+      success: true,
+      message: 'Step deleted successfully'
+    });
+  } catch (error) {
+    systemLogger.error('Error deleting step', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete step'
+    });
+  }
+});
+
+/**
  * GET /api/n-step-workflows/:id/steps/:stepId/expanded-count
  * Get expanded mapping count for a step
  */
