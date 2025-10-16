@@ -601,13 +601,10 @@ async function parseAndTransformJSON(buffer, fieldMappings, jobId, pool) {
 }
 
 /**
- * Generate output filename
+ * Generate output filename - preserve original filename
  */
 function generateOutputFilename(inputFilename, mappingName) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const baseName = inputFilename.replace(/\.[^/.]+$/, '');
-  const sanitizedMappingName = mappingName.replace(/[^a-zA-Z0-9]/g, '_');
-  return `${baseName}_${sanitizedMappingName}_${timestamp}.csv`;
+  return inputFilename;
 }
 
 /**
