@@ -37,8 +37,8 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
     
     // 2. Fetch all member mappings
     const membersQuery = await pool.query(`
-      SELECT mgm.*, tm.name, tm.source_connection_id, tm.target_connection_id, 
-             tm.file_pattern, tm.field_mappings, tm.mapping_id as tm_mapping_id
+      SELECT mgm.*, tm.mapping_name, tm.source_connection_id, tm.target_connection_id, 
+             tm.source_file_pattern, tm.field_mappings, tm.mapping_id as tm_mapping_id
       FROM mapping_group_members mgm
       JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
       WHERE mgm.group_id = $1
@@ -92,7 +92,7 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
           systemLogger.info('Executing mapping in group', {
             executionId,
             mappingId: mapping.mapping_id,
-            mappingName: mapping.name
+            mappingName: mapping.mapping_name
           });
           
           // Execute the transformation job
@@ -109,7 +109,7 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
           
           return {
             mappingId: mapping.mapping_id,
-            mappingName: mapping.name,
+            mappingName: mapping.mapping_name,
             status: 'completed',
             jobId: jobResult.jobId
           };
@@ -120,7 +120,7 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
           systemLogger.error('Mapping execution failed in group', {
             executionId,
             mappingId: mapping.mapping_id,
-            mappingName: mapping.name,
+            mappingName: mapping.mapping_name,
             error: error.message
           });
           
@@ -133,7 +133,7 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
           
           return {
             mappingId: mapping.mapping_id,
-            mappingName: mapping.name,
+            mappingName: mapping.mapping_name,
             status: 'failed',
             error: error.message
           };
