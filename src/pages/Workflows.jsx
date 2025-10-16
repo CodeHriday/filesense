@@ -97,11 +97,12 @@ const Workflows = () => {
         <PageHeader
           title="Workflows"
           subtitle="Multi-step orchestration with dependency management"
-        >
-          <Link to="/workflows/create" className="btn btn-primary">
-            <FiPlusCircle /> Create Workflow
-          </Link>
-        </PageHeader>
+          actions={
+            <Link to="/workflows/create" className="btn btn-primary">
+              <FiPlusCircle /> Create Workflow
+            </Link>
+          }
+        />
 
         {error && (
           <div className="alert alert-danger">{error}</div>

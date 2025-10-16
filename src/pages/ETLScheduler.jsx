@@ -75,11 +75,12 @@ const ETLScheduler = () => {
         <PageHeader
           title="ETL Scheduler"
           subtitle="Schedule transformations, mapping groups, and workflows"
-        >
-          <Link to="/etl-scheduler/create" className="btn btn-primary">
-            <FiPlusCircle /> Create Schedule
-          </Link>
-        </PageHeader>
+          actions={
+            <Link to="/etl-scheduler/create" className="btn btn-primary">
+              <FiPlusCircle /> Create Schedule
+            </Link>
+          }
+        />
 
         {error && (
           <div className="alert alert-danger">{error}</div>

@@ -69,11 +69,12 @@ const MappingGroups = () => {
         <PageHeader
           title="Mapping Groups"
           subtitle="Batch execution of transformations with concurrency control"
-        >
-          <Link to="/mapping-groups/create" className="btn btn-primary">
-            <FiPlusCircle /> Create Mapping Group
-          </Link>
-        </PageHeader>
+          actions={
+            <Link to="/mapping-groups/create" className="btn btn-primary">
+              <FiPlusCircle /> Create Mapping Group
+            </Link>
+          }
+        />
 
         {error && (
           <div className="alert alert-danger">{error}</div>
