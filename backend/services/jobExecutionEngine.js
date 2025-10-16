@@ -523,17 +523,27 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     
     // Step 4: Upload transformed data to target (if not dry run)
     if (!dryRun && transformedRows.length > 0 && mapping.target_connection_id) {
+      // Determine output format (default to csv if not specified)
+      // Normalize to lowercase to handle UI dropdown values like "CSV", "JSON", etc.
+      const outputFormat = (mapping.output_format || 'csv').toLowerCase().trim();
+      
       await logJobExecution(pool, jobId, 'info', 
         `Uploading transformed data to target`, {
         target_connection_id: mapping.target_connection_id,
-        rows: transformedRows.length
+        rows: transformedRows.length,
+        output_format: outputFormat
       });
       
-      // Generate output filename
-      const outputFilename = generateOutputFilename(file.filename, mapping.mapping_name);
+      // Generate output filename with correct extension
+      const outputFilename = generateOutputFilename(file.filename, mapping.mapping_name, outputFormat);
       
-      // Convert transformed rows to CSV format for output
-      const outputBuffer = convertToCSV(transformedRows);
+      // Convert transformed rows to specified output format
+      const outputBuffer = await convertToFormat(transformedRows, outputFormat);
+      
+      await logJobExecution(pool, jobId, 'info', 
+        `Converted data to ${outputFormat.toUpperCase()} format`, {
+        buffer_size: outputBuffer.length
+      });
       
       // Upload to target connection
       const uploadResult = await uploadFileToConnection(
@@ -575,9 +585,19 @@ function convertFieldMappings(dbFieldMappings) {
   }
   
   return dbFieldMappings.map(mapping => {
+    // Handle source_field - it can be a string, array, or null from JSONB storage
+    let sourceFields = [];
+    if (mapping.source_field) {
+      if (Array.isArray(mapping.source_field)) {
+        sourceFields = mapping.source_field;
+      } else {
+        sourceFields = [mapping.source_field];
+      }
+    }
+    
     const converted = {
       targetField: mapping.target_field,
-      sourceFields: mapping.source_field ? [mapping.source_field] : [],
+      sourceFields: sourceFields,
       transformations: []
     };
     
@@ -773,11 +793,104 @@ async function parseAndTransformXLSX(buffer, fieldMappings, jobId, pool) {
  * Parse Parquet and apply transformations
  */
 async function parseAndTransformParquet(buffer, fieldMappings, jobId, pool) {
-  throw new Error('Parquet file support is temporarily unavailable due to compatibility issues. Please use CSV, JSON, XLSX, or XML files instead.');
+  try {
+    // Dynamic import for hyparquet (ES module)
+    const { parquetReadObjects } = await import('hyparquet');
+    
+    // Convert Node.js Buffer to ArrayBuffer for hyparquet
+    const arrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset, 
+      buffer.byteOffset + buffer.byteLength
+    );
+    
+    // Convert field mappings to expected format
+    const convertedMappings = convertFieldMappings(fieldMappings);
+    
+    const transformedRows = [];
+    let rowsRead = 0;
+    let rowsWritten = 0;
+    let rowsFailed = 0;
+    
+    systemLogger.info('Parquet parsing started');
+    
+    // Read parquet file as async iterator
+    const parquetIterator = await parquetReadObjects({ file: arrayBuffer });
+    
+    // Consume async iterator properly
+    for await (const row of parquetIterator) {
+      rowsRead++;
+      try {
+        // Log first row for debugging
+        if (rowsRead === 1) {
+          systemLogger.info('Parquet first row columns:', { 
+            columns: Object.keys(row),
+            sample: Object.keys(row).slice(0, 5)
+          });
+        }
+        
+        const transformedRow = transformRow(row, convertedMappings);
+        transformedRows.push(transformedRow);
+        rowsWritten++;
+      } catch (error) {
+        rowsFailed++;
+        systemLogger.error('Row transformation error', { 
+          row: rowsRead, 
+          error: error.message 
+        });
+      }
+    }
+    
+    systemLogger.info('Parquet parsing complete', {
+      rowsRead,
+      rowsWritten,
+      rowsFailed
+    });
+    
+    return { 
+      transformedRows, 
+      rowsRead, 
+      rowsWritten, 
+      rowsFailed 
+    };
+    
+  } catch (error) {
+    systemLogger.error('Parquet parsing error:', error);
+    throw new Error(`Parquet parsing error: ${error.message}`);
+  }
+}
+
+/**
+ * Flatten nested object into dot notation
+ * Example: { user: { name: 'John', address: { city: 'NYC' } } }
+ * becomes: { 'user.name': 'John', 'user.address.city': 'NYC' }
+ */
+function flattenObject(obj, prefix = '') {
+  const flattened = {};
+  
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const value = obj[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        // Recursively flatten nested objects
+        Object.assign(flattened, flattenObject(value, newKey));
+      } else if (Array.isArray(value)) {
+        // Convert arrays to comma-separated strings
+        flattened[newKey] = value.join(', ');
+      } else {
+        // Primitive value or null
+        flattened[newKey] = value;
+      }
+    }
+  }
+  
+  return flattened;
 }
 
 /**
  * Parse XML and apply transformations
+ * Supports hierarchical XML with recursive flattening
  */
 async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
   try {
@@ -818,7 +931,18 @@ async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
     for (const row of records) {
       rowsRead++;
       try {
-        const transformedRow = transformRow(row, convertedMappings);
+        // Flatten nested XML structure before transformation
+        const flattenedRow = flattenObject(row);
+        
+        // Log first flattened row for debugging
+        if (rowsRead === 1) {
+          systemLogger.info('XML first row (flattened):', { 
+            keys: Object.keys(flattenedRow),
+            sample: Object.keys(flattenedRow).slice(0, 5)
+          });
+        }
+        
+        const transformedRow = transformRow(flattenedRow, convertedMappings);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
@@ -843,10 +967,38 @@ async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
 }
 
 /**
- * Generate output filename - preserve original filename
+ * Generate output filename with correct extension based on output format
  */
-function generateOutputFilename(inputFilename, mappingName) {
-  return inputFilename;
+function generateOutputFilename(inputFilename, mappingName, outputFormat = 'csv') {
+  // Remove original extension
+  const nameWithoutExt = inputFilename.replace(/\.[^/.]+$/, '');
+  
+  // Add new extension based on output format
+  const extension = outputFormat.toLowerCase();
+  return `${nameWithoutExt}.${extension}`;
+}
+
+/**
+ * Convert transformed rows to specified format
+ */
+async function convertToFormat(rows, format = 'csv') {
+  if (rows.length === 0) return Buffer.from('');
+  
+  const formatLower = format.toLowerCase();
+  
+  switch (formatLower) {
+    case 'csv':
+      return convertToCSV(rows);
+    case 'json':
+      return convertToJSON(rows);
+    case 'xlsx':
+      return convertToXLSX(rows);
+    case 'parquet':
+      return convertToParquet(rows);
+    default:
+      systemLogger.warn(`Unsupported output format: ${format}, defaulting to CSV`);
+      return convertToCSV(rows);
+  }
 }
 
 /**
@@ -874,6 +1026,62 @@ function convertToCSV(rows) {
   }
   
   return Buffer.from(csv);
+}
+
+/**
+ * Convert transformed rows to JSON format
+ */
+function convertToJSON(rows) {
+  if (rows.length === 0) return Buffer.from('[]');
+  
+  const jsonString = JSON.stringify(rows, null, 2);
+  return Buffer.from(jsonString);
+}
+
+/**
+ * Convert transformed rows to XLSX (Excel) format
+ */
+function convertToXLSX(rows) {
+  if (rows.length === 0) {
+    // Create empty workbook
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.aoa_to_sheet([]);
+    xlsx.utils.book_append_sheet(wb, ws, 'Sheet1');
+    return Buffer.from(xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  }
+  
+  // Convert rows to worksheet
+  const ws = xlsx.utils.json_to_sheet(rows);
+  
+  // Create workbook and add worksheet
+  const wb = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(wb, ws, 'Sheet1');
+  
+  // Write to buffer
+  const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  return Buffer.from(buffer);
+}
+
+/**
+ * Convert transformed rows to Parquet format
+ * Note: Parquet writing requires hyparquet-writer which may not be available
+ */
+async function convertToParquet(rows) {
+  try {
+    // Try to use hyparquet-writer if available
+    const { writeParquet } = await import('hyparquet-writer');
+    
+    // Write parquet file
+    const buffer = await writeParquet(rows);
+    return Buffer.from(buffer);
+    
+  } catch (error) {
+    systemLogger.warn('Parquet writing not available, falling back to JSON', {
+      error: error.message
+    });
+    // Fallback to JSON if parquet writer not available
+    return convertToJSON(rows);
+  }
 }
 
 /**
