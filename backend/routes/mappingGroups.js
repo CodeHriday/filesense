@@ -62,9 +62,9 @@ router.get('/:id', async (req, res) => {
     
     // Get group members
     const membersResult = await pool.query(`
-      SELECT mgm.*, tm.name as mapping_name, tm.file_pattern
+      SELECT mgm.*, tm.mapping_name, tm.file_name_pattern
       FROM mapping_group_members mgm
-      JOIN transformation_mappings tm ON mgm.mapping_id = tm.id
+      JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
       WHERE mgm.group_id = $1
       ORDER BY mgm.execution_order ASC, mgm.id ASC
     `, [id]);
@@ -219,6 +219,35 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete mapping group'
+    });
+  }
+});
+
+// Get group members
+router.get('/:id/members', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const membersResult = await pool.query(`
+      SELECT mgm.*, tm.mapping_name, tm.file_name_pattern
+      FROM mapping_group_members mgm
+      JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
+      WHERE mgm.group_id = $1
+      ORDER BY mgm.execution_order ASC, mgm.id ASC
+    `, [id]);
+    
+    res.json({
+      success: true,
+      members: membersResult.rows
+    });
+  } catch (error) {
+    systemLogger.error('Error fetching group members', { 
+      groupId: req.params.id, 
+      error: error.message 
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch group members'
     });
   }
 });
