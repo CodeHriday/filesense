@@ -72,13 +72,13 @@ router.get('/', async (req, res) => {
       SELECT 
         tj.*,
         mg.name as mapping_group_name,
-        bp.name as workflow_name,
+        nw.name as workflow_name,
         s.schedule_name
       FROM transformation_jobs tj
       LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
-      LEFT JOIN workflow_executions we ON tj.workflow_execution_id = we.id
-      LEFT JOIN business_processes bp ON we.workflow_id = bp.id
+      LEFT JOIN n_step_workflow_runs nwr ON tj.workflow_execution_id = nwr.id
+      LEFT JOIN n_step_workflows nw ON nwr.workflow_id = nw.id
       LEFT JOIN schedules s ON tj.schedule_id = s.id
       WHERE 1=1
     `;
@@ -113,8 +113,8 @@ router.get('/', async (req, res) => {
       FROM transformation_jobs tj
       LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
-      LEFT JOIN workflow_executions we ON tj.workflow_execution_id = we.id
-      LEFT JOIN business_processes bp ON we.workflow_id = bp.id
+      LEFT JOIN n_step_workflow_runs nwr ON tj.workflow_execution_id = nwr.id
+      LEFT JOIN n_step_workflows nw ON nwr.workflow_id = nw.id
       LEFT JOIN schedules s ON tj.schedule_id = s.id
       WHERE 1=1
     `;
