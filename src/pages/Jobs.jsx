@@ -209,6 +209,7 @@ const Jobs = () => {
                   <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Job ID</th>
                   <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping</th>
                   <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping Group</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Workflow</th>
                   <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schedule</th>
                   <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Status</th>
                   <th style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>Files Processed</th>
@@ -227,6 +228,7 @@ const Jobs = () => {
                     </td>
                     <td>{job.mapping_name}</td>
                     <td>{job.mapping_group_name || '-'}</td>
+                    <td>{job.workflow_name || '-'}</td>
                     <td>{job.schedule_name || '-'}</td>
                     <td>{getStatusBadge(job.status)}</td>
                     <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
