@@ -39,14 +39,11 @@ const SchedulerForm = () => {
       const [transformationsData, groupsData, workflowsData] = await Promise.all([
         axios.get('/api/transformations'),
         axios.get('/api/mapping-groups'),
-        axios.get('/api/workflow-steps')
+        axios.get('/api/n-step-workflows')
       ]);
       setTransformations(transformationsData.data.mappings || []);
       setMappingGroups(groupsData.data.groups || []);
-      
-      const steps = workflowsData.data.steps || [];
-      const workflowNames = [...new Set(steps.map(s => s.workflow_name))];
-      setWorkflows(workflowNames);
+      setWorkflows(workflowsData.data.workflows || []);
     } catch (err) {
       console.error('Error fetching data:', err);
     }
@@ -105,7 +102,7 @@ const SchedulerForm = () => {
       case 'mapping_group':
         return mappingGroups.map(g => ({ id: g.id, name: g.name }));
       case 'workflow':
-        return workflows.map(w => ({ id: w, name: w }));
+        return workflows.map(w => ({ id: w.id, name: w.name }));
       default:
         return [];
     }

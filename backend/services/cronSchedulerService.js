@@ -2,7 +2,7 @@ const { pool } = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
-const { executeWorkflow } = require('./workflowOrchestrationEngine');
+const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
 const cronParser = require('cron-parser');
 
 /**
@@ -312,7 +312,7 @@ async function processDueSchedules() {
             'scheduler'
           );
         } else if (schedule.entity_type === 'workflow') {
-          executionResult = await executeWorkflow(
+          executionResult = await executeNStepWorkflow(
             parseInt(schedule.entity_id),
             'scheduler'
           );
