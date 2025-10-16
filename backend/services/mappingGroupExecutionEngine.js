@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { pool } = require('../db');
+const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 
