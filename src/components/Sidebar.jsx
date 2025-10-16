@@ -269,6 +269,32 @@ function Sidebar() {
               </NavLink>
             </li>
             
+            {/* ETL Orchestration section */}
+            <li className="nav-divider">
+              <span>ETL Orchestration</span>
+            </li>
+            
+            <li>
+              <NavLink to="/mapping-groups" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiLayers className="icon" />
+                <span>Batch Groups</span>
+              </NavLink>
+            </li>
+            
+            <li>
+              <NavLink to="/workflows" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiGitBranch className="icon" />
+                <span>Workflow Steps</span>
+              </NavLink>
+            </li>
+            
+            <li>
+              <NavLink to="/etl-scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiCalendar className="icon" />
+                <span>ETL Scheduler</span>
+              </NavLink>
+            </li>
+            
             {/* Jobs and Monitoring section */}
             {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 
               checkPermissions(['alerts', 'alerts:read', 'alert_view']) || 

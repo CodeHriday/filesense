@@ -43,6 +43,10 @@ import Groups from './pages/Groups';
 import BusinessProcesses from './pages/BusinessProcesses';
 import Jobs from './pages/Jobs';
 import ProcessManagementWizard from './pages/ProcessManagementWizard';
+// ETL Orchestration imports
+import MappingGroups from './pages/MappingGroups';
+import Workflows from './pages/Workflows';
+import ETLScheduler from './pages/ETLScheduler';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -62,6 +66,7 @@ import './styles/BusinessProcesses.css';
 import './styles/Jobs.css';
 import './styles/ProcessManagementWizard.css';
 import './styles/Transformations.css';
+import './styles/ETLOrchestration.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -223,6 +228,16 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/jobs/:jobId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/etl-jobs/:jobId" element={<ProtectedRoute><ETLJobDetails /></ProtectedRoute>} />
                 <Route path="/process-management-wizard" element={<ProtectedRoute><ProcessManagementWizard /></ProtectedRoute>} />
+                {/* ETL Orchestration routes */}
+                <Route path="/mapping-groups" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />
+                <Route path="/mapping-groups/create" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />
+                <Route path="/mapping-groups/:groupId/edit" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />
+                <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+                <Route path="/workflows/create" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+                <Route path="/workflows/:workflowName/edit" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+                <Route path="/etl-scheduler" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
+                <Route path="/etl-scheduler/create" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
+                <Route path="/etl-scheduler/:scheduleId/edit" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
                 {/* Development Routes */}
                 <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
                 <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
