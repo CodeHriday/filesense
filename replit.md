@@ -154,3 +154,42 @@ UPDATE transformation_jobs SET status = 'failed', end_time = CURRENT_TIMESTAMP,
 - ✅ No more column-not-found errors in logs
 - ✅ Job execution can proceed normally
 - ✅ Progress tracking and cancellation work correctly
+
+### ETL Job Execution Enhancements (October 16, 2025)
+**Status**: ✅ Completed
+
+**Problem Identified**:
+Three critical issues affecting job execution quality:
+1. **Filename Modification**: Output files had timestamps and mapping names appended (e.g., `data.csv` → `data_1234567890_mapping-name.csv`)
+2. **Missing Duration**: Jobs didn't track or display execution time (duration_ms was always null)
+3. **Empty Output Files**: Transformed files were blank when no field mappings were configured
+
+**Root Causes**:
+1. `generateOutputFilename` was adding timestamp and mapping name to preserve uniqueness
+2. `updateJob` function wasn't calculating duration_ms from start_time and end_time
+3. `transformRow` returned empty objects when field_mappings was empty, causing blank CSV/JSON outputs
+
+**Solutions Applied**:
+1. **Filename Preservation**: Modified `generateOutputFilename` to return original filename unchanged - no timestamps or suffixes
+2. **Duration Calculation**: Enhanced `updateJob` to auto-calculate `duration_ms` when `end_time` is set:
+   - Fetches `start_time` from database with single SELECT
+   - Calculates milliseconds difference: `(end_time - start_time)`
+   - Low overhead - only runs when job completes/fails/is cancelled
+3. **Data Passthrough**: Fixed `transformRow` to pass through original row when `field_mappings` is empty/null:
+   - Prevents empty transformed rows
+   - Ensures data is always written to output files
+   - Graceful handling of unmapped transformations
+
+**Security Enhancement**:
+- Removed sensitive row data from logs - only log column names and counts, not actual field values
+- Prevents PII exposure in system logs while maintaining diagnostic capability
+
+**Files Modified**:
+- `backend/services/jobExecutionEngine.js`: Filename, duration, and logging improvements
+- `backend/services/transformationEngine.js`: Data passthrough logic in transformRow
+
+**Verification**:
+- ✅ Original filenames preserved in target storage
+- ✅ Job duration calculated and displayed correctly
+- ✅ Data written to output files even without field mappings
+- ✅ No sensitive data in logs (architect-approved)
