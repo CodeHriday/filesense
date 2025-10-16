@@ -1,6 +1,8 @@
 const { v4: uuidv4 } = require('uuid');
 const { Readable } = require('stream');
 const csv = require('csv-parser');
+const xlsx = require('xlsx');
+const { XMLParser } = require('fast-xml-parser');
 const { systemLogger } = require('../utils/logger');
 const { validateSchemaConsistency, saveSchemaSnapshot } = require('./schemaService');
 const { transformRow } = require('./transformationEngine');
@@ -466,39 +468,58 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       field_mappings_count: mapping.field_mappings?.length || 0
     });
     
+    let parseResult;
+    
     if (fileExtension === 'csv') {
-      const parseResult = await parseAndTransformCSV(
+      parseResult = await parseAndTransformCSV(
         fileBuffer, 
         mapping.field_mappings, 
         jobId, 
         pool
       );
-      rowsRead = parseResult.rowsRead;
-      rowsWritten = parseResult.rowsWritten;
-      rowsFailed = parseResult.rowsFailed;
-      transformedRows.push(...parseResult.transformedRows);
-      
-      await logJobExecution(pool, jobId, 'info', `Transformation complete`, {
-        rows_read: rowsRead,
-        rows_transformed: transformedRows.length,
-        rows_failed: rowsFailed
-      });
-      
     } else if (fileExtension === 'json') {
-      const parseResult = await parseAndTransformJSON(
+      parseResult = await parseAndTransformJSON(
         fileBuffer, 
         mapping.field_mappings, 
         jobId, 
         pool
       );
-      rowsRead = parseResult.rowsRead;
-      rowsWritten = parseResult.rowsWritten;
-      rowsFailed = parseResult.rowsFailed;
-      transformedRows.push(...parseResult.transformedRows);
-      
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      parseResult = await parseAndTransformXLSX(
+        fileBuffer, 
+        mapping.field_mappings, 
+        jobId, 
+        pool
+      );
+    } else if (fileExtension === 'parquet') {
+      parseResult = await parseAndTransformParquet(
+        fileBuffer, 
+        mapping.field_mappings, 
+        jobId, 
+        pool
+      );
+    } else if (fileExtension === 'xml') {
+      parseResult = await parseAndTransformXML(
+        fileBuffer, 
+        mapping.field_mappings, 
+        jobId, 
+        pool
+      );
     } else {
-      throw new Error(`Unsupported file type: ${fileExtension}`);
+      throw new Error(`Unsupported file type: ${fileExtension}. Supported types: CSV, JSON, XLSX, XLS, Parquet, XML`);
     }
+    
+    // Extract results from parseResult
+    rowsRead = parseResult.rowsRead;
+    rowsWritten = parseResult.rowsWritten;
+    rowsFailed = parseResult.rowsFailed;
+    transformedRows.push(...parseResult.transformedRows);
+    
+    await logJobExecution(pool, jobId, 'info', `Transformation complete`, {
+      rows_read: rowsRead,
+      rows_transformed: transformedRows.length,
+      rows_failed: rowsFailed
+    });
     
     // Step 4: Upload transformed data to target (if not dry run)
     if (!dryRun && transformedRows.length > 0 && mapping.target_connection_id) {
@@ -699,6 +720,125 @@ async function parseAndTransformJSON(buffer, fieldMappings, jobId, pool) {
     
   } catch (error) {
     throw new Error(`JSON parsing error: ${error.message}`);
+  }
+}
+
+/**
+ * Parse XLSX (Excel) and apply transformations
+ */
+async function parseAndTransformXLSX(buffer, fieldMappings, jobId, pool) {
+  try {
+    // Parse XLSX file
+    const workbook = xlsx.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0]; // Use first sheet
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = xlsx.utils.sheet_to_json(worksheet);
+    
+    const transformedRows = [];
+    let rowsRead = 0;
+    let rowsWritten = 0;
+    let rowsFailed = 0;
+    
+    // Convert field mappings to expected format
+    const convertedMappings = convertFieldMappings(fieldMappings);
+    
+    for (const row of jsonData) {
+      rowsRead++;
+      try {
+        const transformedRow = transformRow(row, convertedMappings);
+        transformedRows.push(transformedRow);
+        rowsWritten++;
+      } catch (error) {
+        rowsFailed++;
+        systemLogger.error('Row transformation error', { 
+          row: rowsRead, 
+          error: error.message 
+        });
+      }
+    }
+    
+    return { 
+      transformedRows, 
+      rowsRead, 
+      rowsWritten, 
+      rowsFailed 
+    };
+    
+  } catch (error) {
+    throw new Error(`XLSX parsing error: ${error.message}`);
+  }
+}
+
+/**
+ * Parse Parquet and apply transformations
+ */
+async function parseAndTransformParquet(buffer, fieldMappings, jobId, pool) {
+  throw new Error('Parquet file support is temporarily unavailable due to compatibility issues. Please use CSV, JSON, XLSX, or XML files instead.');
+}
+
+/**
+ * Parse XML and apply transformations
+ */
+async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
+  try {
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_'
+    });
+    
+    const xmlData = parser.parse(buffer.toString());
+    
+    // Extract records - assume root element contains array of records
+    // Handle common XML structures
+    let records = [];
+    const rootKeys = Object.keys(xmlData);
+    if (rootKeys.length > 0) {
+      const rootElement = xmlData[rootKeys[0]];
+      if (Array.isArray(rootElement)) {
+        records = rootElement;
+      } else if (typeof rootElement === 'object') {
+        // Find first array property in root
+        const arrayKey = Object.keys(rootElement).find(key => Array.isArray(rootElement[key]));
+        if (arrayKey) {
+          records = rootElement[arrayKey];
+        } else {
+          records = [rootElement]; // Single record
+        }
+      }
+    }
+    
+    const transformedRows = [];
+    let rowsRead = 0;
+    let rowsWritten = 0;
+    let rowsFailed = 0;
+    
+    // Convert field mappings to expected format
+    const convertedMappings = convertFieldMappings(fieldMappings);
+    
+    for (const row of records) {
+      rowsRead++;
+      try {
+        const transformedRow = transformRow(row, convertedMappings);
+        transformedRows.push(transformedRow);
+        rowsWritten++;
+      } catch (error) {
+        rowsFailed++;
+        systemLogger.error('Row transformation error', { 
+          row: rowsRead, 
+          error: error.message 
+        });
+      }
+    }
+    
+    return { 
+      transformedRows, 
+      rowsRead, 
+      rowsWritten, 
+      rowsFailed 
+    };
+    
+  } catch (error) {
+    throw new Error(`XML parsing error: ${error.message}`);
   }
 }
 

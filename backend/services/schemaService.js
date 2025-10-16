@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const { systemLogger } = require('../utils/logger');
 const { Readable } = require('stream');
 const csv = require('csv-parser');
+const xlsx = require('xlsx');
+const { XMLParser } = require('fast-xml-parser');
 const AWS = require('aws-sdk');
 const { Storage } = require('@google-cloud/storage');
 const { BlobServiceClient } = require('@azure/storage-blob');
@@ -496,9 +498,75 @@ async function parseFileSchema(fileContent, fileExtension) {
       } catch (error) {
         throw new Error(`Failed to parse JSON: ${error.message}`);
       }
+    
+    case 'xlsx':
+    case 'xls':
+      try {
+        const workbook = xlsx.read(fileContent, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = xlsx.utils.sheet_to_json(worksheet);
+        
+        if (jsonData.length > 0) {
+          const firstRecord = jsonData[0];
+          Object.keys(firstRecord).forEach((key, index) => {
+            schema.push({
+              name: key,
+              type: inferDataType(firstRecord[key]),
+              index: index
+            });
+          });
+        }
+        return schema;
+      } catch (error) {
+        throw new Error(`Failed to parse XLSX: ${error.message}`);
+      }
+    
+    case 'parquet':
+      throw new Error('Parquet file support is temporarily unavailable due to compatibility issues. Please use CSV, JSON, XLSX, or XML files instead.');
+    
+    case 'xml':
+      try {
+        const parser = new XMLParser({
+          ignoreAttributes: false,
+          attributeNamePrefix: '@_'
+        });
+        
+        const xmlData = parser.parse(fileContent.toString());
+        
+        // Extract first record to infer schema
+        let firstRecord = null;
+        const rootKeys = Object.keys(xmlData);
+        if (rootKeys.length > 0) {
+          const rootElement = xmlData[rootKeys[0]];
+          if (Array.isArray(rootElement) && rootElement.length > 0) {
+            firstRecord = rootElement[0];
+          } else if (typeof rootElement === 'object') {
+            const arrayKey = Object.keys(rootElement).find(key => Array.isArray(rootElement[key]));
+            if (arrayKey && rootElement[arrayKey].length > 0) {
+              firstRecord = rootElement[arrayKey][0];
+            } else {
+              firstRecord = rootElement;
+            }
+          }
+        }
+        
+        if (firstRecord) {
+          Object.keys(firstRecord).forEach((key, index) => {
+            schema.push({
+              name: key,
+              type: inferDataType(firstRecord[key]),
+              index: index
+            });
+          });
+        }
+        return schema;
+      } catch (error) {
+        throw new Error(`Failed to parse XML: ${error.message}`);
+      }
       
     default:
-      throw new Error(`Unsupported file type: ${fileExtension}`);
+      throw new Error(`Unsupported file type: ${fileExtension}. Supported types: CSV, JSON, XLSX, XLS, Parquet, XML`);
   }
 }
 
