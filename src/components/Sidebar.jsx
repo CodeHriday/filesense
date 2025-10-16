@@ -235,6 +235,16 @@ function Sidebar() {
               <span>Process Management</span>
             </li>
             
+            {/* Connections */}
+            {checkPermissions(['connections', 'connections:read']) && (
+              <li>
+                <NavLink to="/connections" className={({ isActive }) => isActive ? 'active' : ''}>
+                  <FiDatabase className="icon" />
+                  <span>Connections</span>
+                </NavLink>
+              </li>
+            )}
+            
             {/* Mappings */}
             {checkPermissions(['mappings', 'mappings:read']) && (
               <li>
@@ -313,26 +323,7 @@ function Sidebar() {
                     </NavLink>
                   </li>
                 )}
-                
-                {checkPermissions(['scheduler', 'scheduler:read']) && (
-                  <li>
-                    <NavLink to="/scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiCalendar className="icon" />
-                      <span>File Scheduler</span>
-                    </NavLink>
-                  </li>
-                )}
               </>
-            )}
-            
-            {/* Data sources section */}
-            {checkPermissions(['connections', 'connections:read']) && (
-              <li>
-                <NavLink to="/connections" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiDatabase className="icon" />
-                  <span>Connections</span>
-                </NavLink>
-              </li>
             )}
             
             {/* Governance section */}
