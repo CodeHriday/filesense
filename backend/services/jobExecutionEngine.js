@@ -23,9 +23,12 @@ const {
  * @param {Pool} pool - Database connection pool
  * @param {string} mappingId - Mapping ID
  * @param {string} userId - User ID executing the job
+ * @param {Object} options - Optional metadata
+ * @param {number} options.mappingGroupExecutionId - Mapping group execution ID if part of a group
+ * @param {number} options.scheduleId - Schedule ID if triggered by a schedule
  * @returns {Promise<Object>} - Created job record
  */
-async function createJob(pool, mappingId, userId) {
+async function createJob(pool, mappingId, userId, options = {}) {
   try {
     // Get mapping details
     const mappingResult = await pool.query(
@@ -42,12 +45,26 @@ async function createJob(pool, mappingId, userId) {
     
     const result = await pool.query(`
       INSERT INTO transformation_jobs (
-        job_id, mapping_id, mapping_name, executed_by, status
-      ) VALUES ($1, $2, $3, $4, $5)
+        job_id, mapping_id, mapping_name, executed_by, status, 
+        mapping_group_execution_id, schedule_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [jobId, mappingId, mapping.mapping_name, userId, 'running']);
+    `, [
+      jobId, 
+      mappingId, 
+      mapping.mapping_name, 
+      userId, 
+      'running',
+      options.mappingGroupExecutionId || null,
+      options.scheduleId || null
+    ]);
     
-    systemLogger.info('Transformation job created', { jobId, mappingId });
+    systemLogger.info('Transformation job created', { 
+      jobId, 
+      mappingId, 
+      mappingGroupExecutionId: options.mappingGroupExecutionId,
+      scheduleId: options.scheduleId 
+    });
     
     return result.rows[0];
     
@@ -142,7 +159,9 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     runSchemaValidation = true,
     runProfilingChecks = true,
     dryRun = false,
-    existingJob = null
+    existingJob = null,
+    mappingGroupExecutionId = null,
+    scheduleId = null
   } = options;
   
   let job = existingJob;
@@ -150,7 +169,10 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
   try {
     // Create job only if not provided
     if (!job) {
-      job = await createJob(pool, mappingId, userId);
+      job = await createJob(pool, mappingId, userId, {
+        mappingGroupExecutionId,
+        scheduleId
+      });
     }
     const jobId = job.job_id;
     

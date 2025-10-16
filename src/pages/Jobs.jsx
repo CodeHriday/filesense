@@ -172,7 +172,7 @@ const Jobs = () => {
     <div className="page-container">
       <div className="page-header">
         <div className="header-content">
-          <h1>Transformation Jobs</h1>
+          <h1>Jobs Log</h1>
           <p style={{ color: 'white' }}>Monitor and manage ETL transformation job executions</p>
         </div>
         <div className="header-actions">
@@ -206,15 +206,17 @@ const Jobs = () => {
             <table className="jobs-table">
               <thead>
                 <tr>
-                  <th>Job ID</th>
-                  <th>Mapping</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'center' }}>Files Processed</th>
-                  <th>Rows</th>
-                  <th>Start Time</th>
-                  <th>End Time</th>
-                  <th>Duration</th>
-                  <th>Actions</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Job ID</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping Group</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schedule</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Status</th>
+                  <th style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>Files Processed</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Rows</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Start Time</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>End Time</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Duration</th>
+                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,6 +226,8 @@ const Jobs = () => {
                       <code style={{ fontSize: '0.8em' }}>{job.job_id}</code>
                     </td>
                     <td>{job.mapping_name}</td>
+                    <td>{job.mapping_group_name || '-'}</td>
+                    <td>{job.schedule_name || '-'}</td>
                     <td>{getStatusBadge(job.status)}</td>
                     <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
                     <td>

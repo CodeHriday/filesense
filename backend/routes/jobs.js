@@ -68,18 +68,28 @@ router.get('/', async (req, res) => {
       sortOrder = 'DESC'
     } = req.query;
     
-    let query = 'SELECT * FROM transformation_jobs WHERE 1=1';
+    let query = `
+      SELECT 
+        tj.*,
+        mg.name as mapping_group_name,
+        s.schedule_name
+      FROM transformation_jobs tj
+      LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
+      LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
+      LEFT JOIN schedules s ON tj.schedule_id = s.id
+      WHERE 1=1
+    `;
     const params = [];
     let paramIndex = 1;
     
     if (status) {
-      query += ` AND status = $${paramIndex}`;
+      query += ` AND tj.status = $${paramIndex}`;
       params.push(status);
       paramIndex++;
     }
     
     if (mappingId) {
-      query += ` AND mapping_id = $${paramIndex}`;
+      query += ` AND tj.mapping_id = $${paramIndex}`;
       params.push(mappingId);
       paramIndex++;
     }
@@ -89,24 +99,31 @@ router.get('/', async (req, res) => {
     const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : 'created_at';
     const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
     
-    query += ` ORDER BY ${sortColumn} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    query += ` ORDER BY tj.${sortColumn} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(limit, offset);
     
     const result = await pool.query(query, params);
     
     // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM transformation_jobs WHERE 1=1';
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM transformation_jobs tj
+      LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
+      LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
+      LEFT JOIN schedules s ON tj.schedule_id = s.id
+      WHERE 1=1
+    `;
     const countParams = [];
     let countParamIndex = 1;
     
     if (status) {
-      countQuery += ` AND status = $${countParamIndex}`;
+      countQuery += ` AND tj.status = $${countParamIndex}`;
       countParams.push(status);
       countParamIndex++;
     }
     
     if (mappingId) {
-      countQuery += ` AND mapping_id = $${countParamIndex}`;
+      countQuery += ` AND tj.mapping_id = $${countParamIndex}`;
       countParams.push(mappingId);
     }
     
