@@ -193,3 +193,29 @@ Three critical issues affecting job execution quality:
 - ✅ Job duration calculated and displayed correctly
 - ✅ Data written to output files even without field mappings
 - ✅ No sensitive data in logs (architect-approved)
+
+### Schema Extraction Function Fix (October 16, 2025)
+**Status**: ✅ Completed
+
+**Problem Identified**:
+ETL job execution was failing with "extractSchemaFromBuffer is not a function" error, causing empty output files with "undefined" values. Schema validation step couldn't extract schemas from source files.
+
+**Root Cause**:
+- `jobExecutionEngine.js` imported and called `extractSchemaFromBuffer()` from `schemaService.js`
+- This function didn't exist - it was never exported from the schema service
+- Internal function `parseFileSchema()` existed and did the work, but wasn't accessible externally
+
+**Solution Applied**:
+Created and exported `extractSchemaFromBuffer()` wrapper function in `schemaService.js`:
+- Takes `(fileBuffer, filename)` as parameters
+- Extracts file extension from filename
+- Delegates to existing `parseFileSchema()` function
+- Returns schema array with columns, types, and indexes
+
+**Files Modified**:
+- `backend/services/schemaService.js`: Added extractSchemaFromBuffer wrapper and exported it
+
+**Verification**:
+- ✅ Schema extraction now works correctly for CSV and JSON files
+- ✅ Jobs can validate schema consistency across multiple files
+- ✅ Output files contain proper data instead of "undefined"
