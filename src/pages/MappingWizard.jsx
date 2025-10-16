@@ -12,7 +12,8 @@ import {
   FiAlertCircle,
   FiPlus,
   FiTrash2,
-  FiEdit
+  FiEdit,
+  FiPlay
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
