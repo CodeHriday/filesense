@@ -25,6 +25,12 @@ const NStepWorkflows = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newWorkflowName, setNewWorkflowName] = useState('');
   const [newWorkflowDescription, setNewWorkflowDescription] = useState('');
+  
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editWorkflowName, setEditWorkflowName] = useState('');
+  const [editWorkflowDescription, setEditWorkflowDescription] = useState('');
+  
+  const [executeModalOpen, setExecuteModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -184,14 +190,41 @@ const NStepWorkflows = () => {
     }
   };
 
-  const handleExecuteWorkflow = async () => {
-    if (!window.confirm('Execute this workflow?')) {
+  const handleOpenEditModal = () => {
+    if (workflowData) {
+      setEditWorkflowName(workflowData.name);
+      setEditWorkflowDescription(workflowData.description || '');
+      setEditModalOpen(true);
+    }
+  };
+
+  const handleSaveWorkflow = async () => {
+    if (!editWorkflowName.trim()) {
+      alert('Please enter a workflow name');
       return;
     }
 
     try {
+      await axios.put(`/api/n-step-workflows/${selectedWorkflow}`, {
+        name: editWorkflowName,
+        description: editWorkflowDescription
+      });
+      
+      await fetchData();
+      await fetchWorkflowDetails();
+      setEditModalOpen(false);
+      alert('Workflow saved successfully!');
+    } catch (err) {
+      console.error('Error saving workflow:', err);
+      alert('Failed to save workflow');
+    }
+  };
+
+  const handleExecuteWorkflow = async () => {
+    try {
       setExecuting(true);
       const response = await axios.post(`/api/n-step-workflows/${selectedWorkflow}/execute`);
+      setExecuteModalOpen(false);
       alert(`Workflow executed successfully! Run ID: ${response.data.runId}`);
       await fetchWorkflowDetails();
     } catch (err) {
@@ -355,8 +388,14 @@ const NStepWorkflows = () => {
                   Next Step <FiChevronRight />
                 </button>
                 <button
+                  className="btn btn-primary"
+                  onClick={handleOpenEditModal}
+                >
+                  <FiSave /> Save Workflow
+                </button>
+                <button
                   className="btn btn-success"
-                  onClick={handleExecuteWorkflow}
+                  onClick={() => setExecuteModalOpen(true)}
                   disabled={executing || !workflowData.steps?.length}
                 >
                   <FiPlay /> Execute Workflow
@@ -454,6 +493,81 @@ const NStepWorkflows = () => {
                 </button>
                 <button className="btn btn-primary" onClick={handleCreateWorkflow}>
                   <FiSave /> Create
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {editModalOpen && (
+          <div className="modal-overlay" onClick={() => setEditModalOpen(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Save Workflow</h2>
+                <button className="modal-close" onClick={() => setEditModalOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Workflow Name *</label>
+                  <input
+                    type="text"
+                    value={editWorkflowName}
+                    onChange={(e) => setEditWorkflowName(e.target.value)}
+                    className="form-input"
+                    placeholder="Enter workflow name"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    value={editWorkflowDescription}
+                    onChange={(e) => setEditWorkflowDescription(e.target.value)}
+                    className="form-input"
+                    rows={3}
+                    placeholder="Enter workflow description (optional)"
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setEditModalOpen(false)}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={handleSaveWorkflow}>
+                  <FiSave /> Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {executeModalOpen && (
+          <div className="modal-overlay" onClick={() => setExecuteModalOpen(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Execute Workflow</h2>
+                <button className="modal-close" onClick={() => setExecuteModalOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to execute this workflow?</p>
+                <p><strong>{workflowData?.name}</strong></p>
+                <p className="text-muted">
+                  This will run all {workflowData?.steps?.length || 0} steps sequentially.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setExecuteModalOpen(false)}>
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-success" 
+                  onClick={handleExecuteWorkflow}
+                  disabled={executing}
+                >
+                  <FiPlay /> {executing ? 'Executing...' : 'Execute'}
                 </button>
               </div>
             </div>
