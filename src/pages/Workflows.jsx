@@ -31,16 +31,18 @@ const Workflows = () => {
       
       const workflowMap = new Map();
       allSteps.forEach(step => {
-        if (!workflowMap.has(step.workflow_name)) {
-          workflowMap.set(step.workflow_name, []);
+        const workflowKey = step.workflow_id || 'unknown';
+        if (!workflowMap.has(workflowKey)) {
+          workflowMap.set(workflowKey, []);
         }
-        workflowMap.get(step.workflow_name).push(step);
+        workflowMap.get(workflowKey).push(step);
       });
 
-      const summaries = Array.from(workflowMap.entries()).map(([name, steps]) => ({
-        name,
+      const summaries = Array.from(workflowMap.entries()).map(([workflowId, steps]) => ({
+        id: workflowId,
+        name: `Workflow ${workflowId}`,
         stepCount: steps.length,
-        steps: steps.sort((a, b) => a.step_order - b.step_order)
+        steps: steps.sort((a, b) => (a.execution_order || 0) - (b.execution_order || 0))
       }));
 
       setWorkflows(summaries);
@@ -54,10 +56,10 @@ const Workflows = () => {
     }
   };
 
-  const handleExecute = async (workflowName) => {
+  const handleExecute = async (workflowId) => {
     try {
-      setExecuting(workflowName);
-      await axios.post(`/api/workflow-steps/${workflowName}/execute`);
+      setExecuting(workflowId);
+      await axios.post(`/api/workflow-steps/workflow/${workflowId}/execute`);
       alert('Workflow execution started successfully!');
     } catch (err) {
       console.error('Error executing workflow:', err);
@@ -67,17 +69,18 @@ const Workflows = () => {
     }
   };
 
-  const handleDelete = async (workflowName) => {
-    if (!window.confirm(`Are you sure you want to delete workflow "${workflowName}" and all its steps?`)) {
+  const handleDelete = async (workflowId) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (!window.confirm(`Are you sure you want to delete "${workflow?.name}" and all its steps?`)) {
       return;
     }
 
     try {
-      const steps = workflows.find(w => w.name === workflowName)?.steps || [];
+      const steps = workflow?.steps || [];
       for (const step of steps) {
-        await axios.delete(`/api/workflow-steps/${step.step_id}`);
+        await axios.delete(`/api/workflow-steps/steps/${step.id}`);
       }
-      setWorkflows(workflows.filter(w => w.name !== workflowName));
+      setWorkflows(workflows.filter(w => w.id !== workflowId));
     } catch (err) {
       console.error('Error deleting workflow:', err);
       alert('Failed to delete workflow');
@@ -111,7 +114,7 @@ const Workflows = () => {
         ) : (
           <div className="workflows-grid">
             {workflows.map(workflow => (
-              <div key={workflow.name} className="workflow-card">
+              <div key={workflow.id} className="workflow-card">
                 <h3>{workflow.name}</h3>
                 <div className="workflow-meta">
                   <span className="meta-item">Steps: {workflow.stepCount}</span>
@@ -121,23 +124,23 @@ const Workflows = () => {
                 </div>
                 <div className="workflow-steps">
                   {workflow.steps.map((step, idx) => (
-                    <div key={step.step_id} className="step-item">
+                    <div key={step.id} className="step-item">
                       {idx + 1}. {step.step_name} ({step.step_type})
                     </div>
                   ))}
                 </div>
                 <div className="workflow-actions">
                   <button
-                    onClick={() => handleExecute(workflow.name)}
-                    disabled={executing === workflow.name}
+                    onClick={() => handleExecute(workflow.id)}
+                    disabled={executing === workflow.id}
                     className="btn btn-success btn-sm"
                   >
-                    <FiPlayCircle /> {executing === workflow.name ? 'Executing...' : 'Execute'}
+                    <FiPlayCircle /> {executing === workflow.id ? 'Executing...' : 'Execute'}
                   </button>
-                  <Link to={`/workflows/${encodeURIComponent(workflow.name)}/edit`} className="btn btn-primary btn-sm">
+                  <Link to={`/workflows/${workflow.id}/edit`} className="btn btn-primary btn-sm">
                     <FiEdit2 /> Edit
                   </Link>
-                  <button onClick={() => handleDelete(workflow.name)} className="btn btn-danger btn-sm">
+                  <button onClick={() => handleDelete(workflow.id)} className="btn btn-danger btn-sm">
                     <FiTrash2 /> Delete
                   </button>
                 </div>

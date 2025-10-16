@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM workflow_steps
-      ORDER BY workflow_name, step_order ASC, id ASC
+      ORDER BY workflow_id, execution_order ASC, id ASC
     `);
     
     res.json({
