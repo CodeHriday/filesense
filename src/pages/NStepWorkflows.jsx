@@ -130,25 +130,15 @@ const NStepWorkflows = () => {
     }
   };
 
-  const handleAddAsset = async () => {
+  const handleAddAsset = async (assetType) => {
     const activeStep = workflowData?.steps?.find(s => s.is_active);
     if (!activeStep) {
       alert('No active step');
       return;
     }
 
-    let assetType, assetId;
-    if (selectedMapping && !selectedMappingGroup) {
-      assetType = 'mapping';
-      assetId = selectedMapping;
-    } else if (selectedMappingGroup && !selectedMapping) {
-      assetType = 'mapping_group';
-      assetId = selectedMappingGroup;
-    } else {
-      alert('Please select either a Mapping OR a Mapping Group (not both)');
-      return;
-    }
-
+    const assetId = assetType === 'mapping' ? selectedMapping : selectedMappingGroup;
+    
     // Check 10-mapping limit before adding
     const currentCount = getExpandedCount(activeStep);
     let newAssetCount = 0;
@@ -171,8 +161,13 @@ const NStepWorkflows = () => {
       });
       
       await fetchWorkflowDetails();
-      setSelectedMapping('');
-      setSelectedMappingGroup('');
+      
+      // Clear only the dropdown that was just added
+      if (assetType === 'mapping') {
+        setSelectedMapping('');
+      } else {
+        setSelectedMappingGroup('');
+      }
     } catch (err) {
       console.error('Error adding asset:', err);
       alert(err.response?.data?.error || 'Failed to add asset');
@@ -236,23 +231,25 @@ const NStepWorkflows = () => {
   const isFirstStep = activeStep?.step_index === 1;
   
   // Check if adding the selected asset would exceed the 10-mapping limit
-  const canAddAsset = (() => {
-    if (!activeStep || !(selectedMapping || selectedMappingGroup) || (selectedMapping && selectedMappingGroup)) {
+  const canAddAsset = (assetType) => {
+    if (!activeStep) {
       return false;
     }
     
     const currentCount = getExpandedCount(activeStep);
     let newAssetCount = 0;
     
-    if (selectedMapping) {
+    if (assetType === 'mapping') {
+      if (!selectedMapping) return false;
       newAssetCount = 1;
-    } else if (selectedMappingGroup) {
+    } else if (assetType === 'mapping_group') {
+      if (!selectedMappingGroup) return false;
       const group = mappingGroups.find(g => g.id === parseInt(selectedMappingGroup));
       newAssetCount = group?.mapping_count || 0;
     }
     
     return (currentCount + newAssetCount) <= 10;
-  })();
+  };
 
   if (loading) {
     return <LoadingSpinner message="Loading workflows..." />;
@@ -300,10 +297,7 @@ const NStepWorkflows = () => {
                   <label>Select Mapping</label>
                   <select
                     value={selectedMapping}
-                    onChange={(e) => {
-                      setSelectedMapping(e.target.value);
-                      if (e.target.value) setSelectedMappingGroup('');
-                    }}
+                    onChange={(e) => setSelectedMapping(e.target.value)}
                     className="form-select"
                     disabled={!activeStep}
                   >
@@ -318,10 +312,7 @@ const NStepWorkflows = () => {
                   <label>Select Mapping Group</label>
                   <select
                     value={selectedMappingGroup}
-                    onChange={(e) => {
-                      setSelectedMappingGroup(e.target.value);
-                      if (e.target.value) setSelectedMapping('');
-                    }}
+                    onChange={(e) => setSelectedMappingGroup(e.target.value)}
                     className="form-select"
                     disabled={!activeStep}
                   >
@@ -334,10 +325,17 @@ const NStepWorkflows = () => {
 
                 <button
                   className="btn btn-primary"
-                  onClick={handleAddAsset}
-                  disabled={!canAddAsset}
+                  onClick={() => handleAddAsset('mapping')}
+                  disabled={!selectedMapping || !canAddAsset('mapping')}
                 >
-                  <FiPlus /> Add
+                  <FiPlus /> Add Mapping
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleAddAsset('mapping_group')}
+                  disabled={!selectedMappingGroup || !canAddAsset('mapping_group')}
+                >
+                  <FiPlus /> Add Group
                 </button>
               </div>
 
