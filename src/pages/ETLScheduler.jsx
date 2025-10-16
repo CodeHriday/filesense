@@ -19,11 +19,13 @@ const ETLScheduler = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/schedules');
-      setSchedules(response.data);
+      const data = response.data.schedules || response.data || [];
+      setSchedules(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
       console.error('Error fetching schedules:', err);
       setError('Failed to load schedules');
+      setSchedules([]);
     } finally {
       setLoading(false);
     }

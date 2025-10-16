@@ -13,6 +13,27 @@ const {
  * Handles workflow step management and execution
  */
 
+// Get all workflow steps
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM workflow_steps
+      ORDER BY workflow_name, step_order ASC, id ASC
+    `);
+    
+    res.json({
+      success: true,
+      steps: result.rows
+    });
+  } catch (error) {
+    systemLogger.error('Error fetching all workflow steps', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch workflow steps'
+    });
+  }
+});
+
 // Get all steps for a workflow
 router.get('/workflow/:workflowId/steps', async (req, res) => {
   try {

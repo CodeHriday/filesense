@@ -20,7 +20,14 @@ const Workflows = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/workflow-steps');
-      const allSteps = response.data;
+      const responseData = response.data.steps || response.data || [];
+      const allSteps = Array.isArray(responseData) ? responseData : [];
+      
+      if (allSteps.length === 0) {
+        setWorkflows([]);
+        setError(null);
+        return;
+      }
       
       const workflowMap = new Map();
       allSteps.forEach(step => {
@@ -41,6 +48,7 @@ const Workflows = () => {
     } catch (err) {
       console.error('Error fetching workflows:', err);
       setError('Failed to load workflows');
+      setWorkflows([]);
     } finally {
       setLoading(false);
     }

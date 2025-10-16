@@ -20,11 +20,13 @@ const MappingGroups = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/mapping-groups');
-      setGroups(response.data);
+      const data = response.data.groups || response.data || [];
+      setGroups(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
       console.error('Error fetching mapping groups:', err);
       setError('Failed to load mapping groups');
+      setGroups([]);
     } finally {
       setLoading(false);
     }
