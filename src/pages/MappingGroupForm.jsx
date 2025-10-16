@@ -34,8 +34,9 @@ const MappingGroupForm = () => {
     try {
       const response = await axios.get('/api/transformations');
       const data = response.data;
-      // Ensure we always set an array
-      setTransformations(Array.isArray(data) ? data : (data.transformations || []));
+      // API returns {mappings: [...], total, limit, offset}
+      const mappings = data.mappings || [];
+      setTransformations(Array.isArray(mappings) ? mappings : []);
     } catch (err) {
       console.error('Error fetching transformations:', err);
       setTransformations([]); // Set empty array on error
@@ -75,9 +76,19 @@ const MappingGroupForm = () => {
 
     try {
       if (isEdit) {
-        await axios.put(`/api/mapping-groups/${groupId}`, formData);
+        // Backend expects: name, description, max_concurrency
+        await axios.put(`/api/mapping-groups/${groupId}`, {
+          name: formData.group_name,
+          description: formData.description,
+          max_concurrency: formData.concurrency_limit
+        });
       } else {
-        const response = await axios.post('/api/mapping-groups', formData);
+        // Backend expects: name, description, max_concurrency
+        const response = await axios.post('/api/mapping-groups', {
+          name: formData.group_name,
+          description: formData.description,
+          max_concurrency: formData.concurrency_limit
+        });
         const newGroupId = response.data.group?.id || response.data.id;
         
         // Add members if any were selected
@@ -102,7 +113,8 @@ const MappingGroupForm = () => {
   const handleAddMember = async () => {
     if (!selectedMapping) return;
 
-    const transformation = transformations.find(t => t.id === parseInt(selectedMapping));
+    // Transformations use mapping_id, not id
+    const transformation = transformations.find(t => t.mapping_id === parseInt(selectedMapping));
     if (!transformation) return;
 
     // If editing, add to database immediately
@@ -122,7 +134,7 @@ const MappingGroupForm = () => {
     } else {
       // If creating, add to local state
       const newMember = {
-        mapping_id: transformation.id,
+        mapping_id: transformation.mapping_id,
         mapping_name: transformation.mapping_name || transformation.name,
         execution_order: members.length + 1,
         temp_id: Date.now() // Temporary ID for UI
@@ -213,7 +225,7 @@ const MappingGroupForm = () => {
                 >
                   <option value="">Select a mapping...</option>
                   {transformations.map(t => (
-                    <option key={t.id} value={t.id}>{t.mapping_name || t.name}</option>
+                    <option key={t.mapping_id} value={t.mapping_id}>{t.mapping_name || t.name}</option>
                   ))}
                 </select>
                 <button
