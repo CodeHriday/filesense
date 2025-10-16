@@ -37,12 +37,13 @@ const WorkflowForm = () => {
         axios.get('/api/transformations'),
         axios.get('/api/mapping-groups')
       ]);
-      setTransformations(transformationsData.data);
-      setMappingGroups(groupsData.data);
+      setTransformations(transformationsData.data.mappings || []);
+      setMappingGroups(groupsData.data.groups || []);
 
       if (isEdit) {
         const stepsData = await axios.get(`/api/workflow-steps?workflow_name=${encodeURIComponent(name)}`);
-        setSteps(stepsData.data.sort((a, b) => a.step_order - b.step_order));
+        const steps = stepsData.data.steps || [];
+        setSteps(steps.sort((a, b) => a.step_order - b.step_order));
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -107,9 +108,9 @@ const WorkflowForm = () => {
 
   const getEntityOptions = () => {
     if (newStep.step_type === 'transformation') {
-      return transformations.map(t => ({ id: t.id, name: t.mapping_name }));
+      return transformations.map(t => ({ id: t.mapping_id, name: t.mapping_name }));
     } else {
-      return mappingGroups.map(g => ({ id: g.group_id, name: g.group_name }));
+      return mappingGroups.map(g => ({ id: g.id, name: g.name }));
     }
   };
 
