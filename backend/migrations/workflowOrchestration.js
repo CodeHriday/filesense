@@ -76,7 +76,7 @@ async function initWorkflowOrchestrationTables(pool) {
         is_active BOOLEAN DEFAULT true,
         last_run TIMESTAMP,
         next_run TIMESTAMP,
-        created_by UUID,
+        created_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT valid_cron CHECK (
@@ -100,7 +100,7 @@ async function initWorkflowOrchestrationTables(pool) {
         start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         end_time TIMESTAMP,
         duration_ms INTEGER,
-        triggered_by UUID,
+        triggered_by INTEGER,
         error_message TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -122,7 +122,7 @@ async function initWorkflowOrchestrationTables(pool) {
         start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         end_time TIMESTAMP,
         duration_ms INTEGER,
-        triggered_by UUID,
+        triggered_by INTEGER,
         error_message TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
