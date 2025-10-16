@@ -281,6 +281,113 @@ const NStepWorkflows = () => {
     }
   };
 
+  const handleAddStep = async () => {
+    try {
+      await axios.post(`/api/n-step-workflows/${selectedWorkflow}/steps`);
+      await fetchWorkflowDetails();
+    } catch (err) {
+      console.error('Error adding step:', err);
+      alert(err.response?.data?.error || 'Failed to add step');
+    }
+  };
+
+  const handleActivateStep = async (stepId) => {
+    if (mode !== 'edit') return;
+    
+    try {
+      await axios.put(`/api/n-step-workflows/${selectedWorkflow}/steps/${stepId}/activate`);
+      await fetchWorkflowDetails();
+      setSelectedMapping('');
+      setSelectedMappingGroup('');
+    } catch (err) {
+      console.error('Error activating step:', err);
+      alert(err.response?.data?.error || 'Failed to activate step');
+    }
+  };
+
+  const isAssetAlreadyAdded = (assetType, assetId) => {
+    if (!workflowData?.steps) return false;
+    
+    for (const step of workflowData.steps) {
+      if (step.assets) {
+        const found = step.assets.some(
+          asset => asset.asset_type === assetType && asset.asset_id === assetId
+        );
+        if (found) return true;
+      }
+    }
+    return false;
+  };
+
+  const handleAddAssetSmart = async () => {
+    const activeStep = workflowData?.steps?.find(s => s.is_active);
+    if (!activeStep) {
+      alert('No active step');
+      return;
+    }
+
+    const assetType = selectedMapping ? 'mapping' : 'mapping_group';
+    const assetId = selectedMapping || selectedMappingGroup;
+    
+    if (isAssetAlreadyAdded(assetType, assetId)) {
+      const assetName = assetType === 'mapping' 
+        ? mappings.find(m => m.mapping_id === assetId)?.mapping_name 
+        : mappingGroups.find(g => g.id === parseInt(assetId))?.name;
+      alert(`This ${assetType === 'mapping' ? 'mapping' : 'mapping group'} "${assetName}" is already added in another step`);
+      return;
+    }
+    
+    const currentCount = getExpandedCount(activeStep);
+    let newAssetCount = 0;
+    if (assetType === 'mapping') {
+      newAssetCount = 1;
+    } else {
+      const group = mappingGroups.find(g => g.id === parseInt(assetId));
+      newAssetCount = group?.mapping_count || 0;
+    }
+    
+    if (currentCount + newAssetCount > 10) {
+      alert(`Cannot add: would exceed 10-mapping limit (current: ${currentCount}, adding: ${newAssetCount})`);
+      return;
+    }
+
+    try {
+      await axios.post(`/api/n-step-workflows/${selectedWorkflow}/steps/${activeStep.id}/assets`, {
+        asset_type: assetType,
+        asset_id: assetId
+      });
+      
+      await fetchWorkflowDetails();
+      setSelectedMapping('');
+      setSelectedMappingGroup('');
+    } catch (err) {
+      console.error('Error adding asset:', err);
+      alert(err.response?.data?.error || 'Failed to add asset');
+    }
+  };
+
+  const canAddAssetSmart = () => {
+    if (!activeStep) return false;
+    
+    const assetType = selectedMapping ? 'mapping' : 'mapping_group';
+    const assetId = selectedMapping || selectedMappingGroup;
+    
+    if (!assetId) return false;
+    if (isAssetAlreadyAdded(assetType, assetId)) return false;
+    
+    const currentCount = getExpandedCount(activeStep);
+    let newAssetCount = 0;
+    
+    if (assetType === 'mapping') {
+      newAssetCount = 1;
+    } else {
+      const group = mappingGroups.find(g => g.id === parseInt(assetId));
+      newAssetCount = group?.mapping_count || 0;
+    }
+    
+    return (currentCount + newAssetCount) <= 10;
+  };
+
   const getAssetName = (asset) => {
     if (asset.asset_type === 'mapping') {
       const mapping = mappings.find(m => m.mapping_id === asset.asset_id);
@@ -444,9 +551,12 @@ const NStepWorkflows = () => {
                   <label>Select Mapping</label>
                   <select
                     value={selectedMapping}
-                    onChange={(e) => setSelectedMapping(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedMapping(e.target.value);
+                      if (e.target.value) setSelectedMappingGroup('');
+                    }}
                     className="form-select"
-                    disabled={!activeStep}
+                    disabled={!activeStep || mode === 'view' || !!selectedMappingGroup}
                   >
                     <option value="">-- Select Mapping --</option>
                     {mappings.map(m => (
@@ -459,9 +569,12 @@ const NStepWorkflows = () => {
                   <label>Select Mapping Group</label>
                   <select
                     value={selectedMappingGroup}
-                    onChange={(e) => setSelectedMappingGroup(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedMappingGroup(e.target.value);
+                      if (e.target.value) setSelectedMapping('');
+                    }}
                     className="form-select"
-                    disabled={!activeStep}
+                    disabled={!activeStep || mode === 'view' || !!selectedMapping}
                   >
                     <option value="">-- Select Mapping Group --</option>
                     {mappingGroups.map(g => (
@@ -470,40 +583,30 @@ const NStepWorkflows = () => {
                   </select>
                 </div>
 
-                <button
-                  className="btn btn-primary"
-                  onClick={() => handleAddAsset('mapping')}
-                  disabled={!selectedMapping || !canAddAsset('mapping')}
-                >
-                  <FiPlus /> Add Mapping
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => handleAddAsset('mapping_group')}
-                  disabled={!selectedMappingGroup || !canAddAsset('mapping_group')}
-                >
-                  <FiPlus /> Add Group
-                </button>
+                {mode === 'edit' && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleAddAssetSmart}
+                    disabled={(!selectedMapping && !selectedMappingGroup) || !canAddAssetSmart()}
+                  >
+                    <FiPlus /> Add
+                  </button>
+                )}
               </div>
 
               <div className="step-navigation">
-                <button
-                  className="btn btn-secondary"
-                  onClick={handlePreviousStep}
-                  disabled={isFirstStep || !activeStep}
-                >
-                  <FiChevronLeft /> Previous Step
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleNextStep}
-                  disabled={!activeStep}
-                >
-                  Next Step <FiChevronRight />
-                </button>
+                {mode === 'edit' && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleAddStep}
+                  >
+                    <FiPlus /> Add Step
+                  </button>
+                )}
                 <button
                   className="btn btn-primary"
                   onClick={handleOpenEditModal}
+                  disabled={mode === 'view'}
                 >
                   <FiSave /> Save Workflow
                 </button>
@@ -523,20 +626,27 @@ const NStepWorkflows = () => {
                 const isActive = step.is_active;
                 
                 return (
-                  <div key={step.id} className={`step-column ${isActive ? 'active' : 'frozen'}`}>
+                  <div 
+                    key={step.id} 
+                    className={`step-column ${isActive ? 'active' : 'frozen'} ${mode === 'edit' ? 'clickable' : ''}`}
+                    onClick={() => mode === 'edit' && !isActive && handleActivateStep(step.id)}
+                  >
                     <div className="step-header">
                       <div className="step-title-row">
                         <h3>Step {step.step_index}</h3>
-                        <button
-                          className="step-delete-btn"
-                          onClick={() => {
-                            setStepToDelete(step);
-                            setDeleteStepModalOpen(true);
-                          }}
-                          title="Delete this step"
-                        >
-                          <FiTrash2 />
-                        </button>
+                        {mode === 'edit' && (
+                          <button
+                            className="step-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStepToDelete(step);
+                              setDeleteStepModalOpen(true);
+                            }}
+                            title="Delete this step"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        )}
                       </div>
                       <span className={`step-status ${isActive ? 'active-badge' : 'frozen-badge'}`}>
                         {isActive ? 'Active' : 'Frozen'}
@@ -555,7 +665,7 @@ const NStepWorkflows = () => {
                             {asset.asset_type === 'mapping' ? 'MAPPING' : 'GROUP'}
                           </span>
                           <span className="asset-name">{getAssetName(asset)}</span>
-                          {isActive && (
+                          {isActive && mode === 'edit' && (
                             <button
                               className="asset-remove-btn"
                               onClick={() => handleRemoveAsset(step.id, asset.id)}

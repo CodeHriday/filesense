@@ -198,6 +198,50 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
+ * POST /api/n-step-workflows/:id/steps
+ * Add a new step to the workflow
+ */
+router.post('/:id/steps', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the highest step index
+    const maxStepResult = await pool.query(`
+      SELECT COALESCE(MAX(step_index), 0) as max_index
+      FROM n_step_workflow_steps
+      WHERE workflow_id = $1
+    `, [id]);
+    
+    const newStepIndex = maxStepResult.rows[0].max_index + 1;
+    
+    // Deactivate all current steps
+    await pool.query(`
+      UPDATE n_step_workflow_steps
+      SET is_active = false
+      WHERE workflow_id = $1
+    `, [id]);
+    
+    // Create new step and make it active
+    const newStepResult = await pool.query(`
+      INSERT INTO n_step_workflow_steps (workflow_id, step_index, is_active)
+      VALUES ($1, $2, true)
+      RETURNING *
+    `, [id, newStepIndex]);
+    
+    res.json({
+      success: true,
+      step: newStepResult.rows[0]
+    });
+  } catch (error) {
+    systemLogger.error('Error adding step', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add step'
+    });
+  }
+});
+
+/**
  * POST /api/n-step-workflows/:id/steps/next
  * Move to next step (freeze current, activate next or create new)
  */
@@ -314,6 +358,49 @@ router.post('/:id/steps/previous', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to move to previous step'
+    });
+  }
+});
+
+/**
+ * PUT /api/n-step-workflows/:id/steps/:stepId/activate
+ * Activate a specific step (deactivate all others)
+ */
+router.put('/:id/steps/:stepId/activate', async (req, res) => {
+  try {
+    const { id, stepId } = req.params;
+    
+    // Deactivate all steps in the workflow
+    await pool.query(`
+      UPDATE n_step_workflow_steps
+      SET is_active = false
+      WHERE workflow_id = $1
+    `, [id]);
+    
+    // Activate the specified step
+    const result = await pool.query(`
+      UPDATE n_step_workflow_steps
+      SET is_active = true
+      WHERE id = $1 AND workflow_id = $2
+      RETURNING *
+    `, [stepId, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Step not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      activeStep: result.rows[0]
+    });
+  } catch (error) {
+    systemLogger.error('Error activating step', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to activate step'
     });
   }
 });
