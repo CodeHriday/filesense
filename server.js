@@ -1769,6 +1769,7 @@ const addPerformanceIndexes = require('./backend/migrations/addPerformanceIndexe
 const { addProfilingColumns } = require('./backend/migrations/addProfilingColumns');
 const { addDuplicateRecordsColumns } = require('./backend/migrations/addDuplicateRecordsColumns');
 const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
+const { initWorkflowOrchestrationTables } = require('./backend/migrations/workflowOrchestration');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1808,6 +1809,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Patterns column migration completed');
+    
+    // Initialize workflow orchestration tables
+    return initWorkflowOrchestrationTables(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Workflow orchestration tables migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
