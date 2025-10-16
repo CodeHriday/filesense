@@ -224,9 +224,11 @@ const MappingGroupForm = () => {
                   className="form-select"
                 >
                   <option value="">Select a mapping...</option>
-                  {transformations.map(t => (
-                    <option key={t.mapping_id} value={t.mapping_id}>{t.mapping_name || t.name}</option>
-                  ))}
+                  {transformations
+                    .filter(t => !members.some(m => m.mapping_id === t.mapping_id))
+                    .map(t => (
+                      <option key={t.mapping_id} value={t.mapping_id}>{t.mapping_name || t.name}</option>
+                    ))}
                 </select>
                 <button
                   type="button"
