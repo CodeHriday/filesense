@@ -13,6 +13,7 @@ import {
   FiPlus,
   FiTrash2,
   FiEdit,
+  FiEdit2,
   FiPlay
 } from 'react-icons/fi';
 import axios from 'axios';
