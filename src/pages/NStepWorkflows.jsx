@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -15,6 +15,7 @@ const NStepWorkflows = () => {
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState(null);
+  const [mode, setMode] = useState('list');
   
   const [mappings, setMappings] = useState([]);
   const [mappingGroups, setMappingGroups] = useState([]);
@@ -251,6 +252,35 @@ const NStepWorkflows = () => {
     }
   };
 
+  const handleViewWorkflow = async (workflowId) => {
+    setSelectedWorkflow(workflowId);
+    setMode('view');
+    const response = await axios.get(`/api/n-step-workflows/${workflowId}`);
+    setWorkflowData(response.data.workflow);
+  };
+
+  const handleEditWorkflow = async (workflowId) => {
+    setSelectedWorkflow(workflowId);
+    setMode('edit');
+    const response = await axios.get(`/api/n-step-workflows/${workflowId}`);
+    setWorkflowData(response.data.workflow);
+  };
+
+  const handleBackToWorkflows = () => {
+    setMode('list');
+    setSelectedWorkflow(null);
+    setWorkflowData(null);
+    setSelectedMapping('');
+    setSelectedMappingGroup('');
+    fetchData();
+  };
+
+  const handleCancelChanges = () => {
+    if (window.confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
+      handleBackToWorkflows();
+    }
+  };
+
   const getAssetName = (asset) => {
     if (asset.asset_type === 'mapping') {
       const mapping = mappings.find(m => m.mapping_id === asset.asset_id);
@@ -312,13 +342,14 @@ const NStepWorkflows = () => {
           subtitle="Build N-step workflows with sequential execution"
         />
 
-        <div className="workflow-table-section">
-          <div className="section-header">
-            <h2>Available Workflows</h2>
-            <button className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>
-              <FiPlus /> New Workflow
-            </button>
-          </div>
+        {mode === 'list' && (
+          <div className="workflow-table-section">
+            <div className="section-header">
+              <h2>Available Workflows</h2>
+              <button className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>
+                <FiPlus /> New Workflow
+              </button>
+            </div>
           
           <div className="workflow-table-container">
             <table className="workflow-table">
@@ -357,11 +388,18 @@ const NStepWorkflows = () => {
                       <td>
                         <div className="action-buttons">
                           <button
-                            className="btn-icon btn-primary"
-                            onClick={() => setSelectedWorkflow(w.id)}
-                            title="Select workflow"
+                            className="btn-icon btn-info"
+                            onClick={() => handleViewWorkflow(w.id)}
+                            title="View workflow (read-only)"
                           >
                             <FiEye />
+                          </button>
+                          <button
+                            className="btn-icon btn-primary"
+                            onClick={() => handleEditWorkflow(w.id)}
+                            title="Edit workflow"
+                          >
+                            <FiEdit />
                           </button>
                           <button
                             className="btn-icon btn-danger"
@@ -382,9 +420,24 @@ const NStepWorkflows = () => {
             </table>
           </div>
         </div>
+        )}
 
-        {selectedWorkflow && workflowData && (
+        {(mode === 'view' || mode === 'edit') && workflowData && (
           <>
+            <div className="workflow-editor-header">
+              <button className="btn btn-secondary" onClick={handleBackToWorkflows}>
+                <FiArrowLeft /> Back to Workflows
+              </button>
+              <h2>{workflowData.name}</h2>
+              <div className="header-actions">
+                {mode === 'edit' && (
+                  <button className="btn btn-secondary" onClick={handleCancelChanges}>
+                    <FiX /> Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="workflow-controls">
               <div className="asset-selectors">
                 <div className="selector-group">
