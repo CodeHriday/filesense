@@ -33,9 +33,12 @@ const MappingGroupForm = () => {
   const fetchTransformations = async () => {
     try {
       const response = await axios.get('/api/transformations');
-      setTransformations(response.data);
+      const data = response.data;
+      // Ensure we always set an array
+      setTransformations(Array.isArray(data) ? data : (data.transformations || []));
     } catch (err) {
       console.error('Error fetching transformations:', err);
+      setTransformations([]); // Set empty array on error
     }
   };
 
@@ -56,9 +59,12 @@ const MappingGroupForm = () => {
   const fetchMembers = async () => {
     try {
       const response = await axios.get(`/api/mapping-groups/${groupId}/members`);
-      setMembers(response.data);
+      const data = response.data;
+      // Ensure we always set an array
+      setMembers(Array.isArray(data) ? data : (data.members || []));
     } catch (err) {
       console.error('Error fetching members:', err);
+      setMembers([]); // Set empty array on error
     }
   };
 
