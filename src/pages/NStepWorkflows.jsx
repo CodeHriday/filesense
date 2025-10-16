@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -312,29 +312,74 @@ const NStepWorkflows = () => {
           subtitle="Build N-step workflows with sequential execution"
         />
 
-        <div className="workflow-selector-bar">
-          <div className="selector-left">
-            <label>Select Workflow:</label>
-            <select
-              value={selectedWorkflow || ''}
-              onChange={(e) => setSelectedWorkflow(e.target.value ? parseInt(e.target.value) : null)}
-              className="workflow-select"
-            >
-              <option value="">-- Select a Workflow --</option>
-              {workflows.map(w => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="selector-right">
+        <div className="workflow-table-section">
+          <div className="section-header">
+            <h2>Available Workflows</h2>
             <button className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>
               <FiPlus /> New Workflow
             </button>
-            {selectedWorkflow && (
-              <button className="btn btn-danger" onClick={handleDeleteWorkflow}>
-                <FiTrash2 /> Delete
-              </button>
-            )}
+          </div>
+          
+          <div className="workflow-table-container">
+            <table className="workflow-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Steps</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workflows.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="empty-message">
+                      No workflows found. Create one to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  workflows.map(w => (
+                    <tr 
+                      key={w.id}
+                      className={selectedWorkflow === w.id ? 'selected-row' : ''}
+                    >
+                      <td>
+                        <strong>{w.name}</strong>
+                      </td>
+                      <td>{w.description || '-'}</td>
+                      <td>{w.step_count || 0}</td>
+                      <td>
+                        <span className={`status-badge ${w.is_active ? 'status-active' : 'status-inactive'}`}>
+                          {w.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="btn-icon btn-primary"
+                            onClick={() => setSelectedWorkflow(w.id)}
+                            title="Select workflow"
+                          >
+                            <FiEye />
+                          </button>
+                          <button
+                            className="btn-icon btn-danger"
+                            onClick={() => {
+                              setSelectedWorkflow(w.id);
+                              handleDeleteWorkflow();
+                            }}
+                            title="Delete workflow"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
