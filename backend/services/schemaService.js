@@ -537,6 +537,17 @@ async function streamToBuffer(stream) {
   });
 }
 
+/**
+ * Extract schema from file buffer
+ * @param {Buffer} fileBuffer - File content buffer
+ * @param {string} filename - Filename to determine file type
+ * @returns {Promise<Array>} - Schema fields
+ */
+async function extractSchemaFromBuffer(fileBuffer, filename) {
+  const fileExtension = filename.split('.').pop().toLowerCase();
+  return parseFileSchema(fileBuffer, fileExtension);
+}
+
 module.exports = {
   extractSchemaFromColumns,
   generateSchemaHash,
@@ -545,5 +556,6 @@ module.exports = {
   getFileSchema,
   saveSchemaSnapshot,
   detectSchemaDrift,
-  extractSchemaFromCloud
+  extractSchemaFromCloud,
+  extractSchemaFromBuffer
 };
