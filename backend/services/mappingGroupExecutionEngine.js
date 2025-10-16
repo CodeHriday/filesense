@@ -96,7 +96,7 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
           });
           
           // Execute the transformation job
-          const jobResult = await executeTransformationJob(mapping.mapping_id, triggeredBy);
+          const jobResult = await executeTransformationJob(pool, mapping.mapping_id, triggeredBy);
           
           completedCount++;
           
