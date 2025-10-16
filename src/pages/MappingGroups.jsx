@@ -4,6 +4,7 @@ import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
+import ExecuteModal from '../components/ExecuteModal';
 import { PageTransition } from '../components/MicroAnimations';
 import '../components/styles/PageActions.css';
 import axios from 'axios';
@@ -15,6 +16,8 @@ const MappingGroups = () => {
   const [executing, setExecuting] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedGroupForDelete, setSelectedGroupForDelete] = useState(null);
+  const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
+  const [executeResult, setExecuteResult] = useState({ success: false, message: '', groupName: '' });
 
   useEffect(() => {
     fetchMappingGroups();
@@ -36,14 +39,24 @@ const MappingGroups = () => {
     }
   };
 
-  const handleExecute = async (groupId) => {
+  const handleExecute = async (groupId, groupName) => {
     try {
       setExecuting(groupId);
       await axios.post(`/api/mapping-groups/${groupId}/execute`);
-      alert('Mapping group execution started successfully!');
+      setExecuteResult({
+        success: true,
+        message: 'Mapping group execution started successfully! The transformations are now running in the background.',
+        groupName: groupName
+      });
+      setIsExecuteModalOpen(true);
     } catch (err) {
       console.error('Error executing mapping group:', err);
-      alert('Failed to execute mapping group');
+      setExecuteResult({
+        success: false,
+        message: err.response?.data?.error || 'Failed to execute mapping group. Please try again.',
+        groupName: groupName
+      });
+      setIsExecuteModalOpen(true);
     } finally {
       setExecuting(null);
     }
@@ -59,9 +72,10 @@ const MappingGroups = () => {
 
     try {
       await axios.delete(`/api/mapping-groups/${selectedGroupForDelete.id}`);
-      setGroups(groups.filter(g => g.group_id !== selectedGroupForDelete.id));
       setIsDeleteModalOpen(false);
       setSelectedGroupForDelete(null);
+      // Auto-refresh the list after successful delete
+      fetchMappingGroups();
     } catch (err) {
       console.error('Error deleting mapping group:', err);
       alert('Failed to delete mapping group');
@@ -124,7 +138,7 @@ const MappingGroups = () => {
                     <td>
                       <div className="action-icons">
                         <button
-                          onClick={() => handleExecute(group.id || group.group_id)}
+                          onClick={() => handleExecute(group.id || group.group_id, group.name || group.group_name)}
                           disabled={executing === (group.id || group.group_id)}
                           className="icon-btn icon-btn-success"
                           title="Execute"
@@ -163,6 +177,14 @@ const MappingGroups = () => {
           onConfirm={confirmDelete}
           title="Delete Mapping Group"
           message={`Are you sure you want to delete "${selectedGroupForDelete?.name}"? This action cannot be undone.`}
+        />
+
+        <ExecuteModal
+          isOpen={isExecuteModalOpen}
+          onClose={() => setIsExecuteModalOpen(false)}
+          success={executeResult.success}
+          message={executeResult.message}
+          groupName={executeResult.groupName}
         />
       </div>
     </PageTransition>

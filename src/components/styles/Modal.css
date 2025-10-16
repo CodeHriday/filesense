@@ -114,6 +114,56 @@
   }
 }
 
+/* Execute Modal Styles */
+.execute-status-icon {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.execute-status-icon.success {
+  color: #52c41a;
+}
+
+.execute-status-icon.error {
+  color: #f5222d;
+}
+
+.execute-status-message {
+  text-align: center;
+}
+
+.group-name-text {
+  font-size: 0.95rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.status-message {
+  font-size: 1rem;
+  color: #333;
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.modal-close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
 /* Media queries for responsive modals */
 @media (max-width: 768px) {
   .modal-small,

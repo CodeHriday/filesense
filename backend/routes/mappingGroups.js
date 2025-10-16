@@ -342,7 +342,22 @@ router.delete('/:id/members/:memberId', async (req, res) => {
 router.post('/:id/execute', async (req, res) => {
   try {
     const { id } = req.params;
-    const { max_concurrency, triggered_by } = req.body;
+    
+    // Fetch group data from database
+    const groupResult = await pool.query(
+      'SELECT max_concurrency FROM mapping_groups WHERE id = $1',
+      [id]
+    );
+    
+    if (groupResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Mapping group not found'
+      });
+    }
+    
+    const { max_concurrency } = groupResult.rows[0];
+    const triggered_by = req.user?.id || req.body?.triggered_by;
     
     // Execute group asynchronously
     executeMappingGroup(parseInt(id), max_concurrency, triggered_by)
