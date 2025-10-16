@@ -117,3 +117,40 @@ Comprehensive ETL (Extract, Transform, Load) transformation system with file pat
 
 **Known Issues Fixed**:
 - API response format mismatch: Changed `mappingsRes.data` to `mappingsRes.data.mappings` to handle nested response structure
+
+### ETL Job Execution Database Schema Fix (October 16, 2025)
+**Status**: ✅ Fixed
+
+**Problem Identified**:
+All ETL transformation jobs were stuck in "running" status with no progress. Job execution and cancellation operations were failing silently.
+
+**Root Cause**:
+Database schema mismatches between migration and code:
+1. **Missing `updated_at` column** in `transformation_jobs` table - Code expected this column for all job updates
+2. **Column name mismatch** in `transformation_logs` table - Migration created `log_message` but code tried to insert into `message`
+
+**Impact**:
+- Jobs couldn't update status → stayed stuck in "running" forever
+- Progress tracking failed → no real-time updates
+- Job cancellation failed → showed "Failed to cancel job" error
+- Logging failed → no execution logs appeared
+
+**Solution Applied**:
+1. Added `updated_at TIMESTAMP` column to `transformation_jobs` table
+2. Renamed `log_message` to `message` in `transformation_logs` table
+3. Reset 5 stuck jobs to "failed" status with error message: "Job interrupted due to database schema issues (fixed)"
+
+**SQL Fixes**:
+```sql
+ALTER TABLE transformation_jobs ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE transformation_logs RENAME COLUMN log_message TO message;
+UPDATE transformation_jobs SET status = 'failed', end_time = CURRENT_TIMESTAMP, 
+  error_message = 'Job interrupted due to database schema issues (fixed)', 
+  updated_at = CURRENT_TIMESTAMP WHERE status = 'running';
+```
+
+**Verification**:
+- ✅ Database schema now matches code expectations
+- ✅ No more column-not-found errors in logs
+- ✅ Job execution can proceed normally
+- ✅ Progress tracking and cancellation work correctly
