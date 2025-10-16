@@ -102,7 +102,7 @@ router.post('/', async (req, res) => {
 // Get all schedules
 router.get('/', async (req, res) => {
   try {
-    const { pool } = require('../db');
+    const pool = require('../db');
     
     const result = await pool.query(`
       SELECT s.id as schedule_id,
@@ -167,7 +167,7 @@ router.get('/:entityType/:entityId', async (req, res) => {
 // Get all active schedules
 router.get('/active', async (req, res) => {
   try {
-    const { pool } = require('../db');
+    const pool = require('../db');
     
     const result = await pool.query(`
       SELECT s.*, 
@@ -237,7 +237,7 @@ router.put('/:id', async (req, res) => {
 router.patch('/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
-    const { pool } = require('../db');
+    const pool = require('../db');
     
     const result = await pool.query(`
       UPDATE schedules
