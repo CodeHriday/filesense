@@ -69,12 +69,13 @@ router.get('/:id', async (req, res) => {
       ORDER BY mgm.execution_order ASC, mgm.id ASC
     `, [id]);
     
+    const group = groupResult.rows[0];
     res.json({
       success: true,
-      group: {
-        ...groupResult.rows[0],
-        members: membersResult.rows
-      }
+      ...group,
+      group_name: group.name,
+      concurrency_limit: group.max_concurrency,
+      members: membersResult.rows
     });
   } catch (error) {
     systemLogger.error('Error fetching mapping group', { 
