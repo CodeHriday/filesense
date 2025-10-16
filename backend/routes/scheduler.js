@@ -89,6 +89,35 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Get all schedules
+router.get('/', async (req, res) => {
+  try {
+    const { pool } = require('../db');
+    
+    const result = await pool.query(`
+      SELECT s.*, 
+             CASE 
+               WHEN s.entity_type = 'transformation' THEN tm.mapping_name
+               WHEN s.entity_type = 'mapping_group' THEN mg.group_name
+               WHEN s.entity_type = 'workflow' THEN s.entity_id
+             END as entity_name,
+             s.enabled as enabled
+      FROM schedules s
+      LEFT JOIN transformation_mappings tm ON s.entity_type = 'transformation' AND s.entity_id = CAST(tm.id AS TEXT)
+      LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.group_id AS TEXT)
+      ORDER BY s.created_at DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (error) {
+    systemLogger.error('Error fetching all schedules', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch schedules'
+    });
+  }
+});
+
 // Get all schedules for an entity
 router.get('/:entityType/:entityId', async (req, res) => {
   try {

@@ -579,14 +579,14 @@ function inferDataType(value) {
   if (value === null || value === undefined || value === '') return 'string';
   
   if (!isNaN(value) && !isNaN(parseFloat(value))) {
-    return value.includes('.') ? 'float' : 'integer';
+    return String(value).includes('.') ? 'float' : 'integer';
   }
   
   if (value === 'true' || value === 'false') return 'boolean';
   
   // Check if it's a date
   const datePattern = /^\d{4}-\d{2}-\d{2}/;
-  if (datePattern.test(value)) return 'date';
+  if (String(value).match(datePattern)) return 'date';
   
   return 'string';
 }
