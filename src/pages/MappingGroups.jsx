@@ -87,33 +87,62 @@ const MappingGroups = () => {
             <p>No mapping groups found. Create one to get started!</p>
           </div>
         ) : (
-          <div className="groups-grid">
-            {groups.map(group => (
-              <div key={group.group_id} className="group-card">
-                <h3>{group.group_name}</h3>
-                {group.description && <p className="description">{group.description}</p>}
-                <div className="group-meta">
-                  <span className="meta-item">Members: {group.member_count || 0}</span>
-                  <span className="meta-item">Concurrency: {group.concurrency_limit}</span>
-                  <span className="meta-item">Created: {new Date(group.created_at).toLocaleDateString()}</span>
-                </div>
-                <div className="group-actions">
-                  <button
-                    onClick={() => handleExecute(group.group_id)}
-                    disabled={executing === group.group_id}
-                    className="btn btn-success btn-sm"
-                  >
-                    <FiPlayCircle /> {executing === group.group_id ? 'Executing...' : 'Execute'}
-                  </button>
-                  <Link to={`/mapping-groups/${group.group_id}/edit`} className="btn btn-primary btn-sm">
-                    <FiEdit2 /> Edit
-                  </Link>
-                  <button onClick={() => handleDelete(group.group_id)} className="btn btn-danger btn-sm">
-                    <FiTrash2 /> Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Members</th>
+                  <th>Concurrency</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map(group => (
+                  <tr key={group.id || group.group_id}>
+                    <td className="font-weight-bold">{group.name || group.group_name}</td>
+                    <td className="description-cell">{group.description || '-'}</td>
+                    <td className="text-center">{group.mapping_count || group.member_count || 0}</td>
+                    <td className="text-center">{group.max_concurrency || group.concurrency_limit}</td>
+                    <td>
+                      <span className={`status-badge status-${group.status || 'active'}`}>
+                        {group.status || 'active'}
+                      </span>
+                    </td>
+                    <td>{new Date(group.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <div className="action-icons">
+                        <button
+                          onClick={() => handleExecute(group.id || group.group_id)}
+                          disabled={executing === (group.id || group.group_id)}
+                          className="icon-btn icon-btn-success"
+                          title="Execute"
+                        >
+                          <FiPlayCircle />
+                        </button>
+                        <Link 
+                          to={`/mapping-groups/${group.id || group.group_id}/edit`} 
+                          className="icon-btn icon-btn-primary"
+                          title="Edit"
+                        >
+                          <FiEdit2 />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(group.id || group.group_id)}
+                          className="icon-btn icon-btn-danger"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
