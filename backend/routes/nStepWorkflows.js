@@ -1,0 +1,510 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const { systemLogger } = require('../utils/logger');
+const { executeNStepWorkflow, getWorkflowRunStatus } = require('../services/nStepWorkflowExecutionEngine');
+
+/**
+ * GET /api/n-step-workflows
+ * List all N-step workflows
+ */
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        w.*,
+        COUNT(DISTINCT s.id) as step_count
+      FROM n_step_workflows w
+      LEFT JOIN n_step_workflow_steps s ON w.id = s.workflow_id
+      GROUP BY w.id
+      ORDER BY w.created_at DESC
+    `);
+    
+    res.json({
+      success: true,
+      workflows: result.rows
+    });
+  } catch (error) {
+    systemLogger.error('Error fetching workflows', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch workflows'
+    });
+  }
+});
+
+/**
+ * GET /api/n-step-workflows/:id
+ * Get a specific workflow with all steps and assets
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const workflowResult = await pool.query(
+      'SELECT * FROM n_step_workflows WHERE id = $1',
+      [id]
+    );
+    
+    if (workflowResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Workflow not found'
+      });
+    }
+    
+    const stepsResult = await pool.query(`
+      SELECT 
+        s.*,
+        json_agg(
+          json_build_object(
+            'id', a.id,
+            'asset_type', a.asset_type,
+            'asset_id', a.asset_id
+          ) ORDER BY a.created_at
+        ) FILTER (WHERE a.id IS NOT NULL) as assets
+      FROM n_step_workflow_steps s
+      LEFT JOIN n_step_workflow_assets a ON s.id = a.step_id
+      WHERE s.workflow_id = $1
+      GROUP BY s.id
+      ORDER BY s.step_index
+    `, [id]);
+    
+    res.json({
+      success: true,
+      workflow: {
+        ...workflowResult.rows[0],
+        steps: stepsResult.rows
+      }
+    });
+  } catch (error) {
+    systemLogger.error('Error fetching workflow', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch workflow'
+    });
+  }
+});
+
+/**
+ * POST /api/n-step-workflows
+ * Create a new workflow
+ */
+router.post('/', async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const userId = req.user?.id || 1;
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Workflow name is required'
+      });
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO n_step_workflows (name, description, created_by)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `, [name, description, userId]);
+    
+    const workflow = result.rows[0];
+    
+    await pool.query(`
+      INSERT INTO n_step_workflow_steps (workflow_id, step_index, is_active)
+      VALUES ($1, 1, true)
+    `, [workflow.id]);
+    
+    res.json({
+      success: true,
+      workflow: workflow
+    });
+  } catch (error) {
+    systemLogger.error('Error creating workflow', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create workflow'
+    });
+  }
+});
+
+/**
+ * PUT /api/n-step-workflows/:id
+ * Update workflow metadata
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    
+    const result = await pool.query(`
+      UPDATE n_step_workflows
+      SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING *
+    `, [name, description, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Workflow not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      workflow: result.rows[0]
+    });
+  } catch (error) {
+    systemLogger.error('Error updating workflow', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update workflow'
+    });
+  }
+});
+
+/**
+ * DELETE /api/n-step-workflows/:id
+ * Delete a workflow
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      'DELETE FROM n_step_workflows WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Workflow not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Workflow deleted successfully'
+    });
+  } catch (error) {
+    systemLogger.error('Error deleting workflow', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete workflow'
+    });
+  }
+});
+
+/**
+ * POST /api/n-step-workflows/:id/steps/next
+ * Move to next step (freeze current, activate next or create new)
+ */
+router.post('/:id/steps/next', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const currentActiveResult = await pool.query(`
+      SELECT * FROM n_step_workflow_steps
+      WHERE workflow_id = $1 AND is_active = true
+    `, [id]);
+    
+    if (currentActiveResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active step found'
+      });
+    }
+    
+    const currentStep = currentActiveResult.rows[0];
+    const nextStepIndex = currentStep.step_index + 1;
+    
+    await pool.query(`
+      UPDATE n_step_workflow_steps
+      SET is_active = false
+      WHERE id = $1
+    `, [currentStep.id]);
+    
+    const nextStepResult = await pool.query(`
+      SELECT * FROM n_step_workflow_steps
+      WHERE workflow_id = $1 AND step_index = $2
+    `, [id, nextStepIndex]);
+    
+    let nextStep;
+    if (nextStepResult.rows.length === 0) {
+      const createResult = await pool.query(`
+        INSERT INTO n_step_workflow_steps (workflow_id, step_index, is_active)
+        VALUES ($1, $2, true)
+        RETURNING *
+      `, [id, nextStepIndex]);
+      nextStep = createResult.rows[0];
+    } else {
+      await pool.query(`
+        UPDATE n_step_workflow_steps
+        SET is_active = true
+        WHERE id = $1
+      `, [nextStepResult.rows[0].id]);
+      nextStep = { ...nextStepResult.rows[0], is_active: true };
+    }
+    
+    res.json({
+      success: true,
+      activeStep: nextStep
+    });
+  } catch (error) {
+    systemLogger.error('Error moving to next step', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to move to next step'
+    });
+  }
+});
+
+/**
+ * POST /api/n-step-workflows/:id/steps/previous
+ * Move to previous step (freeze current, activate previous)
+ */
+router.post('/:id/steps/previous', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const currentActiveResult = await pool.query(`
+      SELECT * FROM n_step_workflow_steps
+      WHERE workflow_id = $1 AND is_active = true
+    `, [id]);
+    
+    if (currentActiveResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active step found'
+      });
+    }
+    
+    const currentStep = currentActiveResult.rows[0];
+    
+    if (currentStep.step_index === 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Already at first step'
+      });
+    }
+    
+    const previousStepIndex = currentStep.step_index - 1;
+    
+    await pool.query(`
+      UPDATE n_step_workflow_steps
+      SET is_active = false
+      WHERE id = $1
+    `, [currentStep.id]);
+    
+    const previousStepResult = await pool.query(`
+      UPDATE n_step_workflow_steps
+      SET is_active = true
+      WHERE workflow_id = $1 AND step_index = $2
+      RETURNING *
+    `, [id, previousStepIndex]);
+    
+    res.json({
+      success: true,
+      activeStep: previousStepResult.rows[0]
+    });
+  } catch (error) {
+    systemLogger.error('Error moving to previous step', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to move to previous step'
+    });
+  }
+});
+
+/**
+ * POST /api/n-step-workflows/:id/steps/:stepId/assets
+ * Add asset to a step with 10-mapping limit validation
+ */
+router.post('/:id/steps/:stepId/assets', async (req, res) => {
+  try {
+    const { stepId } = req.params;
+    const { asset_type, asset_id } = req.body;
+    
+    if (!['mapping', 'mapping_group'].includes(asset_type)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid asset type'
+      });
+    }
+    
+    let expandedCount = 1;
+    if (asset_type === 'mapping_group') {
+      const groupResult = await pool.query(`
+        SELECT COUNT(*) as mapping_count
+        FROM mapping_group_members
+        WHERE group_id = $1
+      `, [asset_id]);
+      expandedCount = parseInt(groupResult.rows[0].mapping_count);
+    }
+    
+    const currentCountResult = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE a.asset_type = 'mapping') as mapping_count,
+        COALESCE(SUM(
+          CASE 
+            WHEN a.asset_type = 'mapping_group' 
+            THEN (SELECT COUNT(*) FROM mapping_group_members WHERE group_id = a.asset_id::integer)
+            ELSE 0
+          END
+        ), 0) as group_mapping_count
+      FROM n_step_workflow_assets a
+      WHERE a.step_id = $1
+    `, [stepId]);
+    
+    const currentTotal = parseInt(currentCountResult.rows[0].mapping_count) + 
+                        parseInt(currentCountResult.rows[0].group_mapping_count);
+    const newTotal = currentTotal + expandedCount;
+    
+    if (newTotal > 10) {
+      return res.status(400).json({
+        success: false,
+        error: `Adding this ${asset_type} would exceed the 10-mapping limit (current: ${currentTotal}, would be: ${newTotal})`
+      });
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO n_step_workflow_assets (step_id, asset_type, asset_id)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `, [stepId, asset_type, asset_id]);
+    
+    res.json({
+      success: true,
+      asset: result.rows[0],
+      expandedCount: newTotal
+    });
+  } catch (error) {
+    systemLogger.error('Error adding asset', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add asset'
+    });
+  }
+});
+
+/**
+ * DELETE /api/n-step-workflows/:id/steps/:stepId/assets/:assetId
+ * Remove asset from a step
+ */
+router.delete('/:id/steps/:stepId/assets/:assetId', async (req, res) => {
+  try {
+    const { assetId } = req.params;
+    
+    const result = await pool.query(
+      'DELETE FROM n_step_workflow_assets WHERE id = $1 RETURNING *',
+      [assetId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Asset not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Asset removed successfully'
+    });
+  } catch (error) {
+    systemLogger.error('Error removing asset', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to remove asset'
+    });
+  }
+});
+
+/**
+ * GET /api/n-step-workflows/:id/steps/:stepId/expanded-count
+ * Get expanded mapping count for a step
+ */
+router.get('/:id/steps/:stepId/expanded-count', async (req, res) => {
+  try {
+    const { stepId } = req.params;
+    
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE a.asset_type = 'mapping') as mapping_count,
+        COALESCE(SUM(
+          CASE 
+            WHEN a.asset_type = 'mapping_group' 
+            THEN (SELECT COUNT(*) FROM mapping_group_members WHERE group_id = a.asset_id::integer)
+            ELSE 0
+          END
+        ), 0) as group_mapping_count
+      FROM n_step_workflow_assets a
+      WHERE a.step_id = $1
+    `, [stepId]);
+    
+    const total = parseInt(result.rows[0].mapping_count) + 
+                 parseInt(result.rows[0].group_mapping_count);
+    
+    res.json({
+      success: true,
+      expandedCount: total
+    });
+  } catch (error) {
+    systemLogger.error('Error getting expanded count', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get expanded count'
+    });
+  }
+});
+
+/**
+ * POST /api/n-step-workflows/:id/execute
+ * Execute a workflow
+ */
+router.post('/:id/execute', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id || 1;
+    
+    const result = await executeNStepWorkflow(id, userId);
+    
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    systemLogger.error('Error executing workflow', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to execute workflow: ' + error.message
+    });
+  }
+});
+
+/**
+ * GET /api/n-step-workflows/runs/:runId
+ * Get workflow run status
+ */
+router.get('/runs/:runId', async (req, res) => {
+  try {
+    const { runId } = req.params;
+    
+    const result = await getWorkflowRunStatus(runId);
+    
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    systemLogger.error('Error getting workflow run status', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get workflow run status'
+    });
+  }
+});
+
+module.exports = router;

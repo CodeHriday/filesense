@@ -1620,6 +1620,10 @@ app.use('/api/mapping-groups', authenticateToken, mappingGroupsRoutes);
 const workflowStepsRoutes = require('./backend/routes/workflowSteps');
 app.use('/api/workflow-steps', authenticateToken, workflowStepsRoutes);
 
+// N-Step Workflows routes
+const nStepWorkflowsRoutes = require('./backend/routes/nStepWorkflows');
+app.use('/api/n-step-workflows', authenticateToken, nStepWorkflowsRoutes);
+
 // Scheduler routes
 const schedulerRoutes = require('./backend/routes/scheduler');
 app.use('/api/scheduler', authenticateToken, schedulerRoutes);
