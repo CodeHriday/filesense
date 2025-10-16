@@ -1782,6 +1782,7 @@ const { addProfilingColumns } = require('./backend/migrations/addProfilingColumn
 const { addDuplicateRecordsColumns } = require('./backend/migrations/addDuplicateRecordsColumns');
 const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
 const { initWorkflowOrchestrationTables } = require('./backend/migrations/workflowOrchestration');
+const { fixMappingGroupMembersSchema } = require('./backend/migrations/fixMappingGroupMembersSchema');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1827,6 +1828,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Workflow orchestration tables migration completed');
+    
+    // Fix mapping_group_members schema (mapping_id type mismatch)
+    return fixMappingGroupMembersSchema(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Mapping group members schema fix completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
