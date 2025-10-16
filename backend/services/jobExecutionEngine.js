@@ -544,6 +544,35 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
 }
 
 /**
+ * Convert database field mapping format to transformRow expected format
+ * @param {Array} dbFieldMappings - Field mappings from database
+ * @returns {Array} - Converted field mappings for transformRow
+ */
+function convertFieldMappings(dbFieldMappings) {
+  if (!dbFieldMappings || dbFieldMappings.length === 0) {
+    return [];
+  }
+  
+  return dbFieldMappings.map(mapping => {
+    const converted = {
+      targetField: mapping.target_field,
+      sourceFields: mapping.source_field ? [mapping.source_field] : [],
+      transformations: []
+    };
+    
+    // Convert transformation if present
+    if (mapping.transformation && mapping.transformation !== 'none') {
+      converted.transformations.push({
+        type: mapping.transformation,
+        params: mapping.transformation_params || {}
+      });
+    }
+    
+    return converted;
+  });
+}
+
+/**
  * Parse CSV and apply transformations
  */
 async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
@@ -553,6 +582,9 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
     let rowsWritten = 0;
     let rowsFailed = 0;
     let firstRow = null;
+    
+    // Convert field mappings to expected format
+    const convertedMappings = convertFieldMappings(fieldMappings);
     
     const stream = Readable.from(buffer);
     
@@ -566,12 +598,12 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
           firstRow = row;
           systemLogger.info('CSV first row columns:', { 
             columns: Object.keys(row),
-            fieldMappingsCount: fieldMappings?.length || 0
+            fieldMappingsCount: convertedMappings?.length || 0
           });
         }
         
         try {
-          const transformedRow = transformRow(row, fieldMappings);
+          const transformedRow = transformRow(row, convertedMappings);
           
           // Check if transformedRow has any data
           if (Object.keys(transformedRow).length === 0) {
@@ -626,10 +658,13 @@ async function parseAndTransformJSON(buffer, fieldMappings, jobId, pool) {
     let rowsWritten = 0;
     let rowsFailed = 0;
     
+    // Convert field mappings to expected format
+    const convertedMappings = convertFieldMappings(fieldMappings);
+    
     for (const row of dataArray) {
       rowsRead++;
       try {
-        const transformedRow = transformRow(row, fieldMappings);
+        const transformedRow = transformRow(row, convertedMappings);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
