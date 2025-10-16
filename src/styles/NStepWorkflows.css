@@ -161,6 +161,29 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.success-modal .modal-body {
+  text-align: center;
+  padding: 2rem;
+}
+
+.success-icon {
+  width: 64px;
+  height: 64px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  font-size: 2rem;
+  color: white;
+  font-weight: bold;
+}
+
+.success-modal .modal-footer {
+  justify-content: center;
+}
+
 .workflow-controls {
   background: white;
   padding: 1.5rem;

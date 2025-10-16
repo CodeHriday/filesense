@@ -34,6 +34,7 @@ const NStepWorkflows = () => {
   const [executeModalOpen, setExecuteModalOpen] = useState(false);
   const [deleteStepModalOpen, setDeleteStepModalOpen] = useState(false);
   const [stepToDelete, setStepToDelete] = useState(null);
+  const [saveSuccessModalOpen, setSaveSuccessModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -216,7 +217,7 @@ const NStepWorkflows = () => {
       await fetchData();
       await fetchWorkflowDetails();
       setEditModalOpen(false);
-      alert('Workflow saved successfully!');
+      setSaveSuccessModalOpen(true);
     } catch (err) {
       console.error('Error saving workflow:', err);
       alert('Failed to save workflow');
@@ -311,7 +312,7 @@ const NStepWorkflows = () => {
     for (const step of workflowData.steps) {
       if (step.assets) {
         const found = step.assets.some(
-          asset => asset.asset_type === assetType && asset.asset_id === assetId
+          asset => asset.asset_type === assetType && String(asset.asset_id) === String(assetId)
         );
         if (found) return true;
       }
@@ -835,6 +836,29 @@ const NStepWorkflows = () => {
                   onClick={handleDeleteStep}
                 >
                   <FiTrash2 /> Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {saveSuccessModalOpen && (
+          <div className="modal-overlay" onClick={() => setSaveSuccessModalOpen(false)}>
+            <div className="modal-content success-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Success!</h2>
+                <button className="modal-close" onClick={() => setSaveSuccessModalOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="success-icon">✓</div>
+                <p><strong>Workflow saved successfully!</strong></p>
+                <p className="text-muted">Your changes have been saved.</p>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-primary" onClick={() => setSaveSuccessModalOpen(false)}>
+                  OK
                 </button>
               </div>
             </div>
