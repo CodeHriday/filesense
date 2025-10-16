@@ -4,6 +4,7 @@ import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
+import '../components/styles/PageActions.css';
 import axios from 'axios';
 
 const MappingGroups = () => {
@@ -69,12 +70,13 @@ const MappingGroups = () => {
         <PageHeader
           title="Mapping Groups"
           subtitle="Batch execution of transformations with concurrency control"
-          actions={
-            <Link to="/mapping-groups/create" className="btn btn-primary">
-              <FiPlusCircle /> Create Mapping Group
-            </Link>
-          }
         />
+        
+        <div className="page-actions">
+          <Link to="/mapping-groups/create" className="btn btn-primary">
+            <FiPlusCircle /> Create Mapping Group
+          </Link>
+        </div>
 
         {error && (
           <div className="alert alert-danger">{error}</div>

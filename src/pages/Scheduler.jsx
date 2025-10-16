@@ -8,6 +8,7 @@ import { AnimatedButton } from '../components/MicroAnimations';
 import { getSchedules, createSchedule, updateSchedule, deleteSchedule, runScheduleNow } from '../api/schedulerService';
 import { useAuth } from '../context/AuthContext';
 import '../components/styles/Scheduler.css';
+import '../components/styles/PageActions.css';
 import { formatRelativeTime } from '../utils/formatters';
 
 const Scheduler = () => {
@@ -415,17 +416,18 @@ const Scheduler = () => {
           title="File Scheduler"
           subtitle="Schedule automatic file profiling and analysis"
           icon={<FiCalendar className="page-header-icon-svg" />}
-          actions={
-            hasWritePermission('schedule') ? (
-              <AnimatedButton
-                icon={<FiPlusCircle />}
-                onClick={openCreateModal}
-              >
-                New Schedule
-              </AnimatedButton>
-            ) : null
-          }
         />
+        
+        {hasWritePermission('schedule') && (
+          <div className="page-actions">
+            <AnimatedButton
+              icon={<FiPlusCircle />}
+              onClick={openCreateModal}
+            >
+              New Schedule
+            </AnimatedButton>
+          </div>
+        )}
         
         {alertMessage && (
           <div className={`alert alert-${alertType}`}>

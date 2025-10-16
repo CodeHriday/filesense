@@ -4,6 +4,7 @@ import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
+import '../components/styles/PageActions.css';
 import axios from 'axios';
 
 const Workflows = () => {
@@ -97,12 +98,13 @@ const Workflows = () => {
         <PageHeader
           title="Workflows"
           subtitle="Multi-step orchestration with dependency management"
-          actions={
-            <Link to="/workflows/create" className="btn btn-primary">
-              <FiPlusCircle /> Create Workflow
-            </Link>
-          }
         />
+        
+        <div className="page-actions">
+          <Link to="/workflows/create" className="btn btn-primary">
+            <FiPlusCircle /> Create Workflow
+          </Link>
+        </div>
 
         {error && (
           <div className="alert alert-danger">{error}</div>

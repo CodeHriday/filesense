@@ -1,0 +1,17 @@
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .page-actions {
+    justify-content: stretch;
+  }
+  
+  .page-actions .btn {
+    flex: 1;
+  }
+}
