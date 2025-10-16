@@ -600,10 +600,24 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
             columns: Object.keys(row),
             fieldMappingsCount: convertedMappings?.length || 0
           });
+          systemLogger.info('Converted field mappings sample:', {
+            sample: convertedMappings.slice(0, 3)
+          });
         }
         
         try {
           const transformedRow = transformRow(row, convertedMappings);
+          
+          // Debug first transformed row
+          if (rowsRead === 1) {
+            systemLogger.info('First transformed row structure:', {
+              keys: Object.keys(transformedRow),
+              valueTypes: Object.keys(transformedRow).reduce((acc, key) => {
+                acc[key] = typeof transformedRow[key];
+                return acc;
+              }, {})
+            });
+          }
           
           // Check if transformedRow has any data
           if (Object.keys(transformedRow).length === 0) {
