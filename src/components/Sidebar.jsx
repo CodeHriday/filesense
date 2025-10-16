@@ -245,22 +245,6 @@ function Sidebar() {
               </li>
             )}
             
-            {/* Mapping Groups */}
-            <li>
-              <NavLink to="/groups" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiUsers className="icon" />
-                <span>Mapping Groups</span>
-              </NavLink>
-            </li>
-            
-            {/* Business Processes */}
-            <li>
-              <NavLink to="/business-processes" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiBriefcase className="icon" />
-                <span>Workflows</span>
-              </NavLink>
-            </li>
-            
             {/* Process Management Wizard */}
             <li>
               <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>

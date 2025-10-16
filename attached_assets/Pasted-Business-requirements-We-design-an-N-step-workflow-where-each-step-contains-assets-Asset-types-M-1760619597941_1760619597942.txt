@@ -1,0 +1,93 @@
+Business requirements
+
+We design an N-step workflow where each step contains assets:
+
+Asset types: MAPPING and MAPPING_GROUP.
+
+Within a step, assets run in parallel.
+
+Hard cap: At most 10 mappings may run in parallel per step. This includes mappings that come from any group(s) in that step (expanded count ≤ 10).
+
+Steps run in sequence: Step k must finish before Step k+1 starts.
+
+Step navigation & editability
+
+Only one active step is editable at a time; all other steps are frozen (read-only).
+
+Next Step:
+
+Freezes the current active step.
+
+If the next step exists, make it active; otherwise create it and set active.
+
+Previous Step:
+
+Freezes the current active step.
+
+Moves back one step and makes that previous step active and editable.
+
+Users can iteratively move back to fix/adjust a previous step, then move forward again. Execution order remains by step_index.
+
+UI (simple & clear)
+
+Top controls:
+
+Two dropdowns side-by-side:
+
+Select Mapping
+
+Select Mapping Group
+
+Add button:
+
+Adds whichever dropdown has a selection (enforce only one selected at a time).
+
+Disabled if no active step, if both/none selected, or if adding would exceed expanded 10 limit.
+
+Previous Step button:
+
+Freezes current step; activates previous step (if any).
+
+Next Step button:
+
+Freezes current step; activates next step (create it if it doesn’t exist).
+
+Execute Workflow button.
+
+Main grid:
+
+Columns = Steps labeled Step 1, Step 2, ….
+
+Each column lists the step’s assets as small chips/cards ([MAPPING] Name / [GROUP] Name).
+
+Show “Mappings this step: X/10” (expanded count).
+
+Non-active steps are visibly frozen (no add/delete controls).
+
+Status pane:
+
+Shows last run id, per-step status (Queued/Running/Success/Failed), and per-asset job status with collapsible logs.
+
+Behavior rules
+
+Add asset to active step:
+
+If Mapping → expanded count +1.
+
+If Mapping Group → expanded count += number of mappings in that group.
+
+If new total would exceed 10 → block with error toast; do not add.
+
+Next Step:
+
+Freeze current; set/create the next step as active.
+
+Previous Step:
+
+Freeze current; set the previous step as active (if Step 1 is active, button disabled).
+
+Only active step is editable.
+
+Execute Workflow:
+
+Creates a Run record and executes steps sequentially; within each step, run expanded mappings in parallel.
