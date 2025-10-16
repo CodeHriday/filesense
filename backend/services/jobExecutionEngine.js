@@ -85,6 +85,20 @@ async function logJobExecution(pool, jobId, level, message, details = {}) {
  */
 async function updateJob(pool, jobId, updates) {
   try {
+    // If end_time is being set, calculate duration_ms
+    if (updates.end_time) {
+      const jobResult = await pool.query(
+        'SELECT start_time FROM transformation_jobs WHERE job_id = $1',
+        [jobId]
+      );
+      
+      if (jobResult.rows.length > 0) {
+        const startTime = new Date(jobResult.rows[0].start_time);
+        const endTime = new Date(updates.end_time);
+        updates.duration_ms = endTime.getTime() - startTime.getTime();
+      }
+    }
+    
     const fields = [];
     const values = [];
     let paramIndex = 1;
