@@ -41,10 +41,11 @@ const SchedulerForm = () => {
         axios.get('/api/mapping-groups'),
         axios.get('/api/workflow-steps')
       ]);
-      setTransformations(transformationsData.data);
-      setMappingGroups(groupsData.data);
+      setTransformations(transformationsData.data.mappings || []);
+      setMappingGroups(groupsData.data.groups || []);
       
-      const workflowNames = [...new Set(workflowsData.data.map(s => s.workflow_name))];
+      const steps = workflowsData.data.steps || [];
+      const workflowNames = [...new Set(steps.map(s => s.workflow_name))];
       setWorkflows(workflowNames);
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -100,9 +101,9 @@ const SchedulerForm = () => {
   const getEntityOptions = () => {
     switch (formData.entity_type) {
       case 'transformation':
-        return transformations.map(t => ({ id: t.id, name: t.mapping_name }));
+        return transformations.map(t => ({ id: t.mapping_id, name: t.mapping_name }));
       case 'mapping_group':
-        return mappingGroups.map(g => ({ id: g.group_id, name: g.group_name }));
+        return mappingGroups.map(g => ({ id: g.id, name: g.name }));
       case 'workflow':
         return workflows.map(w => ({ id: w, name: w }));
       default:
