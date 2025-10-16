@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
+import DualListSelector from '../components/DualListSelector';
 import { PageTransition } from '../components/MicroAnimations';
 import axios from 'axios';
 
@@ -18,7 +19,6 @@ const MappingGroupForm = () => {
   });
   const [members, setMembers] = useState([]);
   const [transformations, setTransformations] = useState([]);
-  const [selectedMapping, setSelectedMapping] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -93,10 +93,10 @@ const MappingGroupForm = () => {
         
         // Add members if any were selected
         if (members.length > 0 && newGroupId) {
-          for (const member of members) {
+          for (let i = 0; i < members.length; i++) {
             await axios.post(`/api/mapping-groups/${newGroupId}/members`, {
-              mapping_id: member.mapping_id,
-              execution_order: member.execution_order
+              mapping_id: members[i].mapping_id,
+              execution_order: i + 1
             });
           }
         }
@@ -107,56 +107,6 @@ const MappingGroupForm = () => {
       setError('Failed to save mapping group');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAddMember = async () => {
-    if (!selectedMapping) return;
-
-    // Transformations use mapping_id, not id
-    const transformation = transformations.find(t => t.mapping_id === parseInt(selectedMapping));
-    if (!transformation) return;
-
-    // If editing, add to database immediately
-    if (groupId) {
-      try {
-        const executionOrder = members.length + 1;
-        const response = await axios.post(`/api/mapping-groups/${groupId}/members`, {
-          mapping_id: selectedMapping,
-          execution_order: executionOrder
-        });
-        setMembers([...members, response.data]);
-        setSelectedMapping('');
-      } catch (err) {
-        console.error('Error adding member:', err);
-        setError('Failed to add member');
-      }
-    } else {
-      // If creating, add to local state
-      const newMember = {
-        mapping_id: transformation.mapping_id,
-        mapping_name: transformation.mapping_name || transformation.name,
-        execution_order: members.length + 1,
-        temp_id: Date.now() // Temporary ID for UI
-      };
-      setMembers([...members, newMember]);
-      setSelectedMapping('');
-    }
-  };
-
-  const handleRemoveMember = async (memberId) => {
-    if (groupId && !memberId.toString().startsWith('temp_')) {
-      // If editing and it's a real member, delete from database
-      try {
-        await axios.delete(`/api/mapping-groups/${groupId}/members/${memberId}`);
-        setMembers(members.filter(m => m.member_id !== memberId));
-      } catch (err) {
-        console.error('Error removing member:', err);
-        setError('Failed to remove member');
-      }
-    } else {
-      // If creating or it's a temporary member, just remove from local state
-      setMembers(members.filter(m => (m.member_id || m.temp_id) !== memberId));
     }
   };
 
@@ -217,47 +167,17 @@ const MappingGroupForm = () => {
 
             <div className="members-section">
               <h3>Group Members</h3>
-              <div className="member-controls">
-                <select
-                  value={selectedMapping}
-                  onChange={e => setSelectedMapping(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="">Select a mapping...</option>
-                  {transformations
-                    .filter(t => !members.some(m => m.mapping_id === t.mapping_id))
-                    .map(t => (
-                      <option key={t.mapping_id} value={t.mapping_id}>{t.mapping_name || t.name}</option>
-                    ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handleAddMember}
-                  disabled={!selectedMapping}
-                  className="btn btn-primary"
-                >
-                  Add Mapping
-                </button>
-              </div>
-
-              {members.length === 0 ? (
-                <p className="no-members">No mappings added yet. Add existing transformation mappings to this group.</p>
-              ) : (
-                <div className="members-list">
-                  {members.map(member => (
-                    <div key={member.member_id || member.temp_id} className="member-item">
-                      <span>{member.execution_order}. {member.mapping_name || member.mapping_id}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveMember(member.member_id || member.temp_id)}
-                        className="btn btn-danger btn-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <DualListSelector
+                availableItems={transformations.filter(t => 
+                  !members.some(m => m.mapping_id === t.mapping_id)
+                )}
+                selectedItems={members}
+                onSelectionChange={setMembers}
+                availableTitle="Available Mappings"
+                selectedTitle="Selected Mappings"
+                itemLabelKey="mapping_name"
+                itemValueKey="mapping_id"
+              />
             </div>
 
             <div className="form-actions">
