@@ -31,6 +31,8 @@ const NStepWorkflows = () => {
   const [editWorkflowDescription, setEditWorkflowDescription] = useState('');
   
   const [executeModalOpen, setExecuteModalOpen] = useState(false);
+  const [deleteStepModalOpen, setDeleteStepModalOpen] = useState(false);
+  const [stepToDelete, setStepToDelete] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -235,6 +237,20 @@ const NStepWorkflows = () => {
     }
   };
 
+  const handleDeleteStep = async () => {
+    if (!stepToDelete) return;
+
+    try {
+      await axios.delete(`/api/n-step-workflows/${selectedWorkflow}/steps/${stepToDelete.id}`);
+      await fetchWorkflowDetails();
+      setDeleteStepModalOpen(false);
+      setStepToDelete(null);
+    } catch (err) {
+      console.error('Error deleting step:', err);
+      alert(err.response?.data?.error || 'Failed to delete step');
+    }
+  };
+
   const getAssetName = (asset) => {
     if (asset.asset_type === 'mapping') {
       const mapping = mappings.find(m => m.mapping_id === asset.asset_id);
@@ -411,7 +427,19 @@ const NStepWorkflows = () => {
                 return (
                   <div key={step.id} className={`step-column ${isActive ? 'active' : 'frozen'}`}>
                     <div className="step-header">
-                      <h3>Step {step.step_index}</h3>
+                      <div className="step-title-row">
+                        <h3>Step {step.step_index}</h3>
+                        <button
+                          className="step-delete-btn"
+                          onClick={() => {
+                            setStepToDelete(step);
+                            setDeleteStepModalOpen(true);
+                          }}
+                          title="Delete this step"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
                       <span className={`step-status ${isActive ? 'active-badge' : 'frozen-badge'}`}>
                         {isActive ? 'Active' : 'Frozen'}
                       </span>
@@ -568,6 +596,37 @@ const NStepWorkflows = () => {
                   disabled={executing}
                 >
                   <FiPlay /> {executing ? 'Executing...' : 'Execute'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteStepModalOpen && (
+          <div className="modal-overlay" onClick={() => setDeleteStepModalOpen(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Delete Step</h2>
+                <button className="modal-close" onClick={() => setDeleteStepModalOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to delete this step?</p>
+                <p><strong>Step {stepToDelete?.step_index}</strong></p>
+                <p className="text-muted">
+                  This will delete all assets in this step and renumber the remaining steps.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setDeleteStepModalOpen(false)}>
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-danger" 
+                  onClick={handleDeleteStep}
+                >
+                  <FiTrash2 /> Delete
                 </button>
               </div>
             </div>
