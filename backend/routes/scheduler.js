@@ -17,7 +17,7 @@ const {
 // Create a schedule
 router.post('/', async (req, res) => {
   try {
-    const {
+    let {
       entity_type,
       entity_id,
       schedule_name,
@@ -26,8 +26,12 @@ router.post('/', async (req, res) => {
       interval_value,
       interval_unit,
       timezone = 'UTC',
-      created_by
+      created_by,
+      enabled
     } = req.body;
+    
+    // Map 'enabled' to 'is_active' if present (frontend uses 'enabled')
+    const is_active = enabled !== undefined ? enabled : true;
     
     // Validate required fields
     if (!entity_type || !entity_id || !schedule_type) {
@@ -95,13 +99,25 @@ router.get('/', async (req, res) => {
     const { pool } = require('../db');
     
     const result = await pool.query(`
-      SELECT s.*, 
+      SELECT s.id as schedule_id,
+             s.entity_type,
+             s.entity_id,
+             s.schedule_name,
+             s.schedule_type,
+             s.cron_expression,
+             s.interval_value,
+             s.interval_unit,
+             s.timezone,
+             s.is_active as enabled,
+             s.last_run,
+             s.next_run,
+             s.created_at,
+             s.updated_at,
              CASE 
                WHEN s.entity_type = 'transformation' THEN tm.mapping_name
                WHEN s.entity_type = 'mapping_group' THEN mg.group_name
                WHEN s.entity_type = 'workflow' THEN s.entity_id
-             END as entity_name,
-             s.enabled as enabled
+             END as entity_name
       FROM schedules s
       LEFT JOIN transformation_mappings tm ON s.entity_type = 'transformation' AND s.entity_id = CAST(tm.id AS TEXT)
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.group_id AS TEXT)
@@ -185,8 +201,21 @@ router.put('/:id', async (req, res) => {
     delete updates.id;
     delete updates.created_at;
     delete updates.updated_at;
+    delete updates.schedule_id;
+    
+    // Map 'enabled' to 'is_active' if present
+    if ('enabled' in updates) {
+      updates.is_active = updates.enabled;
+      delete updates.enabled;
+    }
     
     const result = await updateSchedule(parseInt(id), updates);
+    
+    // Map is_active back to enabled in response
+    const response = result.schedule || result;
+    if (response.is_active !== undefined) {
+      response.enabled = response.is_active;
+    }
     
     res.json(result);
   } catch (error) {
