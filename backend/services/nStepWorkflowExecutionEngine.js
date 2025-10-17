@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
+const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 
 /**
  * Execute an N-step workflow
@@ -93,24 +94,31 @@ async function executeNStepWorkflow(workflowId, triggeredBy) {
         continue;
       }
       
-      const expandedAssets = await expandAssets(step.assets);
-      
       systemLogger.info('Executing step assets in parallel', {
         runId,
         stepIndex: step.step_index,
-        expandedCount: expandedAssets.length
+        assetsCount: step.assets.length
       });
       
-      const jobPromises = expandedAssets.map(async (asset) => {
+      const jobPromises = step.assets.map(async (asset) => {
         try {
-          const jobResult = await executeTransformationJob(
-            pool,
-            asset.mapping_id,
-            triggeredBy,
-            { workflowExecutionId: runRecordId }
-          );
-          
-          return { success: true, asset, jobResult };
+          if (asset.asset_type === 'mapping') {
+            const jobResult = await executeTransformationJob(
+              pool,
+              asset.asset_id,
+              triggeredBy,
+              { workflowExecutionId: runRecordId }
+            );
+            return { success: true, asset, jobResult };
+          } else if (asset.asset_type === 'mapping_group') {
+            const groupResult = await executeMappingGroup(
+              asset.asset_id,
+              10, // default concurrency
+              triggeredBy,
+              { workflowExecutionId: runRecordId }
+            );
+            return { success: true, asset, groupResult };
+          }
         } catch (error) {
           systemLogger.error('Asset execution failed in workflow step', {
             runId,
@@ -209,36 +217,6 @@ async function executeNStepWorkflow(workflowId, triggeredBy) {
   }
 }
 
-/**
- * Expand assets (resolve groups to individual mappings)
- */
-async function expandAssets(assets) {
-  const expanded = [];
-  
-  for (const asset of assets) {
-    if (asset.asset_type === 'mapping') {
-      expanded.push({
-        mapping_id: asset.asset_id
-      });
-    } else if (asset.asset_type === 'mapping_group') {
-      const groupMappingsResult = await pool.query(`
-        SELECT tm.mapping_id
-        FROM mapping_group_members mgm
-        JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
-        WHERE mgm.group_id = $1
-        ORDER BY mgm.execution_order, mgm.id
-      `, [asset.asset_id]);
-      
-      for (const row of groupMappingsResult.rows) {
-        expanded.push({
-          mapping_id: row.mapping_id
-        });
-      }
-    }
-  }
-  
-  return expanded;
-}
 
 /**
  * Get workflow run status

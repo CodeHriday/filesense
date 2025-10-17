@@ -13,9 +13,12 @@ const { executeTransformationJob } = require('./jobExecutionEngine');
  * @param {number} groupId - The mapping group ID
  * @param {number} maxConcurrency - Maximum number of concurrent executions
  * @param {string} triggeredBy - User ID who triggered the execution
+ * @param {Object} options - Execution options
+ * @param {number} options.workflowExecutionId - Optional workflow execution ID if called from workflow
  * @returns {Promise<Object>} Execution result
  */
-async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = null) {
+async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = null, options = {}) {
+  const { workflowExecutionId = null } = options;
   const executionId = `GROUP-${Date.now()}-${uuidv4().substring(0, 8)}`;
   const startTime = new Date();
   
@@ -97,7 +100,8 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
           
           // Execute the transformation job
           const jobResult = await executeTransformationJob(pool, mapping.mapping_id, triggeredBy, {
-            mappingGroupExecutionId: executionRecordId
+            mappingGroupExecutionId: executionRecordId,
+            workflowExecutionId
           });
           
           completedCount++;
