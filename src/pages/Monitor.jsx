@@ -361,10 +361,10 @@ function Monitor() {
               <div className="page-size-selector">
                 <label>Rows per page:</label>
                 <select value={pageSize} onChange={handlePageSizeChange}>
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
+                  <option key="10" value="10">10</option>
+                  <option key="25" value="25">25</option>
+                  <option key="50" value="50">50</option>
+                  <option key="100" value="100">100</option>
                 </select>
               </div>
               
