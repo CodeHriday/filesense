@@ -217,8 +217,8 @@ function Sidebar() {
               </li>
             )}
             
-            {/* Onboarding wizard available to Admin, Creator roles, or with specific permission */}
-            {(isAdmin || isCreator || hasPermission('onboarding_wizard') || hasPermission('onboarding_wizard:read')) && (
+            {/* Onboarding wizard - hidden from navigation but functionality preserved */}
+            {/* {(isAdmin || isCreator || hasPermission('onboarding_wizard') || hasPermission('onboarding_wizard:read')) && (
               <li>
                 <button
                   className="onboarding-button"
@@ -228,7 +228,7 @@ function Sidebar() {
                   <span>Onboarding Wizard</span>
                 </button>
               </li>
-            )}
+            )} */}
             
             {/* Business Process Management section */}
             <li className="nav-divider">
