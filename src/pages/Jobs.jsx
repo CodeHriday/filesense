@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiEye, FiX, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
+import { FiEye, FiX, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatTimestampWithMicroseconds } from '../utils/formatters';
 import '../styles/Jobs.css';
 
 const Jobs = () => {
@@ -19,6 +19,8 @@ const Jobs = () => {
   const [jobToCancel, setJobToCancel] = useState(null);
   const [cancelResult, setCancelResult] = useState(null);
   const [cancelResultModalOpen, setCancelResultModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const isFetching = useRef(false);
 
   useEffect(() => {
@@ -160,6 +162,23 @@ const Jobs = () => {
     );
   };
 
+  // Pagination calculations
+  const totalPages = Math.ceil(jobs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentJobs = jobs.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1); // Reset to first page
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -202,78 +221,187 @@ const Jobs = () => {
             <p>Job executions will appear here when mappings are executed</p>
           </div>
         ) : (
-          <div className="jobs-table-container">
-            <table className="jobs-table">
-              <thead>
-                <tr>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Job ID</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping Group</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Workflow</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schedule</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Status</th>
-                  <th style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>Files Processed</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Rows</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Start Time</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>End Time</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Duration</th>
-                  <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map(job => (
-                  <tr key={job.job_id}>
-                    <td className="job-id-cell">
-                      <code style={{ fontSize: '0.8em' }}>{job.job_id}</code>
-                    </td>
-                    <td>{job.mapping_name}</td>
-                    <td>{job.mapping_group_name || '-'}</td>
-                    <td>{job.workflow_name || '-'}</td>
-                    <td>{job.schedule_name || '-'}</td>
-                    <td>{getStatusBadge(job.status)}</td>
-                    <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
-                    <td>
-                      {job.rows_read ? (
-                        <span style={{ fontSize: '0.9em' }}>
-                          {job.rows_read.toLocaleString()}
-                          {job.rows_written && ` → ${job.rows_written.toLocaleString()}`}
-                        </span>
-                      ) : '-'}
-                    </td>
-                    <td style={{ fontSize: '0.9em' }}>
-                      {job.start_time ? formatDate(job.start_time) : '-'}
-                    </td>
-                    <td style={{ fontSize: '0.9em' }}>
-                      {job.end_time ? formatDate(job.end_time) : '-'}
-                    </td>
-                    <td>
-                      {job.duration_ms ? `${(job.duration_ms / 1000).toFixed(2)}s` : '-'}
-                    </td>
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          className="icon-btn"
-                          onClick={() => handleViewJob(job.job_id)}
-                          title="View job details"
-                        >
-                          <FiEye />
-                        </button>
-                        {job.status === 'running' && (
-                          <button
-                            className="icon-btn danger"
-                            onClick={() => openCancelModal(job.job_id)}
-                            title="Cancel job"
-                          >
-                            <FiX />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <>
+            <div className="jobs-table-container">
+              <table className="jobs-table">
+                <thead>
+                  <tr>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Job ID</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping Group</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Workflow</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schedule</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Status</th>
+                    <th style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>Files Processed</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Rows</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Start Time</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>End Time</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Duration</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {currentJobs.map(job => (
+                    <tr key={job.job_id}>
+                      <td className="job-id-cell">
+                        <code style={{ fontSize: '0.8em' }}>{job.job_id}</code>
+                      </td>
+                      <td>{job.mapping_name}</td>
+                      <td>{job.mapping_group_name || '-'}</td>
+                      <td>{job.workflow_name || '-'}</td>
+                      <td>{job.schedule_name || '-'}</td>
+                      <td>{getStatusBadge(job.status)}</td>
+                      <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
+                      <td>
+                        {job.rows_read ? (
+                          <span style={{ fontSize: '0.9em' }}>
+                            {job.rows_read.toLocaleString()}
+                            {job.rows_written && ` → ${job.rows_written.toLocaleString()}`}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td style={{ fontSize: '0.9em' }}>
+                        {job.start_time ? formatTimestampWithMicroseconds(job.start_time) : '-'}
+                      </td>
+                      <td style={{ fontSize: '0.9em' }}>
+                        {job.end_time ? formatTimestampWithMicroseconds(job.end_time) : '-'}
+                      </td>
+                      <td>
+                        {job.duration_ms ? `${(job.duration_ms / 1000).toFixed(2)}s` : '-'}
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            className="icon-btn"
+                            onClick={() => handleViewJob(job.job_id)}
+                            title="View job details"
+                          >
+                            <FiEye />
+                          </button>
+                          {job.status === 'running' && (
+                            <button
+                              className="icon-btn danger"
+                              onClick={() => openCancelModal(job.job_id)}
+                              title="Cancel job"
+                            >
+                              <FiX />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination Controls */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: '1rem', 
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                  Showing {startIndex + 1} to {Math.min(endIndex, jobs.length)} of {jobs.length} jobs
+                </span>
+                <select 
+                  value={itemsPerPage} 
+                  onChange={handleItemsPerPageChange}
+                  style={{ 
+                    padding: '0.25rem 0.5rem', 
+                    borderRadius: '4px', 
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value={10}>10 per page</option>
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
+                  <option value={100}>100 per page</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: currentPage === 1 ? '#f1f5f9' : 'white',
+                    color: currentPage === 1 ? '#94a3b8' : '#334155',
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <FiChevronLeft size={16} />
+                  Previous
+                </button>
+
+                <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show first page, last page, current page, and pages around current
+                      return page === 1 || 
+                             page === totalPages || 
+                             Math.abs(page - currentPage) <= 1;
+                    })
+                    .map((page, index, array) => (
+                      <React.Fragment key={page}>
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span style={{ padding: '0 0.25rem', color: '#94a3b8' }}>...</span>
+                        )}
+                        <button
+                          onClick={() => handlePageChange(page)}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            background: currentPage === page ? '#3b82f6' : 'white',
+                            color: currentPage === page ? 'white' : '#334155',
+                            cursor: 'pointer',
+                            fontWeight: currentPage === page ? '600' : '400',
+                            minWidth: '40px',
+                            fontSize: '0.9rem'
+                          }}
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                </div>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: currentPage === totalPages ? '#f1f5f9' : 'white',
+                    color: currentPage === totalPages ? '#94a3b8' : '#334155',
+                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  Next
+                  <FiChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -330,11 +458,11 @@ const Jobs = () => {
                     </div>
                     <div>
                       <strong>Start Time:</strong>
-                      <div>{selectedJob.start_time ? formatDate(selectedJob.start_time) : '-'}</div>
+                      <div>{selectedJob.start_time ? formatTimestampWithMicroseconds(selectedJob.start_time) : '-'}</div>
                     </div>
                     <div>
                       <strong>End Time:</strong>
-                      <div>{selectedJob.end_time ? formatDate(selectedJob.end_time) : '-'}</div>
+                      <div>{selectedJob.end_time ? formatTimestampWithMicroseconds(selectedJob.end_time) : '-'}</div>
                     </div>
                   </div>
 

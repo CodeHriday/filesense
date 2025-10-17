@@ -137,3 +137,30 @@ export const formatRelativeTime = (date) => {
   
   return `in ${Math.round(secondsUntil / 31536000)} years`;
 };
+
+/**
+ * Format a timestamp with microseconds for job logs
+ * @param {string} dateString - ISO date string
+ * @returns {string} Formatted date string with microseconds
+ */
+export const formatTimestampWithMicroseconds = (dateString) => {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  
+  // Get the standard date/time part
+  const formatted = date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  
+  // Extract milliseconds and format as microseconds (3 decimal places)
+  const ms = date.getMilliseconds();
+  const microseconds = ms.toString().padStart(3, '0');
+  
+  return `${formatted}.${microseconds}`;
+};
