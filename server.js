@@ -46,6 +46,9 @@ app.set('trust proxy', 1);
 const dbPool = diContainer.get('dbPool');
 const logger = diContainer.get('logger');
 
+// Make database pool available to routes
+app.locals.pool = dbPool;
+
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
 const JWT_EXPIRATION = '2h'; // Token expiration time (reduced from 24h for better security)
