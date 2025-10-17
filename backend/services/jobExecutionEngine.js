@@ -179,6 +179,7 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       });
     }
     const jobId = job.job_id;
+    const transformationJobDbId = job.id; // Database ID for linking to audit
     
     await logJobExecution(pool, jobId, 'info', 'Job execution started', { mappingId, userId });
     
