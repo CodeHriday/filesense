@@ -4,7 +4,7 @@ const csv = require('csv-parser');
 const xlsx = require('xlsx');
 const { XMLParser } = require('fast-xml-parser');
 const { systemLogger } = require('../utils/logger');
-const { validateSchemaConsistency, saveSchemaSnapshot } = require('./schemaService');
+const { validateSchemaConsistency, saveSchemaSnapshot, inferDataType } = require('./schemaService');
 const { transformRow } = require('./transformationEngine');
 const { executeAnomalyDetection } = require('./anomalyRulesEngine');
 const { 
@@ -598,7 +598,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         const outputSchema = transformedRows.length > 0 
           ? Object.keys(transformedRows[0]).map(key => ({
               name: key,
-              type: typeof transformedRows[0][key]
+              type: inferDataType(transformedRows[0][key])
             }))
           : [];
         
@@ -626,6 +626,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           fileDelimiter: fileExtension === 'csv' ? ',' : null,
           encoding: 'utf-8',
           numberOfColumns: null,
+          fileSizeBytes: fileBuffer.length,
           source: 'transformation',
           sourcePath: file.filename,
           noOfRecordsInSource: rowsRead,
@@ -652,6 +653,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           fileDelimiter: outputFormat === 'csv' ? ',' : null,
           encoding: 'utf-8',
           numberOfColumns: outputSchema.length,
+          fileSizeBytes: outputBuffer.length,
           source: 'transformation',
           sourcePath: file.filename,
           noOfRecordsInSource: rowsRead,

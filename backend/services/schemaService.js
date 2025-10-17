@@ -644,5 +644,6 @@ module.exports = {
   saveSchemaSnapshot,
   detectSchemaDrift,
   extractSchemaFromCloud,
-  extractSchemaFromBuffer
+  extractSchemaFromBuffer,
+  inferDataType
 };
