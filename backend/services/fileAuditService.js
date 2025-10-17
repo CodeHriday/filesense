@@ -430,7 +430,7 @@ async function getAuditRecords(pool, filters = {}) {
       LEFT JOIN schedules s 
         ON tj.schedule_id = s.id
       LEFT JOIN transformation_mappings tm 
-        ON tj.mapping_id = tm.id
+        ON tj.mapping_id = CAST(tm.id AS VARCHAR)
       LEFT JOIN mapping_group_executions mge 
         ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg 
