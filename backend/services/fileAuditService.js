@@ -436,27 +436,55 @@ async function getAuditRecords(pool, filters = {}) {
 /**
  * Cleanup old audit records based on retention policy
  */
-async function cleanupOldAudits(pool) {
+async function cleanupOldAudits(pool, retentionDays = 90) {
+  const client = await pool.connect();
+  
   try {
-    const result = await pool.query(`
+    await client.query('BEGIN');
+    
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    
+    // Delete old audit records
+    const result = await client.query(`
       DELETE FROM file_audit_details
-      WHERE retention_until < CURRENT_TIMESTAMP
-      RETURNING id
-    `);
+      WHERE created_dt < $1
+      RETURNING audit_id
+    `, [cutoffDate]);
+    
+    // Clean up orphaned schema records
+    const schemaResult = await client.query(`
+      DELETE FROM file_schema_details
+      WHERE active_flag = false
+        AND created_dt < $1
+        AND schema_id NOT IN (
+          SELECT DISTINCT file_schema_id 
+          FROM file_audit_details 
+          WHERE file_schema_id IS NOT NULL
+        )
+      RETURNING schema_id
+    `, [cutoffDate]);
+    
+    await client.query('COMMIT');
 
-    console.log(`Cleaned up ${result.rowCount} old audit records`);
+    console.log(`Cleaned up ${result.rowCount} audit records and ${schemaResult.rowCount} schema records`);
 
     return {
       success: true,
-      deletedCount: result.rowCount
+      deletedCount: result.rowCount,
+      schemasDeleted: schemaResult.rowCount,
+      cutoffDate: cutoffDate.toISOString()
     };
 
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Audit cleanup failed:', error);
     return {
       success: false,
       error: error.message
     };
+  } finally {
+    client.release();
   }
 }
 
