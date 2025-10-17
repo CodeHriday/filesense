@@ -420,7 +420,7 @@ async function getAuditRecords(pool, filters = {}) {
         fsd.schema_diff,
         fsd.active_flag as schema_active,
         s.schedule_name,
-        mg.group_name as mapping_group_name,
+        mg.name as mapping_group_name,
         tm.mapping_name
       FROM file_audit_details fad
       LEFT JOIN file_schema_details fsd 
