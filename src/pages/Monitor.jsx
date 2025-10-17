@@ -1,374 +1,411 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiBarChart2, FiCheckSquare, FiFileText, FiList, FiClock } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiDownload } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getFileCatalog, getFileProfile, getFileQuality } from '../api/fileService';
-import { formatBytes, formatDate, getTimeSince } from '../utils/formatters';
+import { formatBytes, formatDate } from '../utils/formatters';
 import axios from 'axios';
 import './Monitor.css';
 
 function Monitor() {
-  const [files, setFiles] = useState([]);
+  const [audits, setAudits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [fileDetails, setFileDetails] = useState(null);
-  const [fileQuality, setFileQuality] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [fileAudit, setFileAudit] = useState([]);
-  const [loadingAudit, setLoadingAudit] = useState(false);
-  const [auditError, setAuditError] = useState(null);
+  const [expandedRows, setExpandedRows] = useState(new Set());
   
-  const navigate = useNavigate();
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalRecords, setTotalRecords] = useState(0);
   
-  // Fetch all files on component mount
+  // Fetch audit data on mount and when pagination changes
   useEffect(() => {
-    fetchFiles();
-  }, []);
+    fetchAuditData();
+  }, [currentPage, pageSize]);
   
-  // Fetch file details when a file is selected
-  useEffect(() => {
-    if (selectedFile) {
-      fetchFileDetails(selectedFile.file_id);
-      // Clear audit data when switching files to prevent stale data
-      setFileAudit([]);
-    }
-  }, [selectedFile]);
-  
-  // Fetch audit data when audit tab is active and file is selected
-  useEffect(() => {
-    if (selectedFile && activeTab === 'audit') {
-      fetchFileAudit(selectedFile.file_id);
-    }
-  }, [selectedFile, activeTab]);
-  
-  const fetchFiles = async () => {
+  const fetchAuditData = async () => {
     try {
       setLoading(true);
-      const data = await getFileCatalog();
-      setFiles(data);
-      setError(null);
+      const token = localStorage.getItem('token');
+      const offset = (currentPage - 1) * pageSize;
       
-      // Select the first file by default if available
-      if (data.length > 0 && !selectedFile) {
-        setSelectedFile(data[0]);
-      }
+      const response = await axios.get('/api/file-audit', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          limit: pageSize,
+          offset: offset
+        }
+      });
+      
+      setAudits(response.data.audits || []);
+      setTotalRecords(response.data.total || 0);
+      setError(null);
     } catch (err) {
-      console.error('Error fetching files:', err);
-      setError('Failed to load files. Please try again later.');
+      console.error('Error fetching audit data:', err);
+      setError('Failed to load audit trail. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
   
-  const fetchFileDetails = async (fileId) => {
+  const toggleRowExpansion = (auditId) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(auditId)) {
+      newExpanded.delete(auditId);
+    } else {
+      newExpanded.add(auditId);
+    }
+    setExpandedRows(newExpanded);
+  };
+  
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      setExpandedRows(new Set()); // Collapse all rows when changing pages
+    }
+  };
+  
+  const handlePageSizeChange = (e) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1); // Reset to first page
+    setExpandedRows(new Set());
+  };
+  
+  const formatDuration = (ms) => {
+    if (!ms) return '-';
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(2)}s`;
+  };
+  
+  const getStatusClass = (status) => {
+    if (!status) return 'status-unknown';
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'success' || statusLower === 'completed') return 'status-success';
+    if (statusLower === 'failed' || statusLower === 'error') return 'status-error';
+    if (statusLower === 'processing' || statusLower === 'in_progress') return 'status-processing';
+    return 'status-unknown';
+  };
+  
+  const renderSchemaDetails = (audit) => {
+    if (!audit.file_schema) return <div className="no-schema">No schema information available</div>;
+    
     try {
-      setLoadingDetails(true);
+      const schema = typeof audit.file_schema === 'string' 
+        ? JSON.parse(audit.file_schema) 
+        : audit.file_schema;
       
-      // Fetch both profile and quality data in parallel
-      const [profileData, qualityData] = await Promise.all([
-        getFileProfile(fileId),
-        getFileQuality(fileId)
-      ]);
-      
-      setFileDetails(profileData);
-      setFileQuality(qualityData);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching file details:', err);
-      setError('Failed to load file details. Please try again later.');
-    } finally {
-      setLoadingDetails(false);
+      return (
+        <div className="schema-details">
+          <div className="schema-info">
+            <div className="schema-meta">
+              <span className="schema-label">Schema Hash:</span>
+              <span className="schema-value">{audit.schema_hash || 'N/A'}</span>
+            </div>
+            {audit.schema_diff && (
+              <div className="schema-meta">
+                <span className="schema-label">Schema Changed:</span>
+                <span className="schema-value">{audit.schema_changed ? 'Yes' : 'No'}</span>
+              </div>
+            )}
+          </div>
+          
+          {schema.columns && schema.columns.length > 0 && (
+            <div className="schema-columns">
+              <h4>Column Schema ({schema.columns.length} columns)</h4>
+              <div className="schema-table">
+                <div className="schema-table-header">
+                  <div className="col">Column Name</div>
+                  <div className="col">Type</div>
+                  <div className="col">Nullable</div>
+                </div>
+                <div className="schema-table-body">
+                  {schema.columns.map((col, idx) => (
+                    <div className="schema-table-row" key={idx}>
+                      <div className="col">{col.name}</div>
+                      <div className="col">{col.type}</div>
+                      <div className="col">{col.nullable !== false ? 'Yes' : 'No'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {audit.schema_diff && (
+            <div className="schema-diff">
+              <h4>Schema Changes</h4>
+              <pre>{JSON.stringify(JSON.parse(audit.schema_diff), null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      );
+    } catch (e) {
+      return <div className="schema-error">Error parsing schema: {e.message}</div>;
     }
-  };
-  
-  const fetchFileAudit = async (fileId) => {
-    try {
-      setLoadingAudit(true);
-      setAuditError(null);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/file-audit/${fileId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setFileAudit(response.data.audits || []);
-    } catch (err) {
-      console.error('Error fetching file audit:', err);
-      setFileAudit([]);
-      setAuditError('Failed to load audit trail. Please try again.');
-    } finally {
-      setLoadingAudit(false);
-    }
-  };
-  
-  const handleFileSelect = (file) => {
-    setSelectedFile(file);
-  };
-  
-  const handleViewProfile = () => {
-    if (selectedFile) {
-      navigate(`/profile/${selectedFile.file_id}`);
-    }
-  };
-  
-  const handleViewQuality = () => {
-    if (selectedFile) {
-      navigate(`/quality/${selectedFile.file_id}`);
-    }
-  };
-  
-  const handleGenerateReport = () => {
-    if (selectedFile) {
-      navigate(`/report/${selectedFile.file_id}`);
-    }
-  };
-  
-  const getQualityBadgeClass = (score) => {
-    if (score >= 80) return 'quality-badge high';
-    if (score >= 60) return 'quality-badge medium';
-    return 'quality-badge low';
   };
   
   return (
     <div className="monitor-container">
-      <h1>File Monitor</h1>
+      <div className="monitor-header">
+        <h1>File Audit Trail</h1>
+        <div className="monitor-actions">
+          <span className="total-records">{totalRecords} total records</span>
+        </div>
+      </div>
       
       {loading ? (
         <LoadingSpinner />
       ) : error ? (
         <div className="error">{error}</div>
       ) : (
-        <div className="monitor-layout">
-          <Card className="files-list">
-            <h2>Uploaded Files</h2>
-            {files.length === 0 ? (
-              <div className="no-files">No files uploaded yet.</div>
-            ) : (
-              <div className="file-list">
-                {files.map(file => (
-                  <div 
-                    key={file.file_id} 
-                    className={`file-item ${selectedFile && selectedFile.file_id === file.file_id ? 'selected' : ''}`}
-                    onClick={() => handleFileSelect(file)}
-                  >
-                    <div className="file-info">
-                      <div className="file-name">
-                        <span className="file-icon">
-                          {file.file_type === 'csv' ? '📊' : 
-                           file.file_type === 'json' ? '📋' : 
-                           file.file_type === 'parquet' ? '📁' : '📄'}
-                        </span>
-                        {file.filename}
-                      </div>
-                    </div>
-                    <div className="file-stats">
-                      <span>{file.file_type.toUpperCase()} | {formatBytes(file.file_size)}</span>
-                    </div>
-                    <div className="file-quality">
-                      {file.quality_score !== undefined ? (
-                        <div className={getQualityBadgeClass(file.quality_score)}>
-                          {file.quality_score}
-                        </div>
-                      ) : (
-                        <span className="no-quality">-</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-          
-          <div className="file-details-container">
-            {selectedFile ? (
-              loadingDetails ? (
-                <LoadingSpinner size="small" />
-              ) : (
-                <>
-                  <Card className="file-overview">
-                    <div className="file-header">
-                      <h2>{selectedFile.filename}</h2>
-                    </div>
-                    
-                    <div className="file-meta-details">
-                      <div className="meta-item">
-                        <span className="label">File Type</span>
-                        <span className="value">{selectedFile.file_type.toUpperCase()}</span>
-                      </div>
-                      <div className="meta-item">
-                        <span className="label">Size</span>
-                        <span className="value">{formatBytes(selectedFile.file_size)}</span>
-                      </div>
-                      <div className="meta-item">
-                        <span className="label">Uploaded</span>
-                        <span className="value" title={formatDate(selectedFile.created_at)}>
-                          {getTimeSince(selectedFile.created_at)}
-                        </span>
-                      </div>
-                      {fileDetails?.basic_info?.row_count && (
-                        <div className="meta-item">
-                          <span className="label">Rows</span>
-                          <span className="value">{fileDetails.basic_info.row_count.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {fileDetails?.basic_info?.column_count && (
-                        <div className="meta-item">
-                          <span className="label">Columns</span>
-                          <span className="value">{fileDetails.basic_info.column_count}</span>
-                        </div>
-                      )}
-                      {fileQuality?.overall_score !== undefined && (
-                        <div className="meta-item">
-                          <span className="label">Quality Score</span>
-                          <span className={`value ${getQualityBadgeClass(fileQuality.overall_score)}`}>
-                            {fileQuality.overall_score}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="file-actions">
-                      <button 
-                        className="btn btn-primary"
-                        onClick={handleViewProfile}
-                      >
-                        <FiBarChart2 /> View Profile
-                      </button>
-                      <button 
-                        className="btn btn-secondary"
-                        onClick={handleViewQuality}
-                      >
-                        <FiCheckSquare /> Quality Details
-                      </button>
-                      <button 
-                        className="btn btn-success"
-                        onClick={handleGenerateReport}
-                      >
-                        <FiFileText /> Generate Report
-                      </button>
-                    </div>
-                  </Card>
-                  
-                  <div className="file-tabs">
-                    <button 
-                      className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-                      onClick={() => {
-                        setActiveTab('overview');
-                      }}
-                    >
-                      <FiList /> Overview
-                    </button>
-                    <button 
-                      className={`tab-button ${activeTab === 'audit' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('audit')}
-                    >
-                      <FiClock /> Audit Trail
-                    </button>
-                  </div>
-                  
-                  {activeTab === 'overview' && fileDetails && (
-                    <Card className="columns-overview">
-                      <h3>
-                        <FiList className="section-icon" /> 
-                        Column Overview
-                      </h3>
-                      {fileDetails.columns && fileDetails.columns.length > 0 ? (
-                        <div className="columns-table">
-                          <div className="table-header">
-                            <div className="col">Name</div>
-                            <div className="col">Type</div>
-                            <div className="col">Completeness</div>
-                          </div>
-                          <div className="table-body">
-                            {fileDetails.columns.map((column, index) => {
-                              const completeness = fileQuality?.column_metrics?.find(
-                                cm => cm.name === column.name
-                              )?.completeness || 100;
-                              
-                              const completenessClass = 
-                                completeness >= 90 ? 'high' : 
-                                completeness >= 70 ? 'medium' : 'low';
-                              
-                              return (
-                                <div className="table-row" key={index}>
-                                  <div className="col col-name">{column.name}</div>
-                                  <div className="col col-type">{column.type}</div>
-                                  <div className="col">
-                                    <div className="completeness-bar-container">
-                                      <div 
-                                        className={`completeness-bar ${completenessClass}`}
-                                        style={{width: `${completeness}%`}}
-                                      />
-                                      <span>{completeness.toFixed(1)}%</span>
+        <>
+          <Card className="audit-trail-card">
+            <div className="audit-table-container">
+              <table className="audit-table">
+                <thead>
+                  <tr>
+                    <th className="expand-col"></th>
+                    <th>Date</th>
+                    <th>File Name</th>
+                    <th>Source</th>
+                    <th>Load Type</th>
+                    <th>File Type</th>
+                    <th>Records</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>File Size</th>
+                    <th>Columns</th>
+                    <th>Encoding</th>
+                    <th>User ID</th>
+                    <th>Correlation ID</th>
+                    <th>Load Step 1</th>
+                    <th>Load Step 2</th>
+                    <th>Load Step 3</th>
+                    <th>Load Step 4</th>
+                    <th>Load Step 5</th>
+                    <th>Error Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {audits.length === 0 ? (
+                    <tr>
+                      <td colSpan="20" className="no-data">No audit records found</td>
+                    </tr>
+                  ) : (
+                    audits.map((audit) => (
+                      <React.Fragment key={audit.audit_id}>
+                        <tr className="audit-row">
+                          <td className="expand-col">
+                            <button 
+                              className="expand-btn"
+                              onClick={() => toggleRowExpansion(audit.audit_id)}
+                              title="View schema details"
+                            >
+                              {expandedRows.has(audit.audit_id) ? <FiChevronDown /> : <FiChevronRight />}
+                            </button>
+                          </td>
+                          <td className="date-col">{formatDate(audit.created_dt)}</td>
+                          <td className="file-name-col" title={audit.file_name}>{audit.file_name || '-'}</td>
+                          <td>{audit.source || '-'}</td>
+                          <td>{audit.load_type || '-'}</td>
+                          <td>{audit.file_type ? audit.file_type.toUpperCase() : '-'}</td>
+                          <td className="number-col">{(audit.no_of_records_in_source || 0).toLocaleString()}</td>
+                          <td>
+                            <span className={`status-badge ${getStatusClass(audit.status)}`}>
+                              {audit.status || 'unknown'}
+                            </span>
+                          </td>
+                          <td>{formatDuration(audit.processing_duration_ms)}</td>
+                          <td>{audit.file_size_bytes ? formatBytes(audit.file_size_bytes) : '-'}</td>
+                          <td className="number-col">{audit.number_of_columns || '-'}</td>
+                          <td>{audit.encoding || '-'}</td>
+                          <td className="number-col">{audit.user_id || '-'}</td>
+                          <td className="correlation-col" title={audit.correlation_id}>
+                            {audit.correlation_id ? audit.correlation_id.substring(0, 8) + '...' : '-'}
+                          </td>
+                          <td>{audit.load_step_1 ? formatDate(audit.load_step_1) : '-'}</td>
+                          <td>{audit.load_step_2 ? formatDate(audit.load_step_2) : '-'}</td>
+                          <td>{audit.load_step_3 ? formatDate(audit.load_step_3) : '-'}</td>
+                          <td>{audit.load_step_4 ? formatDate(audit.load_step_4) : '-'}</td>
+                          <td>{audit.load_step_5 ? formatDate(audit.load_step_5) : '-'}</td>
+                          <td className="error-col" title={audit.error_message}>
+                            {audit.error_message ? audit.error_message.substring(0, 30) + '...' : '-'}
+                          </td>
+                        </tr>
+                        {expandedRows.has(audit.audit_id) && (
+                          <tr className="expanded-row">
+                            <td colSpan="20">
+                              <div className="expanded-content">
+                                <div className="expanded-section">
+                                  <h3>Additional Details</h3>
+                                  <div className="detail-grid">
+                                    <div className="detail-item">
+                                      <span className="detail-label">Audit ID:</span>
+                                      <span className="detail-value">{audit.audit_id}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">File ID:</span>
+                                      <span className="detail-value">{audit.file_id || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">File Hash:</span>
+                                      <span className="detail-value">{audit.file_hash || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">File Pattern:</span>
+                                      <span className="detail-value">{audit.file_pattern || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Source Path:</span>
+                                      <span className="detail-value">{audit.source_path || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">File Delimiter:</span>
+                                      <span className="detail-value">{audit.file_delimiter || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">User Email:</span>
+                                      <span className="detail-value">{audit.user_email || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">IP Address:</span>
+                                      <span className="detail-value">{audit.ip_address || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Session ID:</span>
+                                      <span className="detail-value">{audit.session_id || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Parent Audit ID:</span>
+                                      <span className="detail-value">{audit.parent_audit_id || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Error Type:</span>
+                                      <span className="detail-value">{audit.error_type || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Created By:</span>
+                                      <span className="detail-value">{audit.created_by || '-'}</span>
                                     </div>
                                   </div>
+                                  
+                                  {audit.load_step_1_path && (
+                                    <div className="load-steps">
+                                      <h4>Load Steps Details</h4>
+                                      <div className="detail-grid">
+                                        {audit.load_step_1_path && (
+                                          <div className="detail-item">
+                                            <span className="detail-label">Step 1 Path:</span>
+                                            <span className="detail-value">{audit.load_step_1_path} ({audit.load_step_1_rec_cnt || 0} records)</span>
+                                          </div>
+                                        )}
+                                        {audit.load_step_2_path && (
+                                          <div className="detail-item">
+                                            <span className="detail-label">Step 2 Path:</span>
+                                            <span className="detail-value">{audit.load_step_2_path} ({audit.load_step_2_rec_cnt || 0} records)</span>
+                                          </div>
+                                        )}
+                                        {audit.load_step_3_path && (
+                                          <div className="detail-item">
+                                            <span className="detail-label">Step 3 Path:</span>
+                                            <span className="detail-value">{audit.load_step_3_path} ({audit.load_step_3_rec_cnt || 0} records)</span>
+                                          </div>
+                                        )}
+                                        {audit.load_step_4_path && (
+                                          <div className="detail-item">
+                                            <span className="detail-label">Step 4 Path:</span>
+                                            <span className="detail-value">{audit.load_step_4_path} ({audit.load_step_4_rec_cnt || 0} records)</span>
+                                          </div>
+                                        )}
+                                        {audit.load_step_5_path && (
+                                          <div className="detail-item">
+                                            <span className="detail-label">Step 5 Path:</span>
+                                            <span className="detail-value">{audit.load_step_5_path} ({audit.load_step_5_rec_cnt || 0} records)</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {audit.error_message && (
+                                    <div className="error-details">
+                                      <h4>Error Details</h4>
+                                      <pre>{audit.error_message}</pre>
+                                    </div>
+                                  )}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="no-columns">No column information available.</div>
-                      )}
-                    </Card>
-                  )}
-                  
-                  {activeTab === 'audit' && (
-                    <Card className="audit-trail">
-                      <h3>
-                        <FiClock className="section-icon" /> 
-                        Audit Trail
-                      </h3>
-                      {loadingAudit ? (
-                        <LoadingSpinner size="small" />
-                      ) : auditError ? (
-                        <div className="error">{auditError}</div>
-                      ) : fileAudit.length === 0 ? (
-                        <div className="no-data">No audit records found for this file.</div>
-                      ) : (
-                        <div className="audit-table">
-                          <div className="table-header">
-                            <div className="col">Date</div>
-                            <div className="col">Source</div>
-                            <div className="col">Load Type</div>
-                            <div className="col">Records</div>
-                            <div className="col">Status</div>
-                            <div className="col">Duration</div>
-                          </div>
-                          <div className="table-body">
-                            {fileAudit.map((audit, index) => (
-                              <div className="table-row" key={index}>
-                                <div className="col">{formatDate(audit.created_dt)}</div>
-                                <div className="col">{audit.source || '-'}</div>
-                                <div className="col">{audit.load_type || '-'}</div>
-                                <div className="col">{(audit.no_of_records_in_source || 0).toLocaleString()}</div>
-                                <div className="col">
-                                  <span className={`status-badge ${audit.status || 'unknown'}`}>
-                                    {audit.status || 'unknown'}
-                                  </span>
-                                </div>
-                                <div className="col">
-                                  {audit.processing_duration_ms 
-                                    ? `${(audit.processing_duration_ms / 1000).toFixed(2)}s` 
-                                    : '-'}
+                                
+                                <div className="expanded-section">
+                                  <h3>Schema Information</h3>
+                                  {renderSchemaDetails(audit)}
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </Card>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))
                   )}
-                </>
-              )
-            ) : (
-              <div className="no-selection">
-                <p>Select a file to view details</p>
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          
+          <div className="pagination-container">
+            <div className="pagination-info">
+              Showing {audits.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+            </div>
+            
+            <div className="pagination-controls">
+              <div className="page-size-selector">
+                <label>Rows per page:</label>
+                <select value={pageSize} onChange={handlePageSizeChange}>
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
               </div>
-            )}
+              
+              <div className="page-buttons">
+                <button 
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  First
+                </button>
+                <button 
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  Previous
+                </button>
+                
+                <span className="page-indicator">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                
+                <button 
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  className="pagination-btn"
+                >
+                  Next
+                </button>
+                <button 
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage >= totalPages}
+                  className="pagination-btn"
+                >
+                  Last
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
