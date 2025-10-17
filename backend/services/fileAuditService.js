@@ -96,13 +96,13 @@ async function captureFileAudit(pool, auditData, options = {}) {
             file_type, file_delimiter, encoding, number_of_columns, file_size_bytes,
             source, source_path, no_of_records_in_source,
             load_step_1, load_step_1_path, load_step_1_rec_cnt, load_type,
-            correlation_id, parent_audit_id, transformation_job_id,
+            correlation_id, parent_audit_id, transformation_job_id, mapping_name,
             user_id, user_email, ip_address, session_id,
             processing_duration_ms, status, error_message, error_type,
             retention_until, created_by
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-            $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
+            $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
           ) RETURNING id
         `, [
           auditData.fileId,
@@ -125,6 +125,7 @@ async function captureFileAudit(pool, auditData, options = {}) {
           correlationId,
           parentAuditId,
           auditData.transformationJobId,
+          auditData.mappingName,
           auditData.userId,
           auditData.userEmail,
           auditData.ipAddress,
@@ -417,11 +418,12 @@ async function getAuditRecords(pool, filters = {}) {
       SELECT 
         fad.*,
         fsd.file_schema,
+        fsd.schema_hash,
         fsd.schema_diff,
         fsd.active_flag as schema_active,
         s.schedule_name,
         mg.name as mapping_group_name,
-        tm.mapping_name
+        COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name
       FROM file_audit_details fad
       LEFT JOIN file_schema_details fsd 
         ON fad.file_schema_id = fsd.file_schema_id

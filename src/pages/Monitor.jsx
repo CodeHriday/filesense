@@ -184,15 +184,13 @@ function Monitor() {
                     <th>Correlation ID</th>
                     <th>Load Step 1 Path</th>
                     <th>Load Step 1 Records</th>
-                    <th>Load Step 2 Path</th>
-                    <th>Load Step 2 Records</th>
                     <th>Error Message</th>
                   </tr>
                 </thead>
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="22" className="no-data">No audit records found</td>
+                      <td colSpan="20" className="no-data">No audit records found</td>
                     </tr>
                   ) : (
                     audits.map((audit) => (
@@ -231,15 +229,13 @@ function Monitor() {
                           </td>
                           <td title={audit.load_step_1_path}>{audit.load_step_1_path || '-'}</td>
                           <td className="number-col">{(audit.load_step_1_rec_cnt || 0).toLocaleString()}</td>
-                          <td title={audit.load_step_2_path}>{audit.load_step_2_path || '-'}</td>
-                          <td className="number-col">{(audit.load_step_2_rec_cnt || 0).toLocaleString()}</td>
                           <td className="error-col" title={audit.error_message}>
                             {audit.error_message ? audit.error_message.substring(0, 30) + '...' : '-'}
                           </td>
                         </tr>
                         {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="22">
+                            <td colSpan="20">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Additional Details</h3>
@@ -302,12 +298,6 @@ function Monitor() {
                                           <div className="detail-item">
                                             <span className="detail-label">Step 1 Path:</span>
                                             <span className="detail-value">{audit.load_step_1_path} ({audit.load_step_1_rec_cnt || 0} records)</span>
-                                          </div>
-                                        )}
-                                        {audit.load_step_2_path && (
-                                          <div className="detail-item">
-                                            <span className="detail-label">Step 2 Path:</span>
-                                            <span className="detail-value">{audit.load_step_2_path} ({audit.load_step_2_rec_cnt || 0} records)</span>
                                           </div>
                                         )}
                                         {audit.load_step_3_path && (
