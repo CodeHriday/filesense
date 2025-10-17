@@ -168,7 +168,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     dryRun = false,
     existingJob = null,
     mappingGroupExecutionId = null,
-    scheduleId = null
+    scheduleId = null,
+    workflowExecutionId = null
   } = options;
   
   let job = existingJob;
@@ -178,7 +179,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     if (!job) {
       job = await createJob(pool, mappingId, userId, {
         mappingGroupExecutionId,
-        scheduleId
+        scheduleId,
+        workflowExecutionId
       });
     }
     const jobId = job.job_id;
