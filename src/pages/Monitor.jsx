@@ -19,6 +19,7 @@ function Monitor() {
   const [activeTab, setActiveTab] = useState('overview');
   const [fileAudit, setFileAudit] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [auditError, setAuditError] = useState(null);
   
   const navigate = useNavigate();
   
@@ -31,8 +32,17 @@ function Monitor() {
   useEffect(() => {
     if (selectedFile) {
       fetchFileDetails(selectedFile.file_id);
+      // Clear audit data when switching files to prevent stale data
+      setFileAudit([]);
     }
   }, [selectedFile]);
+  
+  // Fetch audit data when audit tab is active and file is selected
+  useEffect(() => {
+    if (selectedFile && activeTab === 'audit') {
+      fetchFileAudit(selectedFile.file_id);
+    }
+  }, [selectedFile, activeTab]);
   
   const fetchFiles = async () => {
     try {
@@ -77,6 +87,7 @@ function Monitor() {
   const fetchFileAudit = async (fileId) => {
     try {
       setLoadingAudit(true);
+      setAuditError(null);
       const token = localStorage.getItem('token');
       const response = await axios.get(`/api/file-audit/${fileId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -85,6 +96,7 @@ function Monitor() {
     } catch (err) {
       console.error('Error fetching file audit:', err);
       setFileAudit([]);
+      setAuditError('Failed to load audit trail. Please try again.');
     } finally {
       setLoadingAudit(false);
     }
@@ -249,12 +261,7 @@ function Monitor() {
                     </button>
                     <button 
                       className={`tab-button ${activeTab === 'audit' ? 'active' : ''}`}
-                      onClick={() => {
-                        setActiveTab('audit');
-                        if (selectedFile && fileAudit.length === 0) {
-                          fetchFileAudit(selectedFile.file_id);
-                        }
-                      }}
+                      onClick={() => setActiveTab('audit')}
                     >
                       <FiClock /> Audit Trail
                     </button>
@@ -315,6 +322,8 @@ function Monitor() {
                       </h3>
                       {loadingAudit ? (
                         <LoadingSpinner size="small" />
+                      ) : auditError ? (
+                        <div className="error">{auditError}</div>
                       ) : fileAudit.length === 0 ? (
                         <div className="no-data">No audit records found for this file.</div>
                       ) : (
