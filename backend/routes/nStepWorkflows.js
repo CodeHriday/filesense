@@ -624,7 +624,7 @@ router.post('/:id/execute', async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id || 1;
     
-    // Get workflow details to generate runId
+    // Get workflow details
     const workflowResult = await pool.query('SELECT name FROM n_step_workflows WHERE id = $1', [id]);
     if (workflowResult.rows.length === 0) {
       return res.status(404).json({
@@ -632,9 +632,6 @@ router.post('/:id/execute', async (req, res) => {
         error: 'Workflow not found'
       });
     }
-    
-    // Generate runId for tracking
-    const runId = `WFRUN-${Date.now()}-${require('uuid').v4().substring(0, 8)}`;
     
     // Execute workflow asynchronously (fire-and-forget)
     executeNStepWorkflow(id, userId)
@@ -655,7 +652,6 @@ router.post('/:id/execute', async (req, res) => {
     res.status(202).json({
       success: true,
       message: 'Workflow execution started in the background',
-      runId,
       workflowId: id,
       workflowName: workflowResult.rows[0].name
     });

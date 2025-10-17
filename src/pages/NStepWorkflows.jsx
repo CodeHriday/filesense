@@ -241,7 +241,6 @@ const NStepWorkflows = () => {
       setExecutionResult({ 
         success: true, 
         message: 'Job has been submitted in the background. Please navigate to the Jobs page to check the status.',
-        runId: response.data.runId,
         workflowName: response.data.workflowName
       });
       setExecutionResultModalOpen(true);
