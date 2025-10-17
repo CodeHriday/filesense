@@ -167,6 +167,17 @@ const SchedulerForm = () => {
           <div className="alert alert-danger">{error}</div>
         )}
 
+        {/* Debug Info */}
+        <div className="alert alert-info" style={{ marginBottom: '20px' }}>
+          <strong>Debug Info:</strong><br/>
+          Workflows loaded: {workflows.length}<br/>
+          Mapping Groups loaded: {mappingGroups.length}<br/>
+          Transformations loaded: {transformations.length}<br/>
+          Selected Entity Type: {formData.entity_type}<br/>
+          Selected Entity ID: {formData.entity_id || '(none)'}<br/>
+          Available options for current type: {getEntityOptions().length}
+        </div>
+
         <div className="form-container">
           <form onSubmit={handleSubmit} className="data-form">
             <div className="form-group">
@@ -238,6 +249,7 @@ const SchedulerForm = () => {
                   value={formData.cron_expression}
                   onChange={e => setFormData({ ...formData, cron_expression: e.target.value })}
                   placeholder="0 0 * * *"
+                  required
                   className="form-input"
                 />
                 <small className="form-help">
@@ -265,6 +277,7 @@ const SchedulerForm = () => {
                     min="1"
                     value={formData.interval_value}
                     onChange={e => setFormData({ ...formData, interval_value: parseInt(e.target.value) })}
+                    required
                     className="form-input"
                   />
                 </div>
@@ -273,6 +286,7 @@ const SchedulerForm = () => {
                   <select
                     value={formData.interval_unit}
                     onChange={e => setFormData({ ...formData, interval_unit: e.target.value })}
+                    required
                     className="form-select"
                   >
                     <option value="minute">Minute(s)</option>
