@@ -418,10 +418,23 @@ async function getAuditRecords(pool, filters = {}) {
         fad.*,
         fsd.file_schema,
         fsd.schema_diff,
-        fsd.active_flag as schema_active
+        fsd.active_flag as schema_active,
+        s.schedule_name,
+        mg.group_name as mapping_group_name,
+        tm.mapping_name
       FROM file_audit_details fad
       LEFT JOIN file_schema_details fsd 
         ON fad.file_schema_id = fsd.file_schema_id
+      LEFT JOIN transformation_jobs tj 
+        ON fad.transformation_job_id = tj.id
+      LEFT JOIN schedules s 
+        ON tj.schedule_id = s.id
+      LEFT JOIN transformation_mappings tm 
+        ON tj.mapping_id = tm.id
+      LEFT JOIN mapping_group_executions mge 
+        ON tj.mapping_group_execution_id = mge.id
+      LEFT JOIN mapping_groups mg 
+        ON mge.mapping_group_id = mg.id
       ${whereClause}
       ORDER BY fad.created_dt DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}

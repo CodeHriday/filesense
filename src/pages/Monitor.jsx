@@ -170,6 +170,9 @@ function Monitor() {
                     <th>File Name</th>
                     <th>Source</th>
                     <th>Load Type</th>
+                    <th>Schedule</th>
+                    <th>Mapping Group</th>
+                    <th>Mapping Name</th>
                     <th>File Type</th>
                     <th>Records</th>
                     <th>Status</th>
@@ -190,7 +193,7 @@ function Monitor() {
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="20" className="no-data">No audit records found</td>
+                      <td colSpan="23" className="no-data">No audit records found</td>
                     </tr>
                   ) : (
                     audits.map((audit) => (
@@ -209,6 +212,9 @@ function Monitor() {
                           <td className="file-name-col" title={audit.file_name}>{audit.file_name || '-'}</td>
                           <td>{audit.source || '-'}</td>
                           <td>{audit.load_type || '-'}</td>
+                          <td>{audit.schedule_name || '-'}</td>
+                          <td>{audit.mapping_group_name || '-'}</td>
+                          <td>{audit.mapping_name || '-'}</td>
                           <td>{audit.file_type ? audit.file_type.toUpperCase() : '-'}</td>
                           <td className="number-col">{(audit.no_of_records_in_source || 0).toLocaleString()}</td>
                           <td>
@@ -235,7 +241,7 @@ function Monitor() {
                         </tr>
                         {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="20">
+                            <td colSpan="23">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Additional Details</h3>
