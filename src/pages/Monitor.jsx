@@ -194,15 +194,15 @@ function Monitor() {
                     </tr>
                   ) : (
                     audits.map((audit) => (
-                      <React.Fragment key={audit.audit_id}>
+                      <React.Fragment key={audit.id}>
                         <tr className="audit-row">
                           <td className="expand-col">
                             <button 
                               className="expand-btn"
-                              onClick={() => toggleRowExpansion(audit.audit_id)}
+                              onClick={() => toggleRowExpansion(audit.id)}
                               title="View schema details"
                             >
-                              {expandedRows.has(audit.audit_id) ? <FiChevronDown /> : <FiChevronRight />}
+                              {expandedRows.has(audit.id) ? <FiChevronDown /> : <FiChevronRight />}
                             </button>
                           </td>
                           <td className="date-col">{formatDate(audit.created_dt)}</td>
@@ -233,7 +233,7 @@ function Monitor() {
                             {audit.error_message ? audit.error_message.substring(0, 30) + '...' : '-'}
                           </td>
                         </tr>
-                        {expandedRows.has(audit.audit_id) && (
+                        {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
                             <td colSpan="20">
                               <div className="expanded-content">
@@ -242,7 +242,7 @@ function Monitor() {
                                   <div className="detail-grid">
                                     <div className="detail-item">
                                       <span className="detail-label">Audit ID:</span>
-                                      <span className="detail-value">{audit.audit_id}</span>
+                                      <span className="detail-value">{audit.id}</span>
                                     </div>
                                     <div className="detail-item">
                                       <span className="detail-label">File ID:</span>
