@@ -35,6 +35,11 @@ const NStepWorkflows = () => {
   const [deleteStepModalOpen, setDeleteStepModalOpen] = useState(false);
   const [stepToDelete, setStepToDelete] = useState(null);
   const [saveSuccessModalOpen, setSaveSuccessModalOpen] = useState(false);
+  const [deleteWorkflowModalOpen, setDeleteWorkflowModalOpen] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState(null);
+  const [executionResultModalOpen, setExecutionResultModalOpen] = useState(false);
+  const [executionResult, setExecutionResult] = useState(null);
+  const [workflowToExecute, setWorkflowToExecute] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -101,18 +106,18 @@ const NStepWorkflows = () => {
   };
 
   const handleDeleteWorkflow = async () => {
-    if (!window.confirm('Are you sure you want to delete this workflow?')) {
-      return;
-    }
-
     try {
-      await axios.delete(`/api/n-step-workflows/${selectedWorkflow}`);
-      setWorkflows(workflows.filter(w => w.id !== selectedWorkflow));
+      await axios.delete(`/api/n-step-workflows/${workflowToDelete || selectedWorkflow}`);
+      setWorkflows(workflows.filter(w => w.id !== (workflowToDelete || selectedWorkflow)));
       setSelectedWorkflow(null);
       setWorkflowData(null);
+      setDeleteWorkflowModalOpen(false);
+      setWorkflowToDelete(null);
     } catch (err) {
       console.error('Error deleting workflow:', err);
-      alert('Failed to delete workflow');
+      setExecutionResult({ success: false, message: 'Failed to delete workflow' });
+      setExecutionResultModalOpen(true);
+      setDeleteWorkflowModalOpen(false);
     }
   };
 
@@ -225,18 +230,31 @@ const NStepWorkflows = () => {
   };
 
   const handleExecuteWorkflow = async () => {
+    const idToExecute = workflowToExecute || selectedWorkflow;
     try {
       setExecuting(true);
-      const response = await axios.post(`/api/n-step-workflows/${selectedWorkflow}/execute`);
+      const response = await axios.post(`/api/n-step-workflows/${idToExecute}/execute`);
       setExecuteModalOpen(false);
-      alert(`Workflow executed successfully! Run ID: ${response.data.runId}`);
-      await fetchWorkflowDetails();
+      setWorkflowToExecute(null);
+      setExecutionResult({ success: true, message: `Workflow executed successfully! Run ID: ${response.data.runId}` });
+      setExecutionResultModalOpen(true);
+      if (selectedWorkflow) {
+        await fetchWorkflowDetails();
+      }
     } catch (err) {
       console.error('Error executing workflow:', err);
-      alert(err.response?.data?.error || 'Failed to execute workflow');
+      setExecuteModalOpen(false);
+      setWorkflowToExecute(null);
+      setExecutionResult({ success: false, message: err.response?.data?.error || 'Failed to execute workflow' });
+      setExecutionResultModalOpen(true);
     } finally {
       setExecuting(false);
     }
+  };
+
+  const handleQuickExecute = (workflowId) => {
+    setWorkflowToExecute(workflowId);
+    setExecuteModalOpen(true);
   };
 
   const handleDeleteStep = async () => {
@@ -446,7 +464,7 @@ const NStepWorkflows = () => {
     <PageTransition>
       <div className="n-step-workflows-page">
         <PageHeader
-          title="Workflow Steps"
+          title="Workflows"
           subtitle="Build N-step workflows with sequential execution"
         />
 
@@ -496,6 +514,14 @@ const NStepWorkflows = () => {
                       <td>
                         <div className="action-buttons">
                           <button
+                            className="btn-icon btn-success"
+                            onClick={() => handleQuickExecute(w.id)}
+                            title="Execute workflow"
+                            disabled={executing}
+                          >
+                            <FiPlay />
+                          </button>
+                          <button
                             className="btn-icon btn-info"
                             onClick={() => handleViewWorkflow(w.id)}
                             title="View workflow (read-only)"
@@ -512,8 +538,8 @@ const NStepWorkflows = () => {
                           <button
                             className="btn-icon btn-danger"
                             onClick={() => {
-                              setSelectedWorkflow(w.id);
-                              handleDeleteWorkflow();
+                              setWorkflowToDelete(w.id);
+                              setDeleteWorkflowModalOpen(true);
                             }}
                             title="Delete workflow"
                           >
@@ -613,7 +639,7 @@ const NStepWorkflows = () => {
                 </button>
                 <button
                   className="btn btn-success"
-                  onClick={() => setExecuteModalOpen(true)}
+                  onClick={() => { setWorkflowToExecute(null); setExecuteModalOpen(true); }}
                   disabled={executing || !workflowData.steps?.length}
                 >
                   <FiPlay /> Execute Workflow
@@ -780,23 +806,23 @@ const NStepWorkflows = () => {
         )}
 
         {executeModalOpen && (
-          <div className="modal-overlay" onClick={() => setExecuteModalOpen(false)}>
+          <div className="modal-overlay" onClick={() => { if (!executing) { setExecuteModalOpen(false); setWorkflowToExecute(null); } }}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Execute Workflow</h2>
-                <button className="modal-close" onClick={() => setExecuteModalOpen(false)}>
+                <button className="modal-close" onClick={() => { if (!executing) { setExecuteModalOpen(false); setWorkflowToExecute(null); } }}>
                   <FiX />
                 </button>
               </div>
               <div className="modal-body">
                 <p>Are you sure you want to execute this workflow?</p>
-                <p><strong>{workflowData?.name}</strong></p>
+                <p><strong>{workflowToExecute ? workflows.find(w => w.id === workflowToExecute)?.name : workflowData?.name}</strong></p>
                 <p className="text-muted">
-                  This will run all {workflowData?.steps?.length || 0} steps sequentially.
+                  This will run all steps sequentially.
                 </p>
               </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setExecuteModalOpen(false)}>
+                <button className="btn btn-secondary" onClick={() => { if (!executing) { setExecuteModalOpen(false); setWorkflowToExecute(null); } }} disabled={executing}>
                   Cancel
                 </button>
                 <button 
@@ -858,6 +884,61 @@ const NStepWorkflows = () => {
               </div>
               <div className="modal-footer">
                 <button className="btn btn-primary" onClick={() => setSaveSuccessModalOpen(false)}>
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteWorkflowModalOpen && (
+          <div className="modal-overlay" onClick={() => setDeleteWorkflowModalOpen(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Delete Workflow</h2>
+                <button className="modal-close" onClick={() => setDeleteWorkflowModalOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to delete this workflow?</p>
+                <p><strong>{workflows.find(w => w.id === workflowToDelete)?.name}</strong></p>
+                <p className="text-muted">
+                  This action cannot be undone. All workflow steps and configurations will be permanently deleted.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setDeleteWorkflowModalOpen(false)}>
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-danger" 
+                  onClick={handleDeleteWorkflow}
+                >
+                  <FiTrash2 /> Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {executionResultModalOpen && (
+          <div className="modal-overlay" onClick={() => setExecutionResultModalOpen(false)}>
+            <div className={`modal-content ${executionResult?.success ? 'success-modal' : 'error-modal'}`} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>{executionResult?.success ? 'Success!' : 'Error'}</h2>
+                <button className="modal-close" onClick={() => setExecutionResultModalOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className={executionResult?.success ? 'success-icon' : 'error-icon'}>
+                  {executionResult?.success ? '✓' : '✕'}
+                </div>
+                <p><strong>{executionResult?.message}</strong></p>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-primary" onClick={() => setExecutionResultModalOpen(false)}>
                   OK
                 </button>
               </div>

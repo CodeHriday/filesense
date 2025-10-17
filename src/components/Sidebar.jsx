@@ -278,7 +278,7 @@ function Sidebar() {
             <li>
               <NavLink to="/workflows" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiGitBranch className="icon" />
-                <span>Workflow Steps</span>
+                <span>Workflows</span>
               </NavLink>
             </li>
             
