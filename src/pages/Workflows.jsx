@@ -4,6 +4,7 @@ import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
+import Pagination from '../components/Pagination';
 import '../components/styles/PageActions.css';
 import axios from 'axios';
 
@@ -12,6 +13,8 @@ const Workflows = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [executing, setExecuting] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchWorkflows();
@@ -92,6 +95,12 @@ const Workflows = () => {
     return <LoadingSpinner message="Loading workflows..." />;
   }
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentWorkflows = workflows.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(workflows.length / itemsPerPage);
+
   return (
     <PageTransition>
       <div className="workflows-page">
@@ -115,41 +124,76 @@ const Workflows = () => {
             <p>No workflows found. Create one to get started!</p>
           </div>
         ) : (
-          <div className="workflows-grid">
-            {workflows.map(workflow => (
-              <div key={workflow.id} className="workflow-card">
-                <h3>{workflow.name}</h3>
-                <div className="workflow-meta">
-                  <span className="meta-item">Steps: {workflow.stepCount}</span>
-                  <span className="meta-item">
-                    Mode: {workflow.steps[0]?.execution_mode || 'sequential'}
-                  </span>
-                </div>
-                <div className="workflow-steps">
-                  {workflow.steps.map((step, idx) => (
-                    <div key={step.id} className="step-item">
-                      {idx + 1}. {step.step_name} ({step.step_type})
-                    </div>
-                  ))}
-                </div>
-                <div className="workflow-actions">
-                  <button
-                    onClick={() => handleExecute(workflow.id)}
-                    disabled={executing === workflow.id}
-                    className="btn btn-success btn-sm"
-                  >
-                    <FiPlayCircle /> {executing === workflow.id ? 'Executing...' : 'Execute'}
-                  </button>
-                  <Link to={`/workflows/${workflow.id}/edit`} className="btn btn-primary btn-sm">
-                    <FiEdit2 /> Edit
-                  </Link>
-                  <button onClick={() => handleDelete(workflow.id)} className="btn btn-danger btn-sm">
-                    <FiTrash2 /> Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Steps</th>
+                  <th>Execution Mode</th>
+                  <th>Step Details</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentWorkflows.map(workflow => (
+                  <tr key={workflow.id}>
+                    <td className="font-weight-bold">{workflow.name}</td>
+                    <td className="text-center">{workflow.stepCount}</td>
+                    <td>{workflow.steps[0]?.execution_mode || 'sequential'}</td>
+                    <td>
+                      <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                        {workflow.steps.slice(0, 3).map((step, idx) => (
+                          <div key={step.id}>
+                            {idx + 1}. {step.step_name} ({step.step_type})
+                          </div>
+                        ))}
+                        {workflow.steps.length > 3 && (
+                          <div>... and {workflow.steps.length - 3} more</div>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="action-icons">
+                        <button
+                          onClick={() => handleExecute(workflow.id)}
+                          disabled={executing === workflow.id}
+                          className="icon-btn icon-btn-success"
+                          title="Execute"
+                        >
+                          <FiPlayCircle />
+                        </button>
+                        <Link 
+                          to={`/workflows/${workflow.id}/edit`} 
+                          className="icon-btn icon-btn-primary"
+                          title="Edit"
+                        >
+                          <FiEdit2 />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(workflow.id)}
+                          className="icon-btn icon-btn-danger"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        )}
+        
+        {workflows.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            totalItems={workflows.length}
+          />
         )}
       </div>
     </PageTransition>
