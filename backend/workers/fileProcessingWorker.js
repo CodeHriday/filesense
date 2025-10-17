@@ -13,6 +13,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
+const { captureFileAudit, captureFileSchema } = require('../services/fileAuditService');
 
 class FileProcessingWorker {
   constructor(queue, dbPool, logger, auditService = null) {
@@ -138,6 +140,61 @@ class FileProcessingWorker {
       if (fileInfo.schema && fileInfo.schema.length > 0) {
         await this.saveColumnInfo(fileId, fileInfo.schema);
       }
+
+      await this.queue.updateProgress(jobId, 90);
+
+      // Step 6: Capture file audit details and schema
+      const correlationId = uuidv4();
+      
+      // Capture file schema with versioning
+      const schemaResult = await captureFileSchema(this.dbPool, {
+        fileId,
+        fileName: originalName,
+        fileSchema: {
+          columns: fileInfo.schema || [],
+          encoding: fileInfo.encoding,
+          delimiter: fileInfo.delimiter
+        },
+        correlationId,
+        createdBy: userId
+      });
+
+      this.logger.info('File schema captured', {
+        fileId,
+        schemaId: schemaResult.schemaId,
+        isNew: schemaResult.isNew,
+        hasChanges: schemaResult.hasChanges
+      });
+
+      // Capture comprehensive file audit
+      await captureFileAudit(this.dbPool, {
+        fileId,
+        fileName: originalName,
+        fileSchemaId: schemaResult.schemaId,
+        fileHash,
+        filePattern: null,
+        fileType,
+        fileDelimiter: fileInfo.delimiter,
+        encoding: fileInfo.encoding,
+        numberOfColumns: fileInfo.column_count,
+        source: 'upload',
+        sourcePath: originalName,
+        noOfRecordsInSource: fileInfo.row_count,
+        loadStep1: 'file_processing',
+        loadStep1Path: filePath,
+        loadStep1RecCnt: fileInfo.row_count,
+        loadType: 'manual_upload',
+        correlationId,
+        userId,
+        processingDurationMs: Date.now() - startTime,
+        status: 'success',
+        createdBy: userId
+      });
+
+      this.logger.info('File audit captured', {
+        fileId,
+        correlationId
+      });
 
       await this.queue.updateProgress(jobId, 100);
 
