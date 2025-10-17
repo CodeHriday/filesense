@@ -89,7 +89,7 @@ router.post('/', async (req, res) => {
       interval_value,
       interval_unit,
       timezone,
-      created_by,
+      created_by: created_by || (req.user ? req.user.id : null), // Use authenticated user ID
       is_active
     });
     

@@ -19,8 +19,9 @@ const { setupEnhancedFeatures } = require('./backend/integration');
 // Import queue system for async processing
 const { getQueue } = require('./backend/queue/queueFactory');
 const FileProcessingWorker = require('./backend/workers/fileProcessingWorker');
+const SchedulerWorker = require('./backend/workers/schedulerWorker');
 
-// Initialize queue and worker
+// Initialize queue and workers
 const queue = getQueue();
 const fileWorker = new FileProcessingWorker(
   queue,
@@ -29,6 +30,13 @@ const fileWorker = new FileProcessingWorker(
   diContainer.get('auditService')
 );
 fileWorker.start();
+
+// Initialize scheduler worker (checks for due schedules every minute)
+const schedulerWorker = new SchedulerWorker(
+  diContainer.get('logger'),
+  60000 // Check every 60 seconds
+);
+schedulerWorker.start();
 
 // Import validation middleware and schemas
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
@@ -5475,3 +5483,29 @@ app.use(errorHandler);
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+  logger.info(`Received ${signal} signal, starting graceful shutdown`);
+  
+  try {
+    // Stop scheduler worker
+    await schedulerWorker.stop();
+    
+    // Stop file processing worker
+    await fileWorker.stop();
+    
+    // Close database connections
+    await dbPool.end();
+    
+    logger.info('Graceful shutdown completed');
+    process.exit(0);
+  } catch (error) {
+    logger.error('Error during graceful shutdown', { error: error.message });
+    process.exit(1);
+  }
+};
+
+// Register shutdown handlers
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

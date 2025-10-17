@@ -298,7 +298,8 @@ async function processDueSchedules() {
     for (const schedule of dueSchedules) {
       try {
         // Execute the scheduled entity with schedule creator's userId
-        const userId = schedule.created_by || 'scheduler';
+        // Use null if no created_by (system will handle it as automated execution)
+        const userId = schedule.created_by || null;
         let executionResult;
         
         if (schedule.entity_type === 'mapping') {
