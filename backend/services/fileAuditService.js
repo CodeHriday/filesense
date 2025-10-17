@@ -400,6 +400,15 @@ async function getAuditRecords(pool, filters = {}) {
       ? `WHERE ${conditions.join(' AND ')}` 
       : '';
 
+    // Get total count first
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM file_audit_details fad
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
+    const total = parseInt(countResult.rows[0].total);
+
     params.push(limit, offset);
 
     const query = `
@@ -421,7 +430,7 @@ async function getAuditRecords(pool, filters = {}) {
     return {
       success: true,
       audits: result.rows,
-      total: result.rowCount
+      total: total
     };
 
   } catch (error) {
