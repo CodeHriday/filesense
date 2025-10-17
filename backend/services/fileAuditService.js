@@ -1,0 +1,471 @@
+const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
+
+/**
+ * File Audit Service
+ * Handles comprehensive file processing audit with schema versioning
+ */
+
+/**
+ * Calculate schema hash for version detection
+ */
+function calculateSchemaHash(schema) {
+  const schemaString = JSON.stringify(schema);
+  return crypto.createHash('sha256').update(schemaString).digest('hex');
+}
+
+/**
+ * Calculate schema diff between two schema objects
+ */
+function calculateSchemaDiff(oldSchema, newSchema) {
+  const diff = {
+    added: [],
+    removed: [],
+    modified: []
+  };
+
+  const oldCols = oldSchema.columns || [];
+  const newCols = newSchema.columns || [];
+  
+  const oldColMap = new Map(oldCols.map(c => [c.name, c]));
+  const newColMap = new Map(newCols.map(c => [c.name, c]));
+
+  // Find added columns
+  for (const [name, col] of newColMap) {
+    if (!oldColMap.has(name)) {
+      diff.added.push(col);
+    }
+  }
+
+  // Find removed and modified columns
+  for (const [name, oldCol] of oldColMap) {
+    if (!newColMap.has(name)) {
+      diff.removed.push(oldCol);
+    } else {
+      const newCol = newColMap.get(name);
+      if (oldCol.type !== newCol.type) {
+        diff.modified.push({
+          name,
+          old: oldCol,
+          new: newCol
+        });
+      }
+    }
+  }
+
+  return diff;
+}
+
+/**
+ * Capture file audit details
+ * @param {Object} pool - Database pool
+ * @param {Object} auditData - Audit information
+ * @param {Object} options - Additional options (retry, timeout)
+ */
+async function captureFileAudit(pool, auditData, options = {}) {
+  const {
+    retryAttempts = 3,
+    retryDelay = 1000,
+    parentAuditId = null
+  } = options;
+
+  const correlationId = auditData.correlationId || uuidv4();
+  const startTime = Date.now();
+  
+  let attempt = 0;
+  let lastError = null;
+
+  while (attempt < retryAttempts) {
+    try {
+      attempt++;
+
+      // Begin transaction for atomic audit write
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Calculate retention date (12 months by default)
+        const retentionMonths = auditData.retentionMonths || 12;
+        const retentionDate = new Date();
+        retentionDate.setMonth(retentionDate.getMonth() + retentionMonths);
+
+        // Insert audit details
+        const auditResult = await client.query(`
+          INSERT INTO file_audit_details (
+            file_id, file_name, file_schema_id, file_hash, file_pattern,
+            file_type, file_delimiter, encoding, number_of_columns,
+            source, source_path, no_of_records_in_source,
+            load_step_1, load_step_1_path, load_step_1_rec_cnt, load_type,
+            correlation_id, parent_audit_id,
+            user_id, user_email, ip_address, session_id,
+            processing_duration_ms, status, error_message, error_type,
+            retention_until, created_by
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+            $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+          ) RETURNING id
+        `, [
+          auditData.fileId,
+          auditData.fileName,
+          auditData.fileSchemaId,
+          auditData.fileHash,
+          auditData.filePattern,
+          auditData.fileType,
+          auditData.fileDelimiter,
+          auditData.encoding,
+          auditData.numberOfColumns,
+          auditData.source,
+          auditData.sourcePath,
+          auditData.noOfRecordsInSource,
+          auditData.loadStep1,
+          auditData.loadStep1Path,
+          auditData.loadStep1RecCnt,
+          auditData.loadType,
+          correlationId,
+          parentAuditId,
+          auditData.userId,
+          auditData.userEmail,
+          auditData.ipAddress,
+          auditData.sessionId,
+          auditData.processingDurationMs || (Date.now() - startTime),
+          auditData.status || 'success',
+          auditData.errorMessage,
+          auditData.errorType,
+          retentionDate,
+          auditData.createdBy
+        ]);
+
+        const auditId = auditResult.rows[0].id;
+
+        await client.query('COMMIT');
+        client.release();
+
+        return {
+          success: true,
+          auditId,
+          correlationId
+        };
+
+      } catch (err) {
+        await client.query('ROLLBACK');
+        client.release();
+        throw err;
+      }
+
+    } catch (error) {
+      lastError = error;
+      console.error(`Audit capture attempt ${attempt} failed:`, error.message);
+
+      if (attempt < retryAttempts) {
+        // Exponential backoff
+        const delay = retryDelay * Math.pow(2, attempt - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  // All retries failed
+  console.error('All audit capture attempts failed:', lastError);
+  return {
+    success: false,
+    error: lastError.message,
+    correlationId
+  };
+}
+
+/**
+ * Capture or update file schema with versioning
+ * @param {Object} pool - Database pool
+ * @param {Object} schemaData - Schema information
+ */
+async function captureFileSchema(pool, schemaData) {
+  const {
+    fileId,
+    fileName,
+    fileSchema,
+    correlationId,
+    createdBy
+  } = schemaData;
+
+  const schemaHash = calculateSchemaHash(fileSchema);
+  const fileSchemaId = `schema_${fileId}_${Date.now()}`;
+
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check if a schema with this hash already exists for this file
+      const existingSchema = await client.query(`
+        SELECT id, file_schema_id, file_schema, active_flag
+        FROM file_schema_details
+        WHERE file_id = $1 AND schema_hash = $2
+        ORDER BY created_ts DESC
+        LIMIT 1
+      `, [fileId, schemaHash]);
+
+      if (existingSchema.rows.length > 0 && existingSchema.rows[0].active_flag) {
+        // Schema hasn't changed and is already active, just return the existing schema ID
+        await client.query('COMMIT');
+        client.release();
+        
+        return {
+          success: true,
+          schemaId: existingSchema.rows[0].file_schema_id,
+          isNew: false,
+          message: 'Schema unchanged, using existing version'
+        };
+      }
+
+      // Get current active schema for diff calculation
+      const activeSchema = await client.query(`
+        SELECT file_schema, file_schema_id
+        FROM file_schema_details
+        WHERE file_id = $1 AND active_flag = true
+        ORDER BY created_ts DESC
+        LIMIT 1
+      `, [fileId]);
+
+      let schemaDiff = null;
+      let previousSchemaId = null;
+
+      if (activeSchema.rows.length > 0) {
+        // Calculate diff
+        schemaDiff = calculateSchemaDiff(
+          activeSchema.rows[0].file_schema,
+          fileSchema
+        );
+        previousSchemaId = activeSchema.rows[0].file_schema_id;
+
+        // Deactivate old schema
+        await client.query(`
+          UPDATE file_schema_details
+          SET active_flag = false
+          WHERE file_id = $1 AND active_flag = true
+        `, [fileId]);
+      }
+
+      // Insert new schema version
+      await client.query(`
+        INSERT INTO file_schema_details (
+          file_id, file_name, file_schema_id, file_schema,
+          schema_hash, schema_diff, active_flag,
+          correlation_id, previous_schema_id, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [
+        fileId,
+        fileName,
+        fileSchemaId,
+        JSON.stringify(fileSchema),
+        schemaHash,
+        schemaDiff ? JSON.stringify(schemaDiff) : null,
+        true,
+        correlationId,
+        previousSchemaId,
+        createdBy
+      ]);
+
+      await client.query('COMMIT');
+      client.release();
+
+      return {
+        success: true,
+        schemaId: fileSchemaId,
+        isNew: true,
+        hasChanges: previousSchemaId !== null,
+        diff: schemaDiff
+      };
+
+    } catch (err) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw err;
+    }
+
+  } catch (error) {
+    console.error('Schema capture failed:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get file audit history with schema information
+ */
+async function getFileAuditHistory(pool, fileId, options = {}) {
+  const {
+    limit = 100,
+    offset = 0,
+    includeSchema = true
+  } = options;
+
+  try {
+    let query = `
+      SELECT 
+        fad.*,
+        ${includeSchema ? `
+        fsd.file_schema,
+        fsd.schema_hash,
+        fsd.schema_diff,
+        fsd.active_flag as schema_active,
+        fsd.previous_schema_id,
+        fsd.schema_update_ts
+        ` : 'NULL as file_schema'}
+      FROM file_audit_details fad
+      ${includeSchema ? `
+      LEFT JOIN file_schema_details fsd 
+        ON fad.file_schema_id = fsd.file_schema_id
+      ` : ''}
+      WHERE fad.file_id = $1
+      ORDER BY fad.created_dt DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const result = await pool.query(query, [fileId, limit, offset]);
+
+    return {
+      success: true,
+      audits: result.rows,
+      total: result.rowCount
+    };
+
+  } catch (error) {
+    console.error('Failed to fetch audit history:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get all audit records with filters
+ */
+async function getAuditRecords(pool, filters = {}) {
+  const {
+    startDate,
+    endDate,
+    status,
+    source,
+    fileType,
+    correlationId,
+    limit = 100,
+    offset = 0
+  } = filters;
+
+  try {
+    let conditions = [];
+    let params = [];
+    let paramIndex = 1;
+
+    if (startDate) {
+      conditions.push(`created_dt >= $${paramIndex}`);
+      params.push(startDate);
+      paramIndex++;
+    }
+
+    if (endDate) {
+      conditions.push(`created_dt <= $${paramIndex}`);
+      params.push(endDate);
+      paramIndex++;
+    }
+
+    if (status) {
+      conditions.push(`status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (source) {
+      conditions.push(`source = $${paramIndex}`);
+      params.push(source);
+      paramIndex++;
+    }
+
+    if (fileType) {
+      conditions.push(`file_type = $${paramIndex}`);
+      params.push(fileType);
+      paramIndex++;
+    }
+
+    if (correlationId) {
+      conditions.push(`correlation_id = $${paramIndex}`);
+      params.push(correlationId);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.length > 0 
+      ? `WHERE ${conditions.join(' AND ')}` 
+      : '';
+
+    params.push(limit, offset);
+
+    const query = `
+      SELECT 
+        fad.*,
+        fsd.file_schema,
+        fsd.schema_diff,
+        fsd.active_flag as schema_active
+      FROM file_audit_details fad
+      LEFT JOIN file_schema_details fsd 
+        ON fad.file_schema_id = fsd.file_schema_id
+      ${whereClause}
+      ORDER BY fad.created_dt DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    const result = await pool.query(query, params);
+
+    return {
+      success: true,
+      audits: result.rows,
+      total: result.rowCount
+    };
+
+  } catch (error) {
+    console.error('Failed to fetch audit records:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Cleanup old audit records based on retention policy
+ */
+async function cleanupOldAudits(pool) {
+  try {
+    const result = await pool.query(`
+      DELETE FROM file_audit_details
+      WHERE retention_until < CURRENT_TIMESTAMP
+      RETURNING id
+    `);
+
+    console.log(`Cleaned up ${result.rowCount} old audit records`);
+
+    return {
+      success: true,
+      deletedCount: result.rowCount
+    };
+
+  } catch (error) {
+    console.error('Audit cleanup failed:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+module.exports = {
+  captureFileAudit,
+  captureFileSchema,
+  getFileAuditHistory,
+  getAuditRecords,
+  cleanupOldAudits,
+  calculateSchemaHash,
+  calculateSchemaDiff
+};

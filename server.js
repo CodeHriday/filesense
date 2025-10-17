@@ -1628,6 +1628,10 @@ app.use('/api/n-step-workflows', authenticateToken, nStepWorkflowsRoutes);
 const schedulerRoutes = require('./backend/routes/scheduler');
 app.use('/api/scheduler', authenticateToken, schedulerRoutes);
 
+// File Audit routes
+const fileAuditRoutes = require('./backend/routes/fileAudit');
+app.use('/api/file-audit', authenticateToken, fileAuditRoutes);
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
