@@ -41,11 +41,28 @@ const SchedulerForm = () => {
         axios.get('/api/mapping-groups'),
         axios.get('/api/n-step-workflows')
       ]);
-      setTransformations(transformationsData.data.mappings || []);
-      setMappingGroups(groupsData.data.groups || []);
-      setWorkflows(workflowsData.data.workflows || []);
+      
+      const mappings = transformationsData.data.mappings || [];
+      const groups = groupsData.data.groups || [];
+      const workflows = workflowsData.data.workflows || [];
+      
+      console.log('Scheduler Form - Data loaded:', {
+        transformations: mappings.length,
+        mappingGroups: groups.length,
+        workflows: workflows.length,
+        workflowSample: workflows[0]
+      });
+      
+      setTransformations(mappings);
+      setMappingGroups(groups);
+      setWorkflows(workflows);
+      
+      if (mappings.length === 0 && groups.length === 0 && workflows.length === 0) {
+        setError('No entities available. Please create a transformation, mapping group, or workflow first.');
+      }
     } catch (err) {
       console.error('Error fetching data:', err);
+      setError(`Failed to load data: ${err.response?.data?.error || err.message}`);
     }
   };
 
@@ -69,6 +86,20 @@ const SchedulerForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    console.log('Scheduler Form - Submit attempted:', {
+      formData,
+      entity_type: formData.entity_type,
+      entity_id: formData.entity_id,
+      schedule_type: formData.schedule_type
+    });
+    
+    // Validate entity_id is selected
+    if (!formData.entity_id) {
+      setError('Please select an entity to schedule');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 
@@ -81,15 +112,20 @@ const SchedulerForm = () => {
         delete submitData.cron_expression;
       }
 
+      console.log('Scheduler Form - Sending data:', submitData);
+
       if (isEdit) {
-        await axios.put(`/api/schedules/${scheduleId}`, submitData);
+        const response = await axios.put(`/api/schedules/${scheduleId}`, submitData);
+        console.log('Scheduler Form - Update response:', response.data);
       } else {
-        await axios.post('/api/schedules', submitData);
+        const response = await axios.post('/api/schedules', submitData);
+        console.log('Scheduler Form - Create response:', response.data);
       }
       navigate('/etl-scheduler');
     } catch (err) {
       console.error('Error saving schedule:', err);
-      setError('Failed to save schedule');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to save schedule';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
