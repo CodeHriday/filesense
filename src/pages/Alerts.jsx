@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheck } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import { getAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, getAlertHistory } from '../api/alertService';
 import { formatDate, getTimeSince } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +18,9 @@ function Alerts() {
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [currentRule, setCurrentRule] = useState(null);
   const [activeTab, setActiveTab] = useState('rules');
+  const [rulesPage, setRulesPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // Form state
   const [ruleName, setRuleName] = useState('');
@@ -115,6 +119,12 @@ function Alerts() {
   };
 
   const renderRulesTab = () => {
+    // Pagination logic for rules
+    const indexOfLastRule = rulesPage * itemsPerPage;
+    const indexOfFirstRule = indexOfLastRule - itemsPerPage;
+    const currentRules = alertRules.slice(indexOfFirstRule, indexOfLastRule);
+    const totalRulesPages = Math.ceil(alertRules.length / itemsPerPage);
+
     return (
       <>
         <div className="tab-header">
@@ -246,70 +256,89 @@ function Alerts() {
             </div>
           </Card>
         ) : (
-          <div className="rules-grid">
-            {alertRules.map(rule => (
-              <Card key={rule.id} className="rule-card">
-                <div className="rule-header">
-                  <div className="rule-title">
-                    <h3>{rule.rule_name}</h3>
-                    <span className={`badge badge-${rule.severity}`}>
-                      {rule.severity}
-                    </span>
-                    {rule.enabled ? (
-                      <span className="badge badge-success">Active</span>
-                    ) : (
-                      <span className="badge badge-error">Inactive</span>
-                    )}
-                  </div>
-                  <div className="rule-actions">
-                    {hasWritePermission('alerts') && (
-                      <>
-                        <button 
-                          className="action-button" 
-                          title="Edit Rule"
-                          onClick={() => handleEditRule(rule)}
-                        >
-                          <FiEdit2 />
-                        </button>
-                        <button 
-                          className="action-button delete-button" 
-                          title="Delete Rule"
-                          onClick={() => handleDeleteRule(rule.id)}
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="rule-content">
-                  <div className="rule-detail">
-                    <span className="detail-label">Type:</span>
-                    <span className="detail-value">
-                      {rule.rule_type.charAt(0).toUpperCase() + rule.rule_type.slice(1).replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="rule-detail">
-                    <span className="detail-label">Condition:</span>
-                    <span className="detail-value">
-                      {rule.rule_condition.split('_').join(' ')} {rule.rule_value}
-                    </span>
-                  </div>
-                </div>
-                <div className="rule-footer">
-                  <div className="rule-date">
-                    Created: {formatDate(rule.created_at)}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Type</th>
+                    <th>Condition</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentRules.map(rule => (
+                    <tr key={rule.id}>
+                      <td className="font-weight-bold">{rule.rule_name}</td>
+                      <td>{rule.rule_type.charAt(0).toUpperCase() + rule.rule_type.slice(1).replace('_', ' ')}</td>
+                      <td>{rule.rule_condition.split('_').join(' ')} {rule.rule_value}</td>
+                      <td>
+                        <span className={`badge badge-${rule.severity}`}>
+                          {rule.severity}
+                        </span>
+                      </td>
+                      <td>
+                        {rule.enabled ? (
+                          <span className="badge badge-success">Active</span>
+                        ) : (
+                          <span className="badge badge-error">Inactive</span>
+                        )}
+                      </td>
+                      <td>{formatDate(rule.created_at)}</td>
+                      <td>
+                        <div className="action-icons">
+                          {hasWritePermission('alerts') && (
+                            <>
+                              <button 
+                                className="icon-btn icon-btn-primary" 
+                                title="Edit Rule"
+                                onClick={() => handleEditRule(rule)}
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button 
+                                className="icon-btn icon-btn-danger" 
+                                title="Delete Rule"
+                                onClick={() => handleDeleteRule(rule.id)}
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {alertRules.length > 0 && (
+              <Pagination
+                currentPage={rulesPage}
+                totalPages={totalRulesPages}
+                onPageChange={setRulesPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={alertRules.length}
+              />
+            )}
+          </>
         )}
       </>
     );
   };
 
   const renderHistoryTab = () => {
+    // Pagination logic for history
+    const indexOfLastAlert = historyPage * itemsPerPage;
+    const indexOfFirstAlert = indexOfLastAlert - itemsPerPage;
+    const currentHistory = alertHistory.slice(indexOfFirstAlert, indexOfLastAlert);
+    const totalHistoryPages = Math.ceil(alertHistory.length / itemsPerPage);
+
     return (
       <>
         <div className="tab-header">
@@ -328,32 +357,52 @@ function Alerts() {
             </div>
           </Card>
         ) : (
-          <div className="history-list">
-            {alertHistory.map(alert => (
-              <Card key={alert.id} className="alert-history-card">
-                <div className="alert-header">
-                  <h3>{alert.rule_name}</h3>
-                  <span className={`badge badge-${alert.severity}`}>
-                    {alert.severity}
-                  </span>
-                </div>
-                <div className="alert-content">
-                  <p>{alert.message}</p>
-                  <p className="alert-file">
-                    <span>File:</span> {alert.filename}
-                  </p>
-                </div>
-                <div className="alert-footer">
-                  <div className="alert-time">
-                    Triggered {getTimeSince(alert.triggered_at)}
-                  </div>
-                  <Link to={`/profile/${alert.file_id}`} className="alert-action">
-                    View File
-                  </Link>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Severity</th>
+                    <th>Message</th>
+                    <th>File</th>
+                    <th>Triggered</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentHistory.map(alert => (
+                    <tr key={alert.id}>
+                      <td className="font-weight-bold">{alert.rule_name}</td>
+                      <td>
+                        <span className={`badge badge-${alert.severity}`}>
+                          {alert.severity}
+                        </span>
+                      </td>
+                      <td>{alert.message}</td>
+                      <td>{alert.filename}</td>
+                      <td>{getTimeSince(alert.triggered_at)}</td>
+                      <td>
+                        <Link to={`/profile/${alert.file_id}`} className="btn btn-sm btn-primary">
+                          View File
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {alertHistory.length > 0 && (
+              <Pagination
+                currentPage={historyPage}
+                totalPages={totalHistoryPages}
+                onPageChange={setHistoryPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={alertHistory.length}
+              />
+            )}
+          </>
         )}
       </>
     );
