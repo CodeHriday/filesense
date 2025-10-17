@@ -28,6 +28,7 @@ const crypto = require('crypto');
  * @param {Object} options - Optional metadata
  * @param {number} options.mappingGroupExecutionId - Mapping group execution ID if part of a group
  * @param {number} options.scheduleId - Schedule ID if triggered by a schedule
+ * @param {number} options.workflowExecutionId - Workflow execution ID if part of a workflow
  * @returns {Promise<Object>} - Created job record
  */
 async function createJob(pool, mappingId, userId, options = {}) {
@@ -48,8 +49,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
     const result = await pool.query(`
       INSERT INTO transformation_jobs (
         job_id, mapping_id, mapping_name, executed_by, status, 
-        mapping_group_execution_id, schedule_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        mapping_group_execution_id, schedule_id, workflow_execution_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `, [
       jobId, 
@@ -58,7 +59,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
       userId, 
       'running',
       options.mappingGroupExecutionId || null,
-      options.scheduleId || null
+      options.scheduleId || null,
+      options.workflowExecutionId || null
     ]);
     
     const transformationJobDbId = result.rows[0].id; // Get database ID for linking to audit
@@ -67,7 +69,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
       jobId, 
       mappingId, 
       mappingGroupExecutionId: options.mappingGroupExecutionId,
-      scheduleId: options.scheduleId 
+      scheduleId: options.scheduleId,
+      workflowExecutionId: options.workflowExecutionId
     });
     
     return result.rows[0];
