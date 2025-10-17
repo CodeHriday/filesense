@@ -177,6 +177,7 @@ class FileProcessingWorker {
         fileDelimiter: fileInfo.delimiter,
         encoding: fileInfo.encoding,
         numberOfColumns: fileInfo.column_count,
+        fileSizeBytes: fileSize,
         source: 'upload',
         sourcePath: originalName,
         noOfRecordsInSource: fileInfo.row_count,

@@ -93,7 +93,7 @@ async function captureFileAudit(pool, auditData, options = {}) {
         const auditResult = await client.query(`
           INSERT INTO file_audit_details (
             file_id, file_name, file_schema_id, file_hash, file_pattern,
-            file_type, file_delimiter, encoding, number_of_columns,
+            file_type, file_delimiter, encoding, number_of_columns, file_size_bytes,
             source, source_path, no_of_records_in_source,
             load_step_1, load_step_1_path, load_step_1_rec_cnt, load_type,
             correlation_id, parent_audit_id,
@@ -101,8 +101,8 @@ async function captureFileAudit(pool, auditData, options = {}) {
             processing_duration_ms, status, error_message, error_type,
             retention_until, created_by
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-            $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+            $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
           ) RETURNING id
         `, [
           auditData.fileId,
@@ -114,6 +114,7 @@ async function captureFileAudit(pool, auditData, options = {}) {
           auditData.fileDelimiter,
           auditData.encoding,
           auditData.numberOfColumns,
+          auditData.fileSizeBytes,
           auditData.source,
           auditData.sourcePath,
           auditData.noOfRecordsInSource,
