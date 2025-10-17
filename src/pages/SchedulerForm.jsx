@@ -170,17 +170,6 @@ const SchedulerForm = () => {
           <div className="alert alert-danger">{error}</div>
         )}
 
-        {/* Debug Info */}
-        <div className="alert alert-info" style={{ marginBottom: '20px' }}>
-          <strong>Debug Info:</strong><br/>
-          Workflows loaded: {workflows.length}<br/>
-          Mapping Groups loaded: {mappingGroups.length}<br/>
-          Transformations loaded: {transformations.length}<br/>
-          Selected Entity Type: {formData.entity_type}<br/>
-          Selected Entity ID: {formData.entity_id || '(none)'}<br/>
-          Available options for current type: {getEntityOptions().length}
-        </div>
-
         <div className="form-container">
           <form onSubmit={handleSubmit} className="data-form">
             <div className="form-group">

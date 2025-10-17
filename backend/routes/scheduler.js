@@ -129,13 +129,14 @@ router.get('/', async (req, res) => {
              s.created_at,
              s.updated_at,
              CASE 
-               WHEN s.entity_type = 'transformation' THEN tm.mapping_name
-               WHEN s.entity_type = 'mapping_group' THEN mg.group_name
-               WHEN s.entity_type = 'workflow' THEN s.entity_id
+               WHEN s.entity_type = 'mapping' THEN tm.mapping_name
+               WHEN s.entity_type = 'mapping_group' THEN mg.name
+               WHEN s.entity_type = 'workflow' THEN nw.name
              END as entity_name
       FROM schedules s
-      LEFT JOIN transformation_mappings tm ON s.entity_type = 'transformation' AND s.entity_id = CAST(tm.id AS TEXT)
-      LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.group_id AS TEXT)
+      LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
+      LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
+      LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
       ORDER BY s.created_at DESC
     `);
     
