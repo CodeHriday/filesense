@@ -186,7 +186,11 @@ const SchedulerForm = () => {
               <label>Select {formData.entity_type.replace('_', ' ')} *</label>
               <select
                 value={formData.entity_id}
-                onChange={e => setFormData({ ...formData, entity_id: e.target.value })}
+                onChange={e => {
+                  const value = e.target.value;
+                  console.log('Entity selected:', { value, type: typeof value, entityOptions: getEntityOptions() });
+                  setFormData({ ...formData, entity_id: value });
+                }}
                 required
                 className="form-select"
               >
@@ -195,6 +199,11 @@ const SchedulerForm = () => {
                   <option key={option.id} value={option.id}>{option.name}</option>
                 ))}
               </select>
+              {formData.entity_id && (
+                <small className="form-text text-muted">
+                  Selected ID: {formData.entity_id}
+                </small>
+              )}
             </div>
 
             <div className="form-group">
