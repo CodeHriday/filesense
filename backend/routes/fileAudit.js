@@ -13,7 +13,7 @@ const {
  * Capture file audit details
  */
 router.post('/', async (req, res) => {
-  const pool = req.app.get('db');
+  const pool = req.app.locals.pool || req.app.get('db');
   const auditData = req.body;
 
   // Add user context from request
@@ -49,7 +49,7 @@ router.post('/', async (req, res) => {
  * Capture or update file schema
  */
 router.post('/schema', async (req, res) => {
-  const pool = req.app.get('db');
+  const pool = req.app.locals.pool || req.app.get('db');
   const schemaData = req.body;
 
   // Add user context
@@ -80,7 +80,7 @@ router.post('/schema', async (req, res) => {
  * Get audit history for a specific file
  */
 router.get('/:fileId', async (req, res) => {
-  const pool = req.app.get('db');
+  const pool = req.app.locals.pool || req.app.get('db');
   const { fileId } = req.params;
   const { limit, offset, includeSchema } = req.query;
 
@@ -113,7 +113,7 @@ router.get('/:fileId', async (req, res) => {
  * Get all audit records with filters
  */
 router.get('/', async (req, res) => {
-  const pool = req.app.get('db');
+  const pool = req.app.locals.pool || req.app.get('db');
   const {
     startDate,
     endDate,
@@ -159,7 +159,7 @@ router.get('/', async (req, res) => {
  * Clean up old audit records based on retention policy
  */
 router.delete('/cleanup', async (req, res) => {
-  const pool = req.app.get('db');
+  const pool = req.app.locals.pool || req.app.get('db');
 
   try {
     const result = await cleanupOldAudits(pool);
