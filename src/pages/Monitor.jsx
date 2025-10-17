@@ -182,18 +182,17 @@ function Monitor() {
                     <th>Encoding</th>
                     <th>User ID</th>
                     <th>Correlation ID</th>
-                    <th>Load Step 1</th>
-                    <th>Load Step 2</th>
-                    <th>Load Step 3</th>
-                    <th>Load Step 4</th>
-                    <th>Load Step 5</th>
+                    <th>Load Step 1 Path</th>
+                    <th>Load Step 1 Records</th>
+                    <th>Load Step 2 Path</th>
+                    <th>Load Step 2 Records</th>
                     <th>Error Message</th>
                   </tr>
                 </thead>
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="23" className="no-data">No audit records found</td>
+                      <td colSpan="22" className="no-data">No audit records found</td>
                     </tr>
                   ) : (
                     audits.map((audit) => (
@@ -230,18 +229,17 @@ function Monitor() {
                           <td className="correlation-col" title={audit.correlation_id}>
                             {audit.correlation_id ? audit.correlation_id.substring(0, 8) + '...' : '-'}
                           </td>
-                          <td>{audit.load_step_1 ? formatDate(audit.load_step_1) : '-'}</td>
-                          <td>{audit.load_step_2 ? formatDate(audit.load_step_2) : '-'}</td>
-                          <td>{audit.load_step_3 ? formatDate(audit.load_step_3) : '-'}</td>
-                          <td>{audit.load_step_4 ? formatDate(audit.load_step_4) : '-'}</td>
-                          <td>{audit.load_step_5 ? formatDate(audit.load_step_5) : '-'}</td>
+                          <td title={audit.load_step_1_path}>{audit.load_step_1_path || '-'}</td>
+                          <td className="number-col">{(audit.load_step_1_rec_cnt || 0).toLocaleString()}</td>
+                          <td title={audit.load_step_2_path}>{audit.load_step_2_path || '-'}</td>
+                          <td className="number-col">{(audit.load_step_2_rec_cnt || 0).toLocaleString()}</td>
                           <td className="error-col" title={audit.error_message}>
                             {audit.error_message ? audit.error_message.substring(0, 30) + '...' : '-'}
                           </td>
                         </tr>
                         {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="23">
+                            <td colSpan="22">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Additional Details</h3>
