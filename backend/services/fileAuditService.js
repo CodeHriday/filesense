@@ -434,7 +434,7 @@ async function getAuditRecords(pool, filters = {}) {
       LEFT JOIN mapping_group_executions mge 
         ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg 
-        ON mge.mapping_group_id = mg.id
+        ON mge.group_id = mg.id
       ${whereClause}
       ORDER BY fad.created_dt DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
