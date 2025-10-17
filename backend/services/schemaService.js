@@ -576,18 +576,37 @@ async function parseFileSchema(fileContent, fileExtension) {
  * @returns {string} - Inferred type
  */
 function inferDataType(value) {
-  if (value === null || value === undefined || value === '') return 'string';
+  // Check for null/undefined first
+  if (value === null || value === undefined) return 'string';
   
-  if (!isNaN(value) && !isNaN(parseFloat(value))) {
+  // Check for objects and arrays before converting to string
+  if (typeof value === 'object') {
+    if (Array.isArray(value)) return 'array';
+    return 'object';
+  }
+  
+  // Empty string
+  if (value === '') return 'string';
+  
+  // Check for numbers (but ensure it's not a string that happens to be numeric)
+  if (typeof value === 'number') {
     return String(value).includes('.') ? 'float' : 'integer';
   }
   
+  // Check for numeric strings
+  if (!isNaN(value) && !isNaN(parseFloat(value)) && typeof value === 'string' && value.trim() !== '') {
+    return String(value).includes('.') ? 'float' : 'integer';
+  }
+  
+  // Check for booleans
+  if (typeof value === 'boolean') return 'boolean';
   if (value === 'true' || value === 'false') return 'boolean';
   
   // Check if it's a date
   const datePattern = /^\d{4}-\d{2}-\d{2}/;
-  if (String(value).match(datePattern)) return 'date';
+  if (typeof value === 'string' && value.match(datePattern)) return 'date';
   
+  // Default to string for any other type
   return 'string';
 }
 
