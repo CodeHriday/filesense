@@ -6,6 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
 import ExecuteModal from '../components/ExecuteModal';
 import { PageTransition } from '../components/MicroAnimations';
+import Pagination from '../components/Pagination';
 import '../components/styles/PageActions.css';
 import axios from 'axios';
 
@@ -18,6 +19,8 @@ const MappingGroups = () => {
   const [selectedGroupForDelete, setSelectedGroupForDelete] = useState(null);
   const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
   const [executeResult, setExecuteResult] = useState({ success: false, message: '', groupName: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchMappingGroups();
@@ -86,6 +89,12 @@ const MappingGroups = () => {
     return <LoadingSpinner message="Loading mapping groups..." />;
   }
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentGroups = groups.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(groups.length / itemsPerPage);
+
   return (
     <PageTransition>
       <div className="mapping-groups-page">
@@ -123,7 +132,7 @@ const MappingGroups = () => {
                 </tr>
               </thead>
               <tbody>
-                {groups.map(group => (
+                {currentGroups.map(group => (
                   <tr key={group.id || group.group_id}>
                     <td className="font-weight-bold">{group.name || group.group_name}</td>
                     <td className="description-cell">{group.description || '-'}</td>
@@ -166,6 +175,16 @@ const MappingGroups = () => {
               </tbody>
             </table>
           </div>
+        )}
+        
+        {groups.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            totalItems={groups.length}
+          />
         )}
 
         <ConfirmModal
