@@ -16,6 +16,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import { formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import './Mappings.css';
@@ -30,6 +31,8 @@ function Mappings() {
   const [mappingToDelete, setMappingToDelete] = useState(null);
   const [executionModalOpen, setExecutionModalOpen] = useState(false);
   const [executionResult, setExecutionResult] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchData();
@@ -127,6 +130,12 @@ function Mappings() {
     );
   }
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentMappings = mappings.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(mappings.length / itemsPerPage);
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -180,7 +189,7 @@ function Mappings() {
                 </tr>
               </thead>
               <tbody style={{ fontSize: '0.875rem', fontWeight: 'normal' }}>
-                {mappings.map(mapping => {
+                {currentMappings.map(mapping => {
                       const fieldCount = Array.isArray(mapping.field_mappings) 
                         ? mapping.field_mappings.length 
                         : (typeof mapping.field_mappings === 'string' ? JSON.parse(mapping.field_mappings).length : 0);
@@ -244,6 +253,16 @@ function Mappings() {
                 })}
               </tbody>
             </table>
+          )}
+          
+          {mappings.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={mappings.length}
+            />
           )}
         </div>
       </div>
