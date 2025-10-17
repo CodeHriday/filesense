@@ -1794,6 +1794,7 @@ const { addDuplicateRecordsColumns } = require('./backend/migrations/addDuplicat
 const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
 const { initWorkflowOrchestrationTables } = require('./backend/migrations/workflowOrchestration');
 const { fixMappingGroupMembersSchema } = require('./backend/migrations/fixMappingGroupMembersSchema');
+const updateObjectTypesToString = require('./backend/migrations/updateObjectTypesToString');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1845,6 +1846,14 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Mapping group members schema fix completed');
+    
+    // Update object/array types to string in schemas
+    return updateObjectTypesToString(dbPool);
+  })
+  .then(result => {
+    if (result.success) {
+      console.log(`✅ Object/array to string type conversion completed. Updated ${result.updatedRecords} schema records.`);
+    }
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
