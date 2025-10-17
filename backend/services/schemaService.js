@@ -579,10 +579,9 @@ function inferDataType(value) {
   // Check for null/undefined first
   if (value === null || value === undefined) return 'string';
   
-  // Check for objects and arrays before converting to string
+  // Check for objects and arrays - convert to string type
   if (typeof value === 'object') {
-    if (Array.isArray(value)) return 'array';
-    return 'object';
+    return 'string';
   }
   
   // Empty string
