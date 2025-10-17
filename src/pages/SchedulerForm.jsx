@@ -12,7 +12,7 @@ const SchedulerForm = () => {
   const isEdit = !!scheduleId;
 
   const [formData, setFormData] = useState({
-    entity_type: 'transformation',
+    entity_type: 'mapping',
     entity_id: '',
     schedule_type: 'cron',
     cron_expression: '0 0 * * *',
@@ -97,7 +97,7 @@ const SchedulerForm = () => {
 
   const getEntityOptions = () => {
     switch (formData.entity_type) {
-      case 'transformation':
+      case 'mapping':
         return transformations.map(t => ({ id: t.mapping_id, name: t.mapping_name }));
       case 'mapping_group':
         return mappingGroups.map(g => ({ id: g.id, name: g.name }));
@@ -140,7 +140,7 @@ const SchedulerForm = () => {
                 onChange={e => setFormData({ ...formData, entity_type: e.target.value, entity_id: '' })}
                 className="form-select"
               >
-                <option value="transformation">Transformation</option>
+                <option value="mapping">Transformation</option>
                 <option value="mapping_group">Mapping Group</option>
                 <option value="workflow">Workflow</option>
               </select>
