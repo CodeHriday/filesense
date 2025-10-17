@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiUploadCloud, FiAlertCircle } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +23,8 @@ const Connections = () => {
   const [testingConnection, setTestingConnection] = useState(null);
   const [testResults, setTestResults] = useState({});
   const [activeTab, setActiveTab] = useState('source');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   
   // Delete confirmation modal state
   const [showDeleteConnectionModal, setShowDeleteConnectionModal] = useState(false);
@@ -1302,6 +1305,17 @@ const Connections = () => {
     conn.connection_direction === activeTab || (!conn.connection_direction && activeTab === 'source')
   );
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentConnections = filteredConnections.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredConnections.length / itemsPerPage);
+
+  // Reset to page 1 when changing tabs
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   return (
     <div className="connections-container">
       <div className="connections-header">
@@ -1990,8 +2004,9 @@ const Connections = () => {
                   </div>
                 </>
               ) : (
-                <div className="connections-table-container">
-                  <table className="connections-table">
+                <>
+                  <div className="connections-table-container">
+                    <table className="connections-table">
                     <thead>
                       <tr>
                         <th className="col-icon"></th>
@@ -2003,7 +2018,7 @@ const Connections = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredConnections.map(connection => (
+                      {currentConnections.map(connection => (
                         <tr key={connection.id} className={`connection-row ${connection.connection_type || connection.type}`}>
                           <td className="col-icon">
                             {renderConnectionIcon(connection.connection_type || connection.type)}
@@ -2078,6 +2093,15 @@ const Connections = () => {
                     </tbody>
                   </table>
                 </div>
+                
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredConnections.length}
+                />
+                </>
               )}
             </>
           )}
