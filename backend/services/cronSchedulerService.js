@@ -3,7 +3,7 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
-const cronParser = require('cron-parser');
+const parser = require('cron-parser');
 
 /**
  * Cron Scheduler Service
@@ -21,7 +21,7 @@ const cronParser = require('cron-parser');
 function parseAndCalculateNextRun(cronExpression, fromDate = new Date()) {
   try {
     // Parse cron expression
-    const interval = cronParser.parseExpression(cronExpression, {
+    const interval = parser.parseExpression(cronExpression, {
       currentDate: fromDate,
       tz: 'UTC'
     });
