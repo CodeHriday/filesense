@@ -255,14 +255,6 @@ function Sidebar() {
               </li>
             )}
             
-            {/* Process Management Wizard */}
-            <li>
-              <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiFilter className="icon" />
-                <span>Process Wizard</span>
-              </NavLink>
-            </li>
-            
             {/* ETL Orchestration section */}
             <li className="nav-divider">
               <span>ETL Orchestration</span>
@@ -286,6 +278,14 @@ function Sidebar() {
               <NavLink to="/etl-scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiCalendar className="icon" />
                 <span>ETL Scheduler</span>
+              </NavLink>
+            </li>
+            
+            {/* Workflow Wizard */}
+            <li>
+              <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiFilter className="icon" />
+                <span>Workflow Wizard</span>
               </NavLink>
             </li>
             
