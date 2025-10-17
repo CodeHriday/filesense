@@ -4,6 +4,13 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 17, 2025**: Implemented automated scheduler execution system
+  - Added SchedulerWorker class that runs every 60 seconds
+  - Automatic execution of due schedules (transformations, mapping groups, workflows)
+  - Graceful shutdown handler for proper resource cleanup
+  - User authentication integration via JWT tokens
+  - Comprehensive error handling and structured logging
+  - Prevents overlapping executions with isProcessing flag
 - **October 16, 2025**: Added complete UI for ETL Orchestration features
   - Created three new pages: Mapping Groups, Workflows, and ETL Scheduler
   - Added list/create/edit functionality for all orchestration features
@@ -34,6 +41,7 @@ The application features a hybrid architecture:
     -   **Mapping Groups**: Batch execution of multiple transformations with configurable concurrency control (1-10 parallel jobs)
     -   **Workflows**: Multi-step processes with dependency management (topological sort), retry logic (3 attempts), and both parallel/sequential execution modes
     -   **Scheduler**: Cron-based scheduling using cron-parser library (supports full cron syntax) and interval-based schedules (minute/hour/day/week/month/year)
+    -   **Automated Execution**: SchedulerWorker runs every 60 seconds, automatically executing due schedules with overlap prevention, error handling, and graceful shutdown support
     -   **Known Limitation**: Interval scheduler uses naive calendar math - may drift across DST transitions. Use cron expressions for production-critical schedules.
 
 ## External Dependencies
