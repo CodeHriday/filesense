@@ -1627,9 +1627,9 @@ app.use('/api/workflow-steps', authenticateToken, workflowStepsRoutes);
 const nStepWorkflowsRoutes = require('./backend/routes/nStepWorkflows');
 app.use('/api/n-step-workflows', authenticateToken, nStepWorkflowsRoutes);
 
-// Scheduler routes
+// Scheduler routes (new workflow orchestration scheduler)
 const schedulerRoutes = require('./backend/routes/scheduler');
-app.use('/api/scheduler', authenticateToken, schedulerRoutes);
+app.use('/api/schedules', authenticateToken, schedulerRoutes);
 
 // File Audit routes
 const fileAuditRoutes = require('./backend/routes/fileAudit');
@@ -3711,7 +3711,7 @@ app.patch('/api/schedules/:id', async (req, res) => {
 });
 
 // Delete a schedule
-app.delete('/api/schedules/:id', async (req, res) => {
+app.delete('/api/job-schedules/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -3901,7 +3901,7 @@ app.patch('/api/schedules/:id', async (req, res) => {
 });
 
 // Delete a schedule
-app.delete('/api/schedules/:id', async (req, res) => {
+app.delete('/api/job-schedules/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -4542,8 +4542,8 @@ app.post('/api/jobs', authenticateToken, async (req, res) => {
   }
 });
 
-// Schedule endpoints
-app.get('/api/schedules', authenticateToken, async (req, res) => {
+// OLD Job Schedule endpoints (for Process Management - renamed to avoid conflict with new ETL Scheduler)
+app.get('/api/job-schedules', authenticateToken, async (req, res) => {
   try {
     const schedules = await dbPool.query(`
       SELECT js.*, j.name as job_name 
@@ -4558,7 +4558,7 @@ app.get('/api/schedules', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:jobId/schedules', authenticateToken, async (req, res) => {
+app.get('/api/jobs/:jobId/job-schedules', authenticateToken, async (req, res) => {
   try {
     const { jobId } = req.params;
     const schedules = await dbPool.query('SELECT * FROM job_schedules WHERE job_id = $1', [jobId]);
@@ -4569,7 +4569,7 @@ app.get('/api/jobs/:jobId/schedules', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/schedules', authenticateToken, async (req, res) => {
+app.post('/api/job-schedules', authenticateToken, async (req, res) => {
   try {
     const { 
       job_id, 
@@ -4630,7 +4630,7 @@ app.post('/api/schedules', authenticateToken, async (req, res) => {
   }
 });
 
-app.put('/api/schedules/:id', authenticateToken, async (req, res) => {
+app.put('/api/job-schedules/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -4682,7 +4682,7 @@ app.put('/api/schedules/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/api/schedules/:id', authenticateToken, async (req, res) => {
+app.delete('/api/job-schedules/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -4699,7 +4699,7 @@ app.delete('/api/schedules/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/schedules/:id/enable', authenticateToken, async (req, res) => {
+app.post('/api/job-schedules/:id/enable', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -4719,7 +4719,7 @@ app.post('/api/schedules/:id/enable', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/schedules/:id/disable', authenticateToken, async (req, res) => {
+app.post('/api/job-schedules/:id/disable', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
