@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBarChart2, FiCheckSquare, FiFileText, FiList } from 'react-icons/fi';
+import { FiBarChart2, FiCheckSquare, FiFileText, FiList, FiClock } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getFileCatalog, getFileProfile, getFileQuality } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince } from '../utils/formatters';
+import axios from 'axios';
 import './Monitor.css';
 
 function Monitor() {
@@ -15,6 +16,9 @@ function Monitor() {
   const [fileDetails, setFileDetails] = useState(null);
   const [fileQuality, setFileQuality] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [fileAudit, setFileAudit] = useState([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
   
   const navigate = useNavigate();
   
@@ -67,6 +71,22 @@ function Monitor() {
       setError('Failed to load file details. Please try again later.');
     } finally {
       setLoadingDetails(false);
+    }
+  };
+  
+  const fetchFileAudit = async (fileId) => {
+    try {
+      setLoadingAudit(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/file-audit/${fileId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFileAudit(response.data.audits || []);
+    } catch (err) {
+      console.error('Error fetching file audit:', err);
+      setFileAudit([]);
+    } finally {
+      setLoadingAudit(false);
     }
   };
   
@@ -218,7 +238,29 @@ function Monitor() {
                     </div>
                   </Card>
                   
-                  {fileDetails && (
+                  <div className="file-tabs">
+                    <button 
+                      className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
+                      onClick={() => {
+                        setActiveTab('overview');
+                      }}
+                    >
+                      <FiList /> Overview
+                    </button>
+                    <button 
+                      className={`tab-button ${activeTab === 'audit' ? 'active' : ''}`}
+                      onClick={() => {
+                        setActiveTab('audit');
+                        if (selectedFile && fileAudit.length === 0) {
+                          fetchFileAudit(selectedFile.file_id);
+                        }
+                      }}
+                    >
+                      <FiClock /> Audit Trail
+                    </button>
+                  </div>
+                  
+                  {activeTab === 'overview' && fileDetails && (
                     <Card className="columns-overview">
                       <h3>
                         <FiList className="section-icon" /> 
@@ -261,6 +303,51 @@ function Monitor() {
                         </div>
                       ) : (
                         <div className="no-columns">No column information available.</div>
+                      )}
+                    </Card>
+                  )}
+                  
+                  {activeTab === 'audit' && (
+                    <Card className="audit-trail">
+                      <h3>
+                        <FiClock className="section-icon" /> 
+                        Audit Trail
+                      </h3>
+                      {loadingAudit ? (
+                        <LoadingSpinner size="small" />
+                      ) : fileAudit.length === 0 ? (
+                        <div className="no-data">No audit records found for this file.</div>
+                      ) : (
+                        <div className="audit-table">
+                          <div className="table-header">
+                            <div className="col">Date</div>
+                            <div className="col">Source</div>
+                            <div className="col">Load Type</div>
+                            <div className="col">Records</div>
+                            <div className="col">Status</div>
+                            <div className="col">Duration</div>
+                          </div>
+                          <div className="table-body">
+                            {fileAudit.map((audit, index) => (
+                              <div className="table-row" key={index}>
+                                <div className="col">{formatDate(audit.created_dt)}</div>
+                                <div className="col">{audit.source || '-'}</div>
+                                <div className="col">{audit.load_type || '-'}</div>
+                                <div className="col">{(audit.no_of_records_in_source || 0).toLocaleString()}</div>
+                                <div className="col">
+                                  <span className={`status-badge ${audit.status || 'unknown'}`}>
+                                    {audit.status || 'unknown'}
+                                  </span>
+                                </div>
+                                <div className="col">
+                                  {audit.processing_duration_ms 
+                                    ? `${(audit.processing_duration_ms / 1000).toFixed(2)}s` 
+                                    : '-'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </Card>
                   )}
