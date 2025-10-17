@@ -617,24 +617,53 @@ router.get('/:id/steps/:stepId/expanded-count', async (req, res) => {
 
 /**
  * POST /api/n-step-workflows/:id/execute
- * Execute a workflow
+ * Execute a workflow asynchronously
  */
 router.post('/:id/execute', async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id || 1;
     
-    const result = await executeNStepWorkflow(id, userId);
+    // Get workflow details to generate runId
+    const workflowResult = await pool.query('SELECT name FROM n_step_workflows WHERE id = $1', [id]);
+    if (workflowResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Workflow not found'
+      });
+    }
     
-    res.json({
+    // Generate runId for tracking
+    const runId = `WFRUN-${Date.now()}-${require('uuid').v4().substring(0, 8)}`;
+    
+    // Execute workflow asynchronously (fire-and-forget)
+    executeNStepWorkflow(id, userId)
+      .then(result => {
+        systemLogger.info('Workflow execution completed', { 
+          workflowId: id, 
+          runId: result.runId 
+        });
+      })
+      .catch(error => {
+        systemLogger.error('Workflow execution failed', { 
+          workflowId: id, 
+          error: error.message 
+        });
+      });
+    
+    // Return immediately with 202 Accepted
+    res.status(202).json({
       success: true,
-      ...result
+      message: 'Workflow execution started in the background',
+      runId,
+      workflowId: id,
+      workflowName: workflowResult.rows[0].name
     });
   } catch (error) {
-    systemLogger.error('Error executing workflow', { error: error.message });
+    systemLogger.error('Error starting workflow execution', { error: error.message });
     res.status(500).json({
       success: false,
-      error: 'Failed to execute workflow: ' + error.message
+      error: 'Failed to start workflow execution: ' + error.message
     });
   }
 });

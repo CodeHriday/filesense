@@ -236,11 +236,15 @@ const NStepWorkflows = () => {
       const response = await axios.post(`/api/n-step-workflows/${idToExecute}/execute`);
       setExecuteModalOpen(false);
       setWorkflowToExecute(null);
-      setExecutionResult({ success: true, message: `Workflow executed successfully! Run ID: ${response.data.runId}` });
+      
+      // Show immediate success message
+      setExecutionResult({ 
+        success: true, 
+        message: 'Job has been submitted in the background. Please navigate to the Jobs page to check the status.',
+        runId: response.data.runId,
+        workflowName: response.data.workflowName
+      });
       setExecutionResultModalOpen(true);
-      if (selectedWorkflow) {
-        await fetchWorkflowDetails();
-      }
     } catch (err) {
       console.error('Error executing workflow:', err);
       setExecuteModalOpen(false);
