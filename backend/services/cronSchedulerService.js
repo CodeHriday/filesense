@@ -297,24 +297,25 @@ async function processDueSchedules() {
     
     for (const schedule of dueSchedules) {
       try {
-        // Execute the scheduled entity
+        // Execute the scheduled entity with schedule creator's userId
+        const userId = schedule.created_by || 'scheduler';
         let executionResult;
         
         if (schedule.entity_type === 'mapping') {
           executionResult = await executeTransformationJob(
             parseInt(schedule.entity_id),
-            'scheduler'
+            userId
           );
         } else if (schedule.entity_type === 'mapping_group') {
           executionResult = await executeMappingGroup(
             parseInt(schedule.entity_id),
             null,
-            'scheduler'
+            userId
           );
         } else if (schedule.entity_type === 'workflow') {
           executionResult = await executeNStepWorkflow(
             parseInt(schedule.entity_id),
-            'scheduler'
+            userId
           );
         } else {
           throw new Error(`Unknown entity type: ${schedule.entity_type}`);
