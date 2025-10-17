@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiClock, FiEdit2, FiTrash2, FiPlusCircle, FiPower } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import axios from 'axios';
 
@@ -10,6 +11,8 @@ const ETLScheduler = () => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchSchedules();
@@ -65,6 +68,11 @@ const ETLScheduler = () => {
     }
   };
 
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentSchedules = schedules.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(schedules.length / itemsPerPage);
+
   if (loading) {
     return <LoadingSpinner message="Loading schedules..." />;
   }
@@ -92,47 +100,78 @@ const ETLScheduler = () => {
             <p>No schedules found. Create one to get started!</p>
           </div>
         ) : (
-          <div className="schedules-grid">
-            {schedules.map(schedule => (
-              <div
-                key={schedule.schedule_id}
-                className={`schedule-card ${!schedule.enabled ? 'disabled' : ''}`}
-              >
-                <div className="schedule-header">
-                  <h3>{schedule.entity_name || schedule.entity_id}</h3>
-                  <span className={`status-badge ${schedule.enabled ? 'active' : 'inactive'}`}>
-                    {schedule.enabled ? 'Active' : 'Disabled'}
-                  </span>
-                </div>
-                <div className="schedule-meta">
-                  <span className="meta-item">Type: {schedule.entity_type}</span>
-                  <span className="meta-item">{formatSchedule(schedule)}</span>
-                </div>
-                <div className="schedule-times">
-                  {schedule.next_run && (
-                    <div>Next run: {new Date(schedule.next_run).toLocaleString()}</div>
-                  )}
-                  {schedule.last_run && (
-                    <div>Last run: {new Date(schedule.last_run).toLocaleString()}</div>
-                  )}
-                </div>
-                <div className="schedule-actions">
-                  <button
-                    onClick={() => handleToggle(schedule.schedule_id, schedule.enabled)}
-                    className={`btn btn-sm ${schedule.enabled ? 'btn-warning' : 'btn-success'}`}
-                  >
-                    <FiPower /> {schedule.enabled ? 'Disable' : 'Enable'}
-                  </button>
-                  <Link to={`/etl-scheduler/${schedule.schedule_id}/edit`} className="btn btn-primary btn-sm">
-                    <FiEdit2 /> Edit
-                  </Link>
-                  <button onClick={() => handleDelete(schedule.schedule_id)} className="btn btn-danger btn-sm">
-                    <FiTrash2 /> Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th>Next Run</th>
+                    <th>Last Run</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentSchedules.map(schedule => (
+                    <tr key={schedule.schedule_id} className={!schedule.enabled ? 'disabled-row' : ''}>
+                      <td>{schedule.entity_name || schedule.entity_id}</td>
+                      <td>
+                        <span className="entity-type-badge">{schedule.entity_type}</span>
+                      </td>
+                      <td>{formatSchedule(schedule)}</td>
+                      <td>
+                        <span className={`status-badge ${schedule.enabled ? 'active' : 'inactive'}`}>
+                          {schedule.enabled ? 'Active' : 'Disabled'}
+                        </span>
+                      </td>
+                      <td>
+                        {schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}
+                      </td>
+                      <td>
+                        {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : '-'}
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            onClick={() => handleToggle(schedule.schedule_id, schedule.enabled)}
+                            className={`btn btn-sm ${schedule.enabled ? 'btn-warning' : 'btn-success'}`}
+                            title={schedule.enabled ? 'Disable' : 'Enable'}
+                          >
+                            <FiPower />
+                          </button>
+                          <Link 
+                            to={`/etl-scheduler/${schedule.schedule_id}/edit`} 
+                            className="btn btn-primary btn-sm"
+                            title="Edit"
+                          >
+                            <FiEdit2 />
+                          </Link>
+                          <button 
+                            onClick={() => handleDelete(schedule.schedule_id)} 
+                            className="btn btn-danger btn-sm"
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              totalItems={schedules.length}
+            />
+          </>
         )}
       </div>
     </PageTransition>
