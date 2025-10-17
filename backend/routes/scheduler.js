@@ -150,31 +150,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get all schedules for an entity
-router.get('/:entityType/:entityId', async (req, res) => {
-  try {
-    const { entityType, entityId } = req.params;
-    
-    if (!['mapping', 'mapping_group', 'workflow'].includes(entityType)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid entity type'
-      });
-    }
-    
-    const result = await getEntitySchedules(entityType, entityId);
-    
-    res.json(result);
-  } catch (error) {
-    systemLogger.error('Error fetching entity schedules', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch schedules'
-    });
-  }
-});
-
-// Get all active schedules
+// Get all active schedules (must be before /:id to avoid conflict)
 router.get('/active', async (req, res) => {
   try {
     const pool = require('../db');
@@ -203,6 +179,89 @@ router.get('/active', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch active schedules'
+    });
+  }
+});
+
+// Get all schedules for an entity
+router.get('/:entityType/:entityId', async (req, res) => {
+  try {
+    const { entityType, entityId } = req.params;
+    
+    if (!['mapping', 'mapping_group', 'workflow'].includes(entityType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid entity type'
+      });
+    }
+    
+    const result = await getEntitySchedules(entityType, entityId);
+    
+    res.json(result);
+  } catch (error) {
+    systemLogger.error('Error fetching entity schedules', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch schedules'
+    });
+  }
+});
+
+// Get a single schedule by ID (must be after /active and /:entityType/:entityId)
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if ID is numeric
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid schedule ID'
+      });
+    }
+    
+    const pool = require('../db');
+    
+    const result = await pool.query(`
+      SELECT s.id as schedule_id,
+             s.entity_type,
+             s.entity_id,
+             s.schedule_name,
+             s.schedule_type,
+             s.cron_expression,
+             s.interval_value,
+             s.interval_unit,
+             s.timezone,
+             s.is_active as enabled,
+             s.last_run,
+             s.next_run,
+             s.created_at,
+             s.updated_at,
+             CASE 
+               WHEN s.entity_type = 'mapping' THEN tm.mapping_name
+               WHEN s.entity_type = 'mapping_group' THEN mg.name
+               WHEN s.entity_type = 'workflow' THEN nw.name
+             END as entity_name
+      FROM schedules s
+      LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
+      LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
+      LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
+      WHERE s.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Schedule not found'
+      });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    systemLogger.error('Error fetching schedule', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch schedule'
     });
   }
 });
