@@ -172,6 +172,7 @@ function Monitor() {
                     <th>Load Type</th>
                     <th>Schedule</th>
                     <th>Mapping Group</th>
+                    <th>Workflow</th>
                     <th>Mapping Name</th>
                     <th>File Type</th>
                     <th>Records</th>
@@ -190,7 +191,7 @@ function Monitor() {
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="20" className="no-data">No audit records found</td>
+                      <td colSpan="21" className="no-data">No audit records found</td>
                     </tr>
                   ) : (
                     audits.map((audit) => (
@@ -211,6 +212,7 @@ function Monitor() {
                           <td>{audit.load_type || '-'}</td>
                           <td>{audit.schedule_name || '-'}</td>
                           <td>{audit.mapping_group_name || '-'}</td>
+                          <td>{audit.workflow_name || '-'}</td>
                           <td>{audit.mapping_name || '-'}</td>
                           <td>{audit.file_type ? audit.file_type.toUpperCase() : '-'}</td>
                           <td className="number-col">{(audit.no_of_records_in_source || 0).toLocaleString()}</td>
@@ -235,7 +237,7 @@ function Monitor() {
                         </tr>
                         {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="20">
+                            <td colSpan="21">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Additional Details</h3>
