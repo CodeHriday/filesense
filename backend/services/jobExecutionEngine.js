@@ -12,6 +12,8 @@ const {
   uploadFileToConnection,
   listAndFilterFiles
 } = require('../utils/cloudStorageFileList');
+const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
+const crypto = require('crypto');
 
 /**
  * Job Execution Engine
@@ -578,6 +580,102 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       await logJobExecution(pool, jobId, 'info', 
         `Data uploaded to target: ${uploadResult.location}`
       );
+      
+      // Step 5: Capture file audit for transformation job
+      try {
+        const correlationId = uuidv4();
+        
+        // Calculate source file hash
+        const sourceFileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+        
+        // Extract schema from transformed rows (if we have any)
+        const outputSchema = transformedRows.length > 0 
+          ? Object.keys(transformedRows[0]).map(key => ({
+              name: key,
+              type: typeof transformedRows[0][key]
+            }))
+          : [];
+        
+        // Capture schema for output file
+        const schemaResult = await captureFileSchema(pool, {
+          fileId: `transformed_${jobId}_${file.filename}`,
+          fileName: outputFilename,
+          fileSchema: {
+            columns: outputSchema,
+            encoding: 'utf-8',
+            delimiter: outputFormat === 'csv' ? ',' : null
+          },
+          correlationId,
+          createdBy: null // System-generated transformation
+        });
+        
+        // Capture source file audit
+        const sourceAuditId = await captureFileAudit(pool, {
+          fileId: file.file_id || `source_${file.filename}`,
+          fileName: file.filename,
+          fileSchemaId: null, // Source schema not tracked here
+          fileHash: sourceFileHash,
+          filePattern: mapping.source_file_pattern || mapping.file_name_pattern,
+          fileType: fileExtension,
+          fileDelimiter: fileExtension === 'csv' ? ',' : null,
+          encoding: 'utf-8',
+          numberOfColumns: null,
+          source: 'transformation',
+          sourcePath: file.filename,
+          noOfRecordsInSource: rowsRead,
+          loadStep1: 'download',
+          loadStep1Path: file.filename,
+          loadStep1RecCnt: rowsRead,
+          loadType: 'etl_transformation',
+          correlationId,
+          userId: null,
+          processingDurationMs: 0,
+          status: 'success',
+          createdBy: null
+        });
+        
+        // Capture target file audit (output file)
+        await captureFileAudit(pool, {
+          fileId: `transformed_${jobId}_${file.filename}`,
+          fileName: outputFilename,
+          fileSchemaId: schemaResult.schemaId,
+          fileHash: crypto.createHash('sha256').update(outputBuffer).digest('hex'),
+          filePattern: null,
+          fileType: outputFormat,
+          fileDelimiter: outputFormat === 'csv' ? ',' : null,
+          encoding: 'utf-8',
+          numberOfColumns: outputSchema.length,
+          source: 'transformation',
+          sourcePath: file.filename,
+          noOfRecordsInSource: rowsRead,
+          loadStep1: 'transformation',
+          loadStep1Path: outputFilename,
+          loadStep1RecCnt: rowsWritten,
+          loadStep2: 'upload',
+          loadStep2Path: uploadResult.location,
+          loadStep2RecCnt: rowsWritten,
+          loadType: 'etl_transformation',
+          parentAuditId: sourceAuditId,
+          correlationId,
+          userId: null,
+          processingDurationMs: 0,
+          status: 'success',
+          createdBy: null
+        });
+        
+        await logJobExecution(pool, jobId, 'info', 
+          `File audit captured for transformation`, {
+          correlationId,
+          sourceFile: file.filename,
+          targetFile: outputFilename
+        });
+      } catch (auditError) {
+        // Log but don't fail the job if audit fails
+        await logJobExecution(pool, jobId, 'warn', 
+          `File audit capture failed: ${auditError.message}`, {
+          error: auditError.stack
+        });
+      }
     }
     
     return {
