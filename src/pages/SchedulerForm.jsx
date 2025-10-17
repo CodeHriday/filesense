@@ -124,8 +124,11 @@ const SchedulerForm = () => {
       navigate('/etl-scheduler');
     } catch (err) {
       console.error('Error saving schedule:', err);
+      console.error('Error response:', err.response);
+      console.error('Error response data:', err.response?.data);
+      console.error('Error config:', err.config);
       const errorMessage = err.response?.data?.error || err.message || 'Failed to save schedule';
-      setError(errorMessage);
+      setError(`${errorMessage} (Details in console)`);
     } finally {
       setLoading(false);
     }
