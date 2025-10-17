@@ -61,6 +61,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
       options.scheduleId || null
     ]);
     
+    const transformationJobDbId = result.rows[0].id; // Get database ID for linking to audit
+    
     systemLogger.info('Transformation job created', { 
       jobId, 
       mappingId, 
@@ -329,7 +331,11 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       });
       
       try {
-        const fileResult = await processFile(pool, file, mapping, jobId, { dryRun });
+        const fileResult = await processFile(pool, file, mapping, jobId, { 
+          dryRun, 
+          transformationJobDbId, 
+          userId 
+        });
         
         totalRowsRead += fileResult.rowsRead;
         totalRowsWritten += fileResult.rowsWritten;
@@ -460,7 +466,7 @@ async function getMappingConfig(pool, mappingId) {
  * @returns {Promise<Object>} - Processing result
  */
 async function processFile(pool, file, mapping, jobId, options = {}) {
-  const { dryRun = false } = options;
+  const { dryRun = false, transformationJobDbId = null, userId = null } = options;
   
   let rowsRead = 0;
   let rowsWritten = 0;
@@ -628,10 +634,11 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           loadStep1RecCnt: rowsRead,
           loadType: 'etl_transformation',
           correlationId,
-          userId: null,
+          transformationJobId: transformationJobDbId,
+          userId: userId,
           processingDurationMs: 0,
           status: 'success',
-          createdBy: null
+          createdBy: userId
         });
         
         // Capture target file audit (output file)
@@ -657,7 +664,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           loadType: 'etl_transformation',
           parentAuditId: sourceAuditId,
           correlationId,
-          userId: null,
+          transformationJobId: transformationJobDbId,
+          userId: userId,
           processingDurationMs: 0,
           status: 'success',
           createdBy: null
