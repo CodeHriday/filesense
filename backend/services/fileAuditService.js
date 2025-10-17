@@ -423,6 +423,7 @@ async function getAuditRecords(pool, filters = {}) {
         fsd.active_flag as schema_active,
         s.schedule_name,
         mg.name as mapping_group_name,
+        nw.name as workflow_name,
         COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name
       FROM file_audit_details fad
       LEFT JOIN file_schema_details fsd 
@@ -437,6 +438,10 @@ async function getAuditRecords(pool, filters = {}) {
         ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg 
         ON mge.group_id = mg.id
+      LEFT JOIN n_step_workflow_runs nwr 
+        ON tj.workflow_execution_id = nwr.id
+      LEFT JOIN n_step_workflows nw 
+        ON nwr.workflow_id = nw.id
       ${whereClause}
       ORDER BY fad.created_dt DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
