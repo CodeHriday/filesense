@@ -17,6 +17,8 @@ const {
 // Create a schedule
 router.post('/', async (req, res) => {
   try {
+    console.log('POST /api/schedules - Request body:', JSON.stringify(req.body, null, 2));
+    
     let {
       entity_type,
       entity_id,
@@ -30,11 +32,18 @@ router.post('/', async (req, res) => {
       enabled
     } = req.body;
     
+    console.log('Extracted fields:', { entity_type, entity_id, schedule_type, cron_expression, enabled });
+    
     // Map 'enabled' to 'is_active' if present (frontend uses 'enabled')
     const is_active = enabled !== undefined ? enabled : true;
     
     // Validate required fields
     if (!entity_type || !entity_id || !schedule_type) {
+      console.log('Validation failed - missing fields:', { 
+        entity_type: !!entity_type, 
+        entity_id: !!entity_id, 
+        schedule_type: !!schedule_type 
+      });
       return res.status(400).json({
         success: false,
         error: 'entity_type, entity_id, and schedule_type are required'
