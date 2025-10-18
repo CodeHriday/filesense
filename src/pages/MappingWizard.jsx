@@ -67,6 +67,7 @@ function MappingWizard() {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [savedMappingId, setSavedMappingId] = useState(null);
+  const [executeModalOpen, setExecuteModalOpen] = useState(false);
 
   // Step 1: Basic Info & Source
   const [mappingName, setMappingName] = useState('');
