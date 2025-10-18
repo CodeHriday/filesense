@@ -103,6 +103,8 @@ router.post('/', async (req, res) => {
       source_file_pattern,
       target_connection_id,
       target_table_name,
+      target_file_name,
+      target_file_format = 'csv',
       field_mappings = [],
       anomaly_rules = null,
       status = 'draft'
@@ -172,13 +174,15 @@ router.post('/', async (req, res) => {
     const result = await pool.query(`
       INSERT INTO transformation_mappings (
         mapping_id, mapping_name, source_connection_id, source_type, file_path,
-        file_name_pattern, source_file_pattern, target_connection_id, target_table_name, 
+        file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
+        target_file_name, target_file_format,
         field_mappings, anomaly_rules, status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [
       mappingId, mapping_name, source_connection_id, source_type, file_path,
-      actualFilePattern, actualFilePattern, target_connection_id, target_table_name, 
+      actualFilePattern, actualFilePattern, target_connection_id, target_table_name,
+      target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(anomaly_rules), status, req.user?.id || null
     ]);
     
@@ -208,6 +212,8 @@ router.put('/:id', async (req, res) => {
       source_file_pattern,
       target_connection_id,
       target_table_name,
+      target_file_name,
+      target_file_format,
       field_mappings,
       anomaly_rules,
       status
@@ -294,6 +300,16 @@ router.put('/:id', async (req, res) => {
     if (target_table_name !== undefined) {
       updates.push(`target_table_name = $${paramIndex}`);
       values.push(target_table_name);
+      paramIndex++;
+    }
+    if (target_file_name !== undefined) {
+      updates.push(`target_file_name = $${paramIndex}`);
+      values.push(target_file_name);
+      paramIndex++;
+    }
+    if (target_file_format !== undefined) {
+      updates.push(`target_file_format = $${paramIndex}`);
+      values.push(target_file_format);
       paramIndex++;
     }
     if (field_mappings !== undefined) {
