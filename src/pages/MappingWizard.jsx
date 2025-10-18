@@ -62,6 +62,7 @@ function MappingWizard() {
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
+  const [maxCompletedStep, setMaxCompletedStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -146,6 +147,20 @@ function MappingWizard() {
         setAnomalyRules(anomalyRules);
       }
       
+      // Determine max completed step based on available data
+      let maxStep = 1; // Step 1 always completed if mapping exists
+      if (mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern) {
+        maxStep = 2; // Step 2 completed if file pattern exists
+      }
+      if (mapping.field_mappings && mapping.field_mappings.length > 0) {
+        maxStep = 3; // Step 3 completed if field mappings exist
+      }
+      if (mapping.target_connection_id || mapping.target_file_name || mapping.target_file_format || 
+          (mapping.anomaly_rules && Object.keys(mapping.anomaly_rules).length > 0)) {
+        maxStep = 4; // Step 4 completed if target settings or anomaly rules exist
+      }
+      setMaxCompletedStep(maxStep);
+      
       setError(null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load mapping');
@@ -206,6 +221,7 @@ function MappingWizard() {
       }
       setError(null);
       setCurrentStep(2);
+      setMaxCompletedStep(Math.max(maxCompletedStep, 2));
     } else if (currentStep === 2) {
       if (!fileNamePattern.trim()) {
         setError('Please enter a file name or pattern');
@@ -213,9 +229,11 @@ function MappingWizard() {
       }
       setError(null);
       setCurrentStep(3);
+      setMaxCompletedStep(Math.max(maxCompletedStep, 3));
       await extractSchema();
     } else if (currentStep === 3) {
       setCurrentStep(4);
+      setMaxCompletedStep(Math.max(maxCompletedStep, 4));
     }
   };
 
@@ -332,19 +350,35 @@ function MappingWizard() {
       { num: 4, label: 'Target & Rules' }
     ];
 
+    const handleStepClick = (stepNum) => {
+      // Only allow navigation to completed steps in edit mode
+      if (isEditMode && stepNum <= maxCompletedStep) {
+        setCurrentStep(stepNum);
+        setError(null);
+      }
+    };
+
     return (
       <div className="wizard-steps">
-        {steps.map((step, idx) => (
-          <React.Fragment key={step.num}>
-            <div className={`wizard-step ${currentStep === step.num ? 'active' : ''} ${currentStep > step.num ? 'completed' : ''}`}>
-              <div className="step-number">
-                {currentStep > step.num ? <FiCheckCircle /> : step.num}
+        {steps.map((step, idx) => {
+          const isClickable = isEditMode && step.num <= maxCompletedStep;
+          
+          return (
+            <React.Fragment key={step.num}>
+              <div 
+                className={`wizard-step ${currentStep === step.num ? 'active' : ''} ${currentStep > step.num ? 'completed' : ''} ${isClickable ? 'clickable' : ''}`}
+                onClick={() => handleStepClick(step.num)}
+                style={{ cursor: isClickable ? 'pointer' : 'default' }}
+              >
+                <div className="step-number">
+                  {currentStep > step.num ? <FiCheckCircle /> : step.num}
+                </div>
+                <div className="step-label">{step.label}</div>
               </div>
-              <div className="step-label">{step.label}</div>
-            </div>
-            {idx < steps.length - 1 && <div className="step-connector"></div>}
-          </React.Fragment>
-        ))}
+              {idx < steps.length - 1 && <div className="step-connector"></div>}
+            </React.Fragment>
+          );
+        })}
       </div>
     );
   };

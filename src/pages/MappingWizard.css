@@ -40,6 +40,20 @@
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.wizard-step.clickable {
+  cursor: pointer;
+}
+
+.wizard-step.clickable:hover .step-number {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.wizard-step.clickable:hover .step-label {
+  color: #1e293b;
 }
 
 .step-number {
