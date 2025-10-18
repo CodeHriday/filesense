@@ -75,9 +75,10 @@ function Mappings() {
       await axios.delete(`${API_BASE_URL}/api/transformations/${mappingToDelete.id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setMappings(mappings.filter(m => m.mapping_id !== mappingToDelete.id));
       setDeleteModalOpen(false);
       setMappingToDelete(null);
+      // Refresh the mappings list
+      await fetchData();
     } catch (err) {
       console.error('Error deleting mapping:', err);
       alert(err.response?.data?.error || 'Failed to delete mapping');
@@ -103,10 +104,9 @@ function Mappings() {
       setExecutionResult({
         success: true,
         jobId: jobId,
-        message: 'Mapping execution started successfully!'
+        message: 'The mapping job has been submitted for execution. Please navigate to the Jobs page to check on the status of execution.'
       });
       setExecutionModalOpen(true);
-      fetchData();
     } catch (err) {
       console.error('Error executing mapping:', err);
       setExecutionResult({
@@ -331,8 +331,8 @@ function Mappings() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={closeExecutionModal}>
-                Close
+              <button className="btn btn-primary" onClick={closeExecutionModal}>
+                OK
               </button>
             </div>
           </div>
