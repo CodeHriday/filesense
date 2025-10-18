@@ -16,6 +16,23 @@ const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const crypto = require('crypto');
 
 /**
+ * Replace dynamic placeholders in file name with actual values
+ * @param {string} fileName - File name with placeholders
+ * @returns {string} - File name with replaced values
+ */
+function replacePlaceholders(fileName) {
+  if (!fileName) return fileName;
+  
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+  const timestampStr = Math.floor(now.getTime() / 1000).toString(); // Unix timestamp
+  
+  return fileName
+    .replace(/<current_date>/g, dateStr)
+    .replace(/<current_timestamp>/g, timestampStr);
+}
+
+/**
  * Job Execution Engine
  * Handles execution of transformation mappings with comprehensive tracking and error handling
  */
@@ -559,9 +576,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     
     // Step 4: Upload transformed data to target (if not dry run)
     if (!dryRun && transformedRows.length > 0 && mapping.target_connection_id) {
-      // Determine output format (default to csv if not specified)
-      // Normalize to lowercase to handle UI dropdown values like "CSV", "JSON", etc.
-      const outputFormat = (mapping.output_format || 'csv').toLowerCase().trim();
+      // Determine output format (use target_file_format from mapping, default to csv)
+      const outputFormat = (mapping.target_file_format || mapping.output_format || 'csv').toLowerCase().trim();
       
       await logJobExecution(pool, jobId, 'info', 
         `Uploading transformed data to target`, {
@@ -571,7 +587,18 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       });
       
       // Generate output filename with correct extension
-      const outputFilename = generateOutputFilename(file.filename, mapping.mapping_name, outputFormat);
+      let outputFilename;
+      if (mapping.target_file_name) {
+        // Use custom target file name with placeholder replacement
+        outputFilename = replacePlaceholders(mapping.target_file_name);
+        // Ensure it has the correct extension
+        if (!outputFilename.endsWith(`.${outputFormat}`)) {
+          outputFilename = `${outputFilename.replace(/\.[^/.]+$/, '')}.${outputFormat}`;
+        }
+      } else {
+        // Generate default filename
+        outputFilename = generateOutputFilename(file.filename, mapping.mapping_name, outputFormat);
+      }
       
       // Convert transformed rows to specified output format
       const outputBuffer = await convertToFormat(transformedRows, outputFormat);
