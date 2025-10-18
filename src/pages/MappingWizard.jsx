@@ -334,13 +334,23 @@ function MappingWizard() {
       );
       
       const jobId = response.data.jobId;
-      navigate(`/etl-jobs/${jobId}`);
+      setExecuteModalOpen(true);
     } catch (err) {
       console.error('Error executing mapping:', err);
       setError(err.response?.data?.error || 'Failed to execute mapping');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExecuteModalOk = () => {
+    setExecuteModalOpen(false);
+    navigate('/etl-jobs');
+  };
+
+  const handleExecuteModalCancel = () => {
+    setExecuteModalOpen(false);
+    navigate('/mappings');
   };
 
   const renderStepIndicator = () => {
@@ -663,6 +673,38 @@ function MappingWizard() {
           </div>
         </div>
       </Card>
+      )}
+
+      {/* Execution Confirmation Modal */}
+      {executeModalOpen && (
+        <div className="modal-overlay" onClick={handleExecuteModalCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Job Submitted</h2>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                <FiCheckCircle size={48} style={{ color: '#10b981', flexShrink: 0 }} />
+                <div>
+                  <p style={{ margin: 0, marginBottom: '0.5rem' }}>
+                    The mapping job has been submitted for execution.
+                  </p>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9em' }}>
+                    Do you want to view the Jobs page to check on the status of execution?
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={handleExecuteModalCancel}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleExecuteModalOk}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       </div>
   );
