@@ -87,6 +87,8 @@ function MappingWizard() {
 
   // Step 4: Target & Anomaly Rules
   const [targetConnectionId, setTargetConnectionId] = useState('');
+  const [targetFileName, setTargetFileName] = useState('');
+  const [targetFileFormat, setTargetFileFormat] = useState('csv');
   const [anomalyRules, setAnomalyRules] = useState([
     { metric: 'numeric_deviation', threshold: 10, enabled: true },
     { metric: 'row_count_anomaly', threshold: 20, enabled: true },
@@ -126,6 +128,8 @@ function MappingWizard() {
       setFilePath(mapping.file_path || '');
       setFileNamePattern(mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern || '*.csv');
       setTargetConnectionId(mapping.target_connection_id || '');
+      setTargetFileName(mapping.target_file_name || '');
+      setTargetFileFormat(mapping.target_file_format || 'csv');
       setFieldMappings(mapping.field_mappings || []);
       
       // Convert anomaly rules from object format to array format
@@ -242,6 +246,8 @@ function MappingWizard() {
         file_path: filePath,
         file_name_pattern: fileNamePattern,
         target_connection_id: targetConnectionId || null,
+        target_file_name: targetFileName || null,
+        target_file_format: targetFileFormat || 'csv',
         field_mappings: fieldMappings,
         anomaly_rules: anomalyRulesObject
       };
@@ -526,6 +532,37 @@ function MappingWizard() {
                 ))}
               </select>
               <small className="form-help">Select where to write transformed files</small>
+            </div>
+
+            <div className="form-group">
+              <label>Target File Name</label>
+              <input
+                type="text"
+                className="form-control"
+                value={targetFileName}
+                onChange={(e) => setTargetFileName(e.target.value)}
+                placeholder="e.g., output.csv or output_<current_date>.csv"
+              />
+              <small className="form-help">
+                Optional: Specify output file name. Use <code>&lt;current_date&gt;</code> for YYYYMMDD or <code>&lt;current_timestamp&gt;</code> for Unix timestamp.<br/>
+                Examples: <code>sales_<current_date>.csv</code> → <code>sales_20251018.csv</code> | <code>data_<current_timestamp>.json</code> → <code>data_1729267200.json</code>
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label>Target File Format</label>
+              <select
+                className="form-control"
+                value={targetFileFormat}
+                onChange={(e) => setTargetFileFormat(e.target.value)}
+              >
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
+                <option value="xml">XML</option>
+                <option value="xlsx">Excel (XLSX)</option>
+                <option value="parquet">Parquet</option>
+              </select>
+              <small className="form-help">Choose output file format (any format can be converted to any other format)</small>
             </div>
 
             <h3><FiSettings /> Anomaly Detection Rules</h3>
