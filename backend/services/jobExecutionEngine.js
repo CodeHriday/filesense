@@ -1025,35 +1025,104 @@ function flattenObject(obj, prefix = '') {
 
 /**
  * Parse XML and apply transformations
- * Supports hierarchical XML with recursive flattening
+ * Enhanced to handle multiple XML structures similar to file upload feature
  */
 async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
   try {
     const parser = new XMLParser({
       ignoreAttributes: false,
-      attributeNamePrefix: '@_'
+      attributeNamePrefix: '@_',
+      parseTagValue: true,
+      parseAttributeValue: true,
+      trimValues: true
     });
     
     const xmlData = parser.parse(buffer.toString());
     
-    // Extract records - assume root element contains array of records
-    // Handle common XML structures
+    systemLogger.info('XML structure parsed', { 
+      rootKeys: Object.keys(xmlData),
+      jobId 
+    });
+    
+    // Extract records - handle various XML structures
     let records = [];
-    const rootKeys = Object.keys(xmlData);
-    if (rootKeys.length > 0) {
+    
+    // Strategy 1: Check if entire parsed data is already an array
+    if (Array.isArray(xmlData)) {
+      records = xmlData;
+      systemLogger.info('XML: Root is array', { count: records.length, jobId });
+    } 
+    // Strategy 2: Navigate through root element
+    else if (typeof xmlData === 'object' && xmlData !== null) {
+      const rootKeys = Object.keys(xmlData);
+      
+      if (rootKeys.length === 0) {
+        throw new Error('XML file appears to be empty');
+      }
+      
+      // Get the root element (usually there's only one)
       const rootElement = xmlData[rootKeys[0]];
+      
+      systemLogger.info('XML: Examining root element', { 
+        rootKey: rootKeys[0], 
+        isArray: Array.isArray(rootElement),
+        isObject: typeof rootElement === 'object',
+        jobId 
+      });
+      
+      // Strategy 2a: Root element is directly an array
       if (Array.isArray(rootElement)) {
         records = rootElement;
-      } else if (typeof rootElement === 'object') {
-        // Find first array property in root
-        const arrayKey = Object.keys(rootElement).find(key => Array.isArray(rootElement[key]));
-        if (arrayKey) {
-          records = rootElement[arrayKey];
-        } else {
-          records = [rootElement]; // Single record
+        systemLogger.info('XML: Root element is array', { count: records.length, jobId });
+      }
+      // Strategy 2b: Root element is object - find arrays within it
+      else if (typeof rootElement === 'object' && rootElement !== null) {
+        // Look for array properties (common pattern: <root><records><record>...</record></records></root>)
+        const arrayKeys = Object.keys(rootElement).filter(key => Array.isArray(rootElement[key]));
+        
+        if (arrayKeys.length > 0) {
+          // Use the first array found (or the largest one)
+          let selectedKey = arrayKeys[0];
+          if (arrayKeys.length > 1) {
+            // Choose the array with the most elements
+            selectedKey = arrayKeys.reduce((largest, key) => {
+              return rootElement[key].length > rootElement[largest].length ? key : largest;
+            }, arrayKeys[0]);
+          }
+          
+          records = rootElement[selectedKey];
+          systemLogger.info('XML: Found array in root element', { 
+            key: selectedKey, 
+            count: records.length,
+            availableKeys: arrayKeys,
+            jobId 
+          });
+        }
+        // Strategy 2c: Root element is a single object (single record XML)
+        else {
+          records = [rootElement];
+          systemLogger.info('XML: Single record XML', { jobId });
         }
       }
+      // Strategy 2d: Root element is primitive (unusual but handle it)
+      else {
+        records = [{ value: rootElement }];
+        systemLogger.warn('XML: Root element is primitive value', { jobId });
+      }
     }
+    
+    if (records.length === 0) {
+      systemLogger.warn('XML: No records extracted from file', { 
+        xmlStructure: JSON.stringify(xmlData).substring(0, 200),
+        jobId 
+      });
+      throw new Error('No records found in XML file. Please check the XML structure.');
+    }
+    
+    systemLogger.info('XML: Starting transformation', { 
+      recordCount: records.length,
+      jobId 
+    });
     
     const transformedRows = [];
     let rowsRead = 0;
@@ -1073,7 +1142,8 @@ async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
         if (rowsRead === 1) {
           systemLogger.info('XML first row (flattened):', { 
             keys: Object.keys(flattenedRow),
-            sample: Object.keys(flattenedRow).slice(0, 5)
+            sampleKeys: Object.keys(flattenedRow).slice(0, 10),
+            jobId
           });
         }
         
@@ -1084,10 +1154,19 @@ async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
         rowsFailed++;
         systemLogger.error('Row transformation error', { 
           row: rowsRead, 
-          error: error.message 
+          error: error.message,
+          stack: error.stack,
+          jobId
         });
       }
     }
+    
+    systemLogger.info('XML transformation complete', {
+      rowsRead,
+      rowsWritten,
+      rowsFailed,
+      jobId
+    });
     
     return { 
       transformedRows, 
@@ -1097,6 +1176,11 @@ async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
     };
     
   } catch (error) {
+    systemLogger.error('XML parsing failed', {
+      error: error.message,
+      stack: error.stack,
+      jobId
+    });
     throw new Error(`XML parsing error: ${error.message}`);
   }
 }
