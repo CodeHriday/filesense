@@ -996,8 +996,11 @@ async function parseAndTransformParquet(buffer, fieldMappings, jobId, pool) {
 
 /**
  * Flatten nested object into dot notation
+ * Handles arrays of objects by flattening the first element to extract schema
  * Example: { user: { name: 'John', address: { city: 'NYC' } } }
  * becomes: { 'user.name': 'John', 'user.address.city': 'NYC' }
+ * Example: { items: [{id: 1, name: 'A'}, {id: 2, name: 'B'}] }
+ * becomes: { 'items.id': 1, 'items.name': 'A' }
  */
 function flattenObject(obj, prefix = '') {
   const flattened = {};
@@ -1007,14 +1010,27 @@ function flattenObject(obj, prefix = '') {
       const value = obj[key];
       const newKey = prefix ? `${prefix}.${key}` : key;
       
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        // Recursively flatten nested objects
-        Object.assign(flattened, flattenObject(value, newKey));
+      if (value === null || value === undefined) {
+        // Null or undefined values
+        flattened[newKey] = value;
       } else if (Array.isArray(value)) {
-        // Convert arrays to comma-separated strings
-        flattened[newKey] = value.join(', ');
+        // Handle arrays
+        if (value.length === 0) {
+          // Empty array
+          flattened[newKey] = '';
+        } else if (typeof value[0] === 'object' && value[0] !== null && !Array.isArray(value[0])) {
+          // Array of objects - flatten the first object to extract schema
+          const firstElement = value[0];
+          Object.assign(flattened, flattenObject(firstElement, newKey));
+        } else {
+          // Array of primitives - convert to comma-separated string
+          flattened[newKey] = value.join(', ');
+        }
+      } else if (typeof value === 'object') {
+        // Nested object - recursively flatten
+        Object.assign(flattened, flattenObject(value, newKey));
       } else {
-        // Primitive value or null
+        // Primitive value
         flattened[newKey] = value;
       }
     }
@@ -1214,6 +1230,8 @@ async function convertToFormat(rows, format = 'csv') {
       return convertToXLSX(rows);
     case 'parquet':
       return convertToParquet(rows);
+    case 'xml':
+      return convertToXML(rows);
     default:
       systemLogger.warn(`Unsupported output format: ${format}, defaulting to CSV`);
       return convertToCSV(rows);
@@ -1301,6 +1319,71 @@ async function convertToParquet(rows) {
     // Fallback to JSON if parquet writer not available
     return convertToJSON(rows);
   }
+}
+
+/**
+ * Convert transformed rows to XML format
+ * Creates a well-formed XML document with nested structure
+ */
+function convertToXML(rows) {
+  if (rows.length === 0) {
+    return Buffer.from('<?xml version="1.0" encoding="UTF-8"?>\n<root></root>');
+  }
+  
+  const { XMLBuilder } = require('fast-xml-parser');
+  
+  // Configure XML builder
+  const builder = new XMLBuilder({
+    ignoreAttributes: false,
+    attributeNamePrefix: '@_',
+    format: true,
+    indentBy: '  ',
+    suppressEmptyNode: false
+  });
+  
+  // Reconstruct nested objects from dot-notation keys
+  const reconstructedRows = rows.map(row => {
+    const reconstructed = {};
+    
+    for (const key in row) {
+      const value = row[key];
+      const parts = key.split('.');
+      
+      // If it's a simple key (no dots), just assign it
+      if (parts.length === 1) {
+        reconstructed[key] = value;
+      } else {
+        // Reconstruct nested structure
+        let current = reconstructed;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const part = parts[i];
+          if (!current[part]) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+        current[parts[parts.length - 1]] = value;
+      }
+    }
+    
+    return reconstructed;
+  });
+  
+  // Build XML structure
+  const xmlStructure = {
+    '?xml': {
+      '@_version': '1.0',
+      '@_encoding': 'UTF-8'
+    },
+    root: {
+      record: reconstructedRows
+    }
+  };
+  
+  // Convert to XML string
+  const xmlString = builder.build(xmlStructure);
+  
+  return Buffer.from(xmlString);
 }
 
 /**

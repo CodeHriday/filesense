@@ -15,6 +15,54 @@ const { decryptCredentials } = require('../utils/encryption');
  */
 
 /**
+ * Flatten a nested object into a single-level object with dot-notation keys
+ * Handles arrays of objects by flattening the first element to extract schema
+ * Example: { user: { name: 'John', address: { city: 'NYC' } } }
+ * becomes: { 'user.name': 'John', 'user.address.city': 'NYC' }
+ * Example: { items: [{id: 1, name: 'A'}, {id: 2, name: 'B'}] }
+ * becomes: { 'items.id': 1, 'items.name': 'A' }
+ * @param {Object} obj - Object to flatten
+ * @param {string} prefix - Prefix for keys (used in recursion)
+ * @returns {Object} - Flattened object
+ */
+function flattenObject(obj, prefix = '') {
+  const flattened = {};
+  
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const value = obj[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      
+      if (value === null || value === undefined) {
+        // Null or undefined values
+        flattened[newKey] = value;
+      } else if (Array.isArray(value)) {
+        // Handle arrays
+        if (value.length === 0) {
+          // Empty array
+          flattened[newKey] = '';
+        } else if (typeof value[0] === 'object' && value[0] !== null && !Array.isArray(value[0])) {
+          // Array of objects - flatten the first object to extract schema
+          const firstElement = value[0];
+          Object.assign(flattened, flattenObject(firstElement, newKey));
+        } else {
+          // Array of primitives - convert to comma-separated string
+          flattened[newKey] = value.join(', ');
+        }
+      } else if (typeof value === 'object') {
+        // Nested object - recursively flatten
+        Object.assign(flattened, flattenObject(value, newKey));
+      } else {
+        // Primitive value
+        flattened[newKey] = value;
+      }
+    }
+  }
+  
+  return flattened;
+}
+
+/**
  * Extract schema from file columns data
  * @param {Array} fileColumns - Array of file column objects from file_columns table
  * @returns {Object} - Schema definition with columns
@@ -529,39 +577,96 @@ async function parseFileSchema(fileContent, fileExtension) {
       try {
         const parser = new XMLParser({
           ignoreAttributes: false,
-          attributeNamePrefix: '@_'
+          attributeNamePrefix: '@_',
+          parseTagValue: true,
+          parseAttributeValue: true,
+          trimValues: true
         });
         
         const xmlData = parser.parse(fileContent.toString());
         
-        // Extract first record to infer schema
+        systemLogger.info('XML schema extraction - parsed structure', {
+          rootKeys: Object.keys(xmlData)
+        });
+        
+        // Extract first record to infer schema - handle various XML structures
         let firstRecord = null;
-        const rootKeys = Object.keys(xmlData);
-        if (rootKeys.length > 0) {
-          const rootElement = xmlData[rootKeys[0]];
-          if (Array.isArray(rootElement) && rootElement.length > 0) {
-            firstRecord = rootElement[0];
-          } else if (typeof rootElement === 'object') {
-            const arrayKey = Object.keys(rootElement).find(key => Array.isArray(rootElement[key]));
-            if (arrayKey && rootElement[arrayKey].length > 0) {
-              firstRecord = rootElement[arrayKey][0];
-            } else {
-              firstRecord = rootElement;
+        let records = [];
+        
+        // Strategy 1: Check if entire parsed data is already an array
+        if (Array.isArray(xmlData)) {
+          records = xmlData;
+        } 
+        // Strategy 2: Navigate through root element
+        else if (typeof xmlData === 'object' && xmlData !== null) {
+          const rootKeys = Object.keys(xmlData);
+          
+          if (rootKeys.length > 0) {
+            const rootElement = xmlData[rootKeys[0]];
+            
+            // Strategy 2a: Root element is directly an array
+            if (Array.isArray(rootElement)) {
+              records = rootElement;
+            }
+            // Strategy 2b: Root element is object - find arrays within it
+            else if (typeof rootElement === 'object' && rootElement !== null) {
+              // Look for array properties
+              const arrayKeys = Object.keys(rootElement).filter(key => Array.isArray(rootElement[key]));
+              
+              if (arrayKeys.length > 0) {
+                // Use the first array found (or the largest one)
+                let selectedKey = arrayKeys[0];
+                if (arrayKeys.length > 1) {
+                  selectedKey = arrayKeys.reduce((largest, key) => {
+                    return rootElement[key].length > rootElement[largest].length ? key : largest;
+                  }, arrayKeys[0]);
+                }
+                records = rootElement[selectedKey];
+              }
+              // Strategy 2c: Root element is a single object (single record XML)
+              else {
+                records = [rootElement];
+              }
             }
           }
         }
         
+        // Get first record
+        if (records.length > 0) {
+          firstRecord = records[0];
+        }
+        
         if (firstRecord) {
-          Object.keys(firstRecord).forEach((key, index) => {
+          // Flatten the first record to get all nested fields
+          const flattenedRecord = flattenObject(firstRecord);
+          
+          systemLogger.info('XML schema extraction - flattened first record', {
+            originalKeys: Object.keys(firstRecord),
+            flattenedKeys: Object.keys(flattenedRecord),
+            sampleKeys: Object.keys(flattenedRecord).slice(0, 10)
+          });
+          
+          // Extract schema from flattened record
+          Object.keys(flattenedRecord).forEach((key, index) => {
             schema.push({
               name: key,
-              type: inferDataType(firstRecord[key]),
+              type: inferDataType(flattenedRecord[key]),
               index: index
             });
           });
         }
+        
+        systemLogger.info('XML schema extraction complete', {
+          fieldCount: schema.length,
+          fields: schema.map(f => f.name)
+        });
+        
         return schema;
       } catch (error) {
+        systemLogger.error('XML schema extraction failed', {
+          error: error.message,
+          stack: error.stack
+        });
         throw new Error(`Failed to parse XML: ${error.message}`);
       }
       
