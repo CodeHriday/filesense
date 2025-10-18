@@ -130,6 +130,30 @@ const Jobs = () => {
     setJobLogs([]);
   };
 
+  const formatScheduleInfo = (job) => {
+    if (!job.schedule_id) return '-';
+    
+    let frequency = '';
+    if (job.schedule_type === 'cron') {
+      frequency = job.cron_expression;
+    } else if (job.schedule_type === 'interval') {
+      frequency = `Every ${job.interval_value} ${job.interval_unit}${job.interval_value > 1 ? 's' : ''}`;
+    }
+    
+    return (
+      <div style={{ fontSize: '0.85rem' }}>
+        <div style={{ fontWeight: '500' }}>
+          {job.schedule_name || `Schedule #${job.schedule_id}`}
+        </div>
+        {frequency && (
+          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+            {frequency}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { icon: FiClock, color: '#64748b', bg: '#f1f5f9', text: 'Pending' },
@@ -249,7 +273,7 @@ const Jobs = () => {
                       <td>{job.mapping_name}</td>
                       <td>{job.mapping_group_name || '-'}</td>
                       <td>{job.workflow_name || '-'}</td>
-                      <td>{job.schedule_name || '-'}</td>
+                      <td>{formatScheduleInfo(job)}</td>
                       <td>{getStatusBadge(job.status)}</td>
                       <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
                       <td>

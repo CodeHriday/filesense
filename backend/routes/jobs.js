@@ -73,7 +73,12 @@ router.get('/', async (req, res) => {
         tj.*,
         mg.name as mapping_group_name,
         nw.name as workflow_name,
-        s.schedule_name
+        s.id as schedule_id,
+        s.schedule_name,
+        s.schedule_type,
+        s.cron_expression,
+        s.interval_value,
+        s.interval_unit
       FROM transformation_jobs tj
       LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
