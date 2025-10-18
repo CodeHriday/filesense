@@ -599,7 +599,7 @@ async function parseFileSchema(fileContent, fileExtension) {
         } 
         // Strategy 2: Navigate through root element
         else if (typeof xmlData === 'object' && xmlData !== null) {
-          const rootKeys = Object.keys(xmlData);
+          const rootKeys = Object.keys(xmlData).filter(key => key !== '?xml');
           
           if (rootKeys.length > 0) {
             const rootElement = xmlData[rootKeys[0]];
