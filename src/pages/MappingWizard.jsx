@@ -442,7 +442,10 @@ function MappingWizard() {
             </button>
             <button 
               className="btn btn-secondary"
-              onClick={() => navigate(`/mappings/edit/${savedMappingId}`)}
+              onClick={() => {
+                setSaveSuccess(false);
+                setCurrentStep(1);
+              }}
               disabled={loading}
             >
               <FiEdit2 /> Edit Mapping
