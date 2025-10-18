@@ -345,7 +345,7 @@ function MappingWizard() {
 
   const handleExecuteModalOk = () => {
     setExecuteModalOpen(false);
-    navigate('/etl-jobs');
+    navigate('/jobs');
   };
 
   const handleExecuteModalCancel = () => {
