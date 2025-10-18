@@ -610,9 +610,16 @@ function MappingWizard() {
           )}
           <div className="wizard-actions-right">
             {currentStep < 4 ? (
-              <button className="btn btn-primary" onClick={handleNext}>
-                Next <FiArrowRight />
-              </button>
+              <>
+                {isEditMode && (
+                  <button className="btn btn-success" onClick={handleSave} disabled={loading} style={{ marginRight: '0.5rem' }}>
+                    <FiSave /> {loading ? 'Saving...' : 'Save'}
+                  </button>
+                )}
+                <button className="btn btn-primary" onClick={handleNext}>
+                  Next <FiArrowRight />
+                </button>
+              </>
             ) : (
               <button className="btn btn-success" onClick={handleSave} disabled={loading}>
                 <FiSave /> {loading ? 'Saving...' : 'Save Mapping'}
