@@ -544,8 +544,8 @@ function MappingWizard() {
                 placeholder="e.g., output.csv or output_<current_date>.csv"
               />
               <small className="form-help">
-                Optional: Specify output file name. Use <code>{'<current_date>'}</code> for YYYYMMDD or <code>{'<current_timestamp>'}</code> for Unix timestamp.<br/>
-                Examples: <code>{'sales_<current_date>.csv'}</code> → <code>sales_20251018.csv</code> | <code>{'data_<current_timestamp>.json'}</code> → <code>data_1729267200.json</code>
+                Optional: Specify output file name. Use <code>&lt;current_date&gt;</code> for YYYYMMDD or <code>&lt;current_timestamp&gt;</code> for Unix timestamp.<br/>
+                Examples: <code>sales_&lt;current_date&gt;.csv</code> → <code>sales_20251018.csv</code> | <code>data_&lt;current_timestamp&gt;.json</code> → <code>data_1729267200.json</code>
               </small>
             </div>
 
