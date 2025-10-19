@@ -648,7 +648,6 @@
 }
 
 .btn-insert {
-  background: #4F46E5;
   color: white;
   border: none;
   border-radius: 4px;
@@ -661,12 +660,26 @@
   transition: all 0.2s;
 }
 
-.btn-insert:hover {
-  background: #4338ca;
-}
-
 .btn-insert:active {
   transform: scale(0.95);
+}
+
+/* Column insert buttons - dark blue */
+.insertable-item .btn-insert {
+  background: #1e40af;
+}
+
+.insertable-item .btn-insert:hover {
+  background: #1e3a8a;
+}
+
+/* Function insert buttons - dark green */
+.function-item .btn-insert {
+  background: #047857;
+}
+
+.function-item .btn-insert:hover {
+  background: #065f46;
 }
 
 /* Function Item */
