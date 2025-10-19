@@ -102,70 +102,25 @@ function WorkflowCanvas() {
   }, []);
 
   const findAvailablePosition = useCallback((initialPosition, existingNodes) => {
-    const NODE_WIDTH = 150;
-    const NODE_HEIGHT = 150;
-    const MIN_SPACING = 50;
+    const NODE_HEIGHT = 160;
+    const VERTICAL_SPACING = 30;
     
-    const isPositionOccupied = (pos) => {
-      return existingNodes.some(node => {
-        const dx = Math.abs(node.position.x - pos.x);
-        const dy = Math.abs(node.position.y - pos.y);
-        return dx < (NODE_WIDTH + MIN_SPACING) || dy < (NODE_HEIGHT + MIN_SPACING);
-      });
-    };
-
-    console.log('Finding position for:', initialPosition, 'Existing nodes:', existingNodes.length);
-
-    if (!isPositionOccupied(initialPosition)) {
-      console.log('Using initial position:', initialPosition);
+    if (existingNodes.length === 0) {
+      console.log('First node, using initial position:', initialPosition);
       return initialPosition;
     }
 
-    const offsetDistance = NODE_WIDTH + MIN_SPACING;
-    const spiralPattern = [
-      { x: offsetDistance, y: 0 },
-      { x: 0, y: offsetDistance },
-      { x: -offsetDistance, y: 0 },
-      { x: 0, y: -offsetDistance },
-      { x: offsetDistance, y: offsetDistance },
-      { x: -offsetDistance, y: offsetDistance },
-      { x: -offsetDistance, y: -offsetDistance },
-      { x: offsetDistance, y: -offsetDistance },
-      { x: offsetDistance * 2, y: 0 },
-      { x: 0, y: offsetDistance * 2 },
-      { x: -offsetDistance * 2, y: 0 },
-      { x: 0, y: -offsetDistance * 2 },
-      { x: offsetDistance * 2, y: offsetDistance },
-      { x: offsetDistance, y: offsetDistance * 2 },
-      { x: -offsetDistance * 2, y: offsetDistance },
-      { x: -offsetDistance, y: offsetDistance * 2 },
-      { x: -offsetDistance * 2, y: -offsetDistance },
-      { x: -offsetDistance, y: -offsetDistance * 2 },
-      { x: offsetDistance * 2, y: -offsetDistance },
-      { x: offsetDistance, y: -offsetDistance * 2 },
-      { x: offsetDistance * 2, y: offsetDistance * 2 },
-      { x: -offsetDistance * 2, y: offsetDistance * 2 },
-      { x: -offsetDistance * 2, y: -offsetDistance * 2 },
-      { x: offsetDistance * 2, y: -offsetDistance * 2 },
-    ];
+    const lowestNode = existingNodes.reduce((lowest, node) => {
+      return node.position.y > lowest.position.y ? node : lowest;
+    }, existingNodes[0]);
 
-    for (const offset of spiralPattern) {
-      const candidatePosition = {
-        x: initialPosition.x + offset.x,
-        y: initialPosition.y + offset.y,
-      };
-      if (!isPositionOccupied(candidatePosition)) {
-        console.log('Found available position:', candidatePosition);
-        return candidatePosition;
-      }
-    }
-
-    const fallbackPosition = {
-      x: initialPosition.x + (Math.random() * 400 - 200),
-      y: initialPosition.y + (Math.random() * 400 - 200),
+    const newPosition = {
+      x: lowestNode.position.x,
+      y: lowestNode.position.y + NODE_HEIGHT + VERTICAL_SPACING,
     };
-    console.log('Using random fallback:', fallbackPosition);
-    return fallbackPosition;
+
+    console.log('Placing node below lowest node at:', newPosition);
+    return newPosition;
   }, []);
 
   const onDrop = useCallback(
