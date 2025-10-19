@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -19,12 +19,6 @@ import WorkflowNode from '../components/workflow-nodes/WorkflowNode';
 import WorkflowConfigModal from '../components/WorkflowConfigModal';
 import { API_BASE_URL } from '../config';
 
-const nodeTypes = {
-  mapping: MappingNode,
-  mapping_group: MappingGroupNode,
-  workflow: WorkflowNode,
-};
-
 function WorkflowCanvas() {
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -36,6 +30,13 @@ function WorkflowCanvas() {
   const reactFlowWrapper = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const nodesRef = useRef([]);
+  
+  // Memoize nodeTypes to prevent ReactFlow from losing rendering state
+  const nodeTypes = useMemo(() => ({
+    mapping: MappingNode,
+    mapping_group: MappingGroupNode,
+    workflow: WorkflowNode,
+  }), []);
   
   // Keep ref in sync with state
   useEffect(() => {
