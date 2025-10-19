@@ -87,9 +87,9 @@ function WorkflowCanvas() {
   }, []);
 
   const findAvailablePosition = useCallback((initialPosition, existingNodes) => {
-    const NODE_WIDTH = 200;
-    const NODE_HEIGHT = 100;
-    const MIN_SPACING = 50;
+    const NODE_WIDTH = 220;
+    const NODE_HEIGHT = 120;
+    const MIN_SPACING = 80;
     
     const isPositionOccupied = (pos) => {
       return existingNodes.some(node => {
@@ -99,29 +99,39 @@ function WorkflowCanvas() {
       });
     };
 
+    console.log('Finding position for:', initialPosition, 'Existing nodes:', existingNodes.length);
+
     if (!isPositionOccupied(initialPosition)) {
+      console.log('Using initial position:', initialPosition);
       return initialPosition;
     }
 
     const offsetDistance = NODE_WIDTH + MIN_SPACING;
     const spiralPattern = [
       { x: offsetDistance, y: 0 },
-      { x: offsetDistance, y: offsetDistance },
       { x: 0, y: offsetDistance },
-      { x: -offsetDistance, y: offsetDistance },
       { x: -offsetDistance, y: 0 },
-      { x: -offsetDistance, y: -offsetDistance },
       { x: 0, y: -offsetDistance },
+      { x: offsetDistance, y: offsetDistance },
+      { x: -offsetDistance, y: offsetDistance },
+      { x: -offsetDistance, y: -offsetDistance },
       { x: offsetDistance, y: -offsetDistance },
       { x: offsetDistance * 2, y: 0 },
-      { x: offsetDistance * 2, y: offsetDistance },
-      { x: offsetDistance * 2, y: offsetDistance * 2 },
-      { x: offsetDistance, y: offsetDistance * 2 },
       { x: 0, y: offsetDistance * 2 },
-      { x: -offsetDistance, y: offsetDistance * 2 },
-      { x: -offsetDistance * 2, y: offsetDistance * 2 },
-      { x: -offsetDistance * 2, y: offsetDistance },
       { x: -offsetDistance * 2, y: 0 },
+      { x: 0, y: -offsetDistance * 2 },
+      { x: offsetDistance * 2, y: offsetDistance },
+      { x: offsetDistance, y: offsetDistance * 2 },
+      { x: -offsetDistance * 2, y: offsetDistance },
+      { x: -offsetDistance, y: offsetDistance * 2 },
+      { x: -offsetDistance * 2, y: -offsetDistance },
+      { x: -offsetDistance, y: -offsetDistance * 2 },
+      { x: offsetDistance * 2, y: -offsetDistance },
+      { x: offsetDistance, y: -offsetDistance * 2 },
+      { x: offsetDistance * 2, y: offsetDistance * 2 },
+      { x: -offsetDistance * 2, y: offsetDistance * 2 },
+      { x: -offsetDistance * 2, y: -offsetDistance * 2 },
+      { x: offsetDistance * 2, y: -offsetDistance * 2 },
     ];
 
     for (const offset of spiralPattern) {
@@ -130,14 +140,17 @@ function WorkflowCanvas() {
         y: initialPosition.y + offset.y,
       };
       if (!isPositionOccupied(candidatePosition)) {
+        console.log('Found available position:', candidatePosition);
         return candidatePosition;
       }
     }
 
-    return {
-      x: initialPosition.x + (Math.random() * 200 - 100),
-      y: initialPosition.y + (Math.random() * 200 - 100),
+    const fallbackPosition = {
+      x: initialPosition.x + (Math.random() * 400 - 200),
+      y: initialPosition.y + (Math.random() * 400 - 200),
     };
+    console.log('Using random fallback:', fallbackPosition);
+    return fallbackPosition;
   }, []);
 
   const onDrop = useCallback(
@@ -382,6 +395,9 @@ function WorkflowCanvas() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             nodeTypes={nodeTypes}
+            nodesDraggable={true}
+            nodesConnectable={true}
+            elementsSelectable={true}
             fitView
           >
             <Controls />
