@@ -557,3 +557,250 @@
   color: #6c757d;
   font-weight: 500;
 }
+
+/* Variable Builder Modal - 3-Pane Layout */
+.variable-builder-modal .modal-content {
+  max-width: 1200px;
+  width: 95%;
+  height: 80vh;
+  max-height: 800px;
+}
+
+.variable-builder-modal .modal-body {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.variable-builder-panes {
+  display: grid;
+  grid-template-columns: 20% 15% 65%;
+  gap: 1px;
+  background: #e5e7eb;
+  flex: 1;
+  overflow: hidden;
+}
+
+.variable-pane {
+  background: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.variable-pane-header {
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.variable-pane-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+/* Source Columns & Functions List */
+.insertable-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.insertable-item:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.insertable-item-name {
+  font-size: 0.875rem;
+  color: #374151;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insertable-item-type {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-right: 0.5rem;
+}
+
+.btn-insert {
+  background: #4F46E5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.2s;
+}
+
+.btn-insert:hover {
+  background: #4338ca;
+}
+
+.btn-insert:active {
+  transform: scale(0.95);
+}
+
+/* Function Item */
+.function-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.function-item:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.function-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.function-item-name {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.function-item-syntax {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  margin-top: 0.25rem;
+}
+
+.function-group-header {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #f3f4f6;
+  margin: 0.5rem 0 0.25rem 0;
+  border-radius: 4px;
+}
+
+/* Expression Builder Pane */
+.expression-builder {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem;
+}
+
+.expression-builder-header {
+  margin-bottom: 1rem;
+}
+
+.expression-builder-header label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.expression-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.expression-textarea:focus {
+  outline: none;
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.expression-help {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #0369a1;
+}
+
+.expression-help-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.expression-help-text {
+  line-height: 1.5;
+}
+
+.expression-preview-section {
+  margin-top: 1rem;
+}
+
+.expression-preview-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.variable-name-input {
+  margin-bottom: 1rem;
+}
+
+.variable-name-input label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.variable-name-input input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.variable-name-input input:focus {
+  outline: none;
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
