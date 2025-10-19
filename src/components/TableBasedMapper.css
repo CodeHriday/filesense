@@ -620,14 +620,14 @@
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.25rem;
   border-radius: 4px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: transparent;
+  border: 1px solid #e5e7eb;
   transition: all 0.2s;
 }
 
 .insertable-item:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
+  background: #f9fafb;
+  border-color: #d1d5db;
 }
 
 .insertable-item-name {
