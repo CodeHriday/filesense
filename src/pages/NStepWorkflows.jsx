@@ -409,14 +409,16 @@ const NStepWorkflows = () => {
   };
 
   const canAddAssetSmart = (type) => {
-    if (!activeStep) return false;
+    // Get fresh activeStep value on each call to avoid stale closure
+    const currentActiveStep = workflowData?.steps?.find(s => s.is_active);
+    if (!currentActiveStep) return false;
     
     // If type is specified, check that specific type
     if (type === 'mapping') {
       if (!selectedMapping) return false;
       const assetId = selectedMapping;
       if (isAssetAlreadyAdded('mapping', assetId)) return false;
-      const currentCount = getExpandedCount(activeStep);
+      const currentCount = getExpandedCount(currentActiveStep);
       return (currentCount + 1) <= 10;
     }
     
@@ -424,7 +426,7 @@ const NStepWorkflows = () => {
       if (!selectedMappingGroup) return false;
       const assetId = selectedMappingGroup;
       if (isAssetAlreadyAdded('mapping_group', assetId)) return false;
-      const currentCount = getExpandedCount(activeStep);
+      const currentCount = getExpandedCount(currentActiveStep);
       const group = mappingGroups.find(g => g.id === parseInt(assetId));
       const newAssetCount = group?.mapping_count || 0;
       return (currentCount + newAssetCount) <= 10;
@@ -434,14 +436,14 @@ const NStepWorkflows = () => {
     if (selectedMapping) {
       const assetId = selectedMapping;
       if (isAssetAlreadyAdded('mapping', assetId)) return false;
-      const currentCount = getExpandedCount(activeStep);
+      const currentCount = getExpandedCount(currentActiveStep);
       return (currentCount + 1) <= 10;
     }
     
     if (selectedMappingGroup) {
       const assetId = selectedMappingGroup;
       if (isAssetAlreadyAdded('mapping_group', assetId)) return false;
-      const currentCount = getExpandedCount(activeStep);
+      const currentCount = getExpandedCount(currentActiveStep);
       const group = mappingGroups.find(g => g.id === parseInt(assetId));
       const newAssetCount = group?.mapping_count || 0;
       return (currentCount + newAssetCount) <= 10;
