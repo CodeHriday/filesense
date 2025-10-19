@@ -366,27 +366,7 @@ const NStepWorkflows = () => {
     const assetType = type || (selectedMapping ? 'mapping' : 'mapping_group');
     const assetId = type === 'mapping' ? selectedMapping : (type === 'mapping_group' ? selectedMappingGroup : (selectedMapping || selectedMappingGroup));
     
-    if (isAssetAlreadyAdded(assetType, assetId)) {
-      const assetName = assetType === 'mapping' 
-        ? mappings.find(m => m.mapping_id === assetId)?.mapping_name 
-        : mappingGroups.find(g => g.id === parseInt(assetId))?.name;
-      alert(`This ${assetType === 'mapping' ? 'mapping' : 'mapping group'} "${assetName}" is already added in another step`);
-      return;
-    }
-    
-    const currentCount = getExpandedCount(activeStep);
-    let newAssetCount = 0;
-    if (assetType === 'mapping') {
-      newAssetCount = 1;
-    } else {
-      const group = mappingGroups.find(g => g.id === parseInt(assetId));
-      newAssetCount = group?.mapping_count || 0;
-    }
-    
-    if (currentCount + newAssetCount > 10) {
-      alert(`Cannot add: would exceed 10-mapping limit (current: ${currentCount}, adding: ${newAssetCount})`);
-      return;
-    }
+    // Removed all validations - allow adding any mapping or group
 
     try {
       await axios.post(`/api/n-step-workflows/${selectedWorkflow}/steps/${activeStep.id}/assets`, {
@@ -638,7 +618,7 @@ const NStepWorkflows = () => {
                     <button
                       className="btn btn-primary selector-add-btn"
                       onClick={() => handleAddAssetSmart('mapping')}
-                      disabled={!canAddAssetSmart('mapping')}
+                      disabled={!selectedMapping || !activeStep}
                       title="Add selected mapping to active step"
                     >
                       <FiPlus /> Add Mapping
@@ -665,7 +645,7 @@ const NStepWorkflows = () => {
                     <button
                       className="btn btn-primary selector-add-btn"
                       onClick={() => handleAddAssetSmart('mapping_group')}
-                      disabled={!canAddAssetSmart('mapping_group')}
+                      disabled={!selectedMappingGroup || !activeStep}
                       title="Add selected mapping group to active step"
                     >
                       <FiPlus /> Add Group
