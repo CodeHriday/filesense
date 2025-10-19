@@ -1332,12 +1332,45 @@ function convertToXLSX(rows) {
  */
 async function convertToParquet(rows) {
   try {
-    // Try to use hyparquet-writer if available
-    const { writeParquet } = await import('hyparquet-writer');
+    if (rows.length === 0) {
+      return Buffer.from('');
+    }
     
-    // Write parquet file
-    const buffer = await writeParquet(rows);
-    return Buffer.from(buffer);
+    // Import hyparquet-writer
+    const { parquetWriteBuffer } = await import('hyparquet-writer');
+    
+    // Convert row-based data to column-based format
+    const columnData = [];
+    const columnNames = Object.keys(rows[0]);
+    
+    for (const columnName of columnNames) {
+      const columnValues = rows.map(row => row[columnName]);
+      
+      // Infer column type from first non-null value
+      let type = 'STRING'; // default type
+      for (const value of columnValues) {
+        if (value !== null && value !== undefined) {
+          if (typeof value === 'number') {
+            type = Number.isInteger(value) ? 'INT32' : 'DOUBLE';
+          } else if (typeof value === 'boolean') {
+            type = 'BOOLEAN';
+          } else if (value instanceof Date) {
+            type = 'INT64'; // timestamp in milliseconds
+          }
+          break;
+        }
+      }
+      
+      columnData.push({
+        name: columnName,
+        data: columnValues,
+        type: type
+      });
+    }
+    
+    // Write parquet file to buffer
+    const arrayBuffer = parquetWriteBuffer({ columnData });
+    return Buffer.from(arrayBuffer);
     
   } catch (error) {
     systemLogger.warn('Parquet writing not available, falling back to JSON', {
