@@ -572,7 +572,7 @@ async function parseFileSchema(fileContent, fileExtension) {
     
     case 'parquet':
       try {
-        const { parquetReadObjects, parquetMetadata } = await import('hyparquet');
+        const { parquetMetadata, parquetSchema } = await import('hyparquet');
         
         const arrayBuffer = fileContent.buffer.slice(
           fileContent.byteOffset,
@@ -582,38 +582,28 @@ async function parseFileSchema(fileContent, fileExtension) {
         systemLogger.info('Parquet schema extraction - reading metadata');
         
         const metadata = parquetMetadata(arrayBuffer);
+        const parquetSchemaTree = parquetSchema(metadata);
         
-        if (metadata.schema && metadata.schema.length > 0) {
-          metadata.schema.forEach((field, index) => {
-            if (field.element && field.element.name) {
+        systemLogger.info('Parquet schema tree extracted', {
+          hasChildren: !!parquetSchemaTree.children,
+          childCount: parquetSchemaTree.children?.length
+        });
+        
+        if (parquetSchemaTree.children && parquetSchemaTree.children.length > 0) {
+          parquetSchemaTree.children.forEach((child, index) => {
+            if (child.element && child.element.name) {
               schema.push({
-                name: field.element.name,
-                type: inferParquetType(field.element.type),
+                name: child.element.name,
+                type: inferParquetType(child.element.type),
                 index: index
               });
             }
           });
         }
         
-        if (schema.length === 0) {
-          systemLogger.info('Parquet schema extraction - reading first row from data');
-          
-          for await (const row of parquetReadObjects({ file: arrayBuffer })) {
-            if (row) {
-              Object.keys(row).forEach((key, index) => {
-                schema.push({
-                  name: key,
-                  type: inferDataType(row[key]),
-                  index: index
-                });
-              });
-              break;
-            }
-          }
-        }
-        
         return schema;
       } catch (error) {
+        systemLogger.error('Parquet schema extraction error:', error);
         throw new Error(`Failed to parse Parquet: ${error.message}`);
       }
     
