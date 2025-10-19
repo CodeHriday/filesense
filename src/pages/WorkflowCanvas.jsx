@@ -35,16 +35,20 @@ function WorkflowCanvas() {
   const [isExecuting, setIsExecuting] = useState(false);
   const reactFlowWrapper = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
+  const nodesRef = useRef([]);
   
-  // Custom onNodesChange handler for React 19 compatibility
+  // Keep ref in sync with state
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  
+  // Custom onNodesChange handler for React 18 compatibility
   const onNodesChange = useCallback((changes) => {
-    console.log('Node changes detected:', changes);
     setNodes((nds) => {
       const updatedNodes = applyNodeChanges(changes, nds);
-      console.log('Updated nodes:', updatedNodes);
       return updatedNodes;
     });
-  }, [setNodes]);
+  }, []);
 
   useEffect(() => {
     loadWorkflows();
@@ -189,14 +193,14 @@ function WorkflowCanvas() {
         y: event.clientY - reactFlowBounds.top,
       });
 
-      const position = findAvailablePosition(initialPosition, nodes);
+      const position = findAvailablePosition(initialPosition, nodesRef.current);
 
       const newNode = {
         id: `${assetData.type}-${assetData.assetId}-${Date.now()}`,
         type: assetData.type,
         position,
-        draggable: true, // Explicitly set draggable
-        selectable: true, // Explicitly set selectable
+        draggable: true,
+        selectable: true,
         data: {
           assetId: assetData.assetId,
           assetName: assetData.assetName,
@@ -204,9 +208,13 @@ function WorkflowCanvas() {
         },
       };
 
-      setNodes((nds) => nds.concat(newNode));
+      setNodes((nds) => {
+        const updated = nds.concat(newNode);
+        nodesRef.current = updated;
+        return updated;
+      });
     },
-    [reactFlowInstance, nodes, findAvailablePosition]
+    [reactFlowInstance, findAvailablePosition]
   );
 
   const validateGraph = () => {
