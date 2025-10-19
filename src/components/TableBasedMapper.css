@@ -668,14 +668,14 @@
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.25rem;
   border-radius: 4px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
   transition: all 0.2s;
 }
 
 .function-item:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #dcfce7;
+  border-color: #86efac;
 }
 
 .function-item-header {
@@ -687,13 +687,13 @@
 
 .function-item-name {
   font-size: 0.875rem;
-  color: #374151;
+  color: #10B981;
   font-weight: 500;
 }
 
 .function-item-syntax {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #059669;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   margin-top: 0.25rem;
 }
