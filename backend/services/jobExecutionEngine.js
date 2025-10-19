@@ -1339,16 +1339,21 @@ async function convertToParquet(rows) {
     // Import hyparquet-writer
     const { parquetWriteBuffer } = await import('hyparquet-writer');
     
+    // Text encoder for converting strings to Uint8Array
+    const encoder = new TextEncoder();
+    
     // Convert row-based data to column-based format
     const columnData = [];
     const columnNames = Object.keys(rows[0]);
     
     for (const columnName of columnNames) {
-      const columnValues = rows.map(row => row[columnName]);
+      const rawValues = rows.map(row => row[columnName]);
       
       // Infer column type from first non-null value
       let type = 'STRING'; // default type
-      for (const value of columnValues) {
+      let processedValues = rawValues;
+      
+      for (const value of rawValues) {
         if (value !== null && value !== undefined) {
           if (typeof value === 'number') {
             type = Number.isInteger(value) ? 'INT32' : 'DOUBLE';
@@ -1356,14 +1361,26 @@ async function convertToParquet(rows) {
             type = 'BOOLEAN';
           } else if (value instanceof Date) {
             type = 'INT64'; // timestamp in milliseconds
+            processedValues = rawValues.map(v => v instanceof Date ? v.getTime() : v);
           }
           break;
         }
       }
       
+      // For STRING type, encode values as Uint8Array
+      if (type === 'STRING') {
+        processedValues = rawValues.map(value => {
+          if (value === null || value === undefined) {
+            return null;
+          }
+          const strValue = String(value);
+          return encoder.encode(strValue);
+        });
+      }
+      
       columnData.push({
         name: columnName,
-        data: columnValues,
+        data: processedValues,
         type: type
       });
     }
