@@ -566,6 +566,14 @@
   max-height: 800px;
 }
 
+.variable-builder-modal .modal-header {
+  background: white;
+}
+
+.variable-builder-modal .modal-header h4 {
+  color: #14b8a6;
+}
+
 .variable-builder-modal .modal-body {
   padding: 0;
   overflow: hidden;
