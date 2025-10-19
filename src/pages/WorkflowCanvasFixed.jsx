@@ -11,16 +11,44 @@ import ReactFlow, {
 // Import ReactFlow styles - CRITICAL!
 import 'reactflow/dist/style.css';
 
+// CSS override to ensure nodes are visible and draggable
+const customStyles = `
+  .react-flow__node {
+    cursor: grab !important;
+    pointer-events: all !important;
+    user-select: none !important;
+    position: absolute !important;
+    transform-origin: 0 0 !important;
+  }
+  .react-flow__node:active {
+    cursor: grabbing !important;
+  }
+  .react-flow__node-default {
+    background: white !important;
+    border: 2px solid #555 !important;
+    border-radius: 5px !important;
+    padding: 10px !important;
+    font-size: 12px !important;
+    text-align: center !important;
+  }
+  .react-flow__handle {
+    width: 8px !important;
+    height: 8px !important;
+    background: #555 !important;
+    border: 2px solid #fff !important;
+  }
+`;
+
 const initialNodes = [
   { 
     id: '1', 
-    position: { x: 100, y: 100 }, 
+    position: { x: 250, y: 100 }, 
     data: { label: 'Test Node 1' },
     type: 'default'
   },
   { 
     id: '2', 
-    position: { x: 100, y: 200 }, 
+    position: { x: 250, y: 250 }, 
     data: { label: 'Test Node 2' },
     type: 'default'
   }
@@ -54,10 +82,24 @@ function WorkflowCanvasFixed() {
         y: event.clientY,
       });
 
+      // Add some offset to prevent exact stacking
+      const currentNodes = reactFlowInstance.getNodes();
+      let finalPosition = { ...position };
+      
+      // Check if position conflicts with existing nodes
+      currentNodes.forEach(node => {
+        if (Math.abs(node.position.x - finalPosition.x) < 50 && 
+            Math.abs(node.position.y - finalPosition.y) < 50) {
+          // Offset the new node slightly
+          finalPosition.x += 30;
+          finalPosition.y += 30;
+        }
+      });
+
       const newNode = {
         id: `${Date.now()}`,
         type: 'default',
-        position,
+        position: finalPosition,
         data: { label: `${type} node` },
       };
 
@@ -67,7 +109,9 @@ function WorkflowCanvasFixed() {
   );
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 60px)' }}>
+    <>
+      <style>{customStyles}</style>
+      <div style={{ display: 'flex', height: 'calc(100vh - 60px)' }}>
       {/* Simple Asset Palette */}
       <div style={{ 
         width: '200px', 
@@ -130,6 +174,10 @@ function WorkflowCanvasFixed() {
           onInit={setReactFlowInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
+          nodesDraggable={true}
+          nodesConnectable={true}
+          nodesFocusable={true}
+          elementsSelectable={true}
           fitView
         >
           <Controls />
@@ -138,6 +186,7 @@ function WorkflowCanvasFixed() {
         </ReactFlow>
       </div>
     </div>
+    </>
   );
 }
 
