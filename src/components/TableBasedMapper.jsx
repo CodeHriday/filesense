@@ -289,6 +289,77 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     return buildExpression(mapping);
   };
 
+  // Syntax highlighting function
+  const highlightExpression = (expression) => {
+    if (!expression) return '';
+    
+    // Get all column names and variable names for matching
+    const columnNames = schema.map(f => f.name);
+    const variableNames = variables.map(v => v.name);
+    const functionNames = TRANSFORMATION_OPTIONS.map(t => t.value);
+    
+    // Build regex pattern for tokenization
+    // Match: strings, variables, or identifiers (including hyphenated function names)
+    const pattern = /'[^']*'|"[^"]*"|\$\w+|[\w-]+/g;
+    
+    const tokens = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = pattern.exec(expression)) !== null) {
+      // Add any text before this match (operators, parens, etc.)
+      if (match.index > lastIndex) {
+        tokens.push({
+          type: 'other',
+          text: expression.substring(lastIndex, match.index)
+        });
+      }
+      
+      const token = match[0];
+      
+      // Determine token type
+      if (token.startsWith("'") || token.startsWith('"')) {
+        // String literal
+        tokens.push({ type: 'string', text: token });
+      } else if (token.startsWith('$')) {
+        // Variable reference
+        tokens.push({ type: 'variable', text: token });
+      } else if (functionNames.includes(token)) {
+        // Function name
+        tokens.push({ type: 'function', text: token });
+      } else if (columnNames.includes(token)) {
+        // Column name
+        tokens.push({ type: 'column', text: token });
+      } else {
+        // Other identifier or keyword
+        tokens.push({ type: 'other', text: token });
+      }
+      
+      lastIndex = pattern.lastIndex;
+    }
+    
+    // Add any remaining text
+    if (lastIndex < expression.length) {
+      tokens.push({
+        type: 'other',
+        text: expression.substring(lastIndex)
+      });
+    }
+    
+    // Convert tokens to JSX
+    return tokens.map((token, idx) => {
+      const style = {
+        color: token.type === 'function' ? '#10B981' :  // green
+               token.type === 'column' ? '#3B82F6' :     // blue
+               token.type === 'variable' ? '#8B5CF6' :   // purple for variables
+               token.type === 'string' ? '#000000' :     // black
+               '#374151'  // default dark gray
+      };
+      
+      return <span key={idx} style={style}>{token.text}</span>;
+    });
+  };
+
   // Variable handlers
   const handleAddVariable = () => {
     setNewVariable({
@@ -1019,13 +1090,23 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       <div className="expression-builder-header">
                         <label>Expression *</label>
                       </div>
-                      <textarea
-                        ref={expressionTextareaRef}
-                        className="expression-textarea"
-                        value={newVariable.expression}
-                        onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
-                        placeholder="Click + buttons to insert columns and functions, or type directly..."
-                      />
+                      <div className="expression-editor-container">
+                        <div className="expression-highlight-layer">
+                          {highlightExpression(newVariable.expression)}
+                          {!newVariable.expression && (
+                            <span className="expression-placeholder">
+                              Click + buttons to insert columns and functions, or type directly...
+                            </span>
+                          )}
+                        </div>
+                        <textarea
+                          ref={expressionTextareaRef}
+                          className="expression-textarea expression-textarea-overlay"
+                          value={newVariable.expression}
+                          onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
+                          spellCheck="false"
+                        />
+                      </div>
 
                       <div className="expression-help">
                         <div className="expression-help-title">💡 Tips:</div>
@@ -1164,13 +1245,23 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       <div className="expression-builder-header">
                         <label>Expression *</label>
                       </div>
-                      <textarea
-                        ref={editExpressionTextareaRef}
-                        className="expression-textarea"
-                        value={editingVariable.expression || ''}
-                        onChange={(e) => setEditingVariable({ ...editingVariable, expression: e.target.value })}
-                        placeholder="Click + buttons to insert columns and functions, or type directly..."
-                      />
+                      <div className="expression-editor-container">
+                        <div className="expression-highlight-layer">
+                          {highlightExpression(editingVariable.expression || '')}
+                          {!editingVariable.expression && (
+                            <span className="expression-placeholder">
+                              Click + buttons to insert columns and functions, or type directly...
+                            </span>
+                          )}
+                        </div>
+                        <textarea
+                          ref={editExpressionTextareaRef}
+                          className="expression-textarea expression-textarea-overlay"
+                          value={editingVariable.expression || ''}
+                          onChange={(e) => setEditingVariable({ ...editingVariable, expression: e.target.value })}
+                          spellCheck="false"
+                        />
+                      </div>
 
                       <div className="expression-help">
                         <div className="expression-help-title">💡 Tips:</div>

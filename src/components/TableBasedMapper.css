@@ -757,6 +757,36 @@
   color: #374151;
 }
 
+/* Expression Editor with Syntax Highlighting */
+.expression-editor-container {
+  position: relative;
+  width: 100%;
+}
+
+.expression-highlight-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 200px;
+  padding: 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  pointer-events: none;
+  overflow-wrap: break-word;
+  color: #000;
+}
+
+.expression-placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 .expression-textarea {
   width: 100%;
   min-height: 200px;
@@ -768,6 +798,13 @@
   line-height: 1.5;
   resize: vertical;
   transition: border-color 0.15s;
+  background: transparent;
+  position: relative;
+}
+
+.expression-textarea-overlay {
+  color: transparent;
+  caret-color: #374151;
 }
 
 .expression-textarea:focus {
