@@ -50,6 +50,7 @@ import NStepWorkflows from './pages/NStepWorkflows';
 import ETLScheduler from './pages/ETLScheduler';
 import SchedulerForm from './pages/SchedulerForm';
 import WorkflowCanvas from './pages/WorkflowCanvas';
+import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowTest from './pages/WorkflowTest';
 import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
@@ -234,7 +235,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/etl-scheduler" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
                 <Route path="/etl-scheduler/create" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
                 <Route path="/etl-scheduler/:scheduleId/edit" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
-                <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvas /></ProtectedRoute>} />
+                <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasFixed /></ProtectedRoute>} />
                 <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
                 {/* Development Routes */}
                 <Route path="/hooks-demo" element={<ProtectedRoute><HooksDemo /></ProtectedRoute>} />
