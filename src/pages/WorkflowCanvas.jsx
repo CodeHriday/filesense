@@ -8,6 +8,7 @@ import ReactFlow, {
   Background,
   MiniMap,
   Panel,
+  applyNodeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './WorkflowCanvas.css';
@@ -25,7 +26,7 @@ const nodeTypes = {
 };
 
 function WorkflowCanvas() {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [nodes, setNodes] = useState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [workflows, setWorkflows] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
@@ -34,6 +35,16 @@ function WorkflowCanvas() {
   const [isExecuting, setIsExecuting] = useState(false);
   const reactFlowWrapper = useRef(null);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
+  
+  // Custom onNodesChange handler for React 19 compatibility
+  const onNodesChange = useCallback((changes) => {
+    console.log('Node changes detected:', changes);
+    setNodes((nds) => {
+      const updatedNodes = applyNodeChanges(changes, nds);
+      console.log('Updated nodes:', updatedNodes);
+      return updatedNodes;
+    });
+  }, [setNodes]);
 
   useEffect(() => {
     loadWorkflows();
@@ -193,7 +204,7 @@ function WorkflowCanvas() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, nodes, setNodes, findAvailablePosition]
+    [reactFlowInstance, nodes, findAvailablePosition]
   );
 
   const validateGraph = () => {
@@ -398,6 +409,8 @@ function WorkflowCanvas() {
             nodesDraggable={true}
             nodesConnectable={true}
             elementsSelectable={true}
+            selectNodesOnDrag={false}
+            panOnDrag={false}
             fitView
           >
             <Controls />
