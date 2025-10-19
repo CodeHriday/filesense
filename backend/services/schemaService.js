@@ -571,7 +571,49 @@ async function parseFileSchema(fileContent, fileExtension) {
       }
     
     case 'parquet':
-      throw new Error('Parquet file support is temporarily unavailable due to compatibility issues. Please use CSV, JSON, XLSX, or XML files instead.');
+      try {
+        const { parquetReadObjects, parquetMetadata } = await import('hyparquet');
+        
+        const arrayBuffer = fileContent.buffer.slice(
+          fileContent.byteOffset,
+          fileContent.byteOffset + fileContent.byteLength
+        );
+        
+        systemLogger.info('Parquet schema extraction - reading metadata');
+        
+        const metadata = parquetMetadata(arrayBuffer);
+        
+        if (metadata.schema && metadata.schema.length > 0) {
+          metadata.schema.forEach((field, index) => {
+            if (field.element && field.element.name) {
+              schema.push({
+                name: field.element.name,
+                type: inferParquetType(field.element.type),
+                index: index
+              });
+            }
+          });
+        }
+        
+        if (schema.length === 0) {
+          const parquetIterator = await parquetReadObjects({ file: arrayBuffer });
+          const firstRow = await parquetIterator.next();
+          
+          if (!firstRow.done && firstRow.value) {
+            Object.keys(firstRow.value).forEach((key, index) => {
+              schema.push({
+                name: key,
+                type: inferDataType(firstRow.value[key]),
+                index: index
+              });
+            });
+          }
+        }
+        
+        return schema;
+      } catch (error) {
+        throw new Error(`Failed to parse Parquet: ${error.message}`);
+      }
     
     case 'xml':
       try {
@@ -673,6 +715,25 @@ async function parseFileSchema(fileContent, fileExtension) {
     default:
       throw new Error(`Unsupported file type: ${fileExtension}. Supported types: CSV, JSON, XLSX, XLS, Parquet, XML`);
   }
+}
+
+/**
+ * Infer Parquet data type from schema type
+ * @param {string} parquetType - Parquet type from metadata
+ * @returns {string} - Simplified type
+ */
+function inferParquetType(parquetType) {
+  if (!parquetType) return 'string';
+  
+  const typeStr = parquetType.toString().toLowerCase();
+  
+  if (typeStr.includes('int')) return 'integer';
+  if (typeStr.includes('float') || typeStr.includes('double')) return 'float';
+  if (typeStr.includes('bool')) return 'boolean';
+  if (typeStr.includes('date') || typeStr.includes('time')) return 'date';
+  if (typeStr.includes('string') || typeStr.includes('byte_array')) return 'string';
+  
+  return 'string';
 }
 
 /**
