@@ -112,15 +112,32 @@ function nullToValue(value, params) {
  * Concatenate multiple fields or add prefix/suffix
  */
 function concat(value, params) {
-  const { fields = [], separator = '', prefix = '', suffix = '' } = params;
+  const { fields = [], separator = '', prefix = '', suffix = '', concatParts = [] } = params;
   
+  // NEW FORMAT: Use concatParts to maintain proper ordering of fields and literals
+  if (concatParts.length > 0) {
+    const parts = concatParts.map(part => {
+      if (part.type === 'field') {
+        return value[part.value] || '';
+      } else if (part.type === 'literal') {
+        return part.value;
+      } else if (part.type === 'variable') {
+        // Variables should be in the enriched row as $var_name
+        return value[part.value] || '';
+      }
+      return '';
+    });
+    return prefix + parts.join('') + suffix;
+  }
+  
+  // LEGACY FORMAT: Use fields with separator
   if (fields.length > 0) {
     // Concatenate multiple fields (value is a row object)
     const values = fields.map(field => value[field] || '');
     return prefix + values.join(separator) + suffix;
   }
   
-  // Add prefix/suffix to single value
+  // Single value with prefix/suffix
   return prefix + (value || '') + suffix;
 }
 
@@ -543,17 +560,63 @@ function applyTransformationChain(value, transformations) {
 }
 
 /**
- * Transform a complete row of data
+ * Transform a complete row of data with variables support
  * @param {Object} row - Input row
  * @param {Object} fieldMappings - Field mapping configuration
+ * @param {Array} variables - Variable definitions (optional)
  * @returns {Object} - Transformed row
  */
-function transformRow(row, fieldMappings) {
+function transformRow(row, fieldMappings, variables = []) {
   // If no field mappings provided, pass through original row
   if (!fieldMappings || fieldMappings.length === 0) {
     return row;
   }
   
+  // Step 1: Evaluate variables sequentially (they can reference previous variables)
+  const variableValues = {};
+  const enrichedRow = { ...row };
+  
+  if (variables && variables.length > 0) {
+    for (const variable of variables) {
+      const { name, sourceFields = [], transformations = [] } = variable;
+      
+      let value;
+      
+      // Variables can reference source fields, other variables, or be system-generated
+      if (sourceFields && sourceFields.length > 0) {
+        // PRIORITY 1: Check if transformations require row-level context (concat/coalesce)
+        if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce')) {
+          // Multi-field operations - pass enriched row and transformations are applied inside
+          // DO NOT apply transformations again (already applied with row context)
+          value = applyTransformationChain(enrichedRow, transformations);
+        } else {
+          // PRIORITY 2: Check if source is a variable reference
+          const firstSource = sourceFields[0];
+          if (firstSource.startsWith('$')) {
+            // Reference to another variable
+            const varName = firstSource.substring(1);
+            value = variableValues[varName];
+            // Apply transformations to variable value
+            value = applyTransformationChain(value, transformations);
+          } else {
+            // Single field reference
+            value = enrichedRow[firstSource];
+            // Apply transformations to single field value
+            value = applyTransformationChain(value, transformations);
+          }
+        }
+      } else {
+        // System-generated or static value
+        value = applyTransformationChain(null, transformations);
+      }
+      
+      // Store variable value
+      variableValues[name] = value;
+      enrichedRow[`$${name}`] = value; // Make available as $variable_name
+    }
+  }
+  
+  // Step 2: Process field mappings
   const transformedRow = {};
   
   for (const mapping of fieldMappings) {
@@ -561,15 +624,26 @@ function transformRow(row, fieldMappings) {
     
     let value;
     
-    // Handle multi-field operations (concat, coalesce)
+    // Process field mappings with proper priority
     if (sourceFields && sourceFields.length > 0) {
+      // PRIORITY 1: Check if transformations require row-level context (concat/coalesce)
       if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce')) {
-        // Pass entire row for multi-field transformations
-        value = applyTransformationChain(row, transformations);
+        // Multi-field operations - pass enriched row
+        value = applyTransformationChain(enrichedRow, transformations);
       } else {
-        // Use first source field
-        value = row[sourceFields[0]];
-        value = applyTransformationChain(value, transformations);
+        // PRIORITY 2: Check if source is a variable reference
+        const firstSource = sourceFields[0];
+        
+        if (firstSource.startsWith('$')) {
+          // Variable reference
+          const varName = firstSource.substring(1);
+          value = variableValues[varName];
+          value = applyTransformationChain(value, transformations);
+        } else {
+          // Use first source field
+          value = enrichedRow[firstSource];
+          value = applyTransformationChain(value, transformations);
+        }
       }
     } else {
       // Static or system-generated value

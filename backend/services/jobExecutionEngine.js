@@ -526,35 +526,40 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     if (fileExtension === 'csv') {
       parseResult = await parseAndTransformCSV(
         fileBuffer, 
-        mapping.field_mappings, 
+        mapping.field_mappings,
+        mapping.variables,
         jobId, 
         pool
       );
     } else if (fileExtension === 'json') {
       parseResult = await parseAndTransformJSON(
         fileBuffer, 
-        mapping.field_mappings, 
+        mapping.field_mappings,
+        mapping.variables,
         jobId, 
         pool
       );
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
       parseResult = await parseAndTransformXLSX(
         fileBuffer, 
-        mapping.field_mappings, 
+        mapping.field_mappings,
+        mapping.variables,
         jobId, 
         pool
       );
     } else if (fileExtension === 'parquet') {
       parseResult = await parseAndTransformParquet(
         fileBuffer, 
-        mapping.field_mappings, 
+        mapping.field_mappings,
+        mapping.variables,
         jobId, 
         pool
       );
     } else if (fileExtension === 'xml') {
       parseResult = await parseAndTransformXML(
         fileBuffer, 
-        mapping.field_mappings, 
+        mapping.field_mappings,
+        mapping.variables,
         jobId, 
         pool
       );
@@ -746,29 +751,153 @@ function convertFieldMappings(dbFieldMappings) {
     return [];
   }
   
+  const { parseExpressionToTransformation, evaluateTransformationConfig } = require('./expressionParser');
+  
   return dbFieldMappings.map(mapping => {
-    // Handle source_field - it can be a string, array, or null from JSONB storage
-    let sourceFields = [];
-    if (mapping.source_field) {
-      if (Array.isArray(mapping.source_field)) {
-        sourceFields = mapping.source_field;
-      } else {
-        sourceFields = [mapping.source_field];
-      }
-    }
-    
     const converted = {
       targetField: mapping.target_field,
-      sourceFields: sourceFields,
+      sourceFields: [],
       transformations: []
     };
     
-    // Convert transformation if present
-    if (mapping.transformation && mapping.transformation !== 'none') {
+    // NEW FORMAT: expression field (from visual builder)
+    if (mapping.expression) {
+      try {
+        const transformConfig = parseExpressionToTransformation(mapping.expression);
+        
+        if (transformConfig) {
+          const { sourceFields, transformations } = evaluateTransformationConfig(transformConfig);
+          converted.sourceFields = sourceFields;
+          converted.transformations = transformations;
+        }
+      } catch (error) {
+        systemLogger.error('Expression parsing failed for mapping:', {
+          target_field: mapping.target_field,
+          expression: mapping.expression,
+          error: error.message
+        });
+        // Fall through to legacy format or empty
+      }
+    } 
+    // LEGACY FORMAT: transformation + transformation_params
+    else if (mapping.transformation && mapping.transformation !== 'none') {
+      // Handle source_field - it can be a string, array, or null from JSONB storage
+      if (mapping.source_field) {
+        if (Array.isArray(mapping.source_field)) {
+          converted.sourceFields = mapping.source_field;
+        } else {
+          converted.sourceFields = [mapping.source_field];
+        }
+      }
+      
+      // Normalize transformation name (handle hyphenated and uppercase variants)
+      let transformationType = mapping.transformation.toLowerCase().replace(/-/g, '_');
+      
+      // Map common UI names to engine names
+      const legacyTypeMap = {
+        'cast_string': 'cast',
+        'cast_integer': 'cast',
+        'cast_float': 'cast',
+        'cast_boolean': 'cast',
+        'null_to_value': 'null_to_value',
+        'trim': 'trim',
+        'round': 'round',
+        'ceil': 'ceil',
+        'floor': 'floor',
+        'upper': 'upper',
+        'lower': 'lower'
+      };
+      
+      transformationType = legacyTypeMap[transformationType] || transformationType;
+      
+      // Adjust params based on type
+      let params = { ...(mapping.transformation_params || {}) };
+      if (transformationType === 'cast') {
+        // Infer target type from original transformation name
+        const originalName = mapping.transformation.toLowerCase().replace(/-/g, '_');
+        if (originalName.includes('string')) params.targetType = 'string';
+        else if (originalName.includes('integer')) params.targetType = 'integer';
+        else if (originalName.includes('float')) params.targetType = 'float';
+        else if (originalName.includes('boolean')) params.targetType = 'boolean';
+        else if (!params.targetType) params.targetType = 'string';
+      } else if (transformationType === 'null_to_value' && params.value && !params.defaultValue) {
+        // Map 'value' param to 'defaultValue'
+        params.defaultValue = params.value;
+        delete params.value;
+      }
+      
       converted.transformations.push({
-        type: mapping.transformation,
-        params: mapping.transformation_params || {}
+        type: transformationType,
+        params
       });
+    }
+    // SIMPLE PASS-THROUGH: just source to target
+    else if (mapping.source_field) {
+      if (Array.isArray(mapping.source_field)) {
+        converted.sourceFields = mapping.source_field;
+      } else {
+        converted.sourceFields = [mapping.source_field];
+      }
+    }
+    
+    return converted;
+  });
+}
+
+/**
+ * Convert database variable definitions to transformRow expected format
+ * @param {Array} dbVariables - Variables from database
+ * @returns {Array} - Converted variables for transformRow
+ */
+function convertVariables(dbVariables) {
+  if (!dbVariables || dbVariables.length === 0) {
+    return [];
+  }
+  
+  const { parseExpressionToTransformation, evaluateTransformationConfig } = require('./expressionParser');
+  
+  // Sort by sequence to ensure correct evaluation order
+  const sortedVariables = [...dbVariables].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+  
+  return sortedVariables.map(variable => {
+    const converted = {
+      name: variable.name,
+      sourceFields: [],
+      transformations: []
+    };
+    
+    // NEW FORMAT: expression field
+    if (variable.expression) {
+      try {
+        const transformConfig = parseExpressionToTransformation(variable.expression);
+        
+        if (transformConfig) {
+          const { sourceFields, transformations } = evaluateTransformationConfig(transformConfig);
+          converted.sourceFields = sourceFields;
+          converted.transformations = transformations;
+        }
+      } catch (error) {
+        systemLogger.error('Expression parsing failed for variable:', {
+          name: variable.name,
+          expression: variable.expression,
+          error: error.message
+        });
+      }
+    }
+    // LEGACY FORMAT: transformation + params
+    else if (variable.transformation) {
+      if (variable.source_field) {
+        converted.sourceFields = Array.isArray(variable.source_field) 
+          ? variable.source_field 
+          : [variable.source_field];
+      }
+      
+      if (variable.transformation !== 'none') {
+        converted.transformations.push({
+          type: variable.transformation,
+          params: variable.params || {}
+        });
+      }
     }
     
     return converted;
@@ -778,7 +907,7 @@ function convertFieldMappings(dbFieldMappings) {
 /**
  * Parse CSV and apply transformations
  */
-async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
+async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, pool) {
   return new Promise((resolve, reject) => {
     const transformedRows = [];
     let rowsRead = 0;
@@ -786,8 +915,9 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
     let rowsFailed = 0;
     let firstRow = null;
     
-    // Convert field mappings to expected format
+    // Convert field mappings and variables to expected format
     const convertedMappings = convertFieldMappings(fieldMappings);
+    const convertedVariables = convertVariables(variables);
     
     const stream = Readable.from(buffer);
     
@@ -809,7 +939,7 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
         }
         
         try {
-          const transformedRow = transformRow(row, convertedMappings);
+          const transformedRow = transformRow(row, convertedMappings, convertedVariables);
           
           // Debug first transformed row
           if (rowsRead === 1) {
@@ -865,7 +995,7 @@ async function parseAndTransformCSV(buffer, fieldMappings, jobId, pool) {
 /**
  * Parse JSON and apply transformations
  */
-async function parseAndTransformJSON(buffer, fieldMappings, jobId, pool) {
+async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, pool) {
   try {
     const jsonData = JSON.parse(buffer.toString());
     const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
@@ -875,13 +1005,14 @@ async function parseAndTransformJSON(buffer, fieldMappings, jobId, pool) {
     let rowsWritten = 0;
     let rowsFailed = 0;
     
-    // Convert field mappings to expected format
+    // Convert field mappings and variables to expected format
     const convertedMappings = convertFieldMappings(fieldMappings);
+    const convertedVariables = convertVariables(variables);
     
     for (const row of dataArray) {
       rowsRead++;
       try {
-        const transformedRow = transformRow(row, convertedMappings);
+        const transformedRow = transformRow(row, convertedMappings, convertedVariables);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
@@ -908,7 +1039,7 @@ async function parseAndTransformJSON(buffer, fieldMappings, jobId, pool) {
 /**
  * Parse XLSX (Excel) and apply transformations
  */
-async function parseAndTransformXLSX(buffer, fieldMappings, jobId, pool) {
+async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, pool) {
   try {
     // Parse XLSX file
     const workbook = xlsx.read(buffer, { type: 'buffer' });
@@ -921,13 +1052,14 @@ async function parseAndTransformXLSX(buffer, fieldMappings, jobId, pool) {
     let rowsWritten = 0;
     let rowsFailed = 0;
     
-    // Convert field mappings to expected format
+    // Convert field mappings and variables to expected format
     const convertedMappings = convertFieldMappings(fieldMappings);
+    const convertedVariables = convertVariables(variables);
     
     for (const row of jsonData) {
       rowsRead++;
       try {
-        const transformedRow = transformRow(row, convertedMappings);
+        const transformedRow = transformRow(row, convertedMappings, convertedVariables);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
@@ -954,7 +1086,7 @@ async function parseAndTransformXLSX(buffer, fieldMappings, jobId, pool) {
 /**
  * Parse Parquet and apply transformations
  */
-async function parseAndTransformParquet(buffer, fieldMappings, jobId, pool) {
+async function parseAndTransformParquet(buffer, fieldMappings, variables, jobId, pool) {
   try {
     // Dynamic import for hyparquet (ES module)
     const { parquetReadObjects } = await import('hyparquet');
@@ -965,8 +1097,9 @@ async function parseAndTransformParquet(buffer, fieldMappings, jobId, pool) {
       buffer.byteOffset + buffer.byteLength
     );
     
-    // Convert field mappings to expected format
+    // Convert field mappings and variables to expected format
     const convertedMappings = convertFieldMappings(fieldMappings);
+    const convertedVariables = convertVariables(variables);
     
     const transformedRows = [];
     let rowsRead = 0;
@@ -990,7 +1123,7 @@ async function parseAndTransformParquet(buffer, fieldMappings, jobId, pool) {
           });
         }
         
-        const transformedRow = transformRow(row, convertedMappings);
+        const transformedRow = transformRow(row, convertedMappings, convertedVariables);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
@@ -1070,7 +1203,7 @@ function flattenObject(obj, prefix = '') {
  * Parse XML and apply transformations
  * Enhanced to handle multiple XML structures similar to file upload feature
  */
-async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
+async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, pool) {
   try {
     const parser = new XMLParser({
       ignoreAttributes: false,
@@ -1172,8 +1305,9 @@ async function parseAndTransformXML(buffer, fieldMappings, jobId, pool) {
     let rowsWritten = 0;
     let rowsFailed = 0;
     
-    // Convert field mappings to expected format
+    // Convert field mappings and variables to expected format
     const convertedMappings = convertFieldMappings(fieldMappings);
+    const convertedVariables = convertVariables(variables);
     
     for (const row of records) {
       rowsRead++;
