@@ -4,6 +4,16 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 19, 2025**: Enhanced Variables feature with 3-pane expression builder
+  - Redesigned Add/Edit Variable modals with sophisticated 3-pane layout:
+    - Left pane (20%): Source columns and previously defined variables with + buttons
+    - Middle pane (15%): Transformation functions grouped by category with + buttons
+    - Right pane (65%): Expression builder textarea with real-time preview
+  - Click + buttons to insert columns and function templates at cursor position
+  - Supports building complex nested expressions like: concat(UPPER(first_name), ' ', last_name)
+  - Smart cursor tracking maintains insertion point during edits
+  - Expression field stored directly in variables (backwards compatible with legacy format)
+  - Built-in help tips and expression preview for better UX
 - **October 19, 2025**: Implemented Variables feature for ETL field mapping
   - Added collapsible Variables section in TableBasedMapper with sequential pre-calculations
   - Variables execute in defined order before field mappings for derived columns
