@@ -1616,36 +1616,76 @@ const dropLocationRoutes = require('./backend/routes/dropLocation');
 app.use('/api/drop-location', authenticateToken, dropLocationRoutes);
 
 // Transformation routes
-const transformationRoutes = require('./backend/routes/transformations');
-app.use('/api/transformations', authenticateToken, transformationRoutes);
+try {
+  const transformationRoutes = require('./backend/routes/transformations');
+  app.use('/api/transformations', authenticateToken, transformationRoutes);
+  console.log('✓ Registered /api/transformations route');
+} catch (error) {
+  console.error('✗ Failed to register /api/transformations:', error.message);
+}
 
 // Job routes
-const jobRoutes = require('./backend/routes/jobs');
-app.use('/api/jobs', authenticateToken, jobRoutes);
+try {
+  const jobRoutes = require('./backend/routes/jobs');
+  app.use('/api/jobs', authenticateToken, jobRoutes);
+  console.log('✓ Registered /api/jobs route');
+} catch (error) {
+  console.error('✗ Failed to register /api/jobs:', error.message);
+}
 
 // Mapping Groups routes
-const mappingGroupsRoutes = require('./backend/routes/mappingGroups');
-app.use('/api/mapping-groups', authenticateToken, mappingGroupsRoutes);
+try {
+  const mappingGroupsRoutes = require('./backend/routes/mappingGroups');
+  app.use('/api/mapping-groups', authenticateToken, mappingGroupsRoutes);
+  console.log('✓ Registered /api/mapping-groups route');
+} catch (error) {
+  console.error('✗ Failed to register /api/mapping-groups:', error.message);
+}
 
 // Workflow Steps routes
-const workflowStepsRoutes = require('./backend/routes/workflowSteps');
-app.use('/api/workflow-steps', authenticateToken, workflowStepsRoutes);
+try {
+  const workflowStepsRoutes = require('./backend/routes/workflowSteps');
+  app.use('/api/workflow-steps', authenticateToken, workflowStepsRoutes);
+  console.log('✓ Registered /api/workflow-steps route');
+} catch (error) {
+  console.error('✗ Failed to register /api/workflow-steps:', error.message);
+}
 
 // N-Step Workflows routes
-const nStepWorkflowsRoutes = require('./backend/routes/nStepWorkflows');
-app.use('/api/n-step-workflows', authenticateToken, nStepWorkflowsRoutes);
+try {
+  const nStepWorkflowsRoutes = require('./backend/routes/nStepWorkflows');
+  app.use('/api/n-step-workflows', authenticateToken, nStepWorkflowsRoutes);
+  console.log('✓ Registered /api/n-step-workflows route');
+} catch (error) {
+  console.error('✗ Failed to register /api/n-step-workflows:', error.message);
+}
 
 // Scheduler routes (new workflow orchestration scheduler)
-const schedulerRoutes = require('./backend/routes/scheduler');
-app.use('/api/schedules', authenticateToken, schedulerRoutes);
+try {
+  const schedulerRoutes = require('./backend/routes/scheduler');
+  app.use('/api/schedules', authenticateToken, schedulerRoutes);
+  console.log('✓ Registered /api/schedules route');
+} catch (error) {
+  console.error('✗ Failed to register /api/schedules:', error.message);
+}
 
 // File Audit routes
-const fileAuditRoutes = require('./backend/routes/fileAudit');
-app.use('/api/file-audit', authenticateToken, fileAuditRoutes);
+try {
+  const fileAuditRoutes = require('./backend/routes/fileAudit');
+  app.use('/api/file-audit', authenticateToken, fileAuditRoutes);
+  console.log('✓ Registered /api/file-audit route');
+} catch (error) {
+  console.error('✗ Failed to register /api/file-audit:', error.message);
+}
 
 // Visual Workflows routes (new graph-based workflow orchestration)
-const visualWorkflowsRoutes = require('./backend/routes/visualWorkflows');
-app.use('/api/visual-workflows', authenticateToken, visualWorkflowsRoutes);
+try {
+  const visualWorkflowsRoutes = require('./backend/routes/visualWorkflows');
+  app.use('/api/visual-workflows', authenticateToken, visualWorkflowsRoutes);
+  console.log('✓ Registered /api/visual-workflows route');
+} catch (error) {
+  console.error('✗ Failed to register /api/visual-workflows:', error.message);
+}
 
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
