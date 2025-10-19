@@ -44,6 +44,48 @@
 .reactflow-wrapper {
   flex: 1;
   height: 100%;
+  position: relative !important;
+}
+
+/* Override global reset for ReactFlow components */
+.reactflow-wrapper * {
+  box-sizing: border-box !important;
+}
+
+.react-flow {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.react-flow__viewport {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.react-flow__node {
+  position: absolute !important;
+  z-index: 10 !important;
+  pointer-events: all !important;
+  transform-origin: 0 0 !important;
+}
+
+.react-flow__edge {
+  position: absolute !important;
+  z-index: 5 !important;
+  pointer-events: all !important;
+}
+
+/* Ensure nodes are visible and not clipped */
+.react-flow__nodes {
+  position: absolute !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+
+.react-flow__nodes > * {
+  pointer-events: all !important;
 }
 
 .workflow-info {
