@@ -102,15 +102,15 @@ function WorkflowCanvas() {
   }, []);
 
   const findAvailablePosition = useCallback((initialPosition, existingNodes) => {
-    const NODE_WIDTH = 220;
-    const NODE_HEIGHT = 120;
-    const MIN_SPACING = 80;
+    const NODE_WIDTH = 150;
+    const NODE_HEIGHT = 150;
+    const MIN_SPACING = 50;
     
     const isPositionOccupied = (pos) => {
       return existingNodes.some(node => {
         const dx = Math.abs(node.position.x - pos.x);
         const dy = Math.abs(node.position.y - pos.y);
-        return dx < (NODE_WIDTH + MIN_SPACING) && dy < (NODE_HEIGHT + MIN_SPACING);
+        return dx < (NODE_WIDTH + MIN_SPACING) || dy < (NODE_HEIGHT + MIN_SPACING);
       });
     };
 
@@ -188,9 +188,9 @@ function WorkflowCanvas() {
         return;
       }
 
-      const initialPosition = reactFlowInstance.project({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
+      const initialPosition = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
       });
 
       const position = findAvailablePosition(initialPosition, nodesRef.current);
@@ -419,7 +419,9 @@ function WorkflowCanvas() {
             nodesDraggable={true}
             nodesConnectable={true}
             elementsSelectable={true}
-            fitView
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+            minZoom={0.1}
+            maxZoom={4}
           >
             <Controls />
             <MiniMap />
