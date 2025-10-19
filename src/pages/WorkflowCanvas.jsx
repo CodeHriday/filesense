@@ -195,6 +195,8 @@ function WorkflowCanvas() {
         id: `${assetData.type}-${assetData.assetId}-${Date.now()}`,
         type: assetData.type,
         position,
+        draggable: true, // Explicitly set draggable
+        selectable: true, // Explicitly set selectable
         data: {
           assetId: assetData.assetId,
           assetName: assetData.assetName,

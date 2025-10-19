@@ -9,9 +9,9 @@ export const API_BASE_URL = (() => {
     return 'http://localhost:3000';
   }
   
-  // For Replit environment, always use HTTP for backend API
-  // Backend API server doesn't have SSL configured
-  return `http://${hostname}:3000`;
+  // For Replit environment, use relative path
+  // Vite will proxy /api calls to the backend server
+  return '';
 })();
 
 // Blumetra theme colors
