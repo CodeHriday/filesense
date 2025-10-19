@@ -58,34 +58,62 @@
   height: 100% !important;
 }
 
+.react-flow__renderer {
+  position: absolute !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .react-flow__viewport {
   position: relative !important;
+  transform-origin: 0 0 !important;
   z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+.react-flow__nodes {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none !important;
 }
 
 .react-flow__node {
   position: absolute !important;
-  z-index: 10 !important;
+  user-select: none !important;
   pointer-events: all !important;
   transform-origin: 0 0 !important;
+  box-sizing: border-box !important;
+  z-index: 10 !important;
+}
+
+.react-flow__edges {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none !important;
 }
 
 .react-flow__edge {
   position: absolute !important;
+  pointer-events: visibleStroke !important;
   z-index: 5 !important;
-  pointer-events: all !important;
 }
 
-/* Ensure nodes are visible and not clipped */
-.react-flow__nodes {
+/* Ensure ReactFlow controls and minimap are visible */
+.react-flow__controls,
+.react-flow__minimap {
   position: absolute !important;
-  width: 100% !important;
-  height: 100% !important;
-  pointer-events: none !important;
+  z-index: 1000 !important;
 }
 
-.react-flow__nodes > * {
-  pointer-events: all !important;
+/* Fix for custom node rendering */
+.react-flow__node-custom {
+  background: white !important;
+  border: 2px solid #888 !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  min-width: 150px !important;
 }
 
 .workflow-info {
