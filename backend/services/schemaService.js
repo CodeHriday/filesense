@@ -596,17 +596,19 @@ async function parseFileSchema(fileContent, fileExtension) {
         }
         
         if (schema.length === 0) {
-          const parquetIterator = await parquetReadObjects({ file: arrayBuffer });
-          const firstRow = await parquetIterator.next();
+          systemLogger.info('Parquet schema extraction - reading first row from data');
           
-          if (!firstRow.done && firstRow.value) {
-            Object.keys(firstRow.value).forEach((key, index) => {
-              schema.push({
-                name: key,
-                type: inferDataType(firstRow.value[key]),
-                index: index
+          for await (const row of parquetReadObjects({ file: arrayBuffer })) {
+            if (row) {
+              Object.keys(row).forEach((key, index) => {
+                schema.push({
+                  name: key,
+                  type: inferDataType(row[key]),
+                  index: index
+                });
               });
-            });
+              break;
+            }
           }
         }
         
