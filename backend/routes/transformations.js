@@ -9,6 +9,40 @@ const { findMatchingFiles, countMatchingFiles } = require('../utils/filePatternM
 const { validateSchemaConsistency } = require('../services/schemaService');
 
 /**
+ * Validate variables array
+ * Ensures variable names are valid, unique, and properly sequenced
+ */
+function validateVariables(variables) {
+  if (!Array.isArray(variables)) {
+    return { valid: false, errors: ['Variables must be an array'] };
+  }
+  
+  const errors = [];
+  const namesSeen = new Set();
+  const namePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  
+  variables.forEach((variable, index) => {
+    // Validate name exists and matches pattern
+    if (!variable.name) {
+      errors.push(`Variable at index ${index} has no name`);
+    } else if (!namePattern.test(variable.name)) {
+      errors.push(`Variable "${variable.name}" must start with a letter or underscore and contain only letters, numbers, and underscores`);
+    } else if (namesSeen.has(variable.name)) {
+      errors.push(`Duplicate variable name: "${variable.name}"`);
+    } else {
+      namesSeen.add(variable.name);
+    }
+    
+    // Add sequence if not present
+    if (variable.sequence === undefined) {
+      variable.sequence = index;
+    }
+  });
+  
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * GET /api/transformations
  * List all transformation mappings
  */
@@ -106,6 +140,7 @@ router.post('/', async (req, res) => {
       target_file_name,
       target_file_format = 'csv',
       field_mappings = [],
+      variables = [],
       anomaly_rules = null,
       status = 'draft'
     } = req.body;
@@ -158,6 +193,17 @@ router.post('/', async (req, res) => {
       }
     }
     
+    // Validate variables if provided
+    if (variables && variables.length > 0) {
+      const validation = validateVariables(variables);
+      if (!validation.valid) {
+        return res.status(400).json({ 
+          error: 'Invalid variables', 
+          details: validation.errors 
+        });
+      }
+    }
+    
     // Validate anomaly rules if provided
     if (anomaly_rules) {
       const validation = validateRules(anomaly_rules);
@@ -176,14 +222,14 @@ router.post('/', async (req, res) => {
         mapping_id, mapping_name, source_connection_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_name, target_file_format,
-        field_mappings, anomaly_rules, status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        field_mappings, variables, anomaly_rules, status, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `, [
       mappingId, mapping_name, source_connection_id, source_type, file_path,
       actualFilePattern, actualFilePattern, target_connection_id, target_table_name,
       target_file_name, target_file_format,
-      JSON.stringify(field_mappings), JSON.stringify(anomaly_rules), status, req.user?.id || null
+      JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null
     ]);
     
     systemLogger.info('Transformation mapping created', { mappingId, mapping_name });
@@ -215,11 +261,23 @@ router.put('/:id', async (req, res) => {
       target_file_name,
       target_file_format,
       field_mappings,
+      variables,
       anomaly_rules,
       status
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
+    
+    // Validate variables if provided
+    if (variables !== undefined && variables.length > 0) {
+      const validation = validateVariables(variables);
+      if (!validation.valid) {
+        return res.status(400).json({ 
+          error: 'Invalid variables', 
+          details: validation.errors 
+        });
+      }
+    }
     
     // Validate anomaly rules if provided
     if (anomaly_rules) {
@@ -315,6 +373,11 @@ router.put('/:id', async (req, res) => {
     if (field_mappings !== undefined) {
       updates.push(`field_mappings = $${paramIndex}`);
       values.push(JSON.stringify(field_mappings));
+      paramIndex++;
+    }
+    if (variables !== undefined) {
+      updates.push(`variables = $${paramIndex}`);
+      values.push(JSON.stringify(variables));
       paramIndex++;
     }
     if (anomaly_rules !== undefined) {

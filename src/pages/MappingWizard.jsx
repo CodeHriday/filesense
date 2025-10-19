@@ -85,6 +85,7 @@ function MappingWizard() {
   // Step 3: Schema & Field Mapping
   const [schema, setSchema] = useState([]);
   const [fieldMappings, setFieldMappings] = useState([]);
+  const [variables, setVariables] = useState([]);
   const [loadingSchema, setLoadingSchema] = useState(false);
 
   // Step 4: Target & Anomaly Rules
@@ -133,6 +134,7 @@ function MappingWizard() {
       setTargetFileName(mapping.target_file_name || '');
       setTargetFileFormat(mapping.target_file_format || 'csv');
       setFieldMappings(mapping.field_mappings || []);
+      setVariables(mapping.variables || []);
       
       // Convert anomaly rules from object format to array format
       if (mapping.anomaly_rules && typeof mapping.anomaly_rules === 'object' && !Array.isArray(mapping.anomaly_rules)) {
@@ -268,6 +270,7 @@ function MappingWizard() {
         target_file_name: targetFileName || null,
         target_file_format: targetFileFormat || 'csv',
         field_mappings: fieldMappings,
+        variables: variables,
         anomaly_rules: anomalyRulesObject
       };
 
@@ -550,7 +553,13 @@ function MappingWizard() {
               <TableBasedMapper
                 schema={schema}
                 fieldMappings={fieldMappings}
-                onMappingsChange={setFieldMappings}
+                variables={variables}
+                onMappingsChange={(mappings, vars) => {
+                  setFieldMappings(mappings);
+                  if (vars !== undefined) {
+                    setVariables(vars);
+                  }
+                }}
               />
             ) : (
               <div className="alert alert-warning">

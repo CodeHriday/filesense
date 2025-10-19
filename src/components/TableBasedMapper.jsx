@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus } from 'react-icons/fi';
+import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight } from 'react-icons/fi';
 import './TableBasedMapper.css';
 
 const TRANSFORMATION_OPTIONS = [
@@ -35,7 +35,7 @@ const TRANSFORMATION_OPTIONS = [
   { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] },
 ];
 
-const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
+const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables = [], onMappingsChange }) => {
   const [selectedSource, setSelectedSource] = useState(new Set());
   const [mappings, setMappings] = useState([]);
   const [editingExpression, setEditingExpression] = useState(null);
@@ -48,6 +48,23 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
     transformation: 'none',
     params: {}
   });
+  
+  // Variables state
+  const [variables, setVariables] = useState([]);
+  const [variablesExpanded, setVariablesExpanded] = useState(true);
+  const [editingVariable, setEditingVariable] = useState(null);
+  const [addingVariable, setAddingVariable] = useState(false);
+  const [newVariable, setNewVariable] = useState({
+    name: '',
+    sourceField: '',
+    transformation: 'none',
+    params: {}
+  });
+
+  // Sync variables from prop to local state (always sync, including empty arrays)
+  useEffect(() => {
+    setVariables(initialVariables || []);
+  }, [initialVariables]);
 
   useEffect(() => {
     if (fieldMappings && fieldMappings.length > 0) {
@@ -85,7 +102,7 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
       newSelected.delete(fieldName);
       const newMappings = mappings.filter(m => m.source_field !== fieldName);
       setMappings(newMappings);
-      onMappingsChange(newMappings);
+      onMappingsChange(newMappings, variables);
     } else {
       newSelected.add(fieldName);
       const newMapping = {
@@ -96,7 +113,7 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
       };
       const newMappings = [...mappings, newMapping];
       setMappings(newMappings);
-      onMappingsChange(newMappings);
+      onMappingsChange(newMappings, variables);
     }
     
     setSelectedSource(newSelected);
@@ -112,13 +129,13 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
     
     setMappings(newMappings);
     setSelectedSource(new Set(schema.map(f => f.name)));
-    onMappingsChange(newMappings);
+    onMappingsChange(newMappings, variables);
   };
 
   const handleClearMapping = () => {
     setMappings([]);
     setSelectedSource(new Set());
-    onMappingsChange([]);
+    onMappingsChange([], variables);
   };
 
   const handleRemoveMapping = (sourceField) => {
@@ -128,7 +145,7 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
     
     setMappings(newMappings);
     setSelectedSource(newSelected);
-    onMappingsChange(newMappings);
+    onMappingsChange(newMappings, variables);
   };
 
   const handleTargetNameChange = (sourceField, newTargetName) => {
@@ -136,7 +153,7 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
       m.source_field === sourceField ? { ...m, target_field: newTargetName } : m
     );
     setMappings(newMappings);
-    onMappingsChange(newMappings);
+    onMappingsChange(newMappings, variables);
   };
 
   const handleEditExpression = (sourceField) => {
@@ -165,7 +182,7 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
     });
 
     setMappings(newMappings);
-    onMappingsChange(newMappings);
+    onMappingsChange(newMappings, variables);
     setEditingExpression(null);
   };
 
@@ -246,7 +263,7 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
 
     const newMappings = [...mappings, newMapping];
     setMappings(newMappings);
-    onMappingsChange(newMappings);
+    onMappingsChange(newMappings, variables);
     setAddingNewColumn(false);
   };
 
@@ -272,6 +289,155 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
     return buildExpression(mapping);
   };
 
+  // Variable handlers
+  const handleAddVariable = () => {
+    setNewVariable({
+      name: '',
+      sourceField: '',
+      transformation: 'none',
+      params: {}
+    });
+    setAddingVariable(true);
+  };
+
+  const handleSaveVariable = () => {
+    if (!newVariable.name.trim()) {
+      alert('Please enter a variable name');
+      return;
+    }
+
+    // Check if variable name already exists
+    if (variables.some(v => v.name === newVariable.name)) {
+      alert('A variable with this name already exists');
+      return;
+    }
+
+    const variable = {
+      id: `var_${Date.now()}`,
+      name: newVariable.name,
+      source_field: newVariable.sourceField || null,
+      transformation: newVariable.transformation,
+      transformation_params: newVariable.params
+    };
+
+    const newVariables = [...variables, variable];
+    setVariables(newVariables);
+    setAddingVariable(false);
+    onMappingsChange(mappings, newVariables);
+  };
+
+  const handleEditVariable = (variable) => {
+    setEditingVariable({
+      ...variable,
+      params: variable.transformation_params || {}
+    });
+  };
+
+  const handleSaveEditedVariable = () => {
+    if (!editingVariable) return;
+
+    const updatedVariables = variables.map(v =>
+      v.id === editingVariable.id
+        ? {
+            ...v,
+            source_field: editingVariable.source_field,
+            transformation: editingVariable.transformation,
+            transformation_params: editingVariable.params
+          }
+        : v
+    );
+
+    setVariables(updatedVariables);
+    setEditingVariable(null);
+    onMappingsChange(mappings, updatedVariables);
+  };
+
+  const handleDeleteVariable = (variableId) => {
+    const newVariables = variables.filter(v => v.id !== variableId);
+    setVariables(newVariables);
+    onMappingsChange(mappings, newVariables);
+  };
+
+  const handleMoveVariableUp = (index) => {
+    if (index === 0) return;
+    const newVariables = [...variables];
+    [newVariables[index - 1], newVariables[index]] = [newVariables[index], newVariables[index - 1]];
+    setVariables(newVariables);
+    onMappingsChange(mappings, newVariables);
+  };
+
+  const handleMoveVariableDown = (index) => {
+    if (index === variables.length - 1) return;
+    const newVariables = [...variables];
+    [newVariables[index], newVariables[index + 1]] = [newVariables[index + 1], newVariables[index]];
+    setVariables(newVariables);
+    onMappingsChange(mappings, newVariables);
+  };
+
+  const handleVariableTransformationChange = (value) => {
+    const transform = TRANSFORMATION_OPTIONS.find(t => t.value === value);
+    if (editingVariable) {
+      setEditingVariable({
+        ...editingVariable,
+        transformation: value,
+        params: transform && transform.params.length > 0 ? {} : {}
+      });
+    } else {
+      setNewVariable({
+        ...newVariable,
+        transformation: value,
+        params: transform && transform.params.length > 0 ? {} : {}
+      });
+    }
+  };
+
+  const handleVariableParamChange = (paramName, paramValue) => {
+    if (editingVariable) {
+      setEditingVariable({
+        ...editingVariable,
+        params: {
+          ...editingVariable.params,
+          [paramName]: paramValue
+        }
+      });
+    } else {
+      setNewVariable({
+        ...newVariable,
+        params: {
+          ...newVariable.params,
+          [paramName]: paramValue
+        }
+      });
+    }
+  };
+
+  const buildVariableExpression = (variable) => {
+    const sourceField = variable.source_field || variable.sourceField;
+    if (!variable.transformation || variable.transformation === 'none') {
+      return sourceField || '(no source)';
+    }
+
+    const transform = TRANSFORMATION_OPTIONS.find(t => t.value === variable.transformation);
+    if (!transform) return sourceField || '(no source)';
+
+    let expr = `${variable.transformation}(`;
+    if (sourceField) {
+      expr += sourceField;
+    }
+    
+    const params = variable.transformation_params || variable.params || {};
+    if (Object.keys(params).length > 0) {
+      const paramValues = Object.values(params).filter(v => v);
+      if (paramValues.length > 0) {
+        if (sourceField) expr += ', ';
+        expr += paramValues.map(p => typeof p === 'string' ? `'${p}'` : p).join(', ');
+      }
+    }
+    
+    expr += ')';
+    return expr;
+  };
+
   const filteredSourceFields = schema.filter(field => 
     field.name.toLowerCase().includes(searchSource.toLowerCase())
   );
@@ -292,6 +458,83 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
             Automap
           </button>
         </div>
+      </div>
+
+      {/* Variables Section */}
+      <div className="variables-section">
+        <div className="variables-header" onClick={() => setVariablesExpanded(!variablesExpanded)}>
+          <div className="variables-title">
+            {variablesExpanded ? <FiChevronDown /> : <FiChevronRight />}
+            <h4>Variables ({variables.length})</h4>
+            <span className="variables-info">Pre-calculations executed sequentially</span>
+          </div>
+          <button 
+            className="btn btn-primary btn-sm" 
+            onClick={(e) => { e.stopPropagation(); handleAddVariable(); }}
+          >
+            <FiPlus /> Add Variable
+          </button>
+        </div>
+
+        {variablesExpanded && (
+          <div className="variables-content">
+            {variables.length === 0 ? (
+              <div className="no-variables">
+                No variables defined. Click "Add Variable" to create pre-calculations that can be used in field mappings.
+              </div>
+            ) : (
+              <div className="variables-list">
+                {variables.map((variable, index) => (
+                  <div key={variable.id} className="variable-item">
+                    <div className="variable-order">
+                      <button
+                        className="btn-icon-small"
+                        onClick={() => handleMoveVariableUp(index)}
+                        disabled={index === 0}
+                        title="Move up"
+                      >
+                        <FiChevronUp />
+                      </button>
+                      <span className="order-number">{index + 1}</span>
+                      <button
+                        className="btn-icon-small"
+                        onClick={() => handleMoveVariableDown(index)}
+                        disabled={index === variables.length - 1}
+                        title="Move down"
+                      >
+                        <FiChevronDown />
+                      </button>
+                    </div>
+                    <div className="variable-info">
+                      <div className="variable-name">
+                        <strong>${variable.name}</strong> =
+                      </div>
+                      <div className="variable-expression">
+                        {buildVariableExpression(variable)}
+                      </div>
+                    </div>
+                    <div className="variable-actions">
+                      <button
+                        className="btn-icon-small"
+                        onClick={() => handleEditVariable(variable)}
+                        title="Edit variable"
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        className="btn-icon-small"
+                        onClick={() => handleDeleteVariable(variable.id)}
+                        title="Delete variable"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mapper-panels">
@@ -594,8 +837,214 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
         </div>
       )}
 
+      {addingVariable && (
+        <div className="expression-editor-modal">
+          <div className="modal-overlay" onClick={() => setAddingVariable(false)}></div>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h4>Add Variable</h4>
+              <button className="btn-close" onClick={() => setAddingVariable(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Variable Name *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={newVariable.name}
+                  onChange={(e) => setNewVariable({ ...newVariable, name: e.target.value })}
+                  placeholder="e.g., full_name, total_amount"
+                />
+                <small className="form-text">Variables can be referenced in field mappings as $variable_name</small>
+              </div>
+
+              <div className="form-group">
+                <label>Source Field (Optional)</label>
+                <select
+                  className="form-control"
+                  value={newVariable.sourceField}
+                  onChange={(e) => setNewVariable({ ...newVariable, sourceField: e.target.value })}
+                >
+                  <option value="">-- None (Custom Value) --</option>
+                  {schema.map(field => (
+                    <option key={field.name} value={field.name}>
+                      {field.name}
+                    </option>
+                  ))}
+                  {variables.map(variable => (
+                    <option key={variable.id} value={`$${variable.name}`}>
+                      ${variable.name} (variable)
+                    </option>
+                  ))}
+                </select>
+                <small className="form-text">Select a source field or previous variable, or leave empty</small>
+              </div>
+
+              <div className="form-group">
+                <label>Transformation</label>
+                <select
+                  className="form-control"
+                  value={newVariable.transformation}
+                  onChange={(e) => handleVariableTransformationChange(e.target.value)}
+                >
+                  {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
+                    const lastGroup = acc[acc.length - 1];
+                    if (!lastGroup || lastGroup.group !== option.group) {
+                      acc.push({ group: option.group, options: [option] });
+                    } else {
+                      lastGroup.options.push(option);
+                    }
+                    return acc;
+                  }, []).map((group, idx) => (
+                    <optgroup key={idx} label={group.group}>
+                      {group.options.map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {TRANSFORMATION_OPTIONS.find(t => t.value === newVariable.transformation)?.params.map(param => (
+                <div key={param.name} className="form-group">
+                  <label>{param.name} *</label>
+                  <input
+                    type={param.type}
+                    className="form-control"
+                    value={newVariable.params[param.name] || ''}
+                    onChange={(e) => handleVariableParamChange(param.name, e.target.value)}
+                    placeholder={param.placeholder}
+                  />
+                </div>
+              ))}
+
+              <div className="form-group">
+                <label>Preview</label>
+                <div className="expression-preview">
+                  {buildVariableExpression(newVariable)}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setAddingVariable(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveVariable}>
+                Add Variable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingVariable && (
+        <div className="expression-editor-modal">
+          <div className="modal-overlay" onClick={() => setEditingVariable(null)}></div>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h4>Edit Variable: ${editingVariable.name}</h4>
+              <button className="btn-close" onClick={() => setEditingVariable(null)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Variable Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={editingVariable.name}
+                  disabled
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Source Field (Optional)</label>
+                <select
+                  className="form-control"
+                  value={editingVariable.source_field || ''}
+                  onChange={(e) => setEditingVariable({ ...editingVariable, source_field: e.target.value })}
+                >
+                  <option value="">-- None (Custom Value) --</option>
+                  {schema.map(field => (
+                    <option key={field.name} value={field.name}>
+                      {field.name}
+                    </option>
+                  ))}
+                  {variables.filter(v => v.id !== editingVariable.id).map(variable => (
+                    <option key={variable.id} value={`$${variable.name}`}>
+                      ${variable.name} (variable)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Transformation</label>
+                <select
+                  className="form-control"
+                  value={editingVariable.transformation}
+                  onChange={(e) => handleVariableTransformationChange(e.target.value)}
+                >
+                  {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
+                    const lastGroup = acc[acc.length - 1];
+                    if (!lastGroup || lastGroup.group !== option.group) {
+                      acc.push({ group: option.group, options: [option] });
+                    } else {
+                      lastGroup.options.push(option);
+                    }
+                    return acc;
+                  }, []).map((group, idx) => (
+                    <optgroup key={idx} label={group.group}>
+                      {group.options.map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {TRANSFORMATION_OPTIONS.find(t => t.value === editingVariable.transformation)?.params.map(param => (
+                <div key={param.name} className="form-group">
+                  <label>{param.name} *</label>
+                  <input
+                    type={param.type}
+                    className="form-control"
+                    value={editingVariable.params[param.name] || ''}
+                    onChange={(e) => handleVariableParamChange(param.name, e.target.value)}
+                    placeholder={param.placeholder}
+                  />
+                </div>
+              ))}
+
+              <div className="form-group">
+                <label>Preview</label>
+                <div className="expression-preview">
+                  {buildVariableExpression(editingVariable)}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setEditingVariable(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveEditedVariable}>
+                Save Variable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mapping-summary">
         <p>{mappings.length} field(s) mapped</p>
+        {variables.length > 0 && <p>{variables.length} variable(s) defined</p>}
       </div>
     </div>
   );

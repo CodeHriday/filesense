@@ -4,6 +4,16 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 19, 2025**: Implemented Variables feature for ETL field mapping
+  - Added collapsible Variables section in TableBasedMapper with sequential pre-calculations
+  - Variables execute in defined order before field mappings for derived columns
+  - Variables can reference source fields, previously defined variables, and transformation functions
+  - Full CRUD operations: add, edit, delete, reorder (up/down) with visual ordering
+  - Backend validation ensures unique names following pattern /^[A-Za-z_][A-Za-z0-9_]*$/
+  - Added `variables` JSONB column to transformation_mappings table
+  - Variables stored with automatic sequence numbering for deterministic execution
+  - Updated MappingWizard to handle variables alongside field mappings
+  - Variables referenced in mappings as $variable_name (e.g., $full_name)
 - **October 17, 2025**: Implemented automated scheduler execution system
   - Added SchedulerWorker class that runs every 60 seconds
   - Automatic execution of due schedules (transformations, mapping groups, workflows)
