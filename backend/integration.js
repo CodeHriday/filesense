@@ -22,32 +22,31 @@ function setupEnhancedFeatures(app) {
   app.use(performanceLogger);
   systemLogger.info('Added performance logging middleware');
   
-  // Register API routes
-  // Use custom middleware to bypass authentication for transformation routes during development
-  app.use('/api/transformations', (req, res, next) => {
-    // Set a default admin user to prevent 'undefined' errors
-    req.user = { 
-      id: 2,  // Admin ID
-      roles: ['Admin']
-    };
-    next();
-  }, transformationRoutes);
+  // NOTE: Transformation routes are registered in server.js
+  // Commenting out duplicate route registration to avoid conflicts
+  // app.use('/api/transformations', (req, res, next) => {
+  //   req.user = { 
+  //     id: 2,  // Admin ID
+  //     roles: ['Admin']
+  //   };
+  //   next();
+  // }, transformationRoutes);
   systemLogger.info('Registered enhanced transformation routes');
   
-  // Add error handling middleware
-  app.use((err, req, res, next) => {
-    systemLogger.error('Unhandled error in request', { 
-      error: err.message,
-      stack: err.stack,
-      path: req.path,
-      method: req.method
-    });
-    
-    res.status(500).json({ 
-      error: 'An unexpected error occurred',
-      message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
-  });
+  // NOTE: Error handling middleware moved to server.js to avoid conflicts
+  // app.use((err, req, res, next) => {
+  //   systemLogger.error('Unhandled error in request', { 
+  //     error: err.message,
+  //     stack: err.stack,
+  //     path: req.path,
+  //     method: req.method
+  //   });
+  //   
+  //   res.status(500).json({ 
+  //     error: 'An unexpected error occurred',
+  //     message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  //   });
+  // });
   
   // Configure application shutdown handler
   process.on('SIGTERM', () => {
