@@ -648,12 +648,12 @@
 }
 
 .btn-insert {
-  color: white;
-  border: none;
+  background: white;
   border-radius: 4px;
   padding: 0.25rem 0.5rem;
   cursor: pointer;
   font-size: 0.75rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -664,22 +664,28 @@
   transform: scale(0.95);
 }
 
-/* Column insert buttons - dark blue */
+/* Column insert buttons - blue border and text */
 .insertable-item .btn-insert {
-  background: #1e40af;
+  color: #1e40af;
+  border: 2px solid #1e40af;
 }
 
 .insertable-item .btn-insert:hover {
-  background: #1e3a8a;
+  background: #eff6ff;
+  border-color: #1e3a8a;
+  color: #1e3a8a;
 }
 
-/* Function insert buttons - dark green */
+/* Function insert buttons - green border and text */
 .function-item .btn-insert {
-  background: #047857;
+  color: #047857;
+  border: 2px solid #047857;
 }
 
 .function-item .btn-insert:hover {
-  background: #065f46;
+  background: #f0fdf4;
+  border-color: #065f46;
+  color: #065f46;
 }
 
 /* Function Item */
