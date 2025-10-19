@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight } from 'react-icons/fi';
 import './TableBasedMapper.css';
 
@@ -56,10 +56,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const [addingVariable, setAddingVariable] = useState(false);
   const [newVariable, setNewVariable] = useState({
     name: '',
-    sourceField: '',
-    transformation: 'none',
-    params: {}
+    expression: ''
   });
+  const expressionTextareaRef = useRef(null);
 
   // Sync variables from prop to local state (always sync, including empty arrays)
   useEffect(() => {
@@ -293,16 +292,71 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleAddVariable = () => {
     setNewVariable({
       name: '',
-      sourceField: '',
-      transformation: 'none',
-      params: {}
+      expression: ''
     });
     setAddingVariable(true);
+  };
+
+  // Helper function to insert text at cursor position in textarea
+  const insertAtCursor = (text) => {
+    const textarea = expressionTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentValue = newVariable.expression || '';
+    const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
+    
+    setNewVariable({ ...newVariable, expression: newValue });
+    
+    // Set cursor position after inserted text
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + text.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
+  // Helper function to get function syntax template
+  const getFunctionSyntax = (transformOption) => {
+    if (transformOption.params.length === 0) {
+      return `${transformOption.value}(column)`;
+    }
+    
+    const paramPlaceholders = transformOption.params.map(p => p.placeholder || p.name).join(', ');
+    return `${transformOption.value}(column, ${paramPlaceholders})`;
+  };
+
+  // Insert column name at cursor
+  const handleInsertColumn = (columnName) => {
+    insertAtCursor(columnName);
+  };
+
+  // Insert variable reference at cursor
+  const handleInsertVariable = (variableName) => {
+    insertAtCursor(`$${variableName}`);
+  };
+
+  // Insert function template at cursor
+  const handleInsertFunction = (transformOption) => {
+    const syntax = getFunctionSyntax(transformOption);
+    insertAtCursor(syntax);
   };
 
   const handleSaveVariable = () => {
     if (!newVariable.name.trim()) {
       alert('Please enter a variable name');
+      return;
+    }
+
+    if (!newVariable.expression.trim()) {
+      alert('Please enter an expression for the variable');
+      return;
+    }
+
+    // Validate variable name format
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newVariable.name)) {
+      alert('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
       return;
     }
 
@@ -315,14 +369,16 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const variable = {
       id: `var_${Date.now()}`,
       name: newVariable.name,
-      source_field: newVariable.sourceField || null,
-      transformation: newVariable.transformation,
-      transformation_params: newVariable.params
+      expression: newVariable.expression,
+      source_field: null,
+      transformation: 'none',
+      transformation_params: {}
     };
 
     const newVariables = [...variables, variable];
     setVariables(newVariables);
     setAddingVariable(false);
+    setNewVariable({ name: '', expression: '' });
     onMappingsChange(mappings, newVariables);
   };
 
@@ -412,6 +468,12 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   };
 
   const buildVariableExpression = (variable) => {
+    // If variable has direct expression field, use that
+    if (variable.expression) {
+      return variable.expression;
+    }
+
+    // Otherwise, build from legacy format (backwards compatibility)
     const sourceField = variable.source_field || variable.sourceField;
     if (!variable.transformation || variable.transformation === 'none') {
       return sourceField || '(no source)';
@@ -838,7 +900,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       )}
 
       {addingVariable && (
-        <div className="expression-editor-modal">
+        <div className="expression-editor-modal variable-builder-modal">
           <div className="modal-overlay" onClick={() => setAddingVariable(false)}></div>
           <div className="modal-content">
             <div className="modal-header">
@@ -848,84 +910,126 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </button>
             </div>
             <div className="modal-body">
-              <div className="form-group">
-                <label>Variable Name *</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={newVariable.name}
-                  onChange={(e) => setNewVariable({ ...newVariable, name: e.target.value })}
-                  placeholder="e.g., full_name, total_amount"
-                />
-                <small className="form-text">Variables can be referenced in field mappings as $variable_name</small>
-              </div>
-
-              <div className="form-group">
-                <label>Source Field (Optional)</label>
-                <select
-                  className="form-control"
-                  value={newVariable.sourceField}
-                  onChange={(e) => setNewVariable({ ...newVariable, sourceField: e.target.value })}
-                >
-                  <option value="">-- None (Custom Value) --</option>
-                  {schema.map(field => (
-                    <option key={field.name} value={field.name}>
-                      {field.name}
-                    </option>
-                  ))}
-                  {variables.map(variable => (
-                    <option key={variable.id} value={`$${variable.name}`}>
-                      ${variable.name} (variable)
-                    </option>
-                  ))}
-                </select>
-                <small className="form-text">Select a source field or previous variable, or leave empty</small>
-              </div>
-
-              <div className="form-group">
-                <label>Transformation</label>
-                <select
-                  className="form-control"
-                  value={newVariable.transformation}
-                  onChange={(e) => handleVariableTransformationChange(e.target.value)}
-                >
-                  {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
-                    const lastGroup = acc[acc.length - 1];
-                    if (!lastGroup || lastGroup.group !== option.group) {
-                      acc.push({ group: option.group, options: [option] });
-                    } else {
-                      lastGroup.options.push(option);
-                    }
-                    return acc;
-                  }, []).map((group, idx) => (
-                    <optgroup key={idx} label={group.group}>
-                      {group.options.map(opt => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              {TRANSFORMATION_OPTIONS.find(t => t.value === newVariable.transformation)?.params.map(param => (
-                <div key={param.name} className="form-group">
-                  <label>{param.name} *</label>
-                  <input
-                    type={param.type}
-                    className="form-control"
-                    value={newVariable.params[param.name] || ''}
-                    onChange={(e) => handleVariableParamChange(param.name, e.target.value)}
-                    placeholder={param.placeholder}
-                  />
+              <div className="variable-builder-panes">
+                {/* Left Pane: Source Columns */}
+                <div className="variable-pane">
+                  <div className="variable-pane-header">Source Columns</div>
+                  <div className="variable-pane-content">
+                    {schema.map(field => (
+                      <div key={field.name} className="insertable-item">
+                        <div className="insertable-item-name">{field.name}</div>
+                        <button 
+                          className="btn-insert"
+                          onClick={() => handleInsertColumn(field.name)}
+                          title="Insert column"
+                        >
+                          <FiPlus size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    {variables.length > 0 && (
+                      <>
+                        <div className="function-group-header">Previous Variables</div>
+                        {variables.map(variable => (
+                          <div key={variable.id} className="insertable-item">
+                            <div className="insertable-item-name">${variable.name}</div>
+                            <button 
+                              className="btn-insert"
+                              onClick={() => handleInsertVariable(variable.name)}
+                              title="Insert variable"
+                            >
+                              <FiPlus size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
                 </div>
-              ))}
 
-              <div className="form-group">
-                <label>Preview</label>
-                <div className="expression-preview">
-                  {buildVariableExpression(newVariable)}
+                {/* Middle Pane: Transformation Functions */}
+                <div className="variable-pane">
+                  <div className="variable-pane-header">Functions</div>
+                  <div className="variable-pane-content">
+                    {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
+                      const lastGroup = acc[acc.length - 1];
+                      if (!lastGroup || lastGroup.group !== option.group) {
+                        acc.push({ group: option.group, options: [option] });
+                      } else {
+                        lastGroup.options.push(option);
+                      }
+                      return acc;
+                    }, []).map((group, idx) => (
+                      <div key={idx}>
+                        <div className="function-group-header">{group.group}</div>
+                        {group.options.map(opt => (
+                          <div key={opt.value} className="function-item">
+                            <div className="function-item-header">
+                              <div className="function-item-name">{opt.label}</div>
+                              <button 
+                                className="btn-insert"
+                                onClick={() => handleInsertFunction(opt)}
+                                title="Insert function"
+                              >
+                                <FiPlus size={12} />
+                              </button>
+                            </div>
+                            <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Pane: Expression Builder */}
+                <div className="variable-pane">
+                  <div className="variable-pane-header">Build Expression</div>
+                  <div className="variable-pane-content">
+                    <div className="expression-builder">
+                      <div className="variable-name-input">
+                        <label>Variable Name *</label>
+                        <input
+                          type="text"
+                          value={newVariable.name}
+                          onChange={(e) => setNewVariable({ ...newVariable, name: e.target.value })}
+                          placeholder="e.g., full_name, total_amount"
+                        />
+                        <small className="form-text">Can be referenced as $variable_name</small>
+                      </div>
+
+                      <div className="expression-builder-header">
+                        <label>Expression *</label>
+                      </div>
+                      <textarea
+                        ref={expressionTextareaRef}
+                        className="expression-textarea"
+                        value={newVariable.expression}
+                        onChange={(e) => setNewVariable({ ...newVariable, expression: e.target.value })}
+                        placeholder="Click + buttons to insert columns and functions, or type directly..."
+                      />
+
+                      <div className="expression-help">
+                        <div className="expression-help-title">💡 Tips:</div>
+                        <div className="expression-help-text">
+                          • Click + next to columns to insert them<br/>
+                          • Click + next to functions to insert templates<br/>
+                          • Build complex expressions like: concat(UPPER(first_name), ' ', last_name)<br/>
+                          • Reference previous variables using $variable_name
+                        </div>
+                      </div>
+
+                      {newVariable.expression && (
+                        <div className="expression-preview-section">
+                          <label>Preview</label>
+                          <div className="expression-preview">
+                            {newVariable.expression}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
