@@ -408,10 +408,29 @@ const NStepWorkflows = () => {
     }
   };
 
-  const canAddAssetSmart = () => {
+  const canAddAssetSmart = (type) => {
     if (!activeStep) return false;
     
-    // Check both mapping and mapping group separately
+    // If type is specified, check that specific type
+    if (type === 'mapping') {
+      if (!selectedMapping) return false;
+      const assetId = selectedMapping;
+      if (isAssetAlreadyAdded('mapping', assetId)) return false;
+      const currentCount = getExpandedCount(activeStep);
+      return (currentCount + 1) <= 10;
+    }
+    
+    if (type === 'mapping_group') {
+      if (!selectedMappingGroup) return false;
+      const assetId = selectedMappingGroup;
+      if (isAssetAlreadyAdded('mapping_group', assetId)) return false;
+      const currentCount = getExpandedCount(activeStep);
+      const group = mappingGroups.find(g => g.id === parseInt(assetId));
+      const newAssetCount = group?.mapping_count || 0;
+      return (currentCount + newAssetCount) <= 10;
+    }
+    
+    // If no type specified, check both
     if (selectedMapping) {
       const assetId = selectedMapping;
       if (isAssetAlreadyAdded('mapping', assetId)) return false;
@@ -617,7 +636,7 @@ const NStepWorkflows = () => {
                     <button
                       className="btn btn-primary selector-add-btn"
                       onClick={() => handleAddAssetSmart('mapping')}
-                      disabled={!selectedMapping || (selectedMapping && !canAddAssetSmart())}
+                      disabled={!canAddAssetSmart('mapping')}
                       title="Add selected mapping to active step"
                     >
                       <FiPlus /> Add Mapping
@@ -644,7 +663,7 @@ const NStepWorkflows = () => {
                     <button
                       className="btn btn-primary selector-add-btn"
                       onClick={() => handleAddAssetSmart('mapping_group')}
-                      disabled={!selectedMappingGroup || (selectedMappingGroup && !canAddAssetSmart())}
+                      disabled={!canAddAssetSmart('mapping_group')}
                       title="Add selected mapping group to active step"
                     >
                       <FiPlus /> Add Group
