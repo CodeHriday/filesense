@@ -18,8 +18,8 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT mg.*, 
-             COUNT(mgm.id) as mapping_count,
-             (SELECT COUNT(*) FROM mapping_group_executions WHERE group_id = mg.id) as execution_count
+             COUNT(mgm.id)::int as mapping_count,
+             (SELECT COUNT(*) FROM mapping_group_executions WHERE group_id = mg.id)::int as execution_count
       FROM mapping_groups mg
       LEFT JOIN mapping_group_members mgm ON mg.id = mgm.group_id
       GROUP BY mg.id
@@ -46,7 +46,7 @@ router.get('/:id', async (req, res) => {
     
     const groupResult = await pool.query(`
       SELECT mg.*, 
-             COUNT(mgm.id) as mapping_count
+             COUNT(mgm.id)::int as mapping_count
       FROM mapping_groups mg
       LEFT JOIN mapping_group_members mgm ON mg.id = mgm.group_id
       WHERE mg.id = $1
