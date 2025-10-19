@@ -86,6 +86,60 @@ function WorkflowCanvas() {
     event.dataTransfer.dropEffect = 'move';
   }, []);
 
+  const findAvailablePosition = useCallback((initialPosition, existingNodes) => {
+    const NODE_WIDTH = 200;
+    const NODE_HEIGHT = 100;
+    const MIN_SPACING = 50;
+    
+    const isPositionOccupied = (pos) => {
+      return existingNodes.some(node => {
+        const dx = Math.abs(node.position.x - pos.x);
+        const dy = Math.abs(node.position.y - pos.y);
+        return dx < (NODE_WIDTH + MIN_SPACING) && dy < (NODE_HEIGHT + MIN_SPACING);
+      });
+    };
+
+    if (!isPositionOccupied(initialPosition)) {
+      return initialPosition;
+    }
+
+    const offsetDistance = NODE_WIDTH + MIN_SPACING;
+    const spiralPattern = [
+      { x: offsetDistance, y: 0 },
+      { x: offsetDistance, y: offsetDistance },
+      { x: 0, y: offsetDistance },
+      { x: -offsetDistance, y: offsetDistance },
+      { x: -offsetDistance, y: 0 },
+      { x: -offsetDistance, y: -offsetDistance },
+      { x: 0, y: -offsetDistance },
+      { x: offsetDistance, y: -offsetDistance },
+      { x: offsetDistance * 2, y: 0 },
+      { x: offsetDistance * 2, y: offsetDistance },
+      { x: offsetDistance * 2, y: offsetDistance * 2 },
+      { x: offsetDistance, y: offsetDistance * 2 },
+      { x: 0, y: offsetDistance * 2 },
+      { x: -offsetDistance, y: offsetDistance * 2 },
+      { x: -offsetDistance * 2, y: offsetDistance * 2 },
+      { x: -offsetDistance * 2, y: offsetDistance },
+      { x: -offsetDistance * 2, y: 0 },
+    ];
+
+    for (const offset of spiralPattern) {
+      const candidatePosition = {
+        x: initialPosition.x + offset.x,
+        y: initialPosition.y + offset.y,
+      };
+      if (!isPositionOccupied(candidatePosition)) {
+        return candidatePosition;
+      }
+    }
+
+    return {
+      x: initialPosition.x + (Math.random() * 200 - 100),
+      y: initialPosition.y + (Math.random() * 200 - 100),
+    };
+  }, []);
+
   const onDrop = useCallback(
     (event) => {
       event.preventDefault();
@@ -106,10 +160,12 @@ function WorkflowCanvas() {
         return;
       }
 
-      const position = reactFlowInstance.project({
+      const initialPosition = reactFlowInstance.project({
         x: event.clientX - reactFlowBounds.left,
         y: event.clientY - reactFlowBounds.top,
       });
+
+      const position = findAvailablePosition(initialPosition, nodes);
 
       const newNode = {
         id: `${assetData.type}-${assetData.assetId}-${Date.now()}`,
@@ -124,7 +180,7 @@ function WorkflowCanvas() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, nodes, setNodes]
+    [reactFlowInstance, nodes, setNodes, findAvailablePosition]
   );
 
   const validateGraph = () => {
