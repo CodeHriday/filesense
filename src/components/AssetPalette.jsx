@@ -24,20 +24,36 @@ function AssetPalette() {
 
       if (mappingsRes.ok) {
         const data = await mappingsRes.json();
-        setMappings(data);
+        const mappings = Array.isArray(data.mappings) ? data.mappings : [];
+        // Normalize: transformations use 'mapping_name', need to map to 'name'
+        const normalizedMappings = mappings.map(m => ({
+          ...m,
+          id: m.mapping_id || m.id,
+          name: m.mapping_name || m.name
+        }));
+        setMappings(normalizedMappings);
+      } else {
+        setMappings([]);
       }
 
       if (groupsRes.ok) {
         const data = await groupsRes.json();
-        setMappingGroups(data);
+        setMappingGroups(Array.isArray(data.groups) ? data.groups : []);
+      } else {
+        setMappingGroups([]);
       }
 
       if (workflowsRes.ok) {
         const data = await workflowsRes.json();
-        setWorkflows(data);
+        setWorkflows(Array.isArray(data.workflows) ? data.workflows : []);
+      } else {
+        setWorkflows([]);
       }
     } catch (error) {
       console.error('Failed to load assets:', error);
+      setMappings([]);
+      setMappingGroups([]);
+      setWorkflows([]);
     }
   };
 
