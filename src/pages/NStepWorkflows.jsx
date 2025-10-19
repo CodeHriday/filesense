@@ -366,7 +366,18 @@ const NStepWorkflows = () => {
     const assetType = type || (selectedMapping ? 'mapping' : 'mapping_group');
     const assetId = type === 'mapping' ? selectedMapping : (type === 'mapping_group' ? selectedMappingGroup : (selectedMapping || selectedMappingGroup));
     
-    // Removed all validations - allow adding any mapping or group
+    // Check if this asset is already in the current step
+    const isDuplicate = activeStep.assets?.some(asset => 
+      asset.asset_type === assetType && asset.asset_id === assetId
+    );
+    
+    if (isDuplicate) {
+      const assetName = assetType === 'mapping' 
+        ? mappings.find(m => m.mapping_id === assetId)?.mapping_name 
+        : mappingGroups.find(g => g.id === parseInt(assetId))?.name;
+      alert(`This ${assetType === 'mapping' ? 'mapping' : 'mapping group'} "${assetName}" is already in this step`);
+      return;
+    }
 
     try {
       await axios.post(`/api/n-step-workflows/${selectedWorkflow}/steps/${activeStep.id}/assets`, {
