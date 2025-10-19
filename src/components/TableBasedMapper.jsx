@@ -59,6 +59,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     expression: ''
   });
   const expressionTextareaRef = useRef(null);
+  const editExpressionTextareaRef = useRef(null);
 
   // Sync variables from prop to local state (always sync, including empty arrays)
   useEffect(() => {
@@ -298,16 +299,20 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   };
 
   // Helper function to insert text at cursor position in textarea
-  const insertAtCursor = (text) => {
-    const textarea = expressionTextareaRef.current;
+  const insertAtCursor = (text, isEditMode = false) => {
+    const textarea = isEditMode ? editExpressionTextareaRef.current : expressionTextareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const currentValue = newVariable.expression || '';
+    const currentValue = isEditMode ? (editingVariable?.expression || '') : (newVariable.expression || '');
     const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
     
-    setNewVariable({ ...newVariable, expression: newValue });
+    if (isEditMode) {
+      setEditingVariable({ ...editingVariable, expression: newValue });
+    } else {
+      setNewVariable({ ...newVariable, expression: newValue });
+    }
     
     // Set cursor position after inserted text
     setTimeout(() => {
@@ -328,19 +333,19 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   };
 
   // Insert column name at cursor
-  const handleInsertColumn = (columnName) => {
-    insertAtCursor(columnName);
+  const handleInsertColumn = (columnName, isEditMode = false) => {
+    insertAtCursor(columnName, isEditMode);
   };
 
   // Insert variable reference at cursor
-  const handleInsertVariable = (variableName) => {
-    insertAtCursor(`$${variableName}`);
+  const handleInsertVariable = (variableName, isEditMode = false) => {
+    insertAtCursor(`$${variableName}`, isEditMode);
   };
 
   // Insert function template at cursor
-  const handleInsertFunction = (transformOption) => {
+  const handleInsertFunction = (transformOption, isEditMode = false) => {
     const syntax = getFunctionSyntax(transformOption);
-    insertAtCursor(syntax);
+    insertAtCursor(syntax, isEditMode);
   };
 
   const handleSaveVariable = () => {
@@ -385,6 +390,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleEditVariable = (variable) => {
     setEditingVariable({
       ...variable,
+      expression: variable.expression || buildVariableExpression(variable),
       params: variable.transformation_params || {}
     });
   };
@@ -392,13 +398,19 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleSaveEditedVariable = () => {
     if (!editingVariable) return;
 
+    if (!editingVariable.expression.trim()) {
+      alert('Please enter an expression for the variable');
+      return;
+    }
+
     const updatedVariables = variables.map(v =>
       v.id === editingVariable.id
         ? {
             ...v,
-            source_field: editingVariable.source_field,
-            transformation: editingVariable.transformation,
-            transformation_params: editingVariable.params
+            expression: editingVariable.expression,
+            source_field: null,
+            transformation: 'none',
+            transformation_params: {}
           }
         : v
     );
@@ -1046,7 +1058,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       )}
 
       {editingVariable && (
-        <div className="expression-editor-modal">
+        <div className="expression-editor-modal variable-builder-modal">
           <div className="modal-overlay" onClick={() => setEditingVariable(null)}></div>
           <div className="modal-content">
             <div className="modal-header">
@@ -1056,81 +1068,125 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               </button>
             </div>
             <div className="modal-body">
-              <div className="form-group">
-                <label>Variable Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={editingVariable.name}
-                  disabled
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Source Field (Optional)</label>
-                <select
-                  className="form-control"
-                  value={editingVariable.source_field || ''}
-                  onChange={(e) => setEditingVariable({ ...editingVariable, source_field: e.target.value })}
-                >
-                  <option value="">-- None (Custom Value) --</option>
-                  {schema.map(field => (
-                    <option key={field.name} value={field.name}>
-                      {field.name}
-                    </option>
-                  ))}
-                  {variables.filter(v => v.id !== editingVariable.id).map(variable => (
-                    <option key={variable.id} value={`$${variable.name}`}>
-                      ${variable.name} (variable)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Transformation</label>
-                <select
-                  className="form-control"
-                  value={editingVariable.transformation}
-                  onChange={(e) => handleVariableTransformationChange(e.target.value)}
-                >
-                  {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
-                    const lastGroup = acc[acc.length - 1];
-                    if (!lastGroup || lastGroup.group !== option.group) {
-                      acc.push({ group: option.group, options: [option] });
-                    } else {
-                      lastGroup.options.push(option);
-                    }
-                    return acc;
-                  }, []).map((group, idx) => (
-                    <optgroup key={idx} label={group.group}>
-                      {group.options.map(opt => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              {TRANSFORMATION_OPTIONS.find(t => t.value === editingVariable.transformation)?.params.map(param => (
-                <div key={param.name} className="form-group">
-                  <label>{param.name} *</label>
-                  <input
-                    type={param.type}
-                    className="form-control"
-                    value={editingVariable.params[param.name] || ''}
-                    onChange={(e) => handleVariableParamChange(param.name, e.target.value)}
-                    placeholder={param.placeholder}
-                  />
+              <div className="variable-builder-panes">
+                {/* Left Pane: Source Columns */}
+                <div className="variable-pane">
+                  <div className="variable-pane-header">Source Columns</div>
+                  <div className="variable-pane-content">
+                    {schema.map(field => (
+                      <div key={field.name} className="insertable-item">
+                        <div className="insertable-item-name">{field.name}</div>
+                        <button 
+                          className="btn-insert"
+                          onClick={() => handleInsertColumn(field.name, true)}
+                          title="Insert column"
+                        >
+                          <FiPlus size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    {variables.filter(v => v.id !== editingVariable.id).length > 0 && (
+                      <>
+                        <div className="function-group-header">Previous Variables</div>
+                        {variables.filter(v => v.id !== editingVariable.id).map(variable => (
+                          <div key={variable.id} className="insertable-item">
+                            <div className="insertable-item-name">${variable.name}</div>
+                            <button 
+                              className="btn-insert"
+                              onClick={() => handleInsertVariable(variable.name, true)}
+                              title="Insert variable"
+                            >
+                              <FiPlus size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
                 </div>
-              ))}
 
-              <div className="form-group">
-                <label>Preview</label>
-                <div className="expression-preview">
-                  {buildVariableExpression(editingVariable)}
+                {/* Middle Pane: Transformation Functions */}
+                <div className="variable-pane">
+                  <div className="variable-pane-header">Functions</div>
+                  <div className="variable-pane-content">
+                    {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
+                      const lastGroup = acc[acc.length - 1];
+                      if (!lastGroup || lastGroup.group !== option.group) {
+                        acc.push({ group: option.group, options: [option] });
+                      } else {
+                        lastGroup.options.push(option);
+                      }
+                      return acc;
+                    }, []).map((group, idx) => (
+                      <div key={idx}>
+                        <div className="function-group-header">{group.group}</div>
+                        {group.options.map(opt => (
+                          <div key={opt.value} className="function-item">
+                            <div className="function-item-header">
+                              <div className="function-item-name">{opt.label}</div>
+                              <button 
+                                className="btn-insert"
+                                onClick={() => handleInsertFunction(opt, true)}
+                                title="Insert function"
+                              >
+                                <FiPlus size={12} />
+                              </button>
+                            </div>
+                            <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Pane: Expression Builder */}
+                <div className="variable-pane">
+                  <div className="variable-pane-header">Build Expression</div>
+                  <div className="variable-pane-content">
+                    <div className="expression-builder">
+                      <div className="variable-name-input">
+                        <label>Variable Name</label>
+                        <input
+                          type="text"
+                          value={editingVariable.name}
+                          disabled
+                        />
+                        <small className="form-text">Variable name cannot be changed</small>
+                      </div>
+
+                      <div className="expression-builder-header">
+                        <label>Expression *</label>
+                      </div>
+                      <textarea
+                        ref={editExpressionTextareaRef}
+                        className="expression-textarea"
+                        value={editingVariable.expression || ''}
+                        onChange={(e) => setEditingVariable({ ...editingVariable, expression: e.target.value })}
+                        placeholder="Click + buttons to insert columns and functions, or type directly..."
+                      />
+
+                      <div className="expression-help">
+                        <div className="expression-help-title">💡 Tips:</div>
+                        <div className="expression-help-text">
+                          • Click + next to columns to insert them<br/>
+                          • Click + next to functions to insert templates<br/>
+                          • Build complex expressions like: concat(UPPER(first_name), ' ', last_name)<br/>
+                          • Reference previous variables using $variable_name
+                        </div>
+                      </div>
+
+                      {editingVariable.expression && (
+                        <div className="expression-preview-section">
+                          <label>Preview</label>
+                          <div className="expression-preview">
+                            {editingVariable.expression}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
