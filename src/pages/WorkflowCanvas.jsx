@@ -41,7 +41,7 @@ function WorkflowCanvas() {
 
   const loadWorkflows = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/visual-workflows`, {
+      const response = await fetch(`${API_BASE_URL}/api/visual-workflows`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (response.ok) {
@@ -55,7 +55,7 @@ function WorkflowCanvas() {
 
   const loadWorkflow = async (workflowId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/visual-workflows/${workflowId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/visual-workflows/${workflowId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (response.ok) {
@@ -170,8 +170,8 @@ function WorkflowCanvas() {
 
     try {
       const url = selectedWorkflow
-        ? `${API_BASE_URL}/visual-workflows/${selectedWorkflow.id}`
-        : `${API_BASE_URL}/visual-workflows`;
+        ? `${API_BASE_URL}/api/visual-workflows/${selectedWorkflow.id}`
+        : `${API_BASE_URL}/api/visual-workflows`;
 
       const method = selectedWorkflow ? 'PUT' : 'POST';
 
@@ -210,7 +210,7 @@ function WorkflowCanvas() {
     setExecutionResult(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/visual-workflows/${selectedWorkflow.id}/execute`, {
+      const response = await fetch(`${API_BASE_URL}/api/visual-workflows/${selectedWorkflow.id}/execute`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
@@ -254,7 +254,7 @@ function WorkflowCanvas() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/visual-workflows/${selectedWorkflow.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/visual-workflows/${selectedWorkflow.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
