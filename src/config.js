@@ -3,15 +3,15 @@
 // In Replit, use the same origin but with port 3000 for the API
 export const API_BASE_URL = (() => {
   const hostname = window.location.hostname;
-  const protocol = window.location.protocol;
   
   // For localhost development
   if (hostname === 'localhost') {
     return 'http://localhost:3000';
   }
   
-  // For Replit environment, use current origin with port 3000
-  return `${protocol}//${hostname}:3000`;
+  // For Replit environment, always use HTTP for backend API
+  // Backend API server doesn't have SSL configured
+  return `http://${hostname}:3000`;
 })();
 
 // Blumetra theme colors
