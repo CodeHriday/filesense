@@ -16,6 +16,7 @@ const NStepWorkflows = () => {
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState(null);
   const [mode, setMode] = useState('list');
+  const [isWorkflowSaved, setIsWorkflowSaved] = useState(true);
   
   const [mappings, setMappings] = useState([]);
   const [mappingGroups, setMappingGroups] = useState([]);
@@ -99,6 +100,11 @@ const NStepWorkflows = () => {
       setCreateModalOpen(false);
       setNewWorkflowName('');
       setNewWorkflowDescription('');
+      // Automatically open in edit mode
+      setMode('edit');
+      const detailsResponse = await axios.get(`/api/n-step-workflows/${response.data.workflow.id}`);
+      setWorkflowData(detailsResponse.data.workflow);
+      setIsWorkflowSaved(true);
     } catch (err) {
       console.error('Error creating workflow:', err);
       alert('Failed to create workflow');
@@ -125,6 +131,7 @@ const NStepWorkflows = () => {
     try {
       await axios.post(`/api/n-step-workflows/${selectedWorkflow}/steps/next`);
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
       setSelectedMapping('');
       setSelectedMappingGroup('');
     } catch (err) {
@@ -137,6 +144,7 @@ const NStepWorkflows = () => {
     try {
       await axios.post(`/api/n-step-workflows/${selectedWorkflow}/steps/previous`);
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
       setSelectedMapping('');
       setSelectedMappingGroup('');
     } catch (err) {
@@ -176,6 +184,7 @@ const NStepWorkflows = () => {
       });
       
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
       
       // Clear only the dropdown that was just added
       if (assetType === 'mapping') {
@@ -193,6 +202,7 @@ const NStepWorkflows = () => {
     try {
       await axios.delete(`/api/n-step-workflows/${selectedWorkflow}/steps/${stepId}/assets/${assetId}`);
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
     } catch (err) {
       console.error('Error removing asset:', err);
       alert('Failed to remove asset');
@@ -221,8 +231,10 @@ const NStepWorkflows = () => {
       
       await fetchData();
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
       setEditModalOpen(false);
       setSaveSuccessModalOpen(true);
+      setIsWorkflowSaved(true);
     } catch (err) {
       console.error('Error saving workflow:', err);
       alert('Failed to save workflow');
@@ -266,6 +278,7 @@ const NStepWorkflows = () => {
     try {
       await axios.delete(`/api/n-step-workflows/${selectedWorkflow}/steps/${stepToDelete.id}`);
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
       setDeleteStepModalOpen(false);
       setStepToDelete(null);
     } catch (err) {
@@ -307,6 +320,7 @@ const NStepWorkflows = () => {
     try {
       await axios.post(`/api/n-step-workflows/${selectedWorkflow}/steps`);
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
     } catch (err) {
       console.error('Error adding step:', err);
       alert(err.response?.data?.error || 'Failed to add step');
@@ -319,6 +333,7 @@ const NStepWorkflows = () => {
     try {
       await axios.put(`/api/n-step-workflows/${selectedWorkflow}/steps/${stepId}/activate`);
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
       setSelectedMapping('');
       setSelectedMappingGroup('');
     } catch (err) {
@@ -341,15 +356,15 @@ const NStepWorkflows = () => {
     return false;
   };
 
-  const handleAddAssetSmart = async () => {
+  const handleAddAssetSmart = async (type) => {
     const activeStep = workflowData?.steps?.find(s => s.is_active);
     if (!activeStep) {
       alert('No active step');
       return;
     }
 
-    const assetType = selectedMapping ? 'mapping' : 'mapping_group';
-    const assetId = selectedMapping || selectedMappingGroup;
+    const assetType = type || (selectedMapping ? 'mapping' : 'mapping_group');
+    const assetId = type === 'mapping' ? selectedMapping : (type === 'mapping_group' ? selectedMappingGroup : (selectedMapping || selectedMappingGroup));
     
     if (isAssetAlreadyAdded(assetType, assetId)) {
       const assetName = assetType === 'mapping' 
@@ -380,6 +395,7 @@ const NStepWorkflows = () => {
       });
       
       await fetchWorkflowDetails();
+      setIsWorkflowSaved(false);
       setSelectedMapping('');
       setSelectedMappingGroup('');
     } catch (err) {
@@ -614,13 +630,24 @@ const NStepWorkflows = () => {
                 </div>
 
                 {mode === 'edit' && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleAddAssetSmart}
-                    disabled={(!selectedMapping && !selectedMappingGroup) || !canAddAssetSmart()}
-                  >
-                    <FiPlus /> Add
-                  </button>
+                  <>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleAddAssetSmart('mapping')}
+                      disabled={!selectedMapping || !!selectedMappingGroup || !canAddAssetSmart()}
+                      title="Add selected mapping to active step"
+                    >
+                      <FiPlus /> Add Mapping
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleAddAssetSmart('mapping_group')}
+                      disabled={!selectedMappingGroup || !!selectedMapping || !canAddAssetSmart()}
+                      title="Add selected mapping group to active step"
+                    >
+                      <FiPlus /> Add Group
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -643,7 +670,8 @@ const NStepWorkflows = () => {
                 <button
                   className="btn btn-success"
                   onClick={() => { setWorkflowToExecute(null); setExecuteModalOpen(true); }}
-                  disabled={executing || !workflowData.steps?.length}
+                  disabled={executing || !workflowData.steps?.length || !isWorkflowSaved}
+                  title={!isWorkflowSaved ? "Please save the workflow before executing" : "Execute workflow"}
                 >
                   <FiPlay /> Execute Workflow
                 </button>
