@@ -676,14 +676,14 @@
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.25rem;
   border-radius: 4px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: transparent;
+  border: 1px solid #e5e7eb;
   transition: all 0.2s;
 }
 
 .function-item:hover {
-  background: #dcfce7;
-  border-color: #86efac;
+  background: #f9fafb;
+  border-color: #d1d5db;
 }
 
 .function-item-header {
