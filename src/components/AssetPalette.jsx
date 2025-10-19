@@ -17,9 +17,9 @@ function AssetPalette() {
     try {
       const authHeaders = { Authorization: `Bearer ${localStorage.getItem('token')}` };
       const [mappingsRes, groupsRes, workflowsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/transformations`, { headers: authHeaders }),
-        fetch(`${API_BASE_URL}/mapping-groups`, { headers: authHeaders }),
-        fetch(`${API_BASE_URL}/n-step-workflows`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/transformations`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/mapping-groups`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/n-step-workflows`, { headers: authHeaders }),
       ]);
 
       if (mappingsRes.ok) {
