@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX } from 'react-icons/fi';
+import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus } from 'react-icons/fi';
 import './TableBasedMapper.css';
 
 const TRANSFORMATION_OPTIONS = [
@@ -41,6 +41,13 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
   const [editingExpression, setEditingExpression] = useState(null);
   const [searchSource, setSearchSource] = useState('');
   const [searchTarget, setSearchTarget] = useState('');
+  const [addingNewColumn, setAddingNewColumn] = useState(false);
+  const [newColumn, setNewColumn] = useState({
+    targetField: '',
+    sourceField: '',
+    transformation: 'none',
+    params: {}
+  });
 
   useEffect(() => {
     if (fieldMappings && fieldMappings.length > 0) {
@@ -181,6 +188,90 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
     });
   };
 
+  const handleAddNewColumn = () => {
+    setNewColumn({
+      targetField: '',
+      sourceField: '',
+      transformation: 'none',
+      params: {}
+    });
+    setAddingNewColumn(true);
+  };
+
+  const handleNewColumnChange = (field, value) => {
+    setNewColumn({
+      ...newColumn,
+      [field]: value
+    });
+  };
+
+  const handleNewColumnTransformationChange = (value) => {
+    const transform = TRANSFORMATION_OPTIONS.find(t => t.value === value);
+    setNewColumn({
+      ...newColumn,
+      transformation: value,
+      params: transform && transform.params.length > 0 ? {} : {}
+    });
+  };
+
+  const handleNewColumnParamChange = (paramName, paramValue) => {
+    setNewColumn({
+      ...newColumn,
+      params: {
+        ...newColumn.params,
+        [paramName]: paramValue
+      }
+    });
+  };
+
+  const handleSaveNewColumn = () => {
+    if (!newColumn.targetField.trim()) {
+      alert('Please enter a target field name');
+      return;
+    }
+
+    // Check if target field name already exists
+    if (mappings.some(m => m.target_field === newColumn.targetField)) {
+      alert('A field with this target name already exists');
+      return;
+    }
+
+    const newMapping = {
+      source_field: newColumn.sourceField || `__custom_${Date.now()}__`,
+      target_field: newColumn.targetField,
+      transformation: newColumn.transformation,
+      transformation_params: newColumn.params,
+      is_custom: !newColumn.sourceField
+    };
+
+    const newMappings = [...mappings, newMapping];
+    setMappings(newMappings);
+    onMappingsChange(newMappings);
+    setAddingNewColumn(false);
+  };
+
+  const buildExpressionForCustom = (mapping) => {
+    if (mapping.is_custom) {
+      if (!mapping.transformation || mapping.transformation === 'none') {
+        return '(custom value)';
+      }
+      
+      const transform = TRANSFORMATION_OPTIONS.find(t => t.value === mapping.transformation);
+      if (!transform) return '(custom value)';
+
+      let expr = `${mapping.transformation}(`;
+      
+      if (mapping.transformation_params && Object.keys(mapping.transformation_params).length > 0) {
+        const params = Object.values(mapping.transformation_params).filter(v => v);
+        expr += params.map(p => typeof p === 'string' ? `'${p}'` : p).join(', ');
+      }
+      
+      expr += ')';
+      return expr;
+    }
+    return buildExpression(mapping);
+  };
+
   const filteredSourceFields = schema.filter(field => 
     field.name.toLowerCase().includes(searchSource.toLowerCase())
   );
@@ -233,7 +324,12 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
         </div>
 
         <div className="target-panel">
-          <h4>Target Fields</h4>
+          <div className="target-panel-header">
+            <h4>Target Fields</h4>
+            <button className="btn btn-primary btn-sm" onClick={handleAddNewColumn} title="Add a new calculated column">
+              <FiPlus /> Add New Column
+            </button>
+          </div>
           <div className="field-search">
             <input
               type="text"
@@ -268,7 +364,8 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
                       />
                     </td>
                     <td className="actions-cell">
-                      <FiArrowRight className="arrow-icon" title="Mapped from source" />
+                      {!mapping.is_custom && <FiArrowRight className="arrow-icon" title="Mapped from source" />}
+                      {mapping.is_custom && <span className="custom-badge" title="Custom column">Custom</span>}
                       <button 
                         className="btn-icon-small"
                         onClick={() => handleEditExpression(mapping.source_field)}
@@ -286,7 +383,7 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
                     </td>
                     <td className="expression-cell">
                       <span className="expression-text" onClick={() => handleEditExpression(mapping.source_field)}>
-                        {buildExpression(mapping)}
+                        {buildExpressionForCustom(mapping)}
                       </span>
                     </td>
                   </tr>
@@ -382,6 +479,115 @@ const TableBasedMapper = ({ schema, fieldMappings, onMappingsChange }) => {
               </button>
               <button className="btn btn-primary" onClick={handleSaveExpression}>
                 Save Expression
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addingNewColumn && (
+        <div className="expression-editor-modal">
+          <div className="modal-overlay" onClick={() => setAddingNewColumn(false)}></div>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h4>Add New Column</h4>
+              <button className="btn-close" onClick={() => setAddingNewColumn(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Target Field Name *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={newColumn.targetField}
+                  onChange={(e) => handleNewColumnChange('targetField', e.target.value)}
+                  placeholder="Enter new column name"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Source Field (Optional)</label>
+                <select
+                  className="form-control"
+                  value={newColumn.sourceField}
+                  onChange={(e) => handleNewColumnChange('sourceField', e.target.value)}
+                >
+                  <option value="">-- None (Custom Value) --</option>
+                  {schema.map(field => (
+                    <option key={field.name} value={field.name}>
+                      {field.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="form-text">Select a source field to base the new column on, or leave empty for a custom calculated column</small>
+              </div>
+
+              <div className="form-group">
+                <label>Transformation</label>
+                <select
+                  className="form-control"
+                  value={newColumn.transformation}
+                  onChange={(e) => handleNewColumnTransformationChange(e.target.value)}
+                >
+                  {TRANSFORMATION_OPTIONS.reduce((acc, option) => {
+                    const lastGroup = acc[acc.length - 1];
+                    if (!lastGroup || lastGroup.group !== option.group) {
+                      acc.push({ group: option.group, options: [option] });
+                    } else {
+                      lastGroup.options.push(option);
+                    }
+                    return acc;
+                  }, []).map((group, idx) => (
+                    <optgroup key={idx} label={group.group}>
+                      {group.options.map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {TRANSFORMATION_OPTIONS.find(t => t.value === newColumn.transformation)?.params.map(param => (
+                <div key={param.name} className="form-group">
+                  <label>{param.name} *</label>
+                  <input
+                    type={param.type}
+                    className="form-control"
+                    value={newColumn.params[param.name] || ''}
+                    onChange={(e) => handleNewColumnParamChange(param.name, e.target.value)}
+                    placeholder={param.placeholder}
+                  />
+                </div>
+              ))}
+
+              <div className="form-group">
+                <label>Preview</label>
+                <div className="expression-preview">
+                  {newColumn.sourceField ? 
+                    buildExpression({
+                      source_field: newColumn.sourceField,
+                      transformation: newColumn.transformation,
+                      transformation_params: newColumn.params
+                    }) :
+                    buildExpressionForCustom({
+                      is_custom: true,
+                      transformation: newColumn.transformation,
+                      transformation_params: newColumn.params
+                    })
+                  }
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setAddingNewColumn(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveNewColumn}>
+                Add Column
               </button>
             </div>
           </div>
