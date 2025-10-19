@@ -583,7 +583,7 @@
 
 .variable-builder-panes {
   display: grid;
-  grid-template-columns: 20% 15% 65%;
+  grid-template-columns: 20% 20% 60%;
   gap: 1px;
   background: #e5e7eb;
   flex: 1;
@@ -664,27 +664,25 @@
   transform: scale(0.95);
 }
 
-/* Column insert buttons - blue border and text */
+/* Column insert buttons - blue text only */
 .insertable-item .btn-insert {
   color: #1e40af;
-  border: 2px solid #1e40af;
+  border: none;
 }
 
 .insertable-item .btn-insert:hover {
   background: #eff6ff;
-  border-color: #1e3a8a;
   color: #1e3a8a;
 }
 
-/* Function insert buttons - green border and text */
+/* Function insert buttons - green text only */
 .function-item .btn-insert {
   color: #047857;
-  border: 2px solid #047857;
+  border: none;
 }
 
 .function-item .btn-insert:hover {
   background: #f0fdf4;
-  border-color: #065f46;
   color: #065f46;
 }
 
