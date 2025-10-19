@@ -1643,6 +1643,10 @@ app.use('/api/schedules', authenticateToken, schedulerRoutes);
 const fileAuditRoutes = require('./backend/routes/fileAudit');
 app.use('/api/file-audit', authenticateToken, fileAuditRoutes);
 
+// Visual Workflows routes (new graph-based workflow orchestration)
+const visualWorkflowsRoutes = require('./backend/routes/visualWorkflows');
+app.use('/api/visual-workflows', authenticateToken, visualWorkflowsRoutes);
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {

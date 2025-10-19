@@ -25,7 +25,8 @@ import {
   FiMapPin,
   FiFilter,
   FiPlusCircle,
-  FiFileText
+  FiFileText,
+  FiGrid
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import OnboardingWizard from './OnboardingWizard';
@@ -278,6 +279,14 @@ function Sidebar() {
               <NavLink to="/etl-scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiCalendar className="icon" />
                 <span>ETL Scheduler</span>
+              </NavLink>
+            </li>
+            
+            {/* Visual Workflow Designer */}
+            <li>
+              <NavLink to="/workflow-canvas" className={({ isActive }) => isActive ? 'active' : ''}>
+                <FiGrid className="icon" />
+                <span>Visual Designer</span>
               </NavLink>
             </li>
             
