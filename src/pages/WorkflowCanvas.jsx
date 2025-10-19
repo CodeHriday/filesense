@@ -134,7 +134,8 @@ function WorkflowCanvas() {
         return;
       }
 
-      const existingAsset = nodes.find(
+      // Use nodesRef.current instead of nodes state to avoid stale closure
+      const existingAsset = nodesRef.current.find(
         (n) => n.type === assetData.type && n.data.assetId === assetData.assetId
       );
 
@@ -169,7 +170,7 @@ function WorkflowCanvas() {
         return updated;
       });
     },
-    [reactFlowInstance, findAvailablePosition]
+    [reactFlowInstance, findAvailablePosition, setNodes]
   );
 
   const validateGraph = () => {
