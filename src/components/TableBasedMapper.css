@@ -612,19 +612,20 @@
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.25rem;
   border-radius: 4px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   transition: all 0.2s;
 }
 
 .insertable-item:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #dbeafe;
+  border-color: #93c5fd;
 }
 
 .insertable-item-name {
   font-size: 0.875rem;
-  color: #374151;
+  color: #3B82F6;
+  font-weight: 500;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   flex: 1;
   overflow: hidden;
