@@ -837,6 +837,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       {field.name}
                     </option>
                   ))}
+                  {variables.length > 0 && variables.map(variable => (
+                    <option key={variable.id} value={`$${variable.name}`}>
+                      ${variable.name} (variable)
+                    </option>
+                  ))}
                 </select>
                 <small className="form-text">Select a source field to base the new column on, or leave empty for a custom calculated column</small>
               </div>
