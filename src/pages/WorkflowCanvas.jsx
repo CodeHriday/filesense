@@ -419,8 +419,6 @@ function WorkflowCanvas() {
             nodesDraggable={true}
             nodesConnectable={true}
             elementsSelectable={true}
-            selectNodesOnDrag={false}
-            panOnDrag={false}
             fitView
           >
             <Controls />
