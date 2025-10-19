@@ -42,7 +42,7 @@ import HooksDemo from './pages/HooksDemo';
 import Groups from './pages/Groups';
 import BusinessProcesses from './pages/BusinessProcesses';
 import Jobs from './pages/Jobs';
-import ProcessManagementWizard from './pages/ProcessManagementWizard';
+// ProcessManagementWizard removed
 // ETL Orchestration imports
 import MappingGroups from './pages/MappingGroups';
 import MappingGroupForm from './pages/MappingGroupForm';
@@ -68,7 +68,7 @@ import './styles/AIPredictiveInsights.css';
 import './styles/Groups.css';
 import './styles/BusinessProcesses.css';
 import './styles/Jobs.css';
-import './styles/ProcessManagementWizard.css';
+// ProcessManagementWizard styles removed
 import './styles/Transformations.css';
 import './styles/ETLOrchestration.css';
 
@@ -113,13 +113,7 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   
-  // Check if this is a new user (no onboarding completed flag in localStorage)
-  useEffect(() => {
-    const hasCompletedOnboarding = localStorage.getItem('dfo-onboarding-completed');
-    if (hasCompletedOnboarding !== 'true') {
-      setShowOnboarding(true);
-    }
-  }, []);
+  // Onboarding wizard auto-load removed - no longer automatically opens
   
   return (
     <AccessibilityProvider>
@@ -231,7 +225,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs/:jobId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/etl-jobs/:jobId" element={<ProtectedRoute><ETLJobDetails /></ProtectedRoute>} />
-                <Route path="/process-management-wizard" element={<ProtectedRoute><ProcessManagementWizard /></ProtectedRoute>} />
+                {/* ProcessManagementWizard route removed */}
                 {/* ETL Orchestration routes */}
                 <Route path="/mapping-groups" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />
                 <Route path="/mapping-groups/create" element={<ProtectedRoute><MappingGroupForm /></ProtectedRoute>} />
@@ -275,10 +269,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       {/* Accessibility Widget - always show */}
       <AccessibilityWidget />
       
-      {/* Onboarding Wizard - only for logged in users */}
-      {currentUser && showOnboarding && (
-        <OnboardingWizard onClose={() => setShowOnboarding(false)} />
-      )}
+      {/* Onboarding Wizard removed - no longer displayed */}
       
       {/* Global Notifications */}
       <NotificationList />
