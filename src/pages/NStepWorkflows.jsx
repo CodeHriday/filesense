@@ -41,6 +41,8 @@ const NStepWorkflows = () => {
   const [executionResultModalOpen, setExecutionResultModalOpen] = useState(false);
   const [executionResult, setExecutionResult] = useState(null);
   const [workflowToExecute, setWorkflowToExecute] = useState(null);
+  const [duplicateErrorModalOpen, setDuplicateErrorModalOpen] = useState(false);
+  const [duplicateErrorMessage, setDuplicateErrorMessage] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -218,21 +220,14 @@ const NStepWorkflows = () => {
   };
 
   const handleSaveWorkflow = async () => {
-    if (!editWorkflowName.trim()) {
-      alert('Please enter a workflow name');
-      return;
-    }
-
     try {
       await axios.put(`/api/n-step-workflows/${selectedWorkflow}`, {
-        name: editWorkflowName,
-        description: editWorkflowDescription
+        name: workflowData.name,
+        description: workflowData.description
       });
       
       await fetchData();
       await fetchWorkflowDetails();
-      setIsWorkflowSaved(false);
-      setEditModalOpen(false);
       setSaveSuccessModalOpen(true);
       setIsWorkflowSaved(true);
     } catch (err) {
@@ -375,7 +370,8 @@ const NStepWorkflows = () => {
       const assetName = assetType === 'mapping' 
         ? mappings.find(m => m.mapping_id === assetId)?.mapping_name 
         : mappingGroups.find(g => g.id === parseInt(assetId))?.name;
-      alert(`This ${assetType === 'mapping' ? 'mapping' : 'mapping group'} "${assetName}" is already in this step`);
+      setDuplicateErrorMessage(`This ${assetType === 'mapping' ? 'mapping' : 'mapping group'} "${assetName}" is already in this step`);
+      setDuplicateErrorModalOpen(true);
       return;
     }
 
@@ -676,7 +672,7 @@ const NStepWorkflows = () => {
                 )}
                 <button
                   className="btn btn-primary"
-                  onClick={handleOpenEditModal}
+                  onClick={handleSaveWorkflow}
                   disabled={mode === 'view'}
                 >
                   <FiSave /> Save Workflow
@@ -984,6 +980,28 @@ const NStepWorkflows = () => {
               </div>
               <div className="modal-footer">
                 <button className="btn btn-primary" onClick={() => setExecutionResultModalOpen(false)}>
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {duplicateErrorModalOpen && (
+          <div className="modal-overlay" onClick={() => setDuplicateErrorModalOpen(false)}>
+            <div className="modal-content error-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Duplicate Asset</h2>
+                <button className="modal-close" onClick={() => setDuplicateErrorModalOpen(false)}>
+                  <FiX />
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="error-icon">⚠</div>
+                <p><strong>{duplicateErrorMessage}</strong></p>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-primary" onClick={() => setDuplicateErrorModalOpen(false)}>
                   OK
                 </button>
               </div>
