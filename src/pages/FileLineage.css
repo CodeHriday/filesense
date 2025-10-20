@@ -563,3 +563,18 @@
   font-weight: 700;
   color: #333;
 }
+
+.lineage-features {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 15px;
+}
+
+.lineage-features li {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.lineage-features li:last-child {
+  border-bottom: none;
+}

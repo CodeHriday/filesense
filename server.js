@@ -1545,11 +1545,209 @@ app.get('/api/lineage', async (req, res) => {
       )
     `);
     
-    const result = await dbPool.query('SELECT * FROM file_lineage');
-    res.json(result.rows);
+    // Get manual lineage with file details
+    const lineageResult = await dbPool.query(`
+      SELECT 
+        fl.*,
+        sf.filename as source_filename,
+        sf.file_type as source_file_type,
+        sf.file_size as source_file_size,
+        sf.row_count as source_row_count,
+        sf.column_count as source_column_count,
+        sf.created_at as source_created_at,
+        tf.filename as target_filename,
+        tf.file_type as target_file_type,
+        tf.file_size as target_file_size,
+        tf.row_count as target_row_count,
+        tf.column_count as target_column_count,
+        tf.created_at as target_created_at
+      FROM file_lineage fl
+      LEFT JOIN files sf ON fl.source_file_id = sf.file_id
+      LEFT JOIN files tf ON fl.target_file_id = tf.file_id
+      ORDER BY fl.created_at DESC
+    `);
+    
+    // Also get transformation-based lineage
+    const transformLineageResult = await dbPool.query(`
+      SELECT 
+        tl.*,
+        tm.mapping_name,
+        tm.mapping_id,
+        tm.field_mappings,
+        tm.variables,
+        tm.source_file_pattern,
+        tm.target_file_name,
+        tm.target_file_format,
+        tm.description,
+        sf.filename as source_filename,
+        sf.file_type as source_file_type,
+        sf.file_size as source_file_size,
+        sf.row_count as source_row_count,
+        sf.column_count as source_column_count,
+        sf.created_at as source_created_at,
+        tf.filename as target_filename,
+        tf.file_type as target_file_type,
+        tf.file_size as target_file_size,
+        tf.row_count as target_row_count,
+        tf.column_count as target_column_count,
+        tf.created_at as target_created_at
+      FROM transformation_lineage tl
+      LEFT JOIN transformation_mappings tm ON tl.mapping_id = tm.mapping_id
+      LEFT JOIN files sf ON tl.input_file_id = sf.file_id
+      LEFT JOIN files tf ON tl.output_file_id = tf.file_id
+      ORDER BY tl.created_at DESC
+    `);
+    
+    // Combine both types of lineage
+    res.json({
+      manual_lineage: lineageResult.rows,
+      transformation_lineage: transformLineageResult.rows
+    });
   } catch (err) {
     console.error('Error fetching lineage data:', err);
     res.status(500).json({ error: 'Failed to fetch lineage data' });
+  }
+});
+
+// Scan and populate lineage from existing transformation jobs
+app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) => {
+  try {
+    logger.info('Starting lineage scan and populate', { userId: req.user.id });
+    
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+    const errorDetails = [];
+    
+    // Get all successful transformation jobs with their mapping info
+    const jobsQuery = `
+      SELECT DISTINCT
+        tj.id as job_id,
+        tj.mapping_id,
+        tj.status,
+        tj.created_at,
+        tm.mapping_name,
+        tm.source_file_pattern,
+        tm.target_file_name
+      FROM transformation_jobs tj
+      LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
+      WHERE tj.status = 'completed'
+      ORDER BY tj.created_at DESC
+    `;
+    
+    const jobsResult = await dbPool.query(jobsQuery);
+    const jobs = jobsResult.rows;
+    
+    logger.info(`Found ${jobs.length} completed transformation jobs to process`);
+    
+    // Process each job
+    for (const job of jobs) {
+      try {
+        // Find source and target files from file_audit for this transformation job
+        const auditQuery = `
+          SELECT 
+            file_id,
+            file_name,
+            load_type,
+            source_path,
+            correlation_id
+          FROM file_audit
+          WHERE transformation_job_id = $1
+            AND status = 'success'
+          ORDER BY created_at ASC
+        `;
+        
+        const auditResult = await dbPool.query(auditQuery, [job.job_id]);
+        
+        if (auditResult.rows.length < 2) {
+          // Need at least source and target file
+          skipped++;
+          continue;
+        }
+        
+        // First record is typically the source, last is the target
+        const sourceFile = auditResult.rows[0];
+        const targetFile = auditResult.rows[auditResult.rows.length - 1];
+        
+        // Check if lineage already exists
+        const existingCheck = await dbPool.query(`
+          SELECT id FROM transformation_lineage 
+          WHERE mapping_id = $1 
+            AND input_file_id = $2 
+            AND output_file_id = $3
+        `, [job.mapping_id, sourceFile.file_id, targetFile.file_id]);
+        
+        if (existingCheck.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+        
+        // Create lineage record
+        const lineageQuery = `
+          INSERT INTO transformation_lineage (
+            transformation_id,
+            mapping_id,
+            input_file_id,
+            output_file_id,
+            execution_id,
+            created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING id
+        `;
+        
+        await dbPool.query(lineageQuery, [
+          `transform_${job.mapping_id}`,
+          job.mapping_id,
+          sourceFile.file_id,
+          targetFile.file_id,
+          job.job_id.toString(),
+          job.created_at
+        ]);
+        
+        created++;
+        logger.info('Created lineage record', {
+          jobId: job.job_id,
+          mappingId: job.mapping_id,
+          sourceFile: sourceFile.file_name,
+          targetFile: targetFile.file_name
+        });
+        
+      } catch (jobError) {
+        errors++;
+        const errorMsg = `Job ${job.job_id}: ${jobError.message}`;
+        errorDetails.push(errorMsg);
+        logger.error('Error processing job for lineage', {
+          jobId: job.job_id,
+          error: jobError.message
+        });
+      }
+    }
+    
+    logger.info('Lineage scan and populate completed', {
+      totalJobs: jobs.length,
+      created,
+      skipped,
+      errors
+    });
+    
+    res.json({
+      success: true,
+      summary: {
+        totalJobsProcessed: jobs.length,
+        lineageCreated: created,
+        lineageSkipped: skipped,
+        errors: errors
+      },
+      errorDetails: errorDetails.length > 0 ? errorDetails : undefined
+    });
+    
+  } catch (err) {
+    logger.error('Error in lineage scan and populate', { error: err.message });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to scan and populate lineage',
+      details: err.message 
+    });
   }
 });
 
