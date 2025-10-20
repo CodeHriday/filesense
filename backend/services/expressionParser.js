@@ -238,8 +238,21 @@ function astToTransformationChain(ast, context = {}) {
   }
   
   if (ast.type === 'FUNCTION') {
-    const functionName = ast.name.toLowerCase().replace(/-/g, '_');
+    let functionName = ast.name.toLowerCase().replace(/-/g, '_');
     const args = ast.arguments;
+    
+    // Function aliases - map intuitive short names to full function names
+    const functionAliases = {
+      'add': 'math_add',
+      'subtract': 'math_subtract',
+      'multiply': 'math_multiply',
+      'divide': 'math_divide'
+    };
+    
+    // Apply alias if exists
+    if (functionAliases[functionName]) {
+      functionName = functionAliases[functionName];
+    }
     
     // Map function names to transformation types
     const functionMap = {
