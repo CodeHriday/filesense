@@ -73,37 +73,29 @@ async function profileETLOutputFile(pool, fileData) {
         
         await pool.query(`
           INSERT INTO file_columns (
-            file_id, column_name, column_type, nullable, total_count,
-            null_count, unique_count, numeric_sum, numeric_avg,
-            numeric_min, numeric_max, string_min_length, string_max_length
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            file_id, column_name, column_type, column_index,
+            null_count, unique_count, 
+            min_value_decimal, max_value_decimal,
+            file_name, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
           ON CONFLICT (file_id, column_name)
           DO UPDATE SET
             column_type = EXCLUDED.column_type,
-            nullable = EXCLUDED.nullable,
-            total_count = EXCLUDED.total_count,
+            column_index = EXCLUDED.column_index,
             null_count = EXCLUDED.null_count,
             unique_count = EXCLUDED.unique_count,
-            numeric_sum = EXCLUDED.numeric_sum,
-            numeric_avg = EXCLUDED.numeric_avg,
-            numeric_min = EXCLUDED.numeric_min,
-            numeric_max = EXCLUDED.numeric_max,
-            string_min_length = EXCLUDED.string_min_length,
-            string_max_length = EXCLUDED.string_max_length
+            min_value_decimal = EXCLUDED.min_value_decimal,
+            max_value_decimal = EXCLUDED.max_value_decimal
         `, [
           fileId,
           columnName,
           columnType,
-          column.nullable !== false,
-          stats.total_count || fileData.rowCount,
+          fileData.schema.indexOf(column),
           stats.null_count || 0,
           stats.unique_count || null,
-          stats.numeric_sum || null,
-          stats.numeric_avg || null,
           stats.numeric_min || null,
           stats.numeric_max || null,
-          stats.string_min_length || null,
-          stats.string_max_length || null
+          fileData.filename
         ]);
       }
       
