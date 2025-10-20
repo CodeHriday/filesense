@@ -1875,6 +1875,15 @@ try {
   console.error('✗ Failed to register /api/file-audit:', error.message);
 }
 
+// File Insights routes
+try {
+  const fileInsightsRoutes = require('./backend/routes/fileInsights');
+  app.use('/api/insights', fileInsightsRoutes(dbPool, authenticateToken));
+  console.log('✓ Registered /api/insights route');
+} catch (error) {
+  console.error('✗ Failed to register /api/insights:', error.message);
+}
+
 // Visual Workflows routes (new graph-based workflow orchestration)
 try {
   const visualWorkflowsRoutes = require('./backend/routes/visualWorkflows');
@@ -2044,6 +2053,7 @@ const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
 const { initWorkflowOrchestrationTables } = require('./backend/migrations/workflowOrchestration');
 const { fixMappingGroupMembersSchema } = require('./backend/migrations/fixMappingGroupMembersSchema');
 const updateObjectTypesToString = require('./backend/migrations/updateObjectTypesToString');
+const initFileInsightsTables = require('./backend/migrations/createFileInsightsTable');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2103,6 +2113,12 @@ migrateConnectionsSchema()
     if (result.success) {
       console.log(`✅ Object/array to string type conversion completed. Updated ${result.updatedRecords} schema records.`);
     }
+    
+    // Initialize file insights tables
+    return initFileInsightsTables(dbPool);
+  })
+  .then(() => {
+    console.log('✅ File insights tables migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

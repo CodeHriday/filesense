@@ -414,12 +414,22 @@ function Sidebar() {
                   </li>
                 )}
                 
-                {/* Only show insights if permission exists */}
+                {/* Only show file insights if permission exists */}
+                {checkPermissions(['insights', 'insights:read', 'insight:read']) && (
+                  <li>
+                    <NavLink to="/file-insights" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiTrendingUp className="icon" />
+                      <span>File Insights</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {/* Only show AI insights if permission exists */}
                 {checkPermissions(['insights', 'insights:read', 'insight:read']) && (
                   <li>
                     <NavLink to="/insights" className={({ isActive }) => isActive ? 'active' : ''}>
                       <FiMessageSquare className="icon" />
-                      <span>AI Insights</span>
+                      <span>All Insights</span>
                     </NavLink>
                   </li>
                 )}
