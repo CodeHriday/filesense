@@ -152,13 +152,9 @@ async function listAndFilterFiles(pool, connectionId, pattern) {
     // Get all files from connection
     const allFiles = await listFilesFromConnection(pool, connectionId);
 
-    // Convert pattern to regex
-    const regex = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
-    
-    const patternRegex = new RegExp(`^${regex}$`, 'i');
+    // Use safe regex conversion to prevent ReDoS
+    const { globToRegex } = require('./regexValidator');
+    const patternRegex = globToRegex(pattern);
 
     // Filter files by pattern
     const matchedFiles = allFiles.filter(file => 

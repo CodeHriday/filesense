@@ -166,9 +166,9 @@ class CacheService {
       } else {
         // Memory cache: delete all keys matching pattern
         const keys = this.memoryCache.keys();
-        // Replace all * with .* for proper regex matching
-        const regexPattern = '^' + pattern.replace(/\*/g, '.*') + '$';
-        const regex = new RegExp(regexPattern);
+        // Use safe regex conversion to prevent ReDoS
+        const { globToRegex } = require('../utils/regexValidator');
+        const regex = globToRegex(pattern);
         const matchedKeys = keys.filter(key => regex.test(key));
         matchedKeys.forEach(key => {
           this.memoryCache.del(key);

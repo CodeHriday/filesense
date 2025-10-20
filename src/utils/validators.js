@@ -50,12 +50,42 @@ export const isInRange = (value, min, max) => {
  * @param {string} value - The string to validate
  * @param {string|RegExp} pattern - Regex pattern (string or RegExp object)
  * @returns {boolean} True if valid, false otherwise
+ * 
+ * Note: For security, this function validates patterns to prevent ReDoS attacks.
+ * If you need to match literal strings with wildcards, consider using a glob-to-regex converter.
  */
 export const matchesPattern = (value, pattern) => {
-  if (typeof pattern === 'string') {
-    pattern = new RegExp(pattern);
+  try {
+    if (typeof pattern === 'string') {
+      // Validate pattern length to prevent overly complex regex
+      if (pattern.length > 200) {
+        console.warn('Pattern too long, rejecting to prevent ReDoS');
+        return false;
+      }
+      
+      // For client-side, perform basic validation without full safe-regex library
+      // Check for dangerous nested quantifiers
+      const dangerousPatterns = [
+        /(\.\*){2,}/, // Multiple .*
+        /(\.\+){2,}/, // Multiple .+
+        /(\*.*\*)/, // Nested *
+        /(\+.*\+)/, // Nested +
+      ];
+      
+      for (const dangerous of dangerousPatterns) {
+        if (dangerous.test(pattern)) {
+          console.warn('Pattern contains potentially dangerous nested quantifiers');
+          return false;
+        }
+      }
+      
+      pattern = new RegExp(pattern);
+    }
+    return pattern.test(value);
+  } catch (error) {
+    console.error('Invalid regex pattern:', error);
+    return false;
   }
-  return pattern.test(value);
 };
 
 /**

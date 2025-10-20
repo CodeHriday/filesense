@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
+const { safePath, isSafeFilename } = require('../utils/pathValidator');
 
 class DBTService {
   constructor(db, auditService) {
@@ -55,8 +56,16 @@ class DBTService {
         const entries = await fs.readdir(dir, { withFileTypes: true });
         
         for (const entry of entries) {
-          const fullPath = path.join(dir, entry.name);
-          const relativePath = path.join(prefix, entry.name);
+          // Validate filename to prevent path traversal
+          if (!isSafeFilename(entry.name)) {
+            console.warn(`Skipping unsafe filename: ${entry.name}`);
+            continue;
+          }
+          
+          // Use safe path joining to prevent directory traversal
+          const fullPath = safePath(dir, entry.name);
+          // Also use safePath for relative path construction (even though prefix is controlled)
+          const relativePath = prefix ? path.posix.join(prefix, entry.name) : entry.name;
 
           if (entry.isDirectory()) {
             await scanDirectory(fullPath, relativePath);

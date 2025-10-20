@@ -225,13 +225,26 @@ async function createJobDependencyTables(pool) {
 }
 
 async function runMigration() {
+  // Configure SSL settings securely
+  let sslConfig = false;
+  if (process.env.PGHOST?.includes('neon.tech')) {
+    // Only disable TLS verification in development for Neon databases
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      console.warn('⚠️  WARNING: TLS verification disabled for development/test environment');
+      sslConfig = { rejectUnauthorized: false };
+    } else {
+      // In production, use proper TLS verification
+      sslConfig = { rejectUnauthorized: true };
+    }
+  }
+  
   const pool = new Pool({
     host: process.env.PGHOST,
     port: process.env.PGPORT,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
     database: process.env.PGDATABASE,
-    ssl: process.env.PGHOST?.includes('neon.tech') ? { rejectUnauthorized: false } : false
+    ssl: sslConfig
   });
 
   try {

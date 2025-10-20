@@ -3,20 +3,16 @@
  * Supports wildcard patterns (* and ?) for matching file names
  */
 
+const { globToRegex } = require('./regexValidator');
+
 /**
  * Convert a wildcard pattern to a RegExp
  * @param {string} pattern - Pattern with wildcards (* and ?)
  * @returns {RegExp} - Regular expression for matching
  */
 function patternToRegex(pattern) {
-  // Escape special regex characters except * and ?
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*')  // * matches any sequence of characters
-    .replace(/\?/g, '.');   // ? matches any single character
-  
-  // Match the entire string
-  return new RegExp(`^${escaped}$`, 'i'); // Case-insensitive
+  // Use safe regex conversion to prevent ReDoS
+  return globToRegex(pattern);
 }
 
 /**

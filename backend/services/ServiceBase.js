@@ -109,7 +109,15 @@ class ServiceBase {
         
         // Set isolation level and read-only status if needed
         if (isolationLevel) {
-          await client.query(`SET TRANSACTION ISOLATION LEVEL ${isolationLevel}`);
+          // Validate isolation level to prevent SQL injection
+          const validIsolationLevels = ['READ UNCOMMITTED', 'READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE'];
+          const normalizedLevel = isolationLevel.toUpperCase().trim();
+          
+          if (!validIsolationLevels.includes(normalizedLevel)) {
+            throw new Error(`Invalid isolation level: ${isolationLevel}`);
+          }
+          
+          await client.query(`SET TRANSACTION ISOLATION LEVEL ${normalizedLevel}`);
         }
         
         if (readOnly) {

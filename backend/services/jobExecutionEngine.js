@@ -1747,6 +1747,13 @@ function convertToXML(rows) {
     const reconstructed = {};
     
     for (const key in row) {
+      // Prevent prototype pollution by checking hasOwnProperty and dangerous keys
+      if (!row.hasOwnProperty(key)) continue;
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        console.warn(`Skipping dangerous key in XML conversion: ${key}`);
+        continue;
+      }
+      
       const value = row[key];
       const parts = key.split('.');
       
@@ -1754,16 +1761,24 @@ function convertToXML(rows) {
       if (parts.length === 1) {
         reconstructed[key] = value;
       } else {
-        // Reconstruct nested structure
+        // Reconstruct nested structure with prototype pollution protection
         let current = reconstructed;
         for (let i = 0; i < parts.length - 1; i++) {
           const part = parts[i];
+          // Check for dangerous property names at each level
+          if (part === '__proto__' || part === 'constructor' || part === 'prototype') {
+            console.warn(`Skipping dangerous nested key in XML conversion: ${part}`);
+            break;
+          }
           if (!current[part]) {
             current[part] = {};
           }
           current = current[part];
         }
-        current[parts[parts.length - 1]] = value;
+        const lastPart = parts[parts.length - 1];
+        if (lastPart !== '__proto__' && lastPart !== 'constructor' && lastPart !== 'prototype') {
+          current[lastPart] = value;
+        }
       }
     }
     

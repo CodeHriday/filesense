@@ -44,6 +44,16 @@ if (APP_CONFIG.NODE_ENV === 'production') {
 
 // Apply security middleware
 app.use(helmet()); // Set security headers
+
+// CSRF Protection Note:
+// This application uses JWT tokens in Authorization headers for authentication.
+// CSRF protection is inherently provided by this design because:
+// 1. JWTs are stored in memory/localStorage (not cookies)
+// 2. Browsers cannot automatically attach Authorization headers to cross-origin requests
+// 3. Attackers cannot forge requests that include valid JWTs without XSS vulnerabilities
+// Therefore, traditional CSRF middleware (like csurf) is not required for API endpoints.
+// If cookie-based session authentication is added in the future, implement CSRF tokens.
+
 app.use(cors({
   origin: APP_CONFIG.CORS_ORIGINS,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

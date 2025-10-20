@@ -305,8 +305,15 @@ app.use(cors({
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       // Support wildcard matching for replit domains
       if (allowedOrigin.includes('*')) {
-        const pattern = allowedOrigin.replace(/\*/g, '.*');
-        return new RegExp(pattern).test(origin);
+        // Use safe regex conversion to prevent ReDoS
+        const { globToRegex } = require('./backend/utils/regexValidator');
+        try {
+          const regex = globToRegex(allowedOrigin);
+          return regex.test(origin);
+        } catch (error) {
+          logger.error('Invalid CORS pattern', { pattern: allowedOrigin, error: error.message });
+          return false;
+        }
       }
       return allowedOrigin === origin;
     });
