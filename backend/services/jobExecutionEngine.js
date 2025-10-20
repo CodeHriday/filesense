@@ -502,7 +502,8 @@ function calculateColumnStatistics(rows, schema) {
       numeric_sum: 0,
       numeric_min: null,
       numeric_max: null,
-      string_lengths: []
+      string_lengths: [],
+      string_values: []  // Track all string values to find shortest/longest
     };
   });
 
@@ -535,6 +536,7 @@ function calculateColumnStatistics(rows, schema) {
       // String statistics
       if (typeof value === 'string') {
         colStats.string_lengths.push(value.length);
+        colStats.string_values.push(value);
       }
     });
   });
@@ -549,10 +551,16 @@ function calculateColumnStatistics(rows, schema) {
       colStats.numeric_avg = colStats.numeric_sum / nonNullCount;
     }
 
-    // Calculate string length stats
-    if (colStats.string_lengths.length > 0) {
+    // Calculate string length stats and find shortest/longest strings
+    if (colStats.string_lengths.length > 0 && colStats.string_values.length > 0) {
       colStats.string_min_length = Math.min(...colStats.string_lengths);
       colStats.string_max_length = Math.max(...colStats.string_lengths);
+      
+      // Find shortest and longest strings by length
+      const minLengthIdx = colStats.string_lengths.indexOf(colStats.string_min_length);
+      const maxLengthIdx = colStats.string_lengths.indexOf(colStats.string_max_length);
+      colStats.string_min_value = colStats.string_values[minLengthIdx];
+      colStats.string_max_value = colStats.string_values[maxLengthIdx];
     }
 
     // Convert unique values set to count
@@ -561,6 +569,7 @@ function calculateColumnStatistics(rows, schema) {
     // Remove temporary data
     delete colStats.unique_values;
     delete colStats.string_lengths;
+    delete colStats.string_values;
 
     // Clean up null values in numeric fields
     if (colStats.numeric_min === null) delete colStats.numeric_min;

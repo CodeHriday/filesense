@@ -79,15 +79,18 @@ async function profileETLOutputFile(pool, fileData) {
           INSERT INTO file_columns (
             file_id, column_name, column_type, column_index,
             null_count, unique_count, 
+            min_value, max_value,
             min_value_decimal, max_value_decimal,
             file_name, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
           ON CONFLICT (file_id, column_name)
           DO UPDATE SET
             column_type = EXCLUDED.column_type,
             column_index = EXCLUDED.column_index,
             null_count = EXCLUDED.null_count,
             unique_count = EXCLUDED.unique_count,
+            min_value = EXCLUDED.min_value,
+            max_value = EXCLUDED.max_value,
             min_value_decimal = EXCLUDED.min_value_decimal,
             max_value_decimal = EXCLUDED.max_value_decimal
         `, [
@@ -97,6 +100,8 @@ async function profileETLOutputFile(pool, fileData) {
           fileData.schema.indexOf(column),
           stats.null_count ?? 0,
           stats.unique_count ?? null,
+          stats.string_min_value ?? null,
+          stats.string_max_value ?? null,
           stats.numeric_min ?? null,
           stats.numeric_max ?? null,
           fileData.filename
