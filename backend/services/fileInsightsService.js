@@ -58,6 +58,7 @@ class FileInsightsService {
       systemLogger.info('Starting daily metrics aggregation', { date: dateStr });
       
       // Get all files profiled on target date
+      // Use pm.profiled_at if available, otherwise f.created_at (for ETL-generated files)
       const filesResult = await client.query(`
         SELECT 
           f.file_id,
@@ -68,6 +69,7 @@ class FileInsightsService {
           f.duplicate_records_count,
           f.duplicate_records_percentage,
           f.quality_score,
+          f.created_at,
           pm.profiled_at,
           pm.null_counts,
           pm.numeric_sum,
@@ -77,7 +79,7 @@ class FileInsightsService {
           pm.overall_quality_score
         FROM files f
         LEFT JOIN profiling_metrics pm ON pm.file_id = f.file_id
-        WHERE DATE(COALESCE(pm.profiled_at, f.processed_at)) = $1
+        WHERE DATE(COALESCE(pm.profiled_at, f.created_at)) = $1
         ORDER BY f.filename
       `, [dateStr]);
       
