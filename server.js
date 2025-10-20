@@ -1568,6 +1568,8 @@ app.get('/api/lineage', async (req, res) => {
     `);
     
     // Also get transformation-based lineage
+    // Note: input_file_id and output_file_id contain prefixed filenames (source_*, transformed_*)
+    // We need to strip the prefix and match on filename
     const transformLineageResult = await dbPool.query(`
       SELECT 
         tl.id,
@@ -1598,8 +1600,8 @@ app.get('/api/lineage', async (req, res) => {
         tf.created_at as target_created_at
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
-      LEFT JOIN files sf ON tl.input_file_id = sf.file_id
-      LEFT JOIN files tf ON tl.output_file_id = tf.file_id
+      LEFT JOIN files sf ON sf.filename = REPLACE(tl.input_file_id, 'source_', '')
+      LEFT JOIN files tf ON tf.filename = REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-z0-9]+_', '')
       ORDER BY tl.created_at DESC
     `);
     
