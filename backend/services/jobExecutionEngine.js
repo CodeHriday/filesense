@@ -716,6 +716,43 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           sourceFile: file.filename,
           targetFile: outputFilename
         });
+        
+        // Create transformation lineage record
+        try {
+          const lineageQuery = `
+            INSERT INTO transformation_lineage (
+              transformation_id, 
+              mapping_id,
+              input_file_id, 
+              output_file_id, 
+              execution_id,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, NOW())
+            RETURNING id
+          `;
+          
+          const lineageResult = await pool.query(lineageQuery, [
+            mapping.transformation_id || `transform_${mapping.mapping_id}`,
+            mapping.mapping_id,
+            file.file_id || `source_${file.filename}`,
+            `transformed_${jobId}_${file.filename}`,
+            transformationJobDbId
+          ]);
+          
+          await logJobExecution(pool, jobId, 'info', 
+            `Transformation lineage created`, {
+            lineageId: lineageResult.rows[0]?.id,
+            mappingId: mapping.mapping_id,
+            inputFile: file.filename,
+            outputFile: outputFilename
+          });
+        } catch (lineageError) {
+          // Log but don't fail the job if lineage creation fails
+          await logJobExecution(pool, jobId, 'warn', 
+            `Transformation lineage creation failed: ${lineageError.message}`, {
+            error: lineageError.stack
+          });
+        }
       } catch (auditError) {
         // Log but don't fail the job if audit fails
         await logJobExecution(pool, jobId, 'warn', 
