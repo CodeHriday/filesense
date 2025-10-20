@@ -65,13 +65,17 @@ function FileLineage() {
       
       setScanResults(results.summary);
       
-      // Refresh lineage data if any were created
-      if (results.summary.lineageCreated > 0) {
+      // Refresh lineage data if any were created or updated
+      const totalChanges = (results.summary.lineageCreated || 0) + (results.summary.lineageUpdated || 0);
+      if (totalChanges > 0) {
         const lineageData = await getLineages();
         setLineages(lineageData);
-        setSuccessMessage(`Successfully created ${results.summary.lineageCreated} lineage record(s)!`);
+        const createdMsg = results.summary.lineageCreated > 0 ? `created ${results.summary.lineageCreated}` : '';
+        const updatedMsg = results.summary.lineageUpdated > 0 ? `updated ${results.summary.lineageUpdated}` : '';
+        const separator = createdMsg && updatedMsg ? ' and ' : '';
+        setSuccessMessage(`Successfully ${createdMsg}${separator}${updatedMsg} lineage record(s)!`);
       } else {
-        setSuccessMessage('Scan complete. No new lineage records needed.');
+        setSuccessMessage('Scan complete. All lineage records are up to date.');
       }
     } catch (err) {
       console.error('Error scanning and populating lineage:', err);
@@ -151,15 +155,21 @@ function FileLineage() {
                 <h4>Scan Results:</h4>
                 <div className="scan-stats">
                   <div className="scan-stat">
-                    <span className="stat-label">Jobs Processed:</span>
-                    <span className="stat-value">{scanResults.totalJobsProcessed}</span>
+                    <span className="stat-label">Unique Mappings:</span>
+                    <span className="stat-value">{scanResults.totalMappingsProcessed || scanResults.totalJobsProcessed}</span>
                   </div>
                   <div className="scan-stat created">
                     <span className="stat-label">Lineage Created:</span>
                     <span className="stat-value">{scanResults.lineageCreated}</span>
                   </div>
+                  {scanResults.lineageUpdated > 0 && (
+                    <div className="scan-stat updated">
+                      <span className="stat-label">Lineage Updated:</span>
+                      <span className="stat-value">{scanResults.lineageUpdated}</span>
+                    </div>
+                  )}
                   <div className="scan-stat skipped">
-                    <span className="stat-label">Already Exists:</span>
+                    <span className="stat-label">Skipped:</span>
                     <span className="stat-value">{scanResults.lineageSkipped}</span>
                   </div>
                   {scanResults.errors > 0 && (

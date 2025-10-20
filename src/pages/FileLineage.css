@@ -544,6 +544,10 @@
   border-left-color: #66bb6a;
 }
 
+.scan-stat.updated {
+  border-left-color: #42a5f5;
+}
+
 .scan-stat.skipped {
   border-left-color: #ffa726;
 }

@@ -1620,35 +1620,55 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
     logger.info('Starting lineage scan and populate', { userId: req.user.id });
     
     let created = 0;
+    let updated = 0;
     let skipped = 0;
     let errors = 0;
     const errorDetails = [];
     
-    // Get all successful transformation jobs with their mapping info
-    const jobsQuery = `
-      SELECT DISTINCT
-        tj.id as job_id,
-        tj.mapping_id,
-        tj.status,
-        tj.created_at,
-        tm.mapping_name,
-        tm.source_file_pattern,
-        tm.target_file_name
+    // Get DISTINCT mapping_id from successful transformation jobs
+    const mappingsQuery = `
+      SELECT DISTINCT tj.mapping_id
       FROM transformation_jobs tj
-      LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
       WHERE tj.status = 'completed'
-      ORDER BY tj.created_at DESC
+        AND tj.mapping_id IS NOT NULL
     `;
     
-    const jobsResult = await dbPool.query(jobsQuery);
-    const jobs = jobsResult.rows;
+    const mappingsResult = await dbPool.query(mappingsQuery);
+    const uniqueMappings = mappingsResult.rows;
     
-    logger.info(`Found ${jobs.length} completed transformation jobs to process`);
+    logger.info(`Found ${uniqueMappings.length} unique successful mappings to process`);
     
-    // Process each job
-    for (const job of jobs) {
+    // Process each unique mapping
+    for (const mapping of uniqueMappings) {
       try {
-        // Find source and target files from file_audit_details for this transformation job
+        // Get the most recent successful job for this mapping
+        const latestJobQuery = `
+          SELECT 
+            tj.id as job_id,
+            tj.mapping_id,
+            tj.end_time,
+            tj.created_at,
+            tm.mapping_name,
+            tm.source_file_pattern,
+            tm.target_file_name
+          FROM transformation_jobs tj
+          LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
+          WHERE tj.mapping_id = $1
+            AND tj.status = 'completed'
+          ORDER BY tj.end_time DESC NULLS LAST, tj.created_at DESC
+          LIMIT 1
+        `;
+        
+        const latestJobResult = await dbPool.query(latestJobQuery, [mapping.mapping_id]);
+        
+        if (latestJobResult.rows.length === 0) {
+          skipped++;
+          continue;
+        }
+        
+        const latestJob = latestJobResult.rows[0];
+        
+        // Find source and target files from file_audit_details for this job
         const auditQuery = `
           SELECT 
             file_id,
@@ -1662,7 +1682,7 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
           ORDER BY created_dt ASC
         `;
         
-        const auditResult = await dbPool.query(auditQuery, [job.job_id]);
+        const auditResult = await dbPool.query(auditQuery, [latestJob.job_id]);
         
         if (auditResult.rows.length < 2) {
           // Need at least source and target file
@@ -1680,61 +1700,80 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
           continue;
         }
         
-        // Check if lineage already exists
+        const transformationId = `transform_${mapping.mapping_id}`;
+        
+        // Check if lineage already exists for this mapping
         const existingCheck = await dbPool.query(`
           SELECT id FROM transformation_lineage 
-          WHERE transformation_id = $1 
-            AND input_file_id = $2 
-            AND output_file_id = $3
-        `, [`transform_${job.mapping_id}`, sourceFile.file_id, targetFile.file_id]);
+          WHERE transformation_id = $1
+        `, [transformationId]);
         
         if (existingCheck.rows.length > 0) {
-          skipped++;
-          continue;
+          // Update existing lineage with latest job information
+          await dbPool.query(`
+            UPDATE transformation_lineage 
+            SET input_file_id = $1,
+                output_file_id = $2,
+                execution_id = $3,
+                created_at = $4
+            WHERE transformation_id = $5
+          `, [
+            sourceFile.file_id,
+            targetFile.file_id,
+            latestJob.job_id.toString(),
+            latestJob.created_at,
+            transformationId
+          ]);
+          
+          updated++;
+          logger.info('Updated lineage record', {
+            mappingId: mapping.mapping_id,
+            latestJobId: latestJob.job_id,
+            sourceFile: sourceFile.file_name,
+            targetFile: targetFile.file_name
+          });
+        } else {
+          // Create new lineage record
+          await dbPool.query(`
+            INSERT INTO transformation_lineage (
+              transformation_id,
+              input_file_id,
+              output_file_id,
+              execution_id,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5)
+          `, [
+            transformationId,
+            sourceFile.file_id,
+            targetFile.file_id,
+            latestJob.job_id.toString(),
+            latestJob.created_at
+          ]);
+          
+          created++;
+          logger.info('Created lineage record', {
+            mappingId: mapping.mapping_id,
+            latestJobId: latestJob.job_id,
+            sourceFile: sourceFile.file_name,
+            targetFile: targetFile.file_name
+          });
         }
         
-        // Create lineage record
-        const lineageQuery = `
-          INSERT INTO transformation_lineage (
-            transformation_id,
-            input_file_id,
-            output_file_id,
-            execution_id,
-            created_at
-          ) VALUES ($1, $2, $3, $4, $5)
-          RETURNING id
-        `;
-        
-        await dbPool.query(lineageQuery, [
-          `transform_${job.mapping_id}`,
-          sourceFile.file_id,
-          targetFile.file_id,
-          job.job_id.toString(),
-          job.created_at
-        ]);
-        
-        created++;
-        logger.info('Created lineage record', {
-          jobId: job.job_id,
-          mappingId: job.mapping_id,
-          sourceFile: sourceFile.file_name,
-          targetFile: targetFile.file_name
-        });
-        
-      } catch (jobError) {
+      } catch (mappingError) {
         errors++;
-        const errorMsg = `Job ${job.job_id}: ${jobError.message}`;
+        const errorMsg = `Mapping ${mapping.mapping_id}: ${mappingError.message}`;
         errorDetails.push(errorMsg);
-        logger.error('Error processing job for lineage', {
-          jobId: job.job_id,
-          error: jobError.message
+        logger.error('Error processing mapping for lineage', {
+          mappingId: mapping.mapping_id,
+          error: mappingError.message
         });
       }
     }
     
     logger.info('Lineage scan and populate completed', {
-      totalJobs: jobs.length,
+      totalMappings: uniqueMappings.length,
       created,
+      updated,
       skipped,
       errors
     });
@@ -1742,8 +1781,9 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
     res.json({
       success: true,
       summary: {
-        totalJobsProcessed: jobs.length,
+        totalMappingsProcessed: uniqueMappings.length,
         lineageCreated: created,
+        lineageUpdated: updated,
         lineageSkipped: skipped,
         errors: errors
       },
