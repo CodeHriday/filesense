@@ -4,10 +4,13 @@ import './TransformationDetailsPanel.css';
 
 /**
  * TransformationDetailsPanel
- * Displays detailed information about a transformation including metadata, field mappings, and derived fields
+ * Displays detailed information about a lineage record (manual or transformation)
  */
 function TransformationDetailsPanel({ transformationData, onClose }) {
   if (!transformationData) return null;
+
+  // Check if this is transformation lineage or manual lineage
+  const isTransformationLineage = transformationData.type === 'transformation';
 
   const {
     mapping_name,
@@ -47,14 +50,19 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     });
   };
 
+  const formatNumber = (num) => {
+    if (num === null || num === undefined) return 'N/A';
+    return num.toLocaleString();
+  };
+
   // Parse field mappings and variables if they're strings
-  const parsedFieldMappings = typeof field_mappings === 'string' 
-    ? JSON.parse(field_mappings) 
-    : field_mappings || [];
+  const parsedFieldMappings = field_mappings 
+    ? (typeof field_mappings === 'string' ? JSON.parse(field_mappings) : field_mappings)
+    : [];
   
-  const parsedVariables = typeof variables === 'string'
-    ? JSON.parse(variables)
-    : variables || [];
+  const parsedVariables = variables
+    ? (typeof variables === 'string' ? JSON.parse(variables) : variables)
+    : [];
 
   // Extract expression from variable
   const getVariableExpression = (variable) => {
@@ -88,7 +96,12 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     <div className="transformation-details-overlay" onClick={onClose}>
       <div className="transformation-details-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>{mapping_name || 'Transformation Details'}</h2>
+          <h2>
+            {isTransformationLineage 
+              ? (mapping_name || 'Transformation Details')
+              : 'File Lineage Details'
+            }
+          </h2>
           <button className="close-btn" onClick={onClose}>
             <FiX />
           </button>
@@ -114,9 +127,9 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                 <div className="file-details">
                   <div className="file-name">{source_filename || 'N/A'}</div>
                   <div className="file-stats">
-                    <span className="stat"><strong>Type:</strong> {source_file_type || 'N/A'}</span>
+                    <span className="stat"><strong>Type:</strong> {source_file_type?.toUpperCase() || 'N/A'}</span>
                     <span className="stat"><strong>Size:</strong> {formatBytes(source_file_size)}</span>
-                    <span className="stat"><strong>Rows:</strong> {source_row_count?.toLocaleString() || 'N/A'}</span>
+                    <span className="stat"><strong>Rows:</strong> {formatNumber(source_row_count)}</span>
                     <span className="stat"><strong>Columns:</strong> {source_column_count || 'N/A'}</span>
                     <span className="stat"><strong>Created:</strong> {formatDate(source_created_at)}</span>
                   </div>
@@ -135,9 +148,9 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                 <div className="file-details">
                   <div className="file-name">{target_filename || 'N/A'}</div>
                   <div className="file-stats">
-                    <span className="stat"><strong>Type:</strong> {target_file_type || 'N/A'}</span>
+                    <span className="stat"><strong>Type:</strong> {target_file_type?.toUpperCase() || 'N/A'}</span>
                     <span className="stat"><strong>Size:</strong> {formatBytes(target_file_size)}</span>
-                    <span className="stat"><strong>Rows:</strong> {target_row_count?.toLocaleString() || 'N/A'}</span>
+                    <span className="stat"><strong>Rows:</strong> {formatNumber(target_row_count)}</span>
                     <span className="stat"><strong>Columns:</strong> {target_column_count || 'N/A'}</span>
                     <span className="stat"><strong>Created:</strong> {formatDate(target_created_at)}</span>
                   </div>
@@ -146,73 +159,87 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
             </div>
           </div>
 
-          {/* Derived Fields (Variables) */}
-          {parsedVariables && parsedVariables.length > 0 && (
-            <div className="section">
-              <h3><FiCode /> Derived Fields ({parsedVariables.length})</h3>
-              <div className="derived-fields-list">
-                {parsedVariables.map((variable, index) => (
-                  <div key={index} className="derived-field-item">
-                    <div className="field-sequence">{variable.sequence !== undefined ? variable.sequence + 1 : index + 1}</div>
-                    <div className="field-info">
-                      <div className="field-name">${variable.name}</div>
-                      <div className="field-expression">
-                        <code>{getVariableExpression(variable)}</code>
+          {/* Only show field mappings and variables for transformation lineage */}
+          {isTransformationLineage && (
+            <>
+              {/* Derived Fields (Variables) */}
+              {parsedVariables && parsedVariables.length > 0 && (
+                <div className="section">
+                  <h3><FiCode /> Derived Fields ({parsedVariables.length})</h3>
+                  <div className="derived-fields-list">
+                    {parsedVariables.map((variable, index) => (
+                      <div key={index} className="derived-field-item">
+                        <div className="field-sequence">{variable.sequence !== undefined ? variable.sequence + 1 : index + 1}</div>
+                        <div className="field-info">
+                          <div className="field-name">${variable.name}</div>
+                          <div className="field-expression">
+                            <code>{getVariableExpression(variable)}</code>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <p className="help-text">
-                Variables are calculated sequentially before field mappings and can reference source fields or previous variables.
-              </p>
-            </div>
+                  <p className="help-text">
+                    Variables are calculated sequentially before field mappings and can reference source fields or previous variables.
+                  </p>
+                </div>
+              )}
+
+              {/* Field Mappings */}
+              {parsedFieldMappings && parsedFieldMappings.length > 0 && (
+                <div className="section">
+                  <h3>Field Mappings ({parsedFieldMappings.length})</h3>
+                  <div className="field-mappings-list">
+                    {parsedFieldMappings.map((mapping, index) => {
+                      const sourceFields = getMappingSourceFields(mapping);
+                      const hasExpression = mapping.expression || (mapping.transformations && mapping.transformations.length > 0);
+                      
+                      return (
+                        <div key={index} className="field-mapping-item">
+                          <div className="mapping-source">
+                            {sourceFields.length > 0 ? (
+                              sourceFields.map((field, idx) => (
+                                <span key={idx} className="source-field">
+                                  {field.startsWith('$') ? (
+                                    <span className="variable-ref">{field}</span>
+                                  ) : (
+                                    field
+                                  )}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="no-source">-</span>
+                            )}
+                          </div>
+                          <div className="mapping-arrow">
+                            <FiArrowRight />
+                          </div>
+                          <div className="mapping-target">
+                            <span className="target-field">{mapping.targetField}</span>
+                            {hasExpression && (
+                              <div className="transformation-badge">
+                                <FiCode size={12} />
+                                <span className="expression-preview">
+                                  {mapping.expression || 'transformed'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Field Mappings */}
-          {parsedFieldMappings && parsedFieldMappings.length > 0 && (
+          {/* Show message for manual lineage */}
+          {!isTransformationLineage && (
             <div className="section">
-              <h3>Field Mappings ({parsedFieldMappings.length})</h3>
-              <div className="field-mappings-list">
-                {parsedFieldMappings.map((mapping, index) => {
-                  const sourceFields = getMappingSourceFields(mapping);
-                  const hasExpression = mapping.expression || (mapping.transformations && mapping.transformations.length > 0);
-                  
-                  return (
-                    <div key={index} className="field-mapping-item">
-                      <div className="mapping-source">
-                        {sourceFields.length > 0 ? (
-                          sourceFields.map((field, idx) => (
-                            <span key={idx} className="source-field">
-                              {field.startsWith('$') ? (
-                                <span className="variable-ref">{field}</span>
-                              ) : (
-                                field
-                              )}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="no-source">-</span>
-                        )}
-                      </div>
-                      <div className="mapping-arrow">
-                        <FiArrowRight />
-                      </div>
-                      <div className="mapping-target">
-                        <span className="target-field">{mapping.targetField}</span>
-                        {hasExpression && (
-                          <div className="transformation-badge">
-                            <FiCode size={12} />
-                            <span className="expression-preview">
-                              {mapping.expression || 'transformed'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <p className="help-text" style={{ marginTop: 0 }}>
+                This is a direct file lineage record without transformation details. The source file was used to create the target file without field-level transformations.
+              </p>
             </div>
           )}
         </div>
