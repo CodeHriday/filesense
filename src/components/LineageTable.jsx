@@ -57,8 +57,16 @@ function LineageTable({ lineages }) {
               <tr key={`${lineage.type}-${lineage.id}-${index}`}>
                 <td className="source-cell">
                   <div className="file-info">
-                    <div className="file-name">{lineage.source_filename}</div>
-                    <div className="file-meta">{lineage.source_file_type?.toUpperCase()}</div>
+                    <div className="file-name">
+                      {lineage.type === 'transformation' 
+                        ? (lineage.source_pattern || lineage.source_file_pattern || lineage.source_filename)
+                        : lineage.source_filename}
+                    </div>
+                    <div className="file-meta">
+                      {lineage.type === 'transformation' 
+                        ? (lineage.source_file_pattern ? 'PATTERN' : lineage.source_file_type?.toUpperCase())
+                        : lineage.source_file_type?.toUpperCase()}
+                    </div>
                   </div>
                 </td>
                 <td className="arrow-cell">
@@ -66,8 +74,16 @@ function LineageTable({ lineages }) {
                 </td>
                 <td className="target-cell">
                   <div className="file-info">
-                    <div className="file-name">{lineage.target_filename}</div>
-                    <div className="file-meta">{lineage.target_file_type?.toUpperCase()}</div>
+                    <div className="file-name">
+                      {lineage.type === 'transformation' 
+                        ? (lineage.target_pattern || lineage.target_file_name || lineage.target_filename)
+                        : lineage.target_filename}
+                    </div>
+                    <div className="file-meta">
+                      {lineage.type === 'transformation' 
+                        ? (lineage.target_file_format?.toUpperCase() || 'PATTERN')
+                        : lineage.target_file_type?.toUpperCase()}
+                    </div>
                   </div>
                 </td>
                 <td className="transformation-cell">

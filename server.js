@@ -1568,15 +1568,14 @@ app.get('/api/lineage', async (req, res) => {
     `);
     
     // Also get transformation-based lineage
-    // Note: input_file_id and output_file_id can be:
-    // 1. Actual file_id from files table (new format from scanner)
-    // 2. Prefixed filename like "source_*" or "transformed_*" (legacy format from job execution)
+    // Note: input_file_id and output_file_id now store patterns from mapping config
+    // We'll match these patterns to files to get schema info for the details modal
     const transformLineageResult = await dbPool.query(`
-      SELECT DISTINCT ON (tl.id)
+      SELECT
         tl.id,
         tl.transformation_id,
-        tl.input_file_id,
-        tl.output_file_id,
+        tl.input_file_id as source_pattern,
+        tl.output_file_id as target_pattern,
         tl.execution_id,
         tl.created_at,
         tm.mapping_name,
@@ -1586,47 +1585,10 @@ app.get('/api/lineage', async (req, res) => {
         tm.source_file_pattern,
         tm.target_file_name,
         tm.target_file_format,
-        tm.description,
-        sf.filename as source_filename,
-        sf.file_type as source_file_type,
-        sf.file_size as source_file_size,
-        sf.row_count as source_row_count,
-        sf.column_count as source_column_count,
-        sf.created_at as source_created_at,
-        tf.filename as target_filename,
-        tf.file_type as target_file_type,
-        tf.file_size as target_file_size,
-        tf.row_count as target_row_count,
-        tf.column_count as target_column_count,
-        tf.created_at as target_created_at
+        tm.description
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
-      LEFT JOIN LATERAL (
-        SELECT * FROM files 
-        WHERE (
-          CASE 
-            WHEN tl.input_file_id ~ '^file_' THEN file_id = tl.input_file_id
-            WHEN tl.input_file_id ~ '^[0-9]+$' THEN file_id::text = tl.input_file_id
-            ELSE filename = REPLACE(tl.input_file_id, 'source_', '')
-          END
-        )
-        AND created_at <= tl.created_at
-        ORDER BY created_at DESC
-        LIMIT 1
-      ) sf ON true
-      LEFT JOIN LATERAL (
-        SELECT * FROM files 
-        WHERE (
-          CASE 
-            WHEN tl.output_file_id ~ '^file_' THEN file_id = tl.output_file_id
-            ELSE filename = REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-z0-9]+_', '')
-          END
-        )
-        AND created_at >= tl.created_at
-        ORDER BY created_at ASC
-        LIMIT 1
-      ) tf ON true
-      ORDER BY tl.id, tl.created_at DESC
+      ORDER BY tl.created_at DESC
     `);
     
     // Combine both types of lineage
@@ -1664,109 +1626,37 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
     
     logger.info(`Found ${uniqueMappings.length} unique successful mappings to process`);
     
-    // Process each unique mapping
+    // Process each unique mapping - create lineage directly from mapping metadata
     for (const mapping of uniqueMappings) {
       try {
-        // Get the most recent successful job for this mapping
-        const latestJobQuery = `
+        // Get mapping details directly
+        const mappingQuery = `
           SELECT 
-            tj.id as job_id,
-            tj.mapping_id,
-            tj.end_time,
-            tj.created_at,
-            tm.mapping_name,
-            tm.source_file_pattern,
-            tm.target_file_name
-          FROM transformation_jobs tj
-          LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
-          WHERE tj.mapping_id = $1
-            AND tj.status = 'completed'
-          ORDER BY tj.end_time DESC NULLS LAST, tj.created_at DESC
-          LIMIT 1
+            mapping_id,
+            mapping_name,
+            source_file_pattern,
+            target_file_name,
+            target_file_format,
+            description
+          FROM transformation_mappings
+          WHERE mapping_id = $1
         `;
         
-        const latestJobResult = await dbPool.query(latestJobQuery, [mapping.mapping_id]);
+        const mappingResult = await dbPool.query(mappingQuery, [mapping.mapping_id]);
         
-        if (latestJobResult.rows.length === 0) {
+        if (mappingResult.rows.length === 0) {
           skipped++;
           continue;
         }
         
-        const latestJob = latestJobResult.rows[0];
-        
-        // Find source and target files from file_audit_details for this job
-        const auditQuery = `
-          SELECT 
-            file_id,
-            file_name,
-            load_type,
-            source_path,
-            correlation_id
-          FROM file_audit_details
-          WHERE transformation_job_id = $1
-            AND status = 'success'
-          ORDER BY created_dt ASC
-        `;
-        
-        const auditResult = await dbPool.query(auditQuery, [latestJob.job_id]);
-        
-        if (auditResult.rows.length < 2) {
-          // Need at least source and target file
-          skipped++;
-          continue;
-        }
-        
-        // Find source file (starts with 'source_') and target file (starts with 'transformed_')
-        const sourceAudit = auditResult.rows.find(r => r.file_id.startsWith('source_'));
-        const targetAudit = auditResult.rows.find(r => r.file_id.startsWith('transformed_'));
-        
-        if (!sourceAudit || !targetAudit) {
-          // Skip if we can't identify both source and target
-          skipped++;
-          continue;
-        }
-        
-        // Look up actual file IDs from files table
-        // Strip prefixes to get base filenames
-        const sourceBasename = sourceAudit.file_id.replace(/^source_/, '');
-        const targetBasename = targetAudit.file_id.replace(/^transformed_JOB-[0-9]+-[a-z0-9]+_/, '');
-        
-        // Find actual source file (oldest file with matching name)
-        const sourceFileQuery = await dbPool.query(`
-          SELECT file_id, filename, created_at
-          FROM files
-          WHERE filename = $1
-          ORDER BY created_at ASC
-          LIMIT 1
-        `, [sourceBasename]);
-        
-        // Find actual target file (newest file with matching name, different from source)
-        // Target might be created around the job time (before completion or after start)
-        const targetFileQuery = await dbPool.query(`
-          SELECT file_id, filename, created_at
-          FROM files
-          WHERE filename = $1
-          ORDER BY created_at DESC
-          LIMIT 1
-        `, [targetBasename]);
-        
-        if (sourceFileQuery.rows.length === 0 || targetFileQuery.rows.length === 0) {
-          // Skip if we can't find actual files in the files table
-          skipped++;
-          logger.warn('Could not find actual files in files table', {
-            mappingId: mapping.mapping_id,
-            sourceBasename,
-            targetBasename,
-            sourceFound: sourceFileQuery.rows.length > 0,
-            targetFound: targetFileQuery.rows.length > 0
-          });
-          continue;
-        }
-        
-        const sourceFile = sourceFileQuery.rows[0];
-        const targetFile = targetFileQuery.rows[0];
-        
+        const mappingData = mappingResult.rows[0];
         const transformationId = `transform_${mapping.mapping_id}`;
+        
+        // Use source_file_pattern and target_file_name directly from mapping config
+        // Store patterns, not file_ids
+        const sourcePattern = mappingData.source_file_pattern || '';
+        const targetPattern = mappingData.target_file_name || 
+                             `output.${mappingData.target_file_format || 'csv'}`;
         
         // Check if lineage already exists for this mapping
         const existingCheck = await dbPool.query(`
@@ -1775,57 +1665,47 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
         `, [transformationId]);
         
         if (existingCheck.rows.length > 0) {
-          // Update existing lineage with latest job information
+          // Update existing lineage with mapping patterns
           await dbPool.query(`
             UPDATE transformation_lineage 
             SET input_file_id = $1,
                 output_file_id = $2,
-                execution_id = $3,
-                created_at = $4
-            WHERE transformation_id = $5
+                created_at = NOW()
+            WHERE transformation_id = $3
           `, [
-            sourceFile.file_id,
-            targetFile.file_id,
-            latestJob.job_id.toString(),
-            latestJob.created_at,
+            sourcePattern,
+            targetPattern,
             transformationId
           ]);
           
           updated++;
           logger.info('Updated lineage record', {
             mappingId: mapping.mapping_id,
-            latestJobId: latestJob.job_id,
-            sourceFile: sourceFile.filename,
-            sourceFileId: sourceFile.file_id,
-            targetFile: targetFile.filename,
-            targetFileId: targetFile.file_id
+            mappingName: mappingData.mapping_name,
+            sourcePattern,
+            targetPattern
           });
         } else {
-          // Create new lineage record
+          // Create new lineage record with patterns
           await dbPool.query(`
             INSERT INTO transformation_lineage (
               transformation_id,
               input_file_id,
               output_file_id,
-              execution_id,
               created_at
-            ) VALUES ($1, $2, $3, $4, $5)
+            ) VALUES ($1, $2, $3, NOW())
           `, [
             transformationId,
-            sourceFile.file_id,
-            targetFile.file_id,
-            latestJob.job_id.toString(),
-            latestJob.created_at
+            sourcePattern,
+            targetPattern
           ]);
           
           created++;
           logger.info('Created lineage record', {
             mappingId: mapping.mapping_id,
-            latestJobId: latestJob.job_id,
-            sourceFile: sourceFile.filename,
-            sourceFileId: sourceFile.file_id,
-            targetFile: targetFile.filename,
-            targetFileId: targetFile.file_id
+            mappingName: mappingData.mapping_name,
+            sourcePattern,
+            targetPattern
           });
         }
         

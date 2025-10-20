@@ -28,8 +28,30 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     target_column_count,
     target_created_at,
     field_mappings,
-    variables
+    variables,
+    source_pattern,
+    target_pattern,
+    source_file_pattern,
+    target_file_name,
+    target_file_format
   } = transformationData;
+
+  // For transformation lineage, use patterns instead of filenames
+  const displaySourceName = isTransformationLineage 
+    ? (source_pattern || source_file_pattern || source_filename)
+    : source_filename;
+  
+  const displayTargetName = isTransformationLineage 
+    ? (target_pattern || target_file_name || target_filename)
+    : target_filename;
+  
+  const displaySourceType = isTransformationLineage && source_file_pattern
+    ? 'PATTERN'
+    : source_file_type;
+  
+  const displayTargetType = isTransformationLineage
+    ? (target_file_format || (target_pattern ? 'PATTERN' : target_file_type))
+    : target_file_type;
 
   const formatBytes = (bytes) => {
     if (!bytes) return 'N/A';
@@ -127,13 +149,18 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                   <span className="file-label">Source File</span>
                 </div>
                 <div className="file-details">
-                  <div className="file-name">{source_filename || 'N/A'}</div>
+                  <div className="file-name">{displaySourceName || 'N/A'}</div>
                   <div className="file-stats">
-                    <span className="stat"><strong>Type:</strong> {source_file_type?.toUpperCase() || 'N/A'}</span>
-                    <span className="stat"><strong>Size:</strong> {formatBytes(source_file_size)}</span>
-                    <span className="stat"><strong>Rows:</strong> {formatNumber(source_row_count)}</span>
-                    <span className="stat"><strong>Columns:</strong> {source_column_count || 'N/A'}</span>
-                    <span className="stat"><strong>Created:</strong> {formatDate(source_created_at)}</span>
+                    <span className="stat"><strong>Type:</strong> {displaySourceType?.toUpperCase() || 'N/A'}</span>
+                    {!isTransformationLineage && (
+                      <>
+                        <span className="stat"><strong>Size:</strong> {formatBytes(source_file_size)}</span>
+                        <span className="stat"><strong>Rows:</strong> {formatNumber(source_row_count)}</span>
+                        <span className="stat"><strong>Columns:</strong> {source_column_count || 'N/A'}</span>
+                        <span className="stat"><strong>Created:</strong> {formatDate(source_created_at)}</span>
+                      </>
+                    )}
+                    <span className="stat"><strong>Owner:</strong> <span className="owner-placeholder">-</span></span>
                   </div>
                 </div>
               </div>
@@ -148,13 +175,18 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                   <span className="file-label">Target File</span>
                 </div>
                 <div className="file-details">
-                  <div className="file-name">{target_filename || 'N/A'}</div>
+                  <div className="file-name">{displayTargetName || 'N/A'}</div>
                   <div className="file-stats">
-                    <span className="stat"><strong>Type:</strong> {target_file_type?.toUpperCase() || 'N/A'}</span>
-                    <span className="stat"><strong>Size:</strong> {formatBytes(target_file_size)}</span>
-                    <span className="stat"><strong>Rows:</strong> {formatNumber(target_row_count)}</span>
-                    <span className="stat"><strong>Columns:</strong> {target_column_count || 'N/A'}</span>
-                    <span className="stat"><strong>Created:</strong> {formatDate(target_created_at)}</span>
+                    <span className="stat"><strong>Type:</strong> {displayTargetType?.toUpperCase() || 'N/A'}</span>
+                    {!isTransformationLineage && (
+                      <>
+                        <span className="stat"><strong>Size:</strong> {formatBytes(target_file_size)}</span>
+                        <span className="stat"><strong>Rows:</strong> {formatNumber(target_row_count)}</span>
+                        <span className="stat"><strong>Columns:</strong> {target_column_count || 'N/A'}</span>
+                        <span className="stat"><strong>Created:</strong> {formatDate(target_created_at)}</span>
+                      </>
+                    )}
+                    <span className="stat"><strong>Owner:</strong> <span className="owner-placeholder">-</span></span>
                   </div>
                 </div>
               </div>
