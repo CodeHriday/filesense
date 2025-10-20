@@ -4,10 +4,14 @@
  * This module provides authentication and token management services.
  */
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const userRepository = require('../repositories/userRepository');
 const db = require('../config/database');
 const { SECURITY_CONFIG } = require('../config/environment');
+
+// Number of salt rounds for bcrypt hashing (refresh tokens)
+const REFRESH_TOKEN_SALT_ROUNDS = 10;
 
 /**
  * Generate JWT access token
@@ -47,9 +51,38 @@ const generateRefreshToken = (user) => {
 };
 
 /**
+ * Hash a refresh token for secure storage
+ * @param {string} token - Refresh token to hash
+ * @returns {Promise<string>} Hashed token
+ */
+const hashRefreshToken = async (token) => {
+  try {
+    return await bcrypt.hash(token, REFRESH_TOKEN_SALT_ROUNDS);
+  } catch (error) {
+    console.error('Error hashing refresh token:', error);
+    throw new Error('Failed to hash refresh token');
+  }
+};
+
+/**
+ * Verify a refresh token against its hash
+ * @param {string} token - Plaintext token to verify
+ * @param {string} hashedToken - Hashed token from database
+ * @returns {Promise<boolean>} True if tokens match
+ */
+const verifyRefreshTokenHash = async (token, hashedToken) => {
+  try {
+    return await bcrypt.compare(token, hashedToken);
+  } catch (error) {
+    console.error('Error verifying refresh token hash:', error);
+    return false;
+  }
+};
+
+/**
  * Store refresh token in the database
  * @param {string} userId - User ID
- * @param {string} refreshToken - Refresh token
+ * @param {string} refreshToken - Refresh token (will be hashed before storage)
  * @param {string} userAgent - User agent string
  * @returns {Promise<Object>} Token record
  */
@@ -59,17 +92,20 @@ const storeRefreshToken = async (userId, refreshToken, userAgent) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
     
+    // Hash the refresh token before storing
+    const hashedToken = await hashRefreshToken(refreshToken);
+    
     const query = `
       INSERT INTO refresh_tokens (
         id, user_id, token, user_agent, expires_at, created_at
       ) VALUES ($1, $2, $3, $4, $5, NOW())
-      RETURNING *
+      RETURNING id, user_id, user_agent, expires_at, created_at, is_revoked
     `;
     
     const result = await db.query(query, [
       tokenId,
       userId,
-      refreshToken,
+      hashedToken,  // Store hashed token
       userAgent,
       expiresAt
     ]);
@@ -83,23 +119,35 @@ const storeRefreshToken = async (userId, refreshToken, userAgent) => {
 
 /**
  * Verify and get refresh token from the database
- * @param {string} refreshToken - Refresh token
- * @returns {Promise<Object>} Token data
+ * @param {string} refreshToken - Plaintext refresh token to verify
+ * @param {string} userId - User ID from decoded JWT
+ * @returns {Promise<Object>} Token data if valid, null otherwise
  */
-const getRefreshToken = async (refreshToken) => {
+const getRefreshToken = async (refreshToken, userId) => {
   try {
+    // Get all non-revoked, non-expired tokens for this user
     const query = `
       SELECT * FROM refresh_tokens
-      WHERE token = $1 AND is_revoked = FALSE AND expires_at > NOW()
+      WHERE user_id = $1 AND is_revoked = FALSE AND expires_at > NOW()
+      ORDER BY created_at DESC
     `;
     
-    const result = await db.query(query, [refreshToken]);
+    const result = await db.query(query, [userId]);
     
     if (result.rows.length === 0) {
       return null;
     }
     
-    return result.rows[0];
+    // Check each token hash until we find a match
+    for (const tokenRecord of result.rows) {
+      const isValid = await verifyRefreshTokenHash(refreshToken, tokenRecord.token);
+      if (isValid) {
+        return tokenRecord;
+      }
+    }
+    
+    // No matching token found
+    return null;
   } catch (error) {
     console.error('Error in authService.getRefreshToken:', error);
     throw new Error('Failed to validate refresh token');
@@ -212,7 +260,7 @@ const authenticateUser = async (username, password, userAgent) => {
       tokens: {
         accessToken,
         refreshToken,
-        expiresIn: 24 * 60 * 60 // 24 hours in seconds
+        expiresIn: 30 * 60 // 30 minutes in seconds (updated from 24 hours)
       }
     };
   } catch (error) {
@@ -242,8 +290,8 @@ const refreshAccessToken = async (refreshToken, userAgent) => {
       return { success: false, message: 'Invalid token type' };
     }
     
-    // Check if token exists in database and is not revoked
-    const tokenRecord = await getRefreshToken(refreshToken);
+    // Check if token exists in database and is not revoked (now uses hash comparison)
+    const tokenRecord = await getRefreshToken(refreshToken, decoded.id);
     
     if (!tokenRecord) {
       return { success: false, message: 'Refresh token expired or revoked' };
@@ -252,14 +300,18 @@ const refreshAccessToken = async (refreshToken, userAgent) => {
     // Get the user
     const user = await userRepository.findById(decoded.id);
     
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+    
     // Generate new tokens
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
     
-    // Revoke the old token
+    // Revoke the old token (token rotation)
     await revokeRefreshToken(tokenRecord.id);
     
-    // Store the new refresh token
+    // Store the new refresh token (will be hashed automatically)
     await storeRefreshToken(user.id, newRefreshToken, userAgent);
     
     return {
@@ -273,7 +325,7 @@ const refreshAccessToken = async (refreshToken, userAgent) => {
       tokens: {
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
-        expiresIn: 24 * 60 * 60 // 24 hours in seconds
+        expiresIn: 30 * 60 // 30 minutes in seconds (updated from 24 hours)
       }
     };
   } catch (error) {
@@ -297,8 +349,8 @@ const logout = async (refreshToken) => {
       return { success: true, message: 'Token already invalid' };
     }
     
-    // Check if token exists in database
-    const tokenRecord = await getRefreshToken(refreshToken);
+    // Check if token exists in database (now uses hash comparison)
+    const tokenRecord = await getRefreshToken(refreshToken, decoded.id);
     
     if (!tokenRecord) {
       return { success: true, message: 'Token already expired or revoked' };
