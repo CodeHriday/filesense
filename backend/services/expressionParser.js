@@ -387,16 +387,9 @@ function buildTransformation(transformationType, args) {
     case 'math_subtract':
     case 'math_multiply':
     case 'math_divide':
-      // math_op(field, value)
-      if (args.length > 0) {
-        config.nestedArgs = [args[0]];
-      }
-      if (args.length > 1 && args[1].type === 'LITERAL') {
-        const paramName = transformationType === 'math_add' ? 'addValue' :
-                         transformationType === 'math_subtract' ? 'subtractValue' :
-                         transformationType === 'math_multiply' ? 'multiplyBy' : 'divideBy';
-        config.params[paramName] = args[1].value;
-      }
+      // math_op(field1, field2) or math_op(field, literal)
+      // Support both multi-field operations and single-field with literal
+      config.nestedArgs = args;
       break;
       
     case 'split':
@@ -550,6 +543,29 @@ function evaluateTransformationConfig(transformConfig, variableValues = {}) {
             }
           }
           transformation.params.fields = fields;
+        } else if (config.transformation === 'math_add' || config.transformation === 'math_subtract' || 
+                   config.transformation === 'math_multiply' || config.transformation === 'math_divide') {
+          // Math operations: handle both multi-field and single-field with literal
+          const mathParts = [];
+          const fields = [];
+          
+          for (const arg of config.nestedArgs) {
+            if (arg.type === 'COLUMN') {
+              fields.push(arg.name);
+              sourceFields.push(arg.name);
+              mathParts.push({ type: 'field', value: arg.name });
+            } else if (arg.type === 'LITERAL') {
+              mathParts.push({ type: 'literal', value: arg.value });
+            } else if (arg.type === 'VARIABLE') {
+              fields.push(arg.name);
+              mathParts.push({ type: 'variable', value: arg.name });
+            }
+          }
+          
+          if (fields.length > 0) {
+            transformation.params.fields = fields;
+          }
+          transformation.params.mathParts = mathParts;
         } else {
           // For other functions, first arg is the value to transform
           if (config.nestedArgs[0].type === 'COLUMN') {

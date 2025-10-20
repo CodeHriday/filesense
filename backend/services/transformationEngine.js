@@ -385,8 +385,25 @@ function cast(value, params) {
  * Math operations - Add
  */
 function mathAdd(value, params) {
-  const { addValue = 0 } = params;
+  const { addValue = 0, mathParts = [], fields = [] } = params;
   
+  // NEW FORMAT: Use mathParts to handle multiple fields/variables/literals
+  if (mathParts.length >= 2) {
+    let result = 0;
+    for (const part of mathParts) {
+      if (part.type === 'field') {
+        result += parseFloat(value[part.value]) || 0;
+      } else if (part.type === 'literal') {
+        result += parseFloat(part.value) || 0;
+      } else if (part.type === 'variable') {
+        // Variables are in enriched row as $var_name
+        result += parseFloat(value[part.value]) || 0;
+      }
+    }
+    return result;
+  }
+  
+  // LEGACY FORMAT: Single value with addValue param
   const num1 = parseFloat(value) || 0;
   const num2 = parseFloat(addValue) || 0;
   
@@ -397,8 +414,33 @@ function mathAdd(value, params) {
  * Math operations - Subtract
  */
 function mathSubtract(value, params) {
-  const { subtractValue = 0 } = params;
+  const { subtractValue = 0, mathParts = [] } = params;
   
+  // NEW FORMAT: Use mathParts to handle multiple fields/variables/literals
+  if (mathParts.length >= 2) {
+    let result = null;
+    for (let i = 0; i < mathParts.length; i++) {
+      const part = mathParts[i];
+      let partValue = 0;
+      
+      if (part.type === 'field') {
+        partValue = parseFloat(value[part.value]) || 0;
+      } else if (part.type === 'literal') {
+        partValue = parseFloat(part.value) || 0;
+      } else if (part.type === 'variable') {
+        partValue = parseFloat(value[part.value]) || 0;
+      }
+      
+      if (i === 0) {
+        result = partValue; // First value
+      } else {
+        result -= partValue; // Subtract subsequent values
+      }
+    }
+    return result;
+  }
+  
+  // LEGACY FORMAT: Single value with subtractValue param
   const num1 = parseFloat(value) || 0;
   const num2 = parseFloat(subtractValue) || 0;
   
@@ -409,8 +451,24 @@ function mathSubtract(value, params) {
  * Math operations - Multiply
  */
 function mathMultiply(value, params) {
-  const { multiplyBy = 1 } = params;
+  const { multiplyBy = 1, mathParts = [] } = params;
   
+  // NEW FORMAT: Use mathParts to handle multiple fields/variables/literals
+  if (mathParts.length >= 2) {
+    let result = 1;
+    for (const part of mathParts) {
+      if (part.type === 'field') {
+        result *= parseFloat(value[part.value]) || 0;
+      } else if (part.type === 'literal') {
+        result *= parseFloat(part.value) || 0;
+      } else if (part.type === 'variable') {
+        result *= parseFloat(value[part.value]) || 0;
+      }
+    }
+    return result;
+  }
+  
+  // LEGACY FORMAT: Single value with multiplyBy param
   const num1 = parseFloat(value) || 0;
   const num2 = parseFloat(multiplyBy) || 1;
   
@@ -421,8 +479,37 @@ function mathMultiply(value, params) {
  * Math operations - Divide
  */
 function mathDivide(value, params) {
-  const { divideBy = 1 } = params;
+  const { divideBy = 1, mathParts = [] } = params;
   
+  // NEW FORMAT: Use mathParts to handle multiple fields/variables/literals
+  if (mathParts.length >= 2) {
+    let result = null;
+    for (let i = 0; i < mathParts.length; i++) {
+      const part = mathParts[i];
+      let partValue = 0;
+      
+      if (part.type === 'field') {
+        partValue = parseFloat(value[part.value]) || 0;
+      } else if (part.type === 'literal') {
+        partValue = parseFloat(part.value) || 0;
+      } else if (part.type === 'variable') {
+        partValue = parseFloat(value[part.value]) || 0;
+      }
+      
+      if (i === 0) {
+        result = partValue; // First value
+      } else {
+        if (partValue === 0) {
+          systemLogger.warn('Division by zero attempted');
+          return null;
+        }
+        result /= partValue; // Divide by subsequent values
+      }
+    }
+    return result;
+  }
+  
+  // LEGACY FORMAT: Single value with divideBy param
   const num1 = parseFloat(value) || 0;
   const num2 = parseFloat(divideBy) || 1;
   
@@ -584,8 +671,13 @@ function transformRow(row, fieldMappings, variables = []) {
       
       // Variables can reference source fields, other variables, or be system-generated
       if (sourceFields && sourceFields.length > 0) {
-        // PRIORITY 1: Check if transformations require row-level context (concat/coalesce)
-        if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce')) {
+        // PRIORITY 1: Check if transformations require row-level context (concat/coalesce/math with multiple fields)
+        const isMathWithMultipleFields = transformations.length > 0 && 
+          (transformations[0].type === 'math_add' || transformations[0].type === 'math_subtract' || 
+           transformations[0].type === 'math_multiply' || transformations[0].type === 'math_divide') &&
+          transformations[0].params && transformations[0].params.mathParts && transformations[0].params.mathParts.length >= 2;
+        
+        if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
           // Multi-field operations - pass enriched row and transformations are applied inside
           // DO NOT apply transformations again (already applied with row context)
           value = applyTransformationChain(enrichedRow, transformations);
@@ -626,8 +718,13 @@ function transformRow(row, fieldMappings, variables = []) {
     
     // Process field mappings with proper priority
     if (sourceFields && sourceFields.length > 0) {
-      // PRIORITY 1: Check if transformations require row-level context (concat/coalesce)
-      if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce')) {
+      // PRIORITY 1: Check if transformations require row-level context (concat/coalesce/math with multiple fields)
+      const isMathWithMultipleFields = transformations.length > 0 && 
+        (transformations[0].type === 'math_add' || transformations[0].type === 'math_subtract' || 
+         transformations[0].type === 'math_multiply' || transformations[0].type === 'math_divide') &&
+        transformations[0].params && transformations[0].params.mathParts && transformations[0].params.mathParts.length >= 2;
+      
+      if (transformations.length > 0 && (transformations[0].type === 'concat' || transformations[0].type === 'coalesce' || isMathWithMultipleFields)) {
         // Multi-field operations - pass enriched row
         value = applyTransformationChain(enrichedRow, transformations);
       } else {
