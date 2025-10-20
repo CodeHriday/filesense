@@ -1,20 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   FiInfo, 
   FiActivity,
-  FiMap,
   FiGitBranch
 } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
-import LineageGraph from '../components/LineageGraph';
+import LineageTable from '../components/LineageTable';
 import { getLineages, scanAndPopulateLineage } from '../api/lineageService';
 import './FileLineage.css';
-import '../components/LineageGraph.css';
 
 function FileLineage() {
-  const navigate = useNavigate();
   const [lineages, setLineages] = useState({ manual_lineage: [], transformation_lineage: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,10 +46,6 @@ function FileLineage() {
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
-  
-  const handleViewImpact = (fileId) => {
-    navigate(`/lineage/impact/${fileId}`);
-  };
   
   const handleScanAndPopulate = async () => {
     try {
@@ -118,12 +110,12 @@ function FileLineage() {
             </div>
           )}
       
-          {/* Interactive Lineage Visualization Graph */}
+          {/* Lineage Table View */}
           <Card className="lineage-visualization-card">
             <div className="card-header">
               <div className="header-title">
                 <FiActivity className="header-icon" />
-                <h2>Interactive Lineage Visualization</h2>
+                <h2>File Lineage Records</h2>
               </div>
               <div className="header-actions">
                 <button 
@@ -147,7 +139,7 @@ function FileLineage() {
               </div>
             </div>
             <p className="section-description">
-              Visualize relationships between files with this interactive graph. Click the scan button to automatically populate lineage from transformation jobs.
+              View all lineage relationships between source and target files. Click the scan button to automatically populate lineage from transformation jobs.
             </p>
             
             {scanResults && (
@@ -182,14 +174,7 @@ function FileLineage() {
               </div>
             )}
             
-            {totalLineage === 0 && !scanResults ? (
-              <div className="empty-graph-message">
-                <FiMap className="empty-icon" />
-                <p>No lineage data found. Use "Scan & Populate" to auto-generate lineage from transformation jobs.</p>
-              </div>
-            ) : (
-              <LineageGraph onNodeClick={handleViewImpact} />
-            )}
+            <LineageTable lineages={lineages} />
           </Card>
       
           <Card className="lineage-info-card">
@@ -198,13 +183,13 @@ function FileLineage() {
               <h3>Understanding File Lineage</h3>
             </div>
             <p>
-              File lineage tracks how data flows through your transformation pipeline. The visualization shows:
+              File lineage tracks how data flows through your transformation pipeline. Each record shows:
             </p>
             <ul className="lineage-features">
-              <li><strong>File Nodes (Blue):</strong> Source and target data files</li>
-              <li><strong>Transformation Nodes (Purple):</strong> ETL mappings that process data</li>
-              <li><strong>Edges (Connections):</strong> Data flow relationships</li>
-              <li><strong>Click Transformations:</strong> View detailed field mappings, variables, and expressions</li>
+              <li><strong>Source File:</strong> The input file used in the transformation</li>
+              <li><strong>Target File:</strong> The output file created by the transformation</li>
+              <li><strong>Transformation:</strong> The ETL mapping that processed the data (if applicable)</li>
+              <li><strong>View Details:</strong> Click to see complete file metadata, field mappings, and derived expressions</li>
             </ul>
             <p style={{marginTop: '15px'}}>
               The lineage is automatically generated when transformation jobs execute. Use the "Scan & Populate" button to backfill lineage from historical transformation runs.
