@@ -97,20 +97,28 @@ async function updateFileColumns(client, fileId, filename, columnStats) {
  * Process a single file
  */
 async function processFile(client, file) {
-  const { file_id, filename, file_type } = file;
+  const { file_id, filename, file_type, metadata } = file;
   
   console.log(`\n📄 Processing: ${filename} (${file_type})`);
   
   try {
-    // Determine file path - check if file exists in uploads directory
-    const uploadsDir = path.join(__dirname, 'uploads');
-    let filePath = path.join(uploadsDir, filename);
+    // Extract file path from metadata
+    let filePath = null;
+    if (metadata && metadata.path) {
+      filePath = metadata.path;
+    }
+    
+    // If no path in metadata, try uploads directory
+    if (!filePath) {
+      const uploadsDir = path.join(__dirname, 'uploads');
+      filePath = path.join(uploadsDir, filename);
+    }
     
     // Check if file exists
     try {
       await fs.access(filePath);
     } catch (err) {
-      // File might be in a subdirectory or cloud storage
+      // File might be deleted or in cloud storage
       console.log(`  ⚠️  File not found at: ${filePath}`);
       console.log(`  ⏭️  Skipping (file may be in cloud storage or deleted)`);
       return { success: false, reason: 'file_not_found' };
@@ -154,7 +162,7 @@ async function main() {
     
     // Fetch all files
     const result = await client.query(`
-      SELECT file_id, filename, file_type, file_size, row_count
+      SELECT file_id, filename, file_type, file_size, row_count, metadata
       FROM files
       WHERE file_type IN ('csv', 'json', 'xlsx', 'xml', 'parquet')
       ORDER BY created_at DESC
