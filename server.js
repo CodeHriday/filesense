@@ -1570,7 +1570,12 @@ app.get('/api/lineage', async (req, res) => {
     // Also get transformation-based lineage
     const transformLineageResult = await dbPool.query(`
       SELECT 
-        tl.*,
+        tl.id,
+        tl.transformation_id,
+        tl.input_file_id,
+        tl.output_file_id,
+        tl.execution_id,
+        tl.created_at,
         tm.mapping_name,
         tm.mapping_id,
         tm.field_mappings,
@@ -1592,7 +1597,7 @@ app.get('/api/lineage', async (req, res) => {
         tf.column_count as target_column_count,
         tf.created_at as target_created_at
       FROM transformation_lineage tl
-      LEFT JOIN transformation_mappings tm ON tl.mapping_id = tm.mapping_id
+      LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
       LEFT JOIN files sf ON tl.input_file_id = sf.file_id
       LEFT JOIN files tf ON tl.output_file_id = tf.file_id
       ORDER BY tl.created_at DESC
@@ -1643,7 +1648,7 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
     // Process each job
     for (const job of jobs) {
       try {
-        // Find source and target files from file_audit for this transformation job
+        // Find source and target files from file_audit_details for this transformation job
         const auditQuery = `
           SELECT 
             file_id,
@@ -1651,10 +1656,10 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
             load_type,
             source_path,
             correlation_id
-          FROM file_audit
+          FROM file_audit_details
           WHERE transformation_job_id = $1
             AND status = 'success'
-          ORDER BY created_at ASC
+          ORDER BY created_dt ASC
         `;
         
         const auditResult = await dbPool.query(auditQuery, [job.job_id]);
@@ -1665,17 +1670,23 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
           continue;
         }
         
-        // First record is typically the source, last is the target
-        const sourceFile = auditResult.rows[0];
-        const targetFile = auditResult.rows[auditResult.rows.length - 1];
+        // Find source file (starts with 'source_') and target file (starts with 'transformed_')
+        const sourceFile = auditResult.rows.find(r => r.file_id.startsWith('source_'));
+        const targetFile = auditResult.rows.find(r => r.file_id.startsWith('transformed_'));
+        
+        if (!sourceFile || !targetFile) {
+          // Skip if we can't identify both source and target
+          skipped++;
+          continue;
+        }
         
         // Check if lineage already exists
         const existingCheck = await dbPool.query(`
           SELECT id FROM transformation_lineage 
-          WHERE mapping_id = $1 
+          WHERE transformation_id = $1 
             AND input_file_id = $2 
             AND output_file_id = $3
-        `, [job.mapping_id, sourceFile.file_id, targetFile.file_id]);
+        `, [`transform_${job.mapping_id}`, sourceFile.file_id, targetFile.file_id]);
         
         if (existingCheck.rows.length > 0) {
           skipped++;
@@ -1686,18 +1697,16 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
         const lineageQuery = `
           INSERT INTO transformation_lineage (
             transformation_id,
-            mapping_id,
             input_file_id,
             output_file_id,
             execution_id,
             created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6)
+          ) VALUES ($1, $2, $3, $4, $5)
           RETURNING id
         `;
         
         await dbPool.query(lineageQuery, [
           `transform_${job.mapping_id}`,
-          job.mapping_id,
           sourceFile.file_id,
           targetFile.file_id,
           job.job_id.toString(),
