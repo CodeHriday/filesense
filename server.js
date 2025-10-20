@@ -65,55 +65,10 @@ const logger = diContainer.get('logger');
 // Make database pool available to routes
 app.locals.pool = dbPool;
 
-// JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
-const JWT_EXPIRATION = '2h'; // Token expiration time (reduced from 24h for better security)
-
-// Validate JWT secret strength
-const validateJWTSecret = (secret) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const weakSecrets = [
-    'secret', 'your-secret-key', 'your-secret-key-for-development',
-    '12345', 'password', 'changeme', 'test', 'development'
-  ];
-  
-  // Check if secret is in the weak list
-  const isWeak = weakSecrets.some(weak => secret.toLowerCase().includes(weak));
-  
-  // Check minimum length (should be at least 32 characters)
-  const isTooShort = secret.length < 32;
-  
-  if (isProduction && (isWeak || isTooShort)) {
-    logger.error('CRITICAL SECURITY ERROR: Weak or default JWT secret detected in production', {
-      secretLength: secret.length,
-      isWeak,
-      isTooShort
-    });
-    console.error('\n='.repeat(80));
-    console.error('CRITICAL SECURITY ERROR: JWT_SECRET is weak or using default value!');
-    console.error('Production server cannot start with weak JWT secret.');
-    console.error('Generate a strong secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
-    console.error('='.repeat(80) + '\n');
-    process.exit(1);
-  }
-  
-  if (!isProduction && (isWeak || isTooShort)) {
-    logger.warn('WARNING: Weak or default JWT secret detected in development', {
-      secretLength: secret.length,
-      isWeak,
-      isTooShort,
-      recommendation: 'Use a strong secret in production'
-    });
-    console.warn('\n' + '='.repeat(80));
-    console.warn('WARNING: Using weak or default JWT secret in development!');
-    console.warn('This is acceptable for development but NEVER use this in production.');
-    console.warn('Generate a strong secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
-    console.warn('='.repeat(80) + '\n');
-  }
-};
-
-// Validate JWT secret on startup
-validateJWTSecret(JWT_SECRET);
+// JWT Configuration - Now managed by environment.js with strict validation
+const { SECURITY_CONFIG } = require('./backend/src/config/environment');
+const JWT_SECRET = SECURITY_CONFIG.JWT_SECRET;
+const JWT_EXPIRATION = SECURITY_CONFIG.JWT_EXPIRATION;
 
 // Error sanitization utility for production
 const sanitizeError = (error, genericMessage = 'An error occurred') => {

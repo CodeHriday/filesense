@@ -32,8 +32,8 @@ const DATABASE_CONFIG = {
 
 // Security configuration
 const SECURITY_CONFIG = {
-  JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-  JWT_EXPIRATION: process.env.JWT_EXPIRATION || '24h', // Token expiration time
+  JWT_SECRET: process.env.JWT_SECRET,
+  JWT_EXPIRATION: process.env.JWT_EXPIRATION || '30m', // Access token expiration (reduced from 24h)
   JWT_REFRESH_EXPIRATION: process.env.JWT_REFRESH_EXPIRATION || '7d', // Refresh token expiration
   BCRYPT_SALT_ROUNDS: parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10),
   COOKIE_SECRET: process.env.COOKIE_SECRET || 'cookie-secret-change-in-production',
@@ -56,11 +56,59 @@ const STORAGE_CONFIG = {
 // Validate critical configuration
 const validateConfig = () => {
   const issues = [];
+  const isProduction = APP_CONFIG.NODE_ENV === 'production';
   
-  // Validate JWT secret in production
-  if (APP_CONFIG.NODE_ENV === 'production' && 
-      SECURITY_CONFIG.JWT_SECRET === 'your-secret-key-change-in-production') {
-    issues.push('JWT_SECRET is using the default value in production mode');
+  // Validate JWT secret exists
+  if (!SECURITY_CONFIG.JWT_SECRET) {
+    const message = 'JWT_SECRET environment variable is not set';
+    if (isProduction) {
+      console.error('\n' + '='.repeat(80));
+      console.error('CRITICAL SECURITY ERROR: JWT_SECRET is not configured!');
+      console.error('Server cannot start without JWT_SECRET.');
+      console.error('Generate a strong secret with:');
+      console.error('  node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+      console.error('='.repeat(80) + '\n');
+      throw new Error(message);
+    } else {
+      console.warn('\n' + '='.repeat(80));
+      console.warn('WARNING: JWT_SECRET is not configured!');
+      console.warn('For development, setting a temporary secret. DO NOT use in production!');
+      console.warn('Generate a strong secret with:');
+      console.warn('  node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+      console.warn('='.repeat(80) + '\n');
+      // Set a temporary secret for development only
+      SECURITY_CONFIG.JWT_SECRET = require('crypto').randomBytes(64).toString('hex');
+    }
+  }
+  
+  // Validate JWT secret strength (minimum 64 characters)
+  const weakSecrets = [
+    'secret', 'your-secret-key', 'your-secret-key-change-in-production',
+    'development_secret', '12345', 'password', 'changeme', 'test', 'development'
+  ];
+  
+  const isWeak = weakSecrets.some(weak => 
+    SECURITY_CONFIG.JWT_SECRET.toLowerCase().includes(weak)
+  );
+  const isTooShort = SECURITY_CONFIG.JWT_SECRET.length < 64;
+  
+  if (isProduction && (isWeak || isTooShort)) {
+    console.error('\n' + '='.repeat(80));
+    console.error('CRITICAL SECURITY ERROR: JWT_SECRET is weak or too short!');
+    console.error(`Current secret length: ${SECURITY_CONFIG.JWT_SECRET.length} (minimum required: 64)`);
+    console.error('Server cannot start with weak JWT secret in production.');
+    console.error('Generate a strong secret with:');
+    console.error('  node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+    console.error('='.repeat(80) + '\n');
+    throw new Error('JWT_SECRET is weak or too short for production use');
+  }
+  
+  if (!isProduction && (isWeak || isTooShort)) {
+    console.warn('\n' + '='.repeat(80));
+    console.warn('WARNING: JWT_SECRET is weak or too short!');
+    console.warn(`Current secret length: ${SECURITY_CONFIG.JWT_SECRET.length} (recommended: 64+)`);
+    console.warn('This is acceptable for development but NEVER use this in production.');
+    console.warn('='.repeat(80) + '\n');
   }
   
   // Validate storage provider configuration

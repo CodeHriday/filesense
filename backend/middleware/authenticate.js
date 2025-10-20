@@ -22,8 +22,14 @@ function authenticate(req, res, next) {
   }
   
   try {
+    // Ensure JWT_SECRET is configured
+    if (!process.env.JWT_SECRET) {
+      authLogger.error('CRITICAL: JWT_SECRET environment variable is not set');
+      return res.status(500).json({ error: 'Authentication service configuration error' });
+    }
+    
     // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'development_secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Add user data to request
     req.user = decoded;
