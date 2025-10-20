@@ -283,14 +283,16 @@ class FileInsightsService {
         }
         
         // Aggregate string stats
-        if (col.column_type === 'string' || col.column_type === 'text' || col.column_type === 'varchar') {
+        if (col.column_type === 'string' || col.column_type === 'text' || col.column_type === 'varchar' || col.column_type === 'object') {
           const minLen = col.min_value ? col.min_value.length : 0;
           const maxLen = col.max_value ? col.max_value.length : 0;
           
           metrics.string_stats[col.column_name] = {
             min_length: minLen,
             max_length: maxLen,
-            avg_length: Math.round((minLen + maxLen) / 2)
+            avg_length: Math.round((minLen + maxLen) / 2),
+            min_value_sample: col.min_value ? col.min_value.substring(0, 50) : null,  // Shortest string (truncated to 50 chars)
+            max_value_sample: col.max_value ? col.max_value.substring(0, 50) : null   // Longest string (truncated to 50 chars)
           };
         }
       }
