@@ -89,7 +89,9 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
       const fieldMatches = mapping.expression.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
       return fieldMatches.filter(f => !['concat', 'add', 'multiply', 'subtract', 'divide', 'upper', 'lower', 'trim', 'round', 'floor', 'ceil'].includes(f.toLowerCase()));
     }
-    return mapping.sourceFields || [];
+    // Handle both snake_case (source_field) and camelCase (sourceFields) for backwards compatibility
+    const sourceField = mapping.source_field || mapping.sourceFields;
+    return sourceField ? [sourceField] : [];
   };
 
   return (
@@ -215,7 +217,7 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                             <FiArrowRight />
                           </div>
                           <div className="mapping-target">
-                            <span className="target-field">{mapping.targetField}</span>
+                            <span className="target-field">{mapping.target_field || mapping.targetField}</span>
                             {hasExpression && (
                               <div className="transformation-badge">
                                 <FiCode size={12} />
