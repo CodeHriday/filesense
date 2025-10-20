@@ -14,7 +14,7 @@ import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import LineageGraph from '../components/LineageGraph';
 import { getFileCatalog } from '../api/fileService';
-import { getLineages, createLineage, deleteLineage } from '../api/lineageService';
+import { getLineages, createLineage, deleteLineage, scanAndPopulateLineage } from '../api/lineageService';
 import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor } from '@dnd-kit/core';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import './FileLineage.css';
@@ -73,6 +73,8 @@ function FileLineage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanResults, setScanResults] = useState(null);
   
   // Configure DnD sensors
   const sensors = useSensors(
@@ -201,6 +203,32 @@ function FileLineage() {
   
   const handleViewImpact = (fileId) => {
     navigate(`/lineage/impact/${fileId}`);
+  };
+  
+  const handleScanAndPopulate = async () => {
+    try {
+      setScanLoading(true);
+      setScanResults(null);
+      setError(null);
+      
+      const results = await scanAndPopulateLineage();
+      
+      setScanResults(results.summary);
+      
+      // Refresh lineage data if any were created
+      if (results.summary.lineageCreated > 0) {
+        const lineageData = await getLineages();
+        setLineages(lineageData);
+        setSuccessMessage(`Successfully created ${results.summary.lineageCreated} lineage record(s)!`);
+      } else {
+        setSuccessMessage('Scan complete. No new lineage records needed.');
+      }
+    } catch (err) {
+      console.error('Error scanning and populating lineage:', err);
+      setError('Failed to scan and populate lineage. Please try again.');
+    } finally {
+      setScanLoading(false);
+    }
   };
   
   return (
@@ -383,14 +411,61 @@ function FileLineage() {
             <FiActivity className="header-icon" />
             <h2>Interactive Lineage Visualization</h2>
           </div>
-          <p className="section-description">
-            Visualize the relationships between files with this interactive graph
-          </p>
+          <div className="header-actions">
+            <button 
+              className="btn btn-secondary scan-btn"
+              onClick={handleScanAndPopulate}
+              disabled={scanLoading}
+              title="Scan existing transformation jobs and populate missing lineage records"
+            >
+              {scanLoading ? (
+                <>
+                  <div className="spinner-small"></div>
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <FiGitBranch />
+                  Scan & Populate Lineage
+                </>
+              )}
+            </button>
+          </div>
         </div>
-        {lineages.length === 0 ? (
+        <p className="section-description">
+          Visualize the relationships between files with this interactive graph. Use the scan button to automatically populate lineage from transformation jobs.
+        </p>
+        
+        {scanResults && (
+          <div className="scan-results">
+            <h4>Scan Results:</h4>
+            <div className="scan-stats">
+              <div className="scan-stat">
+                <span className="stat-label">Jobs Processed:</span>
+                <span className="stat-value">{scanResults.totalJobsProcessed}</span>
+              </div>
+              <div className="scan-stat created">
+                <span className="stat-label">Lineage Created:</span>
+                <span className="stat-value">{scanResults.lineageCreated}</span>
+              </div>
+              <div className="scan-stat skipped">
+                <span className="stat-label">Already Exists:</span>
+                <span className="stat-value">{scanResults.lineageSkipped}</span>
+              </div>
+              {scanResults.errors > 0 && (
+                <div className="scan-stat errors">
+                  <span className="stat-label">Errors:</span>
+                  <span className="stat-value">{scanResults.errors}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {lineages.length === 0 && !scanResults ? (
           <div className="empty-graph-message">
             <FiMap className="empty-icon" />
-            <p>Create lineage relationships to visualize them in the graph</p>
+            <p>No lineage data found. Create manual relationships or use "Scan & Populate" to auto-generate lineage from transformation jobs.</p>
           </div>
         ) : (
           <LineageGraph onNodeClick={handleViewImpact} />
