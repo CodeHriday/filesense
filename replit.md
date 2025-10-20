@@ -4,6 +4,16 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 20, 2025**: Integrated automatic file profiling for ETL transformations
+  - Created etlProfilingService.js to automatically profile ETL output files during transformation execution
+  - Populates `files` table with file metadata (size, row count, column count, checksum)
+  - Populates `file_columns` table with column statistics (null counts, unique counts, min/max values)
+  - Column statistics include: null_count, unique_count, min_value_decimal, max_value_decimal
+  - Uses nullish coalescing (??) instead of logical OR (||) to preserve zero values in statistics
+  - Transaction-wrapped inserts prevent partial writes if column insert fails
+  - Automatic profiling trigger: jobExecutionEngine → calculateColumnStatistics() → profileETLOutputFile()
+  - File pattern extraction for grouping similar files (e.g., orders_2024-01-15.csv → orders*.csv)
+  - Enables File Insights Dashboard to track ETL-generated files alongside manually uploaded files
 - **October 20, 2025**: Implemented File Insights Dashboard with time-series metric tracking
   - Added File Insights as first tab in INSIGHTS section (before All Insights)
   - Created file_pattern_metrics table with daily aggregations and 18-month retention policy

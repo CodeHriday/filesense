@@ -27,7 +27,11 @@ const { profileFile } = require('./profilingService');
  * @returns {Promise<Object>} - Profiling result with quality score and anomaly counts
  */
 async function profileETLOutputFile(pool, fileData) {
+  const client = await pool.connect();
+  
   try {
+    await client.query('BEGIN');
+    
     systemLogger.info('Profiling ETL output file', { 
       fileId: fileData.fileId, 
       filename: fileData.filename 
@@ -37,7 +41,7 @@ async function profileETLOutputFile(pool, fileData) {
     const fileId = fileData.fileId;
     const qualityScore = 100; // Will be updated after profiling
     
-    await pool.query(`
+    await client.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
         quality_score, checksum, created_at, updated_at
@@ -71,7 +75,7 @@ async function profileETLOutputFile(pool, fileData) {
         const columnType = column.type || 'string';
         const stats = fileData.columnStats?.[columnName] || {};
         
-        await pool.query(`
+        await client.query(`
           INSERT INTO file_columns (
             file_id, column_name, column_type, column_index,
             null_count, unique_count, 
@@ -91,10 +95,10 @@ async function profileETLOutputFile(pool, fileData) {
           columnName,
           columnType,
           fileData.schema.indexOf(column),
-          stats.null_count || 0,
-          stats.unique_count || null,
-          stats.numeric_min || null,
-          stats.numeric_max || null,
+          stats.null_count ?? 0,
+          stats.unique_count ?? null,
+          stats.numeric_min ?? null,
+          stats.numeric_max ?? null,
           fileData.filename
         ]);
       }
@@ -128,6 +132,8 @@ async function profileETLOutputFile(pool, fileData) {
       checks: profilingResult.checks
     });
 
+    await client.query('COMMIT');
+
     return {
       success: true,
       fileId,
@@ -137,6 +143,8 @@ async function profileETLOutputFile(pool, fileData) {
     };
 
   } catch (error) {
+    await client.query('ROLLBACK');
+    
     systemLogger.error('Error profiling ETL output file', {
       fileId: fileData.fileId,
       filename: fileData.filename,
@@ -149,6 +157,8 @@ async function profileETLOutputFile(pool, fileData) {
       fileId: fileData.fileId,
       error: error.message
     };
+  } finally {
+    client.release();
   }
 }
 
