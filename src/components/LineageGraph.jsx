@@ -146,6 +146,8 @@ function LineageGraph({ onNodeClick }) {
               id: `manual-${lineage.id}`,
               source: lineage.source_file_id,
               target: lineage.target_file_id,
+              sourceHandle: null,
+              targetHandle: null,
               label: lineage.relationship_type,
               type: 'smoothstep',
               animated: true,
@@ -220,6 +222,8 @@ function LineageGraph({ onNodeClick }) {
                 id: `edge-in-${transformLineage.id}`,
                 source: transformLineage.input_file_id,
                 target: transformId,
+                sourceHandle: null,
+                targetHandle: null,
                 type: 'smoothstep',
                 animated: true,
                 style: { stroke: '#805ad5', strokeWidth: 2 },
@@ -231,6 +235,8 @@ function LineageGraph({ onNodeClick }) {
                 id: `edge-out-${transformLineage.id}`,
                 source: transformId,
                 target: transformLineage.output_file_id,
+                sourceHandle: null,
+                targetHandle: null,
                 type: 'smoothstep',
                 animated: true,
                 style: { stroke: '#805ad5', strokeWidth: 2 },
@@ -330,7 +336,8 @@ function LineageGraph({ onNodeClick }) {
 
   // Handle node click
   const onNodeClickHandler = useCallback((_, node) => {
-    if (onNodeClick) {
+    // Don't call onNodeClick for transformation nodes - they have their own onClick handler
+    if (node.type !== 'transformation' && onNodeClick) {
       onNodeClick(node.data.id);
     }
   }, [onNodeClick]);
