@@ -27,6 +27,7 @@ function LineageTable({ lineages }) {
   };
 
   const handleViewDetails = (lineage) => {
+    console.log('Lineage data being passed to modal:', lineage);
     setSelectedLineage(lineage);
   };
 

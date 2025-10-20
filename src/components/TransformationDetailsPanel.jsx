@@ -9,6 +9,9 @@ import './TransformationDetailsPanel.css';
 function TransformationDetailsPanel({ transformationData, onClose }) {
   if (!transformationData) return null;
 
+  // Debug: log the data being received
+  console.log('TransformationDetailsPanel received data:', transformationData);
+
   // Check if this is transformation lineage or manual lineage
   const isTransformationLineage = transformationData.type === 'transformation';
 
@@ -30,6 +33,15 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     field_mappings,
     variables
   } = transformationData;
+
+  // Debug: log extracted values
+  console.log('Extracted values:', {
+    source_filename,
+    target_filename,
+    source_file_type,
+    target_file_type,
+    isTransformationLineage
+  });
 
   const formatBytes = (bytes) => {
     if (!bytes) return 'N/A';
