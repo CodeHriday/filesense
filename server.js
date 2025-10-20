@@ -20,6 +20,7 @@ const { setupEnhancedFeatures } = require('./backend/integration');
 const { getQueue } = require('./backend/queue/queueFactory');
 const FileProcessingWorker = require('./backend/workers/fileProcessingWorker');
 const SchedulerWorker = require('./backend/workers/schedulerWorker');
+const InsightsAggregationWorker = require('./backend/workers/insightsAggregationWorker');
 
 // Initialize queue and workers
 const queue = getQueue();
@@ -37,6 +38,13 @@ const schedulerWorker = new SchedulerWorker(
   60000 // Check every 60 seconds
 );
 schedulerWorker.start();
+
+// Initialize insights aggregation worker (runs daily at 2 AM)
+const insightsWorker = new InsightsAggregationWorker(
+  diContainer.get('dbPool'),
+  '02:00' // Run at 2 AM
+);
+insightsWorker.start();
 
 // Import validation middleware and schemas
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
@@ -5748,6 +5756,11 @@ const gracefulShutdown = async (signal) => {
   try {
     // Stop scheduler worker
     await schedulerWorker.stop();
+    
+    // Stop insights aggregation worker
+    if (insightsWorker) {
+      insightsWorker.stop();
+    }
     
     // Stop file processing worker
     await fileWorker.stop();

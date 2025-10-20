@@ -2,14 +2,17 @@ const express = require('express');
 const router = express.Router();
 const FileInsightsService = require('../services/fileInsightsService');
 const { systemLogger } = require('../utils/logger');
+const cacheService = require('../services/cacheService');
 
 /**
  * File Insights API Routes
  * Provides time-series metrics and analytics for file patterns
+ * Uses caching for performance with 5-minute TTL
  */
 
 module.exports = (dbPool, authenticate) => {
   const insightsService = new FileInsightsService(dbPool);
+  const CACHE_TTL = 5 * 60; // 5 minutes
 
   /**
    * GET /api/insights/file-patterns
@@ -19,10 +22,17 @@ module.exports = (dbPool, authenticate) => {
     try {
       const limit = parseInt(req.query.limit) || 100;
       const offset = parseInt(req.query.offset) || 0;
+      const cacheKey = `insights:patterns:${limit}:${offset}`;
+      
+      // Try cache first
+      const cached = await cacheService.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
       
       const patterns = await insightsService.getFilePatterns(limit, offset);
       
-      res.json({
+      const response = {
         success: true,
         patterns,
         pagination: {
@@ -30,7 +40,12 @@ module.exports = (dbPool, authenticate) => {
           offset,
           count: patterns.length
         }
-      });
+      };
+      
+      // Cache the response
+      await cacheService.set(cacheKey, response, CACHE_TTL);
+      
+      res.json(response);
     } catch (error) {
       systemLogger.error('Error fetching file patterns', { error: error.message });
       res.status(500).json({
@@ -81,15 +96,28 @@ module.exports = (dbPool, authenticate) => {
       // Cap at 18 months (548 days)
       rangeInDays = Math.min(rangeInDays, 548);
       
+      const cacheKey = `insights:metrics:${pattern}:${granularity}:${rangeInDays}`;
+      
+      // Try cache first
+      const cached = await cacheService.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+      
       const metrics = await insightsService.getPatternMetrics(pattern, granularity, rangeInDays);
       
-      res.json({
+      const response = {
         success: true,
         pattern,
         granularity,
         range_days: rangeInDays,
         metrics
-      });
+      };
+      
+      // Cache the response
+      await cacheService.set(cacheKey, response, CACHE_TTL);
+      
+      res.json(response);
     } catch (error) {
       systemLogger.error('Error fetching pattern metrics', { 
         pattern: req.params.pattern,
