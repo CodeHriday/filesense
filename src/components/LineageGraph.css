@@ -88,6 +88,63 @@
   color: #777;
 }
 
+/* Transformation Node Styles */
+.transformation-node {
+  width: 200px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 2px solid #805ad5;
+  cursor: pointer;
+}
+
+.transformation-node:hover {
+  box-shadow: 0 8px 16px rgba(128, 90, 213, 0.3);
+  transform: translateY(-3px) scale(1.02);
+}
+
+.transformation-header {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.transformation-node .node-content {
+  color: white;
+}
+
+.transformation-node .node-title {
+  color: white;
+  font-weight: 600;
+  max-width: 180px;
+}
+
+.node-description {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.transformation-stats {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .lineage-graph-loading,
 .lineage-graph-error,
 .empty-graph {

@@ -1104,8 +1104,65 @@ app.get('/api/lineage', async (req, res) => {
       )
     `);
     
-    const result = await pool.query('SELECT * FROM file_lineage');
-    res.json(result.rows);
+    // Get lineage with transformation details
+    // Join with transformation_lineage and transformation_mappings to enrich data
+    const lineageResult = await pool.query(`
+      SELECT 
+        fl.*,
+        sf.filename as source_filename,
+        sf.file_type as source_file_type,
+        sf.file_size as source_file_size,
+        sf.row_count as source_row_count,
+        sf.column_count as source_column_count,
+        sf.created_at as source_created_at,
+        tf.filename as target_filename,
+        tf.file_type as target_file_type,
+        tf.file_size as target_file_size,
+        tf.row_count as target_row_count,
+        tf.column_count as target_column_count,
+        tf.created_at as target_created_at
+      FROM file_lineage fl
+      LEFT JOIN files sf ON fl.source_file_id = sf.file_id
+      LEFT JOIN files tf ON fl.target_file_id = tf.file_id
+      ORDER BY fl.created_at DESC
+    `);
+    
+    // Also get transformation-based lineage
+    const transformLineageResult = await pool.query(`
+      SELECT 
+        tl.*,
+        tm.mapping_name,
+        tm.mapping_id,
+        tm.field_mappings,
+        tm.variables,
+        tm.source_file_pattern,
+        tm.target_file_name,
+        tm.target_file_format,
+        tm.description,
+        sf.filename as source_filename,
+        sf.file_type as source_file_type,
+        sf.file_size as source_file_size,
+        sf.row_count as source_row_count,
+        sf.column_count as source_column_count,
+        sf.created_at as source_created_at,
+        tf.filename as target_filename,
+        tf.file_type as target_file_type,
+        tf.file_size as target_file_size,
+        tf.row_count as target_row_count,
+        tf.column_count as target_column_count,
+        tf.created_at as target_created_at
+      FROM transformation_lineage tl
+      LEFT JOIN transformation_mappings tm ON tl.transformation_id = tm.mapping_id
+      LEFT JOIN files sf ON tl.input_file_id = sf.file_id
+      LEFT JOIN files tf ON tl.output_file_id = tf.file_id
+      ORDER BY tl.created_at DESC
+    `);
+    
+    // Combine both types of lineage
+    res.json({
+      manual_lineage: lineageResult.rows,
+      transformation_lineage: transformLineageResult.rows
+    });
   } catch (err) {
     console.error('Error fetching lineage data:', err);
     res.status(500).json({ error: 'Failed to fetch lineage data' });

@@ -10,8 +10,9 @@ import ReactFlow, {
   Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { FiDatabase, FiFile, FiFileText, FiBox, FiZoomIn, FiZoomOut, FiMaximize } from 'react-icons/fi';
+import { FiDatabase, FiFile, FiFileText, FiBox, FiZoomIn, FiZoomOut, FiMaximize, FiGitMerge } from 'react-icons/fi';
 import { getLineages } from '../api/lineageService';
+import TransformationDetailsPanel from './TransformationDetailsPanel';
 
 // Custom Node Types
 const FileNode = ({ data }) => {
@@ -42,9 +43,34 @@ const FileNode = ({ data }) => {
   );
 };
 
+// Transformation Node
+const TransformationNode = ({ data }) => {
+  return (
+    <div className="lineage-node transformation-node" onClick={data.onClick}>
+      <div className="node-header transformation-header">
+        <FiGitMerge size={20} />
+        <span className="node-type">Transform</span>
+      </div>
+      <div className="node-content">
+        <div className="node-title">{data.label}</div>
+        {data.description && <div className="node-description">{data.description}</div>}
+        {data.fieldCount > 0 && (
+          <div className="transformation-stats">
+            <span className="stat-badge">{data.fieldCount} fields</span>
+            {data.variableCount > 0 && (
+              <span className="stat-badge">{data.variableCount} variables</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Node types configuration
 const nodeTypes = {
   file: FileNode,
+  transformation: TransformationNode,
 };
 
 function LineageGraph({ onNodeClick }) {
@@ -52,6 +78,7 @@ function LineageGraph({ onNodeClick }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedTransformation, setSelectedTransformation] = useState(null);
 
   // Layout configuration
   const [layoutConfig, setLayoutConfig] = useState({
@@ -81,51 +108,136 @@ function LineageGraph({ onNodeClick }) {
         const nodeMap = new Map();
         const lineageEdges = [];
         
-        // First, collect all unique files as nodes
-        lineageData.forEach(lineage => {
-          // Add source file node if not already added
-          if (!nodeMap.has(lineage.source_file_id)) {
-            nodeMap.set(lineage.source_file_id, {
-              id: lineage.source_file_id,
-              type: 'file',
-              position: { x: 0, y: 0 }, // Initial position, will be laid out automatically
-              data: {
+        // Process manual lineage (simple file-to-file)
+        if (lineageData.manual_lineage) {
+          lineageData.manual_lineage.forEach(lineage => {
+            // Add source file node if not already added
+            if (!nodeMap.has(lineage.source_file_id)) {
+              nodeMap.set(lineage.source_file_id, {
                 id: lineage.source_file_id,
-                label: lineage.source_filename,
-                fileType: lineage.source_file_type,
-                size: lineage.source_file_size ? formatBytes(lineage.source_file_size) : null,
-              },
-            });
-          }
-          
-          // Add target file node if not already added
-          if (!nodeMap.has(lineage.target_file_id)) {
-            nodeMap.set(lineage.target_file_id, {
-              id: lineage.target_file_id,
-              type: 'file',
-              position: { x: 250, y: 0 }, // Initial position, will be laid out automatically
-              data: {
+                type: 'file',
+                position: { x: 0, y: 0 },
+                data: {
+                  id: lineage.source_file_id,
+                  label: lineage.source_filename,
+                  fileType: lineage.source_file_type,
+                  size: lineage.source_file_size ? formatBytes(lineage.source_file_size) : null,
+                },
+              });
+            }
+            
+            // Add target file node if not already added
+            if (!nodeMap.has(lineage.target_file_id)) {
+              nodeMap.set(lineage.target_file_id, {
                 id: lineage.target_file_id,
-                label: lineage.target_filename,
-                fileType: lineage.target_file_type,
-                size: lineage.target_file_size ? formatBytes(lineage.target_file_size) : null,
-              },
+                type: 'file',
+                position: { x: 250, y: 0 },
+                data: {
+                  id: lineage.target_file_id,
+                  label: lineage.target_filename,
+                  fileType: lineage.target_file_type,
+                  size: lineage.target_file_size ? formatBytes(lineage.target_file_size) : null,
+                },
+              });
+            }
+            
+            // Create edge between source and target
+            lineageEdges.push({
+              id: `manual-${lineage.id}`,
+              source: lineage.source_file_id,
+              target: lineage.target_file_id,
+              label: lineage.relationship_type,
+              type: 'smoothstep',
+              animated: true,
+              style: { stroke: '#3182ce', strokeWidth: 2 },
+              labelStyle: { fill: '#333', fontSize: 12 },
+              labelBgStyle: { fill: '#f5f5f5', fillOpacity: 0.7 },
             });
-          }
-          
-          // Create edge between source and target
-          lineageEdges.push({
-            id: `e-${lineage.id}`,
-            source: lineage.source_file_id,
-            target: lineage.target_file_id,
-            label: lineage.relationship_type,
-            type: 'smoothstep',
-            animated: true,
-            style: { stroke: '#3182ce', strokeWidth: 2 },
-            labelStyle: { fill: '#333', fontSize: 12 },
-            labelBgStyle: { fill: '#f5f5f5', fillOpacity: 0.7 },
           });
-        });
+        }
+        
+        // Process transformation lineage (source → transformation → target)
+        if (lineageData.transformation_lineage) {
+          lineageData.transformation_lineage.forEach(transformLineage => {
+            const transformId = `transform-${transformLineage.transformation_id}`;
+            
+            // Add source file node
+            if (transformLineage.input_file_id && !nodeMap.has(transformLineage.input_file_id)) {
+              nodeMap.set(transformLineage.input_file_id, {
+                id: transformLineage.input_file_id,
+                type: 'file',
+                position: { x: 0, y: 0 },
+                data: {
+                  id: transformLineage.input_file_id,
+                  label: transformLineage.source_filename,
+                  fileType: transformLineage.source_file_type,
+                  size: transformLineage.source_file_size ? formatBytes(transformLineage.source_file_size) : null,
+                },
+              });
+            }
+            
+            // Add transformation node
+            const fieldMappings = transformLineage.field_mappings || [];
+            const variables = transformLineage.variables || [];
+            const parsedMappings = typeof fieldMappings === 'string' ? JSON.parse(fieldMappings) : fieldMappings;
+            const parsedVariables = typeof variables === 'string' ? JSON.parse(variables) : variables;
+            
+            if (!nodeMap.has(transformId)) {
+              nodeMap.set(transformId, {
+                id: transformId,
+                type: 'transformation',
+                position: { x: 200, y: 0 },
+                data: {
+                  id: transformId,
+                  label: transformLineage.mapping_name || 'Transformation',
+                  description: transformLineage.description,
+                  fieldCount: parsedMappings.length,
+                  variableCount: parsedVariables.length,
+                  onClick: () => setSelectedTransformation(transformLineage),
+                  transformationData: transformLineage,
+                },
+              });
+            }
+            
+            // Add target file node
+            if (transformLineage.output_file_id && !nodeMap.has(transformLineage.output_file_id)) {
+              nodeMap.set(transformLineage.output_file_id, {
+                id: transformLineage.output_file_id,
+                type: 'file',
+                position: { x: 400, y: 0 },
+                data: {
+                  id: transformLineage.output_file_id,
+                  label: transformLineage.target_filename,
+                  fileType: transformLineage.target_file_type,
+                  size: transformLineage.target_file_size ? formatBytes(transformLineage.target_file_size) : null,
+                },
+              });
+            }
+            
+            // Create edges: source → transformation → target
+            if (transformLineage.input_file_id) {
+              lineageEdges.push({
+                id: `edge-in-${transformLineage.id}`,
+                source: transformLineage.input_file_id,
+                target: transformId,
+                type: 'smoothstep',
+                animated: true,
+                style: { stroke: '#805ad5', strokeWidth: 2 },
+              });
+            }
+            
+            if (transformLineage.output_file_id) {
+              lineageEdges.push({
+                id: `edge-out-${transformLineage.id}`,
+                source: transformId,
+                target: transformLineage.output_file_id,
+                type: 'smoothstep',
+                animated: true,
+                style: { stroke: '#805ad5', strokeWidth: 2 },
+              });
+            }
+          });
+        }
         
         // Convert node map to array
         const nodeArray = Array.from(nodeMap.values());
@@ -251,70 +363,85 @@ function LineageGraph({ onNodeClick }) {
   }
 
   return (
-    <div className="lineage-graph-wrapper">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        onNodeClick={onNodeClickHandler}
-        fitView
-        onInit={fitViewHandler}
-        attributionPosition="bottom-right"
-        maxZoom={2}
-        minZoom={0.1}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Controls />
-        <MiniMap 
-          nodeStrokeColor={(n) => {
-            if (n.type === 'file') {
-              return '#3182ce';
-            }
-            return '#555';
-          }}
-          nodeColor={(n) => {
-            if (n.type === 'file') {
-              return '#e6f2ff';
-            }
-            return '#fff';
-          }}
+    <>
+      <div className="lineage-graph-wrapper">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          onNodeClick={onNodeClickHandler}
+          fitView
+          onInit={fitViewHandler}
+          attributionPosition="bottom-right"
+          maxZoom={2}
+          minZoom={0.1}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Controls />
+          <MiniMap 
+            nodeStrokeColor={(n) => {
+              if (n.type === 'file') {
+                return '#3182ce';
+              }
+              if (n.type === 'transformation') {
+                return '#805ad5';
+              }
+              return '#555';
+            }}
+            nodeColor={(n) => {
+              if (n.type === 'file') {
+                return '#e6f2ff';
+              }
+              if (n.type === 'transformation') {
+                return '#f5e6ff';
+              }
+              return '#fff';
+            }}
+          />
+          <Background 
+            color="#f8f8f8"
+            variant="dots"
+            gap={12}
+            size={1}
+          />
+          
+          <Panel position="top-right" className="layout-controls">
+            <div className="control-buttons">
+              <button 
+                className="control-btn" 
+                onClick={() => changeLayoutDirection('LR')}
+                title="Horizontal Layout"
+              >
+                <span className="direction-icon horizontal"></span>
+              </button>
+              <button 
+                className="control-btn" 
+                onClick={() => changeLayoutDirection('TB')}
+                title="Vertical Layout"
+              >
+                <span className="direction-icon vertical"></span>
+              </button>
+              <button 
+                className="control-btn" 
+                onClick={() => fitViewHandler()}
+                title="Fit View"
+              >
+                <FiMaximize />
+              </button>
+            </div>
+          </Panel>
+        </ReactFlow>
+      </div>
+      
+      {selectedTransformation && (
+        <TransformationDetailsPanel
+          transformationData={selectedTransformation}
+          onClose={() => setSelectedTransformation(null)}
         />
-        <Background 
-          color="#f8f8f8"
-          variant="dots"
-          gap={12}
-          size={1}
-        />
-        
-        <Panel position="top-right" className="layout-controls">
-          <div className="control-buttons">
-            <button 
-              className="control-btn" 
-              onClick={() => changeLayoutDirection('LR')}
-              title="Horizontal Layout"
-            >
-              <span className="direction-icon horizontal"></span>
-            </button>
-            <button 
-              className="control-btn" 
-              onClick={() => changeLayoutDirection('TB')}
-              title="Vertical Layout"
-            >
-              <span className="direction-icon vertical"></span>
-            </button>
-            <button 
-              className="control-btn" 
-              onClick={() => fitViewHandler()}
-              title="Fit View"
-            >
-              <FiMaximize />
-            </button>
-          </div>
-        </Panel>
-      </ReactFlow>
-    </div>
+      )}
+    </>
   );
 }
 
