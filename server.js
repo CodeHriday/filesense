@@ -1568,10 +1568,10 @@ app.get('/api/lineage', async (req, res) => {
     `);
     
     // Also get transformation-based lineage
-    // Note: input_file_id and output_file_id contain prefixed filenames (source_*, transformed_*)
-    // We need to strip the prefix and match on filename
+    // Note: input_file_id can be either an actual file_id OR a prefixed filename (source_*)
+    // output_file_id is always a prefixed filename (transformed_JOB-xxx_*)
     const transformLineageResult = await dbPool.query(`
-      SELECT 
+      SELECT DISTINCT ON (tl.id)
         tl.id,
         tl.transformation_id,
         tl.input_file_id,
@@ -1600,9 +1600,26 @@ app.get('/api/lineage', async (req, res) => {
         tf.created_at as target_created_at
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
-      LEFT JOIN files sf ON sf.filename = REPLACE(tl.input_file_id, 'source_', '')
-      LEFT JOIN files tf ON tf.filename = REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-z0-9]+_', '')
-      ORDER BY tl.created_at DESC
+      LEFT JOIN LATERAL (
+        SELECT * FROM files 
+        WHERE (
+          CASE 
+            WHEN tl.input_file_id ~ '^[0-9]+$' THEN file_id::text = tl.input_file_id
+            ELSE filename = REPLACE(tl.input_file_id, 'source_', '')
+          END
+        )
+        AND created_at <= tl.created_at
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) sf ON true
+      LEFT JOIN LATERAL (
+        SELECT * FROM files 
+        WHERE filename = REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-z0-9]+_', '')
+        AND created_at >= tl.created_at
+        ORDER BY created_at ASC
+        LIMIT 1
+      ) tf ON true
+      ORDER BY tl.id, tl.created_at DESC
     `);
     
     // Combine both types of lineage
