@@ -4,11 +4,25 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 20, 2025**: Enhanced column profiling to capture comprehensive string and numeric statistics
+  - **Manual File Uploads** (profile_columns.py):
+    - Captures actual shortest/longest string values (min_value, max_value) along with lengths
+    - Tracks min/max numeric values (min_value_decimal, max_value_decimal)
+    - Records null counts and unique counts for all column types
+    - Properly detects and handles string, numeric, integer, float, decimal, and object data types
+  - **ETL Transformations** (jobExecutionEngine.js, etlProfilingService.js):
+    - Enhanced calculateColumnStatistics to track string_values array and compute actual min/max string samples
+    - Finds shortest string (string_min_value) and longest string (string_max_value) by length
+    - Saves both string samples (min_value, max_value) and numeric ranges (min_value_decimal, max_value_decimal) to file_columns table
+    - Added proper cleanup to remove falsy values while preserving zero values
+  - **Dashboard Display** (fileInsightsService.js):
+    - string_stats now includes min_value_sample and max_value_sample (truncated to 50 chars for display)
+    - Added support for 'object' column type alongside string/text/varchar
+    - Displays both string length ranges (min_length, max_length, avg_length) and actual string samples
 - **October 20, 2025**: Integrated automatic file profiling for ETL transformations
   - Created etlProfilingService.js to automatically profile ETL output files during transformation execution
   - Populates `files` table with file metadata (size, row count, column count, checksum)
   - Populates `file_columns` table with column statistics (null counts, unique counts, min/max values)
-  - Column statistics include: null_count, unique_count, min_value_decimal, max_value_decimal
   - Uses nullish coalescing (??) instead of logical OR (||) to preserve zero values in statistics
   - Transaction-wrapped inserts prevent partial writes if column insert fails
   - Automatic profiling trigger: jobExecutionEngine → calculateColumnStatistics() → profileETLOutputFile()

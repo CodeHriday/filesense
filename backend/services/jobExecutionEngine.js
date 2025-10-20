@@ -576,8 +576,12 @@ function calculateColumnStatistics(rows, schema) {
     if (colStats.numeric_max === null) delete colStats.numeric_max;
     if (!colStats.numeric_avg) delete colStats.numeric_avg;
     if (colStats.numeric_sum === 0) delete colStats.numeric_sum;
+    
+    // Clean up empty string fields
     if (!colStats.string_min_length) delete colStats.string_min_length;
     if (!colStats.string_max_length) delete colStats.string_max_length;
+    if (!colStats.string_min_value) delete colStats.string_min_value;
+    if (!colStats.string_max_value) delete colStats.string_max_value;
   });
 
   return stats;
