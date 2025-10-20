@@ -1169,6 +1169,148 @@ app.get('/api/lineage', async (req, res) => {
   }
 });
 
+// Scan and populate lineage from existing transformation jobs
+app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) => {
+  try {
+    systemLogger.info('Starting lineage scan and populate', { userId: req.user.id });
+    
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+    const errorDetails = [];
+    
+    // Get all successful transformation jobs with their mapping info
+    const jobsQuery = `
+      SELECT DISTINCT
+        tj.id as job_id,
+        tj.mapping_id,
+        tj.status,
+        tj.created_at,
+        tm.mapping_name,
+        tm.source_file_pattern,
+        tm.target_file_name
+      FROM transformation_jobs tj
+      LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
+      WHERE tj.status = 'completed'
+      ORDER BY tj.created_at DESC
+    `;
+    
+    const jobsResult = await pool.query(jobsQuery);
+    const jobs = jobsResult.rows;
+    
+    systemLogger.info(`Found ${jobs.length} completed transformation jobs to process`);
+    
+    // Process each job
+    for (const job of jobs) {
+      try {
+        // Find source and target files from file_audit for this transformation job
+        const auditQuery = `
+          SELECT 
+            file_id,
+            file_name,
+            load_type,
+            source_path,
+            correlation_id
+          FROM file_audit
+          WHERE transformation_job_id = $1
+            AND status = 'success'
+          ORDER BY created_at ASC
+        `;
+        
+        const auditResult = await pool.query(auditQuery, [job.job_id]);
+        
+        if (auditResult.rows.length < 2) {
+          // Need at least source and target file
+          skipped++;
+          continue;
+        }
+        
+        // First record is typically the source, last is the target
+        const sourceFile = auditResult.rows[0];
+        const targetFile = auditResult.rows[auditResult.rows.length - 1];
+        
+        // Check if lineage already exists
+        const existingCheck = await pool.query(`
+          SELECT id FROM transformation_lineage 
+          WHERE mapping_id = $1 
+            AND input_file_id = $2 
+            AND output_file_id = $3
+        `, [job.mapping_id, sourceFile.file_id, targetFile.file_id]);
+        
+        if (existingCheck.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+        
+        // Create lineage record
+        const lineageQuery = `
+          INSERT INTO transformation_lineage (
+            transformation_id,
+            mapping_id,
+            input_file_id,
+            output_file_id,
+            execution_id,
+            created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING id
+        `;
+        
+        await pool.query(lineageQuery, [
+          `transform_${job.mapping_id}`,
+          job.mapping_id,
+          sourceFile.file_id,
+          targetFile.file_id,
+          job.job_id.toString(),
+          job.created_at
+        ]);
+        
+        created++;
+        systemLogger.info('Created lineage record', {
+          jobId: job.job_id,
+          mappingId: job.mapping_id,
+          sourceFile: sourceFile.file_name,
+          targetFile: targetFile.file_name
+        });
+        
+      } catch (jobError) {
+        errors++;
+        const errorMsg = `Job ${job.job_id}: ${jobError.message}`;
+        errorDetails.push(errorMsg);
+        systemLogger.error('Error processing job for lineage', {
+          jobId: job.job_id,
+          error: jobError.message
+        });
+      }
+    }
+    
+    systemLogger.info('Lineage scan and populate completed', {
+      totalJobs: jobs.length,
+      created,
+      skipped,
+      errors
+    });
+    
+    res.json({
+      success: true,
+      summary: {
+        totalJobsProcessed: jobs.length,
+        lineageCreated: created,
+        lineageSkipped: skipped,
+        errors: errors
+      },
+      errorDetails: errorDetails.length > 0 ? errorDetails : undefined
+    });
+    
+  } catch (err) {
+    systemLogger.error('Error in lineage scan and populate', { error: err.message });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to scan and populate lineage',
+      details: err.message 
+    });
+  }
+});
+
 // Badges endpoint
 app.get('/api/badges', async (req, res) => {
   try {
