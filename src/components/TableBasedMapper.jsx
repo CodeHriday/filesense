@@ -5,7 +5,7 @@ import './TableBasedMapper.css';
 const TRANSFORMATION_OPTIONS = [
   { value: 'none', label: 'None (Direct Copy)', group: 'Basic', params: [] },
   { value: 'null-to-value', label: 'Replace Null', group: 'Null Handling', params: [{ name: 'value', type: 'text', placeholder: 'Replacement value' }] },
-  { value: 'coalesce', label: 'Coalesce', group: 'Null Handling', params: [{ name: 'column2', type: 'text', placeholder: 'Second column' }] },
+  { value: 'coalesce', label: 'Coalesce', group: 'Null Handling', params: [{ name: 'column2', type: 'text', placeholder: 'Fallback column' }] },
   { value: 'UPPER', label: 'UPPERCASE', group: 'String', params: [] },
   { value: 'LOWER', label: 'lowercase', group: 'String', params: [] },
   { value: 'TRIM', label: 'Trim Whitespace', group: 'String', params: [] },
@@ -18,8 +18,8 @@ const TRANSFORMATION_OPTIONS = [
     { name: 'replace', type: 'text', placeholder: 'Replace with' }
   ]},
   { value: 'concat', label: 'Concatenate', group: 'String', params: [
-    { name: 'column2', type: 'text', placeholder: 'Second column' },
-    { name: 'separator', type: 'text', placeholder: 'Separator (optional)' }
+    { name: 'separator', type: 'text', placeholder: 'Separator (optional)' },
+    { name: 'column2', type: 'text', placeholder: 'Additional column (optional)' }
   ]},
   { value: 'ROUND', label: 'Round', group: 'Numeric', params: [{ name: 'decimals', type: 'number', placeholder: 'Decimal places' }] },
   { value: 'FLOOR', label: 'Floor', group: 'Numeric', params: [] },
