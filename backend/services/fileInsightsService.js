@@ -272,7 +272,7 @@ class FileInsightsService {
         }
         
         // Aggregate numeric stats (excluding ID fields)
-        if (col.column_type === 'numeric' || col.column_type === 'integer' || col.column_type === 'float') {
+        if (col.column_type === 'numeric' || col.column_type === 'integer' || col.column_type === 'float' || col.column_type === 'decimal') {
           metrics.numeric_stats[col.column_name] = {
             min: col.min_value_decimal,
             max: col.max_value_decimal,
