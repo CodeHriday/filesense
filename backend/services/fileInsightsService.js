@@ -231,10 +231,6 @@ class FileInsightsService {
     // Calculate averages
     const fileCount = files.length || 1;
     metrics.duplicate_percentage = files.reduce((sum, f) => sum + (parseFloat(f.duplicate_records_percentage) || 0), 0) / fileCount;
-    metrics.completeness_score = files.reduce((sum, f) => sum + (parseFloat(f.completeness_score) || 0), 0) / fileCount;
-    metrics.consistency_score = files.reduce((sum, f) => sum + (parseFloat(f.consistency_score) || 0), 0) / fileCount;
-    metrics.validity_score = files.reduce((sum, f) => sum + (parseFloat(f.validity_score) || 0), 0) / fileCount;
-    metrics.overall_quality_score = files.reduce((sum, f) => sum + (parseFloat(f.overall_quality_score) || 0), 0) / fileCount;
     
     // Get column-level details from first file (assuming schema is consistent)
     if (files.length > 0) {
@@ -297,6 +293,31 @@ class FileInsightsService {
             avg_length: Math.round((minLen + maxLen) / 2)
           };
         }
+      }
+      
+      // Calculate quality scores from file_columns data
+      const totalColumns = columnsResult.rows.length;
+      if (totalColumns > 0 && metrics.record_count > 0) {
+        // Completeness score: based on null percentages
+        const avgNullPct = columnsResult.rows.reduce((sum, col) => {
+          const colNullPct = (col.null_count / metrics.record_count) * 100;
+          return sum + colNullPct;
+        }, 0) / totalColumns;
+        metrics.completeness_score = Math.max(0, 100 - avgNullPct);
+        
+        // Consistency score: based on data type consistency (simplified to match completeness for now)
+        metrics.consistency_score = metrics.completeness_score;
+        
+        // Validity score: penalize for duplicates
+        const duplicatePct = (metrics.duplicate_count / metrics.record_count) * 100;
+        metrics.validity_score = Math.max(0, 100 - duplicatePct);
+        
+        // Overall quality: average of the three scores
+        metrics.overall_quality_score = (
+          metrics.completeness_score + 
+          metrics.consistency_score + 
+          metrics.validity_score
+        ) / 3;
       }
     }
     
