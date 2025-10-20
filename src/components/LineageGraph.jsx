@@ -330,9 +330,17 @@ function LineageGraph({ onNodeClick }) {
 
   // Handle node click
   const onNodeClickHandler = useCallback((_, node) => {
-    // Don't call onNodeClick for transformation nodes - they have their own onClick handler
-    if (node.type !== 'transformation' && onNodeClick) {
-      onNodeClick(node.data.id);
+    // Don't navigate for transformation nodes or transformation output files
+    // Transformation output files have IDs like "transformed_JOB-xxx" which don't exist in files table
+    if (node.type === 'transformation') {
+      // Transformation nodes have their own onClick handler
+      return;
+    }
+    
+    // Only allow navigation for actual source files (not transformation outputs)
+    const fileId = node.data.id;
+    if (fileId && !fileId.startsWith('transformed_') && onNodeClick) {
+      onNodeClick(fileId);
     }
   }, [onNodeClick]);
 
@@ -352,7 +360,7 @@ function LineageGraph({ onNodeClick }) {
   };
 
   if (loading) {
-    return <LoadingSpinner fullPage={true} />;
+    return <LoadingSpinner size="medium" />;
   }
 
   if (error) {
