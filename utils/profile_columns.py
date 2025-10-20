@@ -77,7 +77,9 @@ def profile_columns(file_path, file_type):
         for col in df.columns:
             stats = {
                 "name": str(col),
-                "type": str(df[col].dtype)
+                "type": str(df[col].dtype),
+                "null_count": int(df[col].isna().sum()),
+                "unique_count": int(df[col].nunique())
             }
             
             # Check if numeric (including datetime)
@@ -114,7 +116,7 @@ def profile_columns(file_path, file_type):
                     stats["max_frequency"] = max_count
                     stats["max_is_frequent"] = max_count > 1
             else:
-                # Categorical stats - get most and least frequent values
+                # Categorical/String stats - get most and least frequent values
                 value_counts = df[col].value_counts()
                 
                 if len(value_counts) > 0:
@@ -125,6 +127,18 @@ def profile_columns(file_path, file_type):
                     # Least frequent (last item in the sorted series)
                     stats["least_frequent_value"] = str(value_counts.index[-1])
                     stats["least_frequent_count"] = int(value_counts.iloc[-1])
+                
+                # String length statistics
+                # Drop nulls for string length analysis
+                non_null_vals = df[col].dropna().astype(str)
+                if len(non_null_vals) > 0:
+                    # Find shortest and longest strings by length
+                    str_lengths = non_null_vals.str.len()
+                    min_len_idx = str_lengths.idxmin()
+                    max_len_idx = str_lengths.idxmax()
+                    
+                    stats["min_value"] = str(non_null_vals.loc[min_len_idx])  # Shortest string
+                    stats["max_value"] = str(non_null_vals.loc[max_len_idx])  # Longest string
             
             # Detect patterns for this column
             patterns = detect_column_patterns(df[col])

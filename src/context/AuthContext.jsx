@@ -63,22 +63,29 @@ export const AuthProvider = ({ children }) => {
         password
       });
       
-      const { token, user } = response.data;
+      const { token, refreshToken, user, tokens } = response.data;
       
-      if (!token || !user) {
+      // Handle new token format (from updated backend)
+      const accessToken = tokens?.accessToken || token;
+      const refresh = tokens?.refreshToken || refreshToken;
+      
+      if (!accessToken || !user) {
         throw new Error('Invalid response format from server');
       }
       
       console.log('Login successful:', user.username);
       
-      // Save token to localStorage
-      localStorage.setItem('token', token);
+      // Save both access and refresh tokens to localStorage
+      localStorage.setItem('token', accessToken);
+      if (refresh) {
+        localStorage.setItem('refreshToken', refresh);
+      }
       
       // Immediately fetch complete user data with permissions from /api/auth/me
       try {
         const userResponse = await axios.get(`${API_BASE_URL}/api/auth/me`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${accessToken}`
           }
         });
         
@@ -108,10 +115,14 @@ export const AuthProvider = ({ children }) => {
   
   const logout = async () => {
     const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refreshToken');
     
     try {
-      if (token) {
-        await axios.post(`${API_BASE_URL}/api/auth/logout`, {}, {
+      if (refreshToken) {
+        // Send refresh token to logout endpoint to revoke it
+        await axios.post(`${API_BASE_URL}/api/auth/logout`, {
+          refreshToken
+        }, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -120,9 +131,50 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Always clear user data and token, even if API call fails
+      // Always clear user data and tokens, even if API call fails
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setCurrentUser(null);
+    }
+  };
+  
+  // Refresh access token using refresh token
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    
+    if (!refreshToken) {
+      console.log('No refresh token available');
+      return null;
+    }
+    
+    try {
+      console.log('Attempting to refresh access token...');
+      const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+        refreshToken
+      });
+      
+      const { tokens } = response.data;
+      
+      if (tokens?.accessToken) {
+        console.log('Token refresh successful');
+        localStorage.setItem('token', tokens.accessToken);
+        
+        // Store new refresh token if provided (token rotation)
+        if (tokens.refreshToken) {
+          localStorage.setItem('refreshToken', tokens.refreshToken);
+        }
+        
+        return tokens.accessToken;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      // Clear tokens if refresh fails
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      setCurrentUser(null);
+      return null;
     }
   };
   
@@ -132,7 +184,7 @@ export const AuthProvider = ({ children }) => {
     axios.defaults.baseURL = API_BASE_URL;
     
     // Add auth headers to all requests if user is logged in
-    const interceptor = axios.interceptors.request.use(
+    const requestInterceptor = axios.interceptors.request.use(
       config => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -145,8 +197,35 @@ export const AuthProvider = ({ children }) => {
       }
     );
     
+    // Add response interceptor for automatic token refresh
+    const responseInterceptor = axios.interceptors.response.use(
+      response => response,
+      async error => {
+        const originalRequest = error.config;
+        
+        // If error is 401 or 403 and we haven't already retried
+        if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+          originalRequest._retry = true;
+          
+          // Attempt to refresh the token
+          const newToken = await refreshAccessToken();
+          
+          if (newToken) {
+            // Update the original request with new token
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            
+            // Retry the original request
+            return axios(originalRequest);
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+    
     return () => {
-      axios.interceptors.request.eject(interceptor);
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
     };
   }, []);
   

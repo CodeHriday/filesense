@@ -13,6 +13,7 @@ const {
   listAndFilterFiles
 } = require('../utils/cloudStorageFileList');
 const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
+const { profileETLOutputFile } = require('./etlProfilingService');
 const crypto = require('crypto');
 
 /**
@@ -480,6 +481,113 @@ async function getMappingConfig(pool, mappingId) {
 }
 
 /**
+ * Calculate column statistics from transformed rows
+ * @param {Array} rows - Array of transformed data rows
+ * @param {Array} schema - Schema definition with column names and types
+ * @returns {Object} - Column statistics object keyed by column name
+ */
+function calculateColumnStatistics(rows, schema) {
+  const stats = {};
+  
+  if (!rows || rows.length === 0 || !schema) {
+    return stats;
+  }
+
+  // Initialize stats for each column
+  schema.forEach(col => {
+    stats[col.name] = {
+      total_count: rows.length,
+      null_count: 0,
+      unique_values: new Set(),
+      numeric_sum: 0,
+      numeric_min: null,
+      numeric_max: null,
+      string_lengths: [],
+      string_values: []  // Track all string values to find shortest/longest
+    };
+  });
+
+  // Process each row to collect statistics
+  rows.forEach(row => {
+    schema.forEach(col => {
+      const value = row[col.name];
+      const colStats = stats[col.name];
+
+      // Count nulls
+      if (value === null || value === undefined || value === '') {
+        colStats.null_count++;
+        return;
+      }
+
+      // Track unique values
+      colStats.unique_values.add(String(value));
+
+      // Numeric statistics
+      if (col.type && (col.type.includes('integer') || col.type.includes('float') || 
+          col.type.includes('number') || col.type.includes('decimal'))) {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue)) {
+          colStats.numeric_sum += numValue;
+          colStats.numeric_min = colStats.numeric_min === null ? numValue : Math.min(colStats.numeric_min, numValue);
+          colStats.numeric_max = colStats.numeric_max === null ? numValue : Math.max(colStats.numeric_max, numValue);
+        }
+      }
+
+      // String statistics
+      if (typeof value === 'string') {
+        colStats.string_lengths.push(value.length);
+        colStats.string_values.push(value);
+      }
+    });
+  });
+
+  // Finalize statistics
+  schema.forEach(col => {
+    const colStats = stats[col.name];
+    
+    // Calculate averages
+    const nonNullCount = colStats.total_count - colStats.null_count;
+    if (nonNullCount > 0 && colStats.numeric_sum !== 0) {
+      colStats.numeric_avg = colStats.numeric_sum / nonNullCount;
+    }
+
+    // Calculate string length stats and find shortest/longest strings
+    if (colStats.string_lengths.length > 0 && colStats.string_values.length > 0) {
+      colStats.string_min_length = Math.min(...colStats.string_lengths);
+      colStats.string_max_length = Math.max(...colStats.string_lengths);
+      
+      // Find shortest and longest strings by length
+      const minLengthIdx = colStats.string_lengths.indexOf(colStats.string_min_length);
+      const maxLengthIdx = colStats.string_lengths.indexOf(colStats.string_max_length);
+      colStats.string_min_value = colStats.string_values[minLengthIdx];
+      colStats.string_max_value = colStats.string_values[maxLengthIdx];
+    }
+
+    // Convert unique values set to count
+    colStats.unique_count = colStats.unique_values.size;
+    
+    // Remove temporary data
+    delete colStats.unique_values;
+    delete colStats.string_lengths;
+    delete colStats.string_values;
+
+    // Clean up null values in numeric fields
+    if (colStats.numeric_min === null) delete colStats.numeric_min;
+    if (colStats.numeric_max === null) delete colStats.numeric_max;
+    if (!colStats.numeric_avg) delete colStats.numeric_avg;
+    if (colStats.numeric_sum === 0) delete colStats.numeric_sum;
+    
+    // Clean up empty string fields
+    if (!colStats.string_min_length) delete colStats.string_min_length;
+    if (!colStats.string_max_length) delete colStats.string_max_length;
+    if (!colStats.string_min_value) delete colStats.string_min_value;
+    if (!colStats.string_max_value) delete colStats.string_max_value;
+  });
+
+  return stats;
+}
+
+/**
  * Process a single file with transformations
  * @param {Pool} pool - Database connection pool
  * @param {Object} file - File record
@@ -716,6 +824,88 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           sourceFile: file.filename,
           targetFile: outputFilename
         });
+        
+        // Create transformation lineage record
+        try {
+          const lineageQuery = `
+            INSERT INTO transformation_lineage (
+              transformation_id, 
+              mapping_id,
+              input_file_id, 
+              output_file_id, 
+              execution_id,
+              created_at
+            ) VALUES ($1, $2, $3, $4, $5, NOW())
+            RETURNING id
+          `;
+          
+          const lineageResult = await pool.query(lineageQuery, [
+            mapping.transformation_id || `transform_${mapping.mapping_id}`,
+            mapping.mapping_id,
+            file.file_id || `source_${file.filename}`,
+            `transformed_${jobId}_${file.filename}`,
+            transformationJobDbId
+          ]);
+          
+          await logJobExecution(pool, jobId, 'info', 
+            `Transformation lineage created`, {
+            lineageId: lineageResult.rows[0]?.id,
+            mappingId: mapping.mapping_id,
+            inputFile: file.filename,
+            outputFile: outputFilename
+          });
+        } catch (lineageError) {
+          // Log but don't fail the job if lineage creation fails
+          await logJobExecution(pool, jobId, 'warn', 
+            `Transformation lineage creation failed: ${lineageError.message}`, {
+            error: lineageError.stack
+          });
+        }
+
+        // Step 6: Profile the output file (populate files, file_columns, profiling_metrics)
+        try {
+          await logJobExecution(pool, jobId, 'info', 
+            `Profiling output file for quality metrics and insights`, {
+            filename: outputFilename
+          });
+
+          // Calculate column statistics from transformed rows
+          const columnStats = calculateColumnStatistics(transformedRows, outputSchema);
+
+          const profilingResult = await profileETLOutputFile(pool, {
+            fileId: `transformed_${jobId}_${file.filename}`,
+            filename: outputFilename,
+            filepath: uploadResult.location,
+            fileType: outputFormat,
+            fileSize: outputBuffer.length,
+            rowCount: rowsWritten,
+            columnCount: outputSchema.length,
+            schema: outputSchema,
+            columnStats,
+            checksum: crypto.createHash('sha256').update(outputBuffer).digest('hex'),
+            mappingId,
+            jobId,
+            userId
+          });
+
+          if (profilingResult.success) {
+            await logJobExecution(pool, jobId, 'info', 
+              `File profiling completed`, {
+              anomaliesDetected: profilingResult.anomaliesDetected,
+              checks: profilingResult.checks
+            });
+          } else {
+            await logJobExecution(pool, jobId, 'warn', 
+              `File profiling failed: ${profilingResult.error}`
+            );
+          }
+        } catch (profilingError) {
+          // Log but don't fail the job if profiling fails
+          await logJobExecution(pool, jobId, 'warn', 
+            `File profiling failed: ${profilingError.message}`, {
+            error: profilingError.stack
+          });
+        }
       } catch (auditError) {
         // Log but don't fail the job if audit fails
         await logJobExecution(pool, jobId, 'warn', 

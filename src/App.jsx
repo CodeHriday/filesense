@@ -29,6 +29,7 @@ import Monitor from './pages/Monitor';
 import Scheduler from './pages/Scheduler';
 import Badges from './pages/Badges';
 import DataInsights from './pages/DataInsights';
+import FileInsights from './pages/FileInsights';
 import Recommendations from './pages/Recommendations';
 import DataStories from './pages/DataStories';
 import DashboardSettings from './pages/DashboardSettings';
@@ -213,6 +214,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/scheduler" element={<ProtectedRoute><Scheduler /></ProtectedRoute>} />
                 <Route path="/badges" element={<ProtectedRoute><Badges /></ProtectedRoute>} />
                 <Route path="/insights" element={<ProtectedRoute><DataInsights /></ProtectedRoute>} />
+                <Route path="/file-insights" element={<ProtectedRoute><FileInsights /></ProtectedRoute>} />
                 <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
                 <Route path="/stories" element={<ProtectedRoute><DataStories /></ProtectedRoute>} />
                 <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettings /></ProtectedRoute>} />

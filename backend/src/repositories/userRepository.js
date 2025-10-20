@@ -130,7 +130,7 @@ const findById = async (id) => {
 const findByUsername = async (username) => {
   try {
     const query = `
-      SELECT u.id, u.username, u.email, u.password, u.first_name, u.last_name, 
+      SELECT u.id, u.username, u.email, u.password, u.full_name, 
              u.created_at, u.updated_at, u.last_login,
              ARRAY_AGG(r.name) AS roles
       FROM users u

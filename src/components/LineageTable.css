@@ -1,0 +1,172 @@
+.lineage-table-wrapper {
+  overflow-x: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.lineage-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.lineage-table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.lineage-table th {
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lineage-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s ease;
+}
+
+.lineage-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.lineage-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.lineage-table td {
+  padding: 16px;
+}
+
+.source-cell,
+.target-cell {
+  min-width: 200px;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #1f2937;
+  word-break: break-word;
+}
+
+.file-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.arrow-cell {
+  width: 40px;
+  text-align: center;
+}
+
+.flow-arrow {
+  color: #9ca3af;
+  font-size: 20px;
+}
+
+.transformation-cell {
+  min-width: 180px;
+}
+
+.transformation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.813rem;
+  font-weight: 500;
+}
+
+.transformation-badge svg {
+  font-size: 14px;
+}
+
+.no-transformation {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.date-cell {
+  color: #6b7280;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.actions-cell {
+  text-align: center;
+  width: 120px;
+}
+
+.view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.view-btn:active {
+  transform: translateY(0);
+}
+
+.view-btn svg {
+  font-size: 16px;
+}
+
+.empty-lineage-message {
+  padding: 60px 20px;
+  text-align: center;
+  background: #f9fafb;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .lineage-table {
+    font-size: 0.875rem;
+  }
+
+  .lineage-table th,
+  .lineage-table td {
+    padding: 12px;
+  }
+
+  .transformation-badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+  }
+
+  .view-btn {
+    padding: 6px 12px;
+    font-size: 0.813rem;
+  }
+}

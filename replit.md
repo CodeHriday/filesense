@@ -4,6 +4,44 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 20, 2025**: Enhanced column profiling to capture comprehensive string and numeric statistics
+  - **Manual File Uploads** (profile_columns.py):
+    - Captures actual shortest/longest string values (min_value, max_value) along with lengths
+    - Tracks min/max numeric values (min_value_decimal, max_value_decimal)
+    - Records null counts and unique counts for all column types
+    - Properly detects and handles string, numeric, integer, float, decimal, and object data types
+  - **ETL Transformations** (jobExecutionEngine.js, etlProfilingService.js):
+    - Enhanced calculateColumnStatistics to track string_values array and compute actual min/max string samples
+    - Finds shortest string (string_min_value) and longest string (string_max_value) by length
+    - Saves both string samples (min_value, max_value) and numeric ranges (min_value_decimal, max_value_decimal) to file_columns table
+    - Added proper cleanup to remove falsy values while preserving zero values
+  - **Dashboard Display** (fileInsightsService.js):
+    - string_stats now includes min_value_sample and max_value_sample (truncated to 50 chars for display)
+    - Added support for 'object' column type alongside string/text/varchar
+    - Displays both string length ranges (min_length, max_length, avg_length) and actual string samples
+- **October 20, 2025**: Integrated automatic file profiling for ETL transformations
+  - Created etlProfilingService.js to automatically profile ETL output files during transformation execution
+  - Populates `files` table with file metadata (size, row count, column count, checksum)
+  - Populates `file_columns` table with column statistics (null counts, unique counts, min/max values)
+  - Uses nullish coalescing (??) instead of logical OR (||) to preserve zero values in statistics
+  - Transaction-wrapped inserts prevent partial writes if column insert fails
+  - Automatic profiling trigger: jobExecutionEngine → calculateColumnStatistics() → profileETLOutputFile()
+  - File pattern extraction for grouping similar files (e.g., orders_2024-01-15.csv → orders*.csv)
+  - Enables File Insights Dashboard to track ETL-generated files alongside manually uploaded files
+- **October 20, 2025**: Implemented File Insights Dashboard with time-series metric tracking
+  - Added File Insights as first tab in INSIGHTS section (before All Insights)
+  - Created file_pattern_metrics table with daily aggregations and 18-month retention policy
+  - Materialized views for weekly/monthly rollups with auto-refresh triggers
+  - Backend service aggregates metrics from profiling_metrics and file_columns tables
+  - Smart file pattern extraction groups similar files (e.g., orders_2024-01-15.csv → orders*.csv)
+  - ID field detection excludes high-cardinality columns from numeric statistics
+  - Time-series charts for NULL trends, duplicates, record counts, and numeric field averages
+  - Alert integration shows anomalies per file pattern with severity indicators
+  - Granularity selector: daily, weekly, monthly with configurable date ranges (7d, 30d, 12w, 6m, 18m)
+  - Performance optimizations: Redis caching (5-min TTL), API pagination (100 patterns/page)
+  - Automated daily aggregation worker runs at 2 AM with weekly cleanup (7-day cycle)
+  - Manual aggregation trigger for admin users
+  - API endpoints: GET /api/insights/file-patterns, GET /api/insights/file-patterns/:pattern/metrics, GET /api/insights/file-patterns/:pattern/alerts
 - **October 19, 2025**: Enhanced Variables feature with 3-pane expression builder
   - Redesigned Add/Edit Variable modals with sophisticated 3-pane layout:
     - Left pane (20%): Source columns and previously defined variables with + buttons

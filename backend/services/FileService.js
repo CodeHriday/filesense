@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
+const { fileTypeFromFile } = require('file-type');
 const ServiceBase = require('./ServiceBase');
 
 // Promisify file system operations
@@ -38,7 +39,26 @@ class FileService extends ServiceBase {
       csv: this.validateCsv.bind(this),
       json: this.validateJson.bind(this),
       parquet: this.validateParquet.bind(this),
-      xlsx: this.validateExcel.bind(this)
+      xlsx: this.validateExcel.bind(this),
+      xml: this.validateXml.bind(this)
+    };
+    
+    // MIME type mappings for file type validation
+    this.mimeTypeMappings = {
+      'csv': ['text/csv', 'text/plain', 'application/csv'],
+      'json': ['application/json', 'text/json', 'text/plain'],
+      'parquet': ['application/octet-stream', 'application/vnd.apache.parquet', 'application/x-parquet'],
+      'xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
+      'xml': ['application/xml', 'text/xml']
+    };
+    
+    // File size limits per file type (in bytes)
+    this.fileSizeLimits = {
+      'csv': 500 * 1024 * 1024,    // 500 MB
+      'json': 500 * 1024 * 1024,   // 500 MB
+      'parquet': 1024 * 1024 * 1024, // 1 GB
+      'xlsx': 100 * 1024 * 1024,   // 100 MB
+      'xml': 100 * 1024 * 1024     // 100 MB
     };
   }
   
@@ -84,10 +104,27 @@ class FileService extends ServiceBase {
       const fileId = `file_${Date.now()}`;
       const extension = path.extname(fileData.originalname).toLowerCase().substring(1);
       
-      // Basic validation
+      // Basic validation - check if file type is allowed
       if (!this.allowedTypes[extension]) {
+        this.logger.warn('Unsupported file type', { extension, filename: fileData.originalname, traceId });
         throw new Error(`File type not supported: ${extension}`);
       }
+      
+      // Validate file size against type-specific limits
+      const sizeLimit = this.fileSizeLimits[extension] || (100 * 1024 * 1024); // Default 100MB
+      if (fileData.size > sizeLimit) {
+        this.logger.warn('File size exceeds limit', { 
+          size: fileData.size, 
+          limit: sizeLimit, 
+          extension,
+          filename: fileData.originalname,
+          traceId 
+        });
+        throw new Error(`File size exceeds limit for ${extension} files (max: ${Math.floor(sizeLimit / 1024 / 1024)}MB)`);
+      }
+      
+      // Perform MIME type validation using magic bytes
+      await this.validateMimeType(fileData.path, extension);
       
       // Additional type-specific validation
       await this.allowedTypes[extension](fileData.path);
@@ -444,6 +481,82 @@ class FileService extends ServiceBase {
   }
   
   /**
+   * Validate MIME type using magic bytes
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @param {string} expectedExtension - Expected file extension
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateMimeType(filePath, expectedExtension) {
+    try {
+      // Detect file type from magic bytes
+      const detectedType = await fileTypeFromFile(filePath);
+      
+      // For text-based files (CSV, JSON, XML), file-type may return undefined
+      // because they don't have magic bytes. We'll use content-based validation for these.
+      const textBasedTypes = ['csv', 'json', 'xml'];
+      
+      if (textBasedTypes.includes(expectedExtension)) {
+        // For text files, perform content-based validation
+        return true; // Will be validated by type-specific validators
+      }
+      
+      // For binary files (Parquet, Excel), validate against expected MIME types
+      if (!detectedType) {
+        this.logger.warn('Could not detect file type from magic bytes', { 
+          filePath, 
+          expectedExtension 
+        });
+        // Continue with type-specific validation
+        return true;
+      }
+      
+      // Check if detected MIME type matches allowed types for this extension
+      const allowedMimeTypes = this.mimeTypeMappings[expectedExtension];
+      if (!allowedMimeTypes) {
+        throw new Error(`No MIME type mappings found for extension: ${expectedExtension}`);
+      }
+      
+      // For XLSX files, check for ZIP signature (Office Open XML)
+      if (expectedExtension === 'xlsx' && detectedType.mime === 'application/zip') {
+        return true;
+      }
+      
+      // For Parquet files, check for octet-stream
+      if (expectedExtension === 'parquet' && detectedType.mime === 'application/octet-stream') {
+        return true;
+      }
+      
+      // Strict validation for other types
+      if (!allowedMimeTypes.includes(detectedType.mime)) {
+        this.logger.warn('MIME type mismatch', {
+          detected: detectedType.mime,
+          expected: allowedMimeTypes,
+          extension: expectedExtension,
+          filePath
+        });
+        throw new Error(`File MIME type mismatch. Expected ${expectedExtension}, but detected ${detectedType.mime}`);
+      }
+      
+      this.logger.debug('MIME type validation passed', {
+        detectedType: detectedType.mime,
+        expectedExtension,
+        filePath
+      });
+      
+      return true;
+    } catch (error) {
+      if (error.message.includes('MIME type mismatch')) {
+        throw error;
+      }
+      this.logger.error('Error validating MIME type', { error: error.message, filePath });
+      // Don't fail on MIME detection errors, let type-specific validation handle it
+      return true;
+    }
+  }
+
+  /**
    * Validate CSV file
    * 
    * @private
@@ -451,10 +564,21 @@ class FileService extends ServiceBase {
    * @returns {Promise<boolean>} - Validation result
    */
   async validateCsv(filePath) {
-    // Simple validation: check if file exists and is readable
     try {
       const fileHandle = await fs.promises.open(filePath, 'r');
+      const buffer = Buffer.alloc(1024); // Read first 1KB
+      
+      await fileHandle.read(buffer, 0, 1024, 0);
       await fileHandle.close();
+      
+      const sample = buffer.toString('utf8').trim();
+      
+      // Basic CSV validation: should not contain binary characters
+      const hasBinaryChars = /[\x00-\x08\x0E-\x1F]/.test(sample);
+      if (hasBinaryChars) {
+        throw new Error('File contains binary characters, not a valid CSV');
+      }
+      
       return true;
     } catch (error) {
       throw new Error(`Invalid CSV file: ${error.message}`);
@@ -517,14 +641,56 @@ class FileService extends ServiceBase {
    * @returns {Promise<boolean>} - Validation result
    */
   async validateExcel(filePath) {
-    // In a real implementation, we would use the xlsx library
-    // to validate the file structure
     try {
       const fileHandle = await fs.promises.open(filePath, 'r');
+      const buffer = Buffer.alloc(4);
+      
+      // Read first 4 bytes to check for ZIP signature (PK\x03\x04)
+      await fileHandle.read(buffer, 0, 4, 0);
       await fileHandle.close();
+      
+      // XLSX files are ZIP archives and should start with PK signature
+      if (buffer[0] !== 0x50 || buffer[1] !== 0x4B) {
+        throw new Error('File is not a valid ZIP archive (XLSX files are ZIP-based)');
+      }
+      
       return true;
     } catch (error) {
       throw new Error(`Invalid Excel file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate XML file
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateXml(filePath) {
+    try {
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      const buffer = Buffer.alloc(1024); // Read first 1KB
+      
+      await fileHandle.read(buffer, 0, 1024, 0);
+      await fileHandle.close();
+      
+      const sample = buffer.toString('utf8').trim();
+      
+      // Basic XML validation: should start with <?xml or <
+      if (!sample.startsWith('<?xml') && !sample.startsWith('<')) {
+        throw new Error('Invalid XML structure - must start with <?xml or <');
+      }
+      
+      // Check for binary characters
+      const hasBinaryChars = /[\x00-\x08\x0E-\x1F]/.test(sample);
+      if (hasBinaryChars) {
+        throw new Error('File contains binary characters, not a valid XML');
+      }
+      
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid XML file: ${error.message}`);
     }
   }
 

@@ -20,6 +20,7 @@ const { setupEnhancedFeatures } = require('./backend/integration');
 const { getQueue } = require('./backend/queue/queueFactory');
 const FileProcessingWorker = require('./backend/workers/fileProcessingWorker');
 const SchedulerWorker = require('./backend/workers/schedulerWorker');
+const InsightsAggregationWorker = require('./backend/workers/insightsAggregationWorker');
 
 // Initialize queue and workers
 const queue = getQueue();
@@ -37,6 +38,13 @@ const schedulerWorker = new SchedulerWorker(
   60000 // Check every 60 seconds
 );
 schedulerWorker.start();
+
+// Initialize insights aggregation worker (runs daily at 2 AM)
+const insightsWorker = new InsightsAggregationWorker(
+  diContainer.get('dbPool'),
+  '02:00' // Run at 2 AM
+);
+insightsWorker.start();
 
 // Import validation middleware and schemas
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
@@ -57,55 +65,10 @@ const logger = diContainer.get('logger');
 // Make database pool available to routes
 app.locals.pool = dbPool;
 
-// JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development';
-const JWT_EXPIRATION = '2h'; // Token expiration time (reduced from 24h for better security)
-
-// Validate JWT secret strength
-const validateJWTSecret = (secret) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const weakSecrets = [
-    'secret', 'your-secret-key', 'your-secret-key-for-development',
-    '12345', 'password', 'changeme', 'test', 'development'
-  ];
-  
-  // Check if secret is in the weak list
-  const isWeak = weakSecrets.some(weak => secret.toLowerCase().includes(weak));
-  
-  // Check minimum length (should be at least 32 characters)
-  const isTooShort = secret.length < 32;
-  
-  if (isProduction && (isWeak || isTooShort)) {
-    logger.error('CRITICAL SECURITY ERROR: Weak or default JWT secret detected in production', {
-      secretLength: secret.length,
-      isWeak,
-      isTooShort
-    });
-    console.error('\n='.repeat(80));
-    console.error('CRITICAL SECURITY ERROR: JWT_SECRET is weak or using default value!');
-    console.error('Production server cannot start with weak JWT secret.');
-    console.error('Generate a strong secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
-    console.error('='.repeat(80) + '\n');
-    process.exit(1);
-  }
-  
-  if (!isProduction && (isWeak || isTooShort)) {
-    logger.warn('WARNING: Weak or default JWT secret detected in development', {
-      secretLength: secret.length,
-      isWeak,
-      isTooShort,
-      recommendation: 'Use a strong secret in production'
-    });
-    console.warn('\n' + '='.repeat(80));
-    console.warn('WARNING: Using weak or default JWT secret in development!');
-    console.warn('This is acceptable for development but NEVER use this in production.');
-    console.warn('Generate a strong secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
-    console.warn('='.repeat(80) + '\n');
-  }
-};
-
-// Validate JWT secret on startup
-validateJWTSecret(JWT_SECRET);
+// JWT Configuration - Now managed by environment.js with strict validation
+const { SECURITY_CONFIG } = require('./backend/src/config/environment');
+const JWT_SECRET = SECURITY_CONFIG.JWT_SECRET;
+const JWT_EXPIRATION = SECURITY_CONFIG.JWT_EXPIRATION;
 
 // Error sanitization utility for production
 const sanitizeError = (error, genericMessage = 'An error occurred') => {
@@ -1545,11 +1508,208 @@ app.get('/api/lineage', async (req, res) => {
       )
     `);
     
-    const result = await dbPool.query('SELECT * FROM file_lineage');
-    res.json(result.rows);
+    // Get manual lineage with file details
+    const lineageResult = await dbPool.query(`
+      SELECT 
+        fl.*,
+        sf.filename as source_filename,
+        sf.file_type as source_file_type,
+        sf.file_size as source_file_size,
+        sf.row_count as source_row_count,
+        sf.column_count as source_column_count,
+        sf.created_at as source_created_at,
+        tf.filename as target_filename,
+        tf.file_type as target_file_type,
+        tf.file_size as target_file_size,
+        tf.row_count as target_row_count,
+        tf.column_count as target_column_count,
+        tf.created_at as target_created_at
+      FROM file_lineage fl
+      LEFT JOIN files sf ON fl.source_file_id = sf.file_id
+      LEFT JOIN files tf ON fl.target_file_id = tf.file_id
+      ORDER BY fl.created_at DESC
+    `);
+    
+    // Also get transformation-based lineage
+    // Note: input_file_id and output_file_id now store patterns from mapping config
+    // We'll match these patterns to files to get schema info for the details modal
+    const transformLineageResult = await dbPool.query(`
+      SELECT
+        tl.id,
+        tl.transformation_id,
+        tl.input_file_id as source_pattern,
+        tl.output_file_id as target_pattern,
+        tl.execution_id,
+        tl.created_at,
+        tm.mapping_name,
+        tm.mapping_id,
+        tm.field_mappings,
+        tm.variables,
+        tm.source_file_pattern,
+        tm.target_file_name,
+        tm.target_file_format,
+        tm.description
+      FROM transformation_lineage tl
+      LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
+      ORDER BY tl.created_at DESC
+    `);
+    
+    // Combine both types of lineage
+    res.json({
+      manual_lineage: lineageResult.rows,
+      transformation_lineage: transformLineageResult.rows
+    });
   } catch (err) {
     console.error('Error fetching lineage data:', err);
     res.status(500).json({ error: 'Failed to fetch lineage data' });
+  }
+});
+
+// Scan and populate lineage from existing transformation jobs
+app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) => {
+  try {
+    logger.info('Starting lineage scan and populate', { userId: req.user.id });
+    
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    let errors = 0;
+    const errorDetails = [];
+    
+    // Get DISTINCT mapping_id from successful transformation jobs
+    const mappingsQuery = `
+      SELECT DISTINCT tj.mapping_id
+      FROM transformation_jobs tj
+      WHERE tj.status = 'completed'
+        AND tj.mapping_id IS NOT NULL
+    `;
+    
+    const mappingsResult = await dbPool.query(mappingsQuery);
+    const uniqueMappings = mappingsResult.rows;
+    
+    logger.info(`Found ${uniqueMappings.length} unique successful mappings to process`);
+    
+    // Process each unique mapping - create lineage directly from mapping metadata
+    for (const mapping of uniqueMappings) {
+      try {
+        // Get mapping details directly
+        const mappingQuery = `
+          SELECT 
+            mapping_id,
+            mapping_name,
+            source_file_pattern,
+            target_file_name,
+            target_file_format,
+            description
+          FROM transformation_mappings
+          WHERE mapping_id = $1
+        `;
+        
+        const mappingResult = await dbPool.query(mappingQuery, [mapping.mapping_id]);
+        
+        if (mappingResult.rows.length === 0) {
+          skipped++;
+          continue;
+        }
+        
+        const mappingData = mappingResult.rows[0];
+        const transformationId = `transform_${mapping.mapping_id}`;
+        
+        // Use source_file_pattern and target_file_name directly from mapping config
+        // Store patterns, not file_ids
+        const sourcePattern = mappingData.source_file_pattern || '';
+        const targetPattern = mappingData.target_file_name || 
+                             `output.${mappingData.target_file_format || 'csv'}`;
+        
+        // Check if lineage already exists for this mapping
+        const existingCheck = await dbPool.query(`
+          SELECT id FROM transformation_lineage 
+          WHERE transformation_id = $1
+        `, [transformationId]);
+        
+        if (existingCheck.rows.length > 0) {
+          // Update existing lineage with mapping patterns
+          await dbPool.query(`
+            UPDATE transformation_lineage 
+            SET input_file_id = $1,
+                output_file_id = $2,
+                created_at = NOW()
+            WHERE transformation_id = $3
+          `, [
+            sourcePattern,
+            targetPattern,
+            transformationId
+          ]);
+          
+          updated++;
+          logger.info('Updated lineage record', {
+            mappingId: mapping.mapping_id,
+            mappingName: mappingData.mapping_name,
+            sourcePattern,
+            targetPattern
+          });
+        } else {
+          // Create new lineage record with patterns
+          await dbPool.query(`
+            INSERT INTO transformation_lineage (
+              transformation_id,
+              input_file_id,
+              output_file_id,
+              created_at
+            ) VALUES ($1, $2, $3, NOW())
+          `, [
+            transformationId,
+            sourcePattern,
+            targetPattern
+          ]);
+          
+          created++;
+          logger.info('Created lineage record', {
+            mappingId: mapping.mapping_id,
+            mappingName: mappingData.mapping_name,
+            sourcePattern,
+            targetPattern
+          });
+        }
+        
+      } catch (mappingError) {
+        errors++;
+        const errorMsg = `Mapping ${mapping.mapping_id}: ${mappingError.message}`;
+        errorDetails.push(errorMsg);
+        logger.error('Error processing mapping for lineage', {
+          mappingId: mapping.mapping_id,
+          error: mappingError.message
+        });
+      }
+    }
+    
+    logger.info('Lineage scan and populate completed', {
+      totalMappings: uniqueMappings.length,
+      created,
+      updated,
+      skipped,
+      errors
+    });
+    
+    res.json({
+      success: true,
+      summary: {
+        totalMappingsProcessed: uniqueMappings.length,
+        lineageCreated: created,
+        lineageUpdated: updated,
+        lineageSkipped: skipped,
+        errors: errors
+      },
+      errorDetails: errorDetails.length > 0 ? errorDetails : undefined
+    });
+    
+  } catch (err) {
+    logger.error('Error in lineage scan and populate', { error: err.message });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to scan and populate lineage',
+      details: err.message 
+    });
   }
 });
 
@@ -1676,6 +1836,15 @@ try {
   console.log('✓ Registered /api/file-audit route');
 } catch (error) {
   console.error('✗ Failed to register /api/file-audit:', error.message);
+}
+
+// File Insights routes
+try {
+  const fileInsightsRoutes = require('./backend/routes/fileInsights');
+  app.use('/api/insights', fileInsightsRoutes(dbPool, authenticateToken));
+  console.log('✓ Registered /api/insights route');
+} catch (error) {
+  console.error('✗ Failed to register /api/insights:', error.message);
 }
 
 // Visual Workflows routes (new graph-based workflow orchestration)
@@ -1847,6 +2016,7 @@ const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
 const { initWorkflowOrchestrationTables } = require('./backend/migrations/workflowOrchestration');
 const { fixMappingGroupMembersSchema } = require('./backend/migrations/fixMappingGroupMembersSchema');
 const updateObjectTypesToString = require('./backend/migrations/updateObjectTypesToString');
+const initFileInsightsTables = require('./backend/migrations/createFileInsightsTable');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -1906,6 +2076,12 @@ migrateConnectionsSchema()
     if (result.success) {
       console.log(`✅ Object/array to string type conversion completed. Updated ${result.updatedRecords} schema records.`);
     }
+    
+    // Initialize file insights tables
+    return initFileInsightsTables(dbPool);
+  })
+  .then(() => {
+    console.log('✅ File insights tables migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
@@ -2628,85 +2804,44 @@ app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (re
       return res.status(400).json({ error: 'Username and password are required' });
     }
     
-    // Convert username to lowercase for case-insensitive matching
-    const normalizedUsername = username.toLowerCase();
+    // Get user agent from request
+    const userAgent = req.get('user-agent') || 'Unknown';
     
-    // Find user in database (using LOWER() for case-insensitive matching)
-    const userResult = await dbPool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [normalizedUsername]);
+    // Use authService to authenticate user
+    const authService = require('./backend/src/services/authService');
+    const result = await authService.authenticateUser(username, password, userAgent);
     
-    if (userResult.rows.length === 0) {
-      logger.warn('Failed login attempt - user not found', { 
-        username: normalizedUsername,
+    if (!result.success) {
+      logger.warn('Failed login attempt', { 
+        username,
         ip: req.ip,
-        userAgent: req.get('user-agent')
+        userAgent
       });
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return res.status(401).json({ error: result.message });
     }
-    
-    const user = userResult.rows[0];
-    
-    // Verify password
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      logger.warn('Failed login attempt - invalid password', { 
-        username: normalizedUsername,
-        userId: user.id,
-        ip: req.ip,
-        userAgent: req.get('user-agent')
-      });
-      return res.status(401).json({ error: 'Invalid username or password' });
-    }
-    
-    // Get user roles
-    const userRolesQuery = `
-      SELECT r.name as role_name, r.id as role_id
-      FROM roles r
-      JOIN user_roles ur ON r.id = ur.role_id
-      WHERE ur.user_id = $1
-    `;
-    const rolesResult = await dbPool.query(userRolesQuery, [user.id]);
-    
-    const roleIds = rolesResult.rows.map(role => role.role_id);
-    const userRoles = rolesResult.rows.map(role => role.role_name);
-    
-    // Create simpler token
-    const token = jwt.sign(
-      { 
-        id: user.id, 
-        username: user.username,
-        roles: userRoles
-      }, 
-      JWT_SECRET, 
-      { expiresIn: JWT_EXPIRATION }
-    );
     
     // Update last login time
-    await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [result.user.id]);
     
     // Security audit: Log successful login
     logger.info('Successful login', { 
-      username: user.username,
-      userId: user.id,
-      roles: userRoles,
+      username: result.user.username,
+      userId: result.user.id,
+      roles: result.user.roles,
       ip: req.ip,
-      userAgent: req.get('user-agent')
+      userAgent
     });
     
-    // Don't store token in database
-    
-    // Return token and user info (excluding password)
-    const { password: _, ...userWithoutPassword } = user;
-    
+    // Return tokens and user info (backward compatible format)
     res.json({
-      user: {
-        ...userWithoutPassword,
-        roles: userRoles,
-      },
-      token
+      user: result.user,
+      token: result.tokens.accessToken,  // Backward compatibility
+      tokens: result.tokens,              // New format with both tokens
+      refreshToken: result.tokens.refreshToken  // Backward compatibility
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'An error occurred during login' });
+    res.status(500).json({ error: sanitizeError(err, 'An error occurred during login') });
   }
 });
 
@@ -2937,7 +3072,34 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error:', err);
-    res.status(500).json({ error: 'An error occurred during logout' });
+    res.status(500).json({ error: sanitizeError(err, 'An error occurred during logout') });
+  }
+});
+
+// Refresh token endpoint
+app.post('/api/auth/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token is required' });
+    }
+    
+    // Get user agent from request
+    const userAgent = req.get('user-agent') || 'Unknown';
+    
+    // Use authService to refresh the token
+    const authService = require('./backend/src/services/authService');
+    const result = await authService.refreshAccessToken(refreshToken, userAgent);
+    
+    if (!result.success) {
+      return res.status(401).json({ error: result.message });
+    }
+    
+    res.json(result);
+  } catch (err) {
+    console.error('Token refresh error:', err);
+    res.status(500).json({ error: sanitizeError(err, 'Token refresh failed') });
   }
 });
 
@@ -5535,6 +5697,11 @@ const gracefulShutdown = async (signal) => {
   try {
     // Stop scheduler worker
     await schedulerWorker.stop();
+    
+    // Stop insights aggregation worker
+    if (insightsWorker) {
+      insightsWorker.stop();
+    }
     
     // Stop file processing worker
     await fileWorker.stop();

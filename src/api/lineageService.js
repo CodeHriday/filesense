@@ -99,3 +99,17 @@ export const deleteLineage = async (id) => {
     throw error;
   }
 };
+
+/**
+ * Scan and populate lineage from existing transformation jobs
+ * @returns {Promise<Object>} Summary of created, skipped, and error counts
+ */
+export const scanAndPopulateLineage = async () => {
+  try {
+    const response = await axios.post(`${API_URL}/lineage/scan-and-populate`);
+    return response.data;
+  } catch (error) {
+    console.error('Error scanning and populating lineage:', error);
+    throw error;
+  }
+};

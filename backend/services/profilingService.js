@@ -37,18 +37,15 @@ async function getWeeklyAverageSum(pool, columnName, filePattern, days = 7) {
     cutoffDate.setDate(cutoffDate.getDate() - days);
     
     const result = await pool.query(`
-      SELECT AVG(numeric_sum) as avg_sum
-      FROM (
-        SELECT 
-          fc.numeric_sum
-        FROM file_columns fc
-        JOIN files f ON fc.file_id = f.file_id
-        WHERE fc.column_name = $1
-          AND f.filename LIKE $2
-          AND f.created_at >= $3
-          AND fc.numeric_sum IS NOT NULL
-        ORDER BY f.created_at DESC
-      ) recent_sums
+      SELECT AVG((fc.min_value_decimal + fc.max_value_decimal) / 2 * f.row_count) as avg_sum
+      FROM file_columns fc
+      JOIN files f ON fc.file_id = f.file_id
+      WHERE fc.column_name = $1
+        AND f.filename LIKE $2
+        AND f.created_at >= $3
+        AND fc.min_value_decimal IS NOT NULL
+        AND fc.max_value_decimal IS NOT NULL
+      ORDER BY f.created_at DESC
     `, [columnName, patternToSQLLike(filePattern), cutoffDate]);
     
     return result.rows[0]?.avg_sum || 0;
@@ -103,8 +100,8 @@ async function getAverageNullPercentage(pool, columnName, filePattern, days = 7)
     const result = await pool.query(`
       SELECT AVG(
         CASE 
-          WHEN fc.total_count > 0 
-          THEN (fc.null_count::float / fc.total_count::float) * 100 
+          WHEN f.row_count > 0 
+          THEN (fc.null_count::float / f.row_count::float) * 100 
           ELSE 0 
         END
       ) as avg_null_pct
@@ -139,11 +136,13 @@ async function checkNumericDeviations(pool, fileId, filename, filePattern, optio
   try {
     // Get numeric columns for this file
     const columnsResult = await pool.query(`
-      SELECT column_name, numeric_sum, total_count
+      SELECT column_name, 
+             (min_value_decimal + max_value_decimal) / 2 * (SELECT row_count FROM files WHERE file_id = $1) as numeric_sum
       FROM file_columns
       WHERE file_id = $1 
         AND column_type IN ('integer', 'float', 'decimal', 'number')
-        AND numeric_sum IS NOT NULL
+        AND min_value_decimal IS NOT NULL
+        AND max_value_decimal IS NOT NULL
     `, [fileId]);
     
     for (const column of columnsResult.rows) {
@@ -248,13 +247,14 @@ async function checkNullSpikes(pool, fileId, filename, filePattern, options = {}
   
   try {
     const columnsResult = await pool.query(`
-      SELECT column_name, null_count, total_count
-      FROM file_columns
-      WHERE file_id = $1 AND total_count > 0
+      SELECT fc.column_name, fc.null_count, f.row_count
+      FROM file_columns fc
+      JOIN files f ON fc.file_id = f.file_id
+      WHERE fc.file_id = $1 AND f.row_count > 0
     `, [fileId]);
     
     for (const column of columnsResult.rows) {
-      const nullPercentage = (column.null_count / column.total_count) * 100;
+      const nullPercentage = (column.null_count / column.row_count) * 100;
       const avgNullPercentage = await getAverageNullPercentage(pool, column.column_name, filePattern);
       
       // Check if null percentage exceeds threshold or is significantly higher than average
@@ -454,19 +454,33 @@ async function saveProfilingMetrics(pool, fileId, mappingId, jobId, anomalies) {
     
     const qualityScore = calculateQualityScore(anomalies);
     
+    // Get file metadata
+    const fileResult = await pool.query('SELECT filename, row_count, column_count FROM files WHERE file_id = $1', [fileId]);
+    const file = fileResult.rows[0];
+    
+    if (!file) {
+      systemLogger.warn('File not found for profiling metrics', { fileId });
+      return;
+    }
+    
     await pool.query(`
       INSERT INTO profiling_metrics (
-        file_id, mapping_id, job_id, quality_score,
-        anomaly_count, severity_counts, profiling_details
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        file_id, file_name, mapping_id, job_id, 
+        row_count, column_count,
+        completeness_score, consistency_score, validity_score, overall_quality_score,
+        profiled_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
     `, [
       fileId,
+      file.filename,
       mappingId,
       jobId,
-      qualityScore,
-      anomalies.length,
-      JSON.stringify(severityCounts),
-      JSON.stringify({ checks_performed: ['numeric_deviation', 'row_count', 'null_spike', 'type_mismatch'] })
+      file.row_count,
+      file.column_count,
+      qualityScore, // completeness_score
+      qualityScore, // consistency_score  
+      qualityScore, // validity_score
+      qualityScore  // overall_quality_score
     ]);
     
   } catch (error) {
