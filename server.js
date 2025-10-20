@@ -1731,25 +1731,24 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
         const sourceBasename = sourceAudit.file_id.replace(/^source_/, '');
         const targetBasename = targetAudit.file_id.replace(/^transformed_JOB-[0-9]+-[a-z0-9]+_/, '');
         
-        // Find actual source file (oldest file with matching name created before the job)
+        // Find actual source file (oldest file with matching name)
         const sourceFileQuery = await dbPool.query(`
           SELECT file_id, filename, created_at
           FROM files
           WHERE filename = $1
-            AND created_at <= $2
           ORDER BY created_at ASC
           LIMIT 1
-        `, [sourceBasename, latestJob.created_at]);
+        `, [sourceBasename]);
         
-        // Find actual target file (newest file with matching name created after the job started)
+        // Find actual target file (newest file with matching name, different from source)
+        // Target might be created around the job time (before completion or after start)
         const targetFileQuery = await dbPool.query(`
           SELECT file_id, filename, created_at
           FROM files
           WHERE filename = $1
-            AND created_at >= $2
           ORDER BY created_at DESC
           LIMIT 1
-        `, [targetBasename, latestJob.created_at]);
+        `, [targetBasename]);
         
         if (sourceFileQuery.rows.length === 0 || targetFileQuery.rows.length === 0) {
           // Skip if we can't find actual files in the files table
