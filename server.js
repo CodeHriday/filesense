@@ -1568,8 +1568,9 @@ app.get('/api/lineage', async (req, res) => {
     `);
     
     // Also get transformation-based lineage
-    // Note: input_file_id can be either an actual file_id OR a prefixed filename (source_*)
-    // output_file_id is always a prefixed filename (transformed_JOB-xxx_*)
+    // Note: input_file_id and output_file_id can be:
+    // 1. Actual file_id from files table (new format from scanner)
+    // 2. Prefixed filename like "source_*" or "transformed_*" (legacy format from job execution)
     const transformLineageResult = await dbPool.query(`
       SELECT DISTINCT ON (tl.id)
         tl.id,
@@ -1604,6 +1605,7 @@ app.get('/api/lineage', async (req, res) => {
         SELECT * FROM files 
         WHERE (
           CASE 
+            WHEN tl.input_file_id ~ '^file_' THEN file_id = tl.input_file_id
             WHEN tl.input_file_id ~ '^[0-9]+$' THEN file_id::text = tl.input_file_id
             ELSE filename = REPLACE(tl.input_file_id, 'source_', '')
           END
@@ -1614,7 +1616,12 @@ app.get('/api/lineage', async (req, res) => {
       ) sf ON true
       LEFT JOIN LATERAL (
         SELECT * FROM files 
-        WHERE filename = REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-z0-9]+_', '')
+        WHERE (
+          CASE 
+            WHEN tl.output_file_id ~ '^file_' THEN file_id = tl.output_file_id
+            ELSE filename = REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-z0-9]+_', '')
+          END
+        )
         AND created_at >= tl.created_at
         ORDER BY created_at ASC
         LIMIT 1
@@ -1710,14 +1717,55 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
         }
         
         // Find source file (starts with 'source_') and target file (starts with 'transformed_')
-        const sourceFile = auditResult.rows.find(r => r.file_id.startsWith('source_'));
-        const targetFile = auditResult.rows.find(r => r.file_id.startsWith('transformed_'));
+        const sourceAudit = auditResult.rows.find(r => r.file_id.startsWith('source_'));
+        const targetAudit = auditResult.rows.find(r => r.file_id.startsWith('transformed_'));
         
-        if (!sourceFile || !targetFile) {
+        if (!sourceAudit || !targetAudit) {
           // Skip if we can't identify both source and target
           skipped++;
           continue;
         }
+        
+        // Look up actual file IDs from files table
+        // Strip prefixes to get base filenames
+        const sourceBasename = sourceAudit.file_id.replace(/^source_/, '');
+        const targetBasename = targetAudit.file_id.replace(/^transformed_JOB-[0-9]+-[a-z0-9]+_/, '');
+        
+        // Find actual source file (oldest file with matching name created before the job)
+        const sourceFileQuery = await dbPool.query(`
+          SELECT file_id, filename, created_at
+          FROM files
+          WHERE filename = $1
+            AND created_at <= $2
+          ORDER BY created_at ASC
+          LIMIT 1
+        `, [sourceBasename, latestJob.created_at]);
+        
+        // Find actual target file (newest file with matching name created after the job started)
+        const targetFileQuery = await dbPool.query(`
+          SELECT file_id, filename, created_at
+          FROM files
+          WHERE filename = $1
+            AND created_at >= $2
+          ORDER BY created_at DESC
+          LIMIT 1
+        `, [targetBasename, latestJob.created_at]);
+        
+        if (sourceFileQuery.rows.length === 0 || targetFileQuery.rows.length === 0) {
+          // Skip if we can't find actual files in the files table
+          skipped++;
+          logger.warn('Could not find actual files in files table', {
+            mappingId: mapping.mapping_id,
+            sourceBasename,
+            targetBasename,
+            sourceFound: sourceFileQuery.rows.length > 0,
+            targetFound: targetFileQuery.rows.length > 0
+          });
+          continue;
+        }
+        
+        const sourceFile = sourceFileQuery.rows[0];
+        const targetFile = targetFileQuery.rows[0];
         
         const transformationId = `transform_${mapping.mapping_id}`;
         
@@ -1748,8 +1796,10 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
           logger.info('Updated lineage record', {
             mappingId: mapping.mapping_id,
             latestJobId: latestJob.job_id,
-            sourceFile: sourceFile.file_name,
-            targetFile: targetFile.file_name
+            sourceFile: sourceFile.filename,
+            sourceFileId: sourceFile.file_id,
+            targetFile: targetFile.filename,
+            targetFileId: targetFile.file_id
           });
         } else {
           // Create new lineage record
@@ -1773,8 +1823,10 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
           logger.info('Created lineage record', {
             mappingId: mapping.mapping_id,
             latestJobId: latestJob.job_id,
-            sourceFile: sourceFile.file_name,
-            targetFile: targetFile.file_name
+            sourceFile: sourceFile.filename,
+            sourceFileId: sourceFile.file_id,
+            targetFile: targetFile.filename,
+            targetFileId: targetFile.file_id
           });
         }
         
