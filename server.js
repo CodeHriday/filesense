@@ -2804,85 +2804,44 @@ app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (re
       return res.status(400).json({ error: 'Username and password are required' });
     }
     
-    // Convert username to lowercase for case-insensitive matching
-    const normalizedUsername = username.toLowerCase();
+    // Get user agent from request
+    const userAgent = req.get('user-agent') || 'Unknown';
     
-    // Find user in database (using LOWER() for case-insensitive matching)
-    const userResult = await dbPool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [normalizedUsername]);
+    // Use authService to authenticate user
+    const authService = require('./backend/src/services/authService');
+    const result = await authService.authenticateUser(username, password, userAgent);
     
-    if (userResult.rows.length === 0) {
-      logger.warn('Failed login attempt - user not found', { 
-        username: normalizedUsername,
+    if (!result.success) {
+      logger.warn('Failed login attempt', { 
+        username,
         ip: req.ip,
-        userAgent: req.get('user-agent')
+        userAgent
       });
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return res.status(401).json({ error: result.message });
     }
-    
-    const user = userResult.rows[0];
-    
-    // Verify password
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      logger.warn('Failed login attempt - invalid password', { 
-        username: normalizedUsername,
-        userId: user.id,
-        ip: req.ip,
-        userAgent: req.get('user-agent')
-      });
-      return res.status(401).json({ error: 'Invalid username or password' });
-    }
-    
-    // Get user roles
-    const userRolesQuery = `
-      SELECT r.name as role_name, r.id as role_id
-      FROM roles r
-      JOIN user_roles ur ON r.id = ur.role_id
-      WHERE ur.user_id = $1
-    `;
-    const rolesResult = await dbPool.query(userRolesQuery, [user.id]);
-    
-    const roleIds = rolesResult.rows.map(role => role.role_id);
-    const userRoles = rolesResult.rows.map(role => role.role_name);
-    
-    // Create simpler token
-    const token = jwt.sign(
-      { 
-        id: user.id, 
-        username: user.username,
-        roles: userRoles
-      }, 
-      JWT_SECRET, 
-      { expiresIn: JWT_EXPIRATION }
-    );
     
     // Update last login time
-    await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [result.user.id]);
     
     // Security audit: Log successful login
     logger.info('Successful login', { 
-      username: user.username,
-      userId: user.id,
-      roles: userRoles,
+      username: result.user.username,
+      userId: result.user.id,
+      roles: result.user.roles,
       ip: req.ip,
-      userAgent: req.get('user-agent')
+      userAgent
     });
     
-    // Don't store token in database
-    
-    // Return token and user info (excluding password)
-    const { password: _, ...userWithoutPassword } = user;
-    
+    // Return tokens and user info (backward compatible format)
     res.json({
-      user: {
-        ...userWithoutPassword,
-        roles: userRoles,
-      },
-      token
+      user: result.user,
+      token: result.tokens.accessToken,  // Backward compatibility
+      tokens: result.tokens,              // New format with both tokens
+      refreshToken: result.tokens.refreshToken  // Backward compatibility
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'An error occurred during login' });
+    res.status(500).json({ error: sanitizeError(err, 'An error occurred during login') });
   }
 });
 
@@ -3113,7 +3072,34 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error:', err);
-    res.status(500).json({ error: 'An error occurred during logout' });
+    res.status(500).json({ error: sanitizeError(err, 'An error occurred during logout') });
+  }
+});
+
+// Refresh token endpoint
+app.post('/api/auth/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token is required' });
+    }
+    
+    // Get user agent from request
+    const userAgent = req.get('user-agent') || 'Unknown';
+    
+    // Use authService to refresh the token
+    const authService = require('./backend/src/services/authService');
+    const result = await authService.refreshAccessToken(refreshToken, userAgent);
+    
+    if (!result.success) {
+      return res.status(401).json({ error: result.message });
+    }
+    
+    res.json(result);
+  } catch (err) {
+    console.error('Token refresh error:', err);
+    res.status(500).json({ error: sanitizeError(err, 'Token refresh failed') });
   }
 });
 
