@@ -306,35 +306,58 @@ const FileInsights = () => {
         )}
       </div>
 
-      <div className="file-insights-container">
-        {/* Left sidebar - File pattern selector */}
-        <div className="pattern-selector">
-          <h3>File Patterns ({patterns.length})</h3>
-          <div className="pattern-list">
-            {patterns.map(pattern => (
-              <div
-                key={pattern.file_pattern}
-                className={`pattern-item ${selectedPattern === pattern.file_pattern ? 'selected' : ''} ${pattern.has_alerts ? 'has-alerts' : ''}`}
-                onClick={() => setSelectedPattern(pattern.file_pattern)}
-              >
-                <div className="pattern-name">
-                  <FiFileText />
-                  <span>{pattern.file_pattern}</span>
-                </div>
-                <div className="pattern-stats">
-                  <span className="stat-item">
-                    {pattern.total_files} files
-                  </span>
-                  {pattern.has_alerts && (
-                    <span className="alert-badge">
-                      <FiAlertTriangle /> {pattern.total_alerts}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+      {patterns.length === 0 ? (
+        <div className="no-data-message" style={{ marginTop: '80px' }}>
+          <FiFileText size={64} />
+          <h2>No File Insights Available</h2>
+          <p>File insights are generated from profiled files. To see insights:</p>
+          <ol style={{ textAlign: 'left', maxWidth: '500px', margin: '20px auto' }}>
+            <li>Upload files to the system (File Catalog)</li>
+            <li>Profile files to collect quality metrics (Data Profile page)</li>
+            <li>Wait for daily aggregation at 2 AM, or click "Aggregate Metrics" button above</li>
+          </ol>
+          {isAdmin && (
+            <button 
+              className="btn-primary" 
+              onClick={handleAggregate}
+              disabled={aggregating}
+              style={{ marginTop: '20px' }}
+            >
+              <FiRefreshCw className={aggregating ? 'spinning' : ''} />
+              {aggregating ? 'Aggregating...' : 'Aggregate Metrics Now'}
+            </button>
+          )}
         </div>
+      ) : (
+        <div className="file-insights-container">
+          {/* Left sidebar - File pattern selector */}
+          <div className="pattern-selector">
+            <h3>File Patterns ({patterns.length})</h3>
+            <div className="pattern-list">
+              {patterns.map(pattern => (
+                <div
+                  key={pattern.file_pattern}
+                  className={`pattern-item ${selectedPattern === pattern.file_pattern ? 'selected' : ''} ${pattern.has_alerts ? 'has-alerts' : ''}`}
+                  onClick={() => setSelectedPattern(pattern.file_pattern)}
+                >
+                  <div className="pattern-name">
+                    <FiFileText />
+                    <span>{pattern.file_pattern}</span>
+                  </div>
+                  <div className="pattern-stats">
+                    <span className="stat-item">
+                      {pattern.total_files} files
+                    </span>
+                    {pattern.has_alerts && (
+                      <span className="alert-badge">
+                        <FiAlertTriangle /> {pattern.total_alerts}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
         {/* Right side - Metrics dashboard */}
         <div className="metrics-dashboard">
@@ -459,7 +482,8 @@ const FileInsights = () => {
             </>
           )}
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };
