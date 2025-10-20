@@ -1324,7 +1324,7 @@ async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, poo
           });
         }
         
-        const transformedRow = transformRow(flattenedRow, convertedMappings);
+        const transformedRow = transformRow(flattenedRow, convertedMappings, convertedVariables);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
