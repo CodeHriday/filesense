@@ -2,7 +2,7 @@ modules = ["python-3.11", "nodejs-20", "postgresql-16", "python3"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["arrow-cpp", "glibcLocales", "pkg-config", "yajl"]
+packages = ["arrow-cpp", "freetype", "glibcLocales", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "pkg-config", "tcl", "tk", "yajl", "zlib"]
 
 [deployment]
 deploymentTarget = "gce"
