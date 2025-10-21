@@ -5,8 +5,9 @@ channel = "stable-24_05"
 packages = ["arrow-cpp", "glibcLocales", "pkg-config", "yajl"]
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["streamlit", "run", "app.py", "--server.port", "5000"]
+deploymentTarget = "gce"
+run = ["sh", "-c", "npm run start"]
+build = ["sh", "-c", "npm run build"]
 
 [workflows]
 runButton = "Project"
