@@ -53,7 +53,8 @@ const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 
 // Initialize Express app
 const app = express();
-const port = process.env.PORT || 3000;
+// Use PORT from environment (Replit provides this), fallback to 5000 in production or 3000 in development
+const port = process.env.PORT || (process.env.NODE_ENV === 'production' ? 5000 : 3000);
 
 // Trust proxy for accurate client IP detection (required for rate limiting)
 app.set('trust proxy', 1);
@@ -5706,6 +5707,23 @@ console.log('Added AI routes');
 
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
+
+// Serve static files from the React build (dist folder) in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, 'dist');
+  
+  // Serve static files
+  app.use(express.static(distPath));
+  
+  // Handle React Router - send all non-API requests to index.html
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // Import error types
 const { NotFoundError } = require('./backend/errors');
