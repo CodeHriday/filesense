@@ -83,9 +83,14 @@ async function initTransformationTables(pool) {
       CREATE TABLE IF NOT EXISTS transformation_lineage (
         id SERIAL PRIMARY KEY,
         transformation_id TEXT NOT NULL,
+        mapping_id TEXT,
         input_file_id TEXT NOT NULL,
         output_file_id TEXT NOT NULL,
         execution_id TEXT,
+        schema_fingerprint TEXT,
+        lineage_type VARCHAR(20) DEFAULT 'file-specific',
+        source_schema JSONB,
+        target_schema JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
