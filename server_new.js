@@ -2924,7 +2924,7 @@ app.get('/api/business-processes', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
-app.get('/api/business-processes'/:id, authenticateToken, (req, res) => {
+app.get('/api/business-processes/:id', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
@@ -2932,11 +2932,11 @@ app.post('/api/business-processes', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
-app.put('/api/business-processes'/:id, authenticateToken, (req, res) => {
+app.put('/api/business-processes/:id', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
-app.delete('/api/business-processes'/:id, authenticateToken, (req, res) => {
+app.delete('/api/business-processes/:id', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
@@ -2945,7 +2945,7 @@ app.get('/api/jobs', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
-app.get('/api/jobs'/:id, authenticateToken, (req, res) => {
+app.get('/api/jobs/:id', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
@@ -2953,15 +2953,15 @@ app.post('/api/jobs', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
-app.put('/api/jobs'/:id, authenticateToken, (req, res) => {
+app.put('/api/jobs/:id', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
-app.delete('/api/jobs'/:id, authenticateToken, (req, res) => {
+app.delete('/api/jobs/:id', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
-app.post('/api/jobs'/:id/run, authenticateToken, (req, res) => {
+app.post('/api/jobs/:id/run', authenticateToken, (req, res) => {
   res.status(410).json({ error: "This feature has been removed" });
 });
 
