@@ -7,7 +7,8 @@
     "build": "vite build",
     "start": "node server.js",
     "dev:frontend": "vite",
-    "dev:backend": "node server.js"
+    "dev:backend": "node server.js",
+    "seed:production": "node backend/scripts/seedProduction.js"
   },
   "keywords": [],
   "author": "",
