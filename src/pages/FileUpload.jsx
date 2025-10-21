@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
+import StepProgress from '../components/StepProgress';
 import { uploadFile, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
@@ -23,10 +24,23 @@ function FileUpload() {
   const [dropLocationConfigured, setDropLocationConfigured] = useState(false);
   const [dropLocationChecking, setDropLocationChecking] = useState(true);
   const [showDropLocationModal, setShowDropLocationModal] = useState(false);
+  const [currentStep, setCurrentStep] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const pollingInterval = useRef(null);
   const navigate = useNavigate();
   const { hasWritePermission, currentUser } = useAuth();
   
   const isAdmin = currentUser?.roles?.includes('Admin');
+  
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+      }
+    };
+  }, []);
   
   // Test API connection when component mounts
   useEffect(() => {
@@ -68,6 +82,55 @@ function FileUpload() {
     } finally {
       setDropLocationChecking(false);
     }
+  };
+  
+  const pollProcessingStatus = async (fileId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const response = await axios.get(`${API_BASE_URL}/api/files/${fileId}/status`, {
+        headers
+      });
+      
+      const { step, isComplete } = response.data;
+      
+      if (step) {
+        setCurrentStep(step);
+      }
+      
+      if (isComplete) {
+        // Stop polling
+        if (pollingInterval.current) {
+          clearInterval(pollingInterval.current);
+          pollingInterval.current = null;
+        }
+        
+        setIsProcessing(false);
+        
+        // Redirect to profile page after a short delay
+        setTimeout(() => {
+          navigate(`/profile/${fileId}?t=${Date.now()}`);
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error polling processing status:', error);
+    }
+  };
+  
+  const startPolling = (fileId) => {
+    // Clear any existing polling
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
+    }
+    
+    // Poll every 500ms for real-time updates
+    pollingInterval.current = setInterval(() => {
+      pollProcessingStatus(fileId);
+    }, 500);
+    
+    // Also poll immediately
+    pollProcessingStatus(fileId);
   };
   
   const handleTestConnection = async () => {
@@ -137,6 +200,8 @@ function FileUpload() {
         setPendingProgressHandler(() => progressHandler);
         setShowDuplicateModal(true);
         setUploadStatus(null);
+        setCurrentStep(null);
+        setIsProcessing(false);
         return;
       }
       
@@ -146,6 +211,8 @@ function FileUpload() {
       console.error('Error checking for duplicate or uploading file:', error);
       setDiagnosticInfo(prev => prev + `Error: ${error.message}\n`);
       setUploadStatus('error');
+      setCurrentStep(null);
+      setIsProcessing(false);
       throw error;
     }
   };
@@ -154,9 +221,23 @@ function FileUpload() {
     try {
       setDiagnosticInfo(`Starting file upload for ${file.name} (${file.size} bytes, type: ${file.type})...\n`);
       setUploadStatus('uploading');
+      setIsProcessing(true);
+      setCurrentStep('uploading');
+      setUploadProgress(0);
+      
+      // Create a wrapped progress handler that updates our state
+      const wrappedProgressHandler = (progressEvent) => {
+        const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        setUploadProgress(percentage);
+        
+        // Call the original progress handler
+        if (progressHandler) {
+          progressHandler(progressEvent);
+        }
+      };
       
       // Upload the file with progress tracking
-      const result = await uploadFile(file, progressHandler);
+      const result = await uploadFile(file, wrappedProgressHandler);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -174,15 +255,12 @@ function FileUpload() {
       setUploadedFile(fileDetails);
       setUploadStatus('success');
       
-      // Automatically redirect to profile page after a short delay
-      console.log('File uploaded successfully, will redirect to profile shortly. File ID:', fileId);
+      // Move to scanning step (virus scan happens on server after upload)
+      setCurrentStep('scanning');
       
-      // Use a longer timeout to ensure the file processing has started on the server
-      setTimeout(() => {
-        console.log('Now redirecting to profile page for file:', fileId);
-        // Add a timestamp parameter to force a fresh load
-        navigate(`/profile/${fileId}?t=${Date.now()}`);
-      }, 2000); // Increased delay to ensure server has time to process the file
+      // Start polling for processing status
+      console.log('File uploaded successfully, starting status polling. File ID:', fileId);
+      startPolling(fileId);
       
       return result;
     } catch (error) {
@@ -192,6 +270,8 @@ function FileUpload() {
         setDiagnosticInfo(prev => prev + `Error response: ${JSON.stringify(error.response.data, null, 2)}\n`);
       }
       setUploadStatus('error');
+      setCurrentStep(null);
+      setIsProcessing(false);
       throw error;
     }
   };
@@ -274,8 +354,17 @@ function FileUpload() {
   };
   
   const handleUploadAnother = () => {
+    // Clear any polling
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
+      pollingInterval.current = null;
+    }
+    
     setUploadStatus(null);
     setUploadedFile(null);
+    setCurrentStep(null);
+    setUploadProgress(0);
+    setIsProcessing(false);
     setDropzoneKey(prev => prev + 1); // Reset FileDropzone component
   };
   
@@ -422,7 +511,16 @@ function FileUpload() {
           </div>
         </div>
         
-        {activeTab === 'upload-profile' ? (
+        {/* Show StepProgress when processing */}
+        {isProcessing && currentStep && activeTab === 'upload-profile' && (
+          <StepProgress 
+            currentStep={currentStep}
+            uploadProgress={currentStep === 'uploading' ? uploadProgress : null}
+          />
+        )}
+        
+        {/* Show upload dropzone when not processing */}
+        {!isProcessing && activeTab === 'upload-profile' ? (
           hasWritePermission('file') ? (
             <FileDropzone 
               key={`profile-${dropzoneKey}`}
@@ -436,7 +534,10 @@ function FileUpload() {
               <p>You do not have permission to upload files. Please contact an administrator.</p>
             </div>
           )
-        ) : (
+        ) : null}
+        
+        {/* Drop file tab (separate from upload-profile) */}
+        {activeTab === 'drop-file' && (
           hasWritePermission('file_drop') ? (
             <FileDropzone 
               key={`drop-${dropzoneKey}`}
@@ -453,7 +554,7 @@ function FileUpload() {
           )
         )}
         
-        {uploadStatus === 'success' && uploadedFile && activeTab === 'upload-profile' && (
+        {uploadStatus === 'success' && uploadedFile && activeTab === 'upload-profile' && !isProcessing && (
           <>
             <div className="upload-success-actions">
               <button 
