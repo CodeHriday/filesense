@@ -4,6 +4,14 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 21, 2025**: Configured React app for Replit deployment
+  - Added build and start scripts to package.json (`npm run build`, `npm run start`)
+  - Configured server.js to serve static React files from dist/ folder in production mode
+  - Implemented SPA routing with catch-all route for React Router
+  - Port configuration respects process.env.PORT (Replit-provided), with fallback to 5000 (production) or 3000 (development)
+  - Created comprehensive DEPLOYMENT.md with build commands, environment variables, and deployment instructions
+  - Production build tested successfully: 1,369 KB main bundle, assets optimized
+  - Unified server architecture: single Node.js server serves both API and static files on port 5000 in production
 - **October 20, 2025**: Enhanced column profiling to capture comprehensive string and numeric statistics
   - **Manual File Uploads** (profile_columns.py):
     - Captures actual shortest/longest string values (min_value, max_value) along with lengths
