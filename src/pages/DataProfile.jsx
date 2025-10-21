@@ -526,7 +526,7 @@ function DataProfile() {
         <div className="error-message">
           <p>{error}</p>
           <div className="error-actions">
-            <Link to="/catalog" className="btn btn-secondary">
+            <Link to="/file-catalog" className="btn btn-secondary">
               <FiFileText className="btn-icon" /> Go to File Catalog
             </Link>
             <button className="btn btn-primary" onClick={() => window.location.reload()}>
