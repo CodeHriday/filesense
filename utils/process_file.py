@@ -12,16 +12,32 @@ Usage:
 import sys
 import os
 import json
-from decimal import Decimal
-import numpy as np
 
-# Handle imports from different paths
+# Wrap all imports in try-except to catch dependency issues
 try:
-    from streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
-    from memory_monitor import MemoryGuard, check_before_processing
-except ImportError:
-    from utils.streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
-    from utils.memory_monitor import MemoryGuard, check_before_processing
+    from decimal import Decimal
+    import numpy as np
+
+    # Handle imports from different paths
+    try:
+        from streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
+        from memory_monitor import MemoryGuard, check_before_processing
+    except ImportError:
+        from utils.streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
+        from utils.memory_monitor import MemoryGuard, check_before_processing
+except Exception as import_error:
+    # If imports fail, output the error and exit
+    error_msg = {
+        "error": f"Import error: {str(import_error)}",
+        "error_type": type(import_error).__name__,
+        "row_count": 0,
+        "column_count": 0,
+        "schema": [],
+        "encoding": None,
+        "delimiter": None
+    }
+    print(json.dumps(error_msg))
+    sys.exit(1)
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -133,18 +149,32 @@ def process_file(file_path, file_type):
         }
 
 if __name__ == "__main__":
-    import os
-    
-    if len(sys.argv) < 3:
-        print(json.dumps({"error": "Usage: process_file.py <file_path> <file_type>"}, cls=DecimalEncoder))
+    try:
+        import os
+        
+        if len(sys.argv) < 3:
+            print(json.dumps({"error": "Usage: process_file.py <file_path> <file_type>"}, cls=DecimalEncoder))
+            sys.exit(1)
+        
+        file_path = sys.argv[1]
+        file_type = sys.argv[2]
+        
+        if not os.path.exists(file_path):
+            print(json.dumps({"error": f"File not found: {file_path}"}, cls=DecimalEncoder))
+            sys.exit(1)
+        
+        result = process_file(file_path, file_type)
+        print(json.dumps(result, cls=DecimalEncoder))
+    except Exception as e:
+        # Catch any unhandled errors and output them as JSON
+        error_result = {
+            "error": f"Unexpected error: {str(e)}",
+            "error_type": type(e).__name__,
+            "row_count": 0,
+            "column_count": 0,
+            "schema": [],
+            "encoding": None,
+            "delimiter": None
+        }
+        print(json.dumps(error_result))
         sys.exit(1)
-    
-    file_path = sys.argv[1]
-    file_type = sys.argv[2]
-    
-    if not os.path.exists(file_path):
-        print(json.dumps({"error": f"File not found: {file_path}"}, cls=DecimalEncoder))
-        sys.exit(1)
-    
-    result = process_file(file_path, file_type)
-    print(json.dumps(result, cls=DecimalEncoder))
