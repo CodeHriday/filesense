@@ -18,11 +18,7 @@ async function initTransformationTables(pool) {
   try {
     systemLogger.info('Initializing transformation tables');
     
-    // Create transformations table
-    // Drop the existing table if it exists
-    await pool.query(`DROP TABLE IF EXISTS transformations CASCADE;`);
-    
-    // Create transformations table
+    // Create transformations table (non-destructive)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformations (
         id SERIAL PRIMARY KEY,
@@ -41,9 +37,7 @@ async function initTransformationTables(pool) {
     `);
     systemLogger.info('Transformations table initialized');
     
-    // Drop and recreate transformation executions table
-    await pool.query(`DROP TABLE IF EXISTS transformation_executions CASCADE;`);
-    
+    // Create transformation executions table (non-destructive)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformation_executions (
         id SERIAL PRIMARY KEY,
@@ -60,9 +54,7 @@ async function initTransformationTables(pool) {
     `);
     systemLogger.info('Transformation executions table initialized');
     
-    // Drop and recreate transformation output files table
-    await pool.query(`DROP TABLE IF EXISTS transformation_outputs CASCADE;`);
-    
+    // Create transformation output files table (non-destructive)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformation_outputs (
         id SERIAL PRIMARY KEY,
@@ -76,9 +68,7 @@ async function initTransformationTables(pool) {
     `);
     systemLogger.info('Transformation outputs table initialized');
     
-    // Drop and recreate transformation lineage table
-    await pool.query(`DROP TABLE IF EXISTS transformation_lineage CASCADE;`);
-    
+    // Create transformation lineage table (non-destructive)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transformation_lineage (
         id SERIAL PRIMARY KEY,
@@ -93,6 +83,47 @@ async function initTransformationTables(pool) {
         target_schema JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+    
+    // Add new columns if they don't exist (for existing tables)
+    await pool.query(`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'transformation_lineage' AND column_name = 'mapping_id'
+        ) THEN
+          ALTER TABLE transformation_lineage ADD COLUMN mapping_id TEXT;
+        END IF;
+        
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'transformation_lineage' AND column_name = 'schema_fingerprint'
+        ) THEN
+          ALTER TABLE transformation_lineage ADD COLUMN schema_fingerprint TEXT;
+        END IF;
+        
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'transformation_lineage' AND column_name = 'lineage_type'
+        ) THEN
+          ALTER TABLE transformation_lineage ADD COLUMN lineage_type VARCHAR(20) DEFAULT 'file-specific';
+        END IF;
+        
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'transformation_lineage' AND column_name = 'source_schema'
+        ) THEN
+          ALTER TABLE transformation_lineage ADD COLUMN source_schema JSONB;
+        END IF;
+        
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'transformation_lineage' AND column_name = 'target_schema'
+        ) THEN
+          ALTER TABLE transformation_lineage ADD COLUMN target_schema JSONB;
+        END IF;
+      END $$;
     `);
     systemLogger.info('Transformation lineage table initialized');
     
