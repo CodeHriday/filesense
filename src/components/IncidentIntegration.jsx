@@ -158,7 +158,7 @@ const IncidentIntegration = ({
             type: 'slack',
             name: 'Data Quality Alerts',
             settings: {
-              webhookUrl: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX',
+              webhookUrl: 'https://example.com/your-slack-webhook-url',
               channelName: '#data-quality-alerts'
             },
             active: true,
