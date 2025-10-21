@@ -167,10 +167,10 @@ class ProductionSeeder {
     
     for (const permission of DEFAULT_PERMISSIONS) {
       try {
-        // Check if permission already exists
+        // Check if permission already exists (using resource+action which is unique)
         const existingPermission = await this.pool.query(
-          'SELECT id FROM permissions WHERE name = $1',
-          [permission.name]
+          'SELECT id FROM permissions WHERE resource = $1 AND action = $2',
+          [permission.resource, permission.action]
         );
         
         if (existingPermission.rows.length > 0) {
@@ -181,15 +181,21 @@ class ProductionSeeder {
         
         // Create permission
         await this.pool.query(
-          `INSERT INTO permissions (name, resource, action, description, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+          `INSERT INTO permissions (name, resource, action, description, created_at)
+           VALUES ($1, $2, $3, $4, NOW())`,
           [permission.name, permission.resource, permission.action, permission.description]
         );
         
         console.log(`  ✅ Created permission: ${permission.name}`);
         this.stats.permissionsCreated++;
       } catch (error) {
-        console.error(`  ❌ Error creating permission "${permission.name}":`, error.message);
+        // Silently skip if duplicate (already exists)
+        if (error.code === '23505') { // PostgreSQL unique violation error code
+          console.log(`  ⏭️  Permission "${permission.name}" already exists, skipping`);
+          this.stats.permissionsSkipped++;
+        } else {
+          console.error(`  ❌ Error creating permission "${permission.name}":`, error.message);
+        }
       }
     }
   }
