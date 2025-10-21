@@ -2069,6 +2069,7 @@ const migrateConnectionsSchema = require('./backend/migrations/createSharedConne
 const { migrateTransformConnections } = require('./backend/migrations/migrateTransformConnections');
 const addPerformanceIndexes = require('./backend/migrations/addPerformanceIndexes');
 const { addProfilingColumns } = require('./backend/migrations/addProfilingColumns');
+const { expandNumericColumns } = require('./backend/migrations/expandNumericColumns');
 const { addDuplicateRecordsColumns } = require('./backend/migrations/addDuplicateRecordsColumns');
 const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
 const { initWorkflowOrchestrationTables } = require('./backend/migrations/workflowOrchestration');
@@ -2103,6 +2104,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Profiling columns migration completed');
+    
+    // Expand numeric columns to support larger values
+    return expandNumericColumns(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Numeric columns expansion completed');
     
     // Add duplicate records columns migration
     return addDuplicateRecordsColumns(dbPool);
