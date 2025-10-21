@@ -1038,6 +1038,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     );
     
     // Save column information if available
+    let successfulColumnCount = 0;
     if (columns.length > 0) {
       for (const column of columns) {
         try {
@@ -1064,10 +1065,21 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
               column.null_count || 0
             ]
           );
+          successfulColumnCount++;
         } catch (columnErr) {
-          console.error('Error saving column information:', columnErr);
+          console.error(`Error saving column "${column.column_name}" (index ${column.column_index}):`, columnErr.message);
+          console.error('Column data:', JSON.stringify(column, null, 2));
           // Continue with other columns
         }
+      }
+      
+      // Update the file record with the accurate column count
+      if (successfulColumnCount !== columnCount) {
+        console.log(`Updating column count from ${columnCount} to ${successfulColumnCount} for file ${fileId}`);
+        await pool.query(
+          `UPDATE files SET column_count = $1 WHERE file_id = $2`,
+          [successfulColumnCount, fileId]
+        );
       }
     }
     
@@ -1078,7 +1090,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
       file_type: fileType,
       file_size: file.size,
       row_count: rowCount,
-      column_count: columnCount,
+      column_count: successfulColumnCount > 0 ? successfulColumnCount : columnCount,
       created_at: new Date().toISOString(),
       message: 'File uploaded successfully'
     });

@@ -583,28 +583,51 @@ print(json.dumps(result))
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     `;
 
+    let successfulColumnCount = 0;
+    const initialColumnCount = schema.length;
+    
     for (const col of schema) {
-      await this.dbPool.query(insertQuery, [
-        fileId,
-        col.name,
-        col.type,
-        schema.indexOf(col),
-        col.unique_count || 0,
-        col.null_count || 0,
-        col.min_value !== undefined && col.min_value !== null ? String(col.min_value) : null,
-        col.max_value !== undefined && col.max_value !== null ? String(col.max_value) : null,
-        col.most_frequent_value || null,
-        col.least_frequent_value || null,
-        this.safeParseFloat(col.min_value),
-        this.safeParseFloat(col.max_value),
-        col.most_frequent_count || null,
-        col.least_frequent_count || null,
-        col.min_frequency || null,
-        col.max_frequency || null,
-        col.min_is_frequent !== undefined && col.min_is_frequent !== null ? col.min_is_frequent : null,
-        col.max_is_frequent !== undefined && col.max_is_frequent !== null ? col.max_is_frequent : null,
-        col.patterns && col.patterns.length > 0 ? JSON.stringify(col.patterns) : null
-      ]);
+      try {
+        await this.dbPool.query(insertQuery, [
+          fileId,
+          col.name,
+          col.type,
+          schema.indexOf(col),
+          col.unique_count || 0,
+          col.null_count || 0,
+          col.min_value !== undefined && col.min_value !== null ? String(col.min_value) : null,
+          col.max_value !== undefined && col.max_value !== null ? String(col.max_value) : null,
+          col.most_frequent_value || null,
+          col.least_frequent_value || null,
+          this.safeParseFloat(col.min_value),
+          this.safeParseFloat(col.max_value),
+          col.most_frequent_count || null,
+          col.least_frequent_count || null,
+          col.min_frequency || null,
+          col.max_frequency || null,
+          col.min_is_frequent !== undefined && col.min_is_frequent !== null ? col.min_is_frequent : null,
+          col.max_is_frequent !== undefined && col.max_is_frequent !== null ? col.max_is_frequent : null,
+          col.patterns && col.patterns.length > 0 ? JSON.stringify(col.patterns) : null
+        ]);
+        successfulColumnCount++;
+      } catch (columnErr) {
+        this.logger.error(`Error saving column "${col.name}" (index ${schema.indexOf(col)}):`, {
+          error: columnErr.message,
+          column: col.name,
+          columnIndex: schema.indexOf(col),
+          columnData: JSON.stringify(col, null, 2)
+        });
+        // Continue with other columns
+      }
+    }
+    
+    // Update the file record with the accurate column count
+    if (successfulColumnCount !== initialColumnCount) {
+      this.logger.info(`Updating column count from ${initialColumnCount} to ${successfulColumnCount} for file ${fileId}`);
+      await this.dbPool.query(
+        'UPDATE files SET column_count = $1 WHERE file_id = $2',
+        [successfulColumnCount, fileId]
+      );
     }
   }
 
