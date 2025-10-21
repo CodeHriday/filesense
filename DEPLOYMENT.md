@@ -3,17 +3,77 @@
 ## Overview
 This guide explains how to deploy the Data File Observatory React application on Replit with PostgreSQL database support.
 
+## Quick Deployment Checklist
+
+Before clicking "Deploy", ensure you've completed these steps:
+
+- [ ] **Port Configuration**: Clean up `.replit` file - keep ONLY port 5000 → 80 (see Critical section below)
+- [ ] **Database**: PostgreSQL database provisioned in Replit Tools
+- [ ] **JWT Secret**: Generate and add `JWT_SECRET` to Replit Secrets
+- [ ] **Build**: Run `npm run build` locally to verify it works
+- [ ] **Deploy Config**: Build command = `npm run build`, Run command = `NODE_ENV=production npm run start`
+
 ## Architecture
 - **Frontend**: React 18 + Vite (Single Page Application)
 - **Backend**: Node.js/Express API server with connection retry logic
 - **Database**: PostgreSQL with automatic connection pooling
-- **Production Mode**: Unified server serving both React static files and API
+- **Production Mode**: Unified server serving both React static files and API on port 5000
 
 ## Prerequisites
 
 Before deploying, ensure you have:
 1. A Replit account
 2. PostgreSQL database provisioned in your Replit project
+
+## ⚠️ CRITICAL: Port Configuration for Deployment
+
+**Before deploying**, you MUST clean up the port configuration. Your `.replit` file currently has 9 port mappings, but Replit Autoscale deployments only support **ONE** external port.
+
+### Required Action:
+
+1. **Open Replit's Networking Tool**:
+   - Click on the Tools menu in the left sidebar
+   - Select "Networking" or "Ports"
+   - You'll see a list of currently configured ports
+
+2. **Remove All Ports Except Port 5000**:
+   - Keep only: **Local Port 5000 → External Port 80**
+   - Delete ALL other port configurations:
+     - Port 3000 → 3000 (DELETE)
+     - Port 3001 → 43147 (DELETE)
+     - Port 3002 → 40547 (DELETE)
+     - Port 3003 → 33595 (DELETE)
+     - Port 4200 → 38399 (DELETE)
+     - Port 5000 → 42003 (DELETE - duplicate)
+     - Port 5173 → 43207 (DELETE)
+     - Port 6000 → 36987 (DELETE)
+     - Port 6800 → 46819 (DELETE)
+
+3. **Alternative: Manually Edit `.replit` File**:
+   - Open `.replit` in your editor
+   - Find lines 57-96 (the `[[ports]]` sections)
+   - Delete all `[[ports]]` blocks EXCEPT:
+     ```toml
+     [[ports]]
+     localPort = 5000
+     externalPort = 80
+     ```
+
+### Why This Matters:
+
+- **Deployment will fail** if multiple ports are exposed
+- The error you saw earlier ("Route / not found") was caused by port conflicts
+- Replit's Autoscale deployment expects a single service on port 5000
+- In production, both the React frontend AND API run from the same server
+
+### Verification:
+
+After cleaning up ports, your `.replit` file should have only ONE `[[ports]]` block:
+```toml
+[[ports]]
+localPort = 5000
+externalPort = 80
+```
 
 ## Database Setup
 

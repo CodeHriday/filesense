@@ -702,6 +702,31 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Database health check endpoint
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const database = diContainer.get('database');
+    const health = await database.getHealthStatus();
+    
+    if (health.healthy) {
+      res.json({
+        status: 'healthy',
+        database: health
+      });
+    } else {
+      res.status(503).json({
+        status: 'unhealthy',
+        database: health
+      });
+    }
+  } catch (err) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: err.message
+    });
+  }
+});
+
 // Queue metrics endpoint for monitoring
 app.get('/api/queue/metrics', async (req, res) => {
   try {
@@ -5712,15 +5737,19 @@ setupEnhancedFeatures(app);
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, 'dist');
   
+  console.log('📦 Production mode: Serving static files from', distPath);
+  
   // Serve static files
   app.use(express.static(distPath));
   
   // Handle React Router - send all non-API requests to index.html
-  app.get('*', (req, res, next) => {
-    // Skip API routes
+  // Use middleware instead of app.get() to avoid path-to-regexp issues
+  app.use((req, res, next) => {
+    // Skip API routes - let them go to the 404 handler or their endpoints
     if (req.path.startsWith('/api')) {
       return next();
     }
+    // Send all other routes to React's index.html for client-side routing
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
@@ -5742,31 +5771,6 @@ app.use((req, res, next) => {
 const errorHandler = require('./backend/middleware/errorHandler');
 app.use(errorHandler);
 
-// Add database health check endpoint
-app.get('/api/health/db', async (req, res) => {
-  try {
-    const database = diContainer.get('database');
-    const health = await database.getHealthStatus();
-    
-    if (health.healthy) {
-      res.json({
-        status: 'healthy',
-        database: health
-      });
-    } else {
-      res.status(503).json({
-        status: 'unhealthy',
-        database: health
-      });
-    }
-  } catch (err) {
-    res.status(503).json({
-      status: 'unhealthy',
-      error: err.message
-    });
-  }
-});
-
 // Initialize database and start the server
 async function startServer() {
   try {
@@ -5777,13 +5781,14 @@ async function startServer() {
     await initializeDatabase();
     logger.info('Database connection established successfully');
     
-    // Start the HTTP server
-    app.listen(port, () => {
+    // Start the HTTP server - bind to 0.0.0.0 for Replit
+    app.listen(port, '0.0.0.0', () => {
       logger.info(`🚀 Server running on port ${port}`, {
         environment: process.env.NODE_ENV || 'development',
-        port: port
+        port: port,
+        host: '0.0.0.0'
       });
-      console.log(`Server running on port ${port}`);
+      console.log(`Server running on port ${port} (host: 0.0.0.0)`);
     });
   } catch (err) {
     logger.error('Failed to start server', {
