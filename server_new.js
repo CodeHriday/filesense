@@ -1770,9 +1770,12 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
       
       const roleIds = rolesResult.rows.map(role => role.id);
       if (roleIds.length > 0) {
-        // Insert role assignments
-        const values = roleIds.map(roleId => `(${user.id}, ${roleId})`).join(', ');
-        await pool.query(`INSERT INTO user_roles (user_id, role_id) VALUES ${values}`);
+        // Insert role assignments using parameterized query
+        const values = roleIds.map((_, index) => `($1, $${index + 2})`).join(', ');
+        await pool.query(
+          `INSERT INTO user_roles (user_id, role_id) VALUES ${values}`,
+          [user.id, ...roleIds]
+        );
       }
     }
     
