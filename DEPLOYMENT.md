@@ -119,6 +119,138 @@ Response when healthy:
 }
 ```
 
+### Step 3: Seed Production Database
+
+⚠️ **IMPORTANT**: After deploying for the first time, your production database will be empty. You need to seed it with essential data to be able to login.
+
+#### Add npm Script (One-Time Setup)
+
+First, add the seeding script to your `package.json`:
+
+1. Open `package.json`
+2. Find the `"scripts"` section
+3. Add this line:
+   ```json
+   "seed:production": "node backend/scripts/seedProduction.js"
+   ```
+
+Your scripts section should look like:
+```json
+"scripts": {
+  "test": "echo \"Error: no test specified\" && exit 1",
+  "build": "vite build",
+  "start": "node server.js",
+  "dev:frontend": "vite",
+  "dev:backend": "node server.js",
+  "seed:production": "node backend/scripts/seedProduction.js"
+},
+```
+
+#### Run the Seeding Script
+
+After your app is deployed and running:
+
+1. **Open the Replit Shell**
+2. **Run the seeding command**:
+   ```bash
+   npm run seed:production
+   ```
+
+3. **What it creates**:
+   - **Roles**: Admin, User, Viewer
+   - **Permissions**: All necessary permissions for file management, transformations, dashboards, etc.
+   - **Default Admin Account**:
+     - Username: `admin`
+     - Password: `Admin123!`
+     - Email: `admin@dataobservatory.local`
+
+4. **Security Best Practices**:
+   - ✅ **Immediately login** and change the admin password
+   - ✅ Create additional admin users if needed
+   - ✅ Consider deleting the default admin after creating your own account
+
+#### Seeding Script Features
+
+- **Idempotent**: Safe to run multiple times (checks for existing data before inserting)
+- **Transaction-safe**: All operations wrapped in database transactions
+- **Production-ready**: Uses environment variables for database connection
+- **Clear output**: Shows exactly what was created or skipped
+
+#### Example Output
+
+```
+🌱 Starting production database seeding...
+
+✅ Database connection established
+
+📝 Seeding roles...
+  ✅ Created role: Admin
+  ✅ Created role: User
+  ✅ Created role: Viewer
+
+📝 Seeding permissions...
+  ✅ Created permission: user:create
+  ✅ Created permission: user:read
+  ...
+
+🔗 Linking roles to permissions...
+  ✅ Linked all permissions to role: Admin
+  ✅ Linked 10 permissions to role: User
+  ✅ Linked 4 permissions to role: Viewer
+
+👤 Seeding admin user...
+  ✅ Created admin user: admin
+  📧 Email: admin@dataobservatory.local
+  🔑 Password: Admin123!
+  ⚠️  IMPORTANT: Change the admin password immediately after first login!
+
+================================================================================
+📊 SEEDING SUMMARY
+================================================================================
+Roles created:       3
+Roles skipped:       0
+Permissions created: 20
+Permissions skipped: 0
+Users created:       1
+Users skipped:       0
+================================================================================
+
+🔐 DEFAULT ADMIN CREDENTIALS:
+   Username: admin
+   Password: Admin123!
+
+⚠️  SECURITY NOTICE:
+   1. Login immediately and change the admin password
+   2. Create additional admin users if needed
+   3. Consider deleting the default admin after creating your own
+================================================================================
+
+✅ Seeding completed successfully!
+```
+
+#### Re-running the Seeding Script
+
+If you run the script again after data already exists:
+
+```bash
+npm run seed:production
+```
+
+You'll see output like:
+```
+📝 Seeding roles...
+  ⏭️  Role "Admin" already exists, skipping
+  ⏭️  Role "User" already exists, skipping
+  ⏭️  Role "Viewer" already exists, skipping
+
+...
+
+👤 Seeding admin user...
+  ⏭️  Admin user "admin" already exists, skipping
+```
+
+The script is **safe to run multiple times** - it won't create duplicates.
+
 ## Build and Run Commands
 
 ### For Replit Deployment (Autoscale)
