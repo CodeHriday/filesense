@@ -810,6 +810,38 @@ app.get('/api/files/:fileId', cacheMiddleware(600), async (req, res) => {
   }
 });
 
+// File processing status endpoint (no caching - real-time status)
+app.get('/api/files/:fileId/status', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT processing_step, row_count, column_count, processed_at FROM files WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = result.rows[0];
+    const processingStep = file.processing_step || 'pending';
+    const isComplete = processingStep === 'complete' || file.processed_at !== null;
+    
+    res.json({
+      fileId,
+      step: processingStep,
+      isComplete,
+      rowCount: file.row_count,
+      columnCount: file.column_count,
+      processedAt: file.processed_at
+    });
+  } catch (err) {
+    logger.error('Error fetching file status', { error: err.message, fileId: req.params.fileId });
+    res.status(500).json({ error: 'Failed to fetch file status' });
+  }
+});
+
 // File preview endpoint (with caching)
 app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => {
   try {
@@ -2077,6 +2109,7 @@ const { fixMappingGroupMembersSchema } = require('./backend/migrations/fixMappin
 const updateObjectTypesToString = require('./backend/migrations/updateObjectTypesToString');
 const initFileInsightsTables = require('./backend/migrations/createFileInsightsTable');
 const addLineageColumns = require('./backend/migrations/addLineageColumns');
+const { addProcessingStepColumn } = require('./backend/migrations/addProcessingStepColumn');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2154,6 +2187,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Lineage columns migration completed');
+    
+    // Add processing step column migration
+    return addProcessingStepColumn(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Processing step column migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

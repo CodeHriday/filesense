@@ -25,6 +25,24 @@ class FileProcessingWorker {
   }
 
   /**
+   * Update the processing step in the database
+   */
+  async updateProcessingStep(fileId, step) {
+    try {
+      await this.dbPool.query(
+        'UPDATE files SET processing_step = $1 WHERE file_id = $2',
+        [step, fileId]
+      );
+    } catch (error) {
+      this.logger.error('Failed to update processing step', {
+        fileId,
+        step,
+        error: error.message
+      });
+    }
+  }
+
+  /**
    * Start processing jobs from queue
    */
   async start() {
@@ -88,6 +106,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 10);
 
       // Step 1: Process file using Python streaming processors
+      await this.updateProcessingStep(fileId, 'analyzing');
       this.logger.info('Calling Python processor for file analysis', { fileId });
       await this.queue.updateProgress(jobId, 30);
 
@@ -102,6 +121,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 50);
 
       // Step 2: Generate detailed column profiling (min/max, frequency values)
+      await this.updateProcessingStep(fileId, 'profiling');
       this.logger.info('Generating column profiling statistics', { fileId });
       const profilingData = await this.callProfilingScript(filePath, fileType);
       
@@ -121,6 +141,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 70);
 
       // Step 3: Detect duplicate rows
+      await this.updateProcessingStep(fileId, 'duplicates');
       this.logger.info('Detecting duplicate rows', { fileId });
       const duplicateStats = await this.detectDuplicates(filePath, fileType);
       
@@ -144,6 +165,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 90);
 
       // Step 6: Capture file audit details and schema
+      await this.updateProcessingStep(fileId, 'schema');
       const correlationId = uuidv4();
       
       // Capture file schema with versioning
@@ -198,6 +220,9 @@ class FileProcessingWorker {
       });
 
       await this.queue.updateProgress(jobId, 100);
+
+      // Mark processing as complete
+      await this.updateProcessingStep(fileId, 'complete');
 
       const processingDuration = Date.now() - startTime;
 
