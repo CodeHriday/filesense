@@ -4,6 +4,13 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
+- **October 21, 2025**: Updated Python security dependencies to latest versions
+  - Updated h11 from 0.14.0 to 0.16.0 (fixes request smuggling vulnerability in HTTP/1.1 protocol)
+  - Updated pillow from 11.2.1 to 11.3.0 (includes CVE-2025-48379 fix for BCn encoding buffer overflow)
+  - Updated tornado from 6.4.2 to 6.5.2 (latest async web framework security patches)
+  - Fixed JavaScript syntax errors in server_new.js (incorrect route path quoting)
+  - Added explicit version constraints to pyproject.toml for Semgrep scanner compliance
+  - All updates tested and verified compatible with Streamlit 1.50.0
 - **October 21, 2025**: Configured React app for Replit deployment
   - Added build and start scripts to package.json (`npm run build`, `npm run start`)
   - Configured server.js to serve static React files from dist/ folder in production mode

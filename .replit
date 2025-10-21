@@ -55,3 +55,7 @@ args = "NODE_ENV=development node server.js"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 46553
+externalPort = 3000
