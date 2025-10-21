@@ -588,6 +588,11 @@ print(json.dumps(result))
     
     for (const col of schema) {
       try {
+        // Only parse decimal values for numeric column types
+        const isNumericType = ['integer', 'float', 'decimal', 'numeric', 'number'].includes(col.type?.toLowerCase());
+        const minValueDecimal = isNumericType ? this.safeParseFloat(col.min_value) : null;
+        const maxValueDecimal = isNumericType ? this.safeParseFloat(col.max_value) : null;
+        
         await this.dbPool.query(insertQuery, [
           fileId,
           col.name,
@@ -599,8 +604,8 @@ print(json.dumps(result))
           col.max_value !== undefined && col.max_value !== null ? String(col.max_value) : null,
           col.most_frequent_value || null,
           col.least_frequent_value || null,
-          this.safeParseFloat(col.min_value),
-          this.safeParseFloat(col.max_value),
+          minValueDecimal,
+          maxValueDecimal,
           col.most_frequent_count || null,
           col.least_frequent_count || null,
           col.min_frequency || null,
