@@ -1628,20 +1628,24 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
         const targetPattern = mappingData.target_file_name || 
                              `output.${mappingData.target_file_format || 'csv'}`;
         
-        // Check if lineage already exists for this mapping
+        // Check if PATTERN-BASED lineage already exists for this mapping
+        // IMPORTANT: Never touch file-specific lineage created by job executions
         const existingCheck = await dbPool.query(`
           SELECT id FROM transformation_lineage 
           WHERE transformation_id = $1
+            AND (lineage_type = 'pattern-based' OR lineage_type IS NULL)
         `, [transformationId]);
         
         if (existingCheck.rows.length > 0) {
-          // Update existing lineage with mapping patterns
+          // Update existing pattern-based lineage
           await dbPool.query(`
             UPDATE transformation_lineage 
             SET input_file_id = $1,
                 output_file_id = $2,
+                lineage_type = 'pattern-based',
                 created_at = NOW()
             WHERE transformation_id = $3
+              AND (lineage_type = 'pattern-based' OR lineage_type IS NULL)
           `, [
             sourcePattern,
             targetPattern,
@@ -1649,34 +1653,55 @@ app.post('/api/lineage/scan-and-populate', authenticateToken, async (req, res) =
           ]);
           
           updated++;
-          logger.info('Updated lineage record', {
+          logger.info('Updated pattern-based lineage record', {
             mappingId: mapping.mapping_id,
             mappingName: mappingData.mapping_name,
             sourcePattern,
             targetPattern
           });
         } else {
-          // Create new lineage record with patterns
-          await dbPool.query(`
-            INSERT INTO transformation_lineage (
-              transformation_id,
-              input_file_id,
-              output_file_id,
-              created_at
-            ) VALUES ($1, $2, $3, NOW())
-          `, [
-            transformationId,
-            sourcePattern,
-            targetPattern
-          ]);
+          // Check if file-specific lineage exists (skip if it does)
+          const fileSpecificCheck = await dbPool.query(`
+            SELECT id FROM transformation_lineage 
+            WHERE mapping_id = $1 
+              AND lineage_type = 'file-specific'
+            LIMIT 1
+          `, [mapping.mapping_id]);
           
-          created++;
-          logger.info('Created lineage record', {
-            mappingId: mapping.mapping_id,
-            mappingName: mappingData.mapping_name,
-            sourcePattern,
-            targetPattern
-          });
+          if (fileSpecificCheck.rows.length > 0) {
+            // File-specific lineage exists from job execution - skip pattern creation
+            skipped++;
+            logger.info('Skipped - file-specific lineage exists', {
+              mappingId: mapping.mapping_id,
+              lineageId: fileSpecificCheck.rows[0].id
+            });
+          } else {
+            // Create new pattern-based lineage record
+            await dbPool.query(`
+              INSERT INTO transformation_lineage (
+                transformation_id,
+                mapping_id,
+                input_file_id,
+                output_file_id,
+                lineage_type,
+                created_at
+              ) VALUES ($1, $2, $3, $4, $5, NOW())
+            `, [
+              transformationId,
+              mapping.mapping_id,
+              sourcePattern,
+              targetPattern,
+              'pattern-based'
+            ]);
+            
+            created++;
+            logger.info('Created pattern-based lineage record', {
+              mappingId: mapping.mapping_id,
+              mappingName: mappingData.mapping_name,
+              sourcePattern,
+              targetPattern
+            });
+          }
         }
         
       } catch (mappingError) {
