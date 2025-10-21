@@ -10,7 +10,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 
 // Initialize dependency injection container
-const { initialize: initializeDI } = require('./backend/di/bootstrapper');
+const { initialize: initializeDI, initializeDatabase } = require('./backend/di/bootstrapper');
 const diContainer = initializeDI();
 
 // Import enhanced backend features
@@ -5742,10 +5742,70 @@ app.use((req, res, next) => {
 const errorHandler = require('./backend/middleware/errorHandler');
 app.use(errorHandler);
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Add database health check endpoint
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const database = diContainer.get('database');
+    const health = await database.getHealthStatus();
+    
+    if (health.healthy) {
+      res.json({
+        status: 'healthy',
+        database: health
+      });
+    } else {
+      res.status(503).json({
+        status: 'unhealthy',
+        database: health
+      });
+    }
+  } catch (err) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: err.message
+    });
+  }
 });
+
+// Initialize database and start the server
+async function startServer() {
+  try {
+    logger.info('Starting server initialization...');
+    
+    // Initialize database with retry logic
+    logger.info('Initializing database connection...');
+    await initializeDatabase();
+    logger.info('Database connection established successfully');
+    
+    // Start the HTTP server
+    app.listen(port, () => {
+      logger.info(`🚀 Server running on port ${port}`, {
+        environment: process.env.NODE_ENV || 'development',
+        port: port
+      });
+      console.log(`Server running on port ${port}`);
+    });
+  } catch (err) {
+    logger.error('Failed to start server', {
+      error: err.message,
+      stack: err.stack
+    });
+    console.error('❌ Server startup failed:', err.message);
+    console.error('\n📋 Troubleshooting:');
+    console.error('  1. Check DATABASE_URL environment variable is set');
+    console.error('  2. Verify database is accessible from this environment');
+    console.error('  3. Check network connectivity to database host');
+    console.error('\n💡 For deployed apps:');
+    console.error('  - Ensure PostgreSQL database is provisioned in Replit');
+    console.error('  - Database environment variables are automatically set');
+    console.error('  - Check deployment logs for connection errors\n');
+    
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
 
 // Graceful shutdown handler
 const gracefulShutdown = async (signal) => {
@@ -5764,7 +5824,8 @@ const gracefulShutdown = async (signal) => {
     await fileWorker.stop();
     
     // Close database connections
-    await dbPool.end();
+    const database = diContainer.get('database');
+    await database.close();
     
     logger.info('Graceful shutdown completed');
     process.exit(0);

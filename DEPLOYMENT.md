@@ -1,13 +1,63 @@
 # Data File Observatory - Deployment Guide
 
 ## Overview
-This guide explains how to deploy the Data File Observatory React application on Replit.
+This guide explains how to deploy the Data File Observatory React application on Replit with PostgreSQL database support.
 
 ## Architecture
 - **Frontend**: React 18 + Vite (Single Page Application)
-- **Backend**: Node.js/Express API server
-- **Database**: PostgreSQL
+- **Backend**: Node.js/Express API server with connection retry logic
+- **Database**: PostgreSQL with automatic connection pooling
 - **Production Mode**: Unified server serving both React static files and API
+
+## Prerequisites
+
+Before deploying, ensure you have:
+1. A Replit account
+2. PostgreSQL database provisioned in your Replit project
+
+## Database Setup
+
+### Step 1: Provision PostgreSQL Database
+
+1. **In your Replit workspace**:
+   - Click on "Tools" in the left sidebar
+   - Select "PostgreSQL"
+   - Click "Create Database"
+   - Wait for database provisioning to complete
+
+2. **Environment variables are auto-configured**:
+   - `DATABASE_URL` - Full connection string
+   - `PGHOST` - Database host
+   - `PGUSER` - Database username
+   - `PGPASSWORD` - Database password
+   - `PGDATABASE` - Database name
+   - `PGPORT` - Database port (usually 5432)
+
+### Step 2: Verify Database Connection
+
+In your Replit workspace, the database connection is automatically tested on server startup with:
+- **5 retry attempts** with exponential backoff
+- **30-second connection timeout** (production)
+- **Automatic table initialization** after successful connection
+
+You can verify the database health at any time by accessing:
+```
+GET /api/health/db
+```
+
+Response when healthy:
+```json
+{
+  "status": "healthy",
+  "database": {
+    "healthy": true,
+    "responseTime": 45,
+    "poolSize": 2,
+    "idleConnections": 2,
+    "waitingClients": 0
+  }
+}
+```
 
 ## Build and Run Commands
 
@@ -22,7 +72,7 @@ npm run build
 
 **Run Command:**
 ```bash
-npm run start
+NODE_ENV=production npm run start
 ```
 
 ### What These Commands Do
@@ -33,9 +83,11 @@ npm run start
    - Minifies JavaScript and CSS
    - Generates static HTML, CSS, and JS files
 
-2. **Run Command** (`npm run start`):
-   - Runs `node server.js` with `NODE_ENV=production`
-   - Server automatically detects production mode
+2. **Run Command** (`NODE_ENV=production npm run start`):
+   - Sets `NODE_ENV=production` for production optimizations
+   - Runs `node server.js` with production database pooling
+   - Tests database connection with automatic retries
+   - Initializes database tables
    - Serves static React files from `dist/` folder on port 5000
    - Handles API routes at `/api/*`
    - Implements SPA routing (all non-API routes → index.html)
@@ -45,31 +97,48 @@ npm run start
 The server is configured to work differently in production vs development:
 
 ### Production Mode (NODE_ENV=production)
-- Port: Respects `process.env.PORT` (Replit provides this), defaults to 5000
-- Serves static files from `dist/` folder
-- Handles React Router with catch-all route
-- API routes remain at `/api/*`
-- Single unified server for both frontend and backend
+- **Port**: Respects `process.env.PORT` (Replit provides this), defaults to 5000
+- **Database**: 
+  - Connection pool: 10 max connections, 2 min idle
+  - 30-second connection timeout
+  - 60-second idle timeout
+  - SSL enabled with self-signed cert support
+  - Automatic retry on connection failure (5 attempts with exponential backoff)
+- **Static Files**: Served from `dist/` folder
+- **Routing**: React Router with catch-all route
+- **API Routes**: Remain at `/api/*`
+- **Single Server**: Unified server for both frontend and backend
 
 ### Development Mode
-- Frontend: Port **5000** (Vite dev server with HMR)
-- Backend: Port **3000** (Express API server)
-- Vite proxy forwards `/api/*` requests to backend
+- **Frontend**: Port **5000** (Vite dev server with HMR)
+- **Backend**: Port **3000** (Express API server)
+- **Database**: 
+  - Connection pool: 20 max connections
+  - 10-second connection timeout
+  - 30-second idle timeout
+- **Proxy**: Vite forwards `/api/*` requests to backend
 
-## Environment Variables Required
+## Environment Variables
 
-Before deployment, ensure the following environment variables are set in Replit Secrets:
-
-### Required
+### Auto-Configured by Replit
 ```bash
-# Database (auto-configured by Replit)
-DATABASE_URL=postgresql://...
-PGHOST=...
+# Database connection (set automatically when you create a PostgreSQL database)
+DATABASE_URL=postgresql://user:password@host:port/database
+PGHOST=your-db-host
 PGPORT=5432
-PGUSER=...
-PGPASSWORD=...
-PGDATABASE=...
+PGUSER=your-db-user
+PGPASSWORD=your-db-password
+PGDATABASE=your-db-name
 
+# Server port (set automatically by Replit deployment)
+PORT=5000
+```
+
+### Required Manual Configuration
+
+Add these to your Replit Secrets:
+
+```bash
 # Security (CRITICAL - generate your own!)
 JWT_SECRET=<64-character-hex-string>
 JWT_EXPIRATION=24h
@@ -86,22 +155,56 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 Copy the output and add it to your Replit Secrets as `JWT_SECRET`.
 
+### Optional Configuration
+```bash
+# Database pool settings (defaults are production-optimized)
+# Note: Pool settings are automatically optimized based on NODE_ENV
+# Production: 10 max connections, 2 min idle, 30s connect timeout, 60s idle timeout
+# Development: 20 max connections, 0 min idle, 10s connect timeout, 30s idle timeout
+```
+
 ## Deployment Steps on Replit
 
-1. **Prepare Secrets**
-   - Go to Tools → Secrets in Replit
-   - Add `JWT_SECRET` with a generated value
-   - Database variables are auto-configured
+### 1. Prepare Database
+   - Go to Tools → PostgreSQL in Replit
+   - Create a database if not already created
+   - Database environment variables are set automatically
 
-2. **Configure Deployment**
+### 2. Configure Secrets
+   - Go to Tools → Secrets in Replit
+   - Add `JWT_SECRET` with a generated value (see above)
+   - Add `NODE_ENV=production`
+   - Database variables are auto-configured, no manual entry needed
+
+### 3. Test Connection
+   - Run the server in development mode first:
+     ```bash
+     npm run dev:backend
+     ```
+   - Check logs for "Database connection established successfully"
+   - Visit `/api/health/db` to verify database health
+
+### 4. Build Application
+   - Run build command:
+     ```bash
+     npm run build
+     ```
+   - Verify `dist/` folder is created with files
+
+### 5. Deploy
    - Click "Deploy" button in Replit
    - Choose **Autoscale Deployment**
    - Set Build Command: `npm run build`
-   - Set Run Command: `npm run start`
-
-3. **Deploy**
+   - Set Run Command: `NODE_ENV=production npm run start`
    - Click "Deploy" to build and launch
    - Your app will be live at `https://your-repl.replit.app`
+
+### 6. Monitor Deployment
+   - Check deployment logs for:
+     - "Database connection established successfully"
+     - "Server running on port XXX"
+   - Visit your deployed URL
+   - Check `/api/health/db` endpoint for database status
 
 ## Project Structure
 
@@ -114,6 +217,11 @@ Copy the output and add it to your Replit Secrets as `JWT_SECRET`.
 ├── src/                  # React source code
 ├── server.js             # Express server (serves API + static files in prod)
 ├── backend/              # Backend services and API routes
+│   ├── config/
+│   │   └── database.js   # Database configuration with retry logic
+│   ├── di/
+│   │   └── bootstrapper.js # Dependency injection container
+│   └── routes/           # API route handlers
 ├── vite.config.js        # Vite configuration
 └── package.json          # Build scripts
 ```
@@ -124,18 +232,57 @@ Copy the output and add it to your Replit Secrets as `JWT_SECRET`.
 - Generate JWT secret: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
 - Add to Replit Secrets as `JWT_SECRET`
 
+### "Failed to connect to database after 5 attempts"
+
+**Cause**: Database is not provisioned or connection details are incorrect
+
+**Solution**:
+1. Check that PostgreSQL database is created in Replit (Tools → PostgreSQL)
+2. Verify `DATABASE_URL` environment variable is set
+3. Check deployment logs for specific connection error
+4. Try visiting `/api/health/db` to see detailed error message
+
+**Common errors**:
+- `ECONNREFUSED`: Database not running or wrong host/port
+- `Connection timeout`: Network issue or firewall blocking connection
+- `Authentication failed`: Wrong username/password
+
 ### Static files not loading
-- Ensure `npm run build` completed successfully
-- Check that `dist/` folder exists and contains files
-- Verify `NODE_ENV=production` is set
+
+**Cause**: Build not completed or NODE_ENV not set to production
+
+**Solution**:
+1. Ensure `npm run build` completed successfully
+2. Check that `dist/` folder exists and contains files
+3. Verify `NODE_ENV=production` is set in deployment
+4. Check deployment logs for "Serving static files from dist/" message
 
 ### API routes return 404
-- Check that API routes are prefixed with `/api/`
-- Verify server.js correctly handles catch-all routing
+
+**Cause**: Routes not registered or catch-all route interfering
+
+**Solution**:
+1. Check that API routes are prefixed with `/api/`
+2. Verify server.js correctly skips API routes in catch-all handler
+3. Check deployment logs for route registration messages
 
 ### React Router not working
-- Ensure catch-all route is configured in server.js
-- Check that non-API routes are redirected to index.html
+
+**Cause**: Catch-all route not configured properly
+
+**Solution**:
+1. Ensure catch-all route is configured in server.js
+2. Check that non-API routes are redirected to index.html
+3. Verify `NODE_ENV=production` is set (static serving only works in production)
+
+### Database connection slow on first request
+
+**Cause**: Cold start - connections are created on demand
+
+**Solution**:
+- This is normal for first request after deployment
+- Subsequent requests will use pooled connections
+- Connection pool maintains minimum 2 idle connections in production
 
 ## Development vs Production
 
@@ -148,12 +295,21 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
+Access:
+- Frontend: http://localhost:5000
+- Backend API: http://localhost:3000
+- Database health: http://localhost:3000/api/health/db
+
 ### Production (Deployment)
 ```bash
 # Build and start unified server
 npm run build
-npm run start
+NODE_ENV=production npm run start
 ```
+
+Access:
+- Application: https://your-repl.replit.app
+- Database health: https://your-repl.replit.app/api/health/db
 
 ## Port Configuration
 
@@ -161,9 +317,79 @@ npm run start
 - **Production**: Unified server (respects `process.env.PORT` from Replit, defaults to 5000)
 - Replit automatically injects the correct PORT for deployments
 
+## Database Connection Details
+
+### Connection Retry Logic
+
+The application implements robust connection retry logic:
+- **5 retry attempts** with exponential backoff (1s, 2s, 4s, 8s, 16s)
+- **Detailed logging** of each connection attempt
+- **Graceful failure** with helpful error messages
+- **Health check endpoint** for monitoring
+
+### Connection Pool Settings
+
+| Setting | Development | Production |
+|---------|-------------|------------|
+| Max Connections | 20 | 10 |
+| Min Idle | 0 | 2 |
+| Connection Timeout | 10s | 30s |
+| Idle Timeout | 30s | 60s |
+| SSL | Disabled | Enabled (self-signed OK) |
+
+### Health Check
+
+Monitor database health in real-time:
+
+**Endpoint**: `GET /api/health/db`
+
+**Healthy Response** (200):
+```json
+{
+  "status": "healthy",
+  "database": {
+    "healthy": true,
+    "responseTime": 45,
+    "poolSize": 2,
+    "idleConnections": 2,
+    "waitingClients": 0
+  }
+}
+```
+
+**Unhealthy Response** (503):
+```json
+{
+  "status": "unhealthy",
+  "database": {
+    "healthy": false,
+    "error": "Connection timeout",
+    "code": "ETIMEDOUT"
+  }
+}
+```
+
+## Performance Optimization
+
+### Production Optimizations
+1. **Connection Pooling**: Reuses database connections instead of creating new ones
+2. **SSL Support**: Secure connections to Replit's PostgreSQL
+3. **Statement Timeout**: Prevents runaway queries (60s max)
+4. **Keep-Alive**: Detects and removes dead connections
+5. **Retry Logic**: Automatically handles temporary network issues
+6. **Graceful Shutdown**: Properly closes all connections on shutdown
+
+### Monitoring
+- Check `/api/health/db` regularly for pool statistics
+- Monitor `poolSize`, `idleConnections`, and `waitingClients`
+- If `waitingClients > 0`, consider increasing `DB_POOL_MAX`
+- If `responseTime > 1000ms`, investigate slow queries
+
 ## Notes
 
 - The build process may show warnings about chunk sizes - this is normal
 - Production build optimizes and minifies all assets
 - HMR (Hot Module Replacement) is only available in development
 - Database migrations run automatically on server startup
+- First connection after deployment may take 10-30 seconds (cold start)
+- Database environment variables are automatically managed by Replit

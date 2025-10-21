@@ -2,40 +2,155 @@
  * Database Configuration
  * 
  * Provides connection to PostgreSQL database using connection pooling
+ * with retry logic, validation, and production-optimized settings
  */
 
 const { Pool } = require('pg');
 const { databaseLogger } = require('../utils/logger');
 
-// Create connection pool with environment variables
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  // Max number of clients in the pool
-  max: process.env.DB_POOL_SIZE || 20,
-  // Connection timeout in milliseconds
-  connectionTimeoutMillis: 10000,
-  // Idle timeout in milliseconds
-  idleTimeoutMillis: 30000
-});
+/**
+ * Validate required database environment variables
+ */
+function validateDatabaseConfig() {
+  const required = ['DATABASE_URL'];
+  const missing = required.filter(varName => !process.env[varName]);
+  
+  if (missing.length > 0) {
+    const error = `Missing required database environment variables: ${missing.join(', ')}`;
+    databaseLogger.error(error);
+    throw new Error(error);
+  }
+  
+  databaseLogger.info('Database environment variables validated');
+  return true;
+}
+
+/**
+ * Get optimized pool configuration based on environment
+ */
+function getPoolConfig() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  return {
+    connectionString: process.env.DATABASE_URL,
+    // Production: Lower max connections to avoid overwhelming Replit's database
+    // Development: Higher max for local testing
+    max: isProduction ? 10 : (process.env.DB_POOL_SIZE || 20),
+    // Minimum number of clients to keep in pool
+    min: isProduction ? 2 : 0,
+    // Connection timeout: 30s for initial deployment connections
+    connectionTimeoutMillis: isProduction ? 30000 : 10000,
+    // Idle timeout: 60s in production to recycle connections
+    idleTimeoutMillis: isProduction ? 60000 : 30000,
+    // Statement timeout: Prevent runaway queries
+    statement_timeout: 60000,
+    // Enable keep-alive to detect dead connections
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+    // Allow self-signed certificates in production (Replit uses internal certs)
+    ssl: isProduction ? { rejectUnauthorized: false } : false
+  };
+}
+
+// Validate environment before creating pool
+let pool;
+try {
+  validateDatabaseConfig();
+  pool = new Pool(getPoolConfig());
+  databaseLogger.info('Database pool created', {
+    environment: process.env.NODE_ENV,
+    poolSize: pool.options.max
+  });
+} catch (err) {
+  databaseLogger.error('Failed to create database pool', { error: err.message });
+  // Create a dummy pool that will fail gracefully
+  pool = {
+    query: async () => {
+      throw new Error('Database not configured. Missing DATABASE_URL environment variable.');
+    },
+    connect: async () => {
+      throw new Error('Database not configured. Missing DATABASE_URL environment variable.');
+    },
+    end: async () => {}
+  };
+}
 
 // Log pool errors
-pool.on('error', (err, client) => {
-  databaseLogger.error('Unexpected error on idle client', { error: err.message, stack: err.stack });
+pool.on && pool.on('error', (err, client) => {
+  databaseLogger.error('Unexpected error on idle client', { 
+    error: err.message, 
+    stack: err.stack,
+    code: err.code 
+  });
 });
 
-// Log connection creation and release for debugging in development
-if (process.env.NODE_ENV !== 'production') {
+// Log connection events in development
+if (process.env.NODE_ENV !== 'production' && pool.on) {
   pool.on('connect', () => {
-    databaseLogger.debug('New client connected to the pool');
+    databaseLogger.debug('New client connected to PostgreSQL');
   });
   
   pool.on('acquire', (client) => {
-    databaseLogger.debug('Client acquired from the pool');
+    databaseLogger.debug('Client acquired from pool');
   });
   
   pool.on('remove', () => {
-    databaseLogger.debug('Client removed from the pool');
+    databaseLogger.debug('Client removed from pool');
   });
+}
+
+/**
+ * Sleep utility for retry logic
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Test database connection with retry logic
+ * 
+ * @param {number} maxRetries - Maximum number of retry attempts
+ * @param {number} initialDelay - Initial delay in milliseconds (will exponentially increase)
+ * @returns {Promise<boolean>} - True if connection successful
+ */
+async function testConnection(maxRetries = 5, initialDelay = 1000) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await pool.query('SELECT NOW() as current_time');
+      databaseLogger.info('Database connection successful', {
+        attempt,
+        serverTime: result.rows[0].current_time
+      });
+      return true;
+    } catch (err) {
+      lastError = err;
+      const delay = initialDelay * Math.pow(2, attempt - 1); // Exponential backoff
+      
+      databaseLogger.warn('Database connection attempt failed', {
+        attempt,
+        maxRetries,
+        error: err.message,
+        code: err.code,
+        nextRetryIn: attempt < maxRetries ? `${delay}ms` : 'no retry'
+      });
+      
+      if (attempt < maxRetries) {
+        databaseLogger.info(`Retrying in ${delay}ms...`);
+        await sleep(delay);
+      }
+    }
+  }
+  
+  // All retries failed
+  databaseLogger.error('Database connection failed after all retries', {
+    attempts: maxRetries,
+    lastError: lastError.message,
+    code: lastError.code
+  });
+  
+  throw new Error(`Failed to connect to database after ${maxRetries} attempts: ${lastError.message}`);
 }
 
 /**
@@ -52,14 +167,20 @@ async function query(text, params) {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
     
-    // Log query performance (debug level)
-    databaseLogger.debug('Executed query', { 
-      query: text, 
-      duration, 
-      rows: res.rowCount,
-      // Only log params if not sensitive
-      params: params && params.length > 0 ? '[hidden]' : null
-    });
+    // Log slow queries (> 1 second)
+    if (duration > 1000) {
+      databaseLogger.warn('Slow query detected', { 
+        query: text.substring(0, 100), 
+        duration, 
+        rows: res.rowCount
+      });
+    } else {
+      databaseLogger.debug('Executed query', { 
+        query: text.substring(0, 100), 
+        duration, 
+        rows: res.rowCount
+      });
+    }
     
     return res;
   } catch (err) {
@@ -67,12 +188,10 @@ async function query(text, params) {
     
     // Log query error
     databaseLogger.error('Query error', { 
-      query: text, 
+      query: text.substring(0, 100), 
       duration, 
       error: err.message,
-      code: err.code,
-      // Only log params if not sensitive
-      params: params && params.length > 0 ? '[hidden]' : null 
+      code: err.code
     });
     
     throw err;
@@ -105,9 +224,12 @@ async function transaction(callback) {
 
 /**
  * Initialize the database tables required by the application
+ * This is called explicitly after connection is verified
  */
 async function initializeTables() {
   try {
+    databaseLogger.info('Initializing database tables...');
+    
     // Ensure transformations table exists
     await query(`
       CREATE TABLE IF NOT EXISTS transformations (
@@ -137,23 +259,94 @@ async function initializeTables() {
         ADD COLUMN IF NOT EXISTS error TEXT,
         ADD COLUMN IF NOT EXISTS result JSONB
       `);
+      databaseLogger.info('Transformations table columns verified');
     } catch (err) {
       // Columns might already exist, which is fine
-      databaseLogger.warn('Error adding columns to transformations table', { error: err.message });
+      if (err.code !== '42701') { // duplicate_column error code
+        databaseLogger.warn('Error adding columns to transformations table', { error: err.message });
+      }
     }
+    
+    databaseLogger.info('Database tables initialized successfully');
+    return true;
   } catch (err) {
-    databaseLogger.error('Error initializing database tables', { error: err.message, stack: err.stack });
+    databaseLogger.error('Error initializing database tables', { 
+      error: err.message, 
+      stack: err.stack,
+      code: err.code 
+    });
     throw err;
   }
 }
 
-// Call initialization on module load
-initializeTables().catch(err => {
-  console.error('Failed to initialize database tables:', err);
-});
+/**
+ * Initialize database with connection testing and table creation
+ * Call this during server startup
+ */
+async function initialize() {
+  try {
+    databaseLogger.info('Starting database initialization...');
+    
+    // Test connection with retries
+    await testConnection();
+    
+    // Initialize tables
+    await initializeTables();
+    
+    databaseLogger.info('Database initialization complete');
+    return true;
+  } catch (err) {
+    databaseLogger.error('Database initialization failed', {
+      error: err.message,
+      stack: err.stack
+    });
+    throw err;
+  }
+}
+
+/**
+ * Gracefully close database pool
+ */
+async function close() {
+  try {
+    await pool.end();
+    databaseLogger.info('Database pool closed');
+  } catch (err) {
+    databaseLogger.error('Error closing database pool', { error: err.message });
+  }
+}
+
+/**
+ * Get database health status
+ */
+async function getHealthStatus() {
+  try {
+    const start = Date.now();
+    const result = await pool.query('SELECT 1 as healthy');
+    const responseTime = Date.now() - start;
+    
+    return {
+      healthy: true,
+      responseTime,
+      poolSize: pool.totalCount,
+      idleConnections: pool.idleCount,
+      waitingClients: pool.waitingCount
+    };
+  } catch (err) {
+    return {
+      healthy: false,
+      error: err.message,
+      code: err.code
+    };
+  }
+}
 
 module.exports = {
   query,
   transaction,
-  pool
+  pool,
+  initialize,
+  testConnection,
+  close,
+  getHealthStatus
 };

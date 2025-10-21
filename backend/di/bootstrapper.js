@@ -5,51 +5,31 @@
  * registers all services. It provides access to the configured container.
  */
 
-const { Pool } = require('pg');
 const { systemLogger } = require('../utils/logger');
 const container = require('./container');
 const { registerServices } = require('./services');
+
+// Import improved database configuration
+const database = require('../config/database');
 
 // Import service classes (not instances)
 const ServiceBase = require('../services/ServiceBase');
 
 // External dependencies and utilities
 const { v4: uuidv4 } = require('uuid');
-const path = require('path');
-const fs = require('fs');
 
 /**
  * Configure the DI container with all services and dependencies
  */
 function configureDI() {
-  // Register shared resources
+  // Register improved database pool with connection retry logic
   container.register('dbPool', () => {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      // Production-optimized connection pool settings
-      max: parseInt(process.env.DB_POOL_MAX || '100', 10), // Maximum 100 connections (configurable)
-      min: parseInt(process.env.DB_POOL_MIN || '10', 10),  // Minimum 10 idle connections
-      idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10), // 30 seconds
-      connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10), // 10 seconds
-      // Allow graceful shutdown
-      allowExitOnIdle: false
-    });
-    
-    // Add error handler for unhandled pool errors
-    pool.on('error', (err) => {
-      systemLogger.error('Unhandled database pool error', { error: err.message });
-    });
-    
-    // Log pool configuration
-    systemLogger.info('Database connection pool initialized', {
-      max: pool.options.max,
-      min: pool.options.min,
-      idleTimeout: pool.options.idleTimeoutMillis,
-      connectionTimeout: pool.options.connectionTimeoutMillis
-    });
-    
-    return pool;
+    systemLogger.info('Registering database pool from improved configuration');
+    return database.pool;
   });
+  
+  // Register database module (for initialization and health checks)
+  container.register('database', () => database, false);
   
   container.register('logger', () => systemLogger);
   container.register('uuid', () => uuidv4, false); // Non-singleton, return a new UUID each time
@@ -85,7 +65,29 @@ function initialize() {
   return container;
 }
 
+/**
+ * Initialize database with connection testing and retry logic
+ * Call this during server startup
+ * 
+ * @returns {Promise<boolean>} True if successful
+ */
+async function initializeDatabase() {
+  try {
+    systemLogger.info('Initializing database connection...');
+    await database.initialize();
+    systemLogger.info('Database initialized successfully');
+    return true;
+  } catch (err) {
+    systemLogger.error('Database initialization failed', {
+      error: err.message,
+      stack: err.stack
+    });
+    throw err;
+  }
+}
+
 module.exports = {
   initialize,
+  initializeDatabase,
   getContainer: () => container
 };
