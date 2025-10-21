@@ -6,6 +6,7 @@ with support for different log levels, contextual logging, and various outputs.
 """
 
 import os
+import sys
 import json
 import logging
 import logging.handlers
@@ -40,8 +41,8 @@ error_file_handler = logging.handlers.RotatingFileHandler(
 error_file_handler.setLevel(logging.ERROR)
 error_file_handler.setFormatter(logging.Formatter(LOGGING_FORMAT, DATE_FORMAT))
 
-# Configure console handler
-console_handler = logging.StreamHandler()
+# Configure console handler to stderr to avoid mixing with stdout JSON output
+console_handler = logging.StreamHandler(sys.stderr)
 console_handler.setFormatter(logging.Formatter(LOGGING_FORMAT, DATE_FORMAT))
 
 # Configure the root logger
