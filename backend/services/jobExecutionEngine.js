@@ -825,35 +825,92 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           targetFile: outputFilename
         });
         
-        // Create transformation lineage record
+        // Create transformation lineage record (only if schema changed)
         try {
-          const lineageQuery = `
-            INSERT INTO transformation_lineage (
-              transformation_id, 
-              mapping_id,
-              input_file_id, 
-              output_file_id, 
-              execution_id,
-              created_at
-            ) VALUES ($1, $2, $3, $4, $5, NOW())
-            RETURNING id
-          `;
+          const { generateSchemaFingerprint } = require('../utils/schemaFingerprint');
           
-          const lineageResult = await pool.query(lineageQuery, [
-            mapping.transformation_id || `transform_${mapping.mapping_id}`,
-            mapping.mapping_id,
-            file.file_id || `source_${file.filename}`,
-            `transformed_${jobId}_${file.filename}`,
-            transformationJobDbId
-          ]);
+          // Build source schema from field mappings
+          const sourceFields = new Set();
+          if (mapping.field_mappings && Array.isArray(mapping.field_mappings)) {
+            mapping.field_mappings.forEach(fieldMapping => {
+              if (fieldMapping.sourceFields && Array.isArray(fieldMapping.sourceFields)) {
+                fieldMapping.sourceFields.forEach(sf => sourceFields.add(sf));
+              }
+            });
+          }
           
-          await logJobExecution(pool, jobId, 'info', 
-            `Transformation lineage created`, {
-            lineageId: lineageResult.rows[0]?.id,
-            mappingId: mapping.mapping_id,
-            inputFile: file.filename,
-            outputFile: outputFilename
-          });
+          const sourceSchema = Array.from(sourceFields).map(name => ({
+            name,
+            type: 'string' // Type will be inferred from actual data
+          }));
+          
+          // Generate schema fingerprints
+          const sourceFingerprint = generateSchemaFingerprint(sourceSchema);
+          const targetFingerprint = generateSchemaFingerprint(outputSchema);
+          const combinedFingerprint = crypto.createHash('sha256')
+            .update(sourceFingerprint + '_to_' + targetFingerprint)
+            .digest('hex');
+          
+          // Check if lineage with same schema already exists for this mapping
+          const existingLineageCheck = await pool.query(`
+            SELECT id, schema_fingerprint 
+            FROM transformation_lineage 
+            WHERE mapping_id = $1 
+              AND lineage_type = 'file-specific'
+              AND schema_fingerprint = $2
+            ORDER BY created_at DESC 
+            LIMIT 1
+          `, [mapping.mapping_id, combinedFingerprint]);
+          
+          if (existingLineageCheck.rows.length > 0) {
+            // Schema unchanged - skip creating duplicate lineage
+            await logJobExecution(pool, jobId, 'info', 
+              `Lineage skipped - schema unchanged`, {
+              mappingId: mapping.mapping_id,
+              existingLineageId: existingLineageCheck.rows[0].id,
+              schemaFingerprint: combinedFingerprint
+            });
+          } else {
+            // Schema changed or first time - create lineage record
+            const lineageQuery = `
+              INSERT INTO transformation_lineage (
+                transformation_id, 
+                mapping_id,
+                input_file_id, 
+                output_file_id, 
+                execution_id,
+                schema_fingerprint,
+                lineage_type,
+                source_schema,
+                target_schema,
+                created_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+              RETURNING id
+            `;
+            
+            const lineageResult = await pool.query(lineageQuery, [
+              mapping.transformation_id || `transform_${mapping.mapping_id}`,
+              mapping.mapping_id,
+              file.file_id || `source_${file.filename}`,
+              `transformed_${jobId}_${file.filename}`,
+              transformationJobDbId,
+              combinedFingerprint,
+              'file-specific',
+              JSON.stringify(sourceSchema),
+              JSON.stringify(outputSchema)
+            ]);
+            
+            await logJobExecution(pool, jobId, 'info', 
+              `Transformation lineage created`, {
+              lineageId: lineageResult.rows[0]?.id,
+              mappingId: mapping.mapping_id,
+              inputFile: file.filename,
+              outputFile: outputFilename,
+              schemaFingerprint: combinedFingerprint,
+              sourceFieldsCount: sourceSchema.length,
+              targetFieldsCount: outputSchema.length
+            });
+          }
         } catch (lineageError) {
           // Log but don't fail the job if lineage creation fails
           await logJobExecution(pool, jobId, 'warn', 
