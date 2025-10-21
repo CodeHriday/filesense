@@ -58,7 +58,7 @@ def profile_columns(file_path, file_type):
                     df = df.head(10000)
             except Exception:
                 # Fallback to ElementTree parsing
-                import xml.etree.ElementTree as ET
+                import defusedxml.ElementTree as ET
                 tree = ET.parse(file_path)
                 root = tree.getroot()
                 records = []
