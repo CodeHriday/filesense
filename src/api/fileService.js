@@ -154,9 +154,8 @@ export const uploadFile = async (file, progressCallback) => {
         'Content-Type': 'multipart/form-data'
       },
       onUploadProgress: (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
         if (progressCallback && typeof progressCallback === 'function') {
-          progressCallback(percentCompleted);
+          progressCallback(progressEvent);
         }
       }
     });

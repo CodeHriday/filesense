@@ -301,8 +301,7 @@ function FileUpload() {
         },
         onUploadProgress: (progressEvent) => {
           if (progressHandler) {
-            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            progressHandler(progress);
+            progressHandler(progressEvent);
           }
         }
       });
