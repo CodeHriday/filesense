@@ -528,6 +528,42 @@ print(json.dumps(result))
   }
 
   /**
+   * Safely parse float value for PostgreSQL NUMERIC(38,10)
+   * Returns null for values that would cause overflow
+   */
+  safeParseFloat(value) {
+    if (value === undefined || value === null) return null;
+    
+    try {
+      const parsed = parseFloat(value);
+      
+      // Check for invalid numbers
+      if (!isFinite(parsed)) {
+        return null;
+      }
+      
+      // PostgreSQL NUMERIC(38,10) limit: approximately ±9.9999999999E+27
+      const MAX_NUMERIC = 9.9999999999e27;
+      
+      if (Math.abs(parsed) > MAX_NUMERIC) {
+        this.logger.warn('Value exceeds PostgreSQL NUMERIC limit, storing as null', {
+          value: value,
+          parsed: parsed
+        });
+        return null;
+      }
+      
+      return parsed;
+    } catch (error) {
+      this.logger.warn('Failed to parse float value', {
+        value: value,
+        error: error.message
+      });
+      return null;
+    }
+  }
+
+  /**
    * Save column information to database with profiling data
    */
   async saveColumnInfo(fileId, schema) {
@@ -559,8 +595,8 @@ print(json.dumps(result))
         col.max_value !== undefined && col.max_value !== null ? String(col.max_value) : null,
         col.most_frequent_value || null,
         col.least_frequent_value || null,
-        col.min_value !== undefined && col.min_value !== null ? parseFloat(col.min_value) : null,
-        col.max_value !== undefined && col.max_value !== null ? parseFloat(col.max_value) : null,
+        this.safeParseFloat(col.min_value),
+        this.safeParseFloat(col.max_value),
         col.most_frequent_count || null,
         col.least_frequent_count || null,
         col.min_frequency || null,
