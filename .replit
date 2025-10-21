@@ -6,7 +6,7 @@ packages = ["arrow-cpp", "glibcLocales", "pkg-config", "yajl"]
 
 [deployment]
 deploymentTarget = "gce"
-run = ["sh", "-c", "npm run start"]
+run = ["sh", "-c", "NODE_ENV=production npm run start"]
 build = ["sh", "-c", "npm run build"]
 
 [workflows]
