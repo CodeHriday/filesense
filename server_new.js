@@ -1782,11 +1782,10 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
       
       const roleIds = rolesResult.rows.map(role => role.id);
       if (roleIds.length > 0) {
-        // Insert role assignments using parameterized query
-        const values = roleIds.map((_, index) => `($1, $${index + 2})`).join(', ');
+        // Insert role assignments using PostgreSQL unnest for safe bulk insert
         await pool.query(
-          `INSERT INTO user_roles (user_id, role_id) VALUES ${values}`,
-          [user.id, ...roleIds]
+          'INSERT INTO user_roles (user_id, role_id) SELECT $1, unnest($2::int[])',
+          [user.id, roleIds]
         );
       }
     }
