@@ -2049,6 +2049,7 @@ const { initWorkflowOrchestrationTables } = require('./backend/migrations/workfl
 const { fixMappingGroupMembersSchema } = require('./backend/migrations/fixMappingGroupMembersSchema');
 const updateObjectTypesToString = require('./backend/migrations/updateObjectTypesToString');
 const initFileInsightsTables = require('./backend/migrations/createFileInsightsTable');
+const addLineageColumns = require('./backend/migrations/addLineageColumns');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2114,6 +2115,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ File insights tables migration completed');
+    
+    // Add lineage columns migration
+    return addLineageColumns(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Lineage columns migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
