@@ -421,7 +421,7 @@ def stream_xml_file(file_path: str, chunk_size: int = 10000) -> Iterator[pd.Data
             file_logger.warning(f"Standard XML parsing failed, trying alternative: {str(parse_error)}")
             
             # Fallback: try to read as a simple list of records
-            import xml.etree.ElementTree as ET
+            import defusedxml.ElementTree as ET
             tree = ET.parse(file_path)
             root = tree.getroot()
             
