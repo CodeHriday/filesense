@@ -27,11 +27,20 @@ function FileUpload() {
   const [currentStep, setCurrentStep] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [fileOwner, setFileOwner] = useState('');
+  const [showOwnerModal, setShowOwnerModal] = useState(false);
+  const [tempOwner, setTempOwner] = useState('');
   const pollingInterval = useRef(null);
   const navigate = useNavigate();
   const { hasWritePermission, currentUser } = useAuth();
   
   const isAdmin = currentUser?.roles?.includes('Admin');
+  
+  useEffect(() => {
+    if (currentUser?.email) {
+      setFileOwner(currentUser.email);
+    }
+  }, [currentUser]);
   
   // Cleanup polling on unmount
   useEffect(() => {
@@ -237,7 +246,7 @@ function FileUpload() {
       };
       
       // Upload the file with progress tracking
-      const result = await uploadFile(file, wrappedProgressHandler);
+      const result = await uploadFile(file, wrappedProgressHandler, fileOwner);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -368,6 +377,26 @@ function FileUpload() {
     setDropzoneKey(prev => prev + 1); // Reset FileDropzone component
   };
   
+  const handleOpenOwnerModal = () => {
+    setTempOwner(fileOwner);
+    setShowOwnerModal(true);
+  };
+  
+  const handleSaveOwner = () => {
+    setFileOwner(tempOwner);
+    setShowOwnerModal(false);
+  };
+  
+  const handleCancelOwnerModal = () => {
+    setTempOwner('');
+    setShowOwnerModal(false);
+  };
+  
+  const handleResetOwnerToDefault = () => {
+    const defaultOwner = currentUser?.email || '';
+    setTempOwner(defaultOwner);
+  };
+  
   const handleDropFile = async (file, progressHandler) => {
     // Check if drop location is configured
     if (!dropLocationConfigured) {
@@ -431,6 +460,49 @@ function FileUpload() {
           onKeepBoth={handleKeepBoth}
           onCancel={handleCancelUpload}
         />
+      )}
+      
+      {/* Owner Edit Modal */}
+      {showOwnerModal && (
+        <div className="modal-overlay" onClick={handleCancelOwnerModal}>
+          <div className="modal-content ownership-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Edit File Owner</h2>
+            <p className="modal-description">
+              Set the owner for files you upload. This defaults to your email address.
+            </p>
+            <div className="form-group">
+              <label htmlFor="owner-input">Owner Email:</label>
+              <input
+                id="owner-input"
+                type="email"
+                value={tempOwner}
+                onChange={(e) => setTempOwner(e.target.value)}
+                placeholder="owner@example.com"
+                className="form-control"
+              />
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="btn btn-primary"
+                onClick={handleSaveOwner}
+              >
+                Save
+              </button>
+              <button 
+                className="btn btn-secondary"
+                onClick={handleResetOwnerToDefault}
+              >
+                Reset to Default
+              </button>
+              <button 
+                className="btn btn-secondary"
+                onClick={handleCancelOwnerModal}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       
       {/* Drop Location Not Configured Modal */}
@@ -510,6 +582,21 @@ function FileUpload() {
             )}
           </div>
         </div>
+        
+        {/* Ownership Section */}
+        {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (
+          <div className="ownership-section">
+            <div className="ownership-label">File Owner:</div>
+            <div className="ownership-value">{fileOwner || 'Not set'}</div>
+            <button 
+              className="btn-link ownership-edit-btn"
+              onClick={handleOpenOwnerModal}
+              title="Edit owner"
+            >
+              Edit
+            </button>
+          </div>
+        )}
         
         {/* Show StepProgress when processing */}
         {isProcessing && currentStep && activeTab === 'upload-profile' && (
