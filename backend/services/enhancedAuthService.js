@@ -203,23 +203,43 @@ async function registerLocalUser(userData) {
     
     // Assign roles to the user
     if (roles && roles.length > 0) {
-      for (const roleName of roles) {
-        // Get role ID
-        const roleResult = await client.query(
-          'SELECT id FROM roles WHERE name = $1',
-          [roleName]
-        );
+      for (const role of roles) {
+        // Handle both role IDs (numbers) and role names (strings)
+        const roleIdentifier = typeof role === 'string' ? role : role;
+        const isNumeric = !isNaN(roleIdentifier);
         
-        if (roleResult.rows.length > 0) {
-          const roleId = roleResult.rows[0].id;
+        let roleId;
+        
+        if (isNumeric) {
+          // If it's a numeric ID, verify it exists
+          const roleResult = await client.query(
+            'SELECT id FROM roles WHERE id = $1',
+            [roleIdentifier]
+          );
           
+          if (roleResult.rows.length > 0) {
+            roleId = roleResult.rows[0].id;
+          }
+        } else {
+          // If it's a role name, look it up
+          const roleResult = await client.query(
+            'SELECT id FROM roles WHERE name = $1',
+            [roleIdentifier]
+          );
+          
+          if (roleResult.rows.length > 0) {
+            roleId = roleResult.rows[0].id;
+          }
+        }
+        
+        if (roleId) {
           // Insert user_role mapping
           await client.query(
             'INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())',
             [newUser.id, roleId]
           );
         } else {
-          console.warn(`Role '${roleName}' not found in database, skipping assignment`);
+          console.warn(`Role '${roleIdentifier}' not found in database, skipping assignment`);
         }
       }
     }
