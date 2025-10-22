@@ -53,9 +53,9 @@ task = "shell.exec"
 args = "NODE_ENV=development node server.js"
 
 [[ports]]
-localPort = 5000
-externalPort = 80
+localPort = 3000
+externalPort = 3000
 
 [[ports]]
-localPort = 35189
-externalPort = 3000
+localPort = 5000
+externalPort = 80
