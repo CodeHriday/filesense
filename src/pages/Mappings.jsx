@@ -22,7 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import './Mappings.css';
 
 function Mappings() {
-  const { hasWritePermission, currentUser } = useAuth();
+  const { hasWritePermission, hasExecutePermission, currentUser } = useAuth();
   const navigate = useNavigate();
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -225,27 +225,33 @@ function Mappings() {
                           <td>{formatDate(mapping.created_at)}</td>
                           <td>
                             <div className="table-actions">
-                              <button
-                                className="icon-btn"
-                                onClick={() => handleExecuteMapping(mapping.mapping_id)}
-                                title="Execute mapping"
-                              >
-                                <FiPlay />
-                              </button>
-                              <button
-                                className="icon-btn"
-                                onClick={() => handleEditMapping(mapping.mapping_id)}
-                                title="Edit mapping"
-                              >
-                                <FiEdit2 />
-                              </button>
-                              <button
-                                className="icon-btn danger"
-                                onClick={() => handleDeleteMapping(mapping.mapping_id, mapping.mapping_name)}
-                                title="Delete mapping"
-                              >
-                                <FiTrash2 />
-                              </button>
+                              {hasExecutePermission('mapping') && (
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => handleExecuteMapping(mapping.mapping_id)}
+                                  title="Execute mapping"
+                                >
+                                  <FiPlay />
+                                </button>
+                              )}
+                              {hasWritePermission('mapping') && (
+                                <>
+                                  <button
+                                    className="icon-btn"
+                                    onClick={() => handleEditMapping(mapping.mapping_id)}
+                                    title="Edit mapping"
+                                  >
+                                    <FiEdit2 />
+                                  </button>
+                                  <button
+                                    className="icon-btn danger"
+                                    onClick={() => handleDeleteMapping(mapping.mapping_id, mapping.mapping_name)}
+                                    title="Delete mapping"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>

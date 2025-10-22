@@ -12,7 +12,7 @@ import '../components/styles/PageActions.css';
 import { formatRelativeTime } from '../utils/formatters';
 
 const Scheduler = () => {
-  const { hasWritePermission } = useAuth();
+  const { hasWritePermission, hasExecutePermission } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [filteredSchedules, setFilteredSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -500,15 +500,17 @@ const Scheduler = () => {
                       </span>
                     </div>
                     <div className="schedule-cell actions-cell">
-                      {hasWritePermission('schedule') ? (
+                      {hasExecutePermission('schedule') && (
+                        <button
+                          className="action-button"
+                          onClick={() => handleRunNow(schedule.id)}
+                          title="Run now"
+                        >
+                          <FiPlay />
+                        </button>
+                      )}
+                      {hasWritePermission('schedule') && (
                         <>
-                          <button
-                            className="action-button"
-                            onClick={() => handleRunNow(schedule.id)}
-                            title="Run now"
-                          >
-                            <FiPlay />
-                          </button>
                           <button
                             className="action-button"
                             onClick={() => openEditModal(schedule)}
@@ -524,7 +526,8 @@ const Scheduler = () => {
                             <FiTrash2 />
                           </button>
                         </>
-                      ) : (
+                      )}
+                      {!hasExecutePermission('schedule') && !hasWritePermission('schedule') && (
                         <span className="action-restricted">No actions available</span>
                       )}
                     </div>

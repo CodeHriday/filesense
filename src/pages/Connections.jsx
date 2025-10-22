@@ -13,7 +13,7 @@ import './Connections.css';
 import { getConnections, createConnection, updateConnection, deleteConnection, testConnection, testSavedConnection, testConnectionWithUpdates } from '../api/connectionService';
 
 const Connections = () => {
-  const { hasWritePermission, currentUser } = useAuth();
+  const { hasWritePermission, hasExecutePermission, currentUser } = useAuth();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1770,14 +1770,16 @@ const Connections = () => {
                   <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
                     Cancel
                   </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-outline" 
-                    onClick={handleTestConnectionInModal}
-                    disabled={testingInModal}
-                  >
-                    {testingInModal ? 'Testing...' : 'Test Connection'}
-                  </button>
+                  {hasExecutePermission('connection') && (
+                    <button 
+                      type="button" 
+                      className="btn btn-outline" 
+                      onClick={handleTestConnectionInModal}
+                      disabled={testingInModal}
+                    >
+                      {testingInModal ? 'Testing...' : 'Test Connection'}
+                    </button>
+                  )}
                   <button type="submit" className="btn btn-primary">
                     {editMode ? 'Update' : 'Save'} Connection
                   </button>
@@ -2060,16 +2062,18 @@ const Connections = () => {
                           </td>
                           <td className="col-actions">
                             <div className="table-actions">
+                              {hasExecutePermission('connection') && (
+                                <button 
+                                  className="action-icon-btn test-btn" 
+                                  onClick={() => handleTestConnection(connection)}
+                                  disabled={testingConnection === connection.id}
+                                  title="Test connection"
+                                >
+                                  {testingConnection === connection.id ? '...' : <FiCheckCircle />}
+                                </button>
+                              )}
                               {hasWritePermission('connections') && (
                                 <>
-                                  <button 
-                                    className="action-icon-btn test-btn" 
-                                    onClick={() => handleTestConnection(connection)}
-                                    disabled={testingConnection === connection.id}
-                                    title="Test connection"
-                                  >
-                                    {testingConnection === connection.id ? '...' : <FiCheckCircle />}
-                                  </button>
                                   <button 
                                     className="action-icon-btn edit-btn" 
                                     onClick={() => handleEdit(connection)}

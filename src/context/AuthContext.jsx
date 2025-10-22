@@ -457,15 +457,67 @@ export const AuthProvider = ({ children }) => {
           
           const [permResource, permAction] = parts;
           
-          // Check if any variation of the resource matches and action is 'write'
+          // Check if any variation of the resource matches
+          // Write permission means any of: write, create, update, delete, edit, or *
           return resourceVariations.includes(permResource) && 
-                 (permAction === 'write' || permAction === '*');
+                 (permAction === 'write' || permAction === 'create' || permAction === 'update' || 
+                  permAction === 'delete' || permAction === 'edit' || permAction === '*');
         }
         
         // For object format permissions (older format)
         if (typeof p === 'object' && p.resource && p.action) {
           return resourceVariations.includes(p.resource) && 
-                 (p.action === 'write' || p.action === '*');
+                 (p.action === 'write' || p.action === 'create' || p.action === 'update' || 
+                  p.action === 'delete' || p.action === 'edit' || p.action === '*');
+        }
+        
+        return false;
+      });
+    }
+    
+    return false;
+  };
+
+  // Check if user has execute permission for a specific feature
+  const hasExecutePermission = (resource) => {
+    if (!currentUser) {
+      return false;
+    }
+    
+    // Admin role has access to everything
+    if (hasRole('Admin')) {
+      return true;
+    }
+    
+    // Check permissions from the backend - this is the primary source of truth
+    if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
+      // Try various formats of the resource name to handle inconsistencies
+      const resourceVariations = [
+        resource,                    // Original
+        resource.replace(/s$/, ''),  // Remove trailing 's' (e.g. connections -> connection)
+        resource + 's',              // Add trailing 's' (e.g. connection -> connections)
+        resource.replace(/_/g, '-'), // Replace underscore with dash
+        resource.replace(/-/g, '_')  // Replace dash with underscore
+      ];
+      
+      return currentUser.permissions.some(p => {
+        // Only check string format permissions from the database
+        if (typeof p === 'string') {
+          // Split into resource and action parts
+          const parts = p.split(':');
+          if (parts.length !== 2) return false;
+          
+          const [permResource, permAction] = parts;
+          
+          // Check if any variation of the resource matches and action is 'execute'
+          return resourceVariations.includes(permResource) && 
+                 (permAction === 'execute' || permAction === '*');
+        }
+        
+        // For object format permissions (older format)
+        if (typeof p === 'object' && p.resource && p.action) {
+          return resourceVariations.includes(p.resource) && 
+                 (p.action === 'execute' || p.action === '*');
         }
         
         return false;
@@ -528,6 +580,7 @@ export const AuthProvider = ({ children }) => {
     hasFeaturePermission,
     hasRole,
     hasWritePermission,
+    hasExecutePermission,
     hasTagPermission
   };
   
