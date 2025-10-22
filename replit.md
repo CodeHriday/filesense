@@ -1,126 +1,7 @@
 # Data File Observatory
 
 ## Overview
-Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
-
-## Recent Changes
-- **October 22, 2025**: Completed enterprise data governance UI with Tag Management and file-level governance
-  - **Tag Management System** (Admin-only):
-    - Created TagManagement page with full CRUD operations for centrally managed governance tags
-    - Table layout with tag name, description, color/badge styling, and action buttons
-    - Backend API suite: GET/POST/PUT/DELETE /api/governance-tags/* with requireAdmin middleware for mutations
-    - Database tables: governance_tags, file_tag_assignments with proper indexes and foreign keys
-    - Added Tag Management link to Data Governance sidebar section
-  - **File-level Governance Fields** (File Attributes tab):
-    - Added editable Sensitivity dropdown (Public/Internal/Confidential/Restricted) with backend persistence
-    - Database migration added sensitivity_level column to file_ownership table (VARCHAR(50) DEFAULT 'Public')
-    - Backend endpoint: PUT /api/files/:fileId/sensitivity with validation and auto-create ownership records
-    - Tags multi-select for file tag assignments
-    - Policies multi-select for policy assignments
-    - All fields properly save to backend with cache invalidation
-  - **DataProfile Header Redesign**:
-    - Restructured to two-line layout: Line 1 (icon + filename), Line 2 (size, uploaded, owner, encoding, format)
-    - Owner defaults to logged-in user from session
-    - Responsive design with CSS flexbox and proper spacing
-  - **Policy Management Redesign**:
-    - Converted from card grid to table layout for consistency
-    - Changed description text to white for better readability
-    - Full CRUD operations with JSON rules editor and enabled/disabled status toggle
-  - **Code Quality**:
-    - Removed Sensitivity column from File Profile tab (moved to File Attributes)
-    - All modals follow React best practices with local temporary state
-    - Consistent CSS styling using existing design system variables
-    - Admin-only access control for governance tag mutations (POST/PUT/DELETE)
-    - Proper validation, error handling, and cache invalidation across all APIs
-- **October 21, 2025**: Updated Python security dependencies to latest versions
-  - Updated h11 from 0.14.0 to 0.16.0 (fixes request smuggling vulnerability in HTTP/1.1 protocol)
-  - Updated pillow from 11.2.1 to 11.3.0 (includes CVE-2025-48379 fix for BCn encoding buffer overflow)
-  - Updated tornado from 6.4.2 to 6.5.2 (latest async web framework security patches)
-  - Fixed JavaScript syntax errors in server_new.js (incorrect route path quoting)
-  - Added explicit version constraints to pyproject.toml for Semgrep scanner compliance
-  - All updates tested and verified compatible with Streamlit 1.50.0
-- **October 21, 2025**: Configured React app for Replit deployment
-  - Added build and start scripts to package.json (`npm run build`, `npm run start`)
-  - Configured server.js to serve static React files from dist/ folder in production mode
-  - Implemented SPA routing with catch-all route for React Router
-  - Port configuration respects process.env.PORT (Replit-provided), with fallback to 5000 (production) or 3000 (development)
-  - Created comprehensive DEPLOYMENT.md with build commands, environment variables, and deployment instructions
-  - Production build tested successfully: 1,369 KB main bundle, assets optimized
-  - Unified server architecture: single Node.js server serves both API and static files on port 5000 in production
-- **October 20, 2025**: Enhanced column profiling to capture comprehensive string and numeric statistics
-  - **Manual File Uploads** (profile_columns.py):
-    - Captures actual shortest/longest string values (min_value, max_value) along with lengths
-    - Tracks min/max numeric values (min_value_decimal, max_value_decimal)
-    - Records null counts and unique counts for all column types
-    - Properly detects and handles string, numeric, integer, float, decimal, and object data types
-  - **ETL Transformations** (jobExecutionEngine.js, etlProfilingService.js):
-    - Enhanced calculateColumnStatistics to track string_values array and compute actual min/max string samples
-    - Finds shortest string (string_min_value) and longest string (string_max_value) by length
-    - Saves both string samples (min_value, max_value) and numeric ranges (min_value_decimal, max_value_decimal) to file_columns table
-    - Added proper cleanup to remove falsy values while preserving zero values
-  - **Dashboard Display** (fileInsightsService.js):
-    - string_stats now includes min_value_sample and max_value_sample (truncated to 50 chars for display)
-    - Added support for 'object' column type alongside string/text/varchar
-    - Displays both string length ranges (min_length, max_length, avg_length) and actual string samples
-- **October 20, 2025**: Integrated automatic file profiling for ETL transformations
-  - Created etlProfilingService.js to automatically profile ETL output files during transformation execution
-  - Populates `files` table with file metadata (size, row count, column count, checksum)
-  - Populates `file_columns` table with column statistics (null counts, unique counts, min/max values)
-  - Uses nullish coalescing (??) instead of logical OR (||) to preserve zero values in statistics
-  - Transaction-wrapped inserts prevent partial writes if column insert fails
-  - Automatic profiling trigger: jobExecutionEngine → calculateColumnStatistics() → profileETLOutputFile()
-  - File pattern extraction for grouping similar files (e.g., orders_2024-01-15.csv → orders*.csv)
-  - Enables File Insights Dashboard to track ETL-generated files alongside manually uploaded files
-- **October 20, 2025**: Implemented File Insights Dashboard with time-series metric tracking
-  - Added File Insights as first tab in INSIGHTS section (before All Insights)
-  - Created file_pattern_metrics table with daily aggregations and 18-month retention policy
-  - Materialized views for weekly/monthly rollups with auto-refresh triggers
-  - Backend service aggregates metrics from profiling_metrics and file_columns tables
-  - Smart file pattern extraction groups similar files (e.g., orders_2024-01-15.csv → orders*.csv)
-  - ID field detection excludes high-cardinality columns from numeric statistics
-  - Time-series charts for NULL trends, duplicates, record counts, and numeric field averages
-  - Alert integration shows anomalies per file pattern with severity indicators
-  - Granularity selector: daily, weekly, monthly with configurable date ranges (7d, 30d, 12w, 6m, 18m)
-  - Performance optimizations: Redis caching (5-min TTL), API pagination (100 patterns/page)
-  - Automated daily aggregation worker runs at 2 AM with weekly cleanup (7-day cycle)
-  - Manual aggregation trigger for admin users
-  - API endpoints: GET /api/insights/file-patterns, GET /api/insights/file-patterns/:pattern/metrics, GET /api/insights/file-patterns/:pattern/alerts
-- **October 19, 2025**: Enhanced Variables feature with 3-pane expression builder
-  - Redesigned Add/Edit Variable modals with sophisticated 3-pane layout:
-    - Left pane (20%): Source columns and previously defined variables with + buttons
-    - Middle pane (15%): Transformation functions grouped by category with + buttons
-    - Right pane (65%): Expression builder textarea with real-time preview
-  - Click + buttons to insert columns and function templates at cursor position
-  - Supports building complex nested expressions like: concat(UPPER(first_name), ' ', last_name)
-  - Smart cursor tracking maintains insertion point during edits
-  - Expression field stored directly in variables (backwards compatible with legacy format)
-  - Built-in help tips and expression preview for better UX
-- **October 19, 2025**: Implemented Variables feature for ETL field mapping
-  - Added collapsible Variables section in TableBasedMapper with sequential pre-calculations
-  - Variables execute in defined order before field mappings for derived columns
-  - Variables can reference source fields, previously defined variables, and transformation functions
-  - Full CRUD operations: add, edit, delete, reorder (up/down) with visual ordering
-  - Backend validation ensures unique names following pattern /^[A-Za-z_][A-Za-z0-9_]*$/
-  - Added `variables` JSONB column to transformation_mappings table
-  - Variables stored with automatic sequence numbering for deterministic execution
-  - Updated MappingWizard to handle variables alongside field mappings
-  - Variables referenced in mappings as $variable_name (e.g., $full_name)
-- **October 17, 2025**: Implemented automated scheduler execution system
-  - Added SchedulerWorker class that runs every 60 seconds
-  - Automatic execution of due schedules (transformations, mapping groups, workflows)
-  - Graceful shutdown handler for proper resource cleanup
-  - User authentication integration via JWT tokens
-  - Comprehensive error handling and structured logging
-  - Prevents overlapping executions with isProcessing flag
-- **October 16, 2025**: Added complete UI for ETL Orchestration features
-  - Created three new pages: Mapping Groups, Workflows, and ETL Scheduler
-  - Added list/create/edit functionality for all orchestration features
-  - Integrated routing in App.jsx with protected routes
-  - Added "ETL Orchestration" section in sidebar with navigation items:
-    - Batch Groups (Mapping Groups with concurrency control)
-    - Workflow Steps (Multi-step processes with dependencies)
-    - ETL Scheduler (Cron and interval-based scheduling)
-  - Added CSS styling for orchestration pages
+Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface with a focus on data governance, ETL, and workflow orchestration.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -128,7 +9,7 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 The application features a hybrid architecture:
 
--   **Backend**: Python/Streamlit handles data processing, quality analysis (completeness, consistency, validity, uniqueness), and file operations for CSV, JSON, XLSX, XML, and Parquet (temporarily disabled), supporting large files with constant memory usage. Includes data profiling and asynchronous processing with memory safeguards.
+-   **Backend**: Python/Streamlit handles data processing, quality analysis (completeness, consistency, validity, uniqueness), and file operations for CSV, JSON, XLSX, XML, and Parquet, supporting large files with constant memory usage. Includes data profiling and asynchronous processing with memory safeguards.
 -   **API Server**: Node.js/Express provides a REST API with JWT authentication, rate limiting, CORS, asynchronous job queues, and an enterprise-grade audit system.
 -   **Frontend**: React (TypeScript, Vite) forms a modern single-page application with UI components, Chart.js for visualization, and drag-and-drop file upload functionality.
 -   **Database**: PostgreSQL stores metadata, user management, file catalogs, and audit logs, optimized with connection pooling and performance indexes.
@@ -137,13 +18,16 @@ The application features a hybrid architecture:
 -   **DBT Integration**: Configured for DBT Core and dbt-postgres for data transformations, including a UI for model discovery, execution, and monitoring.
 -   **Security**: ClamAV integration for virus scanning on all uploads, automatic deletion of infected files, role-based access control, and AES-256-CBC encryption for cloud credentials.
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
--   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format).
+-   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
 -   **Workflow Orchestration**: Complete orchestration system with:
-    -   **Mapping Groups**: Batch execution of multiple transformations with configurable concurrency control (1-10 parallel jobs)
-    -   **Workflows**: Multi-step processes with dependency management (topological sort), retry logic (3 attempts), and both parallel/sequential execution modes
-    -   **Scheduler**: Cron-based scheduling using cron-parser library (supports full cron syntax) and interval-based schedules (minute/hour/day/week/month/year)
-    -   **Automated Execution**: SchedulerWorker runs every 60 seconds, automatically executing due schedules with overlap prevention, error handling, and graceful shutdown support
-    -   **Known Limitation**: Interval scheduler uses naive calendar math - may drift across DST transitions. Use cron expressions for production-critical schedules.
+    -   **Mapping Groups**: Batch execution of multiple transformations with configurable concurrency control (1-10 parallel jobs).
+    -   **Workflows**: Multi-step processes with dependency management (topological sort), retry logic (3 attempts), and both parallel/sequential execution modes.
+    -   **Scheduler**: Cron-based scheduling using cron-parser library (supports full cron syntax) and interval-based schedules (minute/hour/day/week/month/year).
+    -   **Automated Execution**: SchedulerWorker runs every 60 seconds, automatically executing due schedules with overlap prevention, error handling, and graceful shutdown support.
+-   **UI/UX Decisions**: Consistent CSS styling using existing design system variables, modals following React best practices with local temporary state, and a three-line DataProfile header layout for improved information hierarchy. Column-level data governance is implemented with Tags and Policies.
+-   **Tag Management System**: Admin-only page with full CRUD operations for centrally managed governance tags.
+-   **Policy Management**: Redesigned with a table layout and full CRUD operations including a JSON rules editor.
+-   **File Insights Dashboard**: Includes time-series metric tracking, smart file pattern extraction, ID field detection, alert integration, and configurable granularity.
 
 ## External Dependencies
 -   **Runtimes**: Python 3.11+, Node.js 20
