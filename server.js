@@ -3259,16 +3259,40 @@ app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, inval
     
     const decodedColumnName = decodeURIComponent(columnName);
     
-    // Permission check: Verify user has edit permission for all tags being assigned
-    if (tag_ids.length > 0) {
-      // Fetch tag details to get tag names
-      const tagsResult = await dbPool.query(
+    // SECURITY FIX: Check permissions for BOTH tags being added AND tags being removed
+    // Step 1: Get currently assigned tags
+    const currentTagsResult = await dbPool.query(
+      `SELECT gt.tag_id, gt.tag_name 
+       FROM column_governance_tag_assignments cgta
+       JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
+       WHERE cgta.file_id = $1 AND cgta.column_name = $2`,
+      [fileId, decodedColumnName]
+    );
+    
+    // Step 2: Check if user has edit permission for tags being removed
+    const currentTagIds = currentTagsResult.rows.map(t => t.tag_id);
+    const tagsBeingRemoved = currentTagsResult.rows.filter(
+      tag => !tag_ids.includes(tag.tag_id)
+    );
+    
+    for (const tag of tagsBeingRemoved) {
+      if (!columnAccessControl.hasTagPermission(req.user, tag.tag_name, 'edit')) {
+        return res.status(403).json({ 
+          error: `You do not have permission to remove the '${tag.tag_name}' tag. Required: tag:${tag.tag_name.toLowerCase()}:edit or tag:${tag.tag_name.toLowerCase()}:write` 
+        });
+      }
+    }
+    
+    // Step 3: Check if user has edit permission for tags being added
+    const tagsBeingAdded = tag_ids.filter(id => !currentTagIds.includes(id));
+    
+    if (tagsBeingAdded.length > 0) {
+      const newTagsResult = await dbPool.query(
         'SELECT tag_id, tag_name FROM governance_tags WHERE tag_id = ANY($1)',
-        [tag_ids]
+        [tagsBeingAdded]
       );
       
-      // Check if user has edit permission for each tag
-      for (const tag of tagsResult.rows) {
+      for (const tag of newTagsResult.rows) {
         if (!columnAccessControl.hasTagPermission(req.user, tag.tag_name, 'edit')) {
           return res.status(403).json({ 
             error: `You do not have permission to assign the '${tag.tag_name}' tag. Required: tag:${tag.tag_name.toLowerCase()}:edit or tag:${tag.tag_name.toLowerCase()}:write` 
@@ -3277,6 +3301,7 @@ app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, inval
       }
     }
     
+    // All permission checks passed - apply the changes
     // First, delete existing tag assignments for this column
     await dbPool.query(
       'DELETE FROM column_governance_tag_assignments WHERE file_id = $1 AND column_name = $2',
@@ -3340,8 +3365,8 @@ app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, i
     
     const decodedColumnName = decodeURIComponent(columnName);
     
-    // Permission check: Verify user has governance management permissions
-    // Get tags currently assigned to this column
+    // SECURITY FIX: Re-fetch column tags to ensure current state validation
+    // (prevents race condition where tags are removed after policy check)
     const columnTagsResult = await dbPool.query(
       `SELECT gt.tag_name 
        FROM column_governance_tag_assignments cgta
@@ -3350,19 +3375,21 @@ app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, i
       [fileId, decodedColumnName]
     );
     
-    // Check if user is Admin or has edit permission for column's tags
+    // Check if user is Admin or has edit permission for ALL column's tags
     const isAdmin = req.user.roles && req.user.roles.includes('Admin');
     
     if (!isAdmin) {
-      // If column has tags, user must have edit permission for at least one tag
+      // If column has tags, user must have edit permission for ALL tags
+      // (stricter than "at least one" to prevent partial access abuse)
       if (columnTagsResult.rows.length > 0) {
-        const hasPermission = columnTagsResult.rows.some(row => 
-          columnAccessControl.hasTagPermission(req.user, row.tag_name, 'edit')
+        const lacksPermissionForTags = columnTagsResult.rows.filter(row => 
+          !columnAccessControl.hasTagPermission(req.user, row.tag_name, 'edit')
         );
         
-        if (!hasPermission) {
+        if (lacksPermissionForTags.length > 0) {
+          const tagNames = lacksPermissionForTags.map(r => r.tag_name).join(', ');
           return res.status(403).json({ 
-            error: 'You do not have permission to assign policies to this column. Required: Admin role or edit permissions for column tags.' 
+            error: `You do not have permission to manage policies on this column. Missing edit permissions for: ${tagNames}` 
           });
         }
       } else {
@@ -3373,6 +3400,7 @@ app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, i
       }
     }
     
+    // All permission checks passed - apply the changes
     // First, delete existing policy assignments for this column
     await dbPool.query(
       'DELETE FROM column_policy_assignments WHERE file_id = $1 AND column_name = $2',
