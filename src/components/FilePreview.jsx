@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiRefreshCw, FiAlertTriangle, FiTrash2 } from 'react-icons/fi';
+import { FiRefreshCw, FiAlertTriangle, FiTrash2, FiLock, FiEyeOff } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
 import axios from 'axios';
 import './FilePreview.css';
@@ -8,6 +8,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState(null);
+  const [columnAccess, setColumnAccess] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -29,6 +30,11 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
       });
       console.log('Preview data received:', response.data);
       setPreviewData(response.data);
+      
+      // Store column access metadata if available
+      if (response.data.columnAccess) {
+        setColumnAccess(response.data.columnAccess);
+      }
     } catch (err) {
       console.error('Error fetching file preview:', err);
       setError(err.response?.data?.error || 'Failed to load file preview');
@@ -159,6 +165,54 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
                       previewData.columns.map(col => col.name) : 
                       (rows.length > 0 ? Object.keys(rows[0]) : []);
   
+  // Check if a column is masked or denied
+  const getColumnAccessStatus = (columnName) => {
+    if (!columnAccess) return { status: 'allowed' };
+    
+    const maskedColumn = columnAccess.masked?.find(col => col.name === columnName);
+    if (maskedColumn) {
+      return {
+        status: 'masked',
+        tags: maskedColumn.tags || [],
+        requiredPermissions: maskedColumn.requiresPermission || []
+      };
+    }
+    
+    const deniedColumn = columnAccess.denied?.find(col => col.name === columnName);
+    if (deniedColumn) {
+      return {
+        status: 'denied',
+        tags: deniedColumn.tags || [],
+        requiredPermissions: deniedColumn.requiresPermission || []
+      };
+    }
+    
+    return { status: 'allowed' };
+  };
+
+  // Render column access indicator (lock icon with tooltip)
+  const renderColumnAccessIndicator = (columnName) => {
+    const accessStatus = getColumnAccessStatus(columnName);
+    
+    if (accessStatus.status === 'allowed') return null;
+    
+    const isMasked = accessStatus.status === 'masked';
+    const isDenied = accessStatus.status === 'denied';
+    
+    const tooltipText = isMasked 
+      ? `Data Masked: You need ${accessStatus.requiredPermissions.join(' or ')} permission to view this column. Tagged: ${accessStatus.tags.join(', ')}`
+      : `Access Denied: You need ${accessStatus.requiredPermissions.join(' or ')} permission to access this column. Tagged: ${accessStatus.tags.join(', ')}`;
+    
+    return (
+      <div 
+        className={`column-access-indicator ${isMasked ? 'masked' : 'denied'}`}
+        title={tooltipText}
+      >
+        {isMasked ? <FiLock size={14} /> : <FiEyeOff size={14} />}
+      </div>
+    );
+  };
+
   // Render a quality score indicator
   const renderQualityScore = (columnName) => {
     const qualityScore = getColumnQualityScore(columnName);
@@ -262,6 +316,7 @@ Timeliness: 10%`}
                 <th key={index}>
                   <div className="header-cell">
                     <span className="column-name">{column}</span>
+                    {renderColumnAccessIndicator(column)}
                     {renderQualityScore(column)}
                   </div>
                 </th>
