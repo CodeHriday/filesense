@@ -3340,6 +3340,39 @@ app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, i
     
     const decodedColumnName = decodeURIComponent(columnName);
     
+    // Permission check: Verify user has governance management permissions
+    // Get tags currently assigned to this column
+    const columnTagsResult = await dbPool.query(
+      `SELECT gt.tag_name 
+       FROM column_governance_tag_assignments cgta
+       JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
+       WHERE cgta.file_id = $1 AND cgta.column_name = $2`,
+      [fileId, decodedColumnName]
+    );
+    
+    // Check if user is Admin or has edit permission for column's tags
+    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    
+    if (!isAdmin) {
+      // If column has tags, user must have edit permission for at least one tag
+      if (columnTagsResult.rows.length > 0) {
+        const hasPermission = columnTagsResult.rows.some(row => 
+          columnAccessControl.hasTagPermission(req.user, row.tag_name, 'edit')
+        );
+        
+        if (!hasPermission) {
+          return res.status(403).json({ 
+            error: 'You do not have permission to assign policies to this column. Required: Admin role or edit permissions for column tags.' 
+          });
+        }
+      } else {
+        // Column has no tags - only Admin can assign policies
+        return res.status(403).json({ 
+          error: 'You do not have permission to assign policies to this column. Required: Admin role.' 
+        });
+      }
+    }
+    
     // First, delete existing policy assignments for this column
     await dbPool.query(
       'DELETE FROM column_policy_assignments WHERE file_id = $1 AND column_name = $2',
