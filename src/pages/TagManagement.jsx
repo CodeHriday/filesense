@@ -14,7 +14,9 @@ function TagManagement() {
     tag_name: '',
     description: '',
     color: '#3B82F6',
-    badge_style: 'default'
+    badge_style: 'default',
+    permission_level: 'Public',
+    sensitivity_level: 'Low'
   });
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.roles?.includes('Admin');
@@ -43,14 +45,18 @@ function TagManagement() {
         tag_name: tag.tag_name,
         description: tag.description || '',
         color: tag.color || '#3B82F6',
-        badge_style: tag.badge_style || 'default'
+        badge_style: tag.badge_style || 'default',
+        permission_level: tag.permission_level || 'Public',
+        sensitivity_level: tag.sensitivity_level || 'Low'
       });
     } else {
       setFormData({
         tag_name: '',
         description: '',
         color: '#3B82F6',
-        badge_style: 'default'
+        badge_style: 'default',
+        permission_level: 'Public',
+        sensitivity_level: 'Low'
       });
     }
     setShowModal(true);
@@ -63,7 +69,9 @@ function TagManagement() {
       tag_name: '',
       description: '',
       color: '#3B82F6',
-      badge_style: 'default'
+      badge_style: 'default',
+      permission_level: 'Public',
+      sensitivity_level: 'Low'
     });
   };
 
@@ -152,6 +160,8 @@ function TagManagement() {
                   <th>Tag Name</th>
                   <th>Description</th>
                   <th>Preview</th>
+                  <th>Permission Level</th>
+                  <th>Sensitivity</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
@@ -167,6 +177,16 @@ function TagManagement() {
                         style={{ backgroundColor: tag.color }}
                       >
                         {tag.tag_name}
+                      </span>
+                    </td>
+                    <td className="tag-permission-cell">
+                      <span className={`permission-badge permission-${(tag.permission_level || 'Public').toLowerCase()}`}>
+                        {tag.permission_level || 'Public'}
+                      </span>
+                    </td>
+                    <td className="tag-sensitivity-cell">
+                      <span className={`sensitivity-badge sensitivity-${(tag.sensitivity_level || 'Low').toLowerCase()}`}>
+                        {tag.sensitivity_level || 'Low'}
                       </span>
                     </td>
                     <td className="tag-date-cell">
@@ -240,6 +260,41 @@ function TagManagement() {
                     {formData.tag_name || 'Preview'}
                   </span>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="permission_level">Permission Level *</label>
+                <select
+                  id="permission_level"
+                  value={formData.permission_level}
+                  onChange={(e) => setFormData({ ...formData, permission_level: e.target.value })}
+                  required
+                >
+                  <option value="Public">Public - Everyone can view</option>
+                  <option value="Restricted">Restricted - Requires specific permissions</option>
+                  <option value="Private">Private - Admin only</option>
+                </select>
+                <small className="field-help">
+                  Controls who can access columns tagged with this tag
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="sensitivity_level">Sensitivity Level *</label>
+                <select
+                  id="sensitivity_level"
+                  value={formData.sensitivity_level}
+                  onChange={(e) => setFormData({ ...formData, sensitivity_level: e.target.value })}
+                  required
+                >
+                  <option value="Low">Low - General information</option>
+                  <option value="Medium">Medium - Internal use</option>
+                  <option value="High">High - Confidential</option>
+                  <option value="Critical">Critical - Highly sensitive (PII, Financial)</option>
+                </select>
+                <small className="field-help">
+                  Classification level for data governance and compliance
+                </small>
               </div>
 
               <div className="modal-actions">
