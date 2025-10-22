@@ -8,6 +8,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const session = require('express-session');
 
 // Initialize dependency injection container
 const { initialize: initializeDI, initializeDatabase } = require('./backend/di/bootstrapper');
@@ -347,6 +348,18 @@ app.use((req, res, next) => {
   req.logger = logger;
   next();
 });
+
+// Session middleware (required for Okta SSO)
+app.use(session({
+  secret: process.env.SESSION_SECRET || SECURITY_CONFIG.JWT_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
 // Audit middleware - logs all API requests and responses
 const auditService = diContainer.get('auditService');

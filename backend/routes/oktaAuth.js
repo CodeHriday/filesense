@@ -21,10 +21,58 @@ if (isOktaEnabled()) {
     redirect_uri: oktaConfig.redirectUri,
     scope: oktaConfig.scopes.join(' '),
     pkce: oktaConfig.pkce,
+    routes: {
+      login: {
+        path: '/login'
+      },
+      loginCallback: {
+        path: '/callback',
+        handler: async (req, res, next) => {
+          try {
+            // User is authenticated, provision in our database
+            const userInfo = req.userContext?.userinfo || req.userinfo;
+            
+            if (!userInfo) {
+              throw new Error('No user information received from Okta');
+            }
+            
+            // Provision or update user
+            const user = await provisionOktaUser(userInfo);
+            
+            // Generate JWT token for our app
+            const { SECURITY_CONFIG } = require('../src/config/environment');
+            const token = jwt.sign(
+              { 
+                id: user.id,
+                userId: user.id, 
+                username: user.username,
+                email: user.email,
+                roles: user.roles || [],
+                authProvider: 'okta'
+              },
+              SECURITY_CONFIG.JWT_SECRET,
+              { expiresIn: SECURITY_CONFIG.JWT_EXPIRATION }
+            );
+            
+            // Redirect to frontend with token
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5000';
+            res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+            
+          } catch (error) {
+            console.error('Okta callback error:', error);
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5000';
+            res.redirect(`${frontendUrl}/login?error=sso_failed`);
+          }
+        }
+      }
+    },
     ...oktaConfig.testing
   });
   
-  console.log('✓ Okta OIDC middleware initialized');
+  // Mount the OIDC router to handle OAuth2 flow
+  router.use(oidc.router);
+  
+  console.log('✓ Okta OIDC middleware initialized and mounted');
 }
 
 /**
@@ -120,71 +168,7 @@ async function provisionOktaUser(oktaProfile) {
   }
 }
 
-/**
- * GET /auth/okta/login
- * Initiates Okta login flow
- */
-router.get('/login', (req, res, next) => {
-  if (!isOktaEnabled()) {
-    return res.status(503).json({ 
-      error: 'Okta SSO is not configured',
-      message: 'Please contact your administrator to enable SSO'
-    });
-  }
-  
-  oidc.ensureAuthenticated()(req, res, next);
-});
-
-/**
- * GET /auth/okta/callback
- * Okta redirects here after successful authentication
- */
-router.get('/callback', async (req, res) => {
-  if (!isOktaEnabled()) {
-    return res.status(503).json({ error: 'Okta SSO is not configured' });
-  }
-  
-  try {
-    // Let Okta middleware handle the callback
-    await new Promise((resolve, reject) => {
-      oidc.router.handle(req, res, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
-    // Get user info from Okta
-    const userInfo = req.userContext?.userinfo || req.userinfo;
-    
-    if (!userInfo) {
-      throw new Error('No user information received from Okta');
-    }
-    
-    // Provision or update user
-    const user = await provisionOktaUser(userInfo);
-    
-    // Generate JWT token for our app
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        username: user.username,
-        email: user.email,
-        authProvider: 'okta'
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-    
-    // Redirect to frontend with token
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5000';
-    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
-    
-  } catch (error) {
-    console.error('Okta callback error:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5000';
-    res.redirect(`${frontendUrl}/login?error=sso_failed`);
-  }
-});
+// Note: /login and /callback routes are handled by the OIDC middleware mounted above
 
 /**
  * POST /auth/okta/logout
