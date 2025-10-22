@@ -9,7 +9,6 @@ function ProjectManagement() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showMembersModal, setShowMembersModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,13 +25,19 @@ function ProjectManagement() {
     role: ''
   });
 
+  const [groupFormData, setGroupFormData] = useState({
+    group_id: ''
+  });
+
   const [availableUsers, setAvailableUsers] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
+  const [availableGroups, setAvailableGroups] = useState([]);
 
   useEffect(() => {
     fetchProjects();
     fetchAvailableUsers();
     fetchAvailableRoles();
+    fetchAvailableGroups();
   }, [searchTerm, showArchived]);
 
   const fetchProjects = async () => {
@@ -77,6 +82,18 @@ function ProjectManagement() {
       setAvailableRoles(response.data);
     } catch (err) {
       console.error('Failed to fetch roles:', err);
+    }
+  };
+
+  const fetchAvailableGroups = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/groups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAvailableGroups(response.data);
+    } catch (err) {
+      console.error('Failed to fetch groups:', err);
     }
   };
 
@@ -184,19 +201,46 @@ function ProjectManagement() {
     }
   };
 
-  const openEditModal = (project) => {
-    setSelectedProject(project);
+  const handleAddGroup = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_BASE_URL}/projects/${selectedProject.id}/groups`,
+        groupFormData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setGroupFormData({ group_id: '' });
+      fetchProjectDetails(selectedProject.id);
+    } catch (err) {
+      setError('Failed to add access group');
+      console.error(err);
+    }
+  };
+
+  const handleRemoveGroup = async (groupId) => {
+    if (!window.confirm('Remove this access group from the project?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(
+        `${API_BASE_URL}/projects/${selectedProject.id}/groups/${groupId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchProjectDetails(selectedProject.id);
+    } catch (err) {
+      setError('Failed to remove access group');
+      console.error(err);
+    }
+  };
+
+  const openEditModal = async (project) => {
+    await fetchProjectDetails(project.id);
     setFormData({
       name: project.name,
       description: project.description || '',
       parent_id: project.parent_id
     });
     setShowEditModal(true);
-  };
-
-  const openMembersModal = async (project) => {
-    await fetchProjectDetails(project.id);
-    setShowMembersModal(true);
   };
 
   return (
@@ -237,6 +281,8 @@ function ProjectManagement() {
               <tr>
                 <th>Project Name</th>
                 <th>Description</th>
+                <th>Members</th>
+                <th>Access Groups</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -253,6 +299,16 @@ function ProjectManagement() {
                   </td>
                   <td>{project.description || '-'}</td>
                   <td>
+                    <span className="count-badge">
+                      {project.member_count !== undefined ? `${project.member_count} member${project.member_count !== 1 ? 's' : ''}` : '-'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="count-badge">
+                      {project.group_count !== undefined ? `${project.group_count} group${project.group_count !== 1 ? 's' : ''}` : '-'}
+                    </span>
+                  </td>
+                  <td>
                     {project.is_archived ? (
                       <span className="badge badge-archived">Archived</span>
                     ) : (
@@ -262,9 +318,6 @@ function ProjectManagement() {
                   <td>{new Date(project.created_at).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
-                      <button className="btn-small" onClick={() => openMembersModal(project)}>
-                        Members
-                      </button>
                       <button className="btn-small" onClick={() => openEditModal(project)}>
                         Edit
                       </button>
@@ -318,113 +371,169 @@ function ProjectManagement() {
         </div>
       )}
 
-      {showEditModal && (
+      {showEditModal && selectedProject && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Edit Project</h2>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleUpdate}>
-              <div className="form-group">
-                <label>Project Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows="3"
-                />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">Update Project</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showMembersModal && selectedProject && (
-        <div className="modal-overlay" onClick={() => setShowMembersModal(false)}>
           <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Manage Members - {selectedProject.name}</h2>
-              <button className="close-btn" onClick={() => setShowMembersModal(false)}>×</button>
+              <h2>Edit Project - {selectedProject.name}</h2>
+              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
             </div>
-            <div className="members-content">
-              <form onSubmit={handleAddMember} className="add-member-form">
-                <div className="form-row">
-                  <select
-                    value={memberFormData.user_id}
-                    onChange={(e) => setMemberFormData({ ...memberFormData, user_id: e.target.value })}
+            <div className="modal-content-sections">
+              <form onSubmit={handleUpdate}>
+                <h3>Project Details</h3>
+                <div className="form-group">
+                  <label>Project Name *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                  >
-                    <option value="">Select User</option>
-                    {availableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.username} ({user.email})
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={memberFormData.role}
-                    onChange={(e) => setMemberFormData({ ...memberFormData, role: e.target.value })}
-                    required
-                  >
-                    <option value="">Select Role</option>
-                    {availableRoles.map((role) => (
-                      <option key={role.id} value={role.name}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="submit" className="btn-primary">Add Member</button>
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows="3"
+                  />
+                </div>
+                <div className="modal-actions">
+                  <button type="submit" className="btn-primary">Update Details</button>
                 </div>
               </form>
 
-              <table className="members-table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Added</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedProject.members?.map((member) => (
-                    <tr key={member.user_id}>
-                      <td>{member.full_name || member.username}</td>
-                      <td>{member.email}</td>
-                      <td><span className="role-badge">{member.role}</span></td>
-                      <td>{new Date(member.created_at).toLocaleDateString()}</td>
-                      <td>
-                        <button
-                          className="btn-small btn-danger"
-                          onClick={() => handleRemoveMember(member.user_id)}
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+
+              <div className="members-section">
+                <h3>Members</h3>
+                <form onSubmit={handleAddMember} className="add-member-form">
+                  <div className="form-row">
+                    <select
+                      value={memberFormData.user_id}
+                      onChange={(e) => setMemberFormData({ ...memberFormData, user_id: e.target.value })}
+                      required
+                    >
+                      <option value="">Select User</option>
+                      {availableUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.username} ({user.email})
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={memberFormData.role}
+                      onChange={(e) => setMemberFormData({ ...memberFormData, role: e.target.value })}
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      {availableRoles.map((role) => (
+                        <option key={role.id} value={role.name}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="submit" className="btn-primary btn-small">Add Member</button>
+                  </div>
+                </form>
+
+                <div className="members-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  <table className="compact-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedProject.members?.map((member) => (
+                        <tr key={member.user_id}>
+                          <td>{member.full_name || member.username}</td>
+                          <td><span className="role-badge">{member.role_name || member.role}</span></td>
+                          <td>
+                            <button
+                              className="btn-small btn-danger"
+                              onClick={() => handleRemoveMember(member.user_id)}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!selectedProject.members || selectedProject.members.length === 0) && (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', color: '#999' }}>No members yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+
+              <div className="groups-section">
+                <h3>Access Groups</h3>
+                <form onSubmit={handleAddGroup} className="add-group-form">
+                  <div className="form-row">
+                    <select
+                      value={groupFormData.group_id}
+                      onChange={(e) => setGroupFormData({ ...groupFormData, group_id: e.target.value })}
+                      required
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Select Access Group</option>
+                      {availableGroups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="submit" className="btn-primary btn-small">Add Group</button>
+                  </div>
+                </form>
+
+                <div className="groups-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  <table className="compact-table">
+                    <thead>
+                      <tr>
+                        <th>Group Name</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedProject.access_groups?.map((group) => (
+                        <tr key={group.group_id}>
+                          <td>{group.group_name}</td>
+                          <td><span className="badge badge-type">{group.group_type}</span></td>
+                          <td>
+                            <button
+                              className="btn-small btn-danger"
+                              onClick={() => handleRemoveGroup(group.group_id)}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!selectedProject.access_groups || selectedProject.access_groups.length === 0) && (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', color: '#999' }}>No access groups yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="modal-actions" style={{ marginTop: '1.5rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

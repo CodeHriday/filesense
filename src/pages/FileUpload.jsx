@@ -622,64 +622,65 @@ function FileUpload() {
           </div>
         </div>
         
-        {/* Project Selection Section */}
+        {/* Project and Owner Section - Combined */}
         {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (
-          <div className="project-selection-section" style={{ padding: '1rem', background: '#2a2a2a', borderRadius: '8px', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <label htmlFor="project-select" style={{ fontWeight: 'bold', minWidth: '80px' }}>
-                Project: <span style={{ color: '#e74c3c' }}>*</span>
-              </label>
-              <select 
-                id="project-select"
-                value={selectedProject || ''}
-                onChange={(e) => setSelectedProject(Number(e.target.value))}
-                disabled={loadingProjects}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem',
-                  borderRadius: '4px',
-                  border: '1px solid #444',
-                  background: '#1a1a1a',
-                  color: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                {loadingProjects ? (
-                  <option>Loading projects...</option>
-                ) : projects.length === 0 ? (
-                  <option>No projects available</option>
-                ) : (
-                  <>
-                    <option value="">Select a project...</option>
-                    {projects.map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
+          <div style={{ padding: '1rem', background: 'transparent', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Project Selection */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
+                <label htmlFor="project-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                  Project: <span style={{ color: '#e74c3c' }}>*</span>
+                </label>
+                <select 
+                  id="project-select"
+                  value={selectedProject || ''}
+                  onChange={(e) => setSelectedProject(Number(e.target.value))}
+                  disabled={loadingProjects}
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    cursor: 'pointer',
+                    minWidth: '200px'
+                  }}
+                >
+                  {loadingProjects ? (
+                    <option>Loading projects...</option>
+                  ) : projects.length === 0 ? (
+                    <option>No projects available</option>
+                  ) : (
+                    <>
+                      <option value="">Select a project...</option>
+                      {projects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* File Owner */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
+                <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>File Owner:</span>
+                <span style={{ flex: 1 }}>{fileOwner || 'Not set'}</span>
+                <button 
+                  className="btn-link"
+                  onClick={handleOpenOwnerModal}
+                  title="Edit owner"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  Edit
+                </button>
+              </div>
             </div>
             {!selectedProject && (
-              <div style={{ marginTop: '0.5rem', color: '#e74c3c', fontSize: '0.875rem' }}>
+              <div style={{ marginTop: '0.75rem', color: '#e74c3c', fontSize: '0.875rem' }}>
                 Please select a project to upload files
               </div>
             )}
-          </div>
-        )}
-        
-        {/* Ownership Section */}
-        {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (
-          <div className="ownership-section">
-            <div className="ownership-label">File Owner:</div>
-            <div className="ownership-value">{fileOwner || 'Not set'}</div>
-            <button 
-              className="btn-link ownership-edit-btn"
-              onClick={handleOpenOwnerModal}
-              title="Edit owner"
-            >
-              Edit
-            </button>
           </div>
         )}
         
@@ -694,13 +695,27 @@ function FileUpload() {
         {/* Show upload dropzone when not processing */}
         {!isProcessing && activeTab === 'upload-profile' ? (
           hasWritePermission('file') ? (
-            <FileDropzone 
-              key={`profile-${dropzoneKey}`}
-              onFileDrop={handleFileDrop}
-              acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
-              maxSizeMB={50}
-              externalStatus={uploadStatus}
-            />
+            selectedProject ? (
+              <FileDropzone 
+                key={`profile-${dropzoneKey}`}
+                onFileDrop={handleFileDrop}
+                acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+                maxSizeMB={50}
+                externalStatus={uploadStatus}
+              />
+            ) : (
+              <div style={{
+                padding: '3rem',
+                border: '2px dashed #ccc',
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#999',
+                background: '#f9f9f9'
+              }}>
+                <FiUpload size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                <p style={{ fontSize: '1.1rem', margin: 0 }}>Please select a project above to upload files</p>
+              </div>
+            )
           ) : (
             <div className="access-denied-message">
               <p>You do not have permission to upload files. Please contact an administrator.</p>

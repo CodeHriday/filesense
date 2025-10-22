@@ -10,44 +10,60 @@ const { systemLogger } = require('../utils/logger');
 function createProjectRoutes(dbPool) {
   const router = express.Router();
 
-  // List all projects (with optional filtering)
+  // List all projects with member and group counts
   router.get('/', async (req, res) => {
     try {
       const { archived, search } = req.query;
       
-      let query = 'SELECT * FROM projects WHERE 1=1';
+      let query = `
+        SELECT 
+          p.*,
+          COUNT(DISTINCT pm.user_id) as member_count,
+          COUNT(DISTINCT pag.group_id) as group_count
+        FROM projects p
+        LEFT JOIN project_members pm ON p.id = pm.project_id
+        LEFT JOIN project_access_groups pag ON p.id = pag.project_id
+        WHERE 1=1
+      `;
       const params = [];
       let paramIndex = 1;
 
       if (archived !== undefined) {
-        query += ` AND is_archived = $${paramIndex}`;
+        query += ` AND p.is_archived = $${paramIndex}`;
         params.push(archived === 'true');
         paramIndex++;
       }
 
       if (search) {
-        query += ` AND (name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`;
+        query += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
         params.push(`%${search}%`);
         paramIndex++;
       }
 
-      query += ' ORDER BY created_at DESC';
+      query += ' GROUP BY p.id ORDER BY p.created_at DESC';
 
       const result = await dbPool.query(query, params);
+      
+      // Convert count strings to numbers
+      const projects = result.rows.map(project => ({
+        ...project,
+        member_count: parseInt(project.member_count) || 0,
+        group_count: parseInt(project.group_count) || 0
+      }));
       
       systemLogger.info('Projects listed', {
         userId: req.user?.id,
         count: result.rows.length
       });
 
-      res.json(result.rows);
+      res.json(projects);
     } catch (error) {
       systemLogger.error('Error listing projects', error);
       res.status(500).json({ error: 'Failed to list projects' });
     }
   });
 
-  // Get single project with members
+  // Get single project with members and groups
   router.get('/:projectId', async (req, res) => {
     try {
       const { projectId } = req.params;
@@ -66,15 +82,30 @@ function createProjectRoutes(dbPool) {
           pm.*,
           u.username,
           u.email,
-          u.full_name
+          u.full_name,
+          r.name as role_name
         FROM project_members pm
         JOIN users u ON pm.user_id = u.id
+        LEFT JOIN roles r ON pm.role_id = r.id
         WHERE pm.project_id = $1
         ORDER BY pm.created_at DESC
       `, [projectId]);
 
+      const groupsResult = await dbPool.query(`
+        SELECT 
+          pag.*,
+          ag.name as group_name,
+          ag.description as group_description,
+          ag.group_type
+        FROM project_access_groups pag
+        JOIN access_groups ag ON pag.group_id = ag.id
+        WHERE pag.project_id = $1
+        ORDER BY pag.created_at DESC
+      `, [projectId]);
+
       const project = projectResult.rows[0];
       project.members = membersResult.rows;
+      project.access_groups = groupsResult.rows;
 
       res.json(project);
     } catch (error) {
@@ -306,6 +337,64 @@ function createProjectRoutes(dbPool) {
     } catch (error) {
       systemLogger.error('Error removing project member', error);
       res.status(500).json({ error: 'Failed to remove project member' });
+    }
+  });
+
+  // Add access group to project
+  router.post('/:projectId/groups', async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const { group_id } = req.body;
+      const userId = req.user?.id;
+
+      if (!group_id) {
+        return res.status(400).json({ error: 'group_id is required' });
+      }
+
+      const result = await dbPool.query(`
+        INSERT INTO project_access_groups (project_id, group_id, added_by)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (project_id, group_id) DO NOTHING
+        RETURNING *
+      `, [projectId, group_id, userId]);
+
+      systemLogger.info('Access group added to project', {
+        userId,
+        projectId,
+        groupId: group_id
+      });
+
+      res.status(201).json(result.rows[0] || { project_id: projectId, group_id });
+    } catch (error) {
+      systemLogger.error('Error adding access group to project', error);
+      res.status(500).json({ error: 'Failed to add access group to project' });
+    }
+  });
+
+  // Remove access group from project
+  router.delete('/:projectId/groups/:groupId', async (req, res) => {
+    try {
+      const { projectId, groupId } = req.params;
+
+      const result = await dbPool.query(
+        'DELETE FROM project_access_groups WHERE project_id = $1 AND group_id = $2 RETURNING *',
+        [projectId, groupId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Access group not found in project' });
+      }
+
+      systemLogger.info('Access group removed from project', {
+        userId: req.user?.id,
+        projectId,
+        groupId
+      });
+
+      res.json({ message: 'Access group removed successfully' });
+    } catch (error) {
+      systemLogger.error('Error removing access group from project', error);
+      res.status(500).json({ error: 'Failed to remove access group from project' });
     }
   });
 

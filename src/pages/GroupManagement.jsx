@@ -9,8 +9,6 @@ function GroupManagement() {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showMembersModal, setShowMembersModal] = useState(false);
-  const [showRolesModal, setShowRolesModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -233,25 +231,15 @@ function GroupManagement() {
     }
   };
 
-  const openEditModal = (group) => {
-    setSelectedGroup(group);
+  const openEditModal = async (group) => {
+    await fetchGroupDetails(group.id);
     setFormData({
       name: group.name,
       description: group.description || '',
       group_type: group.group_type,
-      idp_sync_enabled: group.idp_sync_enabled || false
+      sync_enabled: group.sync_enabled || false
     });
     setShowEditModal(true);
-  };
-
-  const openMembersModal = async (group) => {
-    await fetchGroupDetails(group.id);
-    setShowMembersModal(true);
-  };
-
-  const openRolesModal = async (group) => {
-    await fetchGroupDetails(group.id);
-    setShowRolesModal(true);
   };
 
   return (
@@ -296,6 +284,7 @@ function GroupManagement() {
                 <th>Description</th>
                 <th>Type</th>
                 <th>IdP Sync</th>
+                <th>Members</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -313,21 +302,20 @@ function GroupManagement() {
                     </span>
                   </td>
                   <td>
-                    {group.idp_sync_enabled ? (
+                    {group.sync_enabled ? (
                       <span className="sync-badge">Enabled</span>
                     ) : (
                       <span style={{ color: 'var(--text-secondary)' }}>Disabled</span>
                     )}
                   </td>
+                  <td>
+                    <span className="count-badge">
+                      {group.member_count !== undefined ? `${group.member_count} member${group.member_count !== 1 ? 's' : ''}` : '-'}
+                    </span>
+                  </td>
                   <td>{new Date(group.created_at).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
-                      <button className="btn-small" onClick={() => openMembersModal(group)}>
-                        Members
-                      </button>
-                      <button className="btn-small" onClick={() => openRolesModal(group)}>
-                        Roles
-                      </button>
                       <button className="btn-small" onClick={() => openEditModal(group)}>
                         Edit
                       </button>
@@ -402,110 +390,108 @@ function GroupManagement() {
       )}
 
       {/* Edit Modal */}
-      {showEditModal && (
+      {showEditModal && selectedGroup && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Edit Group</h2>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleUpdate}>
-              <div className="form-group">
-                <label>Group Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows="3"
-                />
-              </div>
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.idp_sync_enabled}
-                    onChange={(e) => setFormData({ ...formData, idp_sync_enabled: e.target.checked })}
-                  />
-                  Enable IdP Sync
-                </label>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">Update Group</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Members Modal */}
-      {showMembersModal && selectedGroup && (
-        <div className="modal-overlay" onClick={() => setShowMembersModal(false)}>
           <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Manage Members - {selectedGroup.name}</h2>
-              <button className="close-btn" onClick={() => setShowMembersModal(false)}>×</button>
+              <h2>Edit Group - {selectedGroup.name}</h2>
+              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
             </div>
-            <div className="members-content">
-              <form onSubmit={handleAddMember} className="add-member-form">
-                <div className="form-row">
-                  <select
-                    value={memberFormData.user_id}
-                    onChange={(e) => setMemberFormData({ ...memberFormData, user_id: e.target.value })}
+            <div className="modal-content-sections">
+              <form onSubmit={handleUpdate}>
+                <h3>Group Details</h3>
+                <div className="form-group">
+                  <label>Group Name *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                  >
-                    <option value="">Select User</option>
-                    {availableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.username} ({user.email})
-                      </option>
-                    ))}
-                  </select>
-                  <button type="submit" className="btn-primary">Add Member</button>
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows="3"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.sync_enabled}
+                      onChange={(e) => setFormData({ ...formData, sync_enabled: e.target.checked })}
+                    />
+                    Enable IdP Sync
+                  </label>
+                </div>
+                <div className="modal-actions">
+                  <button type="submit" className="btn-primary">Update Details</button>
                 </div>
               </form>
 
-              <table className="members-table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Source</th>
-                    <th>Added</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedGroup.members?.map((member) => (
-                    <tr key={member.user_id}>
-                      <td>{member.full_name || member.username}</td>
-                      <td>{member.email}</td>
-                      <td><span className="source-badge">{member.source}</span></td>
-                      <td>{new Date(member.created_at).toLocaleDateString()}</td>
-                      <td>
-                        {member.source === 'MANUAL' && (
-                          <button
-                            className="btn-small btn-danger"
-                            onClick={() => handleRemoveMember(member.user_id)}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+
+              <div className="members-section">
+                <h3>Members</h3>
+                <form onSubmit={handleAddMember} className="add-member-form">
+                  <div className="form-row">
+                    <select
+                      value={memberFormData.user_id}
+                      onChange={(e) => setMemberFormData({ ...memberFormData, user_id: e.target.value })}
+                      required
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Select User</option>
+                      {availableUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.username} ({user.email})
+                        </option>
+                      ))}
+                    </select>
+                    <button type="submit" className="btn-primary btn-small">Add Member</button>
+                  </div>
+                </form>
+
+                <div className="members-list" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                  <table className="compact-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedGroup.members?.map((member) => (
+                        <tr key={member.user_id}>
+                          <td>{member.full_name || member.username}</td>
+                          <td><span className="badge badge-source">{member.source}</span></td>
+                          <td>
+                            <button
+                              className="btn-small btn-danger"
+                              onClick={() => handleRemoveMember(member.user_id)}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!selectedGroup.members || selectedGroup.members.length === 0) && (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', color: '#999' }}>No members yet</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="modal-actions" style={{ marginTop: '1.5rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

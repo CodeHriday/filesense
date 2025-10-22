@@ -10,35 +10,43 @@ const { systemLogger } = require('../utils/logger');
 function createGroupRoutes(dbPool) {
   const router = express.Router();
 
-  // List all groups
+  // List all groups with member counts
   router.get('/', async (req, res) => {
     try {
       const { group_type, search } = req.query;
       
-      let query = 'SELECT * FROM access_groups WHERE 1=1';
+      let query = `
+        SELECT 
+          ag.*,
+          COUNT(agm.user_id) as member_count
+        FROM access_groups ag
+        LEFT JOIN access_group_members agm ON ag.id = agm.group_id
+        WHERE 1=1
+      `;
       const params = [];
       let paramIndex = 1;
 
       if (group_type) {
-        query += ` AND group_type = $${paramIndex}`;
+        query += ` AND ag.group_type = $${paramIndex}`;
         params.push(group_type);
         paramIndex++;
       }
 
       if (search) {
-        query += ` AND (name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`;
+        query += ` AND (ag.name ILIKE $${paramIndex} OR ag.description ILIKE $${paramIndex})`;
         params.push(`%${search}%`);
         paramIndex++;
       }
 
-      query += ' ORDER BY created_at DESC';
+      query += ' GROUP BY ag.id ORDER BY ag.created_at DESC';
 
       const result = await dbPool.query(query, params);
       
       // Map database columns to API response format
       const groups = result.rows.map(group => ({
         ...group,
-        idp_sync_enabled: group.sync_enabled
+        idp_sync_enabled: group.sync_enabled,
+        member_count: parseInt(group.member_count) || 0
       }));
       
       systemLogger.info('Access groups listed', {
@@ -265,7 +273,7 @@ function createGroupRoutes(dbPool) {
         INSERT INTO access_group_members (group_id, user_id, source)
         VALUES ($1, $2, $3)
         ON CONFLICT (group_id, user_id) 
-        DO UPDATE SET source = $3, updated_at = NOW()
+        DO UPDATE SET source = $3
         RETURNING *
       `, [groupId, user_id, memberSource]);
 
