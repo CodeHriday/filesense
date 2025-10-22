@@ -791,8 +791,28 @@ app.get('/api/test-di', (req, res) => {
 });
 
 // Files API (with caching)
-app.get('/api/files', cacheMiddleware(300), async (req, res) => {
+app.get('/api/files', authenticateToken, cacheMiddleware(300), async (req, res) => {
   try {
+    // Check if user has permission to view files
+    const userPermissions = req.user.permissions || [];
+    const hasFilePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read';
+      }
+      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read';
+    });
+    
+    if (!hasFilePermission) {
+      logger.warn('User attempted to access files without permission', {
+        userId: req.user.id,
+        username: req.user.username
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to view files'
+      });
+    }
+    
     // Use the FileService from the DI container
     const fileService = diContainer.get('fileService');
     const files = await fileService.getAllFiles({
@@ -807,8 +827,29 @@ app.get('/api/files', cacheMiddleware(300), async (req, res) => {
   }
 });
 
-app.get('/api/files/:fileId', cacheMiddleware(600), async (req, res) => {
+app.get('/api/files/:fileId', authenticateToken, cacheMiddleware(600), async (req, res) => {
   try {
+    // Check if user has permission to view files
+    const userPermissions = req.user.permissions || [];
+    const hasFilePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read' || p === 'file_profile:read';
+      }
+      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read' || p.name === 'file_profile:read';
+    });
+    
+    if (!hasFilePermission) {
+      logger.warn('User attempted to access file details without permission', {
+        userId: req.user.id,
+        username: req.user.username,
+        fileId: req.params.fileId
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to view file details'
+      });
+    }
+    
     const { fileId } = req.params;
     
     // Use the FileService from the DI container
@@ -827,8 +868,29 @@ app.get('/api/files/:fileId', cacheMiddleware(600), async (req, res) => {
 });
 
 // File processing status endpoint (no caching - real-time status)
-app.get('/api/files/:fileId/status', async (req, res) => {
+app.get('/api/files/:fileId/status', authenticateToken, async (req, res) => {
   try {
+    // Check if user has permission to view files
+    const userPermissions = req.user.permissions || [];
+    const hasFilePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read' || p === 'file_profile:read';
+      }
+      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read' || p.name === 'file_profile:read';
+    });
+    
+    if (!hasFilePermission) {
+      logger.warn('User attempted to access file status without permission', {
+        userId: req.user.id,
+        username: req.user.username,
+        fileId: req.params.fileId
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to view file status'
+      });
+    }
+    
     const { fileId } = req.params;
     
     const result = await dbPool.query(
