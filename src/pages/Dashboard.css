@@ -222,6 +222,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-6);
   margin-bottom: var(--space-8);
+  align-items: start;
 }
 
 .dashboard-column {

@@ -630,7 +630,7 @@ const Dashboard = () => {
         summaryText={`There are ${total} files in the system across ${fileTypes.length} different file types.`}
       >
         <div className="file-type-distribution">
-          <h3 id="file-distribution-title">File Type Distribution</h3>
+          <h3 id="file-distribution-title" className="sr-only">File Type Distribution</h3>
           <div className="distribution-bars" role="group" aria-labelledby="file-distribution-title">
             {fileTypes.map(([type, count]) => {
               const percentage = Math.round((count / total) * 100);
