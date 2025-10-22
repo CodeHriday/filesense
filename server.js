@@ -55,6 +55,9 @@ const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 // Import enhanced authentication service
 const enhancedAuthService = require('./backend/services/enhancedAuthService');
 
+// Import column access control service
+const columnAccessControl = require('./backend/services/columnAccessControl');
+
 // Initialize Express app
 const app = express();
 // Use PORT from environment (Replit provides this), fallback to 5000 in production or 3000 in development
@@ -3255,6 +3258,24 @@ app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, inval
     }
     
     const decodedColumnName = decodeURIComponent(columnName);
+    
+    // Permission check: Verify user has edit permission for all tags being assigned
+    if (tag_ids.length > 0) {
+      // Fetch tag details to get tag names
+      const tagsResult = await dbPool.query(
+        'SELECT tag_id, tag_name FROM governance_tags WHERE tag_id = ANY($1)',
+        [tag_ids]
+      );
+      
+      // Check if user has edit permission for each tag
+      for (const tag of tagsResult.rows) {
+        if (!columnAccessControl.hasTagPermission(req.user, tag.tag_name, 'edit')) {
+          return res.status(403).json({ 
+            error: `You do not have permission to assign the '${tag.tag_name}' tag. Required: tag:${tag.tag_name.toLowerCase()}:edit or tag:${tag.tag_name.toLowerCase()}:write` 
+          });
+        }
+      }
+    }
     
     // First, delete existing tag assignments for this column
     await dbPool.query(
