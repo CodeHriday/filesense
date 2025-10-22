@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import '../styles/UserManagement.css';
@@ -17,7 +18,11 @@ const UserManagement = () => {
     username: '',
     password: '',
     email: '',
-    fullName: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    phone_number: '',
+    auth_provider: 'local',
     roles: []
   });
   
@@ -66,7 +71,11 @@ const UserManagement = () => {
       username: '',
       password: '',
       email: '',
-      fullName: '',
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      phone_number: '',
+      auth_provider: 'local',
       roles: []
     });
     setModalMode('create');
@@ -77,9 +86,13 @@ const UserManagement = () => {
     setSelectedUser(user);
     setFormData({
       username: user.username,
-      password: '', // Don't prefill password for security reasons
+      password: '',
       email: user.email || '',
-      fullName: user.full_name || '',
+      first_name: user.first_name || '',
+      middle_name: user.middle_name || '',
+      last_name: user.last_name || '',
+      phone_number: user.phone_number || '',
+      auth_provider: user.auth_provider || 'local',
       roles: user.roles || []
     });
     setModalMode('edit');
@@ -213,6 +226,7 @@ const UserManagement = () => {
               <th>Username</th>
               <th>Full Name</th>
               <th>Email</th>
+              <th>Auth Provider</th>
               <th>Roles</th>
               <th>Last Login</th>
               <th>Actions</th>
@@ -221,7 +235,7 @@ const UserManagement = () => {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan="6" className="no-users-message">No users found</td>
+                <td colSpan="7" className="no-users-message">No users found</td>
               </tr>
             ) : (
               users.map(user => (
@@ -229,6 +243,11 @@ const UserManagement = () => {
                   <td>{user.username}</td>
                   <td>{user.full_name || '-'}</td>
                   <td>{user.email || '-'}</td>
+                  <td>
+                    <span className={`auth-provider-badge ${user.auth_provider || 'local'}`}>
+                      {user.auth_provider === 'okta' ? 'Okta SSO' : 'Local'}
+                    </span>
+                  </td>
                   <td>
                     <div className="user-roles">
                       {user.roles && user.roles.length > 0 ? 
@@ -292,34 +311,77 @@ const UserManagement = () => {
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  disabled={modalMode === 'edit'} // Can't change username in edit mode
+                  disabled={modalMode === 'edit'}
                   required
                 />
               </div>
               
-              <div className="form-group">
-                <label htmlFor="password">
-                  Password {modalMode === 'edit' && '(leave blank to keep current)'}
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  required={modalMode === 'create'}
-                />
+              {formData.auth_provider === 'local' && (
+                <div className="form-group">
+                  <label htmlFor="password">
+                    Password {modalMode === 'edit' && '(leave blank to keep current)'}
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    required={modalMode === 'create'}
+                  />
+                  {modalMode === 'create' && formData.password && (
+                    <PasswordStrengthMeter password={formData.password} />
+                  )}
+                </div>
+              )}
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="first_name">First Name</label>
+                  <input
+                    type="text"
+                    id="first_name"
+                    name="first_name"
+                    value={formData.first_name}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="middle_name">Middle Name</label>
+                  <input
+                    type="text"
+                    id="middle_name"
+                    name="middle_name"
+                    value={formData.middle_name}
+                    onChange={handleInputChange}
+                  />
+                </div>
               </div>
               
-              <div className="form-group">
-                <label htmlFor="fullName">Full Name</label>
-                <input
-                  type="text"
-                  id="fullName"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="last_name">Last Name</label>
+                  <input
+                    type="text"
+                    id="last_name"
+                    name="last_name"
+                    value={formData.last_name}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="phone_number">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="phone_number"
+                    name="phone_number"
+                    value={formData.phone_number}
+                    onChange={handleInputChange}
+                    placeholder="+1-555-123-4567"
+                  />
+                </div>
               </div>
               
               <div className="form-group">
