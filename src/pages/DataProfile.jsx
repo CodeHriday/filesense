@@ -86,9 +86,11 @@ function DataProfile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('attributes');
   const [ownership, setOwnership] = useState(null);
   const [showOwnershipModal, setShowOwnershipModal] = useState(false);
+  const [policies, setPolicies] = useState([]);
+  const [columnTags, setColumnTags] = useState([]);
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -132,6 +134,24 @@ function DataProfile() {
     }
   };
 
+  const fetchPolicies = async () => {
+    try {
+      const response = await axios.get(`/api/files/${fileId}/policies`);
+      setPolicies(response.data);
+    } catch (err) {
+      console.error('Error fetching policies:', err);
+    }
+  };
+
+  const fetchColumnTags = async () => {
+    try {
+      const response = await axios.get(`/api/files/${fileId}/columns/sensitivity-tags`);
+      setColumnTags(response.data);
+    } catch (err) {
+      console.error('Error fetching column tags:', err);
+    }
+  };
+
   useEffect(() => {
     console.log('DataProfile component mounted with fileId:', fileId);
     const fetchData = async () => {
@@ -159,8 +179,12 @@ function DataProfile() {
         setProfile(profileData || {});
         setError(null);
         
-        // Fetch ownership data
-        await fetchOwnership();
+        // Fetch governance data
+        await Promise.all([
+          fetchOwnership(),
+          fetchPolicies(),
+          fetchColumnTags()
+        ]);
       } catch (err) {
         console.error('Error fetching file data:', err);
         setError('Failed to load file data. Please try again later.');
@@ -241,7 +265,9 @@ function DataProfile() {
                   <tr>
                     <th className="col-name">Name</th>
                     <th className="col-type">Type</th>
-                    <th className="col-completeness">Completeness</th>
+                    <th className="col-completeness-compact">Completeness</th>
+                    <th className="col-tags">Tags</th>
+                    <th className="col-policies">Policies</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,23 +275,40 @@ function DataProfile() {
                     const totalRows = file.row_count || basicInfo.rowCount || 100;
                     const nullCount = column.missing || 0;
                     const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
+                    const columnTag = columnTags.find(tag => tag.column_name === column.name);
                     
                     return (
                       <tr key={column.name} className="completeness-row">
                         <td className="col-name">{column.name}</td>
                         <td className="col-type">{column.type}</td>
-                        <td className="col-completeness">
-                          <div className="completeness-bar-container">
-                            <div className="completeness-bar-track">
+                        <td className="col-completeness-compact">
+                          <div className="completeness-bar-container-compact">
+                            <div className="completeness-bar-track-compact">
                               <div 
                                 className="completeness-bar-fill" 
                                 style={{ width: `${completeness}%` }}
                               ></div>
                             </div>
-                            <span className="completeness-value">
+                            <span className="completeness-value-compact">
                               {formatDecimal(completeness, 1)}%
                             </span>
                           </div>
+                        </td>
+                        <td className="col-tags">
+                          {columnTag ? (
+                            <span className={`sensitivity-badge sensitivity-${columnTag.classification_level.toLowerCase()}`}>
+                              {columnTag.classification_level}
+                            </span>
+                          ) : (
+                            <span className="no-tag">—</span>
+                          )}
+                        </td>
+                        <td className="col-policies">
+                          {policies.length > 0 ? (
+                            <span className="policies-count">{policies.length} {policies.length === 1 ? 'policy' : 'policies'}</span>
+                          ) : (
+                            <span className="no-policy">—</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -666,16 +709,16 @@ function DataProfile() {
           
           <div className="profile-tabs">
             <button 
-              className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveTab('overview')}
+              className={`tab-button ${activeTab === 'attributes' ? 'active' : ''}`}
+              onClick={() => setActiveTab('attributes')}
             >
-              Overview
+              File Attributes
             </button>
             <button 
-              className={`tab-button ${activeTab === 'columns' ? 'active' : ''}`}
-              onClick={() => setActiveTab('columns')}
+              className={`tab-button ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => setActiveTab('profile')}
             >
-              Columns
+              File Profile
             </button>
             <button 
               className={`tab-button ${activeTab === 'distribution' ? 'active' : ''}`}
@@ -692,8 +735,8 @@ function DataProfile() {
           </div>
           
           <div className="profile-content">
-            {activeTab === 'overview' && renderOverviewTab()}
-            {activeTab === 'columns' && renderColumnsTab()}
+            {activeTab === 'attributes' && renderOverviewTab()}
+            {activeTab === 'profile' && renderColumnsTab()}
             {activeTab === 'distribution' && renderDistributionTab()}
             {activeTab === 'preview' && renderPreviewTab()}
           </div>

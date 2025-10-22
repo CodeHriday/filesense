@@ -720,3 +720,80 @@
   gap: var(--space-3);
   margin-top: var(--space-6);
 }
+
+/* Compact Completeness Column Styles (50% reduced) */
+.col-completeness-compact {
+  width: 150px;
+  text-align: center;
+}
+
+.completeness-bar-container-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.completeness-bar-track-compact {
+  flex: 1;
+  height: 10px;
+  background-color: var(--color-gray-200);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.completeness-value-compact {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Column Tags and Policies Styles */
+.col-tags,
+.col-policies {
+  text-align: center;
+  padding: var(--space-2);
+}
+
+.sensitivity-badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sensitivity-public {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.sensitivity-internal {
+  background-color: #10b981;
+  color: white;
+}
+
+.sensitivity-confidential {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.sensitivity-restricted {
+  background-color: #ef4444;
+  color: white;
+}
+
+.no-tag,
+.no-policy {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.policies-count {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
