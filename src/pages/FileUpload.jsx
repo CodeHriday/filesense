@@ -30,6 +30,9 @@ function FileUpload() {
   const [fileOwner, setFileOwner] = useState('');
   const [showOwnerModal, setShowOwnerModal] = useState(false);
   const [tempOwner, setTempOwner] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const pollingInterval = useRef(null);
   const navigate = useNavigate();
   const { hasWritePermission, currentUser } = useAuth();
@@ -41,6 +44,37 @@ function FileUpload() {
       setFileOwner(currentUser.email);
     }
   }, [currentUser]);
+  
+  // Fetch projects on mount
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setLoadingProjects(false);
+          return;
+        }
+        
+        const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setProjects(response.data);
+        
+        // Find and select Default Project by default
+        const defaultProject = response.data.find(p => p.name === 'Default Project' || p.is_default);
+        if (defaultProject) {
+          setSelectedProject(defaultProject.id);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+    
+    fetchProjects();
+  }, []);
   
   // Cleanup polling on unmount
   useEffect(() => {
@@ -245,8 +279,13 @@ function FileUpload() {
         }
       };
       
+      // Validate project selection
+      if (!selectedProject) {
+        throw new Error('Please select a project before uploading');
+      }
+      
       // Upload the file with progress tracking
-      const result = await uploadFile(file, wrappedProgressHandler, fileOwner);
+      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -582,6 +621,52 @@ function FileUpload() {
             )}
           </div>
         </div>
+        
+        {/* Project Selection Section */}
+        {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (
+          <div className="project-selection-section" style={{ padding: '1rem', background: '#2a2a2a', borderRadius: '8px', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <label htmlFor="project-select" style={{ fontWeight: 'bold', minWidth: '80px' }}>
+                Project: <span style={{ color: '#e74c3c' }}>*</span>
+              </label>
+              <select 
+                id="project-select"
+                value={selectedProject || ''}
+                onChange={(e) => setSelectedProject(Number(e.target.value))}
+                disabled={loadingProjects}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  borderRadius: '4px',
+                  border: '1px solid #444',
+                  background: '#1a1a1a',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                {loadingProjects ? (
+                  <option>Loading projects...</option>
+                ) : projects.length === 0 ? (
+                  <option>No projects available</option>
+                ) : (
+                  <>
+                    <option value="">Select a project...</option>
+                    {projects.map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+            </div>
+            {!selectedProject && (
+              <div style={{ marginTop: '0.5rem', color: '#e74c3c', fontSize: '0.875rem' }}>
+                Please select a project to upload files
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Ownership Section */}
         {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (

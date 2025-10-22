@@ -144,12 +144,15 @@ export const bulkDeleteFiles = async (fileIds) => {
 /**
  * Upload a file with progress tracking
  */
-export const uploadFile = async (file, progressCallback, owner = null) => {
+export const uploadFile = async (file, progressCallback, owner = null, projectId = null) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
     if (owner) {
       formData.append('owner', owner);
+    }
+    if (projectId) {
+      formData.append('project_id', projectId);
     }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {

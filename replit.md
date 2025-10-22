@@ -70,7 +70,12 @@ The application features a hybrid architecture:
         -   Support for both inbound (IdP → Platform) and outbound (Platform → IdP) sync
         -   Configurable sync intervals and attribute mappings per IdP
     -   **Migration Strategy**: Existing resources auto-migrate to "Default Project", role assignments convert to group memberships
-    -   **Next Phase**: UI for project/group/policy management, integration with existing authentication middleware
+    -   **UI Implementation (2025-10-22)**: 
+        -   **Project Management**: Full React UI with table layout, CRUD operations, member management with dynamic role assignment
+        -   **Group Management**: Table-based interface with bold white-bordered Create button, full CRUD for access groups
+        -   **File Catalog Integration**: Project column displayed as first data column in file lists
+        -   **File Upload Enhancement**: Mandatory project selection dropdown with "Default Project" pre-selected, validation before upload
+        -   **Route Conflict Resolution**: Removed legacy business process group routes from server.js (lines 588-711) that conflicted with new RBAC /api/groups endpoints
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
 -   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
 -   **Workflow Orchestration**: Complete orchestration system with:
