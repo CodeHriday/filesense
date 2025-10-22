@@ -2635,8 +2635,9 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
   }
 });
 
-// File profile endpoint
-app.get('/api/files/:fileId/profile', cacheMiddleware(600), async (req, res) => {
+// File profile endpoint (with column-level access control for statistics)
+// NOTE: authenticateToken MUST come before cacheMiddleware so req.user is populated for cache key generation
+app.get('/api/files/:fileId/profile', authenticateToken, cacheMiddleware(600), async (req, res) => {
   try {
     const { fileId } = req.params;
     
@@ -2653,40 +2654,85 @@ app.get('/api/files/:fileId/profile', cacheMiddleware(600), async (req, res) => 
       [fileId]
     );
     
-    // Create profile response
+    // Apply column-level access control
+    const columnAccessControl = require('./backend/services/columnAccessControl');
+    const columnGovernance = await columnAccessControl.getColumnGovernance(fileId);
+    const { allowedColumns, maskedColumns, deniedColumns, summary: accessSummary } = 
+      columnAccessControl.filterColumns(req.user, columnGovernance, 'read');
+    
+    // Create a map of masked column names for quick lookup
+    const maskedColumnNames = new Set(maskedColumns.map(c => c.column_name));
+    const deniedColumnNames = new Set(deniedColumns.map(c => c.column_name));
+    
+    // Create profile response with masked statistics for restricted columns
     const file = fileResult.rows[0];
-    const columns = columnsResult.rows.map(col => ({
-      name: col.column_name,
-      type: col.column_type,
-      count: col.non_null_count,
-      unique: col.unique_count,
-      missing: col.null_count,
-      min: col.min_value,
-      max: col.max_value,
-      mean: col.mean_value,
-      median: col.median_value,
-      stdDev: col.std_dev,
-      histogram: col.histogram ? JSON.parse(col.histogram) : null,
-      most_frequent_value: col.most_frequent_value,
-      least_frequent_value: col.least_frequent_value,
-      most_frequent_count: col.most_frequent_count,
-      least_frequent_count: col.least_frequent_count,
-      min_frequency: col.min_frequency,
-      max_frequency: col.max_frequency,
-      min_is_frequent: col.min_is_frequent,
-      max_is_frequent: col.max_is_frequent,
-      patterns: col.patterns || [],
-      top_values: col.top_values ? col.top_values : (
-        // If top_values doesn't exist in the database, generate a simulated version
-        // based on most_frequent_value and least_frequent_value
-        col.type === 'string' || col.type === 'date' ? 
-          JSON.stringify([
-            { value: col.most_frequent_value || 'Unknown', frequency: 20 },
-            { value: 'Other Values', frequency: 60 },
-            { value: col.least_frequent_value || 'Unknown', frequency: 20 }
-          ]) : null
-      )
-    }));
+    const columns = columnsResult.rows.map(col => {
+      const isMasked = maskedColumnNames.has(col.column_name);
+      const isDenied = deniedColumnNames.has(col.column_name);
+      
+      // For masked/denied columns, redact sensitive statistics
+      if (isMasked || isDenied) {
+        return {
+          name: col.column_name,
+          type: col.column_type,
+          count: col.non_null_count,
+          unique: col.unique_count,
+          missing: col.null_count,
+          min: '[REDACTED]',
+          max: '[REDACTED]',
+          mean: null,
+          median: null,
+          stdDev: null,
+          histogram: null,
+          most_frequent_value: '[REDACTED]',
+          least_frequent_value: '[REDACTED]',
+          most_frequent_count: null,
+          least_frequent_count: null,
+          min_frequency: null,
+          max_frequency: null,
+          min_is_frequent: null,
+          max_is_frequent: null,
+          patterns: [],
+          top_values: null,
+          _accessLevel: isMasked ? 'masked' : 'denied'
+        };
+      }
+      
+      // For allowed columns, return full statistics
+      return {
+        name: col.column_name,
+        type: col.column_type,
+        count: col.non_null_count,
+        unique: col.unique_count,
+        missing: col.null_count,
+        min: col.min_value,
+        max: col.max_value,
+        mean: col.mean_value,
+        median: col.median_value,
+        stdDev: col.std_dev,
+        histogram: col.histogram ? JSON.parse(col.histogram) : null,
+        most_frequent_value: col.most_frequent_value,
+        least_frequent_value: col.least_frequent_value,
+        most_frequent_count: col.most_frequent_count,
+        least_frequent_count: col.least_frequent_count,
+        min_frequency: col.min_frequency,
+        max_frequency: col.max_frequency,
+        min_is_frequent: col.min_is_frequent,
+        max_is_frequent: col.max_is_frequent,
+        patterns: col.patterns || [],
+        top_values: col.top_values ? col.top_values : (
+          // If top_values doesn't exist in the database, generate a simulated version
+          // based on most_frequent_value and least_frequent_value
+          col.type === 'string' || col.type === 'date' ? 
+            JSON.stringify([
+              { value: col.most_frequent_value || 'Unknown', frequency: 20 },
+              { value: 'Other Values', frequency: 60 },
+              { value: col.least_frequent_value || 'Unknown', frequency: 20 }
+            ]) : null
+        ),
+        _accessLevel: 'full'
+      };
+    });
     
     const profile = {
       fileId,
@@ -2700,8 +2746,28 @@ app.get('/api/files/:fileId/profile', cacheMiddleware(600), async (req, res) => 
       summary: {
         completeness: ((file.row_count * file.column_count - columnsResult.rows.reduce((acc, col) => acc + (col.null_count || 0), 0)) / (file.row_count * file.column_count) * 100).toFixed(2),
         uniqueness: (columnsResult.rows.reduce((acc, col) => acc + (col.unique_count || 0), 0) / (file.row_count * file.column_count) * 100).toFixed(2)
-      }
+      },
+      accessSummary // Include column access summary for transparency
     };
+    
+    // Log data access for audit trail
+    if (req.auditService) {
+      await req.auditService.logDataAccess({
+        userId: req.user?.id,
+        userRole: req.user?.roles?.[0],
+        accessType: 'PROFILE',
+        fileId,
+        fileName: file.filename,
+        columnNames: columns.map(c => c.name),
+        accessMethod: 'UI',
+        metadata: {
+          columnAccessSummary: accessSummary,
+          maskedColumns: maskedColumns.map(c => c.column_name),
+          deniedColumns: deniedColumns.map(c => c.column_name)
+        },
+        context: req.auditContext
+      });
+    }
     
     res.json(profile);
   } catch (err) {
