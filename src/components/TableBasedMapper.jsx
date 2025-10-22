@@ -33,6 +33,37 @@ const TRANSFORMATION_OPTIONS = [
   { value: 'cast-string', label: 'To String', group: 'Type Cast', params: [] },
   { value: 'cast-integer', label: 'To Integer', group: 'Type Cast', params: [] },
   { value: 'cast-float', label: 'To Float', group: 'Type Cast', params: [] },
+  { 
+    value: 'if', 
+    label: 'IF Condition', 
+    group: 'Conditional', 
+    params: [
+      { name: 'operator', type: 'select', placeholder: 'Comparison', options: [
+        { value: 'equals', label: 'Equals (=)' },
+        { value: 'not_equals', label: 'Not Equals (!=)' },
+        { value: 'greater_than', label: 'Greater Than (>)' },
+        { value: 'less_than', label: 'Less Than (<)' },
+        { value: 'greater_than_or_equal', label: 'Greater Than or Equal (>=)' },
+        { value: 'less_than_or_equal', label: 'Less Than or Equal (<=)' },
+        { value: 'contains', label: 'Contains' },
+        { value: 'is_null', label: 'Is Null' },
+        { value: 'is_not_null', label: 'Is Not Null' }
+      ]},
+      { name: 'compareValue', type: 'text', placeholder: 'Compare to value' },
+      { name: 'thenValue', type: 'text', placeholder: 'Value if TRUE' },
+      { name: 'elseValue', type: 'text', placeholder: 'Value if FALSE' }
+    ]
+  },
+  { 
+    value: 'case_when', 
+    label: 'CASE WHEN', 
+    group: 'Conditional', 
+    params: [
+      { name: 'conditions', type: 'json', placeholder: 'Conditions array (JSON format)' },
+      { name: 'defaultValue', type: 'text', placeholder: 'Default value (else)' }
+    ],
+    description: 'Multiple conditions: [{"operator": "equals", "compareValue": "A", "result": "X"}]'
+  },
 ];
 
 const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables = [], onMappingsChange }) => {
