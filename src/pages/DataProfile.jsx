@@ -1196,7 +1196,8 @@ function DataProfile() {
                 <button 
                   className="btn-icon-small" 
                   onClick={() => setShowOwnershipModal(true)}
-                  title="Edit ownership"
+                  disabled={!user?.roles?.includes('Admin')}
+                  title={user?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
                 >
                   <FiEdit2 />
                 </button>
