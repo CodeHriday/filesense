@@ -157,10 +157,6 @@ const Login = () => {
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
-        
-        <div className="login-help">
-          <p>Default access: Username <strong>Admin</strong> / Password <strong>admin</strong></p>
-        </div>
       </div>
     </div>
   );
