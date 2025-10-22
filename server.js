@@ -1246,6 +1246,19 @@ app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), asy
 // File upload endpoint with async queue processing
 app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files*'), uploadLimiter, upload.single('file'), async (req, res) => {
   try {
+    // Check if user has file_upload:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_upload:write')) {
+      // Clean up temp file if it exists
+      if (req.file && req.file.path) {
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
+      }
+      
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to upload files. Contact your administrator.'
+      });
+    }
+    
     // Validate file upload
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
