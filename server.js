@@ -3167,7 +3167,7 @@ app.get('/api/files/:fileId/columns/:columnName/policies', cacheMiddleware(300),
     const { fileId, columnName } = req.params;
     
     const result = await dbPool.query(
-      `SELECT cpa.*, gp.policy_name, gp.description, gp.rules, gp.enabled
+      `SELECT cpa.*, gp.policy_name, gp.description, gp.rules
        FROM column_policy_assignments cpa
        JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
        WHERE cpa.file_id = $1 AND cpa.column_name = $2
