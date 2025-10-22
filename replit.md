@@ -10,13 +10,20 @@ Preferred communication style: Simple, everyday language.
 The application features a hybrid architecture:
 
 -   **Backend**: Python/Streamlit handles data processing, quality analysis (completeness, consistency, validity, uniqueness), and file operations for CSV, JSON, XLSX, XML, and Parquet, supporting large files with constant memory usage. Includes data profiling and asynchronous processing with memory safeguards.
--   **API Server**: Node.js/Express provides a REST API with JWT authentication, rate limiting, CORS, asynchronous job queues, and an enterprise-grade audit system.
+-   **API Server**: Node.js/Express provides a REST API with hybrid authentication (local + Okta SSO), JWT tokens, rate limiting, CORS, asynchronous job queues, and an enterprise-grade audit system.
 -   **Frontend**: React (TypeScript, Vite) forms a modern single-page application with UI components, Chart.js for visualization, and drag-and-drop file upload functionality.
 -   **Database**: PostgreSQL stores metadata, user management, file catalogs, and audit logs, optimized with connection pooling and performance indexes.
 -   **File Storage**: Local file system with integrated support for AWS S3, Google Cloud Storage, and Azure Blob Storage. All file uploads are scanned by ClamAV for viruses.
 -   **Caching**: Multi-layer caching with Redis and in-memory fallback for frequently accessed data and API responses, with automatic invalidation.
 -   **DBT Integration**: Configured for DBT Core and dbt-postgres for data transformations, including a UI for model discovery, execution, and monitoring.
 -   **Security**: ClamAV integration for virus scanning on all uploads, automatic deletion of infected files, enterprise-grade RBAC with column-level security, and AES-256-CBC encryption for cloud credentials.
+-   **Hybrid Authentication System**: Supports both local authentication with enhanced security and Okta SSO for enterprise users:
+    -   **Local Authentication**: Strong password requirements (12+ characters, uppercase, lowercase, numbers, special characters), account lockout after 5 failed attempts (30-minute lockout), password history tracking (prevents reuse of last 5 passwords), password strength meter in UI
+    -   **Okta SSO**: Enterprise single sign-on with automatic user provisioning, session-based OIDC flow, seamless JWT token generation for app access
+    -   **User Profile Fields**: Comprehensive profile support including first_name, middle_name, last_name, phone_number, full address fields, auto-computed full_name
+    -   **Auth Provider Tracking**: Users tagged with auth_provider (local/okta), external_id for SSO users, password field nullable for SSO users
+    -   **Session Management**: Express-session middleware with secure cookies for OIDC state persistence
+    -   **Environment Variables**: OKTA_ISSUER, OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_REDIRECT_URI, SESSION_SECRET
 -   **RBAC & Column-Level Security**: Complete role-based access control system with:
     -   **5 Default Roles**: Admin (full access), Data Steward (governance focus with tag management), Data Engineer (transformations/workflows), Analyst (read + execute), Viewer (read-only)
     -   **Tag-Based Permissions**: Fine-grained column access via tag permissions (tag:pii:read, tag:pii:edit, tag:confidential:*, tag:financial:*)
