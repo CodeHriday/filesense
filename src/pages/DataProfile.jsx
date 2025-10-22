@@ -1,12 +1,84 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import './DataProfile.css';
+import axios from 'axios';
+
+function OwnershipModal({ fileId, currentOwnership, onClose, onSave }) {
+  const [ownerName, setOwnerName] = useState(currentOwnership?.owner_name || '');
+  const [ownerEmail, setOwnerEmail] = useState(currentOwnership?.owner_email || '');
+  const [ownerContact, setOwnerContact] = useState(currentOwnership?.owner_contact || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await axios.post(`/api/files/${fileId}/ownership`, {
+        owner_name: ownerName,
+        owner_email: ownerEmail,
+        owner_contact: ownerContact
+      });
+      onSave();
+    } catch (err) {
+      console.error('Error saving ownership:', err);
+      alert('Failed to save ownership information');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h2>Edit File Ownership</h2>
+        
+        <div className="form-group">
+          <label>Owner Name</label>
+          <input
+            type="text"
+            value={ownerName}
+            onChange={(e) => setOwnerName(e.target.value)}
+            placeholder="Enter owner name"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Owner Email</label>
+          <input
+            type="email"
+            value={ownerEmail}
+            onChange={(e) => setOwnerEmail(e.target.value)}
+            placeholder="Enter owner email"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Owner Contact</label>
+          <input
+            type="text"
+            value={ownerContact}
+            onChange={(e) => setOwnerContact(e.target.value)}
+            placeholder="Enter owner contact"
+          />
+        </div>
+        
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DataProfile() {
   const { fileId } = useParams();
@@ -15,6 +87,8 @@ function DataProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [ownership, setOwnership] = useState(null);
+  const [showOwnershipModal, setShowOwnershipModal] = useState(false);
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -47,6 +121,17 @@ function DataProfile() {
     }
   };
 
+  const fetchOwnership = async () => {
+    try {
+      const response = await axios.get(`/api/files/${fileId}/ownership`);
+      setOwnership(response.data);
+    } catch (err) {
+      if (err.response?.status !== 404) {
+        console.error('Error fetching ownership:', err);
+      }
+    }
+  };
+
   useEffect(() => {
     console.log('DataProfile component mounted with fileId:', fileId);
     const fetchData = async () => {
@@ -73,6 +158,9 @@ function DataProfile() {
         setFile(fileData);
         setProfile(profileData || {});
         setError(null);
+        
+        // Fetch ownership data
+        await fetchOwnership();
       } catch (err) {
         console.error('Error fetching file data:', err);
         setError('Failed to load file data. Please try again later.');
@@ -536,31 +624,45 @@ function DataProfile() {
         </div>
       ) : file ? (
         <>
-          <div className="profile-header">
-            <div className="profile-title">
+          <div className="profile-header-compact">
+            <div className="header-left">
               <h1>
                 <span className="file-type">{file.file_type.toUpperCase()}</span>
                 {file.filename}
               </h1>
-              <div className="file-details">
-                <span className="file-size">{file.file_size ? formatBytes(file.file_size) : 'Unknown size'}</span>
-                <span className="file-date">Uploaded {getTimeSince(file.created_at)}</span>
-                {file.metadata && (file.metadata.encoding || file.metadata.delimiter) && (
-                  <span className="file-metadata">
-                    {file.metadata.encoding && `Encoding: ${file.metadata.encoding}`}
-                    {file.metadata.encoding && file.metadata.delimiter && ' • '}
-                    {file.metadata.delimiter && `Delimiter: ${
-                      file.metadata.delimiter === ',' ? 'comma (,)' :
-                      file.metadata.delimiter === '\t' ? 'tab' :
-                      file.metadata.delimiter === ';' ? 'semicolon (;)' :
-                      file.metadata.delimiter === '|' ? 'pipe (|)' :
-                      file.metadata.delimiter
-                    }`}
-                  </span>
-                )}
-              </div>
+            </div>
+            <div className="header-right">
+              <span className="header-property">
+                <strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}
+              </span>
+              <span className="header-property">
+                <strong>Uploaded:</strong> {getTimeSince(file.created_at)}
+              </span>
+              <span className="header-property">
+                <FiUser className="icon-inline" />
+                <strong>Owner:</strong> {ownership?.owner_name || 'Unassigned'}
+                <button 
+                  className="btn-icon-small" 
+                  onClick={() => setShowOwnershipModal(true)}
+                  title="Edit ownership"
+                >
+                  <FiEdit2 />
+                </button>
+              </span>
             </div>
           </div>
+          
+          {showOwnershipModal && (
+            <OwnershipModal
+              fileId={fileId}
+              currentOwnership={ownership}
+              onClose={() => setShowOwnershipModal(false)}
+              onSave={async () => {
+                await fetchOwnership();
+                setShowOwnershipModal(false);
+              }}
+            />
+          )}
           
           <div className="profile-tabs">
             <button 
