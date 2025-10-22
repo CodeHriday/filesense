@@ -1220,6 +1220,10 @@ function DataProfile() {
                 setShowColumnGovernanceTagModal(false);
                 setSelectedColumn(null);
                 setCurrentColumnGovernanceTags([]);
+                // Refresh column governance data to update the table
+                if (profile && profile.columns) {
+                  await fetchAllColumnGovernanceData(profile.columns);
+                }
               }}
             />
           )}
@@ -1239,6 +1243,10 @@ function DataProfile() {
                 setShowColumnPolicyModal(false);
                 setSelectedColumn(null);
                 setCurrentColumnPolicies([]);
+                // Refresh column governance data to update the table
+                if (profile && profile.columns) {
+                  await fetchAllColumnGovernanceData(profile.columns);
+                }
               }}
             />
           )}
