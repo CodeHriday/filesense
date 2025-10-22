@@ -155,6 +155,10 @@ class FileProcessingWorker {
 
       // Step 4: Save metadata to database (including duplicates and hash)
       await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats);
+      
+      // Step 4.5: Create file ownership record with creator and owner from uploader
+      await this.createFileOwnership(fileId, userId, originalName);
+      
       await this.queue.updateProgress(jobId, 85);
 
       // Step 5: Save column information with profiling data
@@ -555,6 +559,114 @@ print(json.dumps(result))
 
     const result = await this.dbPool.query(query, values);
     return result.rows[0];
+  }
+
+  /**
+   * Create file ownership record with creator and owner populated from uploader
+   */
+  async createFileOwnership(fileId, userId, filename) {
+    try {
+      // If no userId provided, create ownership record with defaults
+      if (!userId) {
+        this.logger.warn('No userId provided for file ownership, using defaults', { fileId, filename });
+        
+        const query = `
+          INSERT INTO file_ownership (
+            file_id, 
+            creator_user_id, creator_name, creator_email,
+            owner_user_id, owner_name, owner_email,
+            sensitivity_level,
+            created_at, updated_at
+          ) VALUES ($1, NULL, $2, NULL, NULL, $3, NULL, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ON CONFLICT (file_id) DO NOTHING
+          RETURNING *
+        `;
+        
+        const result = await this.dbPool.query(query, [
+          fileId,
+          'Unknown',
+          'Unassigned',
+          'Public'
+        ]);
+        
+        return result.rows[0];
+      }
+      
+      // Fetch user details from database
+      const userQuery = 'SELECT id, username, full_name, email FROM users WHERE id = $1';
+      const userResult = await this.dbPool.query(userQuery, [userId]);
+      
+      if (userResult.rows.length === 0) {
+        this.logger.warn('User not found for file ownership, using defaults', { fileId, userId, filename });
+        
+        const query = `
+          INSERT INTO file_ownership (
+            file_id, 
+            creator_user_id, creator_name, creator_email,
+            owner_user_id, owner_name, owner_email,
+            sensitivity_level,
+            created_at, updated_at
+          ) VALUES ($1, $2, $3, NULL, $4, $5, NULL, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ON CONFLICT (file_id) DO NOTHING
+          RETURNING *
+        `;
+        
+        const result = await this.dbPool.query(query, [
+          fileId,
+          userId,
+          'Unknown',
+          userId,
+          'Unassigned',
+          'Public'
+        ]);
+        
+        return result.rows[0];
+      }
+      
+      const user = userResult.rows[0];
+      const userName = user.full_name || user.username || 'Unknown';
+      const userEmail = user.email || null;
+      
+      // Create ownership record with both creator and owner set to the uploader
+      const query = `
+        INSERT INTO file_ownership (
+          file_id, 
+          creator_user_id, creator_name, creator_email,
+          owner_user_id, owner_name, owner_email,
+          sensitivity_level,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (file_id) DO NOTHING
+        RETURNING *
+      `;
+      
+      const result = await this.dbPool.query(query, [
+        fileId,
+        userId,           // creator_user_id
+        userName,         // creator_name
+        userEmail,        // creator_email
+        userId,           // owner_user_id (default to creator)
+        userName,         // owner_name (default to creator)
+        userEmail,        // owner_email (default to creator)
+        'Public'          // sensitivity_level (default)
+      ]);
+      
+      this.logger.info('File ownership record created', {
+        fileId,
+        creatorName: userName,
+        ownerName: userName
+      });
+      
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create file ownership record', {
+        fileId,
+        userId,
+        error: error.message
+      });
+      // Don't throw - ownership creation failure shouldn't fail the entire upload
+      return null;
+    }
   }
 
   /**
