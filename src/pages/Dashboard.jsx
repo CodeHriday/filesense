@@ -926,37 +926,6 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          
-          <div className="dashboard-actions" role="navigation" aria-label="Quick actions">
-            <Link 
-              to="/upload" 
-              className="dashboard-action-button"
-              aria-label="Upload New File to the system"
-            >
-              Upload New File
-            </Link>
-            <Link 
-              to="/monitor" 
-              className="dashboard-action-button"
-              aria-label="View Data Monitor dashboard with real-time file status"
-            >
-              View Data Monitor
-            </Link>
-            <Link 
-              to="/badges" 
-              className="dashboard-action-button"
-              aria-label="View Achievement Badges earned for data quality"
-            >
-              Achievement Badges
-            </Link>
-            <Link 
-              to="/recommendations" 
-              className="dashboard-action-button"
-              aria-label="View Recommendations for improving data quality"
-            >
-              View Recommendations
-            </Link>
-          </div>
         </>
       )}
     </div>
