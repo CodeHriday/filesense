@@ -9,6 +9,109 @@ import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } fr
 import './DataProfile.css';
 import axios from 'axios';
 
+function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave }) {
+  const [classificationLevel, setClassificationLevel] = useState(currentTag?.classification_level || '');
+  const [dataType, setDataType] = useState(currentTag?.data_type || '');
+  const [saving, setSaving] = useState(false);
+
+  const classificationLevels = [
+    { value: 'Public', label: 'Public', color: 'blue', description: 'Data available to everyone' },
+    { value: 'Internal', label: 'Internal', color: 'green', description: 'Data for internal use only' },
+    { value: 'Confidential', label: 'Confidential', color: 'yellow', description: 'Sensitive business data' },
+    { value: 'Restricted', label: 'Restricted', color: 'red', description: 'Highly sensitive data (PII/PHI/PCI)' }
+  ];
+
+  const handleSave = async () => {
+    if (!classificationLevel) {
+      alert('Please select a classification level');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await axios.post(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`, {
+        classification_level: classificationLevel,
+        data_type: dataType
+      });
+      onSave();
+    } catch (err) {
+      console.error('Error saving sensitivity tag:', err);
+      alert('Failed to save sensitivity tag');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!currentTag) return;
+
+    if (!confirm('Are you sure you want to remove this sensitivity tag?')) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await axios.delete(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`);
+      onSave();
+    } catch (err) {
+      console.error('Error deleting sensitivity tag:', err);
+      alert('Failed to delete sensitivity tag');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h2>Classify Column: {columnName}</h2>
+        
+        <div className="form-group">
+          <label>Classification Level</label>
+          <div className="classification-options">
+            {classificationLevels.map((level) => (
+              <div
+                key={level.value}
+                className={`classification-option ${classificationLevel === level.value ? 'selected' : ''}`}
+                onClick={() => setClassificationLevel(level.value)}
+              >
+                <span className={`sensitivity-badge sensitivity-${level.value.toLowerCase()}`}>
+                  {level.label}
+                </span>
+                <p className="option-description">{level.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="form-group">
+          <label>Data Type (optional)</label>
+          <input
+            type="text"
+            value={dataType}
+            onChange={(e) => setDataType(e.target.value)}
+            placeholder="e.g., PII, PHI, PCI, Email, SSN"
+          />
+        </div>
+        
+        <div className="modal-actions">
+          {currentTag && (
+            <button className="btn btn-danger" onClick={handleDelete} disabled={saving}>
+              Remove Tag
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OwnershipModal({ fileId, currentOwnership, onClose, onSave }) {
   const [ownerName, setOwnerName] = useState(currentOwnership?.owner_name || '');
   const [ownerEmail, setOwnerEmail] = useState(currentOwnership?.owner_email || '');
@@ -91,6 +194,8 @@ function DataProfile() {
   const [showOwnershipModal, setShowOwnershipModal] = useState(false);
   const [policies, setPolicies] = useState([]);
   const [columnTags, setColumnTags] = useState([]);
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [selectedColumn, setSelectedColumn] = useState(null);
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -360,6 +465,7 @@ function DataProfile() {
               <tr>
                 <th>Column Name</th>
                 <th>Data Type</th>
+                <th>Sensitivity</th>
                 <th>Pattern</th>
                 <th>Unique Values</th>
                 <th>Missing Values</th>
@@ -371,6 +477,7 @@ function DataProfile() {
               {columns.map((column) => {
                 const nullCount = column.missing || 0;
                 const missingPercentage = Math.round((nullCount / totalRows) * 100);
+                const columnTag = columnTags.find(tag => tag.column_name === column.name);
                 
                 // Format patterns for display
                 const formatPatterns = (patterns) => {
@@ -387,6 +494,25 @@ function DataProfile() {
                   <tr key={column.name}>
                     <td>{column.name}</td>
                     <td>{column.type}</td>
+                    <td className="sensitivity-cell">
+                      {columnTag ? (
+                        <span className={`sensitivity-badge sensitivity-${columnTag.classification_level.toLowerCase()}`}>
+                          {columnTag.classification_level}
+                        </span>
+                      ) : (
+                        <span className="no-tag">Unclassified</span>
+                      )}
+                      <button 
+                        className="btn-icon-small" 
+                        onClick={() => {
+                          setSelectedColumn(column.name);
+                          setShowTagModal(true);
+                        }}
+                        title="Edit sensitivity tag"
+                      >
+                        <FiEdit2 />
+                      </button>
+                    </td>
                     <td className="pattern-cell">{formatPatterns(column.patterns)}</td>
                     <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
@@ -703,6 +829,23 @@ function DataProfile() {
               onSave={async () => {
                 await fetchOwnership();
                 setShowOwnershipModal(false);
+              }}
+            />
+          )}
+          
+          {showTagModal && selectedColumn && (
+            <SensitivityTagModal
+              fileId={fileId}
+              columnName={selectedColumn}
+              currentTag={columnTags.find(tag => tag.column_name === selectedColumn)}
+              onClose={() => {
+                setShowTagModal(false);
+                setSelectedColumn(null);
+              }}
+              onSave={async () => {
+                await fetchColumnTags();
+                setShowTagModal(false);
+                setSelectedColumn(null);
               }}
             />
           )}
