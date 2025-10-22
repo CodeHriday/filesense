@@ -16,11 +16,13 @@ const APP_FEATURES = [
   { id: 'quality_checks', name: 'Quality Checks', category: 'Core' },
   { id: 'alerts', name: 'Alerts', category: 'Core' },
   { id: 'onboarding_wizard', name: 'Onboarding Wizard', category: 'Core' },
-  { id: 'connections', name: 'Connections', category: 'Data Sources' },
-  { id: 'mappings', name: 'Data Mappings', category: 'Data Sources' },
+  { id: 'connection', name: 'Connections', category: 'Data Sources', supportsExecute: true },
+  { id: 'transformation', name: 'Data Mappings', category: 'Data Sources', supportsExecute: true },
+  { id: 'mapping_group', name: 'Batch Groups', category: 'Data Sources', supportsExecute: true },
+  { id: 'workflow', name: 'Workflows', category: 'Data Sources', supportsExecute: true },
   { id: 'lineage', name: 'File Lineage', category: 'Data Sources' },
   { id: 'monitor', name: 'Monitor', category: 'Monitoring' },
-  { id: 'scheduler', name: 'File Scheduler', category: 'Monitoring' },
+  { id: 'schedule', name: 'Schedules', category: 'Monitoring', supportsExecute: true },
   { id: 'badges', name: 'Achievement Badges', category: 'Insights' },
   { id: 'insights', name: 'AI Insights', category: 'Insights' },
   { id: 'recommendations', name: 'Recommendations', category: 'Insights' },
@@ -104,7 +106,11 @@ const RoleManagement = () => {
   const initializePermissions = () => {
     const permissions = {};
     APP_FEATURES.forEach(feature => {
-      permissions[feature.id] = { read: false, write: false };
+      permissions[feature.id] = { 
+        read: false, 
+        write: false,
+        execute: feature.supportsExecute ? false : undefined
+      };
     });
     return permissions;
   };
@@ -151,7 +157,7 @@ const RoleManagement = () => {
         // Handle regular permissions: "featureId:action"
         else if (parts.length === 2) {
           const [featureId, action] = parts;
-          if (permissionsObj[featureId] && (action === 'read' || action === 'write')) {
+          if (permissionsObj[featureId] && (action === 'read' || action === 'write' || action === 'execute')) {
             permissionsObj[featureId][action] = true;
           }
         }
@@ -202,9 +208,21 @@ const RoleManagement = () => {
         }
       }
       
-      // If read permission is unchecked, also uncheck write permission
+      // If execute permission is checked, also check read permission
+      if (action === 'execute' && checked) {
+        updatedPermissions[featureId].read = true;
+        const readCheckbox = document.getElementById(`${featureId}-read`);
+        if (readCheckbox && !readCheckbox.checked) {
+          readCheckbox.checked = true;
+        }
+      }
+      
+      // If read permission is unchecked, also uncheck write and execute permissions
       if (action === 'read' && !checked) {
         updatedPermissions[featureId].write = false;
+        if (updatedPermissions[featureId].execute !== undefined) {
+          updatedPermissions[featureId].execute = false;
+        }
       }
       
       return {
@@ -252,6 +270,9 @@ const RoleManagement = () => {
       }
       if (actions.write) {
         result.push(`${featureId}:write`);
+      }
+      if (actions.execute) {
+        result.push(`${featureId}:execute`);
       }
     });
     
@@ -532,43 +553,64 @@ const RoleManagement = () => {
                 <h3 className="permissions-title">Feature Permissions</h3>
                 <p>Select which features this role can access and modify.</p>
                 
-                {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => (
-                  <div key={category} className="permission-category">
-                    <div className="permissions-grid">
-                      <div className="permission-header feature-name">{category}</div>
-                      <div className="permission-header">View</div>
-                      <div className="permission-header">Edit</div>
-                      
+                {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => {
+                  const hasExecuteFeatures = features.some(f => f.supportsExecute);
+                  
+                  return (
+                    <div key={category} className="permission-category">
+                      <div className={hasExecuteFeatures ? "permissions-grid-with-execute" : "permissions-grid"}>
+                        <div className="permission-header feature-name">{category}</div>
+                        <div className="permission-header">View</div>
+                        <div className="permission-header">Edit</div>
+                        {hasExecuteFeatures && <div className="permission-header">Execute</div>}
+                        
+                        <div className="section-divider"></div>
+                        
+                        {features.map(feature => (
+                          <React.Fragment key={feature.id}>
+                            <div className="feature-name">{feature.name}</div>
+                            <div className="permission-checkbox">
+                              <input
+                                type="checkbox"
+                                id={`${feature.id}-read`}
+                                checked={formData.permissions[feature.id]?.read || false}
+                                onChange={(e) => handlePermissionChange(feature.id, 'read', e.target.checked)}
+                                aria-label={`View permission for ${feature.name}`}
+                              />
+                            </div>
+                            <div className="permission-checkbox">
+                              <input
+                                type="checkbox"
+                                id={`${feature.id}-write`}
+                                checked={formData.permissions[feature.id]?.write || false}
+                                onChange={(e) => handlePermissionChange(feature.id, 'write', e.target.checked)}
+                                aria-label={`Edit permission for ${feature.name}`}
+                                disabled={!formData.permissions[feature.id]?.read}
+                              />
+                            </div>
+                            {hasExecuteFeatures && (
+                              <div className="permission-checkbox">
+                                {feature.supportsExecute ? (
+                                  <input
+                                    type="checkbox"
+                                    id={`${feature.id}-execute`}
+                                    checked={formData.permissions[feature.id]?.execute || false}
+                                    onChange={(e) => handlePermissionChange(feature.id, 'execute', e.target.checked)}
+                                    aria-label={`Execute permission for ${feature.name}`}
+                                    disabled={!formData.permissions[feature.id]?.read}
+                                  />
+                                ) : (
+                                  <span className="permission-na">-</span>
+                                )}
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
                       <div className="section-divider"></div>
-                      
-                      {features.map(feature => (
-                        <React.Fragment key={feature.id}>
-                          <div className="feature-name">{feature.name}</div>
-                          <div className="permission-checkbox">
-                            <input
-                              type="checkbox"
-                              id={`${feature.id}-read`}
-                              checked={formData.permissions[feature.id]?.read || false}
-                              onChange={(e) => handlePermissionChange(feature.id, 'read', e.target.checked)}
-                              aria-label={`View permission for ${feature.name}`}
-                            />
-                          </div>
-                          <div className="permission-checkbox">
-                            <input
-                              type="checkbox"
-                              id={`${feature.id}-write`}
-                              checked={formData.permissions[feature.id]?.write || false}
-                              onChange={(e) => handlePermissionChange(feature.id, 'write', e.target.checked)}
-                              aria-label={`Edit permission for ${feature.name}`}
-                              disabled={!formData.permissions[feature.id]?.read}
-                            />
-                          </div>
-                        </React.Fragment>
-                      ))}
                     </div>
-                    <div className="section-divider"></div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               
               {/* Tag Permissions Section */}
