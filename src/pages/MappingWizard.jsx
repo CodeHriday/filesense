@@ -164,6 +164,21 @@ function MappingWizard() {
       }
       setMaxCompletedStep(maxStep);
       
+      // Automatically navigate to the last completed step for easy editing
+      setCurrentStep(maxStep);
+      
+      // If we're jumping to step 3 (field mappings), extract schema automatically
+      if (maxStep >= 3 && (!mapping.field_mappings || mapping.field_mappings.length === 0)) {
+        await extractSchema();
+      } else if (maxStep >= 3) {
+        // Schema exists from field mappings, reconstruct it
+        const schemaFromMappings = mapping.field_mappings.map(fm => ({
+          name: fm.source_field,
+          type: 'string' // Default type, can be enhanced later
+        }));
+        setSchema(schemaFromMappings);
+      }
+      
       setError(null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load mapping');
