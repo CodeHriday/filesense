@@ -274,6 +274,14 @@ router.delete('/:id', async (req, res) => {
  */
 router.get('/:id/test', async (req, res) => {
   try {
+    // Check if user has connection:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('connection:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to test connections. Contact your administrator.'
+      });
+    }
+    
     console.log('[TEST SAVED CONNECTION] Testing connection ID:', req.params.id);
     
     // Fetch the connection from database
@@ -307,6 +315,14 @@ router.get('/:id/test', async (req, res) => {
  */
 router.post('/:id/test', async (req, res) => {
   try {
+    // Check if user has connection:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('connection:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to test connections. Contact your administrator.'
+      });
+    }
+    
     const { connection_type, ...formConfig } = req.body;
     
     console.log('[TEST WITH UPDATES] Connection ID:', req.params.id);
@@ -369,6 +385,14 @@ router.post('/:id/test', async (req, res) => {
  */
 router.post('/test', async (req, res) => {
   try {
+    // Check if user has connection:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('connection:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to test connections. Contact your administrator.'
+      });
+    }
+    
     const { connection_type, ...configDetails } = req.body;
     
     // DEBUG: Log what we received for testing

@@ -341,6 +341,14 @@ router.delete('/:id/members/:memberId', async (req, res) => {
 // Execute a mapping group
 router.post('/:id/execute', async (req, res) => {
   try {
+    // Check if user has mapping_group:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('mapping_group:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to execute mapping groups. Contact your administrator.'
+      });
+    }
+    
     const { id } = req.params;
     
     // Fetch group data from database

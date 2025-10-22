@@ -5251,6 +5251,14 @@ app.delete('/api/job-schedules/:id', async (req, res) => {
 // Run a schedule immediately
 app.post('/api/schedules/:id/run', async (req, res) => {
   try {
+    // Check if user has schedule:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('schedule:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to execute schedules. Contact your administrator.'
+      });
+    }
+    
     const { id } = req.params;
     
     // First, get the schedule
@@ -6391,6 +6399,14 @@ app.delete('/api/jobs/:id', authenticateToken, async (req, res) => {
 // Run a job manually
 app.post('/api/jobs/:id/run', authenticateToken, async (req, res) => {
   try {
+    // Check if user has job:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('job:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to execute jobs. Contact your administrator.'
+      });
+    }
+    
     const { id } = req.params;
     const userId = req.user.id;
     

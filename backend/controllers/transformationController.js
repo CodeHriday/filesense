@@ -103,6 +103,14 @@ const deleteTransformation = asyncHandler(async (req, res) => {
  * Execute a transformation
  */
 const executeTransformation = asyncHandler(async (req, res) => {
+  // Check if user has transformation:execute permission
+  if (!req.user || !req.user.permissions || !req.user.permissions.includes('transformation:execute')) {
+    return res.status(403).json({ 
+      error: 'Access denied',
+      message: 'You do not have permission to execute transformations. Contact your administrator.'
+    });
+  }
+  
   const transformationId = req.params.id;
   const options = {
     parameters: (req.body && req.body.parameters) ? req.body.parameters : {},

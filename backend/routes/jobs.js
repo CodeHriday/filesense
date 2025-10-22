@@ -214,6 +214,14 @@ router.get('/:id/logs', async (req, res) => {
  */
 router.post('/:id/cancel', async (req, res) => {
   try {
+    // Check if user has job:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('job:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to cancel jobs. Contact your administrator.'
+      });
+    }
+    
     const { id } = req.params;
     
     const updatedJob = await cancelJob(pool, id);

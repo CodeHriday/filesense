@@ -158,6 +158,14 @@ router.delete('/:id', async (req, res) => {
 
 router.post('/:id/execute', async (req, res) => {
   try {
+    // Check if user has workflow:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('workflow:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to execute workflows. Contact your administrator.'
+      });
+    }
+    
     const { id } = req.params;
 
     const workflowCheck = await pool.query(
