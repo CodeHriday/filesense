@@ -705,7 +705,10 @@ function DataProfile() {
                     const totalRows = file.row_count || basicInfo.rowCount || 100;
                     const nullCount = column.missing || 0;
                     const completeness = Math.round(((totalRows - nullCount) / totalRows) * 100);
-                    const columnTag = columnTags.find(tag => tag.column_name === column.name);
+                    
+                    // Get column-level governance data
+                    const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
+                    const columnPoliciesData = allColumnPolicies[column.name] || [];
                     
                     return (
                       <tr key={column.name} className="completeness-row">
@@ -725,11 +728,20 @@ function DataProfile() {
                           </div>
                         </td>
                         <td className="col-tags">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {columnTag ? (
-                              <span className={`sensitivity-badge sensitivity-${columnTag.classification_level.toLowerCase()}`}>
-                                {columnTag.classification_level}
-                              </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            {columnGovernanceTags.length > 0 ? (
+                              columnGovernanceTags.map(tagAssignment => (
+                                <span key={tagAssignment.tag_id} className="tag-badge" style={{ 
+                                  backgroundColor: tagAssignment.tag_color || '#3b82f6',
+                                  color: 'white',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '12px',
+                                  fontWeight: '500'
+                                }}>
+                                  {tagAssignment.tag_name}
+                                </span>
+                              ))
                             ) : (
                               <span className="no-tag">—</span>
                             )}
@@ -749,8 +761,8 @@ function DataProfile() {
                         </td>
                         <td className="col-policies">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {policies.length > 0 ? (
-                              <span className="policies-count">{policies.length} {policies.length === 1 ? 'policy' : 'policies'}</span>
+                            {columnPoliciesData.length > 0 ? (
+                              <span className="policies-count">{columnPoliciesData.length} {columnPoliciesData.length === 1 ? 'policy' : 'policies'}</span>
                             ) : (
                               <span className="no-policy">—</span>
                             )}
