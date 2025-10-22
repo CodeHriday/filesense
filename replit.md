@@ -16,7 +16,15 @@ The application features a hybrid architecture:
 -   **File Storage**: Local file system with integrated support for AWS S3, Google Cloud Storage, and Azure Blob Storage. All file uploads are scanned by ClamAV for viruses.
 -   **Caching**: Multi-layer caching with Redis and in-memory fallback for frequently accessed data and API responses, with automatic invalidation.
 -   **DBT Integration**: Configured for DBT Core and dbt-postgres for data transformations, including a UI for model discovery, execution, and monitoring.
--   **Security**: ClamAV integration for virus scanning on all uploads, automatic deletion of infected files, role-based access control, and AES-256-CBC encryption for cloud credentials.
+-   **Security**: ClamAV integration for virus scanning on all uploads, automatic deletion of infected files, enterprise-grade RBAC with column-level security, and AES-256-CBC encryption for cloud credentials.
+-   **RBAC & Column-Level Security**: Complete role-based access control system with:
+    -   **5 Default Roles**: Admin (full access), Data Steward (governance focus with tag management), Data Engineer (transformations/workflows), Analyst (read + execute), Viewer (read-only)
+    -   **Tag-Based Permissions**: Fine-grained column access via tag permissions (tag:pii:read, tag:pii:edit, tag:confidential:*, tag:financial:*)
+    -   **Column Masking**: Intelligent data masking for unauthorized users (email: a***@domain.com, SSN: ***-**-1234, generic: ab****yz)
+    -   **Permission Levels**: Tags support permission_level (Public/Restricted/Private) and sensitivity_level for data classification
+    -   **Access Control Service**: backend/services/columnAccessControl.js handles permission checks and data filtering
+    -   **User-Aware Caching**: Cache keys include user ID to prevent cross-user data leaks
+    -   **Audit Trail**: Enhanced logging captures masked/denied column access with user, role, and operation details
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
 -   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
 -   **Workflow Orchestration**: Complete orchestration system with:
