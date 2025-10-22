@@ -101,11 +101,15 @@ function createProjectRoutes(dbPool) {
 
       const newProject = result.rows[0];
 
+      // Get Admin role ID (use Admin as default project owner role since project-specific roles don't exist yet)
+      const roleResult = await dbPool.query('SELECT id FROM roles WHERE name = $1 LIMIT 1', ['Admin']);
+      const roleId = roleResult.rows[0]?.id || 1; // Fallback to role ID 1 if not found
+
       // Add creator as project owner
       await dbPool.query(`
-        INSERT INTO project_members (project_id, user_id, role)
+        INSERT INTO project_members (project_id, user_id, role_id)
         VALUES ($1, $2, $3)
-      `, [newProject.id, userId, 'Owner']);
+      `, [newProject.id, userId, roleId]);
 
       systemLogger.info('Project created', {
         userId,
@@ -247,18 +251,22 @@ function createProjectRoutes(dbPool) {
         return res.status(400).json({ error: 'user_id and role are required' });
       }
 
-      const validRoles = ['Owner', 'Admin', 'Member', 'Viewer'];
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+      // Get role_id from roles table
+      const roleResult = await dbPool.query('SELECT id FROM roles WHERE name = $1 LIMIT 1', [role]);
+      
+      if (!roleResult.rows[0]) {
+        return res.status(400).json({ error: `Invalid role: ${role}` });
       }
+      
+      const roleId = roleResult.rows[0].id;
 
       const result = await dbPool.query(`
-        INSERT INTO project_members (project_id, user_id, role)
+        INSERT INTO project_members (project_id, user_id, role_id)
         VALUES ($1, $2, $3)
-        ON CONFLICT (project_id, user_id) 
-        DO UPDATE SET role = $3, updated_at = NOW()
+        ON CONFLICT (project_id, user_id, role_id) 
+        DO UPDATE SET updated_at = NOW()
         RETURNING *
-      `, [projectId, user_id, role]);
+      `, [projectId, user_id, roleId]);
 
       systemLogger.info('Project member added', {
         userId: req.user?.id,
