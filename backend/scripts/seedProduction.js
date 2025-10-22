@@ -36,8 +36,16 @@ const DEFAULT_ROLES = [
     description: 'Full system access with all permissions'
   },
   {
-    name: 'User',
-    description: 'Standard user with read/write access to their own data'
+    name: 'Data Steward',
+    description: 'Manages data governance including tags, policies, and data quality rules'
+  },
+  {
+    name: 'Data Engineer',
+    description: 'Creates and manages transformations, workflows, and schedules'
+  },
+  {
+    name: 'Analyst',
+    description: 'Views insights, runs approved jobs, and reads files'
   },
   {
     name: 'Viewer',
@@ -72,31 +80,151 @@ const DEFAULT_PERMISSIONS = [
   { name: 'transformation:delete', resource: 'transformation', action: 'delete', description: 'Delete transformations' },
   { name: 'transformation:execute', resource: 'transformation', action: 'execute', description: 'Execute transformations' },
   
+  // Workflow management
+  { name: 'workflow:create', resource: 'workflow', action: 'create', description: 'Create workflows' },
+  { name: 'workflow:read', resource: 'workflow', action: 'read', description: 'View workflows' },
+  { name: 'workflow:update', resource: 'workflow', action: 'update', description: 'Update workflows' },
+  { name: 'workflow:delete', resource: 'workflow', action: 'delete', description: 'Delete workflows' },
+  { name: 'workflow:execute', resource: 'workflow', action: 'execute', description: 'Execute workflows' },
+  
+  // Job management
+  { name: 'job:create', resource: 'job', action: 'create', description: 'Create jobs' },
+  { name: 'job:read', resource: 'job', action: 'read', description: 'View jobs' },
+  { name: 'job:update', resource: 'job', action: 'update', description: 'Update jobs' },
+  { name: 'job:delete', resource: 'job', action: 'delete', description: 'Delete jobs' },
+  { name: 'job:execute', resource: 'job', action: 'execute', description: 'Execute jobs' },
+  
+  // Schedule management
+  { name: 'schedule:create', resource: 'schedule', action: 'create', description: 'Create schedules' },
+  { name: 'schedule:read', resource: 'schedule', action: 'read', description: 'View schedules' },
+  { name: 'schedule:update', resource: 'schedule', action: 'update', description: 'Update schedules' },
+  { name: 'schedule:delete', resource: 'schedule', action: 'delete', description: 'Delete schedules' },
+  
+  // Connection management
+  { name: 'connection:create', resource: 'connection', action: 'create', description: 'Create connections' },
+  { name: 'connection:read', resource: 'connection', action: 'read', description: 'View connections' },
+  { name: 'connection:update', resource: 'connection', action: 'update', description: 'Update connections' },
+  { name: 'connection:delete', resource: 'connection', action: 'delete', description: 'Delete connections' },
+  
+  // Tag management
+  { name: 'tag:create', resource: 'tag', action: 'create', description: 'Create governance tags' },
+  { name: 'tag:read', resource: 'tag', action: 'read', description: 'View governance tags' },
+  { name: 'tag:update', resource: 'tag', action: 'update', description: 'Update governance tags' },
+  { name: 'tag:delete', resource: 'tag', action: 'delete', description: 'Delete governance tags' },
+  { name: 'tag:assign', resource: 'tag', action: 'assign', description: 'Assign tags to files/columns' },
+  
+  // Policy management
+  { name: 'policy:create', resource: 'policy', action: 'create', description: 'Create governance policies' },
+  { name: 'policy:read', resource: 'policy', action: 'read', description: 'View governance policies' },
+  { name: 'policy:update', resource: 'policy', action: 'update', description: 'Update governance policies' },
+  { name: 'policy:delete', resource: 'policy', action: 'delete', description: 'Delete governance policies' },
+  { name: 'policy:assign', resource: 'policy', action: 'assign', description: 'Assign policies to files/columns' },
+  
+  // Tag-based data access permissions (for sensitive data)
+  { name: 'tag:pii:read', resource: 'tag:pii', action: 'read', description: 'View PII tagged columns' },
+  { name: 'tag:pii:edit', resource: 'tag:pii', action: 'edit', description: 'Edit PII tagged columns' },
+  { name: 'tag:confidential:read', resource: 'tag:confidential', action: 'read', description: 'View confidential tagged columns' },
+  { name: 'tag:confidential:edit', resource: 'tag:confidential', action: 'edit', description: 'Edit confidential tagged columns' },
+  { name: 'tag:financial:read', resource: 'tag:financial', action: 'read', description: 'View financial tagged columns' },
+  { name: 'tag:financial:edit', resource: 'tag:financial', action: 'edit', description: 'Edit financial tagged columns' },
+  
   // Dashboard access
   { name: 'dashboard:read', resource: 'dashboard', action: 'read', description: 'View dashboards' },
   
   // Insights access
   { name: 'insights:read', resource: 'insights', action: 'read', description: 'View insights' },
+  { name: 'recommendations:read', resource: 'recommendations', action: 'read', description: 'View recommendations' },
+  { name: 'badges:read', resource: 'badges', action: 'read', description: 'View achievement badges' },
+  { name: 'stories:read', resource: 'stories', action: 'read', description: 'View data stories' },
+  
+  // Monitoring
+  { name: 'monitor:read', resource: 'monitor', action: 'read', description: 'View system monitoring' },
   
   // Audit logs
-  { name: 'audit:read', resource: 'audit', action: 'read', description: 'View audit logs' }
+  { name: 'audit:read', resource: 'audit', action: 'read', description: 'View audit logs' },
+  
+  // DBT operations
+  { name: 'dbt:read', resource: 'dbt', action: 'read', description: 'View DBT models' },
+  { name: 'dbt:execute', resource: 'dbt', action: 'execute', description: 'Execute DBT commands' }
 ];
 
 // Role-Permission mappings
 const ROLE_PERMISSIONS = {
   'Admin': '*', // All permissions
-  'User': [
-    'user:read',
+  
+  'Data Steward': [
+    // Data governance
+    'tag:create', 'tag:read', 'tag:update', 'tag:delete', 'tag:assign',
+    'policy:create', 'policy:read', 'policy:update', 'policy:delete', 'policy:assign',
+    // Tag-based data access (can view and edit all sensitive data)
+    'tag:pii:read', 'tag:pii:edit',
+    'tag:confidential:read', 'tag:confidential:edit',
+    'tag:financial:read', 'tag:financial:edit',
+    // File management
     'file:create', 'file:read', 'file:update', 'file:delete',
-    'transformation:create', 'transformation:read', 'transformation:update', 'transformation:delete', 'transformation:execute',
-    'dashboard:read',
-    'insights:read'
+    // Read-only access to transformations and workflows
+    'transformation:read', 'workflow:read', 'job:read', 'schedule:read',
+    // Monitoring
+    'monitor:read', 'audit:read',
+    // Dashboard and insights
+    'dashboard:read', 'insights:read', 'recommendations:read', 'badges:read', 'stories:read'
   ],
+  
+  'Data Engineer': [
+    // Transformation and workflow management
+    'transformation:create', 'transformation:read', 'transformation:update', 'transformation:delete', 'transformation:execute',
+    'workflow:create', 'workflow:read', 'workflow:update', 'workflow:delete', 'workflow:execute',
+    'job:create', 'job:read', 'job:update', 'job:delete', 'job:execute',
+    'schedule:create', 'schedule:read', 'schedule:update', 'schedule:delete',
+    // Connection management
+    'connection:create', 'connection:read', 'connection:update', 'connection:delete',
+    // File management
+    'file:create', 'file:read', 'file:update', 'file:delete',
+    // Can apply existing tags (not create new ones)
+    'tag:read', 'tag:assign',
+    'policy:read', 'policy:assign',
+    // Limited sensitive data access (read only, no edit)
+    'tag:pii:read',
+    'tag:confidential:read',
+    'tag:financial:read',
+    // DBT operations
+    'dbt:read', 'dbt:execute',
+    // Monitoring
+    'monitor:read',
+    // Dashboard and insights
+    'dashboard:read', 'insights:read', 'recommendations:read', 'badges:read', 'stories:read'
+  ],
+  
+  'Analyst': [
+    // Read-only file access
+    'file:read',
+    // Can execute approved jobs and transformations
+    'job:read', 'job:execute',
+    'transformation:read',
+    'workflow:read',
+    // View tags and policies
+    'tag:read',
+    'policy:read',
+    // NO sensitive data access by default (must be explicitly granted per tag)
+    // Dashboard and insights (primary use case)
+    'dashboard:read', 'insights:read', 'recommendations:read', 'badges:read', 'stories:read',
+    // View schedules
+    'schedule:read',
+    // DBT read-only
+    'dbt:read'
+  ],
+  
   'Viewer': [
+    // Read-only access to basic features
     'file:read',
     'transformation:read',
-    'dashboard:read',
-    'insights:read'
+    'workflow:read',
+    'job:read',
+    'schedule:read',
+    'tag:read',
+    'policy:read',
+    // Dashboard and insights
+    'dashboard:read', 'insights:read', 'recommendations:read', 'badges:read', 'stories:read'
   ]
 };
 

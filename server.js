@@ -842,8 +842,9 @@ app.get('/api/files/:fileId/status', async (req, res) => {
   }
 });
 
-// File preview endpoint (with caching) - reads from file_preview_data table
-app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => {
+// File preview endpoint (with caching and column-level access control)
+// NOTE: authenticateToken MUST come before cacheMiddleware so req.user is populated for cache key generation
+app.get('/api/files/:fileId/preview', authenticateToken, cacheMiddleware(300), async (req, res) => {
   try {
     const { fileId } = req.params;
     const { limit = 100 } = req.query;
@@ -889,7 +890,16 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
       return row.row_data;
     });
     
-    // Log data access for audit trail
+    // Apply column-level access control
+    const columnAccessControl = require('./backend/services/columnAccessControl');
+    const { data: filteredData, columnAccess, summary } = await columnAccessControl.filterDataset(
+      req.user,
+      fileId,
+      previewData,
+      'read' // Preview is read-only
+    );
+    
+    // Log data access for audit trail (including which columns were masked)
     if (req.auditService) {
       await req.auditService.logDataAccess({
         userId: req.user?.id,
@@ -899,10 +909,13 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
         fileName: file.filename,
         columnNames: columns.map(c => c.name),
         accessMethod: 'UI',
-        rowsAccessed: previewData.length,
+        rowsAccessed: filteredData.length,
         metadata: {
           totalRows: file.row_count,
-          rowLimit: rowLimit
+          rowLimit: rowLimit,
+          columnAccessSummary: summary,
+          maskedColumns: columnAccess.masked.map(c => c.name),
+          deniedColumns: columnAccess.denied.map(c => c.name)
         },
         context: req.auditContext
       });
@@ -911,9 +924,11 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     res.json({
       fileId,
       columns,
-      rows: previewData,
+      rows: filteredData,
       totalRows: file.row_count,
-      preview: true
+      preview: true,
+      columnAccess, // Include column access metadata for frontend
+      accessSummary: summary // Include summary of allowed/masked/denied columns
     });
   } catch (err) {
     logger.error('Error generating file preview', { error: err.message, fileId: req.params.fileId });
@@ -2155,6 +2170,7 @@ const createGovernanceTagsTables = require('./backend/migrations/createGovernanc
 const addSensitivityToFileOwnership = require('./backend/migrations/addSensitivityToFileOwnership');
 const createColumnGovernanceTables = require('./backend/migrations/createColumnGovernanceTables');
 const addCreatorToFileOwnership = require('./backend/migrations/addCreatorToFileOwnership');
+const addTagPermissionLevels = require('./backend/migrations/addTagPermissionLevels');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2274,6 +2290,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ File ownership creator columns migration completed');
+    
+    // Add permission levels to governance tags
+    return addTagPermissionLevels(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Tag permission levels migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
