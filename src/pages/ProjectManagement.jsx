@@ -342,45 +342,8 @@ function ProjectManagement() {
               <h2>Create New Project</h2>
               <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
             </div>
-            <form onSubmit={handleCreate}>
-              <div className="form-group">
-                <label>Project Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows="3"
-                />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">Create Project</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showEditModal && selectedProject && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Edit Project - {selectedProject.name}</h2>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
-            </div>
-            <div className="modal-content-sections">
-              <form onSubmit={handleUpdate}>
-                <h3>Project Details</h3>
+            <div className="modal-body">
+              <form onSubmit={handleCreate} style={{ padding: '1.5rem' }}>
                 <div className="form-group">
                   <label>Project Name *</label>
                   <input
@@ -398,10 +361,50 @@ function ProjectManagement() {
                     rows="3"
                   />
                 </div>
-                <div className="modal-actions">
-                  <button type="submit" className="btn-primary">Update Details</button>
-                </div>
               </form>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary" onClick={handleCreate}>Create Project</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && selectedProject && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Project - {selectedProject.name}</h2>
+              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-content-sections">
+                <form onSubmit={handleUpdate}>
+                  <h3>Project Details</h3>
+                  <div className="form-group">
+                    <label>Project Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows="3"
+                    />
+                  </div>
+                  <div style={{ marginTop: '1rem' }}>
+                    <button type="submit" className="btn-primary">Update Details</button>
+                  </div>
+                </form>
 
               <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
 
@@ -437,7 +440,7 @@ function ProjectManagement() {
                   </div>
                 </form>
 
-                <div className="members-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <div className="scrollable-list">
                   <table className="compact-table">
                     <thead>
                       <tr>
@@ -492,7 +495,7 @@ function ProjectManagement() {
                   </div>
                 </form>
 
-                <div className="groups-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <div className="scrollable-list">
                   <table className="compact-table">
                     <thead>
                       <tr>
@@ -523,12 +526,12 @@ function ProjectManagement() {
                   </table>
                 </div>
               </div>
-
-              <div className="modal-actions" style={{ marginTop: '1.5rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                  Close
-                </button>
               </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                Close
+              </button>
             </div>
           </div>
         </div>
