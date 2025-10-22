@@ -345,18 +345,29 @@ function Sidebar() {
             )}
             
             {/* Governance section */}
-            {checkPermissions(['lineage', 'lineage:read', 'lineage_view']) && (
+            {(checkPermissions(['lineage', 'lineage:read', 'lineage_view']) || isAdmin) && (
               <>
                 <li className="nav-divider">
-                  <span>Governance</span>
+                  <span>Data Governance</span>
                 </li>
                 
-                <li>
-                  <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiGitBranch className="icon" />
-                    <span>File Lineage</span>
-                  </NavLink>
-                </li>
+                {checkPermissions(['lineage', 'lineage:read', 'lineage_view']) && (
+                  <li>
+                    <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiGitBranch className="icon" />
+                      <span>File Lineage</span>
+                    </NavLink>
+                  </li>
+                )}
+                
+                {isAdmin && (
+                  <li>
+                    <NavLink to="/policy-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                      <FiShield className="icon" />
+                      <span>Policy Management</span>
+                    </NavLink>
+                  </li>
+                )}
               </>
             )}
             
