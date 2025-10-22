@@ -426,6 +426,15 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
   // Helper function to get function syntax template
   const getFunctionSyntax = (transformOption) => {
+    // Special syntax for conditional functions
+    if (transformOption.value === 'if') {
+      return `if(column, 'equals', 'value', 'then_result', 'else_result')`;
+    }
+    
+    if (transformOption.value === 'case_when') {
+      return `case_when(column, [{"operator":"equals","compareValue":"A","result":"X"}], 'default')`;
+    }
+    
     if (transformOption.params.length === 0) {
       return `${transformOption.value}(column)`;
     }
@@ -1080,10 +1089,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       }
                       return acc;
                     }, []).map((group, idx) => (
-                      <div key={idx}>
-                        <div className="function-group-header">{group.group}</div>
+                      <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
+                        <div className={`function-group-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}>
+                          {group.group === 'Conditional' && '⚡ '}
+                          {group.group}
+                        </div>
                         {group.options.map(opt => (
-                          <div key={opt.value} className="function-item">
+                          <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
                             <div className="function-item-header">
                               <div className="function-item-name">{opt.label}</div>
                               <button 
@@ -1095,6 +1107,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                               </button>
                             </div>
                             <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                            {opt.description && (
+                              <div className="function-item-description">{opt.description}</div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1236,10 +1251,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       }
                       return acc;
                     }, []).map((group, idx) => (
-                      <div key={idx}>
-                        <div className="function-group-header">{group.group}</div>
+                      <div key={idx} className={group.group === 'Conditional' ? 'function-group-conditional' : ''}>
+                        <div className={`function-group-header ${group.group === 'Conditional' ? 'conditional-header' : ''}`}>
+                          {group.group === 'Conditional' && '⚡ '}
+                          {group.group}
+                        </div>
                         {group.options.map(opt => (
-                          <div key={opt.value} className="function-item">
+                          <div key={opt.value} className={`function-item ${opt.group === 'Conditional' ? 'function-item-conditional' : ''}`}>
                             <div className="function-item-header">
                               <div className="function-item-name">{opt.label}</div>
                               <button 
@@ -1251,6 +1269,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                               </button>
                             </div>
                             <div className="function-item-syntax">{getFunctionSyntax(opt)}</div>
+                            {opt.description && (
+                              <div className="function-item-description">{opt.description}</div>
+                            )}
                           </div>
                         ))}
                       </div>
