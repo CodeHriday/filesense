@@ -504,20 +504,42 @@ function DataProfile() {
                           </div>
                         </td>
                         <td className="col-tags">
-                          {columnTag ? (
-                            <span className={`sensitivity-badge sensitivity-${columnTag.classification_level.toLowerCase()}`}>
-                              {columnTag.classification_level}
-                            </span>
-                          ) : (
-                            <span className="no-tag">—</span>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {columnTag ? (
+                              <span className={`sensitivity-badge sensitivity-${columnTag.classification_level.toLowerCase()}`}>
+                                {columnTag.classification_level}
+                              </span>
+                            ) : (
+                              <span className="no-tag">—</span>
+                            )}
+                            <button 
+                              className="btn-icon-small" 
+                              onClick={() => {
+                                // TODO: Open column tags modal
+                              }}
+                              title="Edit column tags"
+                            >
+                              <FiEdit2 />
+                            </button>
+                          </div>
                         </td>
                         <td className="col-policies">
-                          {policies.length > 0 ? (
-                            <span className="policies-count">{policies.length} {policies.length === 1 ? 'policy' : 'policies'}</span>
-                          ) : (
-                            <span className="no-policy">—</span>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {policies.length > 0 ? (
+                              <span className="policies-count">{policies.length} {policies.length === 1 ? 'policy' : 'policies'}</span>
+                            ) : (
+                              <span className="no-policy">—</span>
+                            )}
+                            <button 
+                              className="btn-icon-small" 
+                              onClick={() => {
+                                // TODO: Open column policies modal
+                              }}
+                              title="Edit column policies"
+                            >
+                              <FiEdit2 />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
