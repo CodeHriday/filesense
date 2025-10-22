@@ -842,13 +842,13 @@ app.get('/api/files/:fileId/status', async (req, res) => {
   }
 });
 
-// File preview endpoint (with caching)
+// File preview endpoint (with caching) - reads from file_preview_data table
 app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => {
   try {
     const { fileId } = req.params;
     const { limit = 100 } = req.query;
     
-    // Get file details with metadata
+    // Get file details
     const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
     
     if (fileResult.rows.length === 0) {
@@ -857,18 +857,6 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     
     const file = fileResult.rows[0];
     
-    // Parse metadata to get preview data
-    let metadata = {};
-    if (typeof file.metadata === 'string') {
-      try {
-        metadata = JSON.parse(file.metadata);
-      } catch (e) {
-        logger.error('Failed to parse file metadata', { fileId, error: e.message });
-      }
-    } else if (typeof file.metadata === 'object' && file.metadata !== null) {
-      metadata = file.metadata;
-    }
-    
     // Get column information
     const columnsResult = await dbPool.query(
       'SELECT * FROM file_columns WHERE file_id = $1 ORDER BY column_index ASC',
@@ -876,17 +864,30 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     );
     
     if (columnsResult.rows.length === 0) {
-      logger.warn('No columns found in file_columns table, will extract from preview data', { fileId });
+      logger.warn('No columns found in file_columns table', { fileId });
     }
     
     const columns = columnsResult.rows.map(col => ({ name: col.column_name, type: col.column_type }));
     
-    // Get preview data from metadata (stored during processing)
-    const previewData = metadata.preview_data || [];
+    // Get preview data from file_preview_data table
     const rowLimit = parseInt(limit) || 100;
+    const previewResult = await dbPool.query(
+      'SELECT row_number, row_data FROM file_preview_data WHERE file_id = $1 ORDER BY row_number ASC LIMIT $2',
+      [fileId, rowLimit]
+    );
     
-    // Limit preview data to requested rows
-    const limitedPreviewData = previewData.slice(0, rowLimit);
+    // Extract row data from JSONB column
+    const previewData = previewResult.rows.map(row => {
+      if (typeof row.row_data === 'string') {
+        try {
+          return JSON.parse(row.row_data);
+        } catch (e) {
+          logger.error('Failed to parse row data', { fileId, rowNumber: row.row_number, error: e.message });
+          return {};
+        }
+      }
+      return row.row_data;
+    });
     
     // Log data access for audit trail
     if (req.auditService) {
@@ -898,7 +899,7 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
         fileName: file.filename,
         columnNames: columns.map(c => c.name),
         accessMethod: 'UI',
-        rowsAccessed: limitedPreviewData.length,
+        rowsAccessed: previewData.length,
         metadata: {
           totalRows: file.row_count,
           rowLimit: rowLimit
@@ -910,13 +911,50 @@ app.get('/api/files/:fileId/preview', cacheMiddleware(300), async (req, res) => 
     res.json({
       fileId,
       columns,
-      rows: limitedPreviewData,
+      rows: previewData,
       totalRows: file.row_count,
       preview: true
     });
   } catch (err) {
     logger.error('Error generating file preview', { error: err.message, fileId: req.params.fileId });
     res.status(500).json({ error: 'Failed to generate file preview' });
+  }
+});
+
+// Delete preview data for a file
+app.delete('/api/files/:fileId/preview-data', invalidateCache('cache:*:*files*'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if file exists
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Delete preview data
+    const deleteResult = await dbPool.query(
+      'DELETE FROM file_preview_data WHERE file_id = $1',
+      [fileId]
+    );
+    
+    logger.info('Preview data deleted for file', { 
+      fileId, 
+      rowsDeleted: deleteResult.rowCount 
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Deleted ${deleteResult.rowCount} preview rows`,
+      rowsDeleted: deleteResult.rowCount
+    });
+  } catch (err) {
+    logger.error('Error deleting preview data', { 
+      error: err.message, 
+      fileId: req.params.fileId 
+    });
+    res.status(500).json({ error: 'Failed to delete preview data' });
   }
 });
 
@@ -938,6 +976,7 @@ app.delete('/api/files/:fileId', invalidateCache('cache:*:*files*'), async (req,
     
     try {
       // Delete all related records (cascade deletion)
+      await client.query('DELETE FROM file_preview_data WHERE file_id = $1', [fileId]);
       await client.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
       await client.query('DELETE FROM file_quality_checks WHERE file_id = $1', [fileId]);
       await client.query('DELETE FROM file_schedules WHERE file_id = $1', [fileId]);
