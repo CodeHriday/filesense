@@ -2554,6 +2554,350 @@ app.get('/api/files/:fileId/profile', cacheMiddleware(600), async (req, res) => 
   }
 });
 
+// File Ownership API endpoints
+
+// Get file ownership
+app.get('/api/files/:fileId/ownership', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT * FROM file_ownership WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No ownership record found for this file' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching file ownership:', err);
+    res.status(500).json({ error: 'Failed to fetch file ownership' });
+  }
+});
+
+// Create file ownership (defaults to current user)
+app.post('/api/files/:fileId/ownership', authenticateToken, invalidateCache('cache:*:*ownership*'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { owner_name, owner_email, owner_contact } = req.body;
+    
+    const result = await dbPool.query(
+      `INSERT INTO file_ownership (file_id, owner_user_id, owner_name, owner_email, owner_contact)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (file_id) DO UPDATE
+       SET owner_user_id = $2, owner_name = $3, owner_email = $4, owner_contact = $5, updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [fileId, req.user?.id || null, owner_name, owner_email, owner_contact]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating file ownership:', err);
+    res.status(500).json({ error: 'Failed to create file ownership' });
+  }
+});
+
+// Update file ownership
+app.put('/api/files/:fileId/ownership', authenticateToken, invalidateCache('cache:*:*ownership*'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { owner_name, owner_email, owner_contact } = req.body;
+    
+    const result = await dbPool.query(
+      `UPDATE file_ownership
+       SET owner_name = $1, owner_email = $2, owner_contact = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE file_id = $4
+       RETURNING *`,
+      [owner_name, owner_email, owner_contact, fileId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Ownership record not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating file ownership:', err);
+    res.status(500).json({ error: 'Failed to update file ownership' });
+  }
+});
+
+// Column Sensitivity Tagging API endpoints
+
+// Get all sensitivity tags for a file's columns
+app.get('/api/files/:fileId/columns/sensitivity-tags', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT * FROM column_sensitivity_tags WHERE file_id = $1 ORDER BY column_name',
+      [fileId]
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching column sensitivity tags:', err);
+    res.status(500).json({ error: 'Failed to fetch column sensitivity tags' });
+  }
+});
+
+// Get sensitivity tag for a specific column
+app.get('/api/files/:fileId/columns/:columnName/sensitivity-tag', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId, columnName } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT * FROM column_sensitivity_tags WHERE file_id = $1 AND column_name = $2',
+      [fileId, columnName]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No sensitivity tag found for this column' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching column sensitivity tag:', err);
+    res.status(500).json({ error: 'Failed to fetch column sensitivity tag' });
+  }
+});
+
+// Add or update sensitivity tag for a column
+app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateToken, invalidateCache('cache:*:*sensitivity*'), async (req, res) => {
+  try {
+    const { fileId, columnName } = req.params;
+    const { classification_level, data_type } = req.body;
+    
+    if (!classification_level) {
+      return res.status(400).json({ error: 'classification_level is required' });
+    }
+    
+    const validLevels = ['Public', 'Internal', 'Confidential', 'Restricted'];
+    if (!validLevels.includes(classification_level)) {
+      return res.status(400).json({ error: `Invalid classification level. Must be one of: ${validLevels.join(', ')}` });
+    }
+    
+    const result = await dbPool.query(
+      `INSERT INTO column_sensitivity_tags (file_id, column_name, classification_level, data_type)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (file_id, column_name) DO UPDATE
+       SET classification_level = $3, data_type = $4, updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [fileId, columnName, classification_level, data_type]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error setting column sensitivity tag:', err);
+    res.status(500).json({ error: 'Failed to set column sensitivity tag' });
+  }
+});
+
+// Delete sensitivity tag for a column
+app.delete('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateToken, invalidateCache('cache:*:*sensitivity*'), async (req, res) => {
+  try {
+    const { fileId, columnName } = req.params;
+    
+    const result = await dbPool.query(
+      'DELETE FROM column_sensitivity_tags WHERE file_id = $1 AND column_name = $2 RETURNING *',
+      [fileId, columnName]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Sensitivity tag not found' });
+    }
+    
+    res.json({ message: 'Sensitivity tag deleted successfully', tag: result.rows[0] });
+  } catch (err) {
+    console.error('Error deleting column sensitivity tag:', err);
+    res.status(500).json({ error: 'Failed to delete column sensitivity tag' });
+  }
+});
+
+// Governance Policies API endpoints
+
+// Get all governance policies
+app.get('/api/governance-policies', cacheMiddleware(300), async (req, res) => {
+  try {
+    const result = await dbPool.query(
+      'SELECT * FROM governance_policies ORDER BY created_at DESC'
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching governance policies:', err);
+    res.status(500).json({ error: 'Failed to fetch governance policies' });
+  }
+});
+
+// Get specific governance policy
+app.get('/api/governance-policies/:policyId', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { policyId } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT * FROM governance_policies WHERE policy_id = $1',
+      [policyId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Policy not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching governance policy:', err);
+    res.status(500).json({ error: 'Failed to fetch governance policy' });
+  }
+});
+
+// Create new governance policy
+app.post('/api/governance-policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
+  try {
+    const { policy_id, policy_name, description, rules } = req.body;
+    
+    if (!policy_id || !policy_name) {
+      return res.status(400).json({ error: 'policy_id and policy_name are required' });
+    }
+    
+    const result = await dbPool.query(
+      `INSERT INTO governance_policies (policy_id, policy_name, description, rules, created_by)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [policy_id, policy_name, description, JSON.stringify(rules || {}), req.user?.id || null]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating governance policy:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Policy ID already exists' });
+    }
+    res.status(500).json({ error: 'Failed to create governance policy' });
+  }
+});
+
+// Update governance policy
+app.put('/api/governance-policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
+  try {
+    const { policyId } = req.params;
+    const { policy_name, description, rules } = req.body;
+    
+    const result = await dbPool.query(
+      `UPDATE governance_policies
+       SET policy_name = $1, description = $2, rules = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE policy_id = $4
+       RETURNING *`,
+      [policy_name, description, JSON.stringify(rules || {}), policyId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Policy not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating governance policy:', err);
+    res.status(500).json({ error: 'Failed to update governance policy' });
+  }
+});
+
+// Delete governance policy
+app.delete('/api/governance-policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
+  try {
+    const { policyId } = req.params;
+    
+    const result = await dbPool.query(
+      'DELETE FROM governance_policies WHERE policy_id = $1 RETURNING *',
+      [policyId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Policy not found' });
+    }
+    
+    res.json({ message: 'Policy deleted successfully', policy: result.rows[0] });
+  } catch (err) {
+    console.error('Error deleting governance policy:', err);
+    res.status(500).json({ error: 'Failed to delete governance policy' });
+  }
+});
+
+// File Policy Assignment endpoints
+
+// Get policies assigned to a file
+app.get('/api/files/:fileId/policies', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      `SELECT fpa.*, gp.policy_name, gp.description, gp.rules
+       FROM file_policy_assignments fpa
+       JOIN governance_policies gp ON fpa.policy_id = gp.policy_id
+       WHERE fpa.file_id = $1
+       ORDER BY fpa.assigned_at DESC`,
+      [fileId]
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching file policies:', err);
+    res.status(500).json({ error: 'Failed to fetch file policies' });
+  }
+});
+
+// Assign policy to a file
+app.post('/api/files/:fileId/policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { policy_id } = req.body;
+    
+    if (!policy_id) {
+      return res.status(400).json({ error: 'policy_id is required' });
+    }
+    
+    const result = await dbPool.query(
+      `INSERT INTO file_policy_assignments (file_id, policy_id, assigned_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (file_id, policy_id) DO UPDATE
+       SET assigned_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [fileId, policy_id, req.user?.id || null]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error assigning policy to file:', err);
+    if (err.code === '23503') {
+      return res.status(404).json({ error: 'Policy not found' });
+    }
+    res.status(500).json({ error: 'Failed to assign policy to file' });
+  }
+});
+
+// Remove policy from file
+app.delete('/api/files/:fileId/policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
+  try {
+    const { fileId, policyId } = req.params;
+    
+    const result = await dbPool.query(
+      'DELETE FROM file_policy_assignments WHERE file_id = $1 AND policy_id = $2 RETURNING *',
+      [fileId, policyId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Policy assignment not found' });
+    }
+    
+    res.json({ message: 'Policy removed from file successfully', assignment: result.rows[0] });
+  } catch (err) {
+    console.error('Error removing policy from file:', err);
+    res.status(500).json({ error: 'Failed to remove policy from file' });
+  }
+});
+
 // File quality endpoint
 // Get file quality data
 app.get('/api/files/:fileId/quality', cacheMiddleware(600), async (req, res) => {
