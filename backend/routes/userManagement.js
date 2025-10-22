@@ -41,6 +41,18 @@ router.get('/password-requirements', (req, res) => {
 });
 
 /**
+ * GET /api/users/roles
+ * Get all available roles for project/group assignment
+ */
+router.get('/roles', authenticateToken, asyncHandler(async (req, res) => {
+  const result = await db.query(
+    `SELECT id, name, description FROM roles ORDER BY name`
+  );
+  
+  res.json(result.rows);
+}));
+
+/**
  * PUT /api/users/change-password
  * Change user password (authenticated)
  */

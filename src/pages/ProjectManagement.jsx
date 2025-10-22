@@ -23,14 +23,16 @@ function ProjectManagement() {
 
   const [memberFormData, setMemberFormData] = useState({
     user_id: '',
-    role: 'Member'
+    role: ''
   });
 
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [availableRoles, setAvailableRoles] = useState([]);
 
   useEffect(() => {
     fetchProjects();
     fetchAvailableUsers();
+    fetchAvailableRoles();
   }, [searchTerm, showArchived]);
 
   const fetchProjects = async () => {
@@ -63,6 +65,18 @@ function ProjectManagement() {
       setAvailableUsers(response.data);
     } catch (err) {
       console.error('Failed to fetch users:', err);
+    }
+  };
+
+  const fetchAvailableRoles = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/users/roles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAvailableRoles(response.data);
+    } catch (err) {
+      console.error('Failed to fetch roles:', err);
     }
   };
 
@@ -147,7 +161,7 @@ function ProjectManagement() {
         memberFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMemberFormData({ user_id: '', role: 'Member' });
+      setMemberFormData({ user_id: '', role: '' });
       fetchProjectDetails(selectedProject.id);
     } catch (err) {
       setError('Failed to add member');
@@ -365,11 +379,14 @@ function ProjectManagement() {
                   <select
                     value={memberFormData.role}
                     onChange={(e) => setMemberFormData({ ...memberFormData, role: e.target.value })}
+                    required
                   >
-                    <option value="Owner">Owner</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Member">Member</option>
-                    <option value="Viewer">Viewer</option>
+                    <option value="">Select Role</option>
+                    {availableRoles.map((role) => (
+                      <option key={role.id} value={role.name}>
+                        {role.name}
+                      </option>
+                    ))}
                   </select>
                   <button type="submit" className="btn-primary">Add Member</button>
                 </div>
