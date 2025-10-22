@@ -2121,6 +2121,24 @@ try {
   console.error('✗ Failed to register /api/policies:', error.message);
 }
 
+// Project Management routes (requires authentication)
+try {
+  const projectRoutes = require('./backend/routes/projectRoutes');
+  app.use('/api/projects', authenticateToken, projectRoutes(dbPool));
+  console.log('✓ Registered /api/projects route');
+} catch (error) {
+  console.error('✗ Failed to register /api/projects:', error.message);
+}
+
+// Group Management routes (requires authentication)
+try {
+  const groupRoutes = require('./backend/routes/groupRoutes');
+  app.use('/api/groups', authenticateToken, groupRoutes(dbPool));
+  console.log('✓ Registered /api/groups route');
+} catch (error) {
+  console.error('✗ Failed to register /api/groups:', error.message);
+}
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
