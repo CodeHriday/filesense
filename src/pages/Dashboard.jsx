@@ -619,52 +619,43 @@ const Dashboard = () => {
       { header: 'Percentage', key: 'percentage', formatter: value => `${value}%` }
     ];
     
-    // Create chart with screen reader and high contrast support
+    // Render file type distribution with proper card styling
     return (
-      <ChartAccessibleWrapper
-        title="File Type Distribution"
-        description="Distribution of files by type in the system"
-        chartType="bar"
-        data={distributionData}
-        dataTableColumns={columns}
-        summaryText={`There are ${total} files in the system across ${fileTypes.length} different file types.`}
-      >
-        <div className="file-type-distribution">
-          <h3 id="file-distribution-title" className="sr-only">File Type Distribution</h3>
-          <div className="distribution-bars" role="group" aria-labelledby="file-distribution-title">
-            {fileTypes.map(([type, count]) => {
-              const percentage = Math.round((count / total) * 100);
-              // Get the color in a way that respects high contrast mode
-              const barColor = highContrast ? 'var(--primary-color)' : getTypeColor(type);
-              
-              return (
-                <div 
-                  key={type} 
-                  className="distribution-item"
-                  role="figure"
-                  aria-label={`${type} files: ${count} files, ${percentage}% of total`}
-                >
-                  <div className="distribution-label">
-                    <span className="type-name">{type}</span>
-                    <span className="type-count">{count} files</span>
-                  </div>
-                  <div 
-                    className="distribution-bar-container"
-                    role="presentation"
-                  >
-                    <div
-                      className="distribution-bar"
-                      style={{ width: `${percentage}%`, backgroundColor: barColor }}
-                      aria-hidden="true"
-                    ></div>
-                  </div>
-                  <span className="type-percentage">{percentage}%</span>
+      <div className="file-type-distribution">
+        <h3 id="file-distribution-title">File Type Distribution</h3>
+        <div className="distribution-bars" role="group" aria-labelledby="file-distribution-title">
+          {fileTypes.map(([type, count]) => {
+            const percentage = Math.round((count / total) * 100);
+            // Get the color in a way that respects high contrast mode
+            const barColor = highContrast ? 'var(--primary-color)' : getTypeColor(type);
+            
+            return (
+              <div 
+                key={type} 
+                className="distribution-item"
+                role="figure"
+                aria-label={`${type} files: ${count} files, ${percentage}% of total`}
+              >
+                <div className="distribution-label">
+                  <span className="type-name">{type}</span>
+                  <span className="type-count">{count} files</span>
                 </div>
-              );
-            })}
-          </div>
+                <div 
+                  className="distribution-bar-container"
+                  role="presentation"
+                >
+                  <div
+                    className="distribution-bar"
+                    style={{ width: `${percentage}%`, backgroundColor: barColor }}
+                    aria-hidden="true"
+                  ></div>
+                </div>
+                <span className="type-percentage">{percentage}%</span>
+              </div>
+            );
+          })}
         </div>
-      </ChartAccessibleWrapper>
+      </div>
     );
   };
   

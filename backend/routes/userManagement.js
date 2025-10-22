@@ -182,62 +182,64 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
   // Check if user has admin permissions
   const userRoles = req.user.roles || [];
   if (!userRoles.includes('Admin')) {
-    return res.status(403).json({ error: 'Insufficient permissions' });
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can update user information'
+    });
   }
   
-  // Start a transaction
-  const client = await db.connect();
-  
+  // Use transaction helper with proper error handling
+  let result;
   try {
-    await client.query('BEGIN');
-    
-    // Update user information
-    const updateQuery = `
-      UPDATE users
-      SET
-        username = COALESCE($1, username),
-        email = COALESCE($2, email),
-        first_name = COALESCE($3, first_name),
-        middle_name = COALESCE($4, middle_name),
-        last_name = COALESCE($5, last_name),
-        phone_number = COALESCE($6, phone_number),
-        address_line1 = COALESCE($7, address_line1),
-        address_line2 = COALESCE($8, address_line2),
-        city = COALESCE($9, city),
-        state = COALESCE($10, state),
-        postal_code = COALESCE($11, postal_code),
-        country = COALESCE($12, country),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13
-      RETURNING 
-        id, username, email,
-        first_name, middle_name, last_name, full_name,
+    result = await db.transaction(async (client) => {
+      // Update user information
+      const updateQuery = `
+        UPDATE users
+        SET
+          username = COALESCE($1, username),
+          email = COALESCE($2, email),
+          first_name = COALESCE($3, first_name),
+          middle_name = COALESCE($4, middle_name),
+          last_name = COALESCE($5, last_name),
+          phone_number = COALESCE($6, phone_number),
+          address_line1 = COALESCE($7, address_line1),
+          address_line2 = COALESCE($8, address_line2),
+          city = COALESCE($9, city),
+          state = COALESCE($10, state),
+          postal_code = COALESCE($11, postal_code),
+          country = COALESCE($12, country),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $13
+        RETURNING 
+          id, username, email,
+          first_name, middle_name, last_name, full_name,
+          phone_number,
+          address_line1, address_line2, city, state, postal_code, country,
+          auth_provider,
+          updated_at
+      `;
+      
+      const userResult = await client.query(updateQuery, [
+        username,
+        email,
+        first_name,
+        middle_name,
+        last_name,
         phone_number,
-        address_line1, address_line2, city, state, postal_code, country,
-        auth_provider,
-        updated_at
-    `;
-    
-    const result = await client.query(updateQuery, [
-      username,
-      email,
-      first_name,
-      middle_name,
-      last_name,
-      phone_number,
-      address_line1,
-      address_line2,
-      city,
-      state,
-      postal_code,
-      country,
-      userId
-    ]);
-    
-    if (result.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'User not found' });
-    }
+        address_line1,
+        address_line2,
+        city,
+        state,
+        postal_code,
+        country,
+        userId
+      ]);
+      
+      if (userResult.rows.length === 0) {
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        throw error;
+      }
     
     // Update roles if provided
     if (roles && Array.isArray(roles)) {
@@ -282,10 +284,8 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
       }
     }
     
-    await client.query('COMMIT');
-    
     // Fetch updated user with roles
-    const updatedUser = await db.query(
+    const updatedUser = await client.query(
       `SELECT 
         u.id, u.username, u.email,
         u.first_name, u.middle_name, u.last_name, u.full_name,
@@ -305,16 +305,24 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
       [userId]
     );
     
-    res.json({
-      message: 'User updated successfully',
-      user: updatedUser.rows[0]
+      return updatedUser.rows[0];
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    // Handle specific error codes
+    if (error.statusCode === 404) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        message: `No user found with ID ${userId}`
+      });
+    }
+    // Re-throw other errors to be handled by asyncHandler
     throw error;
-  } finally {
-    client.release();
   }
+  
+  res.json({
+    message: 'User updated successfully',
+    user: result
+  });
 }));
 
 module.exports = router;
