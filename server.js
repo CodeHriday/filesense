@@ -2296,6 +2296,8 @@ const addUserProfileAndAuthFields = require('./backend/migrations/addUserProfile
 const createProjectsAndGroups = require('./backend/migrations/createProjectsAndGroups');
 const { addProjectIdToResources } = require('./backend/migrations/addProjectIdToResources');
 const { createPolicyEngine } = require('./backend/migrations/createPolicyEngine');
+const { createABACAttributes } = require('./backend/migrations/createABACAttributes');
+const { createSCIMProvisioning } = require('./backend/migrations/createSCIMProvisioning');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2445,6 +2447,18 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Policy engine migration completed');
+    
+    // Create ABAC attributes tables (Phase 3 RBAC revamp)
+    return createABACAttributes(dbPool);
+  })
+  .then(() => {
+    console.log('✅ ABAC attributes migration completed');
+    
+    // Create SCIM provisioning tables (Phase 4 RBAC revamp)
+    return createSCIMProvisioning(dbPool);
+  })
+  .then(() => {
+    console.log('✅ SCIM provisioning migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

@@ -28,6 +28,17 @@ class PolicyEngine {
    * @returns {Promise<{allowed: boolean, decision: string, reason: string}>}
    */
   async evaluate(userId, action, resourceType = null, resourceId = null, context = {}) {
+    // Enrich context with user and resource attributes for ABAC
+    const enrichedContext = await this._enrichContext(userId, resourceType, resourceId, context);
+    
+    return this._evaluateWithContext(userId, action, resourceType, resourceId, enrichedContext);
+  }
+
+  /**
+   * Internal evaluation with enriched context
+   * @private
+   */
+  async _evaluateWithContext(userId, action, resourceType = null, resourceId = null, context = {}) {
     try {
       // Check cache first
       const cacheKey = this._generateCacheKey(userId, action, resourceType, resourceId);
@@ -114,6 +125,70 @@ class PolicyEngine {
         decision: 'IMPLICIT_DENY',
         reason: 'Error during policy evaluation'
       };
+    }
+  }
+
+  /**
+   * Enrich context with user and resource attributes
+   * @private
+   */
+  async _enrichContext(userId, resourceType, resourceId, baseContext) {
+    const client = await this.dbPool.connect();
+    try {
+      const context = { ...baseContext };
+      
+      // Add user attributes
+      const userAttrs = await client.query(
+        'SELECT attribute_key, attribute_value, attribute_type FROM user_attributes WHERE user_id = $1',
+        [userId]
+      );
+      
+      for (const attr of userAttrs.rows) {
+        context[`user.${attr.attribute_key}`] = this._parseAttributeValue(attr.attribute_value, attr.attribute_type);
+      }
+      
+      // Add resource attributes if resource is specified
+      if (resourceType && resourceId) {
+        const resourceAttrs = await client.query(
+          'SELECT attribute_key, attribute_value, attribute_type FROM resource_attributes WHERE resource_type = $1 AND resource_id = $2',
+          [resourceType, resourceId]
+        );
+        
+        for (const attr of resourceAttrs.rows) {
+          context[`resource.${attr.attribute_key}`] = this._parseAttributeValue(attr.attribute_value, attr.attribute_type);
+        }
+      }
+      
+      // Add standard context
+      context['user.id'] = userId;
+      if (resourceType) context['resource.type'] = resourceType;
+      if (resourceId) context['resource.id'] = resourceId;
+      context['request.time'] = new Date().toISOString();
+      
+      return context;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Parse attribute value based on type
+   * @private
+   */
+  _parseAttributeValue(value, type) {
+    switch (type) {
+      case 'NUMBER':
+        return Number(value);
+      case 'BOOLEAN':
+        return value === 'true' || value === '1';
+      case 'JSON':
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      default:
+        return value;
     }
   }
 

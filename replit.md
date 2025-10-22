@@ -56,8 +56,21 @@ The application features a hybrid architecture:
         -   PolicyEngine service: Evaluates policies with wildcard matching, condition evaluation, deny-override logic
         -   REST API: Full CRUD operations for policies (/api/policies), attach/detach endpoints, evaluation endpoint for testing
         -   Sample policies: AdministratorAccess (full access), ReadOnlyAccess (read-only access)
+    -   **Phase 3 Complete (2025-10-22)**: ABAC (Attribute-Based Access Control) for context-aware policies:
+        -   `user_attributes`: Store user attributes (department, clearance_level, location, job_title, cost_center)
+        -   `resource_attributes`: Store resource attributes (sensitivity, classification, data_owner, retention_period, compliance_tags)
+        -   `attribute_definitions`: Centralized attribute schema with validation rules and allowed values
+        -   PolicyEngine enrichment: Automatically loads user/resource attributes into policy evaluation context
+        -   Seeded 10 common attribute definitions for immediate use
+        -   Supports STRING, NUMBER, BOOLEAN, and JSON attribute types with type-safe parsing
+    -   **Phase 4 Complete (2025-10-22)**: SCIM 2.0 Provisioning for automated IdP synchronization:
+        -   `scim_configurations`: IdP connection settings with attribute mapping (Okta, Azure AD, OneLogin, Custom)
+        -   `scim_sync_logs`: Complete audit trail of sync operations with detailed metrics
+        -   `scim_resource_mappings`: Bidirectional mapping between SCIM resources and platform entities
+        -   Support for both inbound (IdP → Platform) and outbound (Platform → IdP) sync
+        -   Configurable sync intervals and attribute mappings per IdP
     -   **Migration Strategy**: Existing resources auto-migrate to "Default Project", role assignments convert to group memberships
-    -   **Next Phases**: ABAC attributes & conditions, SCIM provisioning, multi-IdP support, UI for project/policy management
+    -   **Next Phase**: UI for project/group/policy management, integration with existing authentication middleware
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
 -   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
 -   **Workflow Orchestration**: Complete orchestration system with:
