@@ -33,7 +33,13 @@
   display: block;
 }
 
-.preview-actions .refresh-button {
+.preview-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.preview-actions .refresh-button,
+.preview-actions .delete-preview-button {
   background: none;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
@@ -51,6 +57,99 @@
   background-color: var(--bg-surface);
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.preview-actions .delete-preview-button {
+  color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.preview-actions .delete-preview-button:hover {
+  background-color: #fee;
+  border-color: #c0392b;
+  color: #c0392b);
+}
+
+.delete-confirm-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.delete-confirm-content {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 500px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.delete-confirm-content h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.delete-confirm-content p {
+  margin: 0 0 12px 0;
+  color: #666;
+  line-height: 1.5;
+}
+
+.delete-confirm-content .warning-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e74c3c;
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.delete-confirm-content .modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.delete-confirm-content .btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.delete-confirm-content .btn-danger {
+  background: #e74c3c;
+  color: white;
+}
+
+.delete-confirm-content .btn-danger:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.delete-confirm-content .btn-secondary {
+  background: #95a5a6;
+  color: white;
+}
+
+.delete-confirm-content .btn-secondary:hover:not(:disabled) {
+  background: #7f8c8d;
+}
+
+.delete-confirm-content .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .preview-table-wrapper {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiDownload, FiRefreshCw, FiAlertTriangle } from 'react-icons/fi';
+import { FiRefreshCw, FiAlertTriangle, FiTrash2 } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
 import axios from 'axios';
 import './FilePreview.css';
@@ -8,6 +8,8 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   useEffect(() => {
     if (fileId) {
@@ -34,6 +36,26 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
     }
   };
   
+  const handleDeletePreviewData = async () => {
+    try {
+      setDeleting(true);
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/files/${fileId}/preview-data`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      
+      // Clear preview data from state
+      setPreviewData({ ...previewData, rows: [] });
+      setShowDeleteConfirm(false);
+      alert('Preview data deleted successfully');
+    } catch (err) {
+      console.error('Error deleting preview data:', err);
+      alert('Failed to delete preview data: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setDeleting(false);
+    }
+  };
+  
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -57,7 +79,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   if (!previewData || (!previewData.rows && !previewData.data) || (previewData.rows && previewData.rows.length === 0) || (previewData.data && previewData.data.length === 0)) {
     return (
       <div className="file-preview-empty">
-        <p>No data available to preview.</p>
+        <p>No preview data available. Preview data has been deleted for security.</p>
       </div>
     );
   }
@@ -166,8 +188,46 @@ Timeliness: 10%`}
           <button className="refresh-button" onClick={fetchPreviewData}>
             <FiRefreshCw /> Refresh
           </button>
+          <button 
+            className="delete-preview-button" 
+            onClick={() => setShowDeleteConfirm(true)}
+            title="Delete preview data for security"
+          >
+            <FiTrash2 /> Delete Preview Data
+          </button>
         </div>
       </div>
+      
+      {showDeleteConfirm && (
+        <div className="delete-confirm-modal">
+          <div className="delete-confirm-content">
+            <h3>Delete Preview Data?</h3>
+            <p>
+              This will permanently delete the {rows.length} preview rows stored for this file. 
+              The file metadata and statistics will be retained.
+            </p>
+            <p className="warning-text">
+              <FiAlertTriangle /> This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button 
+                className="btn btn-danger"
+                onClick={handleDeletePreviewData}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete Preview Data'}
+              </button>
+              <button 
+                className="btn btn-secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="preview-table-wrapper">
         <table className="preview-table">
