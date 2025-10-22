@@ -196,6 +196,12 @@ function DataProfile() {
   const [columnTags, setColumnTags] = useState([]);
   const [showTagModal, setShowTagModal] = useState(false);
   const [selectedColumn, setSelectedColumn] = useState(null);
+  
+  // File-level governance state
+  const [fileSensitivity, setFileSensitivity] = useState('Public');
+  const [availableTags, setAvailableTags] = useState([]);
+  const [fileTags, setFileTags] = useState([]);
+  const [availablePolicies, setAvailablePolicies] = useState([]);
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -232,8 +238,13 @@ function DataProfile() {
     try {
       const response = await axios.get(`/api/files/${fileId}/ownership`);
       setOwnership(response.data);
+      // Set sensitivity from ownership data, default to 'Public' if not set
+      setFileSensitivity(response.data?.sensitivity_level || 'Public');
     } catch (err) {
-      if (err.response?.status !== 404) {
+      if (err.response?.status === 404) {
+        // No ownership record exists, use default
+        setFileSensitivity('Public');
+      } else {
         console.error('Error fetching ownership:', err);
       }
     }
@@ -254,6 +265,33 @@ function DataProfile() {
       setColumnTags(response.data);
     } catch (err) {
       console.error('Error fetching column tags:', err);
+    }
+  };
+
+  const fetchAvailableTags = async () => {
+    try {
+      const response = await axios.get('/api/governance-tags');
+      setAvailableTags(response.data);
+    } catch (err) {
+      console.error('Error fetching available tags:', err);
+    }
+  };
+
+  const fetchFileTags = async () => {
+    try {
+      const response = await axios.get(`/api/files/${fileId}/tags`);
+      setFileTags(response.data);
+    } catch (err) {
+      console.error('Error fetching file tags:', err);
+    }
+  };
+
+  const fetchAvailablePolicies = async () => {
+    try {
+      const response = await axios.get('/api/governance-policies');
+      setAvailablePolicies(response.data);
+    } catch (err) {
+      console.error('Error fetching available policies:', err);
     }
   };
 
@@ -288,7 +326,10 @@ function DataProfile() {
         await Promise.all([
           fetchOwnership(),
           fetchPolicies(),
-          fetchColumnTags()
+          fetchColumnTags(),
+          fetchAvailableTags(),
+          fetchFileTags(),
+          fetchAvailablePolicies()
         ]);
       } catch (err) {
         console.error('Error fetching file data:', err);
@@ -308,8 +349,116 @@ function DataProfile() {
     const basicInfo = profile.basic_info || {};
     const columns = profile.columns || [];
     
+    const handleSensitivityChange = async (e) => {
+      const newSensitivity = e.target.value;
+      setFileSensitivity(newSensitivity);
+      
+      try {
+        const token = localStorage.getItem('token');
+        await axios.put(
+          `/api/files/${fileId}/sensitivity`,
+          { sensitivity_level: newSensitivity },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        await fetchOwnership();
+      } catch (error) {
+        console.error('Error saving sensitivity:', error);
+        alert('Failed to save sensitivity level');
+      }
+    };
+    
+    const handleTagToggle = async (tagId) => {
+      const isSelected = fileTags.some(ft => ft.tag_id === tagId);
+      if (isSelected) {
+        // Remove tag
+        await axios.delete(`/api/files/${fileId}/tags/${tagId}`);
+        await fetchFileTags();
+      } else {
+        // Add tag
+        await axios.post(`/api/files/${fileId}/tags`, { tag_id: tagId });
+        await fetchFileTags();
+      }
+    };
+    
+    const handlePolicyToggle = async (policyId) => {
+      const isSelected = policies.some(p => p.policy_id === policyId);
+      if (isSelected) {
+        // Remove policy
+        await axios.delete(`/api/files/${fileId}/policies/${policyId}`);
+        await fetchPolicies();
+      } else {
+        // Add policy
+        await axios.post(`/api/files/${fileId}/policies`, { policy_id: policyId });
+        await fetchPolicies();
+      }
+    };
+    
     return (
       <div className="profile-overview">
+        <Card title="File Governance">
+          <div className="file-governance-grid">
+            <div className="governance-field">
+              <label htmlFor="sensitivity">Sensitivity Level</label>
+              <select 
+                id="sensitivity"
+                value={fileSensitivity}
+                onChange={handleSensitivityChange}
+                className="governance-select"
+              >
+                <option value="Public">Public</option>
+                <option value="Internal">Internal</option>
+                <option value="Confidential">Confidential</option>
+                <option value="Restricted">Restricted</option>
+              </select>
+            </div>
+            
+            <div className="governance-field">
+              <label>Tags</label>
+              <div className="tags-selector">
+                {availableTags.length > 0 ? (
+                  availableTags.map(tag => {
+                    const isSelected = fileTags.some(ft => ft.tag_id === tag.tag_id);
+                    return (
+                      <button
+                        key={tag.tag_id}
+                        className={`tag-chip ${isSelected ? 'selected' : ''}`}
+                        style={isSelected ? { backgroundColor: tag.color, color: 'white' } : {}}
+                        onClick={() => handleTagToggle(tag.tag_id)}
+                      >
+                        {tag.tag_name}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <span className="no-items">No tags available</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="governance-field">
+              <label>Policies</label>
+              <div className="policies-selector">
+                {availablePolicies.length > 0 ? (
+                  availablePolicies.map(policy => {
+                    const isSelected = policies.some(p => p.policy_id === policy.policy_id);
+                    return (
+                      <button
+                        key={policy.policy_id}
+                        className={`policy-chip ${isSelected ? 'selected' : ''}`}
+                        onClick={() => handlePolicyToggle(policy.policy_id)}
+                      >
+                        {policy.policy_name}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <span className="no-items">No policies available</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+        
         <div className="file-stats-grid">
           <Card className="file-stat-card">
             <div className="stat-icon rows-icon">
@@ -465,7 +614,6 @@ function DataProfile() {
               <tr>
                 <th>Column Name</th>
                 <th>Data Type</th>
-                <th>Sensitivity</th>
                 <th>Pattern</th>
                 <th>Unique Values</th>
                 <th>Missing Values</th>
@@ -494,25 +642,6 @@ function DataProfile() {
                   <tr key={column.name}>
                     <td>{column.name}</td>
                     <td>{column.type}</td>
-                    <td className="sensitivity-cell">
-                      {columnTag ? (
-                        <span className={`sensitivity-badge sensitivity-${columnTag.classification_level.toLowerCase()}`}>
-                          {columnTag.classification_level}
-                        </span>
-                      ) : (
-                        <span className="no-tag">Unclassified</span>
-                      )}
-                      <button 
-                        className="btn-icon-small" 
-                        onClick={() => {
-                          setSelectedColumn(column.name);
-                          setShowTagModal(true);
-                        }}
-                        title="Edit sensitivity tag"
-                      >
-                        <FiEdit2 />
-                      </button>
-                    </td>
                     <td className="pattern-cell">{formatPatterns(column.patterns)}</td>
                     <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
@@ -793,14 +922,12 @@ function DataProfile() {
         </div>
       ) : file ? (
         <>
-          <div className="profile-header-compact">
-            <div className="header-left">
-              <h1>
-                <span className="file-type">{file.file_type.toUpperCase()}</span>
-                {file.filename}
-              </h1>
+          <div className="profile-header-two-line">
+            <div className="header-line-1">
+              <span className="file-icon">{file.file_type.toUpperCase()}</span>
+              <h1>{file.filename}</h1>
             </div>
-            <div className="header-right">
+            <div className="header-line-2">
               <span className="header-property">
                 <strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}
               </span>
@@ -809,7 +936,7 @@ function DataProfile() {
               </span>
               <span className="header-property">
                 <FiUser className="icon-inline" />
-                <strong>Owner:</strong> {ownership?.owner_name || 'Unassigned'}
+                <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
                 <button 
                   className="btn-icon-small" 
                   onClick={() => setShowOwnershipModal(true)}
@@ -817,6 +944,12 @@ function DataProfile() {
                 >
                   <FiEdit2 />
                 </button>
+              </span>
+              <span className="header-property">
+                <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
+              </span>
+              <span className="header-property">
+                <strong>Format:</strong> {file.file_type || 'Unknown'}
               </span>
             </div>
           </div>

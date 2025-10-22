@@ -26,7 +26,7 @@
 }
 
 .page-description {
-  color: var(--text-secondary);
+  color: white;
   font-size: var(--text-sm);
   margin: 0;
 }
@@ -182,4 +182,104 @@
 .checkbox-group span {
   color: var(--text-primary);
   font-weight: var(--font-normal);
+}
+
+/* Table Layout Styles */
+.policies-table-container {
+  overflow-x: auto;
+}
+
+.policies-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.policies-table thead {
+  background-color: var(--color-gray-50);
+  border-bottom: 2px solid var(--border-medium);
+}
+
+.policies-table th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.policies-table tbody tr {
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color var(--transition-base);
+}
+
+.policies-table tbody tr:hover {
+  background-color: var(--color-gray-50);
+}
+
+.policies-table td {
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  vertical-align: top;
+}
+
+.policy-name-cell {
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  min-width: 150px;
+}
+
+.policy-description-cell {
+  color: var(--text-secondary);
+  max-width: 300px;
+}
+
+.policy-rules-cell {
+  max-width: 400px;
+}
+
+.policy-rules-cell .rules-json {
+  font-size: var(--text-xs);
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.policy-rules-cell .no-rules {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.policy-date-cell {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.policy-actions-cell {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn-icon {
+  padding: var(--space-2);
+  background: none;
+  border: none;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background-color: var(--color-gray-100);
+  color: var(--color-primary);
+}
+
+.btn-icon-danger:hover {
+  background-color: var(--color-error-light);
+  color: var(--color-error-dark);
 }

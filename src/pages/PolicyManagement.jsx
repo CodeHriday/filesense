@@ -65,65 +65,77 @@ function PolicyManagement() {
         </button>
       </div>
 
-      <div className="policies-grid">
+      <Card>
         {policies.length === 0 ? (
-          <Card>
-            <div className="empty-state">
-              <FiShield style={{ fontSize: '48px', color: 'var(--text-tertiary)' }} />
-              <h3>No policies defined</h3>
-              <p>Create your first data governance policy to manage data retention, access control, and encryption.</p>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setSelectedPolicy(null);
-                  setShowModal(true);
-                }}
-              >
-                <FiPlus className="btn-icon" /> Create First Policy
-              </button>
-            </div>
-          </Card>
+          <div className="empty-state">
+            <FiShield style={{ fontSize: '48px', color: 'var(--text-tertiary)' }} />
+            <h3>No policies defined</h3>
+            <p>Create your first data governance policy to manage data retention, access control, and encryption.</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setSelectedPolicy(null);
+                setShowModal(true);
+              }}
+            >
+              <FiPlus className="btn-icon" /> Create First Policy
+            </button>
+          </div>
         ) : (
-          policies.map((policy) => (
-            <Card key={policy.policy_id} className="policy-card">
-              <div className="policy-card-header">
-                <h3>{policy.policy_name}</h3>
-                <div className="policy-actions">
-                  <button
-                    className="btn-icon-small"
-                    onClick={() => {
-                      setSelectedPolicy(policy);
-                      setShowModal(true);
-                    }}
-                    title="Edit policy"
-                  >
-                    <FiEdit2 />
-                  </button>
-                  <button
-                    className="btn-icon-small"
-                    onClick={() => handleDelete(policy.policy_id)}
-                    title="Delete policy"
-                  >
-                    <FiTrash2 />
-                  </button>
-                </div>
-              </div>
-              {policy.description && (
-                <p className="policy-description">{policy.description}</p>
-              )}
-              <div className="policy-rules">
-                {policy.rules && typeof policy.rules === 'string' ? (
-                  <pre className="rules-json">{JSON.stringify(JSON.parse(policy.rules), null, 2)}</pre>
-                ) : policy.rules ? (
-                  <pre className="rules-json">{JSON.stringify(policy.rules, null, 2)}</pre>
-                ) : (
-                  <p className="no-rules">No rules defined</p>
-                )}
-              </div>
-            </Card>
-          ))
+          <div className="policies-table-container">
+            <table className="policies-table">
+              <thead>
+                <tr>
+                  <th>Policy Name</th>
+                  <th>Description</th>
+                  <th>Rules</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {policies.map((policy) => (
+                  <tr key={policy.policy_id}>
+                    <td className="policy-name-cell">{policy.policy_name}</td>
+                    <td className="policy-description-cell">{policy.description || '-'}</td>
+                    <td className="policy-rules-cell">
+                      {policy.rules && typeof policy.rules === 'string' ? (
+                        <pre className="rules-json">{JSON.stringify(JSON.parse(policy.rules), null, 2)}</pre>
+                      ) : policy.rules ? (
+                        <pre className="rules-json">{JSON.stringify(policy.rules, null, 2)}</pre>
+                      ) : (
+                        <span className="no-rules">No rules</span>
+                      )}
+                    </td>
+                    <td className="policy-date-cell">
+                      {new Date(policy.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="policy-actions-cell">
+                      <button
+                        className="btn-icon"
+                        onClick={() => {
+                          setSelectedPolicy(policy);
+                          setShowModal(true);
+                        }}
+                        title="Edit policy"
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        className="btn-icon btn-icon-danger"
+                        onClick={() => handleDelete(policy.policy_id)}
+                        title="Delete policy"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </Card>
 
       {showModal && (
         <PolicyModal

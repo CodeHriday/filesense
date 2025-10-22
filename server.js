@@ -2151,6 +2151,8 @@ const addLineageColumns = require('./backend/migrations/addLineageColumns');
 const { addProcessingStepColumn } = require('./backend/migrations/addProcessingStepColumn');
 const createFilePreviewDataTable = require('./backend/migrations/createFilePreviewDataTable');
 const createDataGovernanceTables = require('./backend/migrations/createDataGovernanceTables');
+const createGovernanceTagsTables = require('./backend/migrations/createGovernanceTagsTables');
+const addSensitivityToFileOwnership = require('./backend/migrations/addSensitivityToFileOwnership');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2246,6 +2248,18 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Data governance tables migration completed');
+    
+    // Create governance tags tables
+    return createGovernanceTagsTables(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Governance tags tables migration completed');
+    
+    // Add sensitivity column to file_ownership
+    return addSensitivityToFileOwnership(dbPool);
+  })
+  .then(() => {
+    console.log('✅ File ownership sensitivity column migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
@@ -2895,6 +2909,249 @@ app.delete('/api/files/:fileId/policies/:policyId', authenticateToken, invalidat
   } catch (err) {
     console.error('Error removing policy from file:', err);
     res.status(500).json({ error: 'Failed to remove policy from file' });
+  }
+});
+
+// ============================================
+// Governance Tags Management Endpoints
+// ============================================
+
+// Get all governance tags
+app.get('/api/governance-tags', cacheMiddleware(300), async (req, res) => {
+  try {
+    const result = await dbPool.query(
+      'SELECT * FROM governance_tags ORDER BY created_at DESC'
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching governance tags:', err);
+    res.status(500).json({ error: 'Failed to fetch governance tags' });
+  }
+});
+
+// Get single governance tag
+app.get('/api/governance-tags/:tagId', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { tagId } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT * FROM governance_tags WHERE tag_id = $1',
+      [tagId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching tag:', err);
+    res.status(500).json({ error: 'Failed to fetch tag' });
+  }
+});
+
+// Create new governance tag (Admin only)
+app.post('/api/governance-tags', authenticateToken, requireAdmin, invalidateCache('cache:*:*tags*'), async (req, res) => {
+  try {
+    const { tag_name, description, color, badge_style } = req.body;
+    
+    if (!tag_name) {
+      return res.status(400).json({ error: 'tag_name is required' });
+    }
+    
+    const tag_id = `tag_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const result = await dbPool.query(
+      `INSERT INTO governance_tags (tag_id, tag_name, description, color, badge_style, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [tag_id, tag_name, description || null, color || '#3B82F6', badge_style || 'default', req.user?.id || null]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating tag:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Tag name already exists' });
+    }
+    res.status(500).json({ error: 'Failed to create tag' });
+  }
+});
+
+// Update governance tag (Admin only)
+app.put('/api/governance-tags/:tagId', authenticateToken, requireAdmin, invalidateCache('cache:*:*tags*'), async (req, res) => {
+  try {
+    const { tagId } = req.params;
+    const { tag_name, description, color, badge_style } = req.body;
+    
+    const result = await dbPool.query(
+      `UPDATE governance_tags
+       SET tag_name = $1, description = $2, color = $3, badge_style = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE tag_id = $5
+       RETURNING *`,
+      [tag_name, description, color, badge_style, tagId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating tag:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Tag name already exists' });
+    }
+    res.status(500).json({ error: 'Failed to update tag' });
+  }
+});
+
+// Delete governance tag (Admin only)
+app.delete('/api/governance-tags/:tagId', authenticateToken, requireAdmin, invalidateCache('cache:*:*tags*'), async (req, res) => {
+  try {
+    const { tagId } = req.params;
+    
+    const result = await dbPool.query(
+      'DELETE FROM governance_tags WHERE tag_id = $1 RETURNING *',
+      [tagId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+    
+    res.json({ message: 'Tag deleted successfully', tag: result.rows[0] });
+  } catch (err) {
+    console.error('Error deleting tag:', err);
+    res.status(500).json({ error: 'Failed to delete tag' });
+  }
+});
+
+// ============================================
+// File Sensitivity Management Endpoint
+// ============================================
+
+// Update file sensitivity level
+app.put('/api/files/:fileId/sensitivity', authenticateToken, invalidateCache('cache:*:*files*'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { sensitivity_level } = req.body;
+    
+    if (!sensitivity_level) {
+      return res.status(400).json({ error: 'sensitivity_level is required' });
+    }
+    
+    // Validate sensitivity level
+    const validLevels = ['Public', 'Internal', 'Confidential', 'Restricted'];
+    if (!validLevels.includes(sensitivity_level)) {
+      return res.status(400).json({ error: 'Invalid sensitivity level. Must be one of: Public, Internal, Confidential, Restricted' });
+    }
+    
+    // Check if file ownership record exists
+    const checkResult = await dbPool.query(
+      'SELECT * FROM file_ownership WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (checkResult.rows.length === 0) {
+      // Create file ownership record with sensitivity
+      const insertResult = await dbPool.query(
+        `INSERT INTO file_ownership (file_id, sensitivity_level, owner_user_id, created_at, updated_at)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [fileId, sensitivity_level, req.user.id]
+      );
+      return res.json(insertResult.rows[0]);
+    } else {
+      // Update existing file ownership record
+      const updateResult = await dbPool.query(
+        `UPDATE file_ownership
+         SET sensitivity_level = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE file_id = $2
+         RETURNING *`,
+        [sensitivity_level, fileId]
+      );
+      return res.json(updateResult.rows[0]);
+    }
+  } catch (err) {
+    console.error('Error updating file sensitivity:', err);
+    res.status(500).json({ error: 'Failed to update file sensitivity' });
+  }
+});
+
+// ============================================
+// File Tag Assignment Endpoints
+// ============================================
+
+// Get tags assigned to a file
+app.get('/api/files/:fileId/tags', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      `SELECT fta.*, gt.tag_name, gt.description, gt.color, gt.badge_style
+       FROM file_tag_assignments fta
+       JOIN governance_tags gt ON fta.tag_id = gt.tag_id
+       WHERE fta.file_id = $1
+       ORDER BY fta.assigned_at DESC`,
+      [fileId]
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching file tags:', err);
+    res.status(500).json({ error: 'Failed to fetch file tags' });
+  }
+});
+
+// Assign tag to a file
+app.post('/api/files/:fileId/tags', authenticateToken, invalidateCache('cache:*:*tags*'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { tag_id } = req.body;
+    
+    if (!tag_id) {
+      return res.status(400).json({ error: 'tag_id is required' });
+    }
+    
+    const result = await dbPool.query(
+      `INSERT INTO file_tag_assignments (file_id, tag_id, assigned_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (file_id, tag_id) DO UPDATE
+       SET assigned_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [fileId, tag_id, req.user?.id || null]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error assigning tag to file:', err);
+    if (err.code === '23503') {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+    res.status(500).json({ error: 'Failed to assign tag to file' });
+  }
+});
+
+// Remove tag from file
+app.delete('/api/files/:fileId/tags/:tagId', authenticateToken, invalidateCache('cache:*:*tags*'), async (req, res) => {
+  try {
+    const { fileId, tagId } = req.params;
+    
+    const result = await dbPool.query(
+      'DELETE FROM file_tag_assignments WHERE file_id = $1 AND tag_id = $2 RETURNING *',
+      [fileId, tagId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tag assignment not found' });
+    }
+    
+    res.json({ message: 'Tag removed from file successfully', assignment: result.rows[0] });
+  } catch (err) {
+    console.error('Error removing tag from file:', err);
+    res.status(500).json({ error: 'Failed to remove tag from file' });
   }
 });
 

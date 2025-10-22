@@ -26,7 +26,8 @@ import {
   FiFilter,
   FiPlusCircle,
   FiFileText,
-  FiGrid
+  FiGrid,
+  FiTag
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import OnboardingWizard from './OnboardingWizard';
@@ -361,12 +362,20 @@ function Sidebar() {
                 )}
                 
                 {isAdmin && (
-                  <li>
-                    <NavLink to="/policy-management" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiShield className="icon" />
-                      <span>Policy Management</span>
-                    </NavLink>
-                  </li>
+                  <>
+                    <li>
+                      <NavLink to="/policy-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                        <FiShield className="icon" />
+                        <span>Policy Management</span>
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink to="/tag-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                        <FiTag className="icon" />
+                        <span>Tag Management</span>
+                      </NavLink>
+                    </li>
+                  </>
                 )}
               </>
             )}
