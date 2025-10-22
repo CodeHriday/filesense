@@ -91,6 +91,11 @@
   color: white;
 }
 
+.badge-active {
+  background: #28a745;
+  color: white;
+}
+
 .project-description {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -224,6 +229,11 @@
   background: var(--primary-hover);
 }
 
+.btn-create-project {
+  border: 3px solid white !important;
+  font-weight: 600;
+}
+
 .btn-secondary {
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -319,4 +329,54 @@
   padding: 3rem;
   color: var(--text-secondary);
   font-size: 1.1rem;
+}
+
+.table-container {
+  overflow-x: auto;
+  background: var(--bg-primary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.projects-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.projects-table th,
+.projects-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.projects-table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.projects-table tbody tr:hover {
+  background: var(--bg-secondary);
+  cursor: pointer;
+}
+
+.projects-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.project-name {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }

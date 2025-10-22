@@ -189,7 +189,7 @@ function ProjectManagement() {
     <div className="project-management">
       <div className="page-header">
         <h1>Project Management</h1>
-        <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+        <button className="btn-primary btn-create-project" onClick={() => setShowCreateModal(true)}>
           + Create Project
         </button>
       </div>
@@ -217,33 +217,54 @@ function ProjectManagement() {
       {loading ? (
         <div className="loading">Loading projects...</div>
       ) : (
-        <div className="projects-grid">
-          {projects.map((project) => (
-            <div key={project.id} className="project-card">
-              <div className="project-header">
-                <h3>{project.name}</h3>
-                {project.is_default && <span className="badge badge-default">Default</span>}
-                {project.is_archived && <span className="badge badge-archived">Archived</span>}
-              </div>
-              {project.description && <p className="project-description">{project.description}</p>}
-              <div className="project-meta">
-                <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
-              </div>
-              <div className="project-actions">
-                <button className="btn-small" onClick={() => openMembersModal(project)}>
-                  Members
-                </button>
-                <button className="btn-small" onClick={() => openEditModal(project)}>
-                  Edit
-                </button>
-                {!project.is_default && (
-                  <button className="btn-small btn-danger" onClick={() => handleDelete(project.id)}>
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="table-container">
+          <table className="projects-table">
+            <thead>
+              <tr>
+                <th>Project Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map((project) => (
+                <tr key={project.id}>
+                  <td>
+                    <div className="project-name">
+                      {project.name}
+                      {project.is_default && <span className="badge badge-default">DEFAULT</span>}
+                    </div>
+                  </td>
+                  <td>{project.description || '-'}</td>
+                  <td>
+                    {project.is_archived ? (
+                      <span className="badge badge-archived">Archived</span>
+                    ) : (
+                      <span className="badge badge-active">Active</span>
+                    )}
+                  </td>
+                  <td>{new Date(project.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button className="btn-small" onClick={() => openMembersModal(project)}>
+                        Members
+                      </button>
+                      <button className="btn-small" onClick={() => openEditModal(project)}>
+                        Edit
+                      </button>
+                      {!project.is_default && (
+                        <button className="btn-small btn-danger" onClick={() => handleDelete(project.id)}>
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
