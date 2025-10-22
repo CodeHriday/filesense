@@ -411,51 +411,6 @@ function DataProfile() {
                 <option value="Restricted">Restricted</option>
               </select>
             </div>
-            
-            <div className="governance-field">
-              <label>Tags</label>
-              <div className="tags-selector">
-                {availableTags.length > 0 ? (
-                  availableTags.map(tag => {
-                    const isSelected = fileTags.some(ft => ft.tag_id === tag.tag_id);
-                    return (
-                      <button
-                        key={tag.tag_id}
-                        className={`tag-chip ${isSelected ? 'selected' : ''}`}
-                        style={isSelected ? { backgroundColor: tag.color, color: 'white' } : {}}
-                        onClick={() => handleTagToggle(tag.tag_id)}
-                      >
-                        {tag.tag_name}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <span className="no-items">No tags available</span>
-                )}
-              </div>
-            </div>
-            
-            <div className="governance-field">
-              <label>Policies</label>
-              <div className="policies-selector">
-                {availablePolicies.length > 0 ? (
-                  availablePolicies.map(policy => {
-                    const isSelected = policies.some(p => p.policy_id === policy.policy_id);
-                    return (
-                      <button
-                        key={policy.policy_id}
-                        className={`policy-chip ${isSelected ? 'selected' : ''}`}
-                        onClick={() => handlePolicyToggle(policy.policy_id)}
-                      >
-                        {policy.policy_name}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <span className="no-items">No policies available</span>
-                )}
-              </div>
-            </div>
           </div>
         </Card>
         
