@@ -79,6 +79,7 @@ const UserManagement = () => {
       roles: []
     });
     setModalMode('create');
+    setError('');
     setModalOpen(true);
   };
   
@@ -164,9 +165,34 @@ const UserManagement = () => {
       
       closeModal();
       fetchData();
+      setError('');
     } catch (error) {
       console.error('Error saving user:', error);
-      setError('Failed to save user: ' + (error.response?.data?.error || error.message));
+      
+      // Extract detailed error message
+      let errorMessage = 'Failed to save user';
+      
+      if (error.response?.data) {
+        const { message, errors } = error.response.data;
+        
+        if (message) {
+          errorMessage = message;
+        }
+        
+        // If there are specific validation errors, add them
+        if (errors && Array.isArray(errors)) {
+          errorMessage += ': ' + errors.join(', ');
+        } else if (errors && typeof errors === 'object') {
+          const errorDetails = Object.values(errors).join(', ');
+          if (errorDetails) {
+            errorMessage += ': ' + errorDetails;
+          }
+        }
+      } else if (error.message) {
+        errorMessage += ': ' + error.message;
+      }
+      
+      setError(errorMessage);
     }
   };
   
