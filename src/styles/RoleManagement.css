@@ -419,3 +419,28 @@ body.high-contrast .save-btn {
   background-color: #fff;
   color: #000;
 }
+
+/* Tag Permissions Section */
+.tag-permissions-section {
+  background-color: #f8f9fa;
+  margin-top: 20px;
+}
+
+.tag-badge-inline {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 8px;
+}
+
+.tag-sensitivity-hint {
+  font-size: 11px;
+  color: #5f6368;
+  font-style: italic;
+  margin-left: 4px;
+}

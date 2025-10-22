@@ -42,6 +42,7 @@ const FEATURE_CATEGORIES = APP_FEATURES.reduce((acc, feature) => {
 const RoleManagement = () => {
   const [roles, setRoles] = useState([]);
   const [availablePermissions, setAvailablePermissions] = useState([]);
+  const [governanceTags, setGovernanceTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -50,7 +51,8 @@ const RoleManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    permissions: {}
+    permissions: {},
+    tagPermissions: {}
   });
 
   const { currentUser, hasPermission } = useAuth();
@@ -78,13 +80,18 @@ const RoleManagement = () => {
     setError('');
 
     try {
-      const [rolesData, permissionsData] = await Promise.all([
+      const token = localStorage.getItem('token');
+      const [rolesData, permissionsData, tagsResponse] = await Promise.all([
         getRoles(),
-        getPermissions()
+        getPermissions(),
+        axios.get('/api/governance-tags', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
       ]);
 
       setRoles(rolesData);
       setAvailablePermissions(permissionsData);
+      setGovernanceTags(tagsResponse.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load role management data');
@@ -102,11 +109,21 @@ const RoleManagement = () => {
     return permissions;
   };
 
+  // Initialize empty tag permissions object
+  const initializeTagPermissions = () => {
+    const tagPerms = {};
+    governanceTags.forEach(tag => {
+      tagPerms[tag.tag_name.toLowerCase()] = { read: false, edit: false };
+    });
+    return tagPerms;
+  };
+
   const openCreateModal = () => {
     setFormData({
       name: '',
       description: '',
-      permissions: initializePermissions()
+      permissions: initializePermissions(),
+      tagPermissions: initializeTagPermissions()
     });
     setModalMode('create');
     setModalOpen(true);
@@ -117,12 +134,26 @@ const RoleManagement = () => {
     
     // Convert role.permissions array to our permissions object format
     const permissionsObj = initializePermissions();
+    const tagPermsObj = initializeTagPermissions();
     
     if (role.permissions && Array.isArray(role.permissions)) {
       role.permissions.forEach(perm => {
-        const [featureId, action] = perm.split(':');
-        if (permissionsObj[featureId] && (action === 'read' || action === 'write')) {
-          permissionsObj[featureId][action] = true;
+        const parts = perm.split(':');
+        
+        // Handle tag permissions: "tag:tagType:action"
+        if (parts.length === 3 && parts[0] === 'tag') {
+          const [, tagType, action] = parts;
+          const tagKey = tagType.toLowerCase();
+          if (tagPermsObj[tagKey] && (action === 'read' || action === 'edit')) {
+            tagPermsObj[tagKey][action] = true;
+          }
+        }
+        // Handle regular permissions: "featureId:action"
+        else if (parts.length === 2) {
+          const [featureId, action] = parts;
+          if (permissionsObj[featureId] && (action === 'read' || action === 'write')) {
+            permissionsObj[featureId][action] = true;
+          }
         }
       });
     }
@@ -130,7 +161,8 @@ const RoleManagement = () => {
     setFormData({
       name: role.name,
       description: role.description || '',
-      permissions: permissionsObj
+      permissions: permissionsObj,
+      tagPermissions: tagPermsObj
     });
     
     setModalMode('edit');
@@ -182,16 +214,54 @@ const RoleManagement = () => {
     });
   };
 
+  const handleTagPermissionChange = (tagType, action, checked) => {
+    setFormData(prev => {
+      const updatedTagPermissions = {
+        ...prev.tagPermissions,
+        [tagType]: {
+          ...prev.tagPermissions[tagType],
+          [action]: checked
+        }
+      };
+      
+      // If edit permission is checked, also check read permission
+      if (action === 'edit' && checked) {
+        updatedTagPermissions[tagType].read = true;
+      }
+      
+      // If read permission is unchecked, also uncheck edit permission
+      if (action === 'read' && !checked) {
+        updatedTagPermissions[tagType].edit = false;
+      }
+      
+      return {
+        ...prev,
+        tagPermissions: updatedTagPermissions
+      };
+    });
+  };
+
   // Convert permissions object to array format for API
-  const formatPermissionsForAPI = (permissions) => {
+  const formatPermissionsForAPI = (permissions, tagPermissions) => {
     const result = [];
     
+    // Add feature permissions
     Object.entries(permissions).forEach(([featureId, actions]) => {
       if (actions.read) {
         result.push(`${featureId}:read`);
       }
       if (actions.write) {
         result.push(`${featureId}:write`);
+      }
+    });
+    
+    // Add tag permissions in format "tag:tagType:action"
+    Object.entries(tagPermissions || {}).forEach(([tagType, actions]) => {
+      if (actions.read) {
+        result.push(`tag:${tagType}:read`);
+      }
+      if (actions.edit) {
+        result.push(`tag:${tagType}:edit`);
       }
     });
     
@@ -211,7 +281,7 @@ const RoleManagement = () => {
     const roleData = {
       name: formData.name,
       description: formData.description,
-      permissions: formatPermissionsForAPI(formData.permissions)
+      permissions: formatPermissionsForAPI(formData.permissions, formData.tagPermissions)
     };
     
     try {
@@ -500,6 +570,64 @@ const RoleManagement = () => {
                   </div>
                 ))}
               </div>
+              
+              {/* Tag Permissions Section */}
+              {governanceTags.length > 0 && (
+                <div className="permissions-section tag-permissions-section">
+                  <h3 className="permissions-title">Data Governance Tag Permissions</h3>
+                  <p>Control access to columns tagged with sensitive data classifications.</p>
+                  
+                  <div className="permission-category">
+                    <div className="permissions-grid">
+                      <div className="permission-header feature-name">Tag</div>
+                      <div className="permission-header">View</div>
+                      <div className="permission-header">Edit</div>
+                      
+                      <div className="section-divider"></div>
+                      
+                      {governanceTags.map(tag => {
+                        const tagKey = tag.tag_name.toLowerCase();
+                        return (
+                          <React.Fragment key={tag.tag_id}>
+                            <div className="feature-name">
+                              <span 
+                                className="tag-badge-inline" 
+                                style={{ backgroundColor: tag.color || '#3B82F6' }}
+                              >
+                                {tag.tag_name}
+                              </span>
+                              {tag.sensitivity_level && (
+                                <span className="tag-sensitivity-hint">
+                                  ({tag.sensitivity_level})
+                                </span>
+                              )}
+                            </div>
+                            <div className="permission-checkbox">
+                              <input
+                                type="checkbox"
+                                id={`tag-${tagKey}-read`}
+                                checked={formData.tagPermissions?.[tagKey]?.read || false}
+                                onChange={(e) => handleTagPermissionChange(tagKey, 'read', e.target.checked)}
+                                aria-label={`View permission for ${tag.tag_name} tagged data`}
+                              />
+                            </div>
+                            <div className="permission-checkbox">
+                              <input
+                                type="checkbox"
+                                id={`tag-${tagKey}-edit`}
+                                checked={formData.tagPermissions?.[tagKey]?.edit || false}
+                                onChange={(e) => handleTagPermissionChange(tagKey, 'edit', e.target.checked)}
+                                aria-label={`Edit permission for ${tag.tag_name} tagged data`}
+                                disabled={!formData.tagPermissions?.[tagKey]?.read}
+                              />
+                            </div>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="modal-actions">
                 <button type="button" className="cancel-btn" onClick={closeModal}>
