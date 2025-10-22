@@ -35,12 +35,18 @@ function createGroupRoutes(dbPool) {
 
       const result = await dbPool.query(query, params);
       
+      // Map database columns to API response format
+      const groups = result.rows.map(group => ({
+        ...group,
+        idp_sync_enabled: group.sync_enabled
+      }));
+      
       systemLogger.info('Access groups listed', {
         userId: req.user?.id,
         count: result.rows.length
       });
 
-      res.json(result.rows);
+      res.json(groups);
     } catch (error) {
       systemLogger.error('Error listing groups', error);
       res.status(500).json({ error: 'Failed to list groups' });
@@ -85,9 +91,12 @@ function createGroupRoutes(dbPool) {
         WHERE agr.group_id = $1
       `, [groupId]);
 
-      const group = groupResult.rows[0];
-      group.members = membersResult.rows;
-      group.roles = rolesResult.rows;
+      const group = {
+        ...groupResult.rows[0],
+        idp_sync_enabled: groupResult.rows[0].sync_enabled,
+        members: membersResult.rows,
+        roles: rolesResult.rows
+      };
 
       res.json(group);
     } catch (error) {
@@ -114,12 +123,15 @@ function createGroupRoutes(dbPool) {
       }
 
       const result = await dbPool.query(`
-        INSERT INTO access_groups (name, description, group_type, external_id, idp_sync_enabled, created_by, metadata)
+        INSERT INTO access_groups (name, description, group_type, external_group_id, sync_enabled, created_by, metadata)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `, [name, description, type, external_id || null, idp_sync_enabled || false, userId, metadata || {}]);
 
-      const newGroup = result.rows[0];
+      const newGroup = {
+        ...result.rows[0],
+        idp_sync_enabled: result.rows[0].sync_enabled
+      };
 
       systemLogger.info('Access group created', {
         userId,
@@ -156,12 +168,12 @@ function createGroupRoutes(dbPool) {
         paramIndex++;
       }
       if (external_id !== undefined) {
-        updates.push(`external_id = $${paramIndex}`);
+        updates.push(`external_group_id = $${paramIndex}`);
         params.push(external_id);
         paramIndex++;
       }
       if (idp_sync_enabled !== undefined) {
-        updates.push(`idp_sync_enabled = $${paramIndex}`);
+        updates.push(`sync_enabled = $${paramIndex}`);
         params.push(idp_sync_enabled);
         paramIndex++;
       }
@@ -189,12 +201,17 @@ function createGroupRoutes(dbPool) {
         return res.status(404).json({ error: 'Group not found' });
       }
 
+      const updatedGroup = {
+        ...result.rows[0],
+        idp_sync_enabled: result.rows[0].sync_enabled
+      };
+
       systemLogger.info('Access group updated', {
         userId: req.user?.id,
         groupId
       });
 
-      res.json(result.rows[0]);
+      res.json(updatedGroup);
     } catch (error) {
       systemLogger.error('Error updating group', error);
       res.status(500).json({ error: 'Failed to update group' });
