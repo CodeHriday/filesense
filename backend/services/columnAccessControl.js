@@ -53,7 +53,7 @@ class ColumnAccessControlService {
       const query = `
         SELECT 
           fc.column_name,
-          fc.column_id,
+          fc.id as column_id,
           COALESCE(
             json_agg(
               DISTINCT jsonb_build_object(
@@ -77,13 +77,13 @@ class ColumnAccessControlService {
             '[]'
           ) as policies
         FROM file_columns fc
-        LEFT JOIN column_governance_tag_assignments cgta ON fc.column_id = cgta.column_id
+        LEFT JOIN column_governance_tag_assignments cgta ON fc.file_id = cgta.file_id AND fc.column_name = cgta.column_name
         LEFT JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
-        LEFT JOIN column_policy_assignments cpa ON fc.column_id = cpa.column_id
+        LEFT JOIN column_policy_assignments cpa ON fc.file_id = cpa.file_id AND fc.column_name = cpa.column_name
         LEFT JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
         WHERE fc.file_id = $1
-        GROUP BY fc.column_name, fc.column_id
-        ORDER BY fc.column_id
+        GROUP BY fc.column_name, fc.id, fc.column_index
+        ORDER BY fc.column_index
       `;
       
       const result = await db.query(query, [fileId]);
