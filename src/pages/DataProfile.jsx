@@ -355,6 +355,10 @@ function DataProfile() {
   const [availableTags, setAvailableTags] = useState([]);
   const [fileTags, setFileTags] = useState([]);
   const [availablePolicies, setAvailablePolicies] = useState([]);
+  
+  // Column-level governance state (for table display)
+  const [allColumnGovernanceTags, setAllColumnGovernanceTags] = useState({});
+  const [allColumnPolicies, setAllColumnPolicies] = useState({});
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -468,6 +472,45 @@ function DataProfile() {
     }
   };
 
+  const fetchAllColumnGovernanceData = async (columns) => {
+    if (!columns || columns.length === 0) return;
+    
+    try {
+      // Fetch governance tags and policies for all columns in parallel
+      const tagPromises = columns.map(column => 
+        fetchColumnGovernanceTags(column.name)
+          .then(tags => ({ columnName: column.name, tags }))
+      );
+      
+      const policyPromises = columns.map(column =>
+        fetchColumnPolicies(column.name)
+          .then(policies => ({ columnName: column.name, policies }))
+      );
+      
+      const [tagResults, policyResults] = await Promise.all([
+        Promise.all(tagPromises),
+        Promise.all(policyPromises)
+      ]);
+      
+      // Convert arrays to objects keyed by column name
+      const tagsMap = {};
+      const policiesMap = {};
+      
+      tagResults.forEach(({ columnName, tags }) => {
+        tagsMap[columnName] = tags;
+      });
+      
+      policyResults.forEach(({ columnName, policies }) => {
+        policiesMap[columnName] = policies;
+      });
+      
+      setAllColumnGovernanceTags(tagsMap);
+      setAllColumnPolicies(policiesMap);
+    } catch (err) {
+      console.error('Error fetching all column governance data:', err);
+    }
+  };
+
   useEffect(() => {
     console.log('DataProfile component mounted with fileId:', fileId);
     const fetchData = async () => {
@@ -504,6 +547,11 @@ function DataProfile() {
           fetchFileTags(),
           fetchAvailablePolicies()
         ]);
+        
+        // Fetch column-level governance data for all columns
+        if (profileData && profileData.columns) {
+          await fetchAllColumnGovernanceData(profileData.columns);
+        }
       } catch (err) {
         console.error('Error fetching file data:', err);
         setError('Failed to load file data. Please try again later.');
