@@ -183,6 +183,155 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave }) {
   );
 }
 
+function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTags, onClose, onSave }) {
+  const [selectedTags, setSelectedTags] = useState(currentTags || []);
+  const [saving, setSaving] = useState(false);
+
+  const handleToggle = (tagId) => {
+    if (selectedTags.some(t => t.tag_id === tagId)) {
+      setSelectedTags(selectedTags.filter(t => t.tag_id !== tagId));
+    } else {
+      const tag = availableTags.find(t => t.tag_id === tagId);
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      
+      // Send the selected tag IDs to the backend
+      await axios.post(
+        `/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/tags`,
+        { tag_ids: selectedTags.map(t => t.tag_id) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      onSave();
+    } catch (err) {
+      console.error('Error saving column tags:', err);
+      alert('Failed to save column tags');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h2>Assign Tags to Column: {columnName}</h2>
+        
+        <div className="form-group">
+          <label>Select Governance Tags</label>
+          <div className="tags-selector">
+            {availableTags.length > 0 ? (
+              availableTags.map(tag => {
+                const isSelected = selectedTags.some(t => t.tag_id === tag.tag_id);
+                return (
+                  <button
+                    key={tag.tag_id}
+                    className={`tag-chip ${isSelected ? 'selected' : ''}`}
+                    style={isSelected ? { backgroundColor: tag.color, color: 'white' } : {}}
+                    onClick={() => handleToggle(tag.tag_id)}
+                  >
+                    {tag.tag_name}
+                  </button>
+                );
+              })
+            ) : (
+              <span className="no-items">No tags available</span>
+            )}
+          </div>
+        </div>
+        
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolicies, onClose, onSave }) {
+  const [selectedPolicies, setSelectedPolicies] = useState(currentPolicies || []);
+  const [saving, setSaving] = useState(false);
+
+  const handleToggle = (policyId) => {
+    if (selectedPolicies.some(p => p.policy_id === policyId)) {
+      setSelectedPolicies(selectedPolicies.filter(p => p.policy_id !== policyId));
+    } else {
+      const policy = availablePolicies.find(p => p.policy_id === policyId);
+      setSelectedPolicies([...selectedPolicies, policy]);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      
+      // Send the selected policy IDs to the backend
+      await axios.post(
+        `/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/policies`,
+        { policy_ids: selectedPolicies.map(p => p.policy_id) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      onSave();
+    } catch (err) {
+      console.error('Error saving column policies:', err);
+      alert('Failed to save column policies');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h2>Assign Policies to Column: {columnName}</h2>
+        
+        <div className="form-group">
+          <label>Select Governance Policies</label>
+          <div className="policies-selector">
+            {availablePolicies.length > 0 ? (
+              availablePolicies.map(policy => {
+                const isSelected = selectedPolicies.some(p => p.policy_id === policy.policy_id);
+                return (
+                  <button
+                    key={policy.policy_id}
+                    className={`policy-chip ${isSelected ? 'selected' : ''}`}
+                    onClick={() => handleToggle(policy.policy_id)}
+                  >
+                    {policy.policy_name}
+                  </button>
+                );
+              })
+            ) : (
+              <span className="no-items">No policies available</span>
+            )}
+          </div>
+        </div>
+        
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DataProfile() {
   const { fileId } = useParams();
   const [file, setFile] = useState(null);
@@ -195,7 +344,11 @@ function DataProfile() {
   const [policies, setPolicies] = useState([]);
   const [columnTags, setColumnTags] = useState([]);
   const [showTagModal, setShowTagModal] = useState(false);
+  const [showColumnGovernanceTagModal, setShowColumnGovernanceTagModal] = useState(false);
+  const [showColumnPolicyModal, setShowColumnPolicyModal] = useState(false);
   const [selectedColumn, setSelectedColumn] = useState(null);
+  const [currentColumnGovernanceTags, setCurrentColumnGovernanceTags] = useState([]);
+  const [currentColumnPolicies, setCurrentColumnPolicies] = useState([]);
   
   // File-level governance state
   const [fileSensitivity, setFileSensitivity] = useState('Public');
@@ -292,6 +445,26 @@ function DataProfile() {
       setAvailablePolicies(response.data);
     } catch (err) {
       console.error('Error fetching available policies:', err);
+    }
+  };
+
+  const fetchColumnGovernanceTags = async (columnName) => {
+    try {
+      const response = await axios.get(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/governance-tags`);
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching column governance tags:', err);
+      return [];
+    }
+  };
+
+  const fetchColumnPolicies = async (columnName) => {
+    try {
+      const response = await axios.get(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/policies`);
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching column policies:', err);
+      return [];
     }
   };
 
@@ -514,8 +687,11 @@ function DataProfile() {
                             )}
                             <button 
                               className="btn-icon-small" 
-                              onClick={() => {
-                                // TODO: Open column tags modal
+                              onClick={async () => {
+                                setSelectedColumn(column.name);
+                                const tags = await fetchColumnGovernanceTags(column.name);
+                                setCurrentColumnGovernanceTags(tags);
+                                setShowColumnGovernanceTagModal(true);
                               }}
                               title="Edit column tags"
                             >
@@ -532,8 +708,11 @@ function DataProfile() {
                             )}
                             <button 
                               className="btn-icon-small" 
-                              onClick={() => {
-                                // TODO: Open column policies modal
+                              onClick={async () => {
+                                setSelectedColumn(column.name);
+                                const colPolicies = await fetchColumnPolicies(column.name);
+                                setCurrentColumnPolicies(colPolicies);
+                                setShowColumnPolicyModal(true);
                               }}
                               title="Edit column policies"
                             >
@@ -956,6 +1135,44 @@ function DataProfile() {
                 await fetchColumnTags();
                 setShowTagModal(false);
                 setSelectedColumn(null);
+              }}
+            />
+          )}
+          
+          {showColumnGovernanceTagModal && selectedColumn && (
+            <ColumnGovernanceTagModal
+              fileId={fileId}
+              columnName={selectedColumn}
+              currentTags={currentColumnGovernanceTags}
+              availableTags={availableTags}
+              onClose={() => {
+                setShowColumnGovernanceTagModal(false);
+                setSelectedColumn(null);
+                setCurrentColumnGovernanceTags([]);
+              }}
+              onSave={async () => {
+                setShowColumnGovernanceTagModal(false);
+                setSelectedColumn(null);
+                setCurrentColumnGovernanceTags([]);
+              }}
+            />
+          )}
+          
+          {showColumnPolicyModal && selectedColumn && (
+            <ColumnPolicyModal
+              fileId={fileId}
+              columnName={selectedColumn}
+              currentPolicies={currentColumnPolicies}
+              availablePolicies={availablePolicies}
+              onClose={() => {
+                setShowColumnPolicyModal(false);
+                setSelectedColumn(null);
+                setCurrentColumnPolicies([]);
+              }}
+              onSave={async () => {
+                setShowColumnPolicyModal(false);
+                setSelectedColumn(null);
+                setCurrentColumnPolicies([]);
               }}
             />
           )}

@@ -2153,6 +2153,7 @@ const createFilePreviewDataTable = require('./backend/migrations/createFilePrevi
 const createDataGovernanceTables = require('./backend/migrations/createDataGovernanceTables');
 const createGovernanceTagsTables = require('./backend/migrations/createGovernanceTagsTables');
 const addSensitivityToFileOwnership = require('./backend/migrations/addSensitivityToFileOwnership');
+const createColumnGovernanceTables = require('./backend/migrations/createColumnGovernanceTables');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2260,6 +2261,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ File ownership sensitivity column migration completed');
+    
+    // Create column governance tables
+    return createColumnGovernanceTables(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Column governance tables migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
@@ -3077,6 +3084,132 @@ app.put('/api/files/:fileId/sensitivity', authenticateToken, invalidateCache('ca
   } catch (err) {
     console.error('Error updating file sensitivity:', err);
     res.status(500).json({ error: 'Failed to update file sensitivity' });
+  }
+});
+
+// ============================================
+// Column-Level Governance Tag Endpoints
+// ============================================
+
+// Get governance tags assigned to a specific column
+app.get('/api/files/:fileId/columns/:columnName/governance-tags', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId, columnName } = req.params;
+    
+    const result = await dbPool.query(
+      `SELECT cgta.*, gt.tag_name, gt.description, gt.color, gt.badge_style
+       FROM column_governance_tag_assignments cgta
+       JOIN governance_tags gt ON cgta.tag_id = gt.tag_id
+       WHERE cgta.file_id = $1 AND cgta.column_name = $2
+       ORDER BY cgta.assigned_at DESC`,
+      [fileId, decodeURIComponent(columnName)]
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching column governance tags:', err);
+    res.status(500).json({ error: 'Failed to fetch column governance tags' });
+  }
+});
+
+// Assign governance tags to a column
+app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, invalidateCache('cache:*:*tags*'), async (req, res) => {
+  try {
+    const { fileId, columnName } = req.params;
+    const { tag_ids } = req.body;
+    
+    if (!tag_ids || !Array.isArray(tag_ids)) {
+      return res.status(400).json({ error: 'tag_ids array is required' });
+    }
+    
+    const decodedColumnName = decodeURIComponent(columnName);
+    
+    // First, delete existing tag assignments for this column
+    await dbPool.query(
+      'DELETE FROM column_governance_tag_assignments WHERE file_id = $1 AND column_name = $2',
+      [fileId, decodedColumnName]
+    );
+    
+    // Then insert new tag assignments
+    if (tag_ids.length > 0) {
+      const values = tag_ids.map((tagId, index) => 
+        `($1, $2, $${index + 3})`
+      ).join(', ');
+      
+      await dbPool.query(
+        `INSERT INTO column_governance_tag_assignments (file_id, column_name, tag_id)
+         VALUES ${values}`,
+        [fileId, decodedColumnName, ...tag_ids]
+      );
+    }
+    
+    res.json({ message: 'Column tags updated successfully' });
+  } catch (err) {
+    console.error('Error updating column tags:', err);
+    res.status(500).json({ error: 'Failed to update column tags' });
+  }
+});
+
+// ============================================
+// Column-Level Policy Endpoints
+// ============================================
+
+// Get policies assigned to a specific column
+app.get('/api/files/:fileId/columns/:columnName/policies', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId, columnName } = req.params;
+    
+    const result = await dbPool.query(
+      `SELECT cpa.*, gp.policy_name, gp.description, gp.rules, gp.enabled
+       FROM column_policy_assignments cpa
+       JOIN governance_policies gp ON cpa.policy_id = gp.policy_id
+       WHERE cpa.file_id = $1 AND cpa.column_name = $2
+       ORDER BY cpa.assigned_at DESC`,
+      [fileId, decodeURIComponent(columnName)]
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching column policies:', err);
+    res.status(500).json({ error: 'Failed to fetch column policies' });
+  }
+});
+
+// Assign policies to a column
+app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
+  try {
+    const { fileId, columnName } = req.params;
+    const { policy_ids } = req.body;
+    
+    if (!policy_ids || !Array.isArray(policy_ids)) {
+      return res.status(400).json({ error: 'policy_ids array is required' });
+    }
+    
+    const decodedColumnName = decodeURIComponent(columnName);
+    
+    // First, delete existing policy assignments for this column
+    await dbPool.query(
+      'DELETE FROM column_policy_assignments WHERE file_id = $1 AND column_name = $2',
+      [fileId, decodedColumnName]
+    );
+    
+    // Then insert new policy assignments
+    if (policy_ids.length > 0) {
+      const values = policy_ids.map((policyId, index) => 
+        `($1, $2, $${index + 3})`
+      ).join(', ');
+      
+      await dbPool.query(
+        `INSERT INTO column_policy_assignments (file_id, column_name, policy_id)
+         VALUES ${values}`,
+        [fileId, decodedColumnName, ...policy_ids]
+      );
+    }
+    
+    res.json({ message: 'Column policies updated successfully' });
+  } catch (err) {
+    console.error('Error updating column policies:', err);
+    res.status(500).json({ error: 'Failed to update column policies' });
   }
 });
 
