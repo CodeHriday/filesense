@@ -47,8 +47,17 @@ The application features a hybrid architecture:
         -   Created "Default Project" (ID=1) and backfilled all existing resources
         -   Added foreign key constraints and indexes for performance
         -   All resources now support project-scoped access control
+    -   **Phase 2 Complete (2025-10-22)**: Implemented Policy-as-Data engine following AWS IAM model:
+        -   `rbac_policies`: Policy storage with JSON policy documents (Effect, Action, Resource, Condition)
+        -   `user_policy_attachments`: Direct policy assignments to users
+        -   `group_policy_attachments`: Policy assignments to groups (inheritance)
+        -   `resource_policy_attachments`: Resource-based policies for fine-grained access
+        -   `policy_evaluation_cache`: Performance optimization with automatic cache invalidation
+        -   PolicyEngine service: Evaluates policies with wildcard matching, condition evaluation, deny-override logic
+        -   REST API: Full CRUD operations for policies (/api/policies), attach/detach endpoints, evaluation endpoint for testing
+        -   Sample policies: AdministratorAccess (full access), ReadOnlyAccess (read-only access)
     -   **Migration Strategy**: Existing resources auto-migrate to "Default Project", role assignments convert to group memberships
-    -   **Next Phases**: Policy-as-Data engine, ABAC attributes, SCIM provisioning, multi-IdP support, UI for project management
+    -   **Next Phases**: ABAC attributes & conditions, SCIM provisioning, multi-IdP support, UI for project/policy management
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
 -   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
 -   **Workflow Orchestration**: Complete orchestration system with:

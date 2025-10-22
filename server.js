@@ -2112,6 +2112,15 @@ try {
   console.error('✗ Failed to register /api/users:', error.message);
 }
 
+// Policy Management routes (requires authentication)
+try {
+  const policyRoutes = require('./backend/routes/policyRoutes');
+  app.use('/api/policies', authenticateToken, policyRoutes(dbPool));
+  console.log('✓ Registered /api/policies route');
+} catch (error) {
+  console.error('✗ Failed to register /api/policies:', error.message);
+}
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
@@ -2286,6 +2295,7 @@ const addTagPermissionLevels = require('./backend/migrations/addTagPermissionLev
 const addUserProfileAndAuthFields = require('./backend/migrations/addUserProfileAndAuthFields');
 const createProjectsAndGroups = require('./backend/migrations/createProjectsAndGroups');
 const { addProjectIdToResources } = require('./backend/migrations/addProjectIdToResources');
+const { createPolicyEngine } = require('./backend/migrations/createPolicyEngine');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2429,6 +2439,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Project_id resource migration completed');
+    
+    // Create policy engine tables (Phase 2 RBAC revamp)
+    return createPolicyEngine(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Policy engine migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
