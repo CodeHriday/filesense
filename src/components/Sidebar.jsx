@@ -195,6 +195,29 @@ function Sidebar() {
               </li>
             )}
             
+            {/* Project Management section - Admin only */}
+            {isAdmin && (
+              <>
+                <li className="nav-divider">
+                  <span>Project Management</span>
+                </li>
+                
+                <li>
+                  <NavLink to="/project-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiBriefcase className="icon" />
+                    <span>Projects</span>
+                  </NavLink>
+                </li>
+                
+                <li>
+                  <NavLink to="/group-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                    <FiUsers className="icon" />
+                    <span>Access Groups</span>
+                  </NavLink>
+                </li>
+              </>
+            )}
+            
             {/* Ad Hoc Process section */}
             <li className="nav-divider">
               <span>Ad Hoc Process</span>
@@ -354,18 +377,6 @@ function Sidebar() {
                 
                 {isAdmin && (
                   <>
-                    <li>
-                      <NavLink to="/project-management" className={({ isActive }) => isActive ? 'active' : ''}>
-                        <FiBriefcase className="icon" />
-                        <span>Projects</span>
-                      </NavLink>
-                    </li>
-                    <li>
-                      <NavLink to="/group-management" className={({ isActive }) => isActive ? 'active' : ''}>
-                        <FiUsers className="icon" />
-                        <span>Access Groups</span>
-                      </NavLink>
-                    </li>
                     <li>
                       <NavLink to="/policy-management" className={({ isActive }) => isActive ? 'active' : ''}>
                         <FiShield className="icon" />
