@@ -304,12 +304,15 @@
 }
 
 .btn-danger {
-  background: #dc3545;
-  color: white;
+  background: transparent;
+  color: #dc3545;
+  border: 1px solid #dc3545;
 }
 
 .btn-danger:hover {
-  background: #c82333;
+  background: #f8f9fa;
+  color: #c82333;
+  border-color: #c82333;
 }
 
 .members-content {
