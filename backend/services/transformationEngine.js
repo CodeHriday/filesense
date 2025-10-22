@@ -52,6 +52,9 @@ function applyTransformation(transformationType, value, params = {}) {
       case 'case_when':
         return caseWhen(value, params);
       
+      case 'if':
+        return ifCondition(value, params);
+      
       case 'cast':
         return cast(value, params);
       
@@ -295,12 +298,12 @@ function ceil(value) {
 }
 
 /**
- * Conditional logic (CASE WHEN)
+ * Conditional logic (CASE WHEN) - Enhanced with additional operators
  */
 function caseWhen(value, params) {
   const { conditions = [], defaultValue = null } = params;
   
-  // conditions format: [{ operator: 'equals', value: 'X', result: 'Y' }, ...]
+  // conditions format: [{ operator: 'equals', compareValue: 'X', result: 'Y' }, ...]
   for (const condition of conditions) {
     const { operator, compareValue, result } = condition;
     
@@ -318,6 +321,12 @@ function caseWhen(value, params) {
         break;
       case 'less_than':
         matches = parseFloat(value) < parseFloat(compareValue);
+        break;
+      case 'greater_than_or_equal':
+        matches = parseFloat(value) >= parseFloat(compareValue);
+        break;
+      case 'less_than_or_equal':
+        matches = parseFloat(value) <= parseFloat(compareValue);
         break;
       case 'contains':
         matches = String(value).includes(String(compareValue));
@@ -342,6 +351,64 @@ function caseWhen(value, params) {
   }
   
   return defaultValue !== null ? defaultValue : value;
+}
+
+/**
+ * IF conditional logic - Simple if-then-else
+ * @param {any} value - The value to evaluate
+ * @param {Object} params - Parameters including operator, compareValue, thenValue, elseValue
+ * @returns {any} - The result based on the condition
+ */
+function ifCondition(value, params) {
+  const { 
+    operator = 'equals', 
+    compareValue = null, 
+    thenValue = null, 
+    elseValue = null 
+  } = params;
+  
+  let condition = false;
+  
+  switch (operator) {
+    case 'equals':
+      condition = value == compareValue;
+      break;
+    case 'not_equals':
+      condition = value != compareValue;
+      break;
+    case 'greater_than':
+      condition = parseFloat(value) > parseFloat(compareValue);
+      break;
+    case 'less_than':
+      condition = parseFloat(value) < parseFloat(compareValue);
+      break;
+    case 'greater_than_or_equal':
+      condition = parseFloat(value) >= parseFloat(compareValue);
+      break;
+    case 'less_than_or_equal':
+      condition = parseFloat(value) <= parseFloat(compareValue);
+      break;
+    case 'contains':
+      condition = String(value).includes(String(compareValue));
+      break;
+    case 'starts_with':
+      condition = String(value).startsWith(String(compareValue));
+      break;
+    case 'ends_with':
+      condition = String(value).endsWith(String(compareValue));
+      break;
+    case 'is_null':
+      condition = value === null || value === undefined || value === '';
+      break;
+    case 'is_not_null':
+      condition = value !== null && value !== undefined && value !== '';
+      break;
+    default:
+      // If no specific operator, treat value as boolean
+      condition = Boolean(value);
+  }
+  
+  return condition ? thenValue : elseValue;
 }
 
 /**
