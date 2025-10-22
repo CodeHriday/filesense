@@ -329,6 +329,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const variableNames = variables.map(v => v.name);
     const functionNames = TRANSFORMATION_OPTIONS.map(t => t.value);
     
+    // Conditional function names for special highlighting
+    const conditionalFunctions = ['if', 'case_when'];
+    
     // Build regex pattern for tokenization
     // Match: strings, variables, or identifiers (including hyphenated function names)
     const pattern = /'[^']*'|"[^"]*"|\$\w+|[\w-]+/g;
@@ -355,6 +358,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       } else if (token.startsWith('$')) {
         // Variable reference
         tokens.push({ type: 'variable', text: token });
+      } else if (conditionalFunctions.includes(token)) {
+        // Conditional function (IF, CASE_WHEN) - amber highlight
+        tokens.push({ type: 'conditional', text: token });
       } else if (functionNames.includes(token)) {
         // Function name
         tokens.push({ type: 'function', text: token });
@@ -380,11 +386,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     // Convert tokens to JSX
     return tokens.map((token, idx) => {
       const style = {
-        color: token.type === 'function' ? '#10B981' :  // green
-               token.type === 'column' ? '#3B82F6' :     // blue
-               token.type === 'variable' ? '#8B5CF6' :   // purple for variables
-               token.type === 'string' ? '#000000' :     // black
-               '#374151'  // default dark gray
+        color: token.type === 'conditional' ? '#f59e0b' :  // amber for if/case_when
+               token.type === 'function' ? '#10B981' :     // green
+               token.type === 'column' ? '#3B82F6' :       // blue
+               token.type === 'variable' ? '#8B5CF6' :     // purple for variables
+               token.type === 'string' ? '#000000' :       // black
+               '#374151',  // default dark gray
+        fontWeight: token.type === 'conditional' ? '600' : 'normal'
       };
       
       return <span key={idx} style={style}>{token.text}</span>;
