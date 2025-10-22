@@ -4,16 +4,34 @@
 Data File Observatory is a comprehensive platform for monitoring and analyzing data files. It combines Python-based analytics with a web interface to provide quality checks, profiling, and visualization for various file types, ensuring data integrity and offering actionable insights. The platform aims to provide robust data handling, ensuring data integrity and offering insights through a user-friendly interface.
 
 ## Recent Changes
-- **October 22, 2025**: Implemented enterprise data governance UI features
-  - Created PolicyManagement page with full CRUD operations for governance policies (retention, access control, encryption requirements)
-  - Added Data Governance section to sidebar navigation with File Lineage and Policy Management links
-  - Implemented file ownership assignment in FileUpload page (defaults to current user email)
-  - Added ownership edit modal with proper state management (temp state pattern for cancel/save workflow)
-  - Modified uploadFile API to accept optional owner parameter passed via FormData
-  - Policy management includes JSON rules editor, enabled/disabled status toggle, and policy assignment capabilities
-  - All modals follow React best practices with local temporary state to prevent unintended mutations
-  - Consistent CSS styling using existing design system variables
-  - Admin-only access control for policy management features
+- **October 22, 2025**: Completed enterprise data governance UI with Tag Management and file-level governance
+  - **Tag Management System** (Admin-only):
+    - Created TagManagement page with full CRUD operations for centrally managed governance tags
+    - Table layout with tag name, description, color/badge styling, and action buttons
+    - Backend API suite: GET/POST/PUT/DELETE /api/governance-tags/* with requireAdmin middleware for mutations
+    - Database tables: governance_tags, file_tag_assignments with proper indexes and foreign keys
+    - Added Tag Management link to Data Governance sidebar section
+  - **File-level Governance Fields** (File Attributes tab):
+    - Added editable Sensitivity dropdown (Public/Internal/Confidential/Restricted) with backend persistence
+    - Database migration added sensitivity_level column to file_ownership table (VARCHAR(50) DEFAULT 'Public')
+    - Backend endpoint: PUT /api/files/:fileId/sensitivity with validation and auto-create ownership records
+    - Tags multi-select for file tag assignments
+    - Policies multi-select for policy assignments
+    - All fields properly save to backend with cache invalidation
+  - **DataProfile Header Redesign**:
+    - Restructured to two-line layout: Line 1 (icon + filename), Line 2 (size, uploaded, owner, encoding, format)
+    - Owner defaults to logged-in user from session
+    - Responsive design with CSS flexbox and proper spacing
+  - **Policy Management Redesign**:
+    - Converted from card grid to table layout for consistency
+    - Changed description text to white for better readability
+    - Full CRUD operations with JSON rules editor and enabled/disabled status toggle
+  - **Code Quality**:
+    - Removed Sensitivity column from File Profile tab (moved to File Attributes)
+    - All modals follow React best practices with local temporary state
+    - Consistent CSS styling using existing design system variables
+    - Admin-only access control for governance tag mutations (POST/PUT/DELETE)
+    - Proper validation, error handling, and cache invalidation across all APIs
 - **October 21, 2025**: Updated Python security dependencies to latest versions
   - Updated h11 from 0.14.0 to 0.16.0 (fixes request smuggling vulnerability in HTTP/1.1 protocol)
   - Updated pillow from 11.2.1 to 11.3.0 (includes CVE-2025-48379 fix for BCn encoding buffer overflow)
