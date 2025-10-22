@@ -2110,6 +2110,7 @@ const updateObjectTypesToString = require('./backend/migrations/updateObjectType
 const initFileInsightsTables = require('./backend/migrations/createFileInsightsTable');
 const addLineageColumns = require('./backend/migrations/addLineageColumns');
 const { addProcessingStepColumn } = require('./backend/migrations/addProcessingStepColumn');
+const createFilePreviewDataTable = require('./backend/migrations/createFilePreviewDataTable');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2193,6 +2194,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Processing step column migration completed');
+    
+    // Create file preview data table
+    return createFilePreviewDataTable(dbPool);
+  })
+  .then(() => {
+    console.log('✅ File preview data table migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
