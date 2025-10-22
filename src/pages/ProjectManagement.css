@@ -129,7 +129,7 @@
 }
 
 .modal {
-  background: var(--bg-primary);
+  background: #ffffff;
   border-radius: var(--border-radius);
   max-width: 600px;
   width: 90%;
