@@ -432,35 +432,9 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    // Directly use our enhanced hasRole function
-    const isAdmin = hasRole('Admin');
-    const isCreator = hasRole('Creator');
-    
     // Admin role has access to everything
-    if (isAdmin) {
+    if (hasRole('Admin')) {
       return true;
-    }
-    
-    // Creator role has access to most features except user/role management
-    if (isCreator && resource !== 'user_management' && resource !== 'role_management') {
-      // These resources should always be available to Creators
-      const creatorResources = [
-        'connections', 'connection', 'mappings', 'mapping', 
-        'file_upload', 'files', 'file', 'quality_checks', 'quality_check',
-        'lineage', 'scheduler', 'alerts', 'alert',
-        // Add additional resource variations
-        'file_profile', 'quality', 'monitor', 'dashboard',
-        'badges', 'badge', 'insights', 'insight',
-        'recommendations', 'recommendation',
-        'stories', 'story',
-        // Business Process Management resources
-        'business_process', 'business_processes', 'business-process', 'business-processes',
-        'job', 'jobs', 'job_group', 'job_groups', 'job-group', 'job-groups'
-      ];
-      
-      if (creatorResources.includes(resource)) {
-        return true;
-      }
     }
     
     // Check permissions from the backend - this is the primary source of truth
