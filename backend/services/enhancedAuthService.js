@@ -131,8 +131,11 @@ async function registerLocalUser(userData) {
     first_name,
     last_name,
     middle_name,
-    phone_number
+    phone_number,
+    roles = []
   } = userData;
+  
+  const client = await db.pool.connect();
   
   try {
     // Validate password strength
@@ -146,7 +149,7 @@ async function registerLocalUser(userData) {
     }
     
     // Check if username exists
-    const existingUser = await db.query(
+    const existingUser = await client.query(
       'SELECT id FROM users WHERE username = $1 OR email = $2',
       [username, email]
     );
@@ -157,6 +160,9 @@ async function registerLocalUser(userData) {
         message: 'Username or email already exists'
       };
     }
+    
+    // Start transaction
+    await client.query('BEGIN');
     
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -180,7 +186,7 @@ async function registerLocalUser(userData) {
       RETURNING id, username, email, first_name, last_name, auth_provider
     `;
     
-    const result = await db.query(insertQuery, [
+    const result = await client.query(insertQuery, [
       username,
       hashedPassword,
       email,
@@ -193,14 +199,49 @@ async function registerLocalUser(userData) {
       0
     ]);
     
+    const newUser = result.rows[0];
+    
+    // Assign roles to the user
+    if (roles && roles.length > 0) {
+      for (const roleName of roles) {
+        // Get role ID
+        const roleResult = await client.query(
+          'SELECT id FROM roles WHERE name = $1',
+          [roleName]
+        );
+        
+        if (roleResult.rows.length > 0) {
+          const roleId = roleResult.rows[0].id;
+          
+          // Insert user_role mapping
+          await client.query(
+            'INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())',
+            [newUser.id, roleId]
+          );
+        } else {
+          console.warn(`Role '${roleName}' not found in database, skipping assignment`);
+        }
+      }
+    }
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
     return {
       success: true,
-      user: result.rows[0]
+      user: {
+        ...newUser,
+        roles
+      }
     };
     
   } catch (error) {
+    // Rollback transaction on error
+    await client.query('ROLLBACK');
     console.error('Error registering user:', error);
     throw error;
+  } finally {
+    client.release();
   }
 }
 
