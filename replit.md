@@ -35,6 +35,15 @@ The application features a hybrid architecture:
     -   **User-Aware Caching**: Cache keys include user ID (cache:${userId}:${baseKey}) to prevent cross-user data leaks. In-memory cache cleared on server restart.
     -   **Audit Trail**: Enhanced logging captures masked/denied column access with user, role, and operation details
     -   **File Profile Statistics Security**: The /api/files/:fileId/profile endpoint applies column-level access control to mask min/max/most_frequent/least_frequent statistics for PII-tagged and restricted columns. Users without tag:pii:read permission see "[REDACTED]" instead of actual values. PII tag configured with requires_view_permission=TRUE and permission_required='pii' to enforce access control.
+-   **Enterprise RBAC Transformation (In Progress)**: Major upgrade from basic RBAC to enterprise-grade hybrid RBAC+ABAC following AWS/Databricks/Snowflake model:
+    -   **Phase 1.1 Complete (2025-10-22)**: Created foundational database schema with 5 new tables:
+        -   `projects`: Workspace containment with hierarchical support (parent_id), ownership, default project flag, metadata/settings JSONB
+        -   `project_members`: Project membership with role assignments (Owner/Admin/Member/Viewer)
+        -   `access_groups`: User groups for RBAC with IdP sync support (MANUAL/STANDARD/DYNAMIC), external group mapping
+        -   `access_group_members`: Group membership tracking with source attribution (MANUAL/IDP_SYNCED/INHERITED)
+        -   `access_group_roles`: Role assignments to groups with project-scoping support (global or project-specific roles)
+    -   **Migration Strategy**: Existing resources auto-migrate to "Default Project", role assignments convert to group memberships
+    -   **Next Phases**: Add project_id to resource tables, Policy-as-Data engine, ABAC attributes, SCIM provisioning, multi-IdP support
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
 -   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
 -   **Workflow Orchestration**: Complete orchestration system with:
