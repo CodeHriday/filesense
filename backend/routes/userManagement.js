@@ -157,4 +157,164 @@ router.put('/profile', authenticateToken, asyncHandler(async (req, res) => {
   });
 }));
 
+/**
+ * PUT /api/users/:id
+ * Update any user (admin only)
+ */
+router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = parseInt(req.params.id);
+  const {
+    username,
+    email,
+    first_name,
+    middle_name,
+    last_name,
+    phone_number,
+    address_line1,
+    address_line2,
+    city,
+    state,
+    postal_code,
+    country,
+    roles
+  } = req.body;
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+  
+  // Start a transaction
+  const client = await db.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Update user information
+    const updateQuery = `
+      UPDATE users
+      SET
+        username = COALESCE($1, username),
+        email = COALESCE($2, email),
+        first_name = COALESCE($3, first_name),
+        middle_name = COALESCE($4, middle_name),
+        last_name = COALESCE($5, last_name),
+        phone_number = COALESCE($6, phone_number),
+        address_line1 = COALESCE($7, address_line1),
+        address_line2 = COALESCE($8, address_line2),
+        city = COALESCE($9, city),
+        state = COALESCE($10, state),
+        postal_code = COALESCE($11, postal_code),
+        country = COALESCE($12, country),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $13
+      RETURNING 
+        id, username, email,
+        first_name, middle_name, last_name, full_name,
+        phone_number,
+        address_line1, address_line2, city, state, postal_code, country,
+        auth_provider,
+        updated_at
+    `;
+    
+    const result = await client.query(updateQuery, [
+      username,
+      email,
+      first_name,
+      middle_name,
+      last_name,
+      phone_number,
+      address_line1,
+      address_line2,
+      city,
+      state,
+      postal_code,
+      country,
+      userId
+    ]);
+    
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Update roles if provided
+    if (roles && Array.isArray(roles)) {
+      // Delete existing role assignments
+      await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+      
+      // Insert new role assignments
+      for (const roleId of roles) {
+        const roleIdentifier = typeof roleId === 'string' ? roleId : roleId;
+        const isNumeric = !isNaN(roleIdentifier);
+        
+        let actualRoleId;
+        
+        if (isNumeric) {
+          // Verify role exists
+          const roleResult = await client.query(
+            'SELECT id FROM roles WHERE id = $1',
+            [roleIdentifier]
+          );
+          
+          if (roleResult.rows.length > 0) {
+            actualRoleId = roleResult.rows[0].id;
+          }
+        } else {
+          // Look up role by name
+          const roleResult = await client.query(
+            'SELECT id FROM roles WHERE name = $1',
+            [roleIdentifier]
+          );
+          
+          if (roleResult.rows.length > 0) {
+            actualRoleId = roleResult.rows[0].id;
+          }
+        }
+        
+        if (actualRoleId) {
+          await client.query(
+            'INSERT INTO user_roles (user_id, role_id, created_at) VALUES ($1, $2, NOW())',
+            [userId, actualRoleId]
+          );
+        }
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    // Fetch updated user with roles
+    const updatedUser = await db.query(
+      `SELECT 
+        u.id, u.username, u.email,
+        u.first_name, u.middle_name, u.last_name, u.full_name,
+        u.phone_number,
+        u.address_line1, u.address_line2, u.city, u.state, u.postal_code, u.country,
+        u.auth_provider,
+        u.created_at, u.updated_at, u.last_login,
+        COALESCE(
+          json_agg(r.name) FILTER (WHERE r.name IS NOT NULL),
+          '[]'
+        ) as roles
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1
+      GROUP BY u.id`,
+      [userId]
+    );
+    
+    res.json({
+      message: 'User updated successfully',
+      user: updatedUser.rows[0]
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}));
+
 module.exports = router;
