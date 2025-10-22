@@ -2150,6 +2150,7 @@ const initFileInsightsTables = require('./backend/migrations/createFileInsightsT
 const addLineageColumns = require('./backend/migrations/addLineageColumns');
 const { addProcessingStepColumn } = require('./backend/migrations/addProcessingStepColumn');
 const createFilePreviewDataTable = require('./backend/migrations/createFilePreviewDataTable');
+const createDataGovernanceTables = require('./backend/migrations/createDataGovernanceTables');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2239,6 +2240,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ File preview data table migration completed');
+    
+    // Create data governance tables
+    return createDataGovernanceTables(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Data governance tables migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
