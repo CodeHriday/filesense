@@ -1,8 +1,6 @@
-const logger = require('../utils/logger');
-
 async function createFilePreviewDataTable(pool) {
   try {
-    logger.info('Starting file_preview_data table migration', { service: 'data-observatory-api' });
+    console.log('INFO: Starting file_preview_data table migration');
 
     // Create file_preview_data table
     await pool.query(`
@@ -21,7 +19,7 @@ async function createFilePreviewDataTable(pool) {
       )
     `);
 
-    logger.info('✓ file_preview_data table created', { service: 'data-observatory-api' });
+    console.log('INFO: ✓ file_preview_data table created');
 
     // Create indexes for better query performance
     await pool.query(`
@@ -34,18 +32,15 @@ async function createFilePreviewDataTable(pool) {
       ON file_preview_data(created_at)
     `);
 
-    logger.info('✓ Created indexes for file_preview_data table', { service: 'data-observatory-api' });
+    console.log('INFO: ✓ Created indexes for file_preview_data table');
 
-    logger.info('File preview data table initialized successfully', { service: 'data-observatory-api' });
+    console.log('INFO: File preview data table initialized successfully');
     console.log('✅ File preview data table migration completed');
     
     return { success: true, message: 'File preview data table migration completed' };
   } catch (error) {
-    logger.error('Error creating file_preview_data table', { 
-      service: 'data-observatory-api',
-      error: error.message,
-      stack: error.stack
-    });
+    console.error('ERROR: Error creating file_preview_data table:', error.message);
+    console.error('ERROR: Stack:', error.stack);
     console.error('❌ File preview data table migration failed:', error.message);
     throw error;
   }
