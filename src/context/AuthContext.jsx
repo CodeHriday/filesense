@@ -485,6 +485,49 @@ export const AuthProvider = ({ children }) => {
     return false;
   };
 
+  // Check if user has permission to access data tagged with a specific governance tag
+  const hasTagPermission = (tagType, action = 'read') => {
+    if (!currentUser) {
+      return false;
+    }
+    
+    // Admin role has access to all tagged data
+    if (currentUser.roles && currentUser.roles.includes('Admin')) {
+      return true;
+    }
+    
+    // Check for tag-based permissions in format "tag:tagType:action"
+    // For example: "tag:pii:read", "tag:confidential:edit", "tag:financial:*"
+    if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
+      return currentUser.permissions.some(p => {
+        if (typeof p === 'string') {
+          const parts = p.split(':');
+          
+          // Must be in format "tag:tagType:action"
+          if (parts.length !== 3 || parts[0] !== 'tag') {
+            return false;
+          }
+          
+          const [, permTagType, permAction] = parts;
+          
+          // Case-insensitive tag type matching
+          const tagTypeMatch = permTagType.toLowerCase() === tagType.toLowerCase();
+          
+          // Action matching: exact match, wildcard (*), or edit includes read
+          const actionMatch = permAction === action || 
+                             permAction === '*' || 
+                             (action === 'read' && permAction === 'edit');
+          
+          return tagTypeMatch && actionMatch;
+        }
+        
+        return false;
+      });
+    }
+    
+    return false;
+  };
+
   const value = {
     currentUser,
     login,
@@ -494,7 +537,8 @@ export const AuthProvider = ({ children }) => {
     hasPermission,
     hasFeaturePermission,
     hasRole,
-    hasWritePermission
+    hasWritePermission,
+    hasTagPermission
   };
   
   return (
