@@ -355,15 +355,27 @@ function Sidebar() {
                 {isAdmin && (
                   <>
                     <li>
+                      <NavLink to="/project-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                        <FiBriefcase className="icon" />
+                        <span>Projects</span>
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink to="/group-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                        <FiUsers className="icon" />
+                        <span>Access Groups</span>
+                      </NavLink>
+                    </li>
+                    <li>
                       <NavLink to="/policy-management" className={({ isActive }) => isActive ? 'active' : ''}>
                         <FiShield className="icon" />
-                        <span>Policy Management</span>
+                        <span>Policies</span>
                       </NavLink>
                     </li>
                     <li>
                       <NavLink to="/tag-management" className={({ isActive }) => isActive ? 'active' : ''}>
                         <FiTag className="icon" />
-                        <span>Tag Management</span>
+                        <span>Tags</span>
                       </NavLink>
                     </li>
                   </>

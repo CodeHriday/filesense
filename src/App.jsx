@@ -52,6 +52,8 @@ import ETLScheduler from './pages/ETLScheduler';
 import SchedulerForm from './pages/SchedulerForm';
 import PolicyManagement from './pages/PolicyManagement';
 import TagManagement from './pages/TagManagement';
+import ProjectManagement from './pages/ProjectManagement';
+import GroupManagement from './pages/GroupManagement';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -240,9 +242,11 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/etl-scheduler" element={<ProtectedRoute><ETLScheduler /></ProtectedRoute>} />
                 <Route path="/etl-scheduler/create" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
                 <Route path="/etl-scheduler/:scheduleId/edit" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
-                {/* Data Governance routes */}
+                {/* Data Governance & RBAC routes */}
                 <Route path="/policy-management" element={<ProtectedRoute><PolicyManagement /></ProtectedRoute>} />
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
+                <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
+                <Route path="/group-management" element={<ProtectedRoute><GroupManagement /></ProtectedRoute>} />
                 <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
                 <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
                 {/* Development Routes */}
