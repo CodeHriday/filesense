@@ -242,11 +242,21 @@ export const AuthProvider = ({ children }) => {
     
     // Check permissions from the backend - this is the primary source of truth
     if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
+      // First check for direct string match (handles exact permission matches)
+      if (currentUser.permissions.some(p => p === permission)) {
+        return true;
+      }
+      
       // Process the permission to get resource and action
       let resource, action;
       
-      // Handle various permission formats
-      if (permission.includes('_')) {
+      // Handle various permission formats - CHECK COLON FORMAT FIRST
+      if (permission.includes(':')) {
+        // Modern format: 'resource:action' like 'file_upload:read'
+        const parts = permission.split(':');
+        resource = parts[0];
+        action = parts[1];
+      } else if (permission.includes('_')) {
         // Format: 'resource_action' like 'dashboard_view'
         const parts = permission.split('_');
         // The last part is the action, everything else is the resource
@@ -278,11 +288,17 @@ export const AuthProvider = ({ children }) => {
       return currentUser.permissions.some(p => {
         // Handle string format permissions (new format from database)
         if (typeof p === 'string') {
-          const [permResource, permAction] = p.split(':');
+          // Check for colon-separated format
+          if (p.includes(':')) {
+            const [permResource, permAction] = p.split(':');
+            
+            // Check if any variation of the resource matches
+            return resourceVariations.includes(permResource) && 
+                   (permAction === action || permAction === '*');
+          }
           
-          // Check if any variation of the resource matches
-          return resourceVariations.includes(permResource) && 
-                 (permAction === action || permAction === '*');
+          // Direct string match for backward compatibility
+          return p === permission;
         }
         
         // Handle object format permissions (older format)
