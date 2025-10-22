@@ -2285,6 +2285,7 @@ const addCreatorToFileOwnership = require('./backend/migrations/addCreatorToFile
 const addTagPermissionLevels = require('./backend/migrations/addTagPermissionLevels');
 const addUserProfileAndAuthFields = require('./backend/migrations/addUserProfileAndAuthFields');
 const createProjectsAndGroups = require('./backend/migrations/createProjectsAndGroups');
+const { addProjectIdToResources } = require('./backend/migrations/addProjectIdToResources');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2417,11 +2418,17 @@ migrateConnectionsSchema()
   .then(() => {
     console.log('✅ User profile and auth fields migration completed');
     
-    // Create projects and groups tables (Phase 1 RBAC revamp)
+    // Create projects and groups tables (Phase 1.1 RBAC revamp)
     return createProjectsAndGroups(dbPool);
   })
   .then(() => {
     console.log('✅ Projects and groups tables migration completed');
+    
+    // Add project_id to resource tables (Phase 1.2 RBAC revamp)
+    return addProjectIdToResources(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Project_id resource migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

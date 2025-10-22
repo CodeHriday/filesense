@@ -39,11 +39,16 @@ The application features a hybrid architecture:
     -   **Phase 1.1 Complete (2025-10-22)**: Created foundational database schema with 5 new tables:
         -   `projects`: Workspace containment with hierarchical support (parent_id), ownership, default project flag, metadata/settings JSONB
         -   `project_members`: Project membership with role assignments (Owner/Admin/Member/Viewer)
-        -   `access_groups`: User groups for RBAC with IdP sync support (MANUAL/STANDARD/DYNAMIC), external group mapping
+        -   `access_groups`: User groups for RBAC with IdP sync support (MANUAL/STANDARD/DYNAMIC), external group mapping (renamed from `groups` to avoid collision with business process groups)
         -   `access_group_members`: Group membership tracking with source attribution (MANUAL/IDP_SYNCED/INHERITED)
         -   `access_group_roles`: Role assignments to groups with project-scoping support (global or project-specific roles)
+    -   **Phase 1.2 Complete (2025-10-22)**: Added project_id foreign keys to resource tables for workspace containment:
+        -   Added `project_id` column to: files, workflow_steps, schedules, transformation_mappings, storage_connections
+        -   Created "Default Project" (ID=1) and backfilled all existing resources
+        -   Added foreign key constraints and indexes for performance
+        -   All resources now support project-scoped access control
     -   **Migration Strategy**: Existing resources auto-migrate to "Default Project", role assignments convert to group memberships
-    -   **Next Phases**: Add project_id to resource tables, Policy-as-Data engine, ABAC attributes, SCIM provisioning, multi-IdP support
+    -   **Next Phases**: Policy-as-Data engine, ABAC attributes, SCIM provisioning, multi-IdP support, UI for project management
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
 -   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
 -   **Workflow Orchestration**: Complete orchestration system with:
