@@ -26,11 +26,13 @@ The application features a hybrid architecture:
     -   **Environment Variables**: OKTA_ISSUER, OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_REDIRECT_URI, SESSION_SECRET
 -   **RBAC & Column-Level Security**: Complete role-based access control system with:
     -   **5 Default Roles**: Admin (full access), Data Steward (governance focus with tag management), Data Engineer (transformations/workflows), Analyst (read + execute), Viewer (read-only)
+    -   **PII Reader Role**: Special role with permissions for dashboard:read, file_upload:read, file_profile:read, quality_checks:read, tag:pii:read. This role can access the File Catalog page, view file lists, view file details, and access file processing status.
+    -   **File Catalog Access**: Requires authentication and at least one of these permissions: file_view, file:read, file_upload:read, or file_profile:read. All file endpoints (/api/files, /api/files/:fileId, /api/files/:fileId/status) enforce permission checks.
     -   **Tag-Based Permissions**: Fine-grained column access via tag permissions (tag:pii:read, tag:pii:edit, tag:confidential:*, tag:financial:*)
     -   **Column Masking**: Intelligent data masking for unauthorized users (email: a***@domain.com, SSN: ***-**-1234, generic: ab****yz)
     -   **Permission Levels**: Tags support permission_level (Public/Restricted/Private) and sensitivity_level for data classification
     -   **Access Control Service**: backend/services/columnAccessControl.js handles permission checks and data filtering
-    -   **User-Aware Caching**: Cache keys include user ID to prevent cross-user data leaks
+    -   **User-Aware Caching**: Cache keys include user ID (cache:${userId}:${baseKey}) to prevent cross-user data leaks. In-memory cache cleared on server restart.
     -   **Audit Trail**: Enhanced logging captures masked/denied column access with user, role, and operation details
 -   **Audit System**: Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI for viewing and export.
 -   **ETL Transformation System**: Comprehensive ETL system with file pattern matching (wildcards), schema validation, lightweight field transformations (25+ functions), schema drift detection, profiling with anomaly detection rules, and job execution tracking with full audit trail. Supports CSV, JSON, XLSX, XML, and Parquet file formats with full format conversion capabilities (any input format → any output format). Includes a Variables feature for ETL field mapping with a 3-pane expression builder.
