@@ -258,7 +258,7 @@ function GroupManagement() {
     <div className="group-management">
       <div className="page-header">
         <h1>Group Management</h1>
-        <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+        <button className="btn-primary btn-create-group" onClick={() => setShowCreateModal(true)}>
           + Create Group
         </button>
       </div>
@@ -288,38 +288,58 @@ function GroupManagement() {
       {loading ? (
         <div className="loading">Loading groups...</div>
       ) : (
-        <div className="groups-grid">
-          {groups.map((group) => (
-            <div key={group.id} className="group-card">
-              <div className="group-header">
-                <h3>{group.name}</h3>
-                <span className={`badge badge-${group.group_type.toLowerCase()}`}>
-                  {group.group_type}
-                </span>
-              </div>
-              {group.description && <p className="group-description">{group.description}</p>}
-              <div className="group-meta">
-                <span>Created: {new Date(group.created_at).toLocaleDateString()}</span>
-                {group.idp_sync_enabled && (
-                  <span className="sync-badge">IdP Sync Enabled</span>
-                )}
-              </div>
-              <div className="group-actions">
-                <button className="btn-small" onClick={() => openMembersModal(group)}>
-                  Members
-                </button>
-                <button className="btn-small" onClick={() => openRolesModal(group)}>
-                  Roles
-                </button>
-                <button className="btn-small" onClick={() => openEditModal(group)}>
-                  Edit
-                </button>
-                <button className="btn-small btn-danger" onClick={() => handleDelete(group.id)}>
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="table-container">
+          <table className="groups-table">
+            <thead>
+              <tr>
+                <th>Group Name</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>IdP Sync</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((group) => (
+                <tr key={group.id}>
+                  <td>
+                    <strong>{group.name}</strong>
+                  </td>
+                  <td>{group.description || '-'}</td>
+                  <td>
+                    <span className={`badge badge-${group.group_type.toLowerCase()}`}>
+                      {group.group_type}
+                    </span>
+                  </td>
+                  <td>
+                    {group.idp_sync_enabled ? (
+                      <span className="sync-badge">Enabled</span>
+                    ) : (
+                      <span style={{ color: 'var(--text-secondary)' }}>Disabled</span>
+                    )}
+                  </td>
+                  <td>{new Date(group.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button className="btn-small" onClick={() => openMembersModal(group)}>
+                        Members
+                      </button>
+                      <button className="btn-small" onClick={() => openRolesModal(group)}>
+                        Roles
+                      </button>
+                      <button className="btn-small" onClick={() => openEditModal(group)}>
+                        Edit
+                      </button>
+                      <button className="btn-small btn-danger" onClick={() => handleDelete(group.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

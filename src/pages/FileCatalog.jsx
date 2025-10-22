@@ -439,9 +439,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                     />
                   </td>
                   <td>
-                    <span className="project-badge">
-                      {file.project_name || 'Default Project'}
-                    </span>
+                    {file.project_name || 'Default Project'}
                   </td>
                   <td className="file-name-cell">
                     <span className="file-icon">
