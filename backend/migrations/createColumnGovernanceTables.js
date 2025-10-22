@@ -13,7 +13,7 @@ async function createColumnGovernanceTables(pool) {
         assignment_id SERIAL PRIMARY KEY,
         file_id VARCHAR(255) NOT NULL,
         column_name VARCHAR(255) NOT NULL,
-        tag_id INTEGER NOT NULL,
+        tag_id VARCHAR(255) NOT NULL,
         assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT fk_column_tag_file 
           FOREIGN KEY (file_id) 
@@ -35,7 +35,7 @@ async function createColumnGovernanceTables(pool) {
         assignment_id SERIAL PRIMARY KEY,
         file_id VARCHAR(255) NOT NULL,
         column_name VARCHAR(255) NOT NULL,
-        policy_id INTEGER NOT NULL,
+        policy_id VARCHAR(255) NOT NULL,
         assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT fk_column_policy_file 
           FOREIGN KEY (file_id) 

@@ -1078,7 +1078,7 @@ function DataProfile() {
         </div>
       ) : file ? (
         <>
-          <div className="profile-header-two-line">
+          <div className="profile-header-three-line">
             <div className="header-line-1">
               <span className="file-icon">{file.file_type.toUpperCase()}</span>
               <h1>{file.filename}</h1>
@@ -1091,6 +1091,18 @@ function DataProfile() {
                 <strong>Uploaded:</strong> {getTimeSince(file.created_at)}
               </span>
               <span className="header-property">
+                <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
+              </span>
+              <span className="header-property">
+                <strong>Format:</strong> {file.file_type || 'Unknown'}
+              </span>
+            </div>
+            <div className="header-line-3">
+              <span className="header-property">
+                <FiUser className="icon-inline" />
+                <strong>Creator:</strong> {ownership?.creator_name || ownership?.creator_email || 'Unknown'}
+              </span>
+              <span className="header-property">
                 <FiUser className="icon-inline" />
                 <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
                 <button 
@@ -1100,12 +1112,6 @@ function DataProfile() {
                 >
                   <FiEdit2 />
                 </button>
-              </span>
-              <span className="header-property">
-                <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
-              </span>
-              <span className="header-property">
-                <strong>Format:</strong> {file.file_type || 'Unknown'}
               </span>
             </div>
           </div>

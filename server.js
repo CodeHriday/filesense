@@ -2154,6 +2154,7 @@ const createDataGovernanceTables = require('./backend/migrations/createDataGover
 const createGovernanceTagsTables = require('./backend/migrations/createGovernanceTagsTables');
 const addSensitivityToFileOwnership = require('./backend/migrations/addSensitivityToFileOwnership');
 const createColumnGovernanceTables = require('./backend/migrations/createColumnGovernanceTables');
+const addCreatorToFileOwnership = require('./backend/migrations/addCreatorToFileOwnership');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2267,6 +2268,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Column governance tables migration completed');
+    
+    // Add creator columns to file_ownership
+    return addCreatorToFileOwnership(dbPool);
+  })
+  .then(() => {
+    console.log('✅ File ownership creator columns migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

@@ -4,8 +4,8 @@
   margin: 0 auto;
 }
 
-/* Two-line header layout */
-.profile-header-two-line {
+/* Three-line header layout */
+.profile-header-three-line {
   margin-bottom: var(--space-4);
   background: linear-gradient(to right, var(--color-gray-50), var(--color-gray-100));
   padding: var(--space-4);
@@ -64,6 +64,35 @@
 }
 
 .header-line-2 .icon-inline {
+  width: 14px;
+  height: 14px;
+  color: var(--color-primary);
+}
+
+.header-line-3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.header-line-3 .header-property {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.header-line-3 .header-property strong {
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+.header-line-3 .icon-inline {
   width: 14px;
   height: 14px;
   color: var(--color-primary);
