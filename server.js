@@ -1148,7 +1148,7 @@ app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), asy
 });
 
 // File upload endpoint with async queue processing
-app.post('/api/files/upload', invalidateCache('cache:*:*files*'), uploadLimiter, upload.single('file'), async (req, res) => {
+app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files*'), uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     // Validate file upload
     if (!req.file) {
