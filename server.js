@@ -51,6 +51,9 @@ const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('
 const { cacheMiddleware, invalidateCache } = require('./backend/middleware/cacheMiddleware');
 const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 
+// Import enhanced authentication service
+const enhancedAuthService = require('./backend/services/enhancedAuthService');
+
 // Initialize Express app
 const app = express();
 // Use PORT from environment (Replit provides this), fallback to 5000 in production or 3000 in development
@@ -2000,6 +2003,24 @@ try {
   console.error('✗ Failed to register /api/visual-workflows:', error.message);
 }
 
+// Okta SSO Authentication routes
+try {
+  const oktaAuthRoutes = require('./backend/routes/oktaAuth');
+  app.use('/api/auth/okta', oktaAuthRoutes);
+  console.log('✓ Registered /api/auth/okta route');
+} catch (error) {
+  console.error('✗ Failed to register /api/auth/okta:', error.message);
+}
+
+// User Management routes
+try {
+  const userManagementRoutes = require('./backend/routes/userManagement');
+  app.use('/api/users', userManagementRoutes);
+  console.log('✓ Registered /api/users route');
+} catch (error) {
+  console.error('✗ Failed to register /api/users:', error.message);
+}
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
@@ -2171,6 +2192,7 @@ const addSensitivityToFileOwnership = require('./backend/migrations/addSensitivi
 const createColumnGovernanceTables = require('./backend/migrations/createColumnGovernanceTables');
 const addCreatorToFileOwnership = require('./backend/migrations/addCreatorToFileOwnership');
 const addTagPermissionLevels = require('./backend/migrations/addTagPermissionLevels');
+const addUserProfileAndAuthFields = require('./backend/migrations/addUserProfileAndAuthFields');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2296,6 +2318,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Tag permission levels migration completed');
+    
+    // Add user profile and auth fields migration
+    return addUserProfileAndAuthFields();
+  })
+  .then(() => {
+    console.log('✅ User profile and auth fields migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
@@ -3734,11 +3762,41 @@ app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (re
     // Get user agent from request
     const userAgent = req.get('user-agent') || 'Unknown';
     
-    // Use authService to authenticate user
-    const authService = require('./backend/src/services/authService');
-    const result = await authService.authenticateUser(username, password, userAgent);
+    // Use enhanced auth service for authentication with security features
+    const result = await enhancedAuthService.authenticateUserWithSecurity(username, password, userAgent);
     
     if (!result.success) {
+      // Check for account lockout
+      if (result.locked) {
+        logger.warn('Login attempt on locked account', { 
+          username,
+          ip: req.ip,
+          userAgent,
+          remainingTime: result.remainingTime
+        });
+        return res.status(403).json({ 
+          error: result.message,
+          locked: true,
+          remainingTime: result.remainingTime
+        });
+      }
+      
+      // Check for SSO-only account
+      if (result.useSso) {
+        logger.warn('Login attempt on SSO-only account', { 
+          username,
+          ip: req.ip,
+          userAgent,
+          ssoProvider: result.ssoProvider
+        });
+        return res.status(401).json({ 
+          error: result.message,
+          useSso: true,
+          ssoProvider: result.ssoProvider
+        });
+      }
+      
+      // Regular authentication failure
       logger.warn('Failed login attempt', { 
         username,
         ip: req.ip,
@@ -3746,9 +3804,6 @@ app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (re
       });
       return res.status(401).json({ error: result.message });
     }
-    
-    // Update last login time
-    await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [result.user.id]);
     
     // Security audit: Log successful login
     logger.info('Successful login', { 
@@ -3769,6 +3824,17 @@ app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (re
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: sanitizeError(err, 'An error occurred during login') });
+  }
+});
+
+// Password requirements endpoint
+app.get('/api/auth/password-requirements', (req, res) => {
+  try {
+    const requirements = enhancedAuthService.getPasswordRequirements();
+    res.json(requirements);
+  } catch (err) {
+    console.error('Error fetching password requirements:', err);
+    res.status(500).json({ error: 'Failed to fetch password requirements' });
   }
 });
 
