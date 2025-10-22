@@ -339,67 +339,8 @@ function GroupManagement() {
               <h2>Create New Group</h2>
               <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
             </div>
-            <form onSubmit={handleCreate}>
-              <div className="form-group">
-                <label>Group Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows="3"
-                />
-              </div>
-              <div className="form-group">
-                <label>Group Type</label>
-                <select
-                  value={formData.group_type}
-                  onChange={(e) => setFormData({ ...formData, group_type: e.target.value })}
-                >
-                  <option value="MANUAL">Manual</option>
-                  <option value="STANDARD">Standard</option>
-                  <option value="DYNAMIC">Dynamic</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.idp_sync_enabled}
-                    onChange={(e) => setFormData({ ...formData, idp_sync_enabled: e.target.checked })}
-                  />
-                  Enable IdP Sync
-                </label>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">Create Group</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {showEditModal && selectedGroup && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Edit Group - {selectedGroup.name}</h2>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
-            </div>
-            <div className="modal-content-sections">
-              <form onSubmit={handleUpdate}>
-                <h3>Group Details</h3>
+            <div className="modal-body">
+              <form onSubmit={handleCreate} style={{ padding: '1.5rem' }}>
                 <div className="form-group">
                   <label>Group Name *</label>
                   <input
@@ -418,19 +359,81 @@ function GroupManagement() {
                   />
                 </div>
                 <div className="form-group">
+                  <label>Group Type</label>
+                  <select
+                    value={formData.group_type}
+                    onChange={(e) => setFormData({ ...formData, group_type: e.target.value })}
+                  >
+                    <option value="MANUAL">Manual</option>
+                    <option value="STANDARD">Standard</option>
+                    <option value="DYNAMIC">Dynamic</option>
+                  </select>
+                </div>
+                <div className="form-group">
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
-                      checked={formData.sync_enabled}
-                      onChange={(e) => setFormData({ ...formData, sync_enabled: e.target.checked })}
+                      checked={formData.idp_sync_enabled}
+                      onChange={(e) => setFormData({ ...formData, idp_sync_enabled: e.target.checked })}
                     />
                     Enable IdP Sync
                   </label>
                 </div>
-                <div className="modal-actions">
-                  <button type="submit" className="btn-primary">Update Details</button>
-                </div>
               </form>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary" onClick={handleCreate}>Create Group</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && selectedGroup && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Group - {selectedGroup.name}</h2>
+              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-content-sections">
+                <form onSubmit={handleUpdate}>
+                  <h3>Group Details</h3>
+                  <div className="form-group">
+                    <label>Group Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows="3"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.sync_enabled}
+                        onChange={(e) => setFormData({ ...formData, sync_enabled: e.target.checked })}
+                      />
+                      Enable IdP Sync
+                    </label>
+                  </div>
+                  <div style={{ marginTop: '1rem' }}>
+                    <button type="submit" className="btn-primary">Update Details</button>
+                  </div>
+                </form>
 
               <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
 
@@ -455,7 +458,7 @@ function GroupManagement() {
                   </div>
                 </form>
 
-                <div className="members-list" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                <div className="scrollable-list">
                   <table className="compact-table">
                     <thead>
                       <tr>
@@ -486,12 +489,12 @@ function GroupManagement() {
                   </table>
                 </div>
               </div>
-
-              <div className="modal-actions" style={{ marginTop: '1.5rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                  Close
-                </button>
               </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                Close
+              </button>
             </div>
           </div>
         </div>
