@@ -23,7 +23,6 @@ import {
   FiCpu,
   FiLayers,
   FiMapPin,
-  FiFilter,
   FiPlusCircle,
   FiFileText,
   FiGrid,
@@ -288,14 +287,6 @@ function Sidebar() {
               <NavLink to="/workflow-canvas" className={({ isActive }) => isActive ? 'active' : ''}>
                 <FiGrid className="icon" />
                 <span>Visual Designer</span>
-              </NavLink>
-            </li>
-            
-            {/* Workflow Wizard */}
-            <li>
-              <NavLink to="/process-management-wizard" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiFilter className="icon" />
-                <span>Workflow Wizard</span>
               </NavLink>
             </li>
             
