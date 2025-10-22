@@ -162,6 +162,11 @@ class FileProcessingWorker {
         await this.saveColumnInfo(fileId, fileInfo.schema);
       }
 
+      // Step 5.5: Save preview data to database (100 rows)
+      if (fileInfo.preview_data && fileInfo.preview_data.length > 0) {
+        await this.savePreviewData(fileId, fileInfo.preview_data);
+      }
+
       await this.queue.updateProgress(jobId, 90);
 
       // Step 6: Capture file audit details and schema
@@ -662,6 +667,46 @@ print(json.dumps(result))
   }
 
   /**
+   * Save preview data (100 rows) to database
+   * @param {string} fileId - Unique file identifier
+   * @param {Array} previewRows - Array of row objects (max 100)
+   */
+  async savePreviewData(fileId, previewRows) {
+    try {
+      this.logger.info('Saving preview data to database', {
+        fileId,
+        rowCount: previewRows.length
+      });
+
+      // Limit to 100 rows
+      const limitedRows = previewRows.slice(0, 100);
+
+      // Insert each row into file_preview_data table
+      for (let i = 0; i < limitedRows.length; i++) {
+        await this.dbPool.query(
+          `INSERT INTO file_preview_data (file_id, row_number, row_data)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (file_id, row_number) 
+           DO UPDATE SET row_data = EXCLUDED.row_data`,
+          [fileId, i + 1, JSON.stringify(limitedRows[i])]
+        );
+      }
+
+      this.logger.info('Preview data saved successfully', {
+        fileId,
+        rowsSaved: limitedRows.length
+      });
+    } catch (error) {
+      this.logger.error('Error saving preview data', {
+        fileId,
+        error: error.message,
+        stack: error.stack
+      });
+      // Don't throw - preview data failure shouldn't fail the job
+    }
+  }
+
+  /**
    * Cleanup uploaded file after processing
    * @param {string} filePath - Path to the uploaded file
    * @param {string} status - 'success' or 'failure'
@@ -674,25 +719,12 @@ print(json.dumps(result))
         return;
       }
 
-      if (status === 'failure' && process.env.QUARANTINE_FAILED_FILES === 'true') {
-        // Optionally quarantine failed files for debugging
-        const quarantinePath = filePath.replace('/uploads/', '/quarantine/');
-        const quarantineDir = path.dirname(quarantinePath);
-        
-        if (!fs.existsSync(quarantineDir)) {
-          fs.mkdirSync(quarantineDir, { recursive: true });
-        }
-        
-        fs.renameSync(filePath, quarantinePath);
-        this.logger.info('File quarantined for debugging', { 
-          originalPath: filePath, 
-          quarantinePath 
-        });
-      } else {
-        // Delete the file
-        fs.unlinkSync(filePath);
-        this.logger.info('Uploaded file cleaned up', { filePath, status });
-      }
+      // Always delete the file for security - we store metadata and preview data only
+      fs.unlinkSync(filePath);
+      this.logger.info('Uploaded file deleted (security policy - metadata and preview stored)', { 
+        filePath, 
+        status 
+      });
     } catch (error) {
       this.logger.error('Error cleaning up uploaded file', {
         filePath,
