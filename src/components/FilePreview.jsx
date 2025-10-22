@@ -10,6 +10,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   const [previewData, setPreviewData] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [notification, setNotification] = useState(null);
   
   useEffect(() => {
     if (fileId) {
@@ -47,10 +48,17 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
       // Clear preview data from state
       setPreviewData({ ...previewData, rows: [] });
       setShowDeleteConfirm(false);
-      alert('Preview data deleted successfully');
+      setNotification({
+        type: 'success',
+        message: 'Preview data deleted successfully'
+      });
     } catch (err) {
       console.error('Error deleting preview data:', err);
-      alert('Failed to delete preview data: ' + (err.response?.data?.error || err.message));
+      setShowDeleteConfirm(false);
+      setNotification({
+        type: 'error',
+        message: 'Failed to delete preview data: ' + (err.response?.data?.error || err.message)
+      });
     } finally {
       setDeleting(false);
     }
@@ -225,6 +233,23 @@ Timeliness: 10%`}
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {notification && (
+        <div className="notification-modal">
+          <div className={`notification-content notification-${notification.type}`}>
+            <div className="notification-header">
+              {notification.type === 'success' ? '✓' : '✕'}
+            </div>
+            <p>{notification.message}</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => setNotification(null)}
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
