@@ -394,6 +394,7 @@ function DataProfile() {
   };
   
   // Check if user has edit permission for a column's governance tags
+  // MUST match backend security logic: requires edit permission for ALL tags
   const canEditColumnGovernance = (columnName) => {
     // Admin can always edit
     if (user?.roles?.includes('Admin')) {
@@ -408,8 +409,9 @@ function DataProfile() {
       return false;
     }
     
-    // Check if user has edit permission for at least one of the column's tags
-    return columnTagsData.some(tag => {
+    // User must have edit permission for ALL tags on the column
+    // (consistent with backend security model)
+    return columnTagsData.every(tag => {
       const tagName = tag.tag_name?.toLowerCase();
       return hasPermission(`tag:${tagName}:edit`) || hasPermission(`tag:${tagName}:write`);
     });

@@ -160,6 +160,17 @@
   color: var(--color-primary);
 }
 
+.btn-icon-small:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  color: var(--text-tertiary);
+}
+
+.btn-icon-small:disabled:hover {
+  background-color: transparent;
+  color: var(--text-tertiary);
+}
+
 .profile-header {
   display: flex;
   justify-content: space-between;
