@@ -6,6 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 import './DataProfile.css';
 import axios from 'axios';
 
@@ -334,6 +335,7 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
 
 function DataProfile() {
   const { fileId } = useParams();
+  const { user, hasPermission } = useAuth();
   const [file, setFile] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -389,6 +391,28 @@ function DataProfile() {
       // Format numeric values
       return formatDecimal(value, 2);
     }
+  };
+  
+  // Check if user has edit permission for a column's governance tags
+  const canEditColumnGovernance = (columnName) => {
+    // Admin can always edit
+    if (user?.roles?.includes('Admin')) {
+      return true;
+    }
+    
+    // Get the tags assigned to this column
+    const columnTagsData = allColumnGovernanceTags[columnName] || [];
+    
+    // If no tags, only Admin can assign (checked above)
+    if (columnTagsData.length === 0) {
+      return false;
+    }
+    
+    // Check if user has edit permission for at least one of the column's tags
+    return columnTagsData.some(tag => {
+      const tagName = tag.tag_name?.toLowerCase();
+      return hasPermission(`tag:${tagName}:edit`) || hasPermission(`tag:${tagName}:write`);
+    });
   };
 
   const fetchOwnership = async () => {
@@ -753,7 +777,8 @@ function DataProfile() {
                                 setCurrentColumnGovernanceTags(tags);
                                 setShowColumnGovernanceTagModal(true);
                               }}
-                              title="Edit column tags"
+                              disabled={!canEditColumnGovernance(column.name)}
+                              title={canEditColumnGovernance(column.name) ? "Edit column tags" : "You don't have permission to edit tags on this column"}
                             >
                               <FiEdit2 />
                             </button>
@@ -774,7 +799,8 @@ function DataProfile() {
                                 setCurrentColumnPolicies(colPolicies);
                                 setShowColumnPolicyModal(true);
                               }}
-                              title="Edit column policies"
+                              disabled={!canEditColumnGovernance(column.name)}
+                              title={canEditColumnGovernance(column.name) ? "Edit column policies" : "You don't have permission to edit policies on this column"}
                             >
                               <FiEdit2 />
                             </button>
