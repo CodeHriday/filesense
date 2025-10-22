@@ -2902,6 +2902,14 @@ app.get('/api/files/:fileId/columns/:columnName/sensitivity-tag', cacheMiddlewar
 // Add or update sensitivity tag for a column
 app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateToken, invalidateCache('cache:*:*sensitivity*'), async (req, res) => {
   try {
+    // Check if user has file_governance:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to manage column sensitivity tags. Contact your administrator.'
+      });
+    }
+    
     const { fileId, columnName } = req.params;
     const { classification_level, data_type } = req.body;
     
@@ -2991,6 +2999,14 @@ app.get('/api/governance-policies/:policyId', cacheMiddleware(300), async (req, 
 // Create new governance policy
 app.post('/api/governance-policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
+    // Check if user has policy:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policy:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to create governance policies. Contact your administrator.'
+      });
+    }
+    
     const { policy_id, policy_name, description, rules } = req.body;
     
     if (!policy_id || !policy_name) {
@@ -3017,6 +3033,14 @@ app.post('/api/governance-policies', authenticateToken, invalidateCache('cache:*
 // Update governance policy
 app.put('/api/governance-policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
+    // Check if user has policy:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policy:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to update governance policies. Contact your administrator.'
+      });
+    }
+    
     const { policyId } = req.params;
     const { policy_name, description, rules } = req.body;
     
@@ -3042,6 +3066,14 @@ app.put('/api/governance-policies/:policyId', authenticateToken, invalidateCache
 // Delete governance policy
 app.delete('/api/governance-policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
+    // Check if user has policy:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policy:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to delete governance policies. Contact your administrator.'
+      });
+    }
+    
     const { policyId } = req.params;
     
     const result = await dbPool.query(
@@ -3086,6 +3118,14 @@ app.get('/api/files/:fileId/policies', cacheMiddleware(300), async (req, res) =>
 // Assign policy to a file
 app.post('/api/files/:fileId/policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
+    // Check if user has file_governance:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to assign policies to files. Contact your administrator.'
+      });
+    }
+    
     const { fileId } = req.params;
     const { policy_id } = req.body;
     
@@ -3115,6 +3155,14 @@ app.post('/api/files/:fileId/policies', authenticateToken, invalidateCache('cach
 // Remove policy from file
 app.delete('/api/files/:fileId/policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
+    // Check if user has file_governance:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to remove policies from files. Contact your administrator.'
+      });
+    }
+    
     const { fileId, policyId } = req.params;
     
     const result = await dbPool.query(
@@ -3329,6 +3377,14 @@ app.get('/api/files/:fileId/columns/:columnName/governance-tags', cacheMiddlewar
 // Assign governance tags to a column
 app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, invalidateCache('cache:*:*tags*'), async (req, res) => {
   try {
+    // Check if user has file_governance:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to assign tags to columns. Contact your administrator.'
+      });
+    }
+    
     const { fileId, columnName } = req.params;
     const { tag_ids } = req.body;
     
@@ -3435,6 +3491,14 @@ app.get('/api/files/:fileId/columns/:columnName/policies', cacheMiddleware(300),
 // Assign policies to a column
 app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
+    // Check if user has file_governance:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to assign policies to columns. Contact your administrator.'
+      });
+    }
+    
     const { fileId, columnName } = req.params;
     const { policy_ids } = req.body;
     
@@ -3534,6 +3598,14 @@ app.get('/api/files/:fileId/tags', cacheMiddleware(300), async (req, res) => {
 // Assign tag to a file
 app.post('/api/files/:fileId/tags', authenticateToken, invalidateCache('cache:*:*tags*'), async (req, res) => {
   try {
+    // Check if user has file_governance:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to assign tags to files. Contact your administrator.'
+      });
+    }
+    
     const { fileId } = req.params;
     const { tag_id } = req.body;
     
