@@ -416,6 +416,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                       title="Select all files on this page"
                     />
                   </th>
+                  <th>Project</th>
                   <th>File Name</th>
                   <th>Type</th>
                   <th>Size</th>
@@ -436,6 +437,11 @@ export const FileCatalog = ({ onFileSelect }) => {
                       onChange={() => handleSelectFile(file.file_id)}
                       onClick={(e) => e.stopPropagation()}
                     />
+                  </td>
+                  <td>
+                    <span className="project-badge">
+                      {file.project_name || 'Default Project'}
+                    </span>
                   </td>
                   <td className="file-name-cell">
                     <span className="file-icon">

@@ -285,20 +285,24 @@ class FileService extends ServiceBase {
       // Validate sort order
       const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
       
-      let query = 'SELECT * FROM files';
+      let query = `
+        SELECT files.*, projects.name as project_name 
+        FROM files 
+        LEFT JOIN projects ON files.project_id = projects.id
+      `;
       const params = [];
       let whereClauses = [];
       
       // Add filter by file type
       if (fileType) {
-        whereClauses.push('file_type = $' + (params.length + 1));
+        whereClauses.push('files.file_type = $' + (params.length + 1));
         params.push(fileType);
       }
       
       // Add search filter
       if (search) {
-        whereClauses.push('(filename ILIKE $' + (params.length + 1) + 
-                         ' OR file_id ILIKE $' + (params.length + 1) + ')');
+        whereClauses.push('(files.filename ILIKE $' + (params.length + 1) + 
+                         ' OR files.file_id ILIKE $' + (params.length + 1) + ')');
         params.push(`%${search}%`);
       }
       
@@ -307,8 +311,11 @@ class FileService extends ServiceBase {
         query += ' WHERE ' + whereClauses.join(' AND ');
       }
       
-      // Add sorting and pagination
-      query += ` ORDER BY ${sortColumn} ${order} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      // Add sorting and pagination (prefix with files. if needed)
+      const sortCol = sortColumn === 'id' || sortColumn === 'filename' || sortColumn === 'file_type' || 
+                      sortColumn === 'file_size' || sortColumn === 'created_at' || sortColumn === 'quality_score' 
+                      ? `files.${sortColumn}` : sortColumn;
+      query += ` ORDER BY ${sortCol} ${order} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
       params.push(limit, offset);
       
       const result = await this.executeQuery(query, params, { traceId });

@@ -202,6 +202,16 @@
   white-space: nowrap;
 }
 
+.project-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .file-type-badge {
   display: inline-block;
   padding: var(--space-1) var(--space-2);
