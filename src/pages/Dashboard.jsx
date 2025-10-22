@@ -750,14 +750,16 @@ const Dashboard = () => {
             </div>
           </div>
           
-          <div className="dashboard-detail-row">
-            <div className="dashboard-chart">
-              {renderTrendChart()}
+          <div className="dashboard-chart-full-width">
+            {renderTrendChart()}
+          </div>
+          
+          <div className="dashboard-three-column-grid">
+            <div className="dashboard-column">
+              {renderFileTypeDistribution()}
             </div>
             
-            <div className="dashboard-sidebar">
-              {renderFileTypeDistribution()}
-              
+            <div className="dashboard-column">
               <div className="recent-files">
                 <h3 id="recent-files-heading">Recent Files</h3>
                 
@@ -848,7 +850,9 @@ const Dashboard = () => {
                   </ul>
                 )}
               </div>
-              
+            </div>
+            
+            <div className="dashboard-column">
               <div className="recent-alerts">
                 <h3 id="recent-alerts-heading">Recent Alerts</h3>
                 {alerts.length === 0 ? (

@@ -207,6 +207,28 @@
   gap: var(--space-6);
 }
 
+/* Full-width chart section */
+.dashboard-chart-full-width {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+/* Three-column grid layout */
+.dashboard-three-column-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+.dashboard-column {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Trend Chart */
 .trend-chart {
   width: 100%;
@@ -924,6 +946,10 @@
   }
   
   .dashboard-detail-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-three-column-grid {
     grid-template-columns: 1fr;
   }
 }
