@@ -74,12 +74,9 @@ function requireProjectAccess(options = {}) {
       // Check project membership
       const membershipResult = await db.query(`
         SELECT 
-          pm.role_id,
-          r.name as role_name,
           p.name as project_name,
           p.is_active as project_active
         FROM project_members pm
-        JOIN roles r ON pm.role_id = r.id
         JOIN projects p ON pm.project_id = p.id
         WHERE pm.project_id = $1 
           AND pm.user_id = $2
@@ -113,24 +110,8 @@ function requireProjectAccess(options = {}) {
         });
       }
 
-      // Check if user's role is allowed
-      if (!projectRoles.includes(membership.role_name)) {
-        systemLogger.warn('Project access denied: Insufficient role', {
-          userId: req.user.id,
-          username: req.user.username,
-          projectId,
-          userRole: membership.role_name,
-          requiredRoles: projectRoles
-        });
-        return res.status(403).json({
-          error: 'Access denied',
-          message: `This action requires one of these project roles: ${projectRoles.join(', ')}`
-        });
-      }
-
       // Success - attach project context to request
       req.projectId = projectId;
-      req.projectRole = membership.role_name;
       req.projectName = membership.project_name;
       req.isAdminBypass = false;
 
@@ -139,7 +120,6 @@ function requireProjectAccess(options = {}) {
         username: req.user.username,
         projectId,
         projectName: membership.project_name,
-        projectRole: membership.role_name,
         resourceType
       });
 
