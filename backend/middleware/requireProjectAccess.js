@@ -218,9 +218,22 @@ async function lookupResourceProject(req, resourceType) {
       break;
 
     case 'workflow':
+      // Workflows are stored in business_processes table
       if (req.params.workflowId || req.params.id) {
-        query = 'SELECT project_id FROM workflow_steps WHERE id = $1';
+        query = 'SELECT project_id FROM business_processes WHERE id = $1';
         params = [req.params.workflowId || req.params.id];
+      }
+      break;
+
+    case 'workflow_step':
+      // Workflow steps have their own project_id
+      if (req.params.stepId || req.params.id) {
+        query = 'SELECT project_id FROM workflow_steps WHERE id = $1';
+        params = [req.params.stepId || req.params.id];
+      } else if (req.params.workflowId) {
+        // If we have workflow ID, get project from workflow's steps
+        query = 'SELECT DISTINCT project_id FROM workflow_steps WHERE workflow_id = $1';
+        params = [req.params.workflowId];
       }
       break;
 

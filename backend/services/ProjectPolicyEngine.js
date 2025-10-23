@@ -48,7 +48,7 @@ class ProjectPolicyEngine {
     try {
       // Build resource ARN
       const resourceArn = this.buildResourceArn(projectId, resourceType, resourceId);
-      const actionArn = this.buildActionArn(projectId, action);
+      const actionArn = this.buildActionArn(projectId, resourceType, action);
 
       systemLogger.info('Evaluating policy', {
         userId,
@@ -113,10 +113,11 @@ class ProjectPolicyEngine {
 
   /**
    * Build action ARN
-   * Format: project:{projectId}:{action}
+   * Format: project:{projectId}:{resourceType}:{action}
+   * Example: project:123:file:read
    */
-  buildActionArn(projectId, action) {
-    return `project:${projectId}:${action}`;
+  buildActionArn(projectId, resourceType, action) {
+    return `project:${projectId}:${resourceType}:${action}`;
   }
 
   /**

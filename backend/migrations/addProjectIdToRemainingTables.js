@@ -216,6 +216,50 @@ async function addProjectIdToRemainingTables(client) {
     `);
     systemLogger.info('✓ Added foreign key and index for workflow_executions.project_id');
 
+    // ===========================
+    // business_processes table (workflows)
+    // ===========================
+    await client.query(`
+      DO $$ 
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'business_processes') THEN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'business_processes' AND column_name = 'project_id'
+          ) THEN
+            ALTER TABLE business_processes ADD COLUMN project_id INTEGER;
+          END IF;
+        END IF;
+      END $$;
+    `);
+    systemLogger.info('✓ Added project_id column to business_processes table (if exists)');
+
+    await client.query(`
+      UPDATE business_processes SET project_id = $1 WHERE project_id IS NULL;
+    `, [defaultProjectId]).catch(() => {
+      // Table might not exist, that's okay
+      systemLogger.info('⚠ business_processes table not found, skipping');
+    });
+    
+    await client.query(`
+      DO $$ 
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'business_processes') THEN
+          ALTER TABLE business_processes ALTER COLUMN project_id SET NOT NULL;
+          ALTER TABLE business_processes 
+          ADD CONSTRAINT fk_business_processes_project 
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+        END IF;
+      EXCEPTION
+        WHEN others THEN NULL;
+      END $$;
+    `);
+    
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_business_processes_project_id ON business_processes(project_id);
+    `);
+    systemLogger.info('✓ Added foreign key and index for business_processes.project_id');
+
     await client.query('COMMIT');
     systemLogger.info('Project_id migration for remaining tables completed successfully');
     return { success: true, message: 'Migration completed successfully' };

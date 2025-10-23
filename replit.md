@@ -69,6 +69,15 @@ The application features a hybrid architecture:
         -   `scim_resource_mappings`: Bidirectional mapping between SCIM resources and platform entities
         -   Support for both inbound (IdP → Platform) and outbound (Platform → IdP) sync
         -   Configurable sync intervals and attribute mappings per IdP
+    -   **Phase 5 Complete (2025-10-23)**: Project-Level Access Control - Complete workspace isolation with three-layer security:
+        -   **Database**: Added project_id to all remaining resource tables (mapping_groups, transformation_jobs, mapping_group_executions, workflow_executions)
+        -   **Layer 1 - Project Membership**: `requireProjectAccess` middleware validates user is project member with appropriate role (Owner/Admin/Member/Viewer)
+        -   **Layer 2 - Global Permissions**: Checks user has required system-level permissions
+        -   **Layer 3 - Project Policies**: `ProjectPolicyEngine` evaluates AWS IAM-style policies with wildcard matching, ABAC conditions, and deny-override logic
+        -   **Unified Middleware**: `authorizeProjectResource` combines all three layers for comprehensive defense-in-depth
+        -   **Policy Format**: JSON documents support Effect (Allow/Deny), Action (project:*:file:read), Resource (project:123:file:*), Condition (StringEquals, NumericLessThan, etc.)
+        -   **Helper Functions**: `checkProjectMembership()` and `getUserProjects()` for programmatic access checks
+        -   **Access Model**: Users can only view/process files and resources in projects where they are members; admins can bypass for all projects
     -   **Migration Strategy**: Existing resources auto-migrate to "Default Project", role assignments convert to group memberships
     -   **UI Implementation (2025-10-22)**: 
         -   **Project Management**: Full React UI with table layout, CRUD operations, member management with dynamic role assignment
