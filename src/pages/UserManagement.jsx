@@ -12,6 +12,7 @@ const UserManagement = () => {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedUser, setSelectedUser] = useState(null);
@@ -156,6 +157,7 @@ const UserManagement = () => {
     });
     setModalMode('create');
     setError('');
+    setModalError('');
     setModalOpen(true);
   };
   
@@ -173,12 +175,14 @@ const UserManagement = () => {
       roles: user.roles || []
     });
     setModalMode('edit');
+    setModalError('');
     setModalOpen(true);
   };
   
   const closeModal = () => {
     setModalOpen(false);
     setSelectedUser(null);
+    setModalError('');
   };
   
   const handleInputChange = (e) => {
@@ -210,7 +214,7 @@ const UserManagement = () => {
     
     // Validate that at least one role is selected
     if (formData.roles.length === 0) {
-      setError('At least one role must be assigned to the user');
+      setModalError('At least one role must be assigned to the user');
       return;
     }
     
@@ -241,7 +245,7 @@ const UserManagement = () => {
       
       closeModal();
       fetchData();
-      setError('');
+      setModalError('');
     } catch (error) {
       console.error('Error saving user:', error);
       
@@ -268,7 +272,7 @@ const UserManagement = () => {
         errorMessage += ': ' + error.message;
       }
       
-      setError(errorMessage);
+      setModalError(errorMessage);
     }
   };
   
@@ -416,6 +420,12 @@ const UserManagement = () => {
                 ×
               </button>
             </div>
+            
+            {modalError && (
+              <div className="error-message modal-error-message" role="alert">
+                {modalError}
+              </div>
+            )}
             
             <form onSubmit={handleSubmit} className="user-form">
               <div className="form-group">
