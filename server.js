@@ -2192,6 +2192,7 @@ const addTagPermissionLevels = require('./backend/migrations/addTagPermissionLev
 const addUserProfileAndAuthFields = require('./backend/migrations/addUserProfileAndAuthFields');
 const createProjectsAndGroups = require('./backend/migrations/createProjectsAndGroups');
 const { addProjectIdToResources } = require('./backend/migrations/addProjectIdToResources');
+const { addProjectIdToRemainingTables } = require('./backend/migrations/addProjectIdToRemainingTables');
 const { createPolicyEngine } = require('./backend/migrations/createPolicyEngine');
 const { createABACAttributes } = require('./backend/migrations/createABACAttributes');
 const { createSCIMProvisioning } = require('./backend/migrations/createSCIMProvisioning');
@@ -2338,6 +2339,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Project_id resource migration completed');
+    
+    // Add project_id to remaining tables (mapping_groups, transformation_jobs, etc.)
+    return addProjectIdToRemainingTables(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Project_id remaining tables migration completed');
     
     // Create policy engine tables (Phase 2 RBAC revamp)
     return createPolicyEngine(dbPool);
