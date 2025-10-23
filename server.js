@@ -3505,14 +3505,6 @@ app.get('/api/files/:fileId/columns/:columnName/governance-tags', cacheMiddlewar
 // Assign governance tags to a column
 app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, invalidateCache('cache:*:*tags*'), async (req, res) => {
   try {
-    // Check if user has file_governance:write permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
-      return res.status(403).json({ 
-        error: 'Access denied',
-        message: 'You do not have permission to assign tags to columns. Contact your administrator.'
-      });
-    }
-    
     const { fileId, columnName } = req.params;
     const { tag_ids } = req.body;
     
@@ -3619,14 +3611,6 @@ app.get('/api/files/:fileId/columns/:columnName/policies', cacheMiddleware(300),
 // Assign policies to a column
 app.post('/api/files/:fileId/columns/:columnName/policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
-    // Check if user has file_governance:write permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
-      return res.status(403).json({ 
-        error: 'Access denied',
-        message: 'You do not have permission to assign policies to columns. Contact your administrator.'
-      });
-    }
-    
     const { fileId, columnName } = req.params;
     const { policy_ids } = req.body;
     

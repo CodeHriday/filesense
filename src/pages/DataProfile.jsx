@@ -4,13 +4,14 @@ import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdi
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
+import ErrorModal from '../components/ErrorModal';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import './DataProfile.css';
 import axios from 'axios';
 
-function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave }) {
+function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, setErrorMessage }) {
   const [classificationLevel, setClassificationLevel] = useState(currentTag?.classification_level || '');
   const [dataType, setDataType] = useState(currentTag?.data_type || '');
   const [saving, setSaving] = useState(false);
@@ -24,7 +25,7 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave }
 
   const handleSave = async () => {
     if (!classificationLevel) {
-      alert('Please select a classification level');
+      setErrorMessage('Please select a classification level');
       return;
     }
 
@@ -37,7 +38,7 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave }
       onSave();
     } catch (err) {
       console.error('Error saving sensitivity tag:', err);
-      alert('Failed to save sensitivity tag');
+      setErrorMessage('Failed to save sensitivity tag');
     } finally {
       setSaving(false);
     }
@@ -56,7 +57,7 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave }
       onSave();
     } catch (err) {
       console.error('Error deleting sensitivity tag:', err);
-      alert('Failed to delete sensitivity tag');
+      setErrorMessage('Failed to delete sensitivity tag');
     } finally {
       setSaving(false);
     }
@@ -113,7 +114,7 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave }
   );
 }
 
-function OwnershipModal({ fileId, currentOwnership, onClose, onSave }) {
+function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMessage }) {
   const [ownerName, setOwnerName] = useState(currentOwnership?.owner_name || '');
   const [ownerEmail, setOwnerEmail] = useState(currentOwnership?.owner_email || '');
   const [ownerContact, setOwnerContact] = useState(currentOwnership?.owner_contact || '');
@@ -130,7 +131,7 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave }) {
       onSave();
     } catch (err) {
       console.error('Error saving ownership:', err);
-      alert('Failed to save ownership information');
+      setErrorMessage('Failed to save ownership information');
     } finally {
       setSaving(false);
     }
@@ -184,7 +185,7 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave }) {
   );
 }
 
-function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTags, onClose, onSave }) {
+function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTags, onClose, onSave, setErrorMessage }) {
   const [selectedTags, setSelectedTags] = useState(currentTags || []);
   const [saving, setSaving] = useState(false);
 
@@ -212,7 +213,8 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
       onSave();
     } catch (err) {
       console.error('Error saving column tags:', err);
-      alert('Failed to save column tags');
+      const errorMsg = err.response?.data?.error || 'Failed to save column tags';
+      setErrorMessage(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -259,7 +261,7 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
   );
 }
 
-function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolicies, onClose, onSave }) {
+function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolicies, onClose, onSave, setErrorMessage }) {
   const [selectedPolicies, setSelectedPolicies] = useState(currentPolicies || []);
   const [saving, setSaving] = useState(false);
 
@@ -287,7 +289,8 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
       onSave();
     } catch (err) {
       console.error('Error saving column policies:', err);
-      alert('Failed to save column policies');
+      const errorMsg = err.response?.data?.error || 'Failed to save column policies';
+      setErrorMessage(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -361,6 +364,9 @@ function DataProfile() {
   // Column-level governance state (for table display)
   const [allColumnGovernanceTags, setAllColumnGovernanceTags] = useState({});
   const [allColumnPolicies, setAllColumnPolicies] = useState({});
+  
+  // Error modal state
+  const [errorMessage, setErrorMessage] = useState(null);
 
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
@@ -640,7 +646,7 @@ function DataProfile() {
         await fetchOwnership();
       } catch (error) {
         console.error('Error saving sensitivity:', error);
-        alert('Failed to save sensitivity level');
+        setErrorMessage('Failed to save sensitivity level');
       }
     };
     
@@ -1244,6 +1250,7 @@ function DataProfile() {
                 await fetchOwnership();
                 setShowOwnershipModal(false);
               }}
+              setErrorMessage={setErrorMessage}
             />
           )}
           
@@ -1261,6 +1268,7 @@ function DataProfile() {
                 setShowTagModal(false);
                 setSelectedColumn(null);
               }}
+              setErrorMessage={setErrorMessage}
             />
           )}
           
@@ -1284,6 +1292,7 @@ function DataProfile() {
                   await fetchAllColumnGovernanceData(profile.columns);
                 }
               }}
+              setErrorMessage={setErrorMessage}
             />
           )}
           
@@ -1307,6 +1316,7 @@ function DataProfile() {
                   await fetchAllColumnGovernanceData(profile.columns);
                 }
               }}
+              setErrorMessage={setErrorMessage}
             />
           )}
           
@@ -1350,6 +1360,11 @@ function DataProfile() {
           <Link to="/" className="btn btn-primary">Return to Dashboard</Link>
         </div>
       )}
+      
+      <ErrorModal 
+        message={errorMessage} 
+        onClose={() => setErrorMessage(null)} 
+      />
     </div>
   );
 }
