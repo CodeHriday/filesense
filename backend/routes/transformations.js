@@ -311,7 +311,7 @@ router.post('/',
 router.put('/:id',
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:update', 'transformation_update']
+    requiredPermissions: ['transformation:update']
   }),
   async (req, res) => {
   try {
@@ -494,7 +494,7 @@ router.put('/:id',
 router.delete('/:id',
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:delete', 'transformation_delete']
+    requiredPermissions: ['transformation:delete']
   }),
   async (req, res) => {
   try {

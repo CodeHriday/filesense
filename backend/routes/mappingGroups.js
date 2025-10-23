@@ -174,7 +174,7 @@ router.post('/',
 router.put('/:id',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:update', 'mapping_group_update']
+    requiredPermissions: ['mapping_group:update']
   }),
   async (req, res) => {
   try {
@@ -247,7 +247,7 @@ router.put('/:id',
 router.delete('/:id',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:delete', 'mapping_group_delete']
+    requiredPermissions: ['mapping_group:delete']
   }),
   async (req, res) => {
   try {
@@ -320,7 +320,7 @@ router.get('/:id/members',
 router.post('/:id/members',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:update', 'mapping_group_update']
+    requiredPermissions: ['mapping_group:update']
   }),
   async (req, res) => {
   try {
@@ -370,7 +370,7 @@ router.post('/:id/members',
 router.delete('/:id/members/:memberId',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:update', 'mapping_group_update']
+    requiredPermissions: ['mapping_group:update']
   }),
   async (req, res) => {
   try {
