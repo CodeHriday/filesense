@@ -86,7 +86,8 @@ function createProjectRoutes(dbPool) {
           r.name as role_name
         FROM project_members pm
         JOIN users u ON pm.user_id = u.id
-        LEFT JOIN roles r ON pm.role_id = r.id
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
         WHERE pm.project_id = $1
         ORDER BY pm.created_at DESC
       `, [projectId]);
@@ -132,15 +133,11 @@ function createProjectRoutes(dbPool) {
 
       const newProject = result.rows[0];
 
-      // Get Admin role ID (use Admin as default project owner role since project-specific roles don't exist yet)
-      const roleResult = await dbPool.query('SELECT id FROM roles WHERE name = $1 LIMIT 1', ['Admin']);
-      const roleId = roleResult.rows[0]?.id || 1; // Fallback to role ID 1 if not found
-
-      // Add creator as project owner
+      // Add creator as project member (permissions are determined by their global role)
       await dbPool.query(`
-        INSERT INTO project_members (project_id, user_id, role_id)
-        VALUES ($1, $2, $3)
-      `, [newProject.id, userId, roleId]);
+        INSERT INTO project_members (project_id, user_id)
+        VALUES ($1, $2)
+      `, [newProject.id, userId]);
 
       systemLogger.info('Project created', {
         userId,
@@ -276,34 +273,25 @@ function createProjectRoutes(dbPool) {
   router.post('/:projectId/members', async (req, res) => {
     try {
       const { projectId } = req.params;
-      const { user_id, role } = req.body;
+      const { user_id } = req.body;
 
-      if (!user_id || !role) {
-        return res.status(400).json({ error: 'user_id and role are required' });
+      if (!user_id) {
+        return res.status(400).json({ error: 'user_id is required' });
       }
 
-      // Get role_id from roles table
-      const roleResult = await dbPool.query('SELECT id FROM roles WHERE name = $1 LIMIT 1', [role]);
-      
-      if (!roleResult.rows[0]) {
-        return res.status(400).json({ error: `Invalid role: ${role}` });
-      }
-      
-      const roleId = roleResult.rows[0].id;
-
+      // Simply add user to project (their global role defines permissions)
       const result = await dbPool.query(`
-        INSERT INTO project_members (project_id, user_id, role_id)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (project_id, user_id, role_id) 
+        INSERT INTO project_members (project_id, user_id)
+        VALUES ($1, $2)
+        ON CONFLICT (project_id, user_id) 
         DO UPDATE SET updated_at = NOW()
         RETURNING *
-      `, [projectId, user_id, roleId]);
+      `, [projectId, user_id]);
 
       systemLogger.info('Project member added', {
         userId: req.user?.id,
         projectId,
-        memberId: user_id,
-        role
+        memberId: user_id
       });
 
       res.status(201).json(result.rows[0]);
