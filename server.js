@@ -51,6 +51,7 @@ insightsWorker.start();
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
 const { cacheMiddleware, invalidateCache } = require('./backend/middleware/cacheMiddleware');
 const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
+const authorizeProjectResource = require('./backend/middleware/authorizeProjectResource');
 
 // Import enhanced authentication service
 const enhancedAuthService = require('./backend/services/enhancedAuthService');
@@ -709,102 +710,82 @@ app.get('/api/files', authenticateToken, cacheMiddleware(300), async (req, res) 
   }
 });
 
-app.get('/api/files/:fileId', authenticateToken, cacheMiddleware(600), async (req, res) => {
-  try {
-    // Check if user has permission to view files
-    const userPermissions = req.user.permissions || [];
-    const hasFilePermission = userPermissions.some(p => {
-      if (typeof p === 'string') {
-        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read' || p === 'file_profile:read';
+app.get('/api/files/:fileId', 
+  authenticateToken, 
+  cacheMiddleware(600),
+  authorizeProjectResource({
+    resourceType: 'file',
+    requiredPermissions: ['file:read', 'file_view', 'file_upload:read', 'file_profile:read']
+  }),
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      
+      // Use the FileService from the DI container
+      const fileService = diContainer.get('fileService');
+      const file = await fileService.getFileById(fileId);
+      
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
       }
-      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read' || p.name === 'file_profile:read';
-    });
-    
-    if (!hasFilePermission) {
-      logger.warn('User attempted to access file details without permission', {
-        userId: req.user.id,
-        username: req.user.username,
-        fileId: req.params.fileId
-      });
-      return res.status(403).json({ 
-        error: 'Access denied',
-        message: 'You do not have permission to view file details'
-      });
+      
+      res.json(file);
+    } catch (err) {
+      logger.error('Error fetching file details', { error: err.message, fileId: req.params.fileId });
+      res.status(500).json({ error: 'Failed to fetch file details' });
     }
-    
-    const { fileId } = req.params;
-    
-    // Use the FileService from the DI container
-    const fileService = diContainer.get('fileService');
-    const file = await fileService.getFileById(fileId);
-    
-    if (!file) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    
-    res.json(file);
-  } catch (err) {
-    logger.error('Error fetching file details', { error: err.message, fileId: req.params.fileId });
-    res.status(500).json({ error: 'Failed to fetch file details' });
   }
-});
+);
 
 // File processing status endpoint (no caching - real-time status)
-app.get('/api/files/:fileId/status', authenticateToken, async (req, res) => {
-  try {
-    // Check if user has permission to view files
-    const userPermissions = req.user.permissions || [];
-    const hasFilePermission = userPermissions.some(p => {
-      if (typeof p === 'string') {
-        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read' || p === 'file_profile:read';
+app.get('/api/files/:fileId/status', 
+  authenticateToken,
+  authorizeProjectResource({
+    resourceType: 'file',
+    requiredPermissions: ['file:read', 'file_view', 'file_upload:read', 'file_profile:read']
+  }),
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      
+      const result = await dbPool.query(
+        'SELECT processing_step, row_count, column_count, processed_at FROM files WHERE file_id = $1',
+        [fileId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
       }
-      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read' || p.name === 'file_profile:read';
-    });
-    
-    if (!hasFilePermission) {
-      logger.warn('User attempted to access file status without permission', {
-        userId: req.user.id,
-        username: req.user.username,
-        fileId: req.params.fileId
+      
+      const file = result.rows[0];
+      const processingStep = file.processing_step || 'pending';
+      const isComplete = processingStep === 'complete' || file.processed_at !== null;
+      
+      res.json({
+        fileId,
+        step: processingStep,
+        isComplete,
+        rowCount: file.row_count,
+        columnCount: file.column_count,
+        processedAt: file.processed_at
       });
-      return res.status(403).json({ 
-        error: 'Access denied',
-        message: 'You do not have permission to view file status'
-      });
+    } catch (err) {
+      logger.error('Error fetching file status', { error: err.message, fileId: req.params.fileId });
+      res.status(500).json({ error: 'Failed to fetch file status' });
     }
-    
-    const { fileId } = req.params;
-    
-    const result = await dbPool.query(
-      'SELECT processing_step, row_count, column_count, processed_at FROM files WHERE file_id = $1',
-      [fileId]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    
-    const file = result.rows[0];
-    const processingStep = file.processing_step || 'pending';
-    const isComplete = processingStep === 'complete' || file.processed_at !== null;
-    
-    res.json({
-      fileId,
-      step: processingStep,
-      isComplete,
-      rowCount: file.row_count,
-      columnCount: file.column_count,
-      processedAt: file.processed_at
-    });
-  } catch (err) {
-    logger.error('Error fetching file status', { error: err.message, fileId: req.params.fileId });
-    res.status(500).json({ error: 'Failed to fetch file status' });
   }
-});
+);
 
 // File preview endpoint (with caching and column-level access control)
 // NOTE: authenticateToken MUST come before cacheMiddleware so req.user is populated for cache key generation
-app.get('/api/files/:fileId/preview', authenticateToken, cacheMiddleware(300), async (req, res) => {
+app.get('/api/files/:fileId/preview', 
+  authenticateToken, 
+  cacheMiddleware(300),
+  authorizeProjectResource({
+    resourceType: 'file',
+    requiredPermissions: ['file:read', 'file_view', 'file_upload:read', 'file_profile:read']
+  }),
+  async (req, res) => {
   try {
     const { fileId } = req.params;
     const { limit = 100 } = req.query;
@@ -934,17 +915,24 @@ app.delete('/api/files/:fileId/preview-data', invalidateCache('cache:*:*files*')
 });
 
 // File delete endpoint
-app.delete('/api/files/:fileId', invalidateCache('cache:*:*files*'), async (req, res) => {
-  const { fileId } = req.params;
-  const client = await dbPool.connect();
-  
-  try {
-    // Check if file exists
-    const fileResult = await client.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+app.delete('/api/files/:fileId', 
+  authenticateToken,
+  invalidateCache('cache:*:*files*'),
+  authorizeProjectResource({
+    resourceType: 'file',
+    requiredPermissions: ['file:delete', 'file_delete']
+  }),
+  async (req, res) => {
+    const { fileId } = req.params;
+    const client = await dbPool.connect();
     
-    if (fileResult.rows.length === 0) {
-      return res.status(404).json({ error: 'File not found' });
-    }
+    try {
+      // Check if file exists
+      const fileResult = await client.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+      
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
+      }
     
     // Begin transaction for atomic deletion
     await client.query('BEGIN');
@@ -2598,7 +2586,14 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
 
 // File profile endpoint (with column-level access control for statistics)
 // NOTE: authenticateToken MUST come before cacheMiddleware so req.user is populated for cache key generation
-app.get('/api/files/:fileId/profile', authenticateToken, cacheMiddleware(600), async (req, res) => {
+app.get('/api/files/:fileId/profile', 
+  authenticateToken, 
+  cacheMiddleware(600),
+  authorizeProjectResource({
+    resourceType: 'file',
+    requiredPermissions: ['file:read', 'file_view', 'file_profile:read']
+  }),
+  async (req, res) => {
   try {
     const { fileId } = req.params;
     

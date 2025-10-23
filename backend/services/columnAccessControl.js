@@ -7,8 +7,57 @@
 
 const db = require('../config/database');
 const { systemLogger } = require('../utils/logger');
+const { checkProjectMembership } = require('../middleware/requireProjectAccess');
 
 class ColumnAccessControlService {
+  /**
+   * Get project_id for a file
+   * @param {string} fileId - File ID
+   * @returns {Promise<number|null>}
+   */
+  async getFileProjectId(fileId) {
+    try {
+      const result = await db.query('SELECT project_id FROM files WHERE file_id = $1', [fileId]);
+      return result.rows.length > 0 ? result.rows[0].project_id : null;
+    } catch (error) {
+      systemLogger.error('Error getting file project_id', { fileId, error: error.message });
+      return null;
+    }
+  }
+  
+  /**
+   * Check if user has access to file's project
+   * @param {Object} user - User object with id, roles, permissions
+   * @param {string} fileId - File ID
+   * @returns {Promise<Object>} { hasAccess, role, projectId }
+   */
+  async checkFileProjectAccess(user, fileId) {
+    if (!user) {
+      return { hasAccess: false, role: null, projectId: null };
+    }
+    
+    // Admin has access to all projects
+    if (user.roles && user.roles.includes('Admin')) {
+      const projectId = await this.getFileProjectId(fileId);
+      return { hasAccess: true, role: 'Admin', projectId };
+    }
+    
+    // Get file's project_id
+    const projectId = await this.getFileProjectId(fileId);
+    if (!projectId) {
+      systemLogger.warn('File has no project_id', { fileId });
+      return { hasAccess: false, role: null, projectId: null };
+    }
+    
+    // Check project membership
+    const membership = await checkProjectMembership(user.id, projectId);
+    
+    return {
+      hasAccess: membership.hasAccess,
+      role: membership.role,
+      projectId
+    };
+  }
   /**
    * Check if user has permission to access a specific tag
    * @param {Object} user - User object with roles and permissions
@@ -238,10 +287,44 @@ class ColumnAccessControlService {
    * @param {string} fileId - File ID
    * @param {Array} data - Array of data rows
    * @param {string} accessLevel - 'read' or 'edit'
-   * @returns {Promise<Object>} { data, columnAccess, summary }
+   * @returns {Promise<Object>} { data, columnAccess, summary, projectAccess }
    */
   async filterDataset(user, fileId, data, accessLevel = 'read') {
     try {
+      // LAYER 1: Check project-level access first
+      const projectAccess = await this.checkFileProjectAccess(user, fileId);
+      
+      if (!projectAccess.hasAccess) {
+        systemLogger.warn('Project access denied for file', {
+          userId: user?.id,
+          username: user?.username,
+          fileId,
+          projectId: projectAccess.projectId
+        });
+        
+        // Deny all access - return empty dataset with all columns masked
+        return {
+          data: [],
+          columnAccess: {
+            allowed: [],
+            masked: [],
+            denied: []
+          },
+          summary: {
+            total: 0,
+            allowed: 0,
+            masked: 0,
+            denied: 0
+          },
+          projectAccess: {
+            hasAccess: false,
+            reason: 'Not a member of the file\'s project',
+            projectId: projectAccess.projectId
+          }
+        };
+      }
+      
+      // LAYER 2: User is a project member, proceed with tag-based column access control
       // Get column governance info
       const columnGovernance = await this.getColumnGovernance(fileId);
       
@@ -275,7 +358,12 @@ class ColumnAccessControlService {
           masked: maskedColumns.map(c => ({ name: c.column_name, masked: true, restrictedBy: c.restrictedBy })),
           denied: deniedColumns.map(c => ({ name: c.column_name, denied: true, restrictedBy: c.restrictedBy }))
         },
-        summary
+        summary,
+        projectAccess: {
+          hasAccess: true,
+          role: projectAccess.role,
+          projectId: projectAccess.projectId
+        }
       };
     } catch (error) {
       systemLogger.error('Error filtering dataset', { fileId, error: error.message });

@@ -7,6 +7,7 @@ const { executeTransformationJob, getJobStatus, cancelJob, createJob, updateJob,
 const { getMappingRules, saveMappingRules, validateRules } = require('../services/anomalyRulesEngine');
 const { findMatchingFiles, countMatchingFiles } = require('../utils/filePatternMatcher');
 const { validateSchemaConsistency } = require('../services/schemaService');
+const authorizeProjectResource = require('../middleware/authorizeProjectResource');
 
 /**
  * Validate variables array
@@ -99,7 +100,12 @@ router.get('/', async (req, res) => {
  * GET /api/transformations/:id
  * Get a specific transformation mapping
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', 
+  authorizeProjectResource({
+    resourceType: 'transformation',
+    requiredPermissions: ['transformation:read', 'transformation_view']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     
