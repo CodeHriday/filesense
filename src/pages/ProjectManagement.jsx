@@ -21,8 +21,7 @@ function ProjectManagement() {
   });
 
   const [memberFormData, setMemberFormData] = useState({
-    user_id: '',
-    role: ''
+    user_id: ''
   });
 
   const [groupFormData, setGroupFormData] = useState({
@@ -30,13 +29,11 @@ function ProjectManagement() {
   });
 
   const [availableUsers, setAvailableUsers] = useState([]);
-  const [availableRoles, setAvailableRoles] = useState([]);
   const [availableGroups, setAvailableGroups] = useState([]);
 
   useEffect(() => {
     fetchProjects();
     fetchAvailableUsers();
-    fetchAvailableRoles();
     fetchAvailableGroups();
   }, [searchTerm, showArchived]);
 
@@ -70,18 +67,6 @@ function ProjectManagement() {
       setAvailableUsers(response.data);
     } catch (err) {
       console.error('Failed to fetch users:', err);
-    }
-  };
-
-  const fetchAvailableRoles = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/users/roles`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAvailableRoles(response.data);
-    } catch (err) {
-      console.error('Failed to fetch roles:', err);
     }
   };
 
@@ -178,7 +163,7 @@ function ProjectManagement() {
         memberFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMemberFormData({ user_id: '', role: '' });
+      setMemberFormData({ user_id: '' });
       fetchProjectDetails(selectedProject.id);
     } catch (err) {
       setError('Failed to add member');
@@ -410,6 +395,7 @@ function ProjectManagement() {
 
               <div className="members-section">
                 <h3>Members</h3>
+                <p className="section-note">Add users to grant them access to this project's resources. Their permissions are determined by their global role.</p>
                 <form onSubmit={handleAddMember} className="add-member-form">
                   <div className="form-row">
                     <select
@@ -424,18 +410,6 @@ function ProjectManagement() {
                         </option>
                       ))}
                     </select>
-                    <select
-                      value={memberFormData.role}
-                      onChange={(e) => setMemberFormData({ ...memberFormData, role: e.target.value })}
-                      required
-                    >
-                      <option value="">Select Role</option>
-                      {availableRoles.map((role) => (
-                        <option key={role.id} value={role.name}>
-                          {role.name}
-                        </option>
-                      ))}
-                    </select>
                     <button type="submit" className="btn-primary btn-small">Add Member</button>
                   </div>
                 </form>
@@ -445,7 +419,7 @@ function ProjectManagement() {
                     <thead>
                       <tr>
                         <th>User</th>
-                        <th>Role</th>
+                        <th>Global Role</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
