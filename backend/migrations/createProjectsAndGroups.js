@@ -71,7 +71,6 @@ async function createProjectsAndGroups(pool) {
       CREATE TABLE IF NOT EXISTS project_members (
         project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
         
         -- Access control
         can_invite BOOLEAN DEFAULT FALSE,
@@ -86,7 +85,7 @@ async function createProjectsAndGroups(pool) {
         updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
         
         -- Constraints
-        PRIMARY KEY (project_id, user_id, role_id)
+        PRIMARY KEY (project_id, user_id)
       );
     `);
     systemLogger.info('✓ project_members table created');
@@ -97,9 +96,6 @@ async function createProjectsAndGroups(pool) {
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
-    `);
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_project_members_role ON project_members(role_id);
     `);
     systemLogger.info('✓ Created indexes for project_members table');
 
