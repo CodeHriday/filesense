@@ -132,11 +132,13 @@ router.get('/', async (req, res) => {
                WHEN s.entity_type = 'mapping' THEN tm.mapping_name
                WHEN s.entity_type = 'mapping_group' THEN mg.name
                WHEN s.entity_type = 'workflow' THEN nw.name
-             END as entity_name
+             END as entity_name,
+             p.name as project_name
       FROM schedules s
       LEFT JOIN transformation_mappings tm ON s.entity_type = 'mapping' AND s.entity_id = tm.mapping_id
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
       LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
+      LEFT JOIN projects p ON s.project_id = p.id
       ORDER BY s.created_at DESC
     `);
     

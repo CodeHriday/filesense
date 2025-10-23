@@ -75,10 +75,12 @@ router.get('/', async (req, res) => {
       SELECT 
         tm.*,
         sc.name as source_connection_name,
-        tc.name as target_connection_name
+        tc.name as target_connection_name,
+        p.name as project_name
       FROM transformation_mappings tm
       LEFT JOIN transform_connections sc ON tm.source_connection_id = sc.id
       LEFT JOIN transform_connections tc ON tm.target_connection_id = tc.id
+      LEFT JOIN projects p ON tm.project_id = p.id
     `;
     const params = [];
     const whereClauses = [];

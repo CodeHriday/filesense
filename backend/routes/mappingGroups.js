@@ -39,9 +39,11 @@ router.get('/', async (req, res) => {
     let query = `
       SELECT mg.*, 
              COUNT(mgm.id)::int as mapping_count,
-             (SELECT COUNT(*) FROM mapping_group_executions WHERE group_id = mg.id)::int as execution_count
+             (SELECT COUNT(*) FROM mapping_group_executions WHERE group_id = mg.id)::int as execution_count,
+             p.name as project_name
       FROM mapping_groups mg
       LEFT JOIN mapping_group_members mgm ON mg.id = mgm.group_id
+      LEFT JOIN projects p ON mg.project_id = p.id
     `;
     
     // Filter by project membership (unless admin)

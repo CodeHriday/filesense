@@ -5481,12 +5481,14 @@ app.get('/api/business-processes', authenticateToken, async (req, res) => {
     // Get all business processes for the user's groups
     const businessProcessesQuery = `
       SELECT bp.*, g.name as group_name, 
-        COALESCE(COUNT(j.id), 0) as job_count
+        COALESCE(COUNT(j.id), 0) as job_count,
+        p.name as project_name
       FROM business_processes bp
       LEFT JOIN groups g ON bp.group_id = g.id
       LEFT JOIN jobs j ON bp.id = j.business_process_id
+      LEFT JOIN projects p ON bp.project_id = p.id
       WHERE bp.group_id = ANY($1)
-      GROUP BY bp.id, g.name
+      GROUP BY bp.id, g.name, p.name
       ORDER BY bp.updated_at DESC
     `;
     
