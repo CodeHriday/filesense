@@ -137,17 +137,22 @@ class ConnectionService {
     try {
       const { limit, source } = options;
       
-      let query = 'SELECT * FROM transform_connections WHERE is_active = TRUE';
+      let query = `
+        SELECT tc.*, p.name as project_name 
+        FROM transform_connections tc
+        LEFT JOIN projects p ON tc.project_id = p.id
+        WHERE tc.is_active = TRUE
+      `;
       const params = [];
       
       // Add source filter if specified
       if (source) {
-        query += ' AND source_application = $1';
+        query += ' AND tc.source_application = $1';
         params.push(source);
       }
       
       // Add sorting and limit
-      query += ' ORDER BY name ASC';
+      query += ' ORDER BY tc.name ASC';
       
       if (limit) {
         query += ` LIMIT ${parseInt(limit)}`;

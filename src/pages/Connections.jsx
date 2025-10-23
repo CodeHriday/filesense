@@ -2012,6 +2012,7 @@ const Connections = () => {
                     <thead>
                       <tr>
                         <th className="col-icon"></th>
+                        <th className="col-project">Project</th>
                         <th className="col-name">Connection Name</th>
                         <th className="col-type">Type</th>
                         <th className="col-details">Details</th>
@@ -2024,6 +2025,9 @@ const Connections = () => {
                         <tr key={connection.id} className={`connection-row ${connection.connection_type || connection.type}`}>
                           <td className="col-icon">
                             {renderConnectionIcon(connection.connection_type || connection.type)}
+                          </td>
+                          <td className="col-project">
+                            {connection.project_name || 'Default Project'}
                           </td>
                           <td className="col-name">
                             <div className="connection-name-wrapper">
