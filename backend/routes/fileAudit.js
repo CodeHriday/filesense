@@ -113,6 +113,14 @@ router.get('/:fileId', async (req, res) => {
  * Get all audit records with filters
  */
 router.get('/', async (req, res) => {
+  // Ensure authentication is present
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({
+      error: 'Authentication required',
+      message: 'User authentication is required to access audit records'
+    });
+  }
+
   const pool = req.app.locals.pool || req.app.get('db');
   const {
     startDate,
@@ -134,7 +142,9 @@ router.get('/', async (req, res) => {
       fileType,
       correlationId,
       limit: parseInt(limit) || 100,
-      offset: parseInt(offset) || 0
+      offset: parseInt(offset) || 0,
+      userId: req.user.id, // Pass user info for project filtering (guaranteed to exist)
+      userRoles: req.user.roles || []
     });
 
     if (result.success) {

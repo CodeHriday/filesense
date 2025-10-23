@@ -166,6 +166,7 @@ function Monitor() {
                 <thead>
                   <tr>
                     <th className="expand-col"></th>
+                    <th>Project</th>
                     <th>Date</th>
                     <th>File Name</th>
                     <th>Source</th>
@@ -191,7 +192,7 @@ function Monitor() {
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="21" className="no-data">No audit records found</td>
+                      <td colSpan="22" className="no-data">No audit records found</td>
                     </tr>
                   ) : (
                     audits.map((audit) => (
@@ -206,6 +207,7 @@ function Monitor() {
                               {expandedRows.has(audit.id) ? <FiChevronDown /> : <FiChevronRight />}
                             </button>
                           </td>
+                          <td>{audit.project_name || 'Default Project'}</td>
                           <td className="date-col">{formatDate(audit.created_dt)}</td>
                           <td className="file-name-col" title={audit.file_name}>{audit.file_name || '-'}</td>
                           <td>{audit.source || '-'}</td>
@@ -237,7 +239,7 @@ function Monitor() {
                         </tr>
                         {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="21">
+                            <td colSpan="22">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Additional Details</h3>

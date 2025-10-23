@@ -355,46 +355,75 @@ async function getAuditRecords(pool, filters = {}) {
     fileType,
     correlationId,
     limit = 100,
-    offset = 0
+    offset = 0,
+    userId,
+    userRoles = []
   } = filters;
 
   try {
+    // Check if user is admin
+    const isAdmin = userRoles.includes('Admin');
+    
+    // Get user's accessible projects (unless admin)
+    let projectIds = [];
+    if (!isAdmin && userId) {
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      projectIds = userProjects.map(p => p.id);
+      
+      // Return empty if user has no projects
+      if (projectIds.length === 0) {
+        return {
+          success: true,
+          audits: [],
+          total: 0
+        };
+      }
+    }
+
     let conditions = [];
     let params = [];
     let paramIndex = 1;
 
+    // Add project filtering (unless admin)
+    if (!isAdmin && projectIds.length > 0) {
+      conditions.push(`f.project_id = ANY($${paramIndex}::integer[])`);
+      params.push(projectIds);
+      paramIndex++;
+    }
+
     if (startDate) {
-      conditions.push(`created_dt >= $${paramIndex}`);
+      conditions.push(`fad.created_dt >= $${paramIndex}`);
       params.push(startDate);
       paramIndex++;
     }
 
     if (endDate) {
-      conditions.push(`created_dt <= $${paramIndex}`);
+      conditions.push(`fad.created_dt <= $${paramIndex}`);
       params.push(endDate);
       paramIndex++;
     }
 
     if (status) {
-      conditions.push(`status = $${paramIndex}`);
+      conditions.push(`fad.status = $${paramIndex}`);
       params.push(status);
       paramIndex++;
     }
 
     if (source) {
-      conditions.push(`source = $${paramIndex}`);
+      conditions.push(`fad.source = $${paramIndex}`);
       params.push(source);
       paramIndex++;
     }
 
     if (fileType) {
-      conditions.push(`file_type = $${paramIndex}`);
+      conditions.push(`fad.file_type = $${paramIndex}`);
       params.push(fileType);
       paramIndex++;
     }
 
     if (correlationId) {
-      conditions.push(`correlation_id = $${paramIndex}`);
+      conditions.push(`fad.correlation_id = $${paramIndex}`);
       params.push(correlationId);
       paramIndex++;
     }
@@ -407,6 +436,7 @@ async function getAuditRecords(pool, filters = {}) {
     const countQuery = `
       SELECT COUNT(*) as total
       FROM file_audit_details fad
+      LEFT JOIN files f ON fad.file_id = f.file_id
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
@@ -424,8 +454,12 @@ async function getAuditRecords(pool, filters = {}) {
         s.schedule_name,
         mg.name as mapping_group_name,
         nw.name as workflow_name,
-        COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name
+        COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name,
+        p.name as project_name,
+        f.project_id
       FROM file_audit_details fad
+      LEFT JOIN files f ON fad.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
       LEFT JOIN file_schema_details fsd 
         ON fad.file_schema_id = fsd.file_schema_id
       LEFT JOIN transformation_jobs tj 
