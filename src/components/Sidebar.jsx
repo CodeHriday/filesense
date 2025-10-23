@@ -1,61 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  FiHome, 
-  FiUpload, 
-  FiDatabase, 
-  FiBarChart2, 
-  FiAlertTriangle, 
-  FiSettings, 
-  FiLink, 
-  FiMonitor, 
-  FiGitBranch,
-  FiAward,
-  FiMessageSquare,
-  FiTrendingUp,
-  FiBookOpen,
-  FiHelpCircle,
-  FiPlay,
-  FiCalendar,
-  FiUsers,
-  FiShield,
-  FiBriefcase,
-  FiCpu,
-  FiLayers,
-  FiMapPin,
-  FiPlusCircle,
-  FiFileText,
-  FiGrid,
-  FiTag
-} from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
 import './Sidebar.css';
 
 function Sidebar() {
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const { currentUser, hasPermission, hasRole, hasFeaturePermission } = useAuth();
-  const [debug, setDebug] = useState(true);
-  
-  // Debug info to help diagnose permission issues
-  useEffect(() => {
-    if (debug && currentUser && currentUser.permissions) {
-      console.log("Current user permissions:", currentUser.permissions);
-      
-      // Test specific permissions to help diagnose issues
-      console.log("dashboard:read permission:", 
-        currentUser.permissions.some(p => 
-          (typeof p === 'string' && p.includes('dashboard:read')) ||
-          (typeof p === 'object' && p.resource === 'dashboard' && p.action === 'read'))
-      );
-      
-      console.log("file_profile permission:", 
-        currentUser.permissions.some(p => 
-          (typeof p === 'string' && p.includes('file_profile')) ||
-          (typeof p === 'object' && p.resource === 'file_profile'))
-      );
-    }
-  }, [currentUser, debug]);
+  const { currentUser, hasPermission } = useAuth();
   
   // If user is not logged in, show minimal sidebar
   if (!currentUser) {
@@ -66,7 +18,6 @@ function Sidebar() {
             <ul>
               <li>
                 <NavLink to="/login" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiHome className="icon" />
                   <span>Login</span>
                 </NavLink>
               </li>
@@ -77,107 +28,53 @@ function Sidebar() {
     );
   }
   
-  // Debug info for role detection
-  if (debug && currentUser) {
-    console.log("Current user roles:", currentUser.roles);
-    console.log("Is Admin via hasRole:", hasRole('Admin'));
-    console.log("Is Creator via hasRole:", hasRole('Creator'));
-    console.log("Is Executor via hasRole:", hasRole('Executor'));
-    console.log("Manual check for Executor role:", 
-      currentUser.roles && 
-      (Array.isArray(currentUser.roles) ? 
-        currentUser.roles.includes('Executor') : 
-        (typeof currentUser.roles === 'string' ? 
-          currentUser.roles === 'Executor' : 
-          false)
-      )
-    );
-  }
-
-  // Admin users see all sections and menu items - use multiple detection methods
-  const isAdmin = hasRole('Admin') || 
-                 (currentUser.roles && 
-                   (Array.isArray(currentUser.roles) ? 
-                     currentUser.roles.includes('Admin') : 
-                     currentUser.roles === 'Admin'));
-                     
-  const isCreator = hasRole('Creator') || 
-                   (currentUser.roles && 
-                     (Array.isArray(currentUser.roles) ? 
-                       currentUser.roles.includes('Creator') : 
-                       currentUser.roles === 'Creator'));
-                       
-  const isExecutor = hasRole('Executor') || 
-                    (currentUser.roles && 
-                      (Array.isArray(currentUser.roles) ? 
-                        currentUser.roles.includes('Executor') : 
-                        currentUser.roles === 'Executor')) ||
-                    // Also check for role_id for older API responses
-                    (currentUser.role_id === 3);
+  // Helper function to check if user has read permission for a feature
+  const canViewFeature = (featureId) => {
+    // Check for read permission in the format: featureId:read
+    const readPermission = `${featureId}:read`;
+    return hasPermission(readPermission);
+  };
   
-  // Admin section should always be shown for Admin users and for others with specific permissions
-  let showAdminSection = isAdmin || 
-                        hasPermission('user_view') || 
-                        hasPermission('role_view') || 
-                        hasPermission('dashboard_edit');
-                         
-  // Force visibility of admin section for Admin role
-  if (currentUser.roles && currentUser.roles.includes('Admin')) {
-    showAdminSection = true;
-  }
+  // Group features by category
+  const categorizedFeatures = {};
   
-  // Check if the insights section should be displayed based on permissions
-  let showInsightsSection = isAdmin || isCreator || 
-    hasPermission('badges:read') || 
-    hasPermission('insights:read') || 
-    hasPermission('recommendations:read') || 
-    hasPermission('stories:read');
-    
-  // Modified helper for permission checking that accounts for multiple formats and variations
-  const checkPermissions = (permissions) => {
-    // Admin role always has all permissions
-    if (isAdmin) return true;
-    
-    // Convert permissions to array if it's a string
-    const permissionList = Array.isArray(permissions) ? permissions : [permissions];
-    
-    // For executor role, just check permissions directly
-    // This will pull exactly what's in the database row plus server-side additions
-    if (isExecutor) {
-      return permissionList.some(perm => {
-        // Clean up the permission string to check against database format
-        const cleanPerm = perm.replace(/:/g, '_').replace(/s$/, '');
-        const altPerm = perm.replace(/:/g, '_');
-        
-        return hasPermission(perm) || hasPermission(cleanPerm) || hasPermission(altPerm);
-      });
-    }
-    
-    // For Creator role - they have access to most features except admin
-    if (isCreator) {
-      // Define which menu items are visible for Creator role
-      const creatorVisible = [
-        'dashboard_view', 'dashboard:read', 'dashboard',
-        'file_upload', 'file_upload:read', 'file_upload:write',
-        'file_view', 'file:read', 'file:write',
-        'file_profile', 'file_profile:read', 'file_profile:write',
-        'quality_checks', 'quality_checks:read', 'quality_checks:write',
-        'monitor', 'monitor:read', 'monitor:write',
-        'alerts', 'alerts:read', 'alerts:write',
-        'connections', 'connections:read', 'connections:write',
-        'mappings', 'mappings:read', 'mappings:write',
-        'lineage', 'lineage_view', 'lineage:read', 'lineage:write',
-        'scheduler', 'scheduler:read', 'scheduler:write'
-      ];
-      
-      // If any of the permissions match what the Creator can access, return true
-      if (permissionList.some(p => creatorVisible.includes(p))) {
-        return true;
+  APP_FEATURES.forEach(feature => {
+    // Only include features that:
+    // 1. Should be shown in sidebar
+    // 2. User has permission to view
+    if (feature.showInSidebar && canViewFeature(feature.id)) {
+      if (!categorizedFeatures[feature.category]) {
+        categorizedFeatures[feature.category] = [];
       }
+      categorizedFeatures[feature.category].push(feature);
+    }
+  });
+  
+  // Render menu items for a category
+  const renderCategoryItems = (category) => {
+    const features = categorizedFeatures[category];
+    if (!features || features.length === 0) {
+      return null;
     }
     
-    // Fallback to checking permissions from the database/token
-    return permissionList.some(perm => hasPermission(perm));
+    return (
+      <React.Fragment key={category}>
+        <li className="nav-divider">
+          <span>{getSidebarCategoryName(category)}</span>
+        </li>
+        {features.map(feature => {
+          const IconComponent = feature.icon;
+          return (
+            <li key={feature.id}>
+              <NavLink to={feature.route} className={({ isActive }) => isActive ? 'active' : ''}>
+                {IconComponent && <IconComponent className="icon" />}
+                <span>{feature.name}</span>
+              </NavLink>
+            </li>
+          );
+        })}
+      </React.Fragment>
+    );
   };
 
   return (
@@ -185,299 +82,8 @@ function Sidebar() {
       <aside className="sidebar">
         <nav className="sidebar-nav">
           <ul>
-            {/* Core features */}
-            {checkPermissions(['dashboard_view', 'dashboard:read']) && (
-              <li>
-                <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiHome className="icon" />
-                  <span>Dashboard</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {/* Project Management section - Admin only */}
-            {isAdmin && (
-              <>
-                <li className="nav-divider">
-                  <span>Project Management</span>
-                </li>
-                
-                <li>
-                  <NavLink to="/project-management" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiBriefcase className="icon" />
-                    <span>Projects</span>
-                  </NavLink>
-                </li>
-                
-                <li>
-                  <NavLink to="/group-management" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiUsers className="icon" />
-                    <span>Access Groups</span>
-                  </NavLink>
-                </li>
-              </>
-            )}
-            
-            {/* Ad Hoc Process section */}
-            <li className="nav-divider">
-              <span>Ad Hoc Process</span>
-            </li>
-            
-            {checkPermissions(['file_upload', 'file_upload:write']) && (
-              <li>
-                <NavLink to="/upload" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiUpload className="icon" />
-                  <span>Upload File</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {checkPermissions(['file_view', 'file:read', 'file_upload:read']) && (
-              <li>
-                <NavLink to="/file-catalog" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiDatabase className="icon" />
-                  <span>File Catalog</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {/* Onboarding wizard - hidden from navigation but functionality preserved */}
-            {/* {(isAdmin || isCreator || hasPermission('onboarding_wizard') || hasPermission('onboarding_wizard:read')) && (
-              <li>
-                <button
-                  className="onboarding-button"
-                  onClick={() => setShowOnboarding(true)}
-                >
-                  <FiHelpCircle className="icon" />
-                  <span>Onboarding Wizard</span>
-                </button>
-              </li>
-            )} */}
-            
-            {/* Business Process Management section */}
-            <li className="nav-divider">
-              <span>Process Management</span>
-            </li>
-            
-            {/* Connections */}
-            {checkPermissions(['connections', 'connections:read']) && (
-              <li>
-                <NavLink to="/connections" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiDatabase className="icon" />
-                  <span>Connections</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {/* Mappings */}
-            {checkPermissions(['mappings', 'mappings:read']) && (
-              <li>
-                <NavLink to="/mappings" className={({ isActive }) => isActive ? 'active' : ''}>
-                  <FiLink className="icon" />
-                  <span>Mappings</span>
-                </NavLink>
-              </li>
-            )}
-            
-            {/* ETL Orchestration section */}
-            <li className="nav-divider">
-              <span>ETL Orchestration</span>
-            </li>
-            
-            <li>
-              <NavLink to="/mapping-groups" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiLayers className="icon" />
-                <span>Batch Groups</span>
-              </NavLink>
-            </li>
-            
-            <li>
-              <NavLink to="/workflows" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiGitBranch className="icon" />
-                <span>Workflows</span>
-              </NavLink>
-            </li>
-            
-            <li>
-              <NavLink to="/etl-scheduler" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiCalendar className="icon" />
-                <span>ETL Scheduler</span>
-              </NavLink>
-            </li>
-            
-            {/* Visual Workflow Designer */}
-            <li>
-              <NavLink to="/workflow-canvas" className={({ isActive }) => isActive ? 'active' : ''}>
-                <FiGrid className="icon" />
-                <span>Visual Designer</span>
-              </NavLink>
-            </li>
-            
-            {/* Jobs and Monitoring section */}
-            {(checkPermissions(['file_view', 'monitor:read', 'monitor']) || 
-              checkPermissions(['alerts', 'alerts:read', 'alert_view']) || 
-              checkPermissions(['scheduler', 'scheduler:read'])) && (
-              <>
-                <li className="nav-divider">
-                  <span>Jobs and Monitoring</span>
-                </li>
-                
-                {/* Jobs */}
-                <li>
-                  <NavLink to="/jobs" className={({ isActive }) => isActive ? 'active' : ''}>
-                    <FiPlay className="icon" />
-                    <span>Jobs</span>
-                  </NavLink>
-                </li>
-                
-                {checkPermissions(['file_view', 'monitor:read', 'monitor']) && (
-                  <li>
-                    <NavLink to="/monitor" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiMonitor className="icon" />
-                      <span>Monitor</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {checkPermissions(['alerts', 'alerts:read', 'alert_view']) && (
-                  <li>
-                    <NavLink to="/alerts" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiAlertTriangle className="icon" />
-                      <span>Alerts</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {checkPermissions(['insights', 'insights:read', 'insight:read']) && (
-                  <li>
-                    <NavLink to="/file-insights" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiTrendingUp className="icon" />
-                      <span>File Insights</span>
-                    </NavLink>
-                  </li>
-                )}
-              </>
-            )}
-            
-            {/* Governance section */}
-            {(checkPermissions(['lineage', 'lineage:read', 'lineage_view']) || isAdmin) && (
-              <>
-                <li className="nav-divider">
-                  <span>Data Governance</span>
-                </li>
-                
-                {checkPermissions(['lineage', 'lineage:read', 'lineage_view']) && (
-                  <li>
-                    <NavLink to="/lineage" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiGitBranch className="icon" />
-                      <span>File Lineage</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {isAdmin && (
-                  <>
-                    <li>
-                      <NavLink to="/policy-management" className={({ isActive }) => isActive ? 'active' : ''}>
-                        <FiShield className="icon" />
-                        <span>Policies</span>
-                      </NavLink>
-                    </li>
-                    <li>
-                      <NavLink to="/tag-management" className={({ isActive }) => isActive ? 'active' : ''}>
-                        <FiTag className="icon" />
-                        <span>Tags</span>
-                      </NavLink>
-                    </li>
-                  </>
-                )}
-              </>
-            )}
-            
-            {/* Administration section */}
-            {showAdminSection && (
-              <>
-                <li className="nav-divider">
-                  <span>Administration</span>
-                </li>
-                
-                {checkPermissions(['user_view', 'user:read']) && (
-                  <li>
-                    <NavLink to="/users" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiUsers className="icon" />
-                      <span>User Management</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {checkPermissions(['role_view', 'role:read']) && (
-                  <li>
-                    <NavLink to="/roles" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiShield className="icon" />
-                      <span>Role Management</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {checkPermissions(['dashboard_edit', 'dashboard:write']) && (
-                  <li>
-                    <NavLink to="/dashboard-settings" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiSettings className="icon" />
-                      <span>Dashboard Settings</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {/* Audit Trail - Admin only */}
-                {isAdmin && (
-                  <li>
-                    <NavLink to="/audit-trail" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiFileText className="icon" />
-                      <span>Audit Trail</span>
-                    </NavLink>
-                  </li>
-                )}
-              </>
-            )}
-            
-            {/* Insights section */}
-            {showInsightsSection && (
-              <>
-                <li className="nav-divider">
-                  <span>Insights</span>
-                </li>
-                
-                {/* Only show recommendations if permission exists */}
-                {checkPermissions(['recommendations', 'recommendations:read', 'recommendation:read']) && (
-                  <li>
-                    <NavLink to="/recommendations" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiTrendingUp className="icon" />
-                      <span>Recommendations</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {/* Only show AI insights if permission exists */}
-                {checkPermissions(['insights', 'insights:read', 'insight:read']) && (
-                  <li>
-                    <NavLink to="/insights" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiMessageSquare className="icon" />
-                      <span>All Insights</span>
-                    </NavLink>
-                  </li>
-                )}
-                
-                {/* Only show stories if permission exists */}
-                {checkPermissions(['stories', 'stories:read', 'story:read']) && (
-                  <li>
-                    <NavLink to="/stories" className={({ isActive }) => isActive ? 'active' : ''}>
-                      <FiBookOpen className="icon" />
-                      <span>Data Stories</span>
-                    </NavLink>
-                  </li>
-                )}
-              </>
-            )}
+            {/* Render categories in the defined order */}
+            {FEATURE_CATEGORIES_ORDER.map(category => renderCategoryItems(category))}
           </ul>
         </nav>
       </aside>

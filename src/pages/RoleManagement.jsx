@@ -6,56 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/RoleManagement.css';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-
-// Define application features for permission assignment
-const APP_FEATURES = [
-  // Project & File Management
-  { id: 'dashboard', name: 'Dashboard', category: 'Project & File Management' },
-  { id: 'projects', name: 'Projects', category: 'Project & File Management' },
-  { id: 'access_groups', name: 'Access Groups', category: 'Project & File Management' },
-  { id: 'file_upload', name: 'File Upload', category: 'Project & File Management' },
-  { id: 'file_drop', name: 'Drop File', category: 'Project & File Management' },
-  { id: 'file_catalog', name: 'File Catalog', category: 'Project & File Management' },
-  { id: 'file_profile', name: 'Data Profile', category: 'Project & File Management', parentId: 'file_catalog', isNested: true },
-  
-  // Process Management
-  { id: 'connection', name: 'Connections', category: 'Process Management', supportsExecute: true },
-  { id: 'transformation', name: 'Mappings', category: 'Process Management', supportsExecute: true },
-  { id: 'mapping_group', name: 'Batch Groups', category: 'Process Management', supportsExecute: true },
-  { id: 'workflow', name: 'Workflows', category: 'Process Management', supportsExecute: true },
-  { id: 'schedule', name: 'ETL Scheduler', category: 'Process Management', supportsExecute: true },
-  
-  // Jobs and Monitoring
-  { id: 'jobs', name: 'Jobs', category: 'Jobs and Monitoring' },
-  { id: 'monitor', name: 'Monitor', category: 'Jobs and Monitoring' },
-  { id: 'alerts', name: 'Alerts', category: 'Jobs and Monitoring' },
-  { id: 'file_insights', name: 'File Insights', category: 'Jobs and Monitoring' },
-  
-  // Governance
-  { id: 'lineage', name: 'File Lineage', category: 'Governance' },
-  { id: 'policies', name: 'Policies', category: 'Governance' },
-  { id: 'tags', name: 'Tags', category: 'Governance' },
-  
-  // Administration
-  { id: 'users', name: 'User Management', category: 'Administration' },
-  { id: 'roles', name: 'Role Management', category: 'Administration' },
-  { id: 'audit_trail', name: 'Audit Trail', category: 'Administration' },
-  { id: 'settings', name: 'Dashboard Settings', category: 'Administration' },
-  
-  // Insights
-  { id: 'recommendations', name: 'Recommendations', category: 'Insights' },
-  { id: 'insights', name: 'All Insights', category: 'Insights' },
-  { id: 'stories', name: 'Data Stories', category: 'Insights' }
-];
-
-// Group features by category
-const FEATURE_CATEGORIES = APP_FEATURES.reduce((acc, feature) => {
-  if (!acc[feature.category]) {
-    acc[feature.category] = [];
-  }
-  acc[feature.category].push(feature);
-  return acc;
-}, {});
+import { APP_FEATURES, FEATURE_CATEGORIES } from '../config/appFeatures';
 
 const RoleManagement = () => {
   const [roles, setRoles] = useState([]);
