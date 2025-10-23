@@ -825,7 +825,7 @@ app.get('/api/files/:fileId/preview',
   cacheMiddleware(300),
   authorizeProjectResource({
     resourceType: 'file',
-    requiredPermissions: ['file:read', 'file_view', 'file_upload:read', 'file_profile:read']
+    requiredPermissions: ['file_preview:read']
   }),
   async (req, res) => {
   try {

@@ -84,6 +84,16 @@ export const APP_FEATURES = [
     route: null,
     showInSidebar: false // Accessed via file catalog
   },
+  { 
+    id: 'file_preview', 
+    name: 'Data Preview', 
+    category: 'Project & File Management', 
+    parentId: 'file_catalog', 
+    isNested: true,
+    icon: null,
+    route: null,
+    showInSidebar: false // Accessed via file catalog
+  },
   
   // Process Management
   { 
