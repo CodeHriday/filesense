@@ -108,12 +108,27 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all schedules
+// Get all schedules (filtered by user's accessible projects)
 router.get('/', async (req, res) => {
   try {
     const pool = require('../db');
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
     
-    const result = await pool.query(`
+    // Get user's accessible projects
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        // User has no project access, return empty list
+        return res.json([]);
+      }
+    }
+    
+    let query = `
       SELECT s.id as schedule_id,
              s.entity_type,
              s.entity_id,
@@ -139,8 +154,17 @@ router.get('/', async (req, res) => {
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
       LEFT JOIN n_step_workflows nw ON s.entity_type = 'workflow' AND s.entity_id = CAST(nw.id AS TEXT)
       LEFT JOIN projects p ON s.project_id = p.id
-      ORDER BY s.created_at DESC
-    `);
+    `;
+    
+    // Filter by project membership (unless admin)
+    if (!isAdmin && projectIds.length > 0) {
+      query += ` WHERE s.project_id = ANY($1)`;
+    }
+    
+    query += ` ORDER BY s.created_at DESC`;
+    
+    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
+    const result = await pool.query(query, params);
     
     res.json(result.rows);
   } catch (error) {
@@ -152,12 +176,30 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get all active schedules (must be before /:id to avoid conflict)
+// Get all active schedules (filtered by user's accessible projects)
 router.get('/active', async (req, res) => {
   try {
     const pool = require('../db');
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
     
-    const result = await pool.query(`
+    // Get user's accessible projects
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        // User has no project access, return empty list
+        return res.json({
+          success: true,
+          schedules: []
+        });
+      }
+    }
+    
+    let query = `
       SELECT s.*, 
              CASE 
                WHEN s.entity_type = 'mapping' THEN tm.name
@@ -169,8 +211,17 @@ router.get('/active', async (req, res) => {
       LEFT JOIN mapping_groups mg ON s.entity_type = 'mapping_group' AND s.entity_id = CAST(mg.id AS TEXT)
       LEFT JOIN business_processes bp ON s.entity_type = 'workflow' AND s.entity_id = CAST(bp.id AS TEXT)
       WHERE s.is_active = true
-      ORDER BY s.next_run ASC
-    `);
+    `;
+    
+    // Filter by project membership (unless admin)
+    if (!isAdmin && projectIds.length > 0) {
+      query += ` AND s.project_id = ANY($1)`;
+    }
+    
+    query += ` ORDER BY s.next_run ASC`;
+    
+    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
+    const result = await pool.query(query, params);
     
     res.json({
       success: true,

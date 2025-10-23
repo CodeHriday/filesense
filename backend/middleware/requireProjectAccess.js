@@ -83,7 +83,6 @@ function requireProjectAccess(options = {}) {
         JOIN projects p ON pm.project_id = p.id
         WHERE pm.project_id = $1 
           AND pm.user_id = $2
-          AND pm.is_active = TRUE
       `, [projectId, req.user.id]);
 
       if (membershipResult.rows.length === 0) {
@@ -294,7 +293,6 @@ async function checkProjectMembership(userId, projectId) {
       JOIN roles r ON pm.role_id = r.id
       WHERE pm.project_id = $1 
         AND pm.user_id = $2
-        AND pm.is_active = TRUE
     `, [projectId, userId]);
 
     if (result.rows.length === 0) {
@@ -331,7 +329,6 @@ async function getUserProjects(userId) {
       JOIN project_members pm ON p.id = pm.project_id
       JOIN roles r ON pm.role_id = r.id
       WHERE pm.user_id = $1
-        AND pm.is_active = TRUE
         AND p.is_active = TRUE
       ORDER BY p.name
     `, [userId]);

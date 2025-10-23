@@ -131,11 +131,26 @@ class ConnectionService {
    * @param {Object} options - Query options
    * @param {number} options.limit - Maximum number of connections to return
    * @param {string} options.source - Filter by source application
+   * @param {number} options.userId - User ID for project filtering
+   * @param {boolean} options.isAdmin - Whether the user is an admin
    * @returns {Promise<Array>} - Array of connections
    */
   async getAllConnections(options = {}) {
     try {
-      const { limit, source } = options;
+      const { limit, source, userId, isAdmin } = options;
+      
+      // Get user's accessible projects if not admin
+      let projectIds = [];
+      if (!isAdmin && userId) {
+        const { getUserProjects } = require('../middleware/requireProjectAccess');
+        const userProjects = await getUserProjects(userId);
+        projectIds = userProjects.map(p => p.id);
+        
+        if (projectIds.length === 0) {
+          // User has no project access, return empty list
+          return [];
+        }
+      }
       
       let query = `
         SELECT tc.*, p.name as project_name 
@@ -145,9 +160,15 @@ class ConnectionService {
       `;
       const params = [];
       
+      // Filter by project membership (unless admin)
+      if (!isAdmin && projectIds.length > 0) {
+        query += ' AND tc.project_id = ANY($' + (params.length + 1) + ')';
+        params.push(projectIds);
+      }
+      
       // Add source filter if specified
       if (source) {
-        query += ' AND tc.source_application = $1';
+        query += ' AND tc.source_application = $' + (params.length + 1);
         params.push(source);
       }
       
@@ -202,7 +223,7 @@ class ConnectionService {
     try {
       await client.query('BEGIN');
       
-      const { name, type, config, created_by, description } = connectionData;
+      const { name, type, config, created_by, description, project_id } = connectionData;
       
       // Validate required fields
       if (!name || !type || !config) {
@@ -220,8 +241,9 @@ class ConnectionService {
           config, 
           created_by,
           description,
-          source_application
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+          source_application,
+          project_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `, [
         name,
@@ -229,7 +251,8 @@ class ConnectionService {
         encryptedConfig,
         created_by || null,
         description || null,
-        'data_observatory'
+        'data_observatory',
+        project_id || 1  // Default to Default Project if not specified
       ]);
       
       await client.query('COMMIT');

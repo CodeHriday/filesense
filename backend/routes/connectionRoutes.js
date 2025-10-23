@@ -12,9 +12,15 @@ router.get('/', async (req, res) => {
     // Extract query parameters
     const { limit, source } = req.query;
     
+    // Get user info for project filtering
+    const isAdmin = req.user?.roles?.includes('Admin');
+    const userId = req.user?.id;
+    
     const connections = await connectionService.getAllConnections({ 
       limit: limit ? parseInt(limit) : undefined,
-      source
+      source,
+      userId,
+      isAdmin
     });
     
     // Filter out sensitive information
@@ -31,7 +37,6 @@ router.get('/', async (req, res) => {
         bucket_name: config.bucket_name,
         account_name: config.account_name,
         container_name: config.container_name,
-        project_id: config.project_id,
         client_email: config.client_email,
         snowflake_account: config.snowflake_account,
         snowflake_username: config.snowflake_username,
@@ -72,11 +77,28 @@ router.get('/', async (req, res) => {
 /**
  * @route   GET /api/connections/:id
  * @desc    Get connection by ID
- * @access  Public (authentication would be added in a real implementation)
+ * @access  Protected (requires authentication and project membership)
  */
 router.get('/:id', async (req, res) => {
   try {
     const connection = await connectionService.getConnectionById(req.params.id);
+    
+    // Check project access (admins bypass)
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const userId = req.user?.id;
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      const userProjectIds = userProjects.map(p => p.id);
+      
+      // Check if user has access to this connection's project
+      if (!userProjectIds.includes(connection.project_id)) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have access to this connection' 
+        });
+      }
+    }
     
     // Filter sensitive information
     const { config, ...rest } = connection;
@@ -91,7 +113,6 @@ router.get('/:id', async (req, res) => {
       bucket_name: config.bucket_name,
       account_name: config.account_name,
       container_name: config.container_name,
-      project_id: config.project_id,
       client_email: config.client_email,
       snowflake_account: config.snowflake_account,
       snowflake_username: config.snowflake_username,
@@ -135,15 +156,51 @@ router.get('/:id', async (req, res) => {
 /**
  * @route   POST /api/connections
  * @desc    Create a new connection
- * @access  Public (authentication would be added in a real implementation)
+ * @access  Protected (requires authentication and project membership)
  */
 router.post('/', async (req, res) => {
   try {
-    const { connection_name, connection_type, ...configDetails } = req.body;
+    const { connection_name, connection_type, project_id, ...configDetails } = req.body;
+    
+    // Validate project access
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let assignedProjectId = project_id;
+    
+    if (!isAdmin) {
+      const userId = req.user?.id;
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      const userProjectIds = userProjects.map(p => p.id);
+      
+      // If user has no project access, deny creation
+      if (userProjectIds.length === 0) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You must be a member of at least one project to create connections' 
+        });
+      }
+      
+      // If project_id specified, validate access
+      if (assignedProjectId) {
+        if (!userProjectIds.includes(assignedProjectId)) {
+          return res.status(403).json({ 
+            error: 'Access denied',
+            message: 'You do not have access to the specified project' 
+          });
+        }
+      } else {
+        // Default to user's first accessible project
+        assignedProjectId = userProjectIds[0];
+      }
+    } else if (!assignedProjectId) {
+      // Admin without project_id - default to Default Project (id: 1)
+      assignedProjectId = 1;
+    }
     
     // DEBUG: Log what we received
     console.log('[CREATE CONNECTION] Received request body:', JSON.stringify(req.body, null, 2));
     console.log('[CREATE CONNECTION] Connection type:', connection_type);
+    console.log('[CREATE CONNECTION] Assigned project_id:', assignedProjectId);
     console.log('[CREATE CONNECTION] Config details keys:', Object.keys(configDetails));
     if (connection_type === 'aws') {
       console.log('[CREATE CONNECTION] AWS - has access_key:', !!configDetails.access_key);
@@ -154,6 +211,7 @@ router.post('/', async (req, res) => {
     const connectionData = {
       name: connection_name,
       type: connection_type,
+      project_id: assignedProjectId,
       config: {
         connection_name,
         connection_type,
@@ -188,10 +246,27 @@ router.post('/', async (req, res) => {
 /**
  * @route   PUT /api/connections/:id
  * @desc    Update a connection
- * @access  Public (authentication would be added in a real implementation)
+ * @access  Protected (requires authentication and project membership)
  */
 router.put('/:id', async (req, res) => {
   try {
+    // Check project access before allowing update
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const existingConnection = await connectionService.getConnectionById(req.params.id);
+      const userId = req.user?.id;
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      const userProjectIds = userProjects.map(p => p.id);
+      
+      if (!userProjectIds.includes(existingConnection.project_id)) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have access to modify this connection' 
+        });
+      }
+    }
+    
     const { connection_name, connection_type, ...configDetails } = req.body;
     
     // DEBUG: Log what we received
@@ -251,10 +326,27 @@ router.put('/:id', async (req, res) => {
 /**
  * @route   DELETE /api/connections/:id
  * @desc    Delete a connection
- * @access  Public (authentication would be added in a real implementation)
+ * @access  Protected (requires authentication and project membership)
  */
 router.delete('/:id', async (req, res) => {
   try {
+    // Check project access before allowing delete
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const existingConnection = await connectionService.getConnectionById(req.params.id);
+      const userId = req.user?.id;
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      const userProjectIds = userProjects.map(p => p.id);
+      
+      if (!userProjectIds.includes(existingConnection.project_id)) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have access to delete this connection' 
+        });
+      }
+    }
+    
     await connectionService.deleteConnection(req.params.id);
     res.json({ success: true, message: 'Connection deleted successfully' });
   } catch (error) {
@@ -270,7 +362,7 @@ router.delete('/:id', async (req, res) => {
 /**
  * @route   GET /api/connections/:id/test
  * @desc    Test a saved connection by ID (fetches and decrypts credentials)
- * @access  Public (authentication would be added in a real implementation)
+ * @access  Protected (requires authentication, project membership, and connection:execute permission)
  */
 router.get('/:id/test', async (req, res) => {
   try {
@@ -286,6 +378,22 @@ router.get('/:id/test', async (req, res) => {
     
     // Fetch the connection from database
     const connection = await connectionService.getConnectionById(req.params.id);
+    
+    // Check project access (admins bypass)
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const userId = req.user?.id;
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      const userProjectIds = userProjects.map(p => p.id);
+      
+      if (!userProjectIds.includes(connection.project_id)) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have access to test this connection' 
+        });
+      }
+    }
     
     console.log('[TEST SAVED CONNECTION] Connection type:', connection.type);
     console.log('[TEST SAVED CONNECTION] Has encrypted credentials:', !!connection.config.access_key);

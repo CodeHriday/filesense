@@ -6,11 +6,30 @@ const { executeNStepWorkflow, getWorkflowRunStatus } = require('../services/nSte
 
 /**
  * GET /api/n-step-workflows
- * List all N-step workflows
+ * List all N-step workflows (filtered by user's accessible projects)
  */
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    
+    // Get user's accessible projects
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        // User has no project access, return empty list
+        return res.json({
+          success: true,
+          workflows: []
+        });
+      }
+    }
+    
+    let query = `
       SELECT 
         w.*,
         COUNT(DISTINCT s.id) as step_count,
@@ -18,9 +37,20 @@ router.get('/', async (req, res) => {
       FROM n_step_workflows w
       LEFT JOIN n_step_workflow_steps s ON w.id = s.workflow_id
       LEFT JOIN projects p ON w.project_id = p.id
+    `;
+    
+    // Filter by project membership (unless admin)
+    if (!isAdmin && projectIds.length > 0) {
+      query += ` WHERE w.project_id = ANY($1)`;
+    }
+    
+    query += `
       GROUP BY w.id, p.name
       ORDER BY w.created_at DESC
-    `);
+    `;
+    
+    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
+    const result = await pool.query(query, params);
     
     res.json({
       success: true,

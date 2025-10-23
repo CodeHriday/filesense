@@ -1866,7 +1866,7 @@ app.get('/api/alerts/history', async (req, res) => {
 
 // Connection routes
 const connectionRoutes = require('./backend/routes/connectionRoutes');
-app.use('/api/connections', connectionRoutes);
+app.use('/api/connections', authenticateToken, connectionRoutes);
 
 // Cache routes
 const cacheRoutes = require('./backend/routes/cacheRoutes');
