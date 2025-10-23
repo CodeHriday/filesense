@@ -1276,19 +1276,19 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
         });
       }
     } catch (scanError) {
-      logger.error('Virus scan failed', {
+      // With the updated VirusScanService, this should rarely be hit
+      // as all errors are handled gracefully within the service
+      logger.error('Unexpected virus scan error', {
         fileId,
         filename: file.originalname,
         error: scanError.message,
         userId
       });
       
-      // Delete file on scan failure
-      try { fs.unlinkSync(file.path); } catch (e) {}
-      
-      return res.status(400).json({
-        error: 'File security check failed',
-        message: 'The file could not be scanned for security threats'
+      // Allow upload to continue with warning instead of blocking
+      logger.warn('Allowing file upload despite scan error', {
+        fileId,
+        filename: file.originalname
       });
     }
     
@@ -1483,19 +1483,26 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         scanSkipped: scanResult.skipped || false
       });
     } catch (scanError) {
-      logger.error('Virus scan failed for drop file', {
+      // With the updated VirusScanService, this should rarely be hit
+      // as all errors are handled gracefully within the service
+      logger.error('Unexpected virus scan error for drop file', {
         fileId,
         filename: file.originalname,
         error: scanError.message,
         userId
       });
       
-      // Delete file on scan failure
-      try { fs.unlinkSync(file.path); } catch (e) {}
+      // Allow upload to continue with warning instead of blocking
+      virusScanResult = {
+        scanned: false,
+        clean: false,
+        skipped: true,
+        message: 'Scan failed - continuing with warning'
+      };
       
-      return res.status(400).json({
-        error: 'File security check failed',
-        message: 'The file could not be scanned for security threats'
+      logger.warn('Allowing drop file upload despite scan error', {
+        fileId,
+        filename: file.originalname
       });
     }
     

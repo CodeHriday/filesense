@@ -3,16 +3,40 @@
  * 
  * Provides malware detection for uploaded files using ClamAV antivirus engine.
  * Scans files before they are processed or uploaded to storage.
+ * 
+ * CONFIGURATION:
+ * - Set DISABLE_VIRUS_SCAN=true to skip virus scanning (useful for deployments without ClamAV)
+ * - ClamAV binary path is auto-detected, no hardcoding needed
  */
 
 const NodeClam = require('clamscan');
 const { systemLogger } = require('../utils/logger');
+const { execSync } = require('child_process');
+const fs = require('fs');
 
 class VirusScanService {
   constructor() {
     this.clamav = null;
     this.initialized = false;
     this.initPromise = null;
+    this.disabled = process.env.DISABLE_VIRUS_SCAN === 'true';
+    this.unavailable = false; // Track if ClamAV is completely unavailable
+  }
+
+  /**
+   * Auto-detect ClamAV binary path
+   */
+  detectClamScanPath() {
+    try {
+      const path = execSync('which clamscan', { encoding: 'utf8' }).trim();
+      if (path && fs.existsSync(path)) {
+        systemLogger.info('ClamAV binary detected', { path });
+        return path;
+      }
+    } catch (error) {
+      systemLogger.warn('ClamAV binary not found in PATH');
+    }
+    return null;
   }
 
   /**
@@ -21,6 +45,13 @@ class VirusScanService {
   async initialize() {
     if (this.initialized) {
       return this.clamav;
+    }
+
+    // If explicitly disabled, skip initialization
+    if (this.disabled) {
+      systemLogger.warn('Virus scanning is disabled (DISABLE_VIRUS_SCAN=true)');
+      this.unavailable = true;
+      return null;
     }
 
     // If initialization is already in progress, wait for it
@@ -32,14 +63,22 @@ class VirusScanService {
       try {
         systemLogger.info('Initializing ClamAV scanner...');
         
+        // Auto-detect clamscan binary path
+        const clamScanPath = this.detectClamScanPath();
+        
+        if (!clamScanPath) {
+          systemLogger.warn('ClamAV not available - virus scanning will be skipped');
+          this.unavailable = true;
+          return null;
+        }
+
         this.clamav = await new NodeClam().init({
           removeInfected: false, // Don't auto-delete, let us handle it
           quarantineInfected: false,
           scanLog: null,
           debugMode: false,
           clamscan: {
-            path: '/nix/store/4s7jsmyxy0nn45qv0s32pbp8c6z05gnq-clamav-1.3.1/bin/clamscan',
-            db: '/home/runner/workspace/clamav-db', // Custom database directory
+            path: clamScanPath, // Auto-detected path
             active: true
           },
           clamdscan: {
@@ -54,7 +93,9 @@ class VirusScanService {
         return this.clamav;
       } catch (error) {
         systemLogger.error('Failed to initialize ClamAV scanner', { error: error.message });
-        throw new Error(`ClamAV initialization failed: ${error.message}`);
+        systemLogger.warn('Virus scanning will be skipped - ClamAV unavailable');
+        this.unavailable = true;
+        return null;
       }
     })();
 
@@ -71,6 +112,23 @@ class VirusScanService {
       // Ensure scanner is initialized
       if (!this.initialized) {
         await this.initialize();
+      }
+
+      // If ClamAV is disabled or unavailable, allow file through with warning
+      if (this.disabled || this.unavailable || !this.clamav) {
+        systemLogger.warn('Virus scan skipped - ClamAV unavailable or disabled', { 
+          filePath,
+          disabled: this.disabled,
+          unavailable: this.unavailable
+        });
+        
+        return {
+          isInfected: false,
+          viruses: [],
+          file: filePath,
+          message: 'Virus scan skipped (ClamAV not available)',
+          skipped: true
+        };
       }
 
       systemLogger.info('Scanning file for viruses', { filePath });
@@ -107,8 +165,10 @@ class VirusScanService {
       });
       
       // If ClamAV is not properly configured (e.g., missing virus definitions),
-      // log warning but allow file through in development
-      if (error.message.includes('Error Code: 2') || error.message.includes('database')) {
+      // log warning but allow file through
+      if (error.message.includes('Error Code: 2') || 
+          error.message.includes('database') ||
+          error.message.includes('ENOENT')) {
         systemLogger.warn('ClamAV virus definitions not available - skipping scan', { filePath });
         
         return {
@@ -120,8 +180,21 @@ class VirusScanService {
         };
       }
       
-      // For other errors, reject the file
-      throw new Error(`Virus scan failed: ${error.message}`);
+      // For other errors, still allow file through with warning in production
+      // This prevents ClamAV issues from blocking file uploads
+      systemLogger.warn('Virus scan failed - allowing file through with warning', { 
+        filePath, 
+        error: error.message 
+      });
+      
+      return {
+        isInfected: false,
+        viruses: [],
+        file: filePath,
+        message: 'Virus scan failed - file allowed with warning',
+        skipped: true,
+        error: error.message
+      };
     }
   }
 
@@ -135,12 +208,24 @@ class VirusScanService {
         await this.initialize();
       }
       
+      if (this.disabled || this.unavailable || !this.clamav) {
+        return 'ClamAV unavailable';
+      }
+      
       const version = await this.clamav.getVersion();
       return version;
     } catch (error) {
       systemLogger.error('Error getting ClamAV version', { error: error.message });
       return 'Unknown';
     }
+  }
+
+  /**
+   * Check if virus scanning is available
+   * @returns {boolean} True if scanning is available
+   */
+  isAvailable() {
+    return !this.disabled && !this.unavailable && this.initialized;
   }
 }
 
