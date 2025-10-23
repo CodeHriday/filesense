@@ -396,8 +396,13 @@ function DataProfile() {
   // Check if user has edit permission for a column's governance tags
   // MUST match backend security logic: requires edit permission for ALL tags
   const canEditColumnGovernance = (columnName) => {
+    // If user data is still loading, disable editing
+    if (!user) {
+      return false;
+    }
+    
     // Admin can always edit
-    if (user?.roles?.includes('Admin')) {
+    if (user.roles && Array.isArray(user.roles) && user.roles.includes('Admin')) {
       return true;
     }
     
