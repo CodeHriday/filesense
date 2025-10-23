@@ -7,24 +7,52 @@ const {
   getGroupExecutionStatus,
   getGroupExecutionHistory 
 } = require('../services/mappingGroupExecutionEngine');
+const authorizeProjectResource = require('../middleware/authorizeProjectResource');
 
 /**
  * Mapping Groups API Routes
  * Handles CRUD operations and execution for mapping groups
  */
 
-// Get all mapping groups
+// Get all mapping groups (filtered by user's accessible projects)
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    
+    // Get user's accessible projects
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        // User has no project access, return empty list
+        return res.json({
+          success: true,
+          groups: []
+        });
+      }
+    }
+    
+    let query = `
       SELECT mg.*, 
              COUNT(mgm.id)::int as mapping_count,
              (SELECT COUNT(*) FROM mapping_group_executions WHERE group_id = mg.id)::int as execution_count
       FROM mapping_groups mg
       LEFT JOIN mapping_group_members mgm ON mg.id = mgm.group_id
-      GROUP BY mg.id
-      ORDER BY mg.created_at DESC
-    `);
+    `;
+    
+    // Filter by project membership (unless admin)
+    if (!isAdmin && projectIds.length > 0) {
+      query += ` WHERE mg.project_id = ANY($1)`;
+    }
+    
+    query += ` GROUP BY mg.id ORDER BY mg.created_at DESC`;
+    
+    const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
+    const result = await pool.query(query, params);
     
     res.json({
       success: true,
@@ -40,7 +68,12 @@ router.get('/', async (req, res) => {
 });
 
 // Get a single mapping group by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:read', 'mapping_group_view']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -90,22 +123,35 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new mapping group
-router.post('/', async (req, res) => {
-  try {
-    const { name, description, max_concurrency = 10, created_by } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        error: 'Name is required'
-      });
+router.post('/',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:create', 'mapping_group_create'],
+    getProjectId: async (req) => {
+      // For POST, project_id is required - no defaults allowed for security
+      if (!req.body.project_id) {
+        throw new Error('project_id is required');
+      }
+      return parseInt(req.body.project_id, 10);
     }
-    
-    const result = await pool.query(`
-      INSERT INTO mapping_groups (name, description, max_concurrency, created_by)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `, [name, description, max_concurrency, created_by]);
+  }),
+  async (req, res) => {
+    try {
+      const { name, description, max_concurrency = 10, created_by } = req.body;
+      const projectId = req.projectId; // Set by authorization middleware, no fallback allowed
+      
+      if (!name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Name is required'
+        });
+      }
+      
+      const result = await pool.query(`
+        INSERT INTO mapping_groups (name, description, max_concurrency, created_by, project_id)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `, [name, description, max_concurrency, created_by, projectId]);
     
     systemLogger.info('Mapping group created', { groupId: result.rows[0].id });
     
@@ -123,7 +169,12 @@ router.post('/', async (req, res) => {
 });
 
 // Update a mapping group
-router.put('/:id', async (req, res) => {
+router.put('/:id',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:update', 'mapping_group_update']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, max_concurrency, status } = req.body;
@@ -191,7 +242,12 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a mapping group
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:delete', 'mapping_group_delete']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -225,7 +281,12 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Get group members
-router.get('/:id/members', async (req, res) => {
+router.get('/:id/members',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:read', 'mapping_group_view']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -254,7 +315,12 @@ router.get('/:id/members', async (req, res) => {
 });
 
 // Add mapping to group
-router.post('/:id/members', async (req, res) => {
+router.post('/:id/members',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:update', 'mapping_group_update']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { mapping_id, execution_order = 0 } = req.body;
@@ -299,7 +365,12 @@ router.post('/:id/members', async (req, res) => {
 });
 
 // Remove mapping from group
-router.delete('/:id/members/:memberId', async (req, res) => {
+router.delete('/:id/members/:memberId',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:update', 'mapping_group_update']
+  }),
+  async (req, res) => {
   try {
     const { id, memberId } = req.params;
     
@@ -339,17 +410,14 @@ router.delete('/:id/members/:memberId', async (req, res) => {
 });
 
 // Execute a mapping group
-router.post('/:id/execute', async (req, res) => {
-  try {
-    // Check if user has mapping_group:execute permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('mapping_group:execute')) {
-      return res.status(403).json({ 
-        error: 'Access denied',
-        message: 'You do not have permission to execute mapping groups. Contact your administrator.'
-      });
-    }
-    
-    const { id } = req.params;
+router.post('/:id/execute',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:execute', 'mapping_group_execute']
+  }),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
     
     // Fetch group data from database
     const groupResult = await pool.query(

@@ -45,11 +45,31 @@ function validateVariables(variables) {
 
 /**
  * GET /api/transformations
- * List all transformation mappings
+ * List all transformation mappings (filtered by user's accessible projects)
  */
 router.get('/', async (req, res) => {
   try {
     const { status, limit = 100, offset = 0 } = req.query;
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    
+    // Get user's accessible projects
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        // User has no project access, return empty list
+        return res.json({
+          mappings: [],
+          total: 0,
+          limit: parseInt(limit),
+          offset: parseInt(offset)
+        });
+      }
+    }
     
     let query = `
       SELECT 
@@ -61,10 +81,21 @@ router.get('/', async (req, res) => {
       LEFT JOIN transform_connections tc ON tm.target_connection_id = tc.id
     `;
     const params = [];
+    const whereClauses = [];
+    
+    // Filter by project membership (unless admin)
+    if (!isAdmin && projectIds.length > 0) {
+      whereClauses.push(`tm.project_id = ANY($${params.length + 1})`);
+      params.push(projectIds);
+    }
     
     if (status) {
-      query += ' WHERE tm.status = $1';
+      whereClauses.push(`tm.status = $${params.length + 1}`);
       params.push(status);
+    }
+    
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
     }
     
     query += ' ORDER BY tm.created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
@@ -72,13 +103,23 @@ router.get('/', async (req, res) => {
     
     const result = await pool.query(query, params);
     
-    // Get total count
+    // Get total count with same filtering
     let countQuery = 'SELECT COUNT(*) FROM transformation_mappings';
     const countParams = [];
+    const countWhereClauses = [];
+    
+    if (!isAdmin && projectIds.length > 0) {
+      countWhereClauses.push(`project_id = ANY($${countParams.length + 1})`);
+      countParams.push(projectIds);
+    }
     
     if (status) {
-      countQuery += ' WHERE status = $1';
+      countWhereClauses.push(`status = $${countParams.length + 1}`);
       countParams.push(status);
+    }
+    
+    if (countWhereClauses.length > 0) {
+      countQuery += ' WHERE ' + countWhereClauses.join(' AND ');
     }
     
     const countResult = await pool.query(countQuery, countParams);
@@ -130,9 +171,21 @@ router.get('/:id',
  * POST /api/transformations
  * Create a new transformation mapping
  */
-router.post('/', async (req, res) => {
-  try {
-    systemLogger.info('POST /api/transformations called', { body: req.body });
+router.post('/',
+  authorizeProjectResource({
+    resourceType: 'transformation',
+    requiredPermissions: ['transformation:create', 'transformation_create'],
+    getProjectId: async (req) => {
+      // For POST, project_id is required - no defaults allowed for security
+      if (!req.body.project_id) {
+        throw new Error('project_id is required');
+      }
+      return parseInt(req.body.project_id, 10);
+    }
+  }),
+  async (req, res) => {
+    try {
+      systemLogger.info('POST /api/transformations called', { body: req.body });
     
     const {
       mapping_name,
@@ -222,20 +275,21 @@ router.post('/', async (req, res) => {
     }
     
     const mappingId = `MAP-${Date.now()}-${uuidv4().substring(0, 8)}`;
+    const projectId = req.projectId; // Set by authorization middleware, no fallback allowed
     
     const result = await pool.query(`
       INSERT INTO transformation_mappings (
         mapping_id, mapping_name, source_connection_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_name, target_file_format,
-        field_mappings, variables, anomaly_rules, status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        field_mappings, variables, anomaly_rules, status, created_by, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `, [
       mappingId, mapping_name, source_connection_id, source_type, file_path,
       actualFilePattern, actualFilePattern, target_connection_id, target_table_name,
       target_file_name, target_file_format,
-      JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null
+      JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null, projectId
     ]);
     
     systemLogger.info('Transformation mapping created', { mappingId, mapping_name });
@@ -252,7 +306,12 @@ router.post('/', async (req, res) => {
  * PUT /api/transformations/:id
  * Update a transformation mapping
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id',
+  authorizeProjectResource({
+    resourceType: 'transformation',
+    requiredPermissions: ['transformation:update', 'transformation_update']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -430,7 +489,12 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/transformations/:id
  * Delete a transformation mapping
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',
+  authorizeProjectResource({
+    resourceType: 'transformation',
+    requiredPermissions: ['transformation:delete', 'transformation_delete']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -457,7 +521,12 @@ router.delete('/:id', async (req, res) => {
  * POST /api/transformations/:id/execute
  * Execute a transformation mapping
  */
-router.post('/:id/execute', async (req, res) => {
+router.post('/:id/execute',
+  authorizeProjectResource({
+    resourceType: 'transformation',
+    requiredPermissions: ['transformation:execute', 'transformation_execute']
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
