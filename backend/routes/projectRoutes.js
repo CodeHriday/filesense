@@ -283,7 +283,7 @@ function createProjectRoutes(dbPool) {
       const result = await dbPool.query(`
         INSERT INTO project_members (project_id, user_id)
         VALUES ($1, $2)
-        ON CONFLICT (project_id, user_id) 
+        ON CONFLICT ON CONSTRAINT project_members_project_user_unique 
         DO UPDATE SET updated_at = NOW()
         RETURNING *
       `, [projectId, user_id]);

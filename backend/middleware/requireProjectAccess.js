@@ -322,12 +322,9 @@ async function getUserProjects(userId) {
       SELECT DISTINCT
         p.id,
         p.name,
-        p.description,
-        pm.role_id,
-        r.name as role_name
+        p.description
       FROM projects p
       JOIN project_members pm ON p.id = pm.project_id
-      JOIN roles r ON pm.role_id = r.id
       WHERE pm.user_id = $1
         AND p.is_active = TRUE
       ORDER BY p.name
