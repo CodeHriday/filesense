@@ -4,6 +4,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
+import axios from 'axios';
 import '../styles/UserManagement.css';
 
 const UserManagement = () => {
@@ -26,7 +27,16 @@ const UserManagement = () => {
     roles: []
   });
   
-  const { currentUser, hasPermission } = useAuth();
+  // Password reset requests state
+  const [resetRequestsModalOpen, setResetRequestsModalOpen] = useState(false);
+  const [resetRequests, setResetRequests] = useState([]);
+  const [pendingResetCount, setPendingResetCount] = useState(0);
+  const [resetRequestsLoading, setResetRequestsLoading] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [actionNotes, setActionNotes] = useState('');
+  const [tempPassword, setTempPassword] = useState('');
+  
+  const { currentUser, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
   
   // Check if user has permission to view users
@@ -58,11 +68,77 @@ const UserManagement = () => {
       
       setUsers(usersData);
       setRoles(rolesData);
+      
+      // Fetch password reset requests count for admins
+      if (hasRole && hasRole('Admin')) {
+        fetchResetRequestsCount();
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load user management data');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const fetchResetRequestsCount = async () => {
+    try {
+      const response = await axios.get('/api/password-reset-requests');
+      const pending = response.data.filter(req => req.status === 'pending').length;
+      setPendingResetCount(pending);
+    } catch (error) {
+      console.error('Error fetching reset requests count:', error);
+    }
+  };
+  
+  const fetchResetRequests = async () => {
+    setResetRequestsLoading(true);
+    try {
+      const response = await axios.get('/api/password-reset-requests');
+      setResetRequests(response.data);
+    } catch (error) {
+      console.error('Error fetching reset requests:', error);
+      setError('Failed to load password reset requests');
+    } finally {
+      setResetRequestsLoading(false);
+    }
+  };
+  
+  const handleOpenResetRequestsModal = async () => {
+    setResetRequestsModalOpen(true);
+    await fetchResetRequests();
+  };
+  
+  const handleApproveReset = async (requestId) => {
+    try {
+      const response = await axios.post(`/api/password-reset-requests/${requestId}/approve`, {
+        notes: actionNotes
+      });
+      
+      setTempPassword(response.data.tempPassword);
+      await fetchResetRequests();
+      fetchResetRequestsCount();
+      setActionNotes('');
+      
+      alert(`Password reset approved. Temporary password: ${response.data.tempPassword}\n\nPlease inform the user of this password.`);
+    } catch (error) {
+      console.error('Error approving reset:', error);
+      setError(error.response?.data?.error || 'Failed to approve password reset');
+    }
+  };
+  
+  const handleDenyReset = async (requestId) => {
+    try {
+      await axios.post(`/api/password-reset-requests/${requestId}/deny`, {
+        notes: actionNotes
+      });
+      
+      await fetchResetRequests();
+      fetchResetRequestsCount();
+      setActionNotes('');
+    } catch (error) {
+      console.error('Error denying reset:', error);
+      setError(error.response?.data?.error || 'Failed to deny password reset');
     }
   };
   
@@ -224,9 +300,22 @@ const UserManagement = () => {
         <>
           <div className="user-management-header">
             <h1>User Management</h1>
-            <Link to="/roles" className="role-management-link">
-              Role Management
-            </Link>
+            <div className="header-actions">
+              <Link to="/roles" className="role-management-link">
+                Role Management
+              </Link>
+              {hasRole && hasRole('Admin') && (
+                <button
+                  onClick={handleOpenResetRequestsModal}
+                  className="reset-requests-btn"
+                >
+                  Password Reset Requests
+                  {pendingResetCount > 0 && (
+                    <span className="badge-count">{pendingResetCount}</span>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
           
           {error && (
@@ -460,6 +549,106 @@ const UserManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Password Reset Requests Modal */}
+      {resetRequestsModalOpen && (
+        <div className="modal-overlay" onClick={() => setResetRequestsModalOpen(false)}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Password Reset Requests</h3>
+              <button
+                className="modal-close"
+                onClick={() => setResetRequestsModalOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              {resetRequestsLoading ? (
+                <LoadingSpinner />
+              ) : resetRequests.length === 0 ? (
+                <div className="no-requests-message">
+                  No password reset requests found.
+                </div>
+              ) : (
+                <table className="reset-requests-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Requested At</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resetRequests.map(request => (
+                      <tr key={request.id} className={request.status}>
+                        <td>
+                          <div>
+                            <strong>{request.username}</strong>
+                            {request.full_name && (
+                              <div className="user-full-name">{request.full_name}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td>{request.email || '-'}</td>
+                        <td>{new Date(request.requested_at).toLocaleString()}</td>
+                        <td>
+                          <span className={`status-badge status-${request.status}`}>
+                            {request.status}
+                          </span>
+                          {request.approved_at && (
+                            <div className="status-detail">
+                              by {request.approved_by_username} at {new Date(request.approved_at).toLocaleString()}
+                            </div>
+                          )}
+                          {request.denied_at && (
+                            <div className="status-detail">
+                              by {request.approved_by_username} at {new Date(request.denied_at).toLocaleString()}
+                            </div>
+                          )}
+                          {request.notes && (
+                            <div className="status-notes">Note: {request.notes}</div>
+                          )}
+                        </td>
+                        <td>
+                          {request.status === 'pending' && (
+                            <div className="request-actions">
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Approve password reset for ${request.username}?\n\nThis will generate a temporary password that the user must change on first login.`)) {
+                                    handleApproveReset(request.id);
+                                  }
+                                }}
+                                className="btn-approve"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Deny password reset for ${request.username}?`)) {
+                                    handleDenyReset(request.id);
+                                  }
+                                }}
+                                className="btn-deny"
+                              >
+                                Deny
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       )}

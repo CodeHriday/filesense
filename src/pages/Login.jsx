@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { THEME } from '../config';
+import axios from 'axios';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -11,6 +12,12 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [oktaAvailable, setOktaAvailable] = useState(false);
   const [showOktaOption, setShowOktaOption] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetUsername, setResetUsername] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [loginFailed, setLoginFailed] = useState(false);
   const { login, currentUser, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,23 +57,67 @@ const Login = () => {
     
     if (!username || !password) {
       setErrorMessage('Username and password are required');
+      setLoginFailed(true);
       return;
     }
     
     setIsLoading(true);
     setErrorMessage('');
+    setLoginFailed(false);
     
     try {
       const success = await login(username, password);
       
       if (success) {
         // Redirect happens automatically in the useEffect above
+      } else {
+        setLoginFailed(true);
       }
     } catch (error) {
       console.error('Login error:', error);
       setErrorMessage('Failed to login. Please check your credentials.');
+      setLoginFailed(true);
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const handleForgotPassword = () => {
+    setResetUsername(username); // Pre-fill with the entered username
+    setShowResetModal(true);
+    setResetMessage('');
+    setResetError('');
+  };
+  
+  const handleResetPasswordRequest = async (e) => {
+    e.preventDefault();
+    
+    if (!resetUsername) {
+      setResetError('Please enter your username or email');
+      return;
+    }
+    
+    setResetLoading(true);
+    setResetError('');
+    setResetMessage('');
+    
+    try {
+      const response = await axios.post('/api/auth/request-password-reset', {
+        username: resetUsername
+      });
+      
+      setResetMessage(response.data.message);
+      // Clear form and close modal after 3 seconds
+      setTimeout(() => {
+        setShowResetModal(false);
+        setResetUsername('');
+        setResetMessage('');
+      }, 3000);
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      setResetError(error.response?.data?.error || 'Failed to submit password reset request');
+    } finally {
+      setResetLoading(false);
     }
   };
   
@@ -156,8 +207,89 @@ const Login = () => {
           >
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
+          
+          {loginFailed && (
+            <div className="forgot-password-link">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-link"
+              >
+                Forgot Password?
+              </button>
+            </div>
+          )}
         </form>
       </div>
+      
+      {/* Password Reset Request Modal */}
+      {showResetModal && (
+        <div className="modal-overlay" onClick={() => setShowResetModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Request Password Reset</h3>
+              <button
+                className="modal-close"
+                onClick={() => setShowResetModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <p className="modal-description">
+                Enter your username or email address. An administrator will review your request and reset your password.
+              </p>
+              
+              {resetError && (
+                <div className="alert alert-error">
+                  {resetError}
+                </div>
+              )}
+              
+              {resetMessage && (
+                <div className="alert alert-success">
+                  {resetMessage}
+                </div>
+              )}
+              
+              <form onSubmit={handleResetPasswordRequest}>
+                <div className="form-group">
+                  <label htmlFor="resetUsername">Username or Email</label>
+                  <input
+                    type="text"
+                    id="resetUsername"
+                    value={resetUsername}
+                    onChange={(e) => setResetUsername(e.target.value)}
+                    disabled={resetLoading}
+                    placeholder="Enter your username or email"
+                    autoFocus
+                  />
+                </div>
+                
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetModal(false)}
+                    className="btn-secondary"
+                    disabled={resetLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

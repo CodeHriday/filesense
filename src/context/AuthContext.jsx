@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import ForcePasswordChange from '../components/ForcePasswordChange';
 
 // Create context
 const AuthContext = createContext(null);
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showForcePasswordChange, setShowForcePasswordChange] = useState(false);
   
   // Check if there's a token in localStorage on initial load
   useEffect(() => {
@@ -39,7 +41,15 @@ export const AuthProvider = ({ children }) => {
         }
       });
       
-      setCurrentUser(response.data);
+      const userData = response.data;
+      setCurrentUser(userData);
+      
+      // Check if user needs to change password
+      if (userData.force_password_change) {
+        console.log('User must change password (detected on token refresh)');
+        setShowForcePasswordChange(true);
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -63,7 +73,7 @@ export const AuthProvider = ({ children }) => {
         password
       });
       
-      const { token, refreshToken, user, tokens } = response.data;
+      const { token, refreshToken, user, tokens, force_password_change } = response.data;
       
       // Handle new token format (from updated backend)
       const accessToken = tokens?.accessToken || token;
@@ -79,6 +89,16 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', accessToken);
       if (refresh) {
         localStorage.setItem('refreshToken', refresh);
+      }
+      
+      // Check if user needs to change password
+      if (force_password_change) {
+        console.log('User must change password');
+        // Set user first (so they're authenticated)
+        setCurrentUser(user);
+        // Show force password change modal
+        setShowForcePasswordChange(true);
+        return true; // Login successful but will show password change modal
       }
       
       // Immediately fetch complete user data with permissions from /api/auth/me
@@ -110,6 +130,26 @@ export const AuthProvider = ({ children }) => {
       }
       
       return false;
+    }
+  };
+  
+  const handlePasswordChanged = async () => {
+    // Password was successfully changed
+    setShowForcePasswordChange(false);
+    
+    // Refresh user data to get updated force_password_change flag
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const userResponse = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        setCurrentUser(userResponse.data);
+      } catch (error) {
+        console.error('Error refreshing user data:', error);
+      }
     }
   };
   
@@ -162,6 +202,26 @@ export const AuthProvider = ({ children }) => {
         // Store new refresh token if provided (token rotation)
         if (tokens.refreshToken) {
           localStorage.setItem('refreshToken', tokens.refreshToken);
+        }
+        
+        // Re-fetch user data to check for force_password_change flag
+        try {
+          const userResponse = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${tokens.accessToken}`
+            }
+          });
+          
+          const userData = userResponse.data;
+          setCurrentUser(userData);
+          
+          // Check if user needs to change password
+          if (userData.force_password_change) {
+            console.log('User must change password (detected after token refresh)');
+            setShowForcePasswordChange(true);
+          }
+        } catch (fetchError) {
+          console.error('Error fetching user data after token refresh:', fetchError);
         }
         
         return tokens.accessToken;
@@ -587,6 +647,9 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {showForcePasswordChange && (
+        <ForcePasswordChange onPasswordChanged={handlePasswordChanged} />
+      )}
     </AuthContext.Provider>
   );
 };

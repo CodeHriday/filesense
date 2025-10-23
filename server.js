@@ -101,18 +101,6 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
 const authenticateToken = async (req, res, next) => {
   console.log('==== authenticateToken middleware called ====');
   
-  // Skip auth for Business Process Management routes only, but set a default user
-  if (req.path.match(/^\/api\/groups/) || 
-      req.path.match(/^\/api\/business-processes/)) {
-    console.log('Skipping auth for BPM route:', req.path);
-    // Set a default admin user to prevent 'undefined' errors
-    req.user = { 
-      id: 2,  // Admin ID
-      roles: ['Admin']
-    };
-    return next();
-  }
-  
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN format
   
@@ -138,6 +126,25 @@ const authenticateToken = async (req, res, next) => {
     
     // Store the original token for debugging
     req.token = token;
+    
+    // Fetch user's force_password_change flag from database
+    try {
+      const userFlagResult = await dbPool.query(
+        'SELECT force_password_change FROM users WHERE id = $1',
+        [verified.id]
+      );
+      if (userFlagResult.rows.length > 0) {
+        req.user.force_password_change = userFlagResult.rows[0].force_password_change || false;
+      } else {
+        // User not found in database - fail closed for security
+        console.error('User from token not found in database:', verified.id);
+        return res.status(403).json({ error: 'Invalid user. Please log in again.' });
+      }
+    } catch (flagErr) {
+      console.error('Error fetching force_password_change flag:', flagErr);
+      // Fail closed: deny access if we cannot verify password change status
+      return res.status(500).json({ error: 'Unable to verify authentication status. Please try again.' });
+    }
     
     // Get permissions for the user based on roles
     if (verified.roles && verified.roles.length > 0) {
@@ -262,6 +269,25 @@ const authenticateToken = async (req, res, next) => {
     }
     
     console.log('Authentication successful, proceeding to next middleware');
+    
+    // Check if user must change password - block all routes except password change and logout
+    const isPasswordChangeEndpoint = req.path === '/api/auth/force-change-password';
+    const isLogoutEndpoint = req.path === '/api/auth/logout';
+    const isAuthMeEndpoint = req.path === '/api/auth/me';
+    const isOktaEndpoint = req.path.startsWith('/api/auth/okta');
+    
+    if (req.user.force_password_change && 
+        !isPasswordChangeEndpoint && 
+        !isLogoutEndpoint && 
+        !isAuthMeEndpoint &&
+        !isOktaEndpoint) {
+      console.log('User must change password, blocking API access');
+      return res.status(403).json({ 
+        error: 'Password change required. You must change your password before accessing the application.',
+        force_password_change: true
+      });
+    }
+    
     next();
   } catch (error) {
     console.error('Token verification error:', error);
@@ -4233,12 +4259,16 @@ app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (re
       userAgent
     });
     
+    // Check if user needs to change password
+    const forcePasswordChange = result.user.force_password_change || false;
+    
     // Return tokens and user info (backward compatible format)
     res.json({
       user: result.user,
       token: result.tokens.accessToken,  // Backward compatibility
       tokens: result.tokens,              // New format with both tokens
-      refreshToken: result.tokens.refreshToken  // Backward compatibility
+      refreshToken: result.tokens.refreshToken,  // Backward compatibility
+      force_password_change: forcePasswordChange
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -4512,6 +4542,261 @@ app.post('/api/auth/refresh', async (req, res) => {
   } catch (err) {
     console.error('Token refresh error:', err);
     res.status(500).json({ error: sanitizeError(err, 'Token refresh failed') });
+  }
+});
+
+// Password Reset Request API
+// User requests password reset (unauthenticated)
+app.post('/api/auth/request-password-reset', authLimiter, async (req, res) => {
+  try {
+    const { username } = req.body;
+    
+    if (!username) {
+      return res.status(400).json({ error: 'Username or email is required' });
+    }
+    
+    // Find user by username or email
+    const userResult = await dbPool.query(
+      'SELECT id, username, email, auth_provider FROM users WHERE username = $1 OR email = $1',
+      [username]
+    );
+    
+    if (userResult.rows.length === 0) {
+      // Don't reveal if user exists or not for security
+      return res.json({ message: 'If the user exists, a password reset request has been submitted to the administrators.' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Check if user is SSO-only - return generic message to prevent user enumeration
+    if (user.auth_provider !== 'local') {
+      // Generic message that doesn't reveal account details
+      return res.json({ message: 'If the user exists, a password reset request has been submitted to the administrators.' });
+    }
+    
+    // Check if there's already a pending request
+    const existingRequest = await dbPool.query(
+      `SELECT id FROM password_reset_requests 
+       WHERE user_id = $1 AND status = 'pending' 
+       ORDER BY requested_at DESC LIMIT 1`,
+      [user.id]
+    );
+    
+    if (existingRequest.rows.length > 0) {
+      return res.json({ message: 'A password reset request is already pending for this account.' });
+    }
+    
+    // Create password reset request
+    await dbPool.query(
+      `INSERT INTO password_reset_requests (user_id, status) 
+       VALUES ($1, 'pending')`,
+      [user.id]
+    );
+    
+    systemLogger.info('Password reset requested', {
+      userId: user.id,
+      username: user.username,
+      ip: req.ip
+    });
+    
+    res.json({ message: 'Password reset request submitted. An administrator will review your request.' });
+  } catch (err) {
+    console.error('Password reset request error:', err);
+    res.status(500).json({ error: 'An error occurred while processing your request' });
+  }
+});
+
+// Force change password (authenticated users who must change password)
+app.post('/api/auth/force-change-password', authenticateToken, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const userId = req.user.id;
+    
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+    
+    // Validate password requirements using enhanced auth service
+    const passwordValidation = enhancedAuthService.validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ 
+        error: 'Password does not meet requirements',
+        details: passwordValidation.errors
+      });
+    }
+    
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    // Update password and remove force_password_change flag
+    await dbPool.query(
+      `UPDATE users 
+       SET password = $1, force_password_change = FALSE, updated_at = NOW()
+       WHERE id = $2`,
+      [hashedPassword, userId]
+    );
+    
+    systemLogger.info('User changed password (forced)', {
+      userId,
+      username: req.user.username
+    });
+    
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Force password change error:', err);
+    res.status(500).json({ error: 'An error occurred while changing password' });
+  }
+});
+
+// Get password reset requests (admin only)
+app.get('/api/password-reset-requests', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+    }
+    
+    const result = await dbPool.query(`
+      SELECT 
+        prr.id,
+        prr.user_id,
+        prr.requested_at,
+        prr.status,
+        prr.approved_by,
+        prr.approved_at,
+        prr.denied_at,
+        prr.notes,
+        u.username,
+        u.email,
+        u.full_name,
+        approver.username as approved_by_username
+      FROM password_reset_requests prr
+      JOIN users u ON prr.user_id = u.id
+      LEFT JOIN users approver ON prr.approved_by = approver.id
+      ORDER BY 
+        CASE WHEN prr.status = 'pending' THEN 0 ELSE 1 END,
+        prr.requested_at DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching password reset requests:', err);
+    res.status(500).json({ error: 'Failed to fetch password reset requests' });
+  }
+});
+
+// Approve password reset request (admin only)
+app.post('/api/password-reset-requests/:id/approve', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+    }
+    
+    const requestId = parseInt(req.params.id);
+    const { notes } = req.body;
+    
+    // Get the request details
+    const requestResult = await dbPool.query(
+      `SELECT user_id, status FROM password_reset_requests WHERE id = $1`,
+      [requestId]
+    );
+    
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Password reset request not found' });
+    }
+    
+    const request = requestResult.rows[0];
+    
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'This request has already been processed' });
+    }
+    
+    // Generate temporary password
+    const tempPassword = 'TempPass@' + new Date().getFullYear();
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, salt);
+    
+    // Update user password and set force_password_change flag
+    await dbPool.query(
+      `UPDATE users 
+       SET password = $1, force_password_change = TRUE, updated_at = NOW()
+       WHERE id = $2`,
+      [hashedPassword, request.user_id]
+    );
+    
+    // Update the request status
+    await dbPool.query(
+      `UPDATE password_reset_requests 
+       SET status = 'approved', approved_by = $1, approved_at = NOW(), notes = $2
+       WHERE id = $3`,
+      [req.user.id, notes, requestId]
+    );
+    
+    systemLogger.info('Password reset request approved', {
+      requestId,
+      userId: request.user_id,
+      approvedBy: req.user.id,
+      approvedByUsername: req.user.username
+    });
+    
+    res.json({ 
+      message: 'Password reset approved. Temporary password has been set.',
+      tempPassword: tempPassword
+    });
+  } catch (err) {
+    console.error('Error approving password reset request:', err);
+    res.status(500).json({ error: 'Failed to approve password reset request' });
+  }
+});
+
+// Deny password reset request (admin only)
+app.post('/api/password-reset-requests/:id/deny', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+    }
+    
+    const requestId = parseInt(req.params.id);
+    const { notes } = req.body;
+    
+    // Get the request details
+    const requestResult = await dbPool.query(
+      `SELECT status FROM password_reset_requests WHERE id = $1`,
+      [requestId]
+    );
+    
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Password reset request not found' });
+    }
+    
+    if (requestResult.rows[0].status !== 'pending') {
+      return res.status(400).json({ error: 'This request has already been processed' });
+    }
+    
+    // Update the request status
+    await dbPool.query(
+      `UPDATE password_reset_requests 
+       SET status = 'denied', approved_by = $1, denied_at = NOW(), notes = $2
+       WHERE id = $3`,
+      [req.user.id, notes, requestId]
+    );
+    
+    systemLogger.info('Password reset request denied', {
+      requestId,
+      deniedBy: req.user.id,
+      deniedByUsername: req.user.username
+    });
+    
+    res.json({ message: 'Password reset request denied' });
+  } catch (err) {
+    console.error('Error denying password reset request:', err);
+    res.status(500).json({ error: 'Failed to deny password reset request' });
   }
 });
 
