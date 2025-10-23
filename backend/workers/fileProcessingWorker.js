@@ -68,7 +68,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -154,7 +154,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 75);
 
       // Step 4: Save metadata to database (including duplicates and hash)
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats);
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, projectId);
       
       // Step 4.5: Create file ownership record with creator and owner from uploader
       await this.createFileOwnership(fileId, userId, originalName);
@@ -516,7 +516,7 @@ print(json.dumps(result))
   /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats) {
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, projectId) {
     // Build metadata object with encoding, delimiter, and preview data
     const metadata = {
       encoding: fileInfo.encoding || null,
@@ -528,8 +528,8 @@ print(json.dumps(result))
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
         row_count, column_count, quality_score, metadata, checksum,
-        duplicate_records_count, duplicate_records_percentage
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        duplicate_records_count, duplicate_records_percentage, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         row_count = EXCLUDED.row_count,
@@ -554,7 +554,8 @@ print(json.dumps(result))
       JSON.stringify(metadata),
       fileHash || null,
       duplicateStats?.duplicate_count || 0,
-      duplicateStats?.duplicate_percentage || 0.0
+      duplicateStats?.duplicate_percentage || 0.0,
+      projectId
     ];
 
     const result = await this.dbPool.query(query, values);

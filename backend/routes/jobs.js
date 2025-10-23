@@ -55,7 +55,7 @@ router.get('/stats/summary', async (req, res) => {
 
 /**
  * GET /api/jobs
- * List all transformation jobs
+ * List all transformation jobs (filtered by user's accessible projects)
  */
 router.get('/', async (req, res) => {
   try {
@@ -68,6 +68,24 @@ router.get('/', async (req, res) => {
       sortOrder = 'DESC'
     } = req.query;
     
+    // Get user's accessible projects
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    const userProjects = await getUserProjects(req.user.id);
+    const projectIds = userProjects.map(p => p.id);
+    
+    // Admin bypass check
+    const isAdmin = req.user?.roles?.includes('Admin');
+    
+    // If user has no projects and is not admin, return empty list
+    if (projectIds.length === 0 && !isAdmin) {
+      return res.json({
+        jobs: [],
+        total: 0,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      });
+    }
+    
     let query = `
       SELECT 
         tj.*,
@@ -78,8 +96,12 @@ router.get('/', async (req, res) => {
         s.schedule_type,
         s.cron_expression,
         s.interval_value,
-        s.interval_unit
+        s.interval_unit,
+        tm.project_id,
+        p.name as project_name
       FROM transformation_jobs tj
+      LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
+      LEFT JOIN projects p ON tm.project_id = p.id
       LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
       LEFT JOIN n_step_workflow_runs nwr ON tj.workflow_execution_id = nwr.id
@@ -89,6 +111,13 @@ router.get('/', async (req, res) => {
     `;
     const params = [];
     let paramIndex = 1;
+    
+    // Filter by user's accessible projects (admins bypass)
+    if (!isAdmin) {
+      query += ` AND tm.project_id = ANY($${paramIndex}::integer[])`;
+      params.push(projectIds);
+      paramIndex++;
+    }
     
     if (status) {
       query += ` AND tj.status = $${paramIndex}`;
@@ -116,6 +145,7 @@ router.get('/', async (req, res) => {
     let countQuery = `
       SELECT COUNT(*) 
       FROM transformation_jobs tj
+      LEFT JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
       LEFT JOIN mapping_group_executions mge ON tj.mapping_group_execution_id = mge.id
       LEFT JOIN mapping_groups mg ON mge.group_id = mg.id
       LEFT JOIN n_step_workflow_runs nwr ON tj.workflow_execution_id = nwr.id
@@ -125,6 +155,13 @@ router.get('/', async (req, res) => {
     `;
     const countParams = [];
     let countParamIndex = 1;
+    
+    // Filter by user's accessible projects (admins bypass)
+    if (!isAdmin) {
+      countQuery += ` AND tm.project_id = ANY($${countParamIndex}::integer[])`;
+      countParams.push(projectIds);
+      countParamIndex++;
+    }
     
     if (status) {
       countQuery += ` AND tj.status = $${countParamIndex}`;
@@ -160,11 +197,20 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Validate user has access to this job's project
+    const { validateJobAccess } = require('../utils/jobAccessHelpers');
+    await validateJobAccess(id, req.user);
+    
     const jobData = await getJobStatus(pool, id);
     
     res.json(jobData);
     
   } catch (error) {
+    // Handle access control errors
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    
     if (error.message.includes('not found')) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -182,6 +228,10 @@ router.get('/:id/logs', async (req, res) => {
   try {
     const { id } = req.params;
     const { level, limit = 100 } = req.query;
+    
+    // Validate user has access to this job's project
+    const { validateJobAccess } = require('../utils/jobAccessHelpers');
+    await validateJobAccess(id, req.user);
     
     let query = 'SELECT * FROM transformation_logs WHERE job_id = $1';
     const params = [id];
@@ -203,6 +253,11 @@ router.get('/:id/logs', async (req, res) => {
     });
     
   } catch (error) {
+    // Handle access control errors
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    
     systemLogger.error('Error getting job logs:', error);
     res.status(500).json({ error: 'Failed to get job logs' });
   }
@@ -224,6 +279,10 @@ router.post('/:id/cancel', async (req, res) => {
     
     const { id } = req.params;
     
+    // Validate user has access to this job's project
+    const { validateJobAccess } = require('../utils/jobAccessHelpers');
+    await validateJobAccess(id, req.user);
+    
     const updatedJob = await cancelJob(pool, id);
     
     res.json({
@@ -232,6 +291,11 @@ router.post('/:id/cancel', async (req, res) => {
     });
     
   } catch (error) {
+    // Handle access control errors
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    
     if (error.message.includes('not found')) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -254,6 +318,10 @@ router.get('/:id/anomalies', async (req, res) => {
   try {
     const { id } = req.params;
     const { severity, status = 'open' } = req.query;
+    
+    // Validate user has access to this job's project
+    const { validateJobAccess } = require('../utils/jobAccessHelpers');
+    await validateJobAccess(id, req.user);
     
     let query = 'SELECT * FROM anomalies WHERE job_id = $1';
     const params = [id];
@@ -281,6 +349,11 @@ router.get('/:id/anomalies', async (req, res) => {
     });
     
   } catch (error) {
+    // Handle access control errors
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    
     systemLogger.error('Error getting job anomalies:', error);
     res.status(500).json({ error: 'Failed to get job anomalies' });
   }
@@ -294,6 +367,10 @@ router.get('/:id/metrics', async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Validate user has access to this job's project
+    const { validateJobAccess } = require('../utils/jobAccessHelpers');
+    await validateJobAccess(id, req.user);
+    
     const result = await pool.query(
       'SELECT * FROM profiling_metrics WHERE job_id = $1 ORDER BY profiled_at DESC',
       [id]
@@ -306,6 +383,11 @@ router.get('/:id/metrics', async (req, res) => {
     });
     
   } catch (error) {
+    // Handle access control errors
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    
     systemLogger.error('Error getting job metrics:', error);
     res.status(500).json({ error: 'Failed to get job metrics' });
   }

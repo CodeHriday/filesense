@@ -271,7 +271,8 @@ class FileService extends ServiceBase {
       limit = 50, 
       offset = 0,
       fileType = null,
-      search = null
+      search = null,
+      projectIds = null
     } = options;
     
     const traceId = this.generateTraceId();
@@ -292,6 +293,12 @@ class FileService extends ServiceBase {
       `;
       const params = [];
       let whereClauses = [];
+      
+      // Add project filtering (if projectIds provided)
+      if (projectIds && Array.isArray(projectIds) && projectIds.length > 0) {
+        whereClauses.push('files.project_id = ANY($' + (params.length + 1) + ')');
+        params.push(projectIds);
+      }
       
       // Add filter by file type
       if (fileType) {

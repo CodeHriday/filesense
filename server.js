@@ -696,11 +696,27 @@ app.get('/api/files', authenticateToken, cacheMiddleware(300), async (req, res) 
       });
     }
     
+    // Get user's accessible projects for filtering
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectIds = null;
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      // If user has no projects, return empty list
+      if (projectIds.length === 0) {
+        return res.json([]);
+      }
+    }
+    
     // Use the FileService from the DI container
     const fileService = diContainer.get('fileService');
     const files = await fileService.getAllFiles({
       sortBy: 'created_at',
-      sortOrder: 'DESC'
+      sortOrder: 'DESC',
+      projectIds: projectIds  // Pass user's accessible project IDs
     });
     
     res.json(files);
@@ -878,7 +894,14 @@ app.get('/api/files/:fileId/preview',
 });
 
 // Delete preview data for a file
-app.delete('/api/files/:fileId/preview-data', invalidateCache('cache:*:*files*'), async (req, res) => {
+app.delete('/api/files/:fileId/preview-data', 
+  authenticateToken,
+  invalidateCache('cache:*:*files*'),
+  authorizeProjectResource({
+    resourceType: 'file',
+    requiredPermissions: ['file:delete', 'file_delete']
+  }),
+  async (req, res) => {
   try {
     const { fileId } = req.params;
     
@@ -977,7 +1000,10 @@ app.delete('/api/files/:fileId',
 });
 
 // Bulk delete files endpoint
-app.post('/api/files/bulk-delete', invalidateCache('cache:*:*files*'), async (req, res) => {
+app.post('/api/files/bulk-delete', 
+  authenticateToken,
+  invalidateCache('cache:*:*files*'), 
+  async (req, res) => {
   const { fileIds } = req.body;
   const client = await dbPool.connect();
   
@@ -986,6 +1012,10 @@ app.post('/api/files/bulk-delete', invalidateCache('cache:*:*files*'), async (re
   }
   
   try {
+    // Validate user has access to all files
+    const { validateBulkFileAccess } = require('./backend/utils/fileAccessHelpers');
+    await validateBulkFileAccess(fileIds, req.user);
+    
     // Begin transaction for atomic deletion
     await client.query('BEGIN');
     
@@ -1040,6 +1070,15 @@ app.post('/api/files/bulk-delete', invalidateCache('cache:*:*files*'), async (re
   } catch (err) {
     // Rollback on error
     await client.query('ROLLBACK');
+    
+    // Handle access control errors
+    if (err.status === 403 || err.status === 404) {
+      return res.status(err.status).json({
+        success: false,
+        error: err.message
+      });
+    }
+    
     logger.error('Error bulk deleting files', { error: err.message, fileIds });
     res.status(500).json({ error: 'Failed to bulk delete files' });
   } finally {
@@ -1131,6 +1170,42 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
+    // Validate and get project_id
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
+    
+    // If no project_id provided, default to user's first accessible project (admins can skip)
+    if (!projectId) {
+      const userProjects = await getUserProjects(req.user.id);
+      if (userProjects.length === 0 && !isAdmin) {
+        if (req.file && req.file.path) {
+          try { fs.unlinkSync(req.file.path); } catch (e) {}
+        }
+        return res.status(403).json({
+          error: 'No project access',
+          message: 'You must be assigned to at least one project to upload files'
+        });
+      }
+      projectId = userProjects.length > 0 ? userProjects[0].id : 1; // Default to project 1 for admins
+    } else {
+      // Validate user has access to the specified project (admins bypass)
+      if (!isAdmin) {
+        const userProjects = await getUserProjects(req.user.id);
+        const hasAccess = userProjects.some(p => p.id === projectId);
+        
+        if (!hasAccess) {
+          if (req.file && req.file.path) {
+            try { fs.unlinkSync(req.file.path); } catch (e) {}
+          }
+          return res.status(403).json({
+            error: 'Project access denied',
+            message: 'You do not have access to the specified project'
+          });
+        }
+      }
+    }
+    
     const file = req.file;
     const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
     const fileType = path.extname(file.originalname).substring(1).toLowerCase();
@@ -1218,7 +1293,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       fileSize: file.size,
       fileType,
       userId,
-      fileHash
+      fileHash,
+      projectId
     }, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
@@ -1299,6 +1375,42 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     // Validate file upload
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    // Validate and get project_id
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
+    
+    // If no project_id provided, default to user's first accessible project (admins can skip)
+    if (!projectId) {
+      const userProjects = await getUserProjects(req.user.id);
+      if (userProjects.length === 0 && !isAdmin) {
+        if (req.file && req.file.path) {
+          try { fs.unlinkSync(req.file.path); } catch (e) {}
+        }
+        return res.status(403).json({
+          error: 'No project access',
+          message: 'You must be assigned to at least one project to drop files'
+        });
+      }
+      projectId = userProjects.length > 0 ? userProjects[0].id : 1; // Default to project 1 for admins
+    } else {
+      // Validate user has access to the specified project (admins bypass)
+      if (!isAdmin) {
+        const userProjects = await getUserProjects(req.user.id);
+        const hasAccess = userProjects.some(p => p.id === projectId);
+        
+        if (!hasAccess) {
+          if (req.file && req.file.path) {
+            try { fs.unlinkSync(req.file.path); } catch (e) {}
+          }
+          return res.status(403).json({
+            error: 'Project access denied',
+            message: 'You do not have access to the specified project'
+          });
+        }
+      }
     }
     
     const file = req.file;
@@ -1515,8 +1627,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     
     // Log to database (without profiling)
     await dbPool.query(
-      `INSERT INTO files (file_id, filename, file_type, file_size, metadata, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      `INSERT INTO files (file_id, filename, file_type, file_size, metadata, project_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
       [
         fileId,
         file.originalname,
@@ -1528,7 +1640,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           provider: provider,
           storage_key: storageKey,
           drop_file: true
-        })
+        }),
+        projectId
       ]
     );
     
@@ -1574,8 +1687,22 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
 // Continue with other API endpoints below
 
 // Lineage endpoints
-app.get('/api/lineage', async (req, res) => {
+app.get('/api/lineage', authenticateToken, async (req, res) => {
   try {
+    // Get user's accessible projects
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const userProjects = await getUserProjects(req.user.id);
+    const projectIds = userProjects.map(p => p.id);
+    const isAdmin = req.user?.roles?.includes('Admin');
+    
+    // Return empty if user has no projects and is not admin
+    if (projectIds.length === 0 && !isAdmin) {
+      return res.json({
+        manual_lineage: [],
+        transformation_lineage: []
+      });
+    }
+    
     // Create lineage table if it doesn't exist
     await dbPool.query(`
       CREATE TABLE IF NOT EXISTS file_lineage (
@@ -1588,8 +1715,8 @@ app.get('/api/lineage', async (req, res) => {
       )
     `);
     
-    // Get manual lineage with file details
-    const lineageResult = await dbPool.query(`
+    // Get manual lineage with file details (filtered by project)
+    const lineageQuery = `
       SELECT 
         fl.*,
         sf.filename as source_filename,
@@ -1607,13 +1734,16 @@ app.get('/api/lineage', async (req, res) => {
       FROM file_lineage fl
       LEFT JOIN files sf ON fl.source_file_id = sf.file_id
       LEFT JOIN files tf ON fl.target_file_id = tf.file_id
+      WHERE ${isAdmin ? '1=1' : 'sf.project_id = ANY($1::integer[]) AND tf.project_id = ANY($1::integer[])'}
       ORDER BY fl.created_at DESC
-    `);
+    `;
     
-    // Also get transformation-based lineage
-    // Note: input_file_id and output_file_id now store patterns from mapping config
-    // We'll match these patterns to files to get schema info for the details modal
-    const transformLineageResult = await dbPool.query(`
+    const lineageResult = isAdmin 
+      ? await dbPool.query(lineageQuery)
+      : await dbPool.query(lineageQuery, [projectIds]);
+    
+    // Also get transformation-based lineage (filtered by project)
+    const transformLineageQuery = `
       SELECT
         tl.id,
         tl.transformation_id,
@@ -1628,11 +1758,17 @@ app.get('/api/lineage', async (req, res) => {
         tm.source_file_pattern,
         tm.target_file_name,
         tm.target_file_format,
-        tm.description
+        tm.description,
+        tm.project_id
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
+      WHERE ${isAdmin ? '1=1' : 'tm.project_id = ANY($1::integer[])'}
       ORDER BY tl.created_at DESC
-    `);
+    `;
+    
+    const transformLineageResult = isAdmin
+      ? await dbPool.query(transformLineageQuery)
+      : await dbPool.query(transformLineageQuery, [projectIds]);
     
     // Combine both types of lineage
     res.json({
