@@ -167,27 +167,56 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   
   // Check if a column is masked or denied
   const getColumnAccessStatus = (columnName) => {
-    if (!columnAccess) return { status: 'allowed' };
-    
-    const maskedColumn = columnAccess.masked?.find(col => col.name === columnName);
-    if (maskedColumn) {
-      return {
-        status: 'masked',
-        tags: maskedColumn.tags || [],
-        requiredPermissions: maskedColumn.requiresPermission || []
-      };
+    // Check columnAccess object first (from preview API response)
+    if (columnAccess) {
+      const maskedColumn = columnAccess.masked?.find(col => col.name === columnName);
+      if (maskedColumn) {
+        return {
+          status: 'masked',
+          tags: maskedColumn.tags || [],
+          requiredPermissions: maskedColumn.requiresPermission || []
+        };
+      }
+      
+      const deniedColumn = columnAccess.denied?.find(col => col.name === columnName);
+      if (deniedColumn) {
+        return {
+          status: 'denied',
+          tags: deniedColumn.tags || [],
+          requiredPermissions: deniedColumn.requiresPermission || []
+        };
+      }
     }
     
-    const deniedColumn = columnAccess.denied?.find(col => col.name === columnName);
-    if (deniedColumn) {
-      return {
-        status: 'denied',
-        tags: deniedColumn.tags || [],
-        requiredPermissions: deniedColumn.requiresPermission || []
-      };
+    // Also check columnQualityData for _accessLevel property (from profile data)
+    if (columnQualityData && columnQualityData.length > 0) {
+      const qualityColumn = columnQualityData.find(col => col.name === columnName);
+      if (qualityColumn) {
+        const accessLevel = qualityColumn._accessLevel || qualityColumn.accessLevel;
+        if (accessLevel === 'masked') {
+          return {
+            status: 'masked',
+            tags: [],
+            requiredPermissions: []
+          };
+        }
+        if (accessLevel === 'none') {
+          return {
+            status: 'denied',
+            tags: [],
+            requiredPermissions: []
+          };
+        }
+      }
     }
     
     return { status: 'allowed' };
+  };
+  
+  // Helper function to check if a column value should be masked
+  const shouldMaskColumnValue = (columnName) => {
+    const accessStatus = getColumnAccessStatus(columnName);
+    return accessStatus.status === 'masked';
   };
 
   // Render column access indicator (lock icon with tooltip)
@@ -328,9 +357,13 @@ Timeliness: 10%`}
               <tr key={rowIndex}>
                 {columnNames.map((column, colIndex) => (
                   <td key={colIndex}>
-                    {row[column] !== null && row[column] !== undefined 
-                      ? String(row[column]) 
-                      : <span className="null-value">NULL</span>}
+                    {shouldMaskColumnValue(column) ? (
+                      <span className="masked-value">****</span>
+                    ) : (
+                      row[column] !== null && row[column] !== undefined 
+                        ? String(row[column]) 
+                        : <span className="null-value">NULL</span>
+                    )}
                   </td>
                 ))}
               </tr>

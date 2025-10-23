@@ -399,6 +399,20 @@ function DataProfile() {
     }
   };
   
+  // Helper functions for PII/sensitive data masking
+  const shouldMaskValue = (column) => {
+    // Check if column has restricted access based on _accessLevel property set by backend
+    return column._accessLevel === 'masked' || column.accessLevel === 'masked';
+  };
+  
+  const getMaskedValue = (value, column) => {
+    // Return masked placeholder if column should be masked, otherwise return the original value
+    if (shouldMaskValue(column)) {
+      return '****';
+    }
+    return value;
+  };
+  
   // Check if user has edit permission for a column's governance tags
   // MUST match backend security logic: requires edit permission for ALL tags
   const canEditColumnGovernance = (columnName) => {
@@ -910,6 +924,7 @@ function DataProfile() {
                 // Format patterns for display
                 const formatPatterns = (patterns) => {
                   if (!patterns || patterns.length === 0) return 'N/A';
+                  if (shouldMaskValue(column)) return '****';
                   
                   // Show top 2 patterns with their percentages
                   const topPatterns = patterns.slice(0, 2);
@@ -926,18 +941,20 @@ function DataProfile() {
                     <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
                     <td>{`${nullCount.toLocaleString()} (${missingPercentage}%)`}</td>
                     <td>
-                    {hasMinMaxValues(column)
-                      ? column.min_is_frequent 
-                        ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
-                        : formatMinMaxValue(column.min, column)
-                      : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
+                    {shouldMaskValue(column) ? '****' : 
+                      hasMinMaxValues(column)
+                        ? column.min_is_frequent 
+                          ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
+                          : formatMinMaxValue(column.min, column)
+                        : column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
                     </td>
                     <td>
-                    {hasMinMaxValues(column)
-                      ? column.max_is_frequent 
-                        ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
-                        : formatMinMaxValue(column.max, column)
-                      : column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
+                    {shouldMaskValue(column) ? '****' :
+                      hasMinMaxValues(column)
+                        ? column.max_is_frequent 
+                          ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
+                          : formatMinMaxValue(column.max, column)
+                        : column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
                     </td>
                   </tr>
                 );
@@ -975,17 +992,19 @@ function DataProfile() {
                       <div className="column-stat-row">
                         <div className="column-stat-label">Min:</div>
                         <div className="column-stat-value">
-                          {column.min_is_frequent 
-                            ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
-                            : formatMinMaxValue(column.min, column)}
+                          {shouldMaskValue(column) ? '****' :
+                            column.min_is_frequent 
+                              ? `${formatMinMaxValue(column.min, column)} (occurs ${column.min_frequency || 1}x)` 
+                              : formatMinMaxValue(column.min, column)}
                         </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Max:</div>
                         <div className="column-stat-value">
-                          {column.max_is_frequent 
-                            ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
-                            : formatMinMaxValue(column.max, column)}
+                          {shouldMaskValue(column) ? '****' :
+                            column.max_is_frequent 
+                              ? `${formatMinMaxValue(column.max, column)} (occurs ${column.max_frequency || 1}x)` 
+                              : formatMinMaxValue(column.max, column)}
                         </div>
                       </div>
                     </>
@@ -996,13 +1015,15 @@ function DataProfile() {
                       <div className="column-stat-row">
                         <div className="column-stat-label">Most Frequent:</div>
                         <div className="column-stat-value">
-                          {column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
+                          {shouldMaskValue(column) ? '****' :
+                            column.most_frequent_value ? `${column.most_frequent_value} (occurs ${column.most_frequent_count || 1}x)` : 'N/A'}
                         </div>
                       </div>
                       <div className="column-stat-row">
                         <div className="column-stat-label">Least Frequent:</div>
                         <div className="column-stat-value">
-                          {column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
+                          {shouldMaskValue(column) ? '****' :
+                            column.least_frequent_value ? `${column.least_frequent_value} (occurs ${column.least_frequent_count || 1}x)` : 'N/A'}
                         </div>
                       </div>
                     </>
@@ -1018,10 +1039,10 @@ function DataProfile() {
                         <div className="numeric-distribution">
                           <div className="value-labels">
                             <span className="min-label">
-                              {formatMinMaxValue(column.min, column)}
+                              {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.min, column)}
                             </span>
                             <span className="max-label">
-                              {formatMinMaxValue(column.max, column)}
+                              {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.max, column)}
                             </span>
                           </div>
                           <div className="bars">
