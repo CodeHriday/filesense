@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { systemLogger } = require('../utils/logger');
+const pool = require('../db');
 const {
   createSchedule,
   getEntitySchedules,
@@ -8,6 +9,87 @@ const {
   deleteSchedule,
   processDueSchedules
 } = require('../services/cronSchedulerService');
+
+/**
+ * Helper function to get project_id for a scheduled entity
+ */
+async function getEntityProjectId(entity_type, entity_id) {
+  let query, table;
+  
+  switch (entity_type) {
+    case 'mapping':
+      table = 'transformation_mappings';
+      query = 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
+      break;
+    case 'mapping_group':
+      table = 'mapping_groups';
+      query = 'SELECT project_id FROM mapping_groups WHERE id = $1';
+      break;
+    case 'workflow':
+      table = 'n_step_workflows';
+      query = 'SELECT project_id FROM n_step_workflows WHERE id = $1';
+      break;
+    default:
+      throw new Error(`Unsupported entity_type: ${entity_type}`);
+  }
+  
+  const result = await pool.query(query, [entity_id]);
+  
+  if (result.rows.length === 0) {
+    const error = new Error(`${entity_type} not found`);
+    error.status = 404;
+    throw error;
+  }
+  
+  return result.rows[0].project_id;
+}
+
+/**
+ * Helper function to validate user has access to entity's project
+ */
+async function validateEntityProjectAccess(entity_type, entity_id, user) {
+  const { getUserProjects } = require('../middleware/requireProjectAccess');
+  
+  // Get entity's project_id
+  const entityProjectId = await getEntityProjectId(entity_type, entity_id);
+  
+  // Check access (admins bypass)
+  const isAdmin = user?.roles?.includes('Admin');
+  if (!isAdmin) {
+    const userProjects = await getUserProjects(user.id);
+    const projectIds = userProjects.map(p => p.id);
+    
+    if (!projectIds.includes(entityProjectId)) {
+      const error = new Error(`You do not have access to this ${entity_type}`);
+      error.status = 403;
+      throw error;
+    }
+  }
+  
+  return entityProjectId;
+}
+
+/**
+ * Helper function to validate user has access to a schedule's entity project
+ */
+async function validateScheduleAccess(schedule_id, user) {
+  // Get schedule to find its entity_type and entity_id
+  const scheduleResult = await pool.query(
+    'SELECT entity_type, entity_id FROM schedules WHERE id = $1',
+    [schedule_id]
+  );
+  
+  if (scheduleResult.rows.length === 0) {
+    const error = new Error('Schedule not found');
+    error.status = 404;
+    throw error;
+  }
+  
+  const { entity_type, entity_id } = scheduleResult.rows[0];
+  
+  // Validate access to the entity's project
+  return await validateEntityProjectAccess(entity_type, entity_id, user);
+}
 
 /**
  * Enhanced Scheduler API Routes
@@ -80,6 +162,9 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Validate user has access to the entity's project
+    const entityProjectId = await validateEntityProjectAccess(entity_type, entity_id, req.user);
+    
     const result = await createSchedule({
       entity_type,
       entity_id,
@@ -100,6 +185,12 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(result);
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error creating schedule', { error: error.message });
     res.status(500).json({
       success: false,
@@ -325,6 +416,9 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
+    // Validate user has access to the schedule's entity project
+    await validateScheduleAccess(id, req.user);
+    
     // Remove id from updates if present
     delete updates.id;
     delete updates.created_at;
@@ -347,6 +441,12 @@ router.put('/:id', async (req, res) => {
     
     res.json(result);
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error updating schedule', { error: error.message });
     res.status(500).json({
       success: false,
@@ -359,7 +459,9 @@ router.put('/:id', async (req, res) => {
 router.patch('/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
-    const pool = require('../db');
+    
+    // Validate user has access to the schedule's entity project
+    await validateScheduleAccess(id, req.user);
     
     const result = await pool.query(`
       UPDATE schedules
@@ -385,6 +487,12 @@ router.patch('/:id/toggle', async (req, res) => {
       schedule: result.rows[0]
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error toggling schedule', { error: error.message });
     res.status(500).json({
       success: false,
@@ -398,10 +506,19 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Validate user has access to the schedule's entity project
+    await validateScheduleAccess(id, req.user);
+    
     const result = await deleteSchedule(parseInt(id));
     
     res.json(result);
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error deleting schedule', { error: error.message });
     res.status(500).json({
       success: false,

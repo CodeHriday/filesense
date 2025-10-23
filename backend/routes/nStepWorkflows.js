@@ -3,6 +3,44 @@ const router = express.Router();
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeNStepWorkflow, getWorkflowRunStatus } = require('../services/nStepWorkflowExecutionEngine');
+const authorizeProjectResource = require('../middleware/authorizeProjectResource');
+
+/**
+ * Helper function to validate workflow project access
+ * Returns the workflow's project_id if user has access, otherwise throws 403
+ */
+async function validateWorkflowAccess(workflowId, user) {
+  const { getUserProjects } = require('../middleware/requireProjectAccess');
+  
+  // Get workflow project_id
+  const result = await pool.query(
+    'SELECT project_id FROM n_step_workflows WHERE id = $1',
+    [workflowId]
+  );
+  
+  if (result.rows.length === 0) {
+    const error = new Error('Workflow not found');
+    error.status = 404;
+    throw error;
+  }
+  
+  const workflowProjectId = result.rows[0].project_id;
+  
+  // Check access (admins bypass)
+  const isAdmin = user?.roles?.includes('Admin');
+  if (!isAdmin) {
+    const userProjects = await getUserProjects(user.id);
+    const projectIds = userProjects.map(p => p.id);
+    
+    if (!projectIds.includes(workflowProjectId)) {
+      const error = new Error('You do not have access to this workflow');
+      error.status = 403;
+      throw error;
+    }
+  }
+  
+  return workflowProjectId;
+}
 
 /**
  * GET /api/n-step-workflows
@@ -72,7 +110,9 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
     
+    // Get workflow with project_id
     const workflowResult = await pool.query(
       'SELECT * FROM n_step_workflows WHERE id = $1',
       [id]
@@ -83,6 +123,23 @@ router.get('/:id', async (req, res) => {
         success: false,
         error: 'Workflow not found'
       });
+    }
+    
+    const workflow = workflowResult.rows[0];
+    
+    // Check project access (unless admin)
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      const projectIds = userProjects.map(p => p.id);
+      
+      if (!projectIds.includes(workflow.project_id)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+          message: 'You do not have access to this workflow'
+        });
+      }
     }
     
     const stepsResult = await pool.query(`
@@ -105,11 +162,17 @@ router.get('/:id', async (req, res) => {
     res.json({
       success: true,
       workflow: {
-        ...workflowResult.rows[0],
+        ...workflow,
         steps: stepsResult.rows
       }
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error fetching workflow', { error: error.message });
     res.status(500).json({
       success: false,
@@ -124,8 +187,9 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, project_id } = req.body;
     const userId = req.user?.id || 1;
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     if (!name) {
       return res.status(400).json({
@@ -134,11 +198,45 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Determine project_id and validate access
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let assignedProjectId = project_id;
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      const projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+          message: 'You must be a member of at least one project to create workflows'
+        });
+      }
+      
+      // If project_id specified, validate user has access
+      if (assignedProjectId) {
+        if (!projectIds.includes(assignedProjectId)) {
+          return res.status(403).json({
+            success: false,
+            error: 'Access denied',
+            message: 'You do not have access to the specified project'
+          });
+        }
+      } else {
+        // Default to user's first accessible project
+        assignedProjectId = projectIds[0];
+      }
+    } else if (!assignedProjectId) {
+      // Admin without project_id: default to Default Project (id: 1)
+      assignedProjectId = 1;
+    }
+    
     const result = await pool.query(`
-      INSERT INTO n_step_workflows (name, description, created_by)
-      VALUES ($1, $2, $3)
+      INSERT INTO n_step_workflows (name, description, created_by, project_id)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
-    `, [name, description, userId]);
+    `, [name, description, userId, assignedProjectId]);
     
     const workflow = result.rows[0];
     
@@ -168,6 +266,35 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
+    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    
+    // Get workflow to check project_id
+    const workflowCheck = await pool.query(
+      'SELECT project_id FROM n_step_workflows WHERE id = $1',
+      [id]
+    );
+    
+    if (workflowCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Workflow not found'
+      });
+    }
+    
+    // Check project access (unless admin)
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      const projectIds = userProjects.map(p => p.id);
+      
+      if (!projectIds.includes(workflowCheck.rows[0].project_id)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied',
+          message: 'You do not have access to this workflow'
+        });
+      }
+    }
     
     const result = await pool.query(`
       UPDATE n_step_workflows
@@ -175,13 +302,6 @@ router.put('/:id', async (req, res) => {
       WHERE id = $3
       RETURNING *
     `, [name, description, id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Workflow not found'
-      });
-    }
     
     res.json({
       success: true,
@@ -204,6 +324,9 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
+    
     const result = await pool.query(
       'DELETE FROM n_step_workflows WHERE id = $1 RETURNING *',
       [id]
@@ -221,6 +344,12 @@ router.delete('/:id', async (req, res) => {
       message: 'Workflow deleted successfully'
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error deleting workflow', { error: error.message });
     res.status(500).json({
       success: false,
@@ -236,6 +365,9 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/steps', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
     
     // Get the highest step index
     const maxStepResult = await pool.query(`
@@ -265,6 +397,20 @@ router.post('/:id/steps', async (req, res) => {
       step: newStepResult.rows[0]
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
+    // Check if it's an access control error by message
+    if (error.message && (error.message.includes('do not have access') || error.message.includes('not found'))) {
+      const status = error.message.includes('not found') ? 404 : 403;
+      return res.status(status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error adding step', { error: error.message });
     res.status(500).json({
       success: false,
@@ -280,6 +426,9 @@ router.post('/:id/steps', async (req, res) => {
 router.post('/:id/steps/next', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
     
     const currentActiveResult = await pool.query(`
       SELECT * FROM n_step_workflow_steps
@@ -329,6 +478,12 @@ router.post('/:id/steps/next', async (req, res) => {
       activeStep: nextStep
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error moving to next step', { error: error.message });
     res.status(500).json({
       success: false,
@@ -344,6 +499,9 @@ router.post('/:id/steps/next', async (req, res) => {
 router.post('/:id/steps/previous', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
     
     const currentActiveResult = await pool.query(`
       SELECT * FROM n_step_workflow_steps
@@ -386,6 +544,12 @@ router.post('/:id/steps/previous', async (req, res) => {
       activeStep: previousStepResult.rows[0]
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error moving to previous step', { error: error.message });
     res.status(500).json({
       success: false,
@@ -401,6 +565,9 @@ router.post('/:id/steps/previous', async (req, res) => {
 router.put('/:id/steps/:stepId/activate', async (req, res) => {
   try {
     const { id, stepId } = req.params;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
     
     // Deactivate all steps in the workflow
     await pool.query(`
@@ -429,6 +596,12 @@ router.put('/:id/steps/:stepId/activate', async (req, res) => {
       activeStep: result.rows[0]
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error activating step', { error: error.message });
     res.status(500).json({
       success: false,
@@ -443,8 +616,11 @@ router.put('/:id/steps/:stepId/activate', async (req, res) => {
  */
 router.post('/:id/steps/:stepId/assets', async (req, res) => {
   try {
-    const { stepId } = req.params;
+    const { id, stepId } = req.params;
     const { asset_type, asset_id } = req.body;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
     
     if (!['mapping', 'mapping_group'].includes(asset_type)) {
       return res.status(400).json({
@@ -500,6 +676,12 @@ router.post('/:id/steps/:stepId/assets', async (req, res) => {
       expandedCount: newTotal
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error adding asset', { error: error.message });
     res.status(500).json({
       success: false,
@@ -514,7 +696,10 @@ router.post('/:id/steps/:stepId/assets', async (req, res) => {
  */
 router.delete('/:id/steps/:stepId/assets/:assetId', async (req, res) => {
   try {
-    const { assetId } = req.params;
+    const { id, assetId } = req.params;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
     
     const result = await pool.query(
       'DELETE FROM n_step_workflow_assets WHERE id = $1 RETURNING *',
@@ -533,6 +718,12 @@ router.delete('/:id/steps/:stepId/assets/:assetId', async (req, res) => {
       message: 'Asset removed successfully'
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error removing asset', { error: error.message });
     res.status(500).json({
       success: false,
@@ -548,6 +739,9 @@ router.delete('/:id/steps/:stepId/assets/:assetId', async (req, res) => {
 router.delete('/:id/steps/:stepId', async (req, res) => {
   try {
     const { id, stepId } = req.params;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
     
     // First, delete all assets associated with this step
     await pool.query(
@@ -601,6 +795,20 @@ router.delete('/:id/steps/:stepId', async (req, res) => {
       message: 'Step deleted successfully'
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
+    // Check if it's an access control error by message
+    if (error.message && (error.message.includes('do not have access') || error.message.includes('not found'))) {
+      const status = error.message.includes('not found') ? 404 : 403;
+      return res.status(status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error deleting step', { error: error.message });
     res.status(500).json({
       success: false,
@@ -653,6 +861,11 @@ router.get('/:id/steps/:stepId/expanded-count', async (req, res) => {
  */
 router.post('/:id/execute', async (req, res) => {
   try {
+    const { id } = req.params;
+    
+    // Validate project access
+    await validateWorkflowAccess(id, req.user);
+    
     // Check if user has workflow:execute permission
     if (!req.user || !req.user.permissions || !req.user.permissions.includes('workflow:execute')) {
       return res.status(403).json({ 
@@ -661,7 +874,6 @@ router.post('/:id/execute', async (req, res) => {
       });
     }
     
-    const { id } = req.params;
     const userId = req.user?.id || 1;
     
     // Get workflow details
@@ -696,6 +908,20 @@ router.post('/:id/execute', async (req, res) => {
       workflowName: workflowResult.rows[0].name
     });
   } catch (error) {
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        success: false,
+        error: error.message
+      });
+    }
+    // Check if it's an access control error by message
+    if (error.message && (error.message.includes('do not have access') || error.message.includes('not found'))) {
+      const status = error.message.includes('not found') ? 404 : 403;
+      return res.status(status).json({
+        success: false,
+        error: error.message
+      });
+    }
     systemLogger.error('Error starting workflow execution', { error: error.message });
     res.status(500).json({
       success: false,
