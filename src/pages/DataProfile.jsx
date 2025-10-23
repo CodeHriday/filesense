@@ -402,7 +402,9 @@ function DataProfile() {
   // Helper functions for PII/sensitive data masking
   const shouldMaskValue = (column) => {
     // Check if column has restricted access based on _accessLevel property set by backend
-    return column._accessLevel === 'masked' || column.accessLevel === 'masked';
+    // Mask both 'masked' and 'denied'/'none' columns to prevent data exposure
+    const accessLevel = column._accessLevel || column.accessLevel;
+    return accessLevel === 'masked' || accessLevel === 'denied' || accessLevel === 'none';
   };
   
   const getMaskedValue = (value, column) => {

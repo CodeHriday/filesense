@@ -216,7 +216,8 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
   // Helper function to check if a column value should be masked
   const shouldMaskColumnValue = (columnName) => {
     const accessStatus = getColumnAccessStatus(columnName);
-    return accessStatus.status === 'masked';
+    // Mask both 'masked' and 'denied' columns to prevent data exposure
+    return accessStatus.status === 'masked' || accessStatus.status === 'denied';
   };
 
   // Render column access indicator (lock icon with tooltip)
