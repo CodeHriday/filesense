@@ -396,30 +396,46 @@ function DataProfile() {
   // Check if user has edit permission for a column's governance tags
   // MUST match backend security logic: requires edit permission for ALL tags
   const canEditColumnGovernance = (columnName) => {
+    console.log(`[canEditColumnGovernance] Checking permissions for column: ${columnName}`);
+    console.log('[canEditColumnGovernance] user:', user);
+    console.log('[canEditColumnGovernance] user?.roles:', user?.roles);
+    
     // If user data is still loading, disable editing
     if (!user) {
+      console.log('[canEditColumnGovernance] No user object, returning false');
       return false;
     }
     
     // Admin can always edit
     if (user.roles && Array.isArray(user.roles) && user.roles.includes('Admin')) {
+      console.log('[canEditColumnGovernance] User is Admin, returning true');
       return true;
     }
     
+    console.log('[canEditColumnGovernance] User is NOT admin, checking tag permissions');
+    
     // Get the tags assigned to this column
     const columnTagsData = allColumnGovernanceTags[columnName] || [];
+    console.log('[canEditColumnGovernance] columnTagsData:', columnTagsData);
     
     // If no tags, only Admin can assign (checked above)
     if (columnTagsData.length === 0) {
+      console.log('[canEditColumnGovernance] No tags on column and user is not admin, returning false');
       return false;
     }
     
     // User must have edit permission for ALL tags on the column
     // (consistent with backend security model)
-    return columnTagsData.every(tag => {
+    const hasAllPermissions = columnTagsData.every(tag => {
       const tagName = tag.tag_name?.toLowerCase();
-      return hasPermission(`tag:${tagName}:edit`) || hasPermission(`tag:${tagName}:write`);
+      const hasEditPerm = hasPermission(`tag:${tagName}:edit`);
+      const hasWritePerm = hasPermission(`tag:${tagName}:write`);
+      console.log(`[canEditColumnGovernance] Tag ${tagName}: edit=${hasEditPerm}, write=${hasWritePerm}`);
+      return hasEditPerm || hasWritePerm;
     });
+    
+    console.log('[canEditColumnGovernance] hasAllPermissions:', hasAllPermissions);
+    return hasAllPermissions;
   };
 
   const fetchOwnership = async () => {
