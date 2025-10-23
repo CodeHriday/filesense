@@ -178,6 +178,7 @@ function Mappings() {
             <table className="mappings-table" style={{ fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                  <th>Project</th>
                   <th>Mapping Name</th>
                   <th>Source</th>
                   <th>File Pattern</th>
@@ -199,6 +200,7 @@ function Mappings() {
                       
                       return (
                         <tr key={mapping.id}>
+                          <td>{mapping.project_name || 'Default Project'}</td>
                           <td className="mapping-name-cell">
                             <strong>{mapping.mapping_name}</strong>
                           </td>

@@ -105,6 +105,7 @@ const ETLScheduler = () => {
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th>Project</th>
                     <th>Name</th>
                     <th>Type</th>
                     <th>Schedule</th>
@@ -117,6 +118,7 @@ const ETLScheduler = () => {
                 <tbody>
                   {currentSchedules.map(schedule => (
                     <tr key={schedule.schedule_id} className={!schedule.enabled ? 'disabled-row' : ''}>
+                      <td>{schedule.project_name || 'Default Project'}</td>
                       <td>{schedule.entity_name || schedule.entity_id}</td>
                       <td>
                         <span className="entity-type-badge">{schedule.entity_type}</span>

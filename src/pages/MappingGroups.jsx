@@ -122,6 +122,7 @@ const MappingGroups = () => {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Project</th>
                   <th>Name</th>
                   <th>Description</th>
                   <th>Members</th>
@@ -134,6 +135,7 @@ const MappingGroups = () => {
               <tbody>
                 {currentGroups.map(group => (
                   <tr key={group.id || group.group_id}>
+                    <td>{group.project_name || 'Default Project'}</td>
                     <td className="font-weight-bold">{group.name || group.group_name}</td>
                     <td className="description-cell">{group.description || '-'}</td>
                     <td className="text-center">{group.mapping_count || group.member_count || 0}</td>

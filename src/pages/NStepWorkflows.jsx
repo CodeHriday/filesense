@@ -513,6 +513,7 @@ const NStepWorkflows = () => {
             <table className="workflow-table">
               <thead>
                 <tr>
+                  <th>Project</th>
                   <th>Name</th>
                   <th>Description</th>
                   <th>Steps</th>
@@ -523,7 +524,7 @@ const NStepWorkflows = () => {
               <tbody>
                 {workflows.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="empty-message">
+                    <td colSpan="6" className="empty-message">
                       No workflows found. Create one to get started.
                     </td>
                   </tr>
@@ -533,6 +534,7 @@ const NStepWorkflows = () => {
                       key={w.id}
                       className={selectedWorkflow === w.id ? 'selected-row' : ''}
                     >
+                      <td>{w.project_name || 'Default Project'}</td>
                       <td>
                         <strong>{w.name}</strong>
                       </td>
