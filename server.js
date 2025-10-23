@@ -2798,23 +2798,12 @@ app.get('/api/files/:fileId/profile',
     // Apply column-level access control
     const columnAccessControl = require('./backend/services/columnAccessControl');
     const columnGovernance = await columnAccessControl.getColumnGovernance(fileId);
-    
-    console.log('[COLUMN ACCESS DEBUG] User:', req.user.username, 'FileId:', fileId);
-    console.log('[COLUMN ACCESS DEBUG] Column governance data:', JSON.stringify(columnGovernance, null, 2));
-    
     const { allowedColumns, maskedColumns, deniedColumns, summary: accessSummary } = 
       columnAccessControl.filterColumns(req.user, columnGovernance, 'read');
-    
-    console.log('[COLUMN ACCESS DEBUG] Access summary:', accessSummary);
-    console.log('[COLUMN ACCESS DEBUG] Masked columns:', maskedColumns.map(c => c.column_name));
-    console.log('[COLUMN ACCESS DEBUG] Denied columns:', deniedColumns.map(c => c.column_name));
-    console.log('[COLUMN ACCESS DEBUG] User permissions:', req.user.permissions);
     
     // Create a map of masked column names for quick lookup
     const maskedColumnNames = new Set(maskedColumns.map(c => c.column_name));
     const deniedColumnNames = new Set(deniedColumns.map(c => c.column_name));
-    
-    console.log('[COLUMN ACCESS DEBUG] maskedColumnNames Set:', Array.from(maskedColumnNames));
     
     // Create profile response with masked statistics for restricted columns
     const file = fileResult.rows[0];
