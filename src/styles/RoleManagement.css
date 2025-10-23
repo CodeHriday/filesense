@@ -285,6 +285,18 @@
   font-weight: 500;
 }
 
+.nested-feature {
+  padding-left: 20px;
+  font-weight: 400;
+  color: #5f6368;
+}
+
+.nested-indicator {
+  color: #9aa0a6;
+  font-weight: 400;
+  margin-right: 4px;
+}
+
 .permission-header {
   text-align: center;
   font-weight: 500;
