@@ -128,6 +128,7 @@ const WorkflowList: React.FC = () => {
                 <div style={{ flex: 1 }}>
                   <h3 style={{ margin: '0 0 8px 0', color: THEME.colors.secondary }}>{workflow.name}</h3>
                   <div style={{ display: 'flex', gap: '16px', fontSize: '14px', color: '#666', marginBottom: '12px' }}>
+                    <span>Project: {(workflow.steps[0] as any)?.project_name || 'Default Project'}</span>
                     <span>Steps: {workflow.stepCount}</span>
                     <span>Execution Mode: {workflow.steps[0]?.execution_mode || 'sequential'}</span>
                   </div>

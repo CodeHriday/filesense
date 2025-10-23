@@ -106,6 +106,7 @@ const MappingGroupList: React.FC = () => {
                     <p style={{ margin: '0 0 12px 0', color: '#666' }}>{group.description}</p>
                   )}
                   <div style={{ display: 'flex', gap: '16px', fontSize: '14px', color: '#666' }}>
+                    <span>Project: {(group as any).project_name || 'Default Project'}</span>
                     <span>Members: {group.member_count || 0}</span>
                     <span>Concurrency: {group.concurrency_limit}</span>
                     <span>Created: {new Date(group.created_at).toLocaleDateString()}</span>

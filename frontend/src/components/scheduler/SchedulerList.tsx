@@ -129,6 +129,7 @@ const SchedulerList: React.FC = () => {
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '16px', fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                    <span>Project: {(schedule as any).project_name || 'Default Project'}</span>
                     <span>Type: {schedule.entity_type}</span>
                     <span>{formatSchedule(schedule)}</span>
                   </div>

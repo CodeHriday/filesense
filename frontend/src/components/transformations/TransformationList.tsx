@@ -235,6 +235,7 @@ const TransformationList: React.FC = () => {
           >
             <thead>
               <tr style={{ backgroundColor: THEME.colors.background }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Project</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Name</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Type</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Status</th>
@@ -250,6 +251,9 @@ const TransformationList: React.FC = () => {
                     borderBottom: `1px solid ${THEME.colors.background}`
                   }}
                 >
+                  <td style={{ padding: '12px 16px' }}>
+                    {(transformation as any).project_name || 'Default Project'}
+                  </td>
                   <td style={{ padding: '12px 16px' }}>
                     <Link
                       to={`/transformations/${transformation.id}`}
