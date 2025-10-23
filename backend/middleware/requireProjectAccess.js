@@ -267,21 +267,24 @@ async function checkProjectMembership(userId, projectId) {
   try {
     const result = await db.query(`
       SELECT 
-        pm.role_id,
-        r.name as role_name
+        pm.user_id,
+        pm.project_id,
+        p.name as project_name
       FROM project_members pm
-      JOIN roles r ON pm.role_id = r.id
+      JOIN projects p ON pm.project_id = p.id
       WHERE pm.project_id = $1 
         AND pm.user_id = $2
+        AND p.is_active = TRUE
     `, [projectId, userId]);
 
     if (result.rows.length === 0) {
-      return { hasAccess: false, role: null };
+      return { hasAccess: false, role: null, projectName: null };
     }
 
     return {
       hasAccess: true,
-      role: result.rows[0].role_name
+      role: null,
+      projectName: result.rows[0].project_name
     };
   } catch (error) {
     systemLogger.error('Error checking project membership', {
@@ -289,7 +292,7 @@ async function checkProjectMembership(userId, projectId) {
       userId,
       projectId
     });
-    return { hasAccess: false, role: null };
+    return { hasAccess: false, role: null, projectName: null };
   }
 }
 
