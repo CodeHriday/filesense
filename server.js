@@ -1978,8 +1978,19 @@ app.get('/api/badges', async (req, res) => {
 });
 
 // Alert history endpoint
-app.get('/api/alerts/history', async (req, res) => {
+app.get('/api/alerts/history', authenticateToken, async (req, res) => {
   try {
+    // Get user's accessible projects
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const userProjects = await getUserProjects(req.user.id);
+    const projectIds = userProjects.map(p => p.id);
+    const isAdmin = req.user?.roles?.includes('Admin');
+    
+    // Return empty if user has no projects and is not admin
+    if (projectIds.length === 0 && !isAdmin) {
+      return res.json([]);
+    }
+    
     // Create alerts history table if it doesn't exist
     await dbPool.query(`
       CREATE TABLE IF NOT EXISTS alert_history (
@@ -1992,7 +2003,19 @@ app.get('/api/alerts/history', async (req, res) => {
       )
     `);
     
-    const result = await dbPool.query('SELECT * FROM alert_history');
+    // Filter alert history by file's project_id
+    const query = `
+      SELECT ah.* 
+      FROM alert_history ah
+      LEFT JOIN files f ON ah.file_id = f.file_id
+      WHERE ${isAdmin ? '1=1' : 'f.project_id = ANY($1::integer[])'}
+      ORDER BY ah.created_at DESC
+    `;
+    
+    const result = isAdmin 
+      ? await dbPool.query(query)
+      : await dbPool.query(query, [projectIds]);
+      
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching alert history:', err);
@@ -4087,9 +4110,18 @@ app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
   }
 });
 
-// Alert rules endpoint
-app.get('/api/alerts', async (req, res) => {
+// Alert rules endpoint - system-wide configuration, admin access only
+app.get('/api/alerts', authenticateToken, async (req, res) => {
   try {
+    // Alert rules are system-wide configuration, admin-only access
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'Only administrators can view alert rules'
+      });
+    }
+    
     const result = await dbPool.query('SELECT * FROM alert_rules');
     
     // If no rules exist, create some default ones
