@@ -526,7 +526,7 @@ router.delete('/:id',
 router.post('/:id/execute',
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:execute', 'transformation_execute']
+    requiredPermissions: ['transformation:execute']
   }),
   async (req, res) => {
   try {
