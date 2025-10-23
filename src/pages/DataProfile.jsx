@@ -335,7 +335,7 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
 
 function DataProfile() {
   const { fileId } = useParams();
-  const { user, hasPermission } = useAuth();
+  const { currentUser, hasPermission } = useAuth();
   const [file, setFile] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -397,17 +397,17 @@ function DataProfile() {
   // MUST match backend security logic: requires edit permission for ALL tags
   const canEditColumnGovernance = (columnName) => {
     console.log(`[canEditColumnGovernance] Checking permissions for column: ${columnName}`);
-    console.log('[canEditColumnGovernance] user:', user);
-    console.log('[canEditColumnGovernance] user?.roles:', user?.roles);
+    console.log('[canEditColumnGovernance] currentUser:', currentUser);
+    console.log('[canEditColumnGovernance] currentUser?.roles:', currentUser?.roles);
     
     // If user data is still loading, disable editing
-    if (!user) {
-      console.log('[canEditColumnGovernance] No user object, returning false');
+    if (!currentUser) {
+      console.log('[canEditColumnGovernance] No currentUser object, returning false');
       return false;
     }
     
     // Admin can always edit
-    if (user.roles && Array.isArray(user.roles) && user.roles.includes('Admin')) {
+    if (currentUser.roles && Array.isArray(currentUser.roles) && currentUser.roles.includes('Admin')) {
       console.log('[canEditColumnGovernance] User is Admin, returning true');
       return true;
     }
@@ -423,7 +423,7 @@ function DataProfile() {
       console.log('[canEditColumnGovernance] No tags on column, checking for any tag edit permissions');
       
       // Check if user has any tag:*:edit or tag:*:write permission
-      const userPermissions = user.permissions || [];
+      const userPermissions = currentUser.permissions || [];
       const hasAnyTagEditPerm = userPermissions.some(perm => {
         const permStr = typeof perm === 'string' ? perm : `${perm.resource}:${perm.action}`;
         return permStr.startsWith('tag:') && (permStr.endsWith(':edit') || permStr.endsWith(':write'));
