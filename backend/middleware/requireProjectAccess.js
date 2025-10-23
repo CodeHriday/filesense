@@ -184,7 +184,13 @@ async function lookupResourceProject(req, resourceType) {
         query = 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
         params = [req.params.mappingId];
       } else if (req.params.id) {
-        query = 'SELECT project_id FROM transformation_mappings WHERE id = $1';
+        // Check if id is numeric or a mapping_id string
+        const isNumeric = /^\d+$/.test(req.params.id);
+        if (isNumeric) {
+          query = 'SELECT project_id FROM transformation_mappings WHERE id = $1';
+        } else {
+          query = 'SELECT project_id FROM transformation_mappings WHERE mapping_id = $1';
+        }
         params = [req.params.id];
       }
       break;
