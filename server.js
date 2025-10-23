@@ -4593,7 +4593,7 @@ app.post('/api/auth/request-password-reset', authLimiter, async (req, res) => {
       [user.id]
     );
     
-    systemLogger.info('Password reset requested', {
+    logger.info('Password reset requested', {
       userId: user.id,
       username: user.username,
       ip: req.ip
@@ -4637,7 +4637,7 @@ app.post('/api/auth/force-change-password', authenticateToken, async (req, res) 
       [hashedPassword, userId]
     );
     
-    systemLogger.info('User changed password (forced)', {
+    logger.info('User changed password (forced)', {
       userId,
       username: req.user.username
     });
@@ -4736,7 +4736,7 @@ app.post('/api/password-reset-requests/:id/approve', authenticateToken, async (r
       [req.user.id, notes, requestId]
     );
     
-    systemLogger.info('Password reset request approved', {
+    logger.info('Password reset request approved', {
       requestId,
       userId: request.user_id,
       approvedBy: req.user.id,
@@ -4787,7 +4787,7 @@ app.post('/api/password-reset-requests/:id/deny', authenticateToken, async (req,
       [req.user.id, notes, requestId]
     );
     
-    systemLogger.info('Password reset request denied', {
+    logger.info('Password reset request denied', {
       requestId,
       deniedBy: req.user.id,
       deniedByUsername: req.user.username
