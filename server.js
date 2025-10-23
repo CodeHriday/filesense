@@ -2031,11 +2031,12 @@ app.get('/api/alerts/history', authenticateToken, async (req, res) => {
     
     // Filter alert history by file's project_id
     const query = `
-      SELECT ah.* 
+      SELECT ah.*, f.filename, p.name as project_name
       FROM alert_history ah
       LEFT JOIN files f ON ah.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
       WHERE ${isAdmin ? '1=1' : 'f.project_id = ANY($1::integer[])'}
-      ORDER BY ah.created_at DESC
+      ORDER BY ah.triggered_at DESC
     `;
     
     const result = isAdmin 
