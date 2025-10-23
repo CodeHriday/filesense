@@ -52,6 +52,7 @@ const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('
 const { cacheMiddleware, invalidateCache } = require('./backend/middleware/cacheMiddleware');
 const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 const authorizeProjectResource = require('./backend/middleware/authorizeProjectResource');
+const { requireProjectAccess } = require('./backend/middleware/requireProjectAccess');
 
 // Import enhanced authentication service
 const enhancedAuthService = require('./backend/services/enhancedAuthService');
@@ -755,9 +756,8 @@ app.get('/api/files', authenticateToken, cacheMiddleware(300), async (req, res) 
 app.get('/api/files/:fileId', 
   authenticateToken, 
   cacheMiddleware(600),
-  authorizeProjectResource({
-    resourceType: 'file',
-    requiredPermissions: ['file:read', 'file_view', 'file_upload:read', 'file_profile:read']
+  requireProjectAccess({
+    resourceType: 'file'
   }),
   async (req, res) => {
     try {
@@ -2774,9 +2774,8 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
 app.get('/api/files/:fileId/profile', 
   authenticateToken, 
   cacheMiddleware(600),
-  authorizeProjectResource({
-    resourceType: 'file',
-    requiredPermissions: ['file:read', 'file_view', 'file_profile:read']
+  requireProjectAccess({
+    resourceType: 'file'
   }),
   async (req, res) => {
   try {
