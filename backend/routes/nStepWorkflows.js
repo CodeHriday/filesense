@@ -13,10 +13,12 @@ router.get('/', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         w.*,
-        COUNT(DISTINCT s.id) as step_count
+        COUNT(DISTINCT s.id) as step_count,
+        p.name as project_name
       FROM n_step_workflows w
       LEFT JOIN n_step_workflow_steps s ON w.id = s.workflow_id
-      GROUP BY w.id
+      LEFT JOIN projects p ON w.project_id = p.id
+      GROUP BY w.id, p.name
       ORDER BY w.created_at DESC
     `);
     
