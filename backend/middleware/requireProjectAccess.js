@@ -13,7 +13,7 @@
  */
 
 const db = require('../config/database');
-const { authLogger } = require('../utils/logger');
+const { systemLogger } = require('../utils/logger');
 
 /**
  * Middleware factory to enforce project-level access control
@@ -35,14 +35,14 @@ function requireProjectAccess(options = {}) {
 
   return async (req, res, next) => {
     if (!req.user) {
-      authLogger.warn('Project access check failed: No authenticated user');
+      systemLogger.warn('Project access check failed: No authenticated user');
       return res.status(401).json({ error: 'Authentication required' });
     }
 
     try {
       // Admin bypass (global admins can access all projects)
       if (allowAdminBypass && req.user.roles && req.user.roles.includes('Admin')) {
-        authLogger.info('Admin bypass granted for project access', {
+        systemLogger.info('Admin bypass granted for project access', {
           userId: req.user.id,
           username: req.user.username
         });
@@ -63,7 +63,7 @@ function requireProjectAccess(options = {}) {
       }
 
       if (!projectId) {
-        authLogger.warn('Project access denied: Unable to determine project_id', {
+        systemLogger.warn('Project access denied: Unable to determine project_id', {
           userId: req.user.id,
           resourceType,
           path: req.path
@@ -86,7 +86,7 @@ function requireProjectAccess(options = {}) {
       `, [projectId, req.user.id]);
 
       if (membershipResult.rows.length === 0) {
-        authLogger.warn('Project access denied: User not a member', {
+        systemLogger.warn('Project access denied: User not a member', {
           userId: req.user.id,
           username: req.user.username,
           projectId,
@@ -102,7 +102,7 @@ function requireProjectAccess(options = {}) {
 
       // Check if project is active
       if (!membership.project_active) {
-        authLogger.warn('Project access denied: Project inactive', {
+        systemLogger.warn('Project access denied: Project inactive', {
           userId: req.user.id,
           projectId,
           projectName: membership.project_name
@@ -115,7 +115,7 @@ function requireProjectAccess(options = {}) {
 
       // Check if user's role is allowed
       if (!projectRoles.includes(membership.role_name)) {
-        authLogger.warn('Project access denied: Insufficient role', {
+        systemLogger.warn('Project access denied: Insufficient role', {
           userId: req.user.id,
           username: req.user.username,
           projectId,
@@ -134,7 +134,7 @@ function requireProjectAccess(options = {}) {
       req.projectName = membership.project_name;
       req.isAdminBypass = false;
 
-      authLogger.info('Project access granted', {
+      systemLogger.info('Project access granted', {
         userId: req.user.id,
         username: req.user.username,
         projectId,
@@ -146,7 +146,7 @@ function requireProjectAccess(options = {}) {
       next();
 
     } catch (error) {
-      authLogger.error('Error during project access check', {
+      systemLogger.error('Error during project access check', {
         error: error.message,
         stack: error.stack,
         userId: req.user?.id,
@@ -268,7 +268,7 @@ async function lookupResourceProject(req, resourceType) {
         return result.rows[0].project_id;
       }
     } catch (error) {
-      authLogger.error('Error looking up resource project', {
+      systemLogger.error('Error looking up resource project', {
         error: error.message,
         resourceType,
         params
@@ -304,7 +304,7 @@ async function checkProjectMembership(userId, projectId) {
       role: result.rows[0].role_name
     };
   } catch (error) {
-    authLogger.error('Error checking project membership', {
+    systemLogger.error('Error checking project membership', {
       error: error.message,
       userId,
       projectId
@@ -332,7 +332,7 @@ async function getUserProjects(userId) {
 
     return result.rows;
   } catch (error) {
-    authLogger.error('Error getting user projects', {
+    systemLogger.error('Error getting user projects', {
       error: error.message,
       userId
     });

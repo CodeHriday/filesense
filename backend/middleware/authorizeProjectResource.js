@@ -22,7 +22,7 @@
 
 const { requireProjectAccess, checkProjectMembership } = require('./requireProjectAccess');
 const ProjectPolicyEngine = require('../services/ProjectPolicyEngine');
-const { authLogger } = require('../utils/logger');
+const { systemLogger } = require('../utils/logger');
 
 /**
  * Middleware factory for project resource authorization
@@ -48,7 +48,7 @@ function authorizeProjectResource(options = {}) {
 
   return async (req, res, next) => {
     if (!req.user) {
-      authLogger.warn('Authorization failed: No authenticated user');
+      systemLogger.warn('Authorization failed: No authenticated user');
       return res.status(401).json({ error: 'Authentication required' });
     }
 
@@ -99,7 +99,7 @@ function authorizeProjectResource(options = {}) {
           );
 
           if (!hasAllPermissions) {
-            authLogger.warn('Permission denied at global level', {
+            systemLogger.warn('Permission denied at global level', {
               userId: req.user.id,
               username: req.user.username,
               projectId: req.projectId,
@@ -114,7 +114,7 @@ function authorizeProjectResource(options = {}) {
             });
           }
 
-          authLogger.info('Global permissions verified', {
+          systemLogger.info('Global permissions verified', {
             userId: req.user.id,
             permissions: permissions.join(', ')
           });
@@ -142,7 +142,7 @@ function authorizeProjectResource(options = {}) {
         });
 
         if (!policyEvaluation.allowed) {
-          authLogger.warn('Policy evaluation denied access', {
+          systemLogger.warn('Policy evaluation denied access', {
             userId: req.user.id,
             username: req.user.username,
             projectId: req.projectId,
@@ -158,7 +158,7 @@ function authorizeProjectResource(options = {}) {
           });
         }
 
-        authLogger.info('Policy evaluation allowed access', {
+        systemLogger.info('Policy evaluation allowed access', {
           userId: req.user.id,
           projectId: req.projectId,
           action,
@@ -173,7 +173,7 @@ function authorizeProjectResource(options = {}) {
       // ===============================
       // All Layers Passed
       // ===============================
-      authLogger.info('Full authorization succeeded', {
+      systemLogger.info('Full authorization succeeded', {
         userId: req.user.id,
         username: req.user.username,
         projectId: req.projectId,
@@ -188,7 +188,7 @@ function authorizeProjectResource(options = {}) {
     } catch (error) {
       // Only log error if response not already sent
       if (!res.headersSent) {
-        authLogger.error('Authorization error', {
+        systemLogger.error('Authorization error', {
           error: error.message,
           stack: error.stack,
           userId: req.user?.id,

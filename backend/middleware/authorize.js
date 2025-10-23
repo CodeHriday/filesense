@@ -4,7 +4,7 @@
  * Checks if the authenticated user has the required permissions
  */
 
-const { authLogger } = require('../utils/logger');
+const { systemLogger } = require('../utils/logger');
 const db = require('../config/database');
 
 /**
@@ -16,7 +16,7 @@ const db = require('../config/database');
 function authorize(requiredPermissions) {
   return async (req, res, next) => {
     if (!req.user) {
-      authLogger.warn('Authorization failed: No user data in request');
+      systemLogger.warn('Authorization failed: No user data in request');
       return res.status(401).json({ error: 'Authentication required' });
     }
     
@@ -28,7 +28,7 @@ function authorize(requiredPermissions) {
       
       // Check if user has admin role (bypass permission check)
       if (req.user.roles && req.user.roles.includes('Admin')) {
-        authLogger.info('User has Admin role, bypassing permission check');
+        systemLogger.info('User has Admin role, bypassing permission check');
         return next();
       }
       
@@ -45,14 +45,14 @@ function authorize(requiredPermissions) {
       );
       
       if (hasAllPermissions) {
-        authLogger.info('User has required permissions', { 
+        systemLogger.info('User has required permissions', { 
           permissions: permissions.join(', ') 
         });
         return next();
       }
       
       // Log missing permissions
-      authLogger.warn('User lacks required permissions', { 
+      systemLogger.warn('User lacks required permissions', { 
         userId: req.user.id,
         requiredPermissions: permissions.join(', '),
         userPermissions: userPermStrings.join(', ')
@@ -63,7 +63,7 @@ function authorize(requiredPermissions) {
         requiredPermissions: permissions
       });
     } catch (error) {
-      authLogger.error('Error during authorization', { error: error.message });
+      systemLogger.error('Error during authorization', { error: error.message });
       return res.status(500).json({ error: 'Authorization error' });
     }
   };
