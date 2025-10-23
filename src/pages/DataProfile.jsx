@@ -418,10 +418,19 @@ function DataProfile() {
     const columnTagsData = allColumnGovernanceTags[columnName] || [];
     console.log('[canEditColumnGovernance] columnTagsData:', columnTagsData);
     
-    // If no tags, only Admin can assign (checked above)
+    // If no tags, check if user has ANY tag edit permission
     if (columnTagsData.length === 0) {
-      console.log('[canEditColumnGovernance] No tags on column and user is not admin, returning false');
-      return false;
+      console.log('[canEditColumnGovernance] No tags on column, checking for any tag edit permissions');
+      
+      // Check if user has any tag:*:edit or tag:*:write permission
+      const userPermissions = user.permissions || [];
+      const hasAnyTagEditPerm = userPermissions.some(perm => {
+        const permStr = typeof perm === 'string' ? perm : `${perm.resource}:${perm.action}`;
+        return permStr.startsWith('tag:') && (permStr.endsWith(':edit') || permStr.endsWith(':write'));
+      });
+      
+      console.log('[canEditColumnGovernance] hasAnyTagEditPerm:', hasAnyTagEditPerm);
+      return hasAnyTagEditPerm;
     }
     
     // User must have edit permission for ALL tags on the column
