@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
       query += ` WHERE mg.project_id = ANY($1)`;
     }
     
-    query += ` GROUP BY mg.id ORDER BY mg.created_at DESC`;
+    query += ` GROUP BY mg.id, p.name ORDER BY mg.created_at DESC`;
     
     const params = (!isAdmin && projectIds.length > 0) ? [projectIds] : [];
     const result = await pool.query(query, params);

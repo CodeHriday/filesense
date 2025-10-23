@@ -65,10 +65,10 @@ async function executeMappingGroup(groupId, maxConcurrency = 10, triggeredBy = n
     // 3. Create execution record
     const execResult = await pool.query(`
       INSERT INTO mapping_group_executions 
-      (group_id, execution_id, status, total_mappings, triggered_by, start_time)
-      VALUES ($1, $2, 'running', $3, $4, $5)
+      (group_id, execution_id, status, total_mappings, triggered_by, start_time, project_id)
+      VALUES ($1, $2, 'running', $3, $4, $5, $6)
       RETURNING id
-    `, [groupId, executionId, mappings.length, triggeredBy, startTime]);
+    `, [groupId, executionId, mappings.length, triggeredBy, startTime, group.project_id]);
     
     executionRecordId = execResult.rows[0].id;
     

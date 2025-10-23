@@ -67,8 +67,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
     const result = await pool.query(`
       INSERT INTO transformation_jobs (
         job_id, mapping_id, mapping_name, executed_by, status, 
-        mapping_group_execution_id, schedule_id, workflow_execution_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        mapping_group_execution_id, schedule_id, workflow_execution_id, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `, [
       jobId, 
@@ -78,7 +78,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
       'running',
       options.mappingGroupExecutionId || null,
       options.scheduleId || null,
-      options.workflowExecutionId || null
+      options.workflowExecutionId || null,
+      mapping.project_id
     ]);
     
     const transformationJobDbId = result.rows[0].id; // Get database ID for linking to audit
