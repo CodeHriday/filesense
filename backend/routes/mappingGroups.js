@@ -415,7 +415,7 @@ router.delete('/:id/members/:memberId',
 router.post('/:id/execute',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:execute', 'mapping_group_execute']
+    requiredPermissions: ['mapping_group:execute']
   }),
   async (req, res) => {
     try {
