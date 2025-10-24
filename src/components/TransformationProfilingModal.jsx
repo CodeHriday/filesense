@@ -22,19 +22,31 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Fetch audit records for this transformation job
-      const response = await axios.get(`/api/file-audit`, {
+      // First, get the job details to find the correlation_id
+      const jobResponse = await axios.get(`/api/jobs/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const correlationId = jobResponse.data.correlation_id;
+      
+      if (!correlationId) {
+        setError('No correlation ID found for this job');
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch all audit records with this correlation_id
+      const auditResponse = await axios.get(`/api/file-audit`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
-          load_type: 'etl_transformation',
-          transformation_job_id: jobId,
+          correlation_id: correlationId,
           limit: 100
         }
       });
 
-      const audits = response.data.audits || [];
+      const audits = auditResponse.data.audits || [];
       
-      // Separate source and target files
+      // Separate source and target files by file_role
       const source = audits.find(a => a.file_role === 'source');
       const target = audits.find(a => a.file_role === 'target');
       
@@ -43,7 +55,7 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
       setError(null);
     } catch (err) {
       console.error('Error fetching profiling data:', err);
-      setError('Failed to load profiling data');
+      setError(err.response?.data?.message || 'Failed to load profiling data');
     } finally {
       setLoading(false);
     }

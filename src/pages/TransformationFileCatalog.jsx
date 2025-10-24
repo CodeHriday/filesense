@@ -76,9 +76,6 @@ const TransformationFileCatalog = () => {
         )}
 
         <div className="catalog-stats" style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
           padding: '1rem',
           background: 'white',
           border: '1px solid #e2e8f0',
@@ -91,12 +88,6 @@ const TransformationFileCatalog = () => {
             </strong>
             Total Files
           </div>
-          <div style={{ fontSize: '0.95rem', color: '#475569' }}>
-            <strong style={{ fontSize: '1.25rem', color: '#0f172a', marginRight: '0.5rem' }}>
-              {formatBytes(Array.isArray(files) ? files.reduce((sum, f) => sum + (parseInt(f.file_size_bytes) || 0), 0) : 0)}
-            </strong>
-            Total Size
-          </div>
         </div>
 
         <div className="table-container" style={{ overflowX: 'auto' }}>
@@ -106,8 +97,6 @@ const TransformationFileCatalog = () => {
                 <th>Target File</th>
                 <th>Source File</th>
                 <th>Mapping</th>
-                <th>Records</th>
-                <th>Size</th>
                 <th>Created</th>
                 <th>Project</th>
                 <th>Actions</th>
@@ -116,7 +105,7 @@ const TransformationFileCatalog = () => {
             <tbody>
               {currentFiles.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="empty-state">
+                  <td colSpan="6" className="empty-state">
                     <p>No transformation files found. Transform data using ETL Mappings to see files here.</p>
                   </td>
                 </tr>
@@ -138,8 +127,6 @@ const TransformationFileCatalog = () => {
                         </Link>
                       ) : '-'}
                     </td>
-                    <td>{file.load_step1_rec_cnt?.toLocaleString() || '-'}</td>
-                    <td>{file.file_size_bytes ? formatBytes(parseInt(file.file_size_bytes)) : '-'}</td>
                     <td>
                       {formatDate(file.created_dt)}
                     </td>
