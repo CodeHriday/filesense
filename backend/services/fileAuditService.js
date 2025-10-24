@@ -472,7 +472,28 @@ async function getAuditRecords(pool, filters = {}) {
         COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name,
         p.name as project_name,
         f.project_id,
-        tj.job_id
+        f.quality_score,
+        tj.job_id,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'name', fc.column_name,
+              'column_name', fc.column_name,
+              'data_type', fc.column_type,
+              'type', fc.column_type,
+              'null_count', fc.null_count,
+              'missing', fc.null_count,
+              'unique_values', fc.unique_count,
+              'distinct_count', fc.unique_count,
+              'min_value', COALESCE(fc.min_value_decimal::text, fc.min_value),
+              'max_value', COALESCE(fc.max_value_decimal::text, fc.max_value)
+            )
+            ORDER BY fc.column_index
+          )
+          FROM file_columns fc
+          WHERE fc.file_id = fad.file_id
+            AND (fc.file_role = fad.file_role OR (fc.file_role IS NULL AND fad.file_role IS NULL))
+        ) as column_stats
       FROM file_audit_details fad
       LEFT JOIN files f ON fad.file_id = f.file_id
       LEFT JOIN projects p ON f.project_id = p.id
