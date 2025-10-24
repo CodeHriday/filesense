@@ -27,7 +27,7 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const correlationId = jobResponse.data.correlation_id;
+      const correlationId = jobResponse.data.job.correlation_id;
       
       if (!correlationId) {
         setError('No correlation ID found for this job');
