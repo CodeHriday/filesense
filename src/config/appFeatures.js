@@ -160,6 +160,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'transformation_catalog', 
+    name: 'Transformation File Catalog', 
+    category: 'Jobs and Monitoring',
+    icon: FiFileText,
+    route: '/transformation-catalog',
+    showInSidebar: true
+  },
+  { 
     id: 'alerts', 
     name: 'Alerts', 
     category: 'Jobs and Monitoring',

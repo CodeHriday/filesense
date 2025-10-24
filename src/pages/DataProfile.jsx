@@ -1597,12 +1597,6 @@ function DataProfile() {
               Distribution
             </button>
             <button 
-              className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
-              onClick={() => setActiveTab('history')}
-            >
-              <FiClock className="tab-icon" /> Profile History
-            </button>
-            <button 
               className={`tab-button ${activeTab === 'preview' ? 'active' : ''}`}
               onClick={() => setActiveTab('preview')}
             >
@@ -1614,7 +1608,6 @@ function DataProfile() {
             {activeTab === 'attributes' && renderOverviewTab()}
             {activeTab === 'profile' && renderColumnsTab()}
             {activeTab === 'distribution' && renderDistributionTab()}
-            {activeTab === 'history' && renderHistoryTab()}
             {activeTab === 'preview' && renderPreviewTab()}
           </div>
         </>
