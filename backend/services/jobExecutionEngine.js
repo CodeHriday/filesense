@@ -993,21 +993,19 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         }
 
         // Step 6: Profile the TARGET file using Python profilers (same as file upload)
-        // Download the uploaded file from S3 and profile it to ensure we profile what's actually stored
+        // Profile in-memory buffer to avoid redundant S3 download (performance optimization)
         try {
           await logJobExecution(pool, jobId, 'info', 
-            `Downloading and profiling TARGET file from S3 using Python profilers`, {
+            `Profiling TARGET file from in-memory buffer using Python profilers`, {
             filename: outputFilename,
             fileRole: 'target',
-            targetConnectionId: mapping.target_connection_id,
-            filePath: outputFilename
+            bufferSize: outputBuffer.length
           });
 
-          // Download and profile the actual uploaded file from S3
-          const targetProfilingResult = await downloadAndProfileFile({
+          // Profile the in-memory outputBuffer directly (avoids redundant S3 download)
+          const targetProfilingResult = await profileFileBuffer({
             pool,
-            connectionId: mapping.target_connection_id,
-            filePath: outputFilename,
+            fileBuffer: outputBuffer,
             filename: outputFilename,
             fileType: outputFormat,
             fileId: `transformed_${jobId}_${file.filename}`,
