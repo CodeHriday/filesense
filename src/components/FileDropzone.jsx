@@ -353,7 +353,8 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
                 </div>
               </div>
             ) : (
-              <div>
+              <div className="upload-success">
+                <FiCheckCircle className="success-icon" />
                 <p>File uploaded successfully!</p>
                 {virusScan && (
                   <div style={{ 
