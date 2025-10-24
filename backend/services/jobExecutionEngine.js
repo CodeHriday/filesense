@@ -63,12 +63,13 @@ async function createJob(pool, mappingId, userId, options = {}) {
     
     const mapping = mappingResult.rows[0];
     const jobId = `JOB-${Date.now()}-${uuidv4().substring(0, 8)}`;
+    const correlationId = uuidv4(); // Generate correlation ID for source/target file linking
     
     const result = await pool.query(`
       INSERT INTO transformation_jobs (
         job_id, mapping_id, mapping_name, executed_by, status, 
-        mapping_group_execution_id, schedule_id, workflow_execution_id, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        mapping_group_execution_id, schedule_id, workflow_execution_id, project_id, correlation_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `, [
       jobId, 
@@ -79,7 +80,8 @@ async function createJob(pool, mappingId, userId, options = {}) {
       options.mappingGroupExecutionId || null,
       options.scheduleId || null,
       options.workflowExecutionId || null,
-      mapping.project_id
+      mapping.project_id,
+      correlationId
     ]);
     
     const transformationJobDbId = result.rows[0].id; // Get database ID for linking to audit
@@ -605,6 +607,10 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
   let rowsFailed = 0;
   const transformedRows = [];
   
+  // Get correlation_id from job record for source/target file linking
+  const jobResult = await pool.query('SELECT correlation_id FROM transformation_jobs WHERE job_id = $1', [jobId]);
+  const correlationId = jobResult.rows[0]?.correlation_id;
+  
   try {
     // Step 1: Download file from source cloud storage
     await logJobExecution(pool, jobId, 'info', `Downloading file: ${file.filename}`, {
@@ -799,7 +805,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       
       // Step 5: Capture file audit for transformation job
       try {
-        const correlationId = uuidv4();
+        // Use correlation_id from job record (retrieved at start of function)
+        // This links source and target files together
         
         // Calculate source file hash
         const sourceFileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
