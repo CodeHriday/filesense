@@ -771,6 +771,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         outputFilename = generateOutputFilename(file.filename, mapping.mapping_name, outputFormat);
       }
       
+      // Prepend target file path if specified (for directory/folder structure in cloud storage)
+      if (mapping.target_file_path) {
+        const normalizedPath = mapping.target_file_path.replace(/^\//, '').replace(/\/$/, ''); // Remove leading/trailing slashes
+        outputFilename = normalizedPath ? `${normalizedPath}/${outputFilename}` : outputFilename;
+      }
+      
       // Convert transformed rows to specified output format
       const outputBuffer = await convertToFormat(transformedRows, outputFormat);
       
@@ -1001,7 +1007,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             schema: outputSchema,
             columnStats,
             checksum: crypto.createHash('sha256').update(outputBuffer).digest('hex'),
-            mappingId,
+            mappingId: mapping.mapping_id,
             jobId,
             userId,
             fileRole: 'target',
