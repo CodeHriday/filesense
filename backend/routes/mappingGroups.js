@@ -73,7 +73,7 @@ router.get('/', async (req, res) => {
 router.get('/:id',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:read', 'mapping_group_view']
+    requiredPermissions: ['mapping_group:read']
   }),
   async (req, res) => {
   try {
@@ -128,7 +128,7 @@ router.get('/:id',
 router.post('/',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:create', 'mapping_group_create'],
+    requiredPermissions: ['mapping_group:create'],
     getProjectId: async (req) => {
       // For POST, project_id is required - no defaults allowed for security
       if (!req.body.project_id) {

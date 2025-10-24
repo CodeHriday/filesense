@@ -13,22 +13,39 @@ const MappingGroupForm = () => {
   const isEdit = !!groupId;
 
   const [formData, setFormData] = useState({
+    project_id: '',
     group_name: '',
     description: '',
     concurrency_limit: 5
   });
   const [members, setMembers] = useState([]);
   const [transformations, setTransformations] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    fetchProjects();
     fetchTransformations();
     if (isEdit) {
       fetchMappingGroup();
       fetchMembers();
     }
   }, [groupId]);
+
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const response = await axios.get('/api/projects');
+      setProjects(response.data || []);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
 
   const fetchTransformations = async () => {
     try {
@@ -47,6 +64,7 @@ const MappingGroupForm = () => {
     try {
       const response = await axios.get(`/api/mapping-groups/${groupId}`);
       setFormData({
+        project_id: response.data.project_id || '',
         group_name: response.data.group_name,
         description: response.data.description || '',
         concurrency_limit: response.data.concurrency_limit
@@ -83,11 +101,12 @@ const MappingGroupForm = () => {
           max_concurrency: formData.concurrency_limit
         });
       } else {
-        // Backend expects: name, description, max_concurrency
+        // Backend expects: name, description, max_concurrency, project_id
         const response = await axios.post('/api/mapping-groups', {
           name: formData.group_name,
           description: formData.description,
-          max_concurrency: formData.concurrency_limit
+          max_concurrency: formData.concurrency_limit,
+          project_id: formData.project_id
         });
         const newGroupId = response.data.group?.id || response.data.id;
         
@@ -128,6 +147,29 @@ const MappingGroupForm = () => {
 
         <div className="form-container">
           <form onSubmit={handleSubmit} className="data-form">
+            <div className="form-group">
+              <label>Project *</label>
+              <select
+                value={formData.project_id}
+                onChange={e => setFormData({ ...formData, project_id: e.target.value })}
+                required
+                disabled={isEdit || loadingProjects}
+                className="form-input"
+              >
+                <option value="">Select a project...</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              {isEdit && (
+                <small style={{ display: 'block', marginTop: '0.25rem', color: '#64748b' }}>
+                  Project cannot be changed after creation
+                </small>
+              )}
+            </div>
+
             <div className="form-group">
               <label>Group Name *</label>
               <input

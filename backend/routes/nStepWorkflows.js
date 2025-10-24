@@ -185,51 +185,29 @@ router.get('/:id', async (req, res) => {
  * POST /api/n-step-workflows
  * Create a new workflow
  */
-router.post('/', async (req, res) => {
+router.post('/',
+  authorizeProjectResource({
+    resourceType: 'workflow',
+    requiredPermissions: ['workflow:create'],
+    getProjectId: async (req) => {
+      // For POST, project_id is required - no defaults allowed for security
+      if (!req.body.project_id) {
+        throw new Error('project_id is required');
+      }
+      return parseInt(req.body.project_id, 10);
+    }
+  }),
+  async (req, res) => {
   try {
-    const { name, description, project_id } = req.body;
+    const { name, description } = req.body;
     const userId = req.user?.id || 1;
-    const { getUserProjects } = require('../middleware/requireProjectAccess');
+    const assignedProjectId = req.projectId; // Set by authorization middleware, no fallback allowed
     
     if (!name) {
       return res.status(400).json({
         success: false,
         error: 'Workflow name is required'
       });
-    }
-    
-    // Determine project_id and validate access
-    const isAdmin = req.user?.roles?.includes('Admin');
-    let assignedProjectId = project_id;
-    
-    if (!isAdmin) {
-      const userProjects = await getUserProjects(req.user.id);
-      const projectIds = userProjects.map(p => p.id);
-      
-      if (projectIds.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: 'Access denied',
-          message: 'You must be a member of at least one project to create workflows'
-        });
-      }
-      
-      // If project_id specified, validate user has access
-      if (assignedProjectId) {
-        if (!projectIds.includes(assignedProjectId)) {
-          return res.status(403).json({
-            success: false,
-            error: 'Access denied',
-            message: 'You do not have access to the specified project'
-          });
-        }
-      } else {
-        // Default to user's first accessible project
-        assignedProjectId = projectIds[0];
-      }
-    } else if (!assignedProjectId) {
-      // Admin without project_id: default to Default Project (id: 1)
-      assignedProjectId = 1;
     }
     
     const result = await pool.query(`

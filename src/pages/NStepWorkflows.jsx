@@ -20,6 +20,7 @@ const NStepWorkflows = () => {
   
   const [mappings, setMappings] = useState([]);
   const [mappingGroups, setMappingGroups] = useState([]);
+  const [projects, setProjects] = useState([]);
   
   const [selectedMapping, setSelectedMapping] = useState('');
   const [selectedMappingGroup, setSelectedMappingGroup] = useState('');
@@ -27,6 +28,7 @@ const NStepWorkflows = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newWorkflowName, setNewWorkflowName] = useState('');
   const [newWorkflowDescription, setNewWorkflowDescription] = useState('');
+  const [newWorkflowProjectId, setNewWorkflowProjectId] = useState('');
   
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editWorkflowName, setEditWorkflowName] = useState('');
@@ -57,15 +59,17 @@ const NStepWorkflows = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [workflowsRes, mappingsRes, groupsRes] = await Promise.all([
+      const [workflowsRes, mappingsRes, groupsRes, projectsRes] = await Promise.all([
         axios.get('/api/n-step-workflows'),
         axios.get('/api/transformations'),
-        axios.get('/api/mapping-groups')
+        axios.get('/api/mapping-groups'),
+        axios.get('/api/projects')
       ]);
       
       setWorkflows(workflowsRes.data.workflows || []);
       setMappings(mappingsRes.data.mappings || []);
       setMappingGroups(groupsRes.data.groups || []);
+      setProjects(projectsRes.data || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -90,11 +94,17 @@ const NStepWorkflows = () => {
       alert('Please enter a workflow name');
       return;
     }
+    
+    if (!newWorkflowProjectId) {
+      alert('Please select a project');
+      return;
+    }
 
     try {
       const response = await axios.post('/api/n-step-workflows', {
         name: newWorkflowName,
-        description: newWorkflowDescription
+        description: newWorkflowDescription,
+        project_id: newWorkflowProjectId
       });
       
       setWorkflows([response.data.workflow, ...workflows]);
@@ -102,6 +112,7 @@ const NStepWorkflows = () => {
       setCreateModalOpen(false);
       setNewWorkflowName('');
       setNewWorkflowDescription('');
+      setNewWorkflowProjectId('');
       // Automatically open in edit mode
       setMode('edit');
       const detailsResponse = await axios.get(`/api/n-step-workflows/${response.data.workflow.id}`);
@@ -772,6 +783,22 @@ const NStepWorkflows = () => {
                 </button>
               </div>
               <div className="modal-body">
+                <div className="form-group">
+                  <label>Project *</label>
+                  <select
+                    value={newWorkflowProjectId}
+                    onChange={(e) => setNewWorkflowProjectId(e.target.value)}
+                    required
+                    className="form-input"
+                  >
+                    <option value="">Select a project...</option>
+                    {projects.map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="form-group">
                   <label>Workflow Name *</label>
                   <input
