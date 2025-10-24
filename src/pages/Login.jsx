@@ -10,8 +10,6 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [oktaAvailable, setOktaAvailable] = useState(false);
-  const [showOktaOption, setShowOktaOption] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetUsername, setResetUsername] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
@@ -29,21 +27,6 @@ const Login = () => {
       navigate(from, { replace: true });
     }
   }, [currentUser, navigate, location]);
-  
-  // Check if Okta SSO is available
-  useEffect(() => {
-    fetch('/api/auth/okta/status')
-      .then(res => res.json())
-      .then(data => {
-        if (data.configured && data.available) {
-          setOktaAvailable(true);
-          setShowOktaOption(true);
-        }
-      })
-      .catch(err => {
-        console.log('Okta not configured, using local auth only');
-      });
-  }, []);
   
   // Update error message from auth context
   useEffect(() => {
@@ -121,12 +104,6 @@ const Login = () => {
     }
   };
   
-  const handleOktaLogin = () => {
-    setIsLoading(true);
-    setErrorMessage('');
-    window.location.href = '/api/auth/okta/login';
-  };
-  
   return (
     <div className="login-container">
       <div className="login-card">
@@ -148,26 +125,6 @@ const Login = () => {
           <div className="login-error" role="alert">
             {errorMessage}
           </div>
-        )}
-        
-        {showOktaOption && (
-          <>
-            <button 
-              type="button"
-              className="okta-login-button"
-              onClick={handleOktaLogin}
-              disabled={isLoading}
-            >
-              <svg viewBox="0 0 24 24" className="okta-icon" width="20" height="20">
-                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-              </svg>
-              Sign in with Enterprise SSO
-            </button>
-            
-            <div className="login-divider">
-              <span>or sign in with username</span>
-            </div>
-          </>
         )}
         
         <form onSubmit={handleSubmit} className="login-form">
