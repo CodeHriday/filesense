@@ -2350,6 +2350,7 @@ const { addProfilingColumns } = require('./backend/migrations/addProfilingColumn
 const { expandNumericColumns } = require('./backend/migrations/expandNumericColumns');
 const { addDuplicateRecordsColumns } = require('./backend/migrations/addDuplicateRecordsColumns');
 const { addPatternsColumn } = require('./backend/migrations/addPatternsColumn');
+const addHistoricalProfilingColumns = require('./backend/migrations/addHistoricalProfilingColumns');
 const { initWorkflowOrchestrationTables } = require('./backend/migrations/workflowOrchestration');
 const { fixMappingGroupMembersSchema } = require('./backend/migrations/fixMappingGroupMembersSchema');
 const updateObjectTypesToString = require('./backend/migrations/updateObjectTypesToString');
@@ -2415,6 +2416,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Patterns column migration completed');
+    
+    // Add historical profiling columns
+    return addHistoricalProfilingColumns(dbPool);
+  })
+  .then(() => {
+    console.log('✅ Historical profiling columns migration completed');
     
     // Initialize workflow orchestration tables
     return initWorkflowOrchestrationTables(dbPool);
