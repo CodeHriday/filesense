@@ -117,18 +117,17 @@ const TransformationFileCatalog = () => {
         <PageHeader
           title="Transformation File Catalog"
           subtitle="Files created by ETL transformations with profiling history"
+          actions={
+            <div className="catalog-file-count">
+              <strong>{getTotalFiles()}</strong>
+              <span>Total Files</span>
+            </div>
+          }
         />
 
         {error && (
           <div className="alert alert-danger">{error}</div>
         )}
-
-        <div className="catalog-stats">
-          <div className="stat-item">
-            <strong>{getTotalFiles()}</strong>
-            <span>Total Files</span>
-          </div>
-        </div>
 
         {mappingKeys.length === 0 ? (
           <div className="empty-state-card">
