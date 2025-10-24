@@ -169,6 +169,36 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * DELETE /api/file-audit/correlation/:correlationId
+ * Delete all profiling results (source and target) for a specific correlation ID
+ */
+router.delete('/correlation/:correlationId', async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  const { correlationId } = req.params;
+
+  try {
+    // Delete all audit records with this correlation_id (both source and target)
+    const result = await pool.query(
+      'DELETE FROM file_audit_details WHERE correlation_id = $1 RETURNING id',
+      [correlationId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Profiling results deleted successfully',
+      deletedCount: result.rowCount
+    });
+
+  } catch (error) {
+    console.error('Delete profiling results error:', error);
+    res.status(500).json({
+      error: 'Failed to delete profiling results',
+      details: error.message
+    });
+  }
+});
+
+/**
  * DELETE /api/file-audit/cleanup
  * Clean up old audit records based on retention policy
  */
