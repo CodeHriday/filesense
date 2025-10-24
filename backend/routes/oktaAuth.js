@@ -194,9 +194,11 @@ router.post('/logout', (req, res) => {
  * Check if Okta SSO is enabled
  */
 router.get('/status', (req, res) => {
+  const enabled = isOktaEnabled();
   res.json({ 
-    enabled: isOktaEnabled(),
-    configured: isOktaEnabled()
+    enabled: enabled,
+    configured: enabled,
+    available: enabled  // Frontend checks for this
   });
 });
 
