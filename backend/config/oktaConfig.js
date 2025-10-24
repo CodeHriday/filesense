@@ -19,7 +19,11 @@ const oktaConfig = {
 
 // Validate Okta configuration
 function validateOktaConfig() {
-  const required = ['issuer', 'clientId', 'clientSecret', 'redirectUri'];
+  // When using PKCE, clientSecret is optional for public clients
+  const required = oktaConfig.pkce 
+    ? ['issuer', 'clientId', 'redirectUri']  // PKCE mode - no secret needed
+    : ['issuer', 'clientId', 'clientSecret', 'redirectUri']; // Confidential client mode
+  
   const missing = [];
   
   for (const key of required) {
@@ -30,11 +34,15 @@ function validateOktaConfig() {
   
   if (missing.length > 0) {
     console.warn(`⚠️  Okta SSO not configured. Missing: ${missing.join(', ')}`);
-    console.warn('   Set OKTA_ISSUER, OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_REDIRECT_URI in environment');
+    if (oktaConfig.pkce) {
+      console.warn('   Set OKTA_ISSUER, OKTA_CLIENT_ID, OKTA_REDIRECT_URI in environment (PKCE mode - client secret not required)');
+    } else {
+      console.warn('   Set OKTA_ISSUER, OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_REDIRECT_URI in environment');
+    }
     return false;
   }
   
-  console.log('✓ Okta SSO configuration validated');
+  console.log(`✓ Okta SSO configuration validated (PKCE mode: ${oktaConfig.pkce ? 'enabled' : 'disabled'})`);
   return true;
 }
 

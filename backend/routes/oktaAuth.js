@@ -14,11 +14,17 @@ const { oktaConfig, isOktaEnabled } = require('../config/oktaConfig');
 let oidc = null;
 
 if (isOktaEnabled()) {
+  // Determine app base URL from environment or Replit domain
+  const appBaseUrl = process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+    : (process.env.APP_BASE_URL || 'http://localhost:3000');
+  
   oidc = new ExpressOIDC({
     issuer: oktaConfig.issuer,
     client_id: oktaConfig.clientId,
     client_secret: oktaConfig.clientSecret,
     redirect_uri: oktaConfig.redirectUri,
+    appBaseUrl: appBaseUrl,
     scope: oktaConfig.scopes.join(' '),
     pkce: oktaConfig.pkce,
     routes: {
