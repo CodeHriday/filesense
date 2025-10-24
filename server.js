@@ -7376,6 +7376,11 @@ const aiRoutes = require('./backend/routes/aiRoutes');
 app.use('/api/ai', authenticateToken, aiRoutes(diContainer));
 console.log('Added AI routes');
 
+// Admin cleanup routes (admin-only)
+const adminCleanupRoutes = require('./backend/routes/adminCleanupRoutes');
+app.use('/api/admin/cleanup', authenticateToken, requireAdmin, adminCleanupRoutes);
+console.log('Added admin cleanup routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 

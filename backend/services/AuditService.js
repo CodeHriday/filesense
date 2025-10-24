@@ -522,6 +522,31 @@ class AuditService {
       throw error;
     }
   }
+
+  async logSystemCleanup(userId, username, categories, deletedCounts) {
+    try {
+      await this.logAction({
+        userId,
+        userEmail: username,
+        userRole: 'Admin',
+        actionType: 'SYSTEM_CLEANUP',
+        entityType: 'SYSTEM',
+        entityId: 'cleanup_operation',
+        entityName: 'System Data Cleanup',
+        operation: 'DELETE',
+        oldValues: null,
+        newValues: null,
+        metadata: {
+          categories,
+          deletedCounts,
+          timestamp: new Date().toISOString()
+        },
+        status: 'SUCCESS'
+      });
+    } catch (error) {
+      console.error('Error logging system cleanup:', error);
+    }
+  }
 }
 
 module.exports = AuditService;

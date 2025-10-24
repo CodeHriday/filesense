@@ -54,6 +54,7 @@ import PolicyManagement from './pages/PolicyManagement';
 import TagManagement from './pages/TagManagement';
 import ProjectManagement from './pages/ProjectManagement';
 import GroupManagement from './pages/GroupManagement';
+import SystemCleanup from './pages/SystemCleanup';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -247,6 +248,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
                 <Route path="/group-management" element={<ProtectedRoute><GroupManagement /></ProtectedRoute>} />
+                <Route path="/system-cleanup" element={<ProtectedRoute><SystemCleanup /></ProtectedRoute>} />
                 <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
                 <Route path="/workflow-test" element={<ProtectedRoute><WorkflowTest /></ProtectedRoute>} />
                 {/* Development Routes */}

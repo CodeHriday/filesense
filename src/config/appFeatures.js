@@ -220,6 +220,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'system_cleanup', 
+    name: 'System Cleanup', 
+    category: 'Administration',
+    icon: FiSettings,
+    route: '/system-cleanup',
+    showInSidebar: true
+  },
+  { 
     id: 'audit_trail', 
     name: 'Audit Trail', 
     category: 'Administration',
