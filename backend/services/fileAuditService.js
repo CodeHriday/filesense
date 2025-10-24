@@ -470,7 +470,8 @@ async function getAuditRecords(pool, filters = {}) {
         nw.name as workflow_name,
         COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name,
         p.name as project_name,
-        f.project_id
+        f.project_id,
+        tj.job_id
       FROM file_audit_details fad
       LEFT JOIN files f ON fad.file_id = f.file_id
       LEFT JOIN projects p ON f.project_id = p.id

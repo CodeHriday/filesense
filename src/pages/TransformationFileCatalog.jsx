@@ -135,9 +135,10 @@ const TransformationFileCatalog = () => {
                       <button 
                         className="btn btn-sm btn-primary"
                         onClick={() => {
-                          setSelectedJobId(file.transformation_job_id);
+                          setSelectedJobId(file.job_id);
                           setShowProfilingModal(true);
                         }}
+                        disabled={!file.job_id}
                       >
                         View Profiling Results
                       </button>
