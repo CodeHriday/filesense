@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaTrash, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
+import SystemSettings from '../components/SystemSettings';
 import '../styles/SystemCleanup.css';
 
 const SystemCleanup = () => {
@@ -178,6 +179,12 @@ const SystemCleanup = () => {
 
   return (
     <div className="system-cleanup-container">
+      {/* System Settings Section */}
+      <SystemSettings />
+
+      {/* Separator */}
+      <div style={{ height: '2rem', borderBottom: '3px solid #e2e8f0', marginBottom: '2rem' }} />
+
       <div className="cleanup-header">
         <FaTrash className="cleanup-icon" />
         <h1>System Cleanup</h1>
