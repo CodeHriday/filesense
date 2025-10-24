@@ -283,14 +283,14 @@ router.post('/',
       INSERT INTO transformation_mappings (
         mapping_id, mapping_name, source_connection_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
-        target_file_name, target_file_format,
+        target_file_path, target_file_name, target_file_format,
         field_mappings, variables, anomaly_rules, status, created_by, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
     `, [
       mappingId, mapping_name, source_connection_id, source_type, file_path,
       actualFilePattern, actualFilePattern, target_connection_id, target_table_name,
-      target_file_name, target_file_format,
+      req.body.target_file_path, target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null, projectId
     ]);
     
@@ -425,6 +425,11 @@ router.put('/:id',
     if (target_table_name !== undefined) {
       updates.push(`target_table_name = $${paramIndex}`);
       values.push(target_table_name);
+      paramIndex++;
+    }
+    if (req.body.target_file_path !== undefined) {
+      updates.push(`target_file_path = $${paramIndex}`);
+      values.push(req.body.target_file_path);
       paramIndex++;
     }
     if (target_file_name !== undefined) {

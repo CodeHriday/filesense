@@ -14,7 +14,9 @@ import {
   FiTrash2,
   FiEdit,
   FiEdit2,
-  FiPlay
+  FiPlay,
+  FiChevronDown,
+  FiChevronUp
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -73,6 +75,9 @@ function MappingWizard() {
 
   // Step 1: Basic Info & Source
   const [mappingName, setMappingName] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [sourceConnectionId, setSourceConnectionId] = useState('');
   const [connections, setConnections] = useState([]);
 
@@ -92,8 +97,10 @@ function MappingWizard() {
 
   // Step 4: Target & Anomaly Rules
   const [targetConnectionId, setTargetConnectionId] = useState('');
+  const [targetFilePath, setTargetFilePath] = useState('');
   const [targetFileName, setTargetFileName] = useState('');
   const [targetFileFormat, setTargetFileFormat] = useState('csv');
+  const [anomalyRulesExpanded, setAnomalyRulesExpanded] = useState(true);
   const [anomalyRules, setAnomalyRules] = useState([
     { metric: 'numeric_deviation', threshold: 10, enabled: true },
     { metric: 'row_count_anomaly', threshold: 20, enabled: true },
@@ -103,6 +110,7 @@ function MappingWizard() {
 
   useEffect(() => {
     fetchConnections();
+    fetchProjects();
     if (isEditMode) {
       loadMapping();
     }
@@ -119,6 +127,21 @@ function MappingWizard() {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const response = await axios.get(`${API_BASE_URL}/api/projects/user-projects`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setProjects(response.data || []);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
   const loadMapping = async () => {
     try {
       setLoading(true);
@@ -128,11 +151,13 @@ function MappingWizard() {
       
       const mapping = response.data;
       setMappingName(mapping.mapping_name || mapping.name);
+      setProjectId(mapping.project_id || '');
       setSourceConnectionId(mapping.source_connection_id || '');
       setSourceType(mapping.source_type || 'files');
       setFilePath(mapping.file_path || '');
       setFileNamePattern(mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern || '*.csv');
       setTargetConnectionId(mapping.target_connection_id || '');
+      setTargetFilePath(mapping.target_file_path || '');
       setTargetFileName(mapping.target_file_name || '');
       setTargetFileFormat(mapping.target_file_format || 'csv');
       setFieldMappings(mapping.field_mappings || []);
@@ -235,6 +260,10 @@ function MappingWizard() {
         setError('Please enter a mapping name');
         return;
       }
+      if (!projectId) {
+        setError('Please select a project');
+        return;
+      }
       if (!sourceConnectionId) {
         setError('Please select a source connection');
         return;
@@ -279,11 +308,13 @@ function MappingWizard() {
       
       const mappingData = {
         mapping_name: mappingName,
+        project_id: projectId,
         source_connection_id: sourceConnectionId || null,
         source_type: sourceType,
         file_path: filePath,
         file_name_pattern: fileNamePattern,
         target_connection_id: targetConnectionId || null,
+        target_file_path: targetFilePath || null,
         target_file_name: targetFileName || null,
         target_file_format: targetFileFormat || 'csv',
         field_mappings: fieldMappings,
@@ -491,6 +522,24 @@ function MappingWizard() {
             </div>
 
             <div className="form-group">
+              <label>Project *</label>
+              <select
+                className="form-control"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value ? parseInt(e.target.value) : '')}
+                disabled={loadingProjects}
+              >
+                <option value="">Select a project...</option>
+                {projects.map(proj => (
+                  <option key={proj.id} value={proj.id}>
+                    {proj.name}
+                  </option>
+                ))}
+              </select>
+              <small className="form-help">Select the project for this mapping</small>
+            </div>
+
+            <div className="form-group">
               <label>Source Connection</label>
               <select
                 className="form-control"
@@ -609,6 +658,20 @@ function MappingWizard() {
             </div>
 
             <div className="form-group">
+              <label>Target File Path</label>
+              <input
+                type="text"
+                className="form-control"
+                value={targetFilePath}
+                onChange={(e) => setTargetFilePath(e.target.value)}
+                placeholder="e.g., /output/processed/ or /data/transform/"
+              />
+              <small className="form-help">
+                Optional: Specify folder path for output files (e.g., <code>/folder/</code>). Leave empty for root directory.
+              </small>
+            </div>
+
+            <div className="form-group">
               <label>Target File Name</label>
               <input
                 type="text"
@@ -639,39 +702,54 @@ function MappingWizard() {
               <small className="form-help">Choose output file format (any format can be converted to any other format)</small>
             </div>
 
-            <h3><FiSettings /> Anomaly Detection Rules</h3>
-            <div className="anomaly-rules">
-              {anomalyRules.map((rule, idx) => (
-                <div key={idx} className="anomaly-rule">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={rule.enabled}
-                      onChange={(e) => {
-                        const updated = [...anomalyRules];
-                        updated[idx].enabled = e.target.checked;
-                        setAnomalyRules(updated);
-                      }}
-                    />
-                    <span>{rule.metric.replace(/_/g, ' ')}</span>
-                  </label>
-                  <div className="threshold-input">
-                    <input
-                      type="number"
-                      className="form-control-sm"
-                      value={rule.threshold}
-                      onChange={(e) => {
-                        const updated = [...anomalyRules];
-                        updated[idx].threshold = parseInt(e.target.value);
-                        setAnomalyRules(updated);
-                      }}
-                      disabled={!rule.enabled}
-                    />
-                    <span>%</span>
+            <h3 
+              onClick={() => setAnomalyRulesExpanded(!anomalyRulesExpanded)}
+              style={{ 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                userSelect: 'none'
+              }}
+            >
+              <FiSettings /> 
+              Anomaly Detection Rules
+              {anomalyRulesExpanded ? <FiChevronUp /> : <FiChevronDown />}
+            </h3>
+            {anomalyRulesExpanded && (
+              <div className="anomaly-rules">
+                {anomalyRules.map((rule, idx) => (
+                  <div key={idx} className="anomaly-rule">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={rule.enabled}
+                        onChange={(e) => {
+                          const updated = [...anomalyRules];
+                          updated[idx].enabled = e.target.checked;
+                          setAnomalyRules(updated);
+                        }}
+                      />
+                      <span>{rule.metric.replace(/_/g, ' ')}</span>
+                    </label>
+                    <div className="threshold-input">
+                      <input
+                        type="number"
+                        className="form-control-sm"
+                        value={rule.threshold}
+                        onChange={(e) => {
+                          const updated = [...anomalyRules];
+                          updated[idx].threshold = parseInt(e.target.value);
+                          setAnomalyRules(updated);
+                        }}
+                        disabled={!rule.enabled}
+                      />
+                      <span>%</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
