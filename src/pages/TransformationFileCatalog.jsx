@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
@@ -10,6 +10,7 @@ import { formatBytes, formatDate } from '../utils/formatters';
 import './TransformationFileCatalog.css';
 
 const TransformationFileCatalog = () => {
+  const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [groupedFiles, setGroupedFiles] = useState({});
   const [expandedMappings, setExpandedMappings] = useState({});
@@ -159,15 +160,17 @@ const TransformationFileCatalog = () => {
                         <FiArrowRight size={16} />
                         View Mapping
                       </Link>
-                      <Link 
-                        to={`/lineage`} 
+                      <button
                         className="view-lineage-link"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/lineage');
+                        }}
                         title="View lineage for this mapping"
                       >
                         <FiGitBranch size={16} />
                         View Lineage
-                      </Link>
+                      </button>
                     </div>
                     <div className="mapping-header-right">
                       <span className="file-count-badge">
