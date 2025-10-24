@@ -202,6 +202,24 @@
   white-space: nowrap;
 }
 
+.file-error-indicator {
+  margin-left: 8px;
+  font-size: 1.1em;
+  cursor: help;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.error-text {
+  color: #dc3545;
+  font-weight: 600;
+  cursor: help;
+}
+
 .file-type-badge {
   display: inline-block;
   padding: var(--space-1) var(--space-2);
