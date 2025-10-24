@@ -141,7 +141,7 @@ const TransformationFileCatalog = () => {
                     <td>{file.load_step1_rec_cnt?.toLocaleString() || '-'}</td>
                     <td>{file.file_size_bytes ? formatBytes(parseInt(file.file_size_bytes)) : '-'}</td>
                     <td>
-                      {formatDate(file.created_at)}
+                      {formatDate(file.created_dt)}
                     </td>
                     <td>{file.project_name || 'Default Project'}</td>
                     <td>

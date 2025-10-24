@@ -73,7 +73,7 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
           </div>
           <div className="attr-item">
             <label>Column Count</label>
-            <div>{data.no_of_records_in_source || '-'}</div>
+            <div>{data.number_of_columns || '-'}</div>
           </div>
           <div className="attr-item">
             <label>Quality Score</label>
@@ -81,7 +81,7 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
           </div>
           <div className="attr-item">
             <label>Created Date</label>
-            <div>{formatDate(data.created_at)}</div>
+            <div>{formatDate(data.created_dt)}</div>
           </div>
           <div className="attr-item">
             <label>File Path</label>
