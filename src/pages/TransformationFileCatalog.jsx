@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -158,6 +158,15 @@ const TransformationFileCatalog = () => {
                       >
                         <FiArrowRight size={16} />
                         View Mapping
+                      </Link>
+                      <Link 
+                        to={`/file-lineage`} 
+                        className="view-lineage-link"
+                        onClick={(e) => e.stopPropagation()}
+                        title="View lineage for this mapping"
+                      >
+                        <FiGitBranch size={16} />
+                        View Lineage
                       </Link>
                     </div>
                     <div className="mapping-header-right">
