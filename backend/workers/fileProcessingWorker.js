@@ -280,6 +280,17 @@ class FileProcessingWorker {
 
       const processingDuration = Date.now() - startTime;
 
+      // Save file metadata with error to database so user can see what failed
+      try {
+        await this.saveFailedFileMetadata(fileId, originalName, fileType, fileSize, error.message, fileHash, projectId);
+        this.logger.info('Failed file metadata saved to database', { fileId, errorMsg: error.message });
+      } catch (saveError) {
+        this.logger.error('Failed to save error metadata', {
+          fileId,
+          saveError: saveError.message
+        });
+      }
+
       // Audit log: File processing failed
       if (this.auditService) {
         await this.auditService.logExecutionStateChange({
@@ -300,6 +311,9 @@ class FileProcessingWorker {
         });
       }
 
+      // Mark processing as failed
+      await this.updateProcessingStep(fileId, 'failed');
+
       // Cleanup: Delete or quarantine failed file
       await this.cleanupUploadedFile(filePath, 'failure');
 
@@ -316,16 +330,13 @@ class FileProcessingWorker {
       
       // Check if file exists
       if (!fs.existsSync(pythonScript)) {
-        this.logger.warn('Python processor not found, using fallback', { pythonScript });
-        // Fallback to basic file info
-        const stats = fs.statSync(filePath);
-        return resolve({
-          row_count: 0,
-          column_count: 0,
-          schema: [],
-          processing_time_seconds: 0,
-          size_bytes: stats.size
+        const errorMsg = `Python processor script not found at ${pythonScript}. This indicates a deployment issue.`;
+        this.logger.error('Python processor not found - DEPLOYMENT ISSUE', { 
+          pythonScript,
+          expectedPath: pythonScript,
+          workingDirectory: process.cwd()
         });
+        return reject(new Error(errorMsg));
       }
 
       // Set PYTHONPATH to include workspace root for utils module
@@ -350,22 +361,36 @@ class FileProcessingWorker {
 
       python.on('close', (code) => {
         if (code !== 0) {
-          this.logger.error('Python processor error', {
-            code,
+          this.logger.error('Python processor failed with non-zero exit code', {
+            exitCode: code,
             stderr,
-            filePath
+            filePath,
+            fileType
           });
-          reject(new Error(`Python processor failed with code ${code}: ${stderr}`));
+          reject(new Error(`Python processor failed with exit code ${code}. Error: ${stderr || 'No error output'}`));
         } else {
           try {
             const result = JSON.parse(stdout);
-            resolve(result);
+            
+            // Check if Python script returned an error in JSON format
+            if (result.error) {
+              this.logger.error('Python processor returned error in output', {
+                error: result.error,
+                errorType: result.error_type,
+                filePath,
+                fileType
+              });
+              reject(new Error(`Python processing error: ${result.error}`));
+            } else {
+              resolve(result);
+            }
           } catch (error) {
-            this.logger.error('Failed to parse Python output', {
-              stdout,
-              error: error.message
+            this.logger.error('Failed to parse Python JSON output', {
+              stdout: stdout.substring(0, 500),
+              parseError: error.message,
+              filePath
             });
-            reject(new Error('Failed to parse Python processor output'));
+            reject(new Error(`Failed to parse Python processor output: ${error.message}`));
           }
         }
       });
@@ -556,6 +581,51 @@ print(json.dumps(result))
       duplicateStats?.duplicate_count || 0,
       duplicateStats?.duplicate_percentage || 0.0,
       projectId
+    ];
+
+    const result = await this.dbPool.query(query, values);
+    return result.rows[0];
+  }
+
+  /**
+   * Save failed file metadata to database with error information
+   */
+  async saveFailedFileMetadata(fileId, filename, fileType, fileSize, errorMessage, fileHash, projectId) {
+    const metadata = {
+      encoding: null,
+      delimiter: null,
+      preview_data: [],
+      error: errorMessage
+    };
+
+    const query = `
+      INSERT INTO files (
+        file_id, filename, file_type, file_size, 
+        row_count, column_count, quality_score, metadata, checksum,
+        duplicate_records_count, duplicate_records_percentage, project_id, processing_error
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ON CONFLICT (file_id) 
+      DO UPDATE SET
+        processing_error = EXCLUDED.processing_error,
+        metadata = EXCLUDED.metadata,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
+
+    const values = [
+      fileId,
+      filename,
+      fileType,
+      fileSize,
+      0, // row_count
+      0, // column_count
+      0, // quality_score - 0 indicates failed processing
+      JSON.stringify(metadata),
+      fileHash || null,
+      0, // duplicate_records_count
+      0.0, // duplicate_records_percentage
+      projectId,
+      errorMessage
     ];
 
     const result = await this.dbPool.query(query, values);

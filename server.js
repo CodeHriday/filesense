@@ -628,6 +628,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Python environment health check endpoint
+const healthCheckRoutes = require('./backend/routes/healthCheckRoutes');
+app.use('/api/health', healthCheckRoutes);
+
 // Database health check endpoint
 app.get('/api/health/db', async (req, res) => {
   try {
