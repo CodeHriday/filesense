@@ -107,8 +107,8 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
   const renderFileProfile = (data) => {
     if (!data) return <div>No profile data available</div>;
 
-    // Parse column statistics if available
-    const columns = data.column_stats ? JSON.parse(data.column_stats) : [];
+    // column_stats is already a parsed object from the API
+    const columns = data.column_stats || [];
 
     if (columns.length === 0) {
       return <div>No column profiling data available for this file</div>;
