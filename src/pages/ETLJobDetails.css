@@ -362,3 +362,96 @@
   background: #f1f5f9;
   color: #64748b;
 }
+
+/* Profile Comparison Styles */
+.comparison-content {
+  padding: var(--space-4);
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.metric-card {
+  padding: var(--space-4);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.metric-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
+}
+
+.metric-value {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.metric-value.positive {
+  color: #10b981;
+}
+
+.metric-value.negative {
+  color: #ef4444;
+}
+
+.metric-value.neutral {
+  color: var(--text-secondary);
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-4);
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.comparison-table th {
+  background-color: var(--color-gray-100);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+}
+
+.comparison-table td.positive {
+  color: #10b981;
+  font-weight: var(--font-semibold);
+}
+
+.comparison-table td.negative {
+  color: #ef4444;
+  font-weight: var(--font-semibold);
+}
+
+.comparison-table td.neutral {
+  color: var(--text-secondary);
+}
+
+.badge.badge-source {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badge.badge-target {
+  background-color: #d1fae5;
+  color: #065f46;
+}

@@ -11,14 +11,36 @@ import {
   FiDatabase,
   FiAlertTriangle,
   FiRefreshCw,
-  FiX
+  FiX,
+  FiGitCompare
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatDate } from '../utils/formatters';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
 import './ETLJobDetails.css';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 function ETLJobDetails() {
   const { jobId } = useParams();
@@ -28,6 +50,7 @@ function ETLJobDetails() {
   const [logs, setLogs] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
   const [metrics, setMetrics] = useState([]);
+  const [profiles, setProfiles] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -98,6 +121,17 @@ function ETLJobDetails() {
       alert(err.response?.data?.error || 'Failed to cancel job');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const fetchProfileComparison = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/profiles`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setProfiles(response.data);
+    } catch (err) {
+      console.error('Error fetching profile comparison:', err);
     }
   };
 
@@ -267,6 +301,15 @@ function ETLJobDetails() {
             <FiActivity /> Overview
           </button>
           <button
+            className={`tab-button ${activeTab === 'comparison' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('comparison');
+              if (!profiles) fetchProfileComparison();
+            }}
+          >
+            <FiGitCompare /> Profile Comparison
+          </button>
+          <button
             className={`tab-button ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => setActiveTab('logs')}
           >
@@ -311,6 +354,161 @@ function ETLJobDetails() {
                   <h3><FiXCircle /> Error Message</h3>
                   <pre>{job.error_message}</pre>
                 </Card>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'comparison' && (
+            <div className="comparison-content">
+              {!profiles ? (
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                  <LoadingSpinner />
+                </div>
+              ) : !profiles.sourceProfile || !profiles.targetProfile ? (
+                <div className="empty-state">
+                  <FiGitCompare size={48} />
+                  <p>Profile comparison not available</p>
+                  <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
+                    Both source and target profiles are required for comparison
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Card style={{ marginBottom: '20px' }}>
+                    <h3>Quality Metrics Comparison</h3>
+                    <div className="comparison-grid">
+                      <div className="metric-card">
+                        <div className="metric-header">
+                          <span className="badge badge-source">Source</span>
+                          <span className="metric-label">Overall Quality</span>
+                        </div>
+                        <div className="metric-value">
+                          {profiles.sourceProfile.overall_quality_score?.toFixed(1) || 'N/A'}%
+                        </div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="metric-header">
+                          <span className="badge badge-target">Target</span>
+                          <span className="metric-label">Overall Quality</span>
+                        </div>
+                        <div className="metric-value">
+                          {profiles.targetProfile.overall_quality_score?.toFixed(1) || 'N/A'}%
+                        </div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="metric-header">
+                          <span className="metric-label">Improvement</span>
+                        </div>
+                        <div className={`metric-value ${
+                          (profiles.targetProfile.overall_quality_score || 0) >= 
+                          (profiles.sourceProfile.overall_quality_score || 0) ? 'positive' : 'negative'
+                        }`}>
+                          {profiles.sourceProfile.overall_quality_score && profiles.targetProfile.overall_quality_score
+                            ? `${(profiles.targetProfile.overall_quality_score - profiles.sourceProfile.overall_quality_score).toFixed(1)}%`
+                            : 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card style={{ marginBottom: '20px' }}>
+                    <h3>Dimension Comparison</h3>
+                    <table className="comparison-table">
+                      <thead>
+                        <tr>
+                          <th>Metric</th>
+                          <th>Source</th>
+                          <th>Target</th>
+                          <th>Change</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>Rows</strong></td>
+                          <td>{profiles.sourceProfile.row_count?.toLocaleString() || 0}</td>
+                          <td>{profiles.targetProfile.row_count?.toLocaleString() || 0}</td>
+                          <td className={
+                            (profiles.targetProfile.row_count || 0) >= (profiles.sourceProfile.row_count || 0)
+                              ? 'positive' : 'negative'
+                          }>
+                            {((profiles.targetProfile.row_count || 0) - (profiles.sourceProfile.row_count || 0)).toLocaleString()}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td><strong>Columns</strong></td>
+                          <td>{profiles.sourceProfile.column_count || 0}</td>
+                          <td>{profiles.targetProfile.column_count || 0}</td>
+                          <td className={
+                            (profiles.targetProfile.column_count || 0) >= (profiles.sourceProfile.column_count || 0)
+                              ? 'positive' : 'neutral'
+                          }>
+                            {(profiles.targetProfile.column_count || 0) - (profiles.sourceProfile.column_count || 0)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </Card>
+
+                  <Card>
+                    <h3>Quality Dimensions</h3>
+                    <div style={{ height: '350px', marginTop: '20px' }}>
+                      <Line 
+                        data={{
+                          labels: ['Completeness', 'Consistency', 'Validity', 'Uniqueness'],
+                          datasets: [
+                            {
+                              label: 'Source',
+                              data: [
+                                profiles.sourceProfile.completeness_score || 0,
+                                profiles.sourceProfile.consistency_score || 0,
+                                profiles.sourceProfile.validity_score || 0,
+                                profiles.sourceProfile.uniqueness_score || 0
+                              ],
+                              borderColor: '#3b82f6',
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              tension: 0.4
+                            },
+                            {
+                              label: 'Target',
+                              data: [
+                                profiles.targetProfile.completeness_score || 0,
+                                profiles.targetProfile.consistency_score || 0,
+                                profiles.targetProfile.validity_score || 0,
+                                profiles.targetProfile.uniqueness_score || 0
+                              ],
+                              borderColor: '#10b981',
+                              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                              tension: 0.4
+                            }
+                          ]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'top',
+                            },
+                            title: {
+                              display: true,
+                              text: 'Source vs Target Quality Metrics'
+                            }
+                          },
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              max: 100,
+                              title: {
+                                display: true,
+                                text: 'Score (%)'
+                              }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </Card>
+                </>
               )}
             </div>
           )}
