@@ -275,13 +275,11 @@ const authenticateToken = async (req, res, next) => {
     const isPasswordChangeEndpoint = req.path === '/api/auth/force-change-password';
     const isLogoutEndpoint = req.path === '/api/auth/logout';
     const isAuthMeEndpoint = req.path === '/api/auth/me';
-    const isOktaEndpoint = req.path.startsWith('/api/auth/okta');
     
     if (req.user.force_password_change && 
         !isPasswordChangeEndpoint && 
         !isLogoutEndpoint && 
-        !isAuthMeEndpoint &&
-        !isOktaEndpoint) {
+        !isAuthMeEndpoint) {
       console.log('User must change password, blocking API access');
       return res.status(403).json({ 
         error: 'Password change required. You must change your password before accessing the application.',
@@ -2156,15 +2154,6 @@ try {
   console.log('✓ Registered /api/visual-workflows route');
 } catch (error) {
   console.error('✗ Failed to register /api/visual-workflows:', error.message);
-}
-
-// Okta SSO Authentication routes
-try {
-  const oktaAuthRoutes = require('./backend/routes/oktaAuth');
-  app.use('/api/auth/okta', oktaAuthRoutes);
-  console.log('✓ Registered /api/auth/okta route');
-} catch (error) {
-  console.error('✗ Failed to register /api/auth/okta:', error.message);
 }
 
 // User Management routes
