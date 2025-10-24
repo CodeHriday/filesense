@@ -251,6 +251,7 @@ const Jobs = () => {
                 <thead>
                   <tr>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Job ID</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Project</th>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping</th>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Mapping Group</th>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Workflow</th>
@@ -270,6 +271,7 @@ const Jobs = () => {
                       <td className="job-id-cell">
                         <code style={{ fontSize: '0.8em' }}>{job.job_id}</code>
                       </td>
+                      <td>{job.project_name || 'Default Project'}</td>
                       <td>{job.mapping_name}</td>
                       <td>{job.mapping_group_name || '-'}</td>
                       <td>{job.workflow_name || '-'}</td>
