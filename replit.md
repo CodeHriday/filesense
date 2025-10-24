@@ -6,6 +6,12 @@ Data File Observatory is a comprehensive platform for monitoring and analyzing d
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+### October 24, 2025
+- **Mandatory Project Selection**: Mapping Groups and N-Step Workflows now require explicit project selection during creation. Authorization middleware added to POST routes with `authorizeProjectResource` using `mapping_group:create` and `workflow:create` permissions. Zero-tolerance security - no default project fallbacks for non-admin users.
+- **Permission Standardization**: Fixed permission checks in Mappings.jsx to use 'transformation' instead of 'mapping' for edit/delete/execute buttons, aligning with standardized colon-separated permission format.
+- **Jobs Log Enhancement**: Added Project column as first data column in Jobs Log display (frontend). Backend already supported project_name via JOIN with transformation_mappings and projects tables.
+
 ## System Architecture
 The application features a hybrid architecture designed for scalability, security, and performance:
 
