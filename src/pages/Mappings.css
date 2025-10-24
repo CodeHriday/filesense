@@ -630,6 +630,7 @@
 /* Mappings Table Styles */
 .mappings-table-container {
   padding: 1rem;
+  overflow-x: auto;
 }
 
 .mappings-table {

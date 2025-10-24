@@ -27,7 +27,7 @@ const TransformationFileCatalog = () => {
         }
       });
       
-      setFiles(response.data || []);
+      setFiles(response.data.audits || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching transformation files:', err);
@@ -75,7 +75,7 @@ const TransformationFileCatalog = () => {
             <FiDatabase className="stat-icon" />
             <div className="stat-content">
               <span className="stat-value">
-                {formatBytes(files.reduce((sum, f) => sum + (f.file_size_bytes || 0), 0))}
+                {formatBytes(Array.isArray(files) ? files.reduce((sum, f) => sum + (f.file_size_bytes || 0), 0) : 0)}
               </span>
               <span className="stat-label">Total Size</span>
             </div>
