@@ -160,7 +160,7 @@ const TransformationFileCatalog = () => {
                         View Mapping
                       </Link>
                       <Link 
-                        to={`/file-lineage`} 
+                        to={`/lineage`} 
                         className="view-lineage-link"
                         onClick={(e) => e.stopPropagation()}
                         title="View lineage for this mapping"
