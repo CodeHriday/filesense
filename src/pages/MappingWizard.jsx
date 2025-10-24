@@ -100,7 +100,7 @@ function MappingWizard() {
   const [targetFilePath, setTargetFilePath] = useState('');
   const [targetFileName, setTargetFileName] = useState('');
   const [targetFileFormat, setTargetFileFormat] = useState('csv');
-  const [anomalyRulesExpanded, setAnomalyRulesExpanded] = useState(true);
+  const [anomalyRulesExpanded, setAnomalyRulesExpanded] = useState(false);
   const [anomalyRules, setAnomalyRules] = useState([
     { metric: 'numeric_deviation', threshold: 10, enabled: true },
     { metric: 'row_count_anomaly', threshold: 20, enabled: true },

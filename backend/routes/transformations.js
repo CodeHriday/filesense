@@ -146,7 +146,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', 
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:read', 'transformation_view']
+    requiredPermissions: ['transformation:read']
   }),
   async (req, res) => {
   try {
@@ -176,7 +176,7 @@ router.get('/:id',
 router.post('/',
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:create', 'transformation_create'],
+    requiredPermissions: ['transformation:create'],
     getProjectId: async (req) => {
       // For POST, project_id is required - no defaults allowed for security
       if (!req.body.project_id) {
