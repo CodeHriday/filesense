@@ -412,5 +412,8 @@ module.exports = {
   logout,
   logoutAll,
   verifyToken,
-  cleanupExpiredTokens
+  cleanupExpiredTokens,
+  generateAccessToken,
+  generateRefreshToken,
+  storeRefreshToken
 };

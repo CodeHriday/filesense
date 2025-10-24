@@ -19,7 +19,7 @@ const secretsClient = new SecretsManagerClient({
 });
 
 let initialized = false;
-
+let cachedSecretData = null;
 /**
  * Initialize secrets manager and override environment variables
  * This runs once at startup and makes all existing code work transparently
@@ -41,6 +41,7 @@ async function initializeSecrets() {
       
       try {
         const secretData = JSON.parse(response.SecretString);
+        cachedSecretData = secretData;
         
         // Check if it's already a complete database URL
         if (secretData.database_url || secretData.DATABASE_URL) {
@@ -96,14 +97,46 @@ async function initializeSecrets() {
   initialized = true;
 }
 
+async function getAllSecretData() {
+  // If already fetched and cached, return it
+  if (cachedSecretData) {
+    return cachedSecretData;
+  }
+
+  try {
+    const command = new GetSecretValueCommand({
+      SecretId: process.env.AWS_SECRET_ID || 'filevantage-prod',
+    });
+
+    const response = await secretsClient.send(command);
+
+    if (!response.SecretString) {
+      throw new Error('No secret value found in AWS Secrets Manager');
+    }
+
+    const secretData = JSON.parse(response.SecretString);
+
+    // Cache both DB URL and the entire secret object
+    cachedSecretData = secretData;
+    return secretData;
+  } catch (error) {
+    throw error;
+  }
+}
+
 // Export the initialization function for manual control
 // Don't auto-initialize to avoid timing issues
 
 module.exports = {
-  initializeSecrets
+  initializeSecrets,
+  getAllSecretData,
 };
 
 // Auto-initialize when module is loaded
 initializeSecrets().catch(err => {
   console.error("Failed to initialize secrets:", err.message);
+});
+
+getAllSecretData().catch(err => {
+  console.error("Failed to fetch all secret data:", err.message);
 });

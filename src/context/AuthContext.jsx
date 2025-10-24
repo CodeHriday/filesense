@@ -214,7 +214,7 @@ export const AuthProvider = ({ children }) => {
             'Authorization': `Bearer ${accessToken}`
           }
         });
-        
+
         // This will include all the user's permissions directly from the database
         dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user: userResponse.data } });
       } catch (userError) {
@@ -238,6 +238,10 @@ export const AuthProvider = ({ children }) => {
       
       return false;
     }
+  };
+
+  const oktaLogin = async (user) =>{
+    dispatch({ type: AUTH_ACTIONS.AUTH_SUCCESS, payload: { user } });
   };
   
   const handlePasswordChanged = async () => {
@@ -741,7 +745,9 @@ export const AuthProvider = ({ children }) => {
     hasRole,
     hasWritePermission,
     hasExecutePermission,
-    hasTagPermission
+    hasTagPermission,
+    oktaLogin,
+    // setCurrentUser,
   };
   
   return (

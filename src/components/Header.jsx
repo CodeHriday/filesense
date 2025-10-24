@@ -7,6 +7,7 @@ import { FiHome } from 'react-icons/fi';
 import NotificationBell from './NotificationBell';
 import './Header.css';
 import PropTypes from 'prop-types';
+import { getSecret } from '../config/secrets';
 
 function Header({ showAIInsights }) {
   const { currentUser, logout, hasPermission } = useAuth();
@@ -34,6 +35,17 @@ function Header({ showAIInsights }) {
   
   const handleLogout = async () => {
     try {
+      if(currentUser.auth_provider === 'okta') {
+        const oktaDomain = getSecret('OKTA_DOMAIN');
+        window.location.href = `${oktaDomain}/login/signout?post_logout_redirect_uri`;
+        localStorage.removeItem('pkce_verifier');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('id_token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
+        return;
+      }
       await logout();
       navigate('/login');
     } catch (error) {

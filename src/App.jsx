@@ -25,6 +25,7 @@ import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
 import ToastContainer from './components/ToastContainer';
 import Login from './pages/Login';
+import OktaCallback from './pages/OktaCallback';
 
 // Context providers (needed immediately)
 import { AccessibilityProvider } from './context/AccessibilityContext';
@@ -119,6 +120,54 @@ import './styles/Jobs.css';
 import './styles/Transformations.css';
 import './styles/ETLOrchestration.css';
 import './styles/global-page-styles.css';
+import { getSecret } from './config/secrets';
+
+function generateCodeVerifier(length = 64) {
+  const array = new Uint8Array(length);
+  window.crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+// Generate a code challenge from the verifier
+async function generateCodeChallenge(verifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  const base64Digest = btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  return base64Digest;
+}
+
+/**
+ * Initiate Okta login
+ */
+async function initiateOktaLogin(){
+  const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+    
+    document.cookie = `codeVerifier=${verifier}; path=/; secure; samesite=strict`;
+
+    localStorage.setItem('pkce_verifier', verifier);
+    const oktaDomain = getSecret('OKTA_DOMAIN');
+    const clientId = getSecret('OKTA_CLIENT_ID');
+    
+    const authUrl = `${oktaDomain}/oauth2/default/v1/authorize?` +
+      new URLSearchParams({
+        client_id: clientId || '',
+        response_type: 'code',
+        scope: 'openid profile email',
+        redirect_uri: getSecret('OKTA_REDIRECT_URI') || 'http://localhost:5000/auth/callback',
+        state: 'xyz',
+        code_challenge: challenge,
+        code_challenge_method: 'S256'
+      });
+    window.location.href = authUrl;
+};
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -227,6 +276,10 @@ function App() {
 
 // Separate component to use useAuth() hook inside Router context
 function AppContent({ showOnboarding, setShowOnboarding }) {
+   if(window.location.href.includes('?iss=')) {
+      initiateOktaLogin();
+      return;
+    }
   const { currentUser, authStatus } = useAuth();
   const location = useLocation();
   const { isCollapsed } = useSidebar();
@@ -402,6 +455,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       {authStatus === AUTH_STATUS.UNAUTHENTICATED && (
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/auth/callback" element={<OktaCallback />} />
           <Route path="*" element={<Navigate to="/login" state={{ from: location }} replace />} />
         </Routes>
       )}

@@ -79,6 +79,7 @@ const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 const authorizeProjectResource = require('./backend/middleware/authorizeProjectResource');
 const { requireProjectAccess } = require('./backend/middleware/requireProjectAccess');
 const { attachVendorProfile, filterVendorFiles } = require('./backend/middleware/vendorAccessControl');
+const { getAllSecretData } = require('./backend/config/config-secrets');
 
 // Import enhanced authentication service
 const enhancedAuthService = require('./backend/services/enhancedAuthService');
@@ -252,27 +253,69 @@ const extractFileId = (req, res, next) => {
 
 // Middleware
 // Helmet security headers (must be early in the middleware chain)
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for React
-      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
+
+(async () => {
+    try {
+    const secrets = await getAllSecretData();
+    const connectSrcDirectives = ["'self'"];
+    const styleSrcDirectives = ["'self'", "'unsafe-inline'"];
+    const styleSrcElemDirectives = ["'self'", "'unsafe-inline'"];
+    const fontSrcDirectives = ["'self'"];
+    let oktaDomain = null;
+
+    if (process.env.NODE_ENV === 'production') {
+          oktaDomain = secrets.OKTA_DOMAIN;
+        }
+        // Add localhost for development
+    if (process.env.NODE_ENV !== 'production') {
+      oktaDomain = process.env.VITE_OKTA_DOMAIN || process.env.OKTA_DOMAIN;
+      connectSrcDirectives.push('http://localhost:3000', 'http://localhost:3000/api', 'http://localhost:5000', 'http://0.0.0.0:3000', 'http://0.0.0.0:5000', 'ws://localhost:5000', 'ws://0.0.0.0:5000');
     }
-  },
-  hsts: {
-    maxAge: 31536000, // 1 year in seconds
-    includeSubDomains: true,
-    preload: true
-  },
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
-}));
+    // Add Okta domain to CSP
+    if (oktaDomain) {
+      try {
+        const urlMatch = oktaDomain.match(/https?:\/\/([^\/]+)/);
+        const cleanDomain = urlMatch ? urlMatch[1] : oktaDomain.replace(/^https?:\/\//, '');
+        connectSrcDirectives.push(`https://${cleanDomain}`);
+      } catch (error) {
+        console.warn('Invalid Okta domain URL:', error.message);
+      }
+    }
+  // Add Google Fonts
+    styleSrcDirectives.push('https://fonts.googleapis.com');
+    styleSrcElemDirectives.push('https://fonts.googleapis.com');
+    fontSrcDirectives.push('https://fonts.gstatic.com');
+
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: styleSrcDirectives,
+          styleSrcElem: styleSrcElemDirectives,
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: connectSrcDirectives,
+          fontSrc: fontSrcDirectives,
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+          frameAncestors: ["'none'"]
+        }
+      },
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+      },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+    }));
+     } catch (err) {
+      console.error('Error fetching secrets:', err);
+    }
+  }
+)();
+
+
 
 // Enable gzip compression for all responses in production
 app.use(compression({
@@ -340,6 +383,7 @@ app.use((req, res, next) => {
   req.logger = logger;
   next();
 });
+
 
 // Session middleware (required for Okta SSO)
 app.use(session({
@@ -8193,6 +8237,186 @@ app.get('/api/alerts', authenticateToken, async (req, res) => {
 
 // Authentication and User Management API
 
+// Okta user check/create and authenticate endpoint
+app.post('/api/auth/okta/user', async (req, res) => {
+  try {
+    const { okta_id, email, username, full_name } = req.body;
+
+    if (!okta_id) {
+      return res.status(400).json({ error: 'Okta ID is required' });
+    }
+
+
+    // Check if user exists with okta_id
+    let userResult = await dbPool.query('SELECT * FROM users WHERE okta_id = $1', [okta_id]);
+    let user;
+    let isNewUser = false;
+
+    if (userResult.rows.length > 0) {
+      user = userResult.rows[0];
+      console.log('Existing Okta user found:', user.username);
+    } else {
+      // Create new user
+      console.log('Creating new user for Okta ID:', okta_id);
+      isNewUser = true;
+
+      const bcrypt = require('bcrypt');
+      const randomPassword = Math.random().toString(36).slice(-16);
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+      const insertResult = await dbPool.query(
+        `INSERT INTO users (username, password, email, full_name, okta_id, created_at, updated_at, auth_provider)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), 'okta')
+         RETURNING *`,
+        [username, hashedPassword, email, full_name, okta_id]
+      );
+
+      user = insertResult.rows[0];
+
+      // Assign default role (User or Executor)
+      const defaultRoleResult = await dbPool.query(
+        "SELECT id FROM roles WHERE name = 'User' OR name = 'Executor' LIMIT 1"
+      );
+
+      if (defaultRoleResult.rows.length > 0) {
+        await dbPool.query(
+          'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)',
+          [user.id, defaultRoleResult.rows[0].id]
+        );
+      }
+
+      console.log('New Okta user created:', user.username);
+    }
+
+    // Update last login
+    await dbPool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+
+    // Get user roles
+    const rolesResult = await dbPool.query(`
+      SELECT r.name
+      FROM roles r
+      JOIN user_roles ur ON r.id = ur.role_id
+      WHERE ur.user_id = $1
+    `, [user.id]);
+
+    const userRoles = rolesResult.rows.map(row => row.name);
+
+    let permissions = [];
+    let roleDetails = [];
+
+    const corePermissions = [
+      'dashboard:read',
+      'file_profile:read',
+      'quality_checks:read'
+    ];
+    permissions = [...permissions, ...corePermissions];
+
+    if (userRoles.length > 0) {
+      try {
+        //  Old system: role_permissions junction
+        const permissionsQuery = `
+          SELECT DISTINCT p.name, p.resource, p.action
+          FROM permissions p
+          JOIN role_permissions rp ON p.id = rp.permission_id
+          JOIN roles r ON rp.role_id = r.id
+          WHERE r.name = ANY($1::varchar[])
+        `;
+        const permissionsResult = await dbPool.query(permissionsQuery, [userRoles]);
+        const oldSystemPermissions = permissionsResult.rows.map(p => ({
+          name: p.name,
+          resource: p.resource,
+          action: p.action
+        }));
+        permissions = [...permissions, ...oldSystemPermissions];
+
+        // New system: permissions array in roles table
+        const rolesQuery = `SELECT id, name, permissions FROM roles WHERE name = ANY($1::varchar[])`;
+        const rolesResult = await dbPool.query(rolesQuery, [userRoles]);
+        roleDetails = rolesResult.rows || [];
+
+        for (const role of rolesResult.rows) {
+          console.log(`Processing role ${role.name}`);
+
+          // Special Executor permissions
+          if (role.name === 'Executor') {
+            const executorCore = [
+              'mappings:read',
+              'insights:read',
+              'badges:read',
+              'stories:read',
+              'recommendations:read',
+              'monitor:read',
+              'scheduler:read',
+              'lineage:read'
+            ];
+            permissions = [...permissions, ...executorCore];
+          }
+
+          // Process role.permissions
+          if (role.permissions) {
+            if (Array.isArray(role.permissions)) {
+              permissions = [...permissions, ...role.permissions];
+            } else if (typeof role.permissions === 'object') {
+              const values = Object.values(role.permissions);
+              permissions = [...permissions, ...values];
+            }
+          }
+        }
+      } catch (permErr) {
+        console.error('Error processing permissions:', permErr);
+      }
+    }
+    const uniquePermissions = [...new Set(permissions)];
+
+    // Generate tokens
+    const authService = require('./backend/src/services/authService');
+    const userAgent = req.get('user-agent') || 'Unknown';
+
+    const userForToken = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      roles: userRoles
+    };
+
+    const accessToken = authService.generateAccessToken(userForToken);
+    const refreshToken = authService.generateRefreshToken(userForToken);
+    await authService.storeRefreshToken(user.id, refreshToken, userAgent);
+
+    // Log auth
+    logger.info('Successful Okta authentication', {
+      username: user.username,
+      userId: user.id,
+      roles: userRoles,
+      ip: req.ip,
+      userAgent,
+      isNewUser
+    });
+
+    const { password: _, ...userWithoutPassword } = user;
+
+    const responseData = {
+      ...userWithoutPassword,
+      roles: userRoles,
+      permissions: uniquePermissions,
+      roleDetails: roleDetails
+    };
+
+    res.json({
+      user: responseData,
+      tokens: {
+        accessToken,
+        refreshToken,
+        expiresIn: 30 * 60
+      }
+    });
+  } catch (err) {
+    console.error('Okta user authentication error:', err);
+    logger.error('Okta user authentication error', { error: err.message });
+    res.status(500).json({ error: 'Failed to authenticate Okta user' });
+  }
+});
+
 // Login endpoint
 app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (req, res) => {
   try {
@@ -8519,6 +8743,23 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
     res.status(500).json({ error: sanitizeError(err, 'An error occurred during logout') });
   }
 });
+
+app.get('/api/secrets', async (req, res) => {
+  try {
+
+    const secrets = await getAllSecretData();
+    res.json({
+      OKTA_CLIENT_ID: secrets.OKTA_CLIENT_ID,
+      OKTA_DOMAIN: secrets.OKTA_DOMAIN,
+      OKTA_ISSUER: secrets.OKTA_ISSUER,
+      OKTA_REDIRECT_URI: secrets.OKTA_REDIRECT_URI,
+      BACKEND_URL: secrets.BACKEND_URL,
+    });
+  } catch (err) {
+      console.error('Error fetching secrets:', err);
+      res.status(500).json({ error: 'Failed to fetch secrets' });
+  }
+  });
 
 // Refresh token endpoint
 app.post('/api/auth/refresh', async (req, res) => {
@@ -11582,6 +11823,7 @@ app.use((req, res, next) => {
 
 // Import and use global error handler middleware (must be after all routes)
 const errorHandler = require('./backend/middleware/errorHandler');
+const { frame } = require("framer-motion");
 app.use(errorHandler);
 
 // Initialize database and start the server

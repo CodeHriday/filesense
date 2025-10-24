@@ -567,6 +567,27 @@
   color: #1e293b;
 }
 
+.login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: var(--space-6) 0;
+  color: var(--text-tertiary);
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.login-divider span {
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
 .modal-close {
   background: none;
   border: none;

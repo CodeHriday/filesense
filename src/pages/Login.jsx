@@ -7,6 +7,7 @@ import PasswordInput from '../components/PasswordInput';
 import { isVendorUser } from '../utils/userHelpers';
 import PasswordChangeRequired from './PasswordChangeRequired';
 import '../styles/Login.css';
+import { getSecret } from '../config/secrets';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -117,6 +118,18 @@ const Login = () => {
       }
       setLoginFailed(true);
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOktaLogin = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage('');
+      window.location.href = getSecret('OKTA_DOMAIN') || '';
+    } catch (error) {
+      console.error('Okta login error:', error);
+      setErrorMessage('Failed to initiate Okta login. Please try again.');
       setIsLoading(false);
     }
   };
@@ -370,7 +383,21 @@ const Login = () => {
                 </button>
               </div>
             )}
-          </form>
+  
+          <div className="login-divider">
+            <span>OR</span>
+          </div>
+
+          <button 
+            type="submit" 
+            className="login-button"
+            onClick={handleOktaLogin}
+            disabled={isLoading}
+            aria-busy={isLoading}
+          >
+            {isLoading ? 'Signing In...' : 'Sign In with Okta'}
+          </button>
+        </form>
         </div>
       </div>
       
