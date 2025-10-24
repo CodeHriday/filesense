@@ -7567,6 +7567,11 @@ const adminCleanupRoutes = require('./backend/routes/adminCleanupRoutes');
 app.use('/api/admin/cleanup', authenticateToken, requireAdmin, adminCleanupRoutes);
 console.log('Added admin cleanup routes');
 
+// Admin settings routes (admin-only)
+const adminSettingsRoutes = require('./backend/routes/adminSettingsRoutes');
+app.use('/api/admin', authenticateToken, requireAdmin, adminSettingsRoutes);
+console.log('Added admin settings routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 
