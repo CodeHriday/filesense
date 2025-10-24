@@ -1234,6 +1234,7 @@ function DataProfile() {
     try {
       setHistoryLoading(true);
       setHistoryFetched(true);
+      setErrorMessage(null);
       const token = localStorage.getItem('token');
       const response = await axios.get(`/api/files/${fileId}/profile-history`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1241,7 +1242,8 @@ function DataProfile() {
       setProfileHistory(response.data);
     } catch (err) {
       console.error('Error fetching profile history:', err);
-      setErrorMessage('Failed to load profile history');
+      // Don't show error modal for now, just log it
+      // setErrorMessage('Failed to load profile history');
     } finally {
       setHistoryLoading(false);
     }
