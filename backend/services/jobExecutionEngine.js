@@ -857,7 +857,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           userId: userId,
           processingDurationMs: 0,
           status: 'success',
-          createdBy: userId
+          createdBy: userId,
+          fileRole: 'source'
         });
         
         // Capture target file audit (output file)
@@ -886,7 +887,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           userId: userId,
           processingDurationMs: 0,
           status: 'success',
-          createdBy: null
+          createdBy: null,
+          fileRole: 'target'
         });
         
         await logJobExecution(pool, jobId, 'info', 
