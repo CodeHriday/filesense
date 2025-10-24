@@ -13,7 +13,7 @@ const {
   listAndFilterFiles
 } = require('../utils/cloudStorageFileList');
 const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
-const { profileETLOutputFile } = require('./etlProfilingService');
+const { profileETLOutputFile, profileETLFile } = require('./etlProfilingService');
 const crypto = require('crypto');
 
 /**
@@ -688,6 +688,61 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rows_failed: rowsFailed
     });
     
+    // Step 3.5: Profile SOURCE file (capture baseline metrics before transformation)
+    if (!dryRun && parseResult.sourceRows && parseResult.sourceRows.length > 0) {
+      const executionTimestamp = new Date();
+      const sourceFileId = `source_${jobId}_${file.filename}`;
+      const sourceChecksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      
+      // Extract source schema from first row
+      const sourceSchema = Object.keys(parseResult.sourceRows[0]).map((key, index) => ({
+        name: key,
+        type: inferDataType(parseResult.sourceRows[0][key])
+      }));
+      
+      // Calculate source column statistics
+      const sourceColumnStats = calculateColumnStatistics(parseResult.sourceRows, sourceSchema);
+      
+      try {
+        await logJobExecution(pool, jobId, 'info', 
+          `Profiling SOURCE file for baseline metrics`, {
+          filename: file.filename,
+          rows: parseResult.sourceRows.length
+        });
+        
+        await profileETLFile(pool, {
+          fileId: sourceFileId,
+          filename: file.filename,
+          filepath: file.filename,
+          fileType: fileExtension,
+          fileSize: fileBuffer.length,
+          rowCount: parseResult.sourceRows.length,
+          columnCount: sourceSchema.length,
+          schema: sourceSchema,
+          columnStats: sourceColumnStats,
+          checksum: sourceChecksum,
+          mappingId: mapping.mapping_id,
+          jobId,
+          userId,
+          fileRole: 'source',
+          executionTimestamp,
+          projectId: mapping.project_id
+        });
+        
+        await logJobExecution(pool, jobId, 'info', 
+          `SOURCE file profiling completed`, {
+          fileId: sourceFileId,
+          fileRole: 'source'
+        });
+      } catch (sourceProfilingError) {
+        // Log but don't fail the job if source profiling fails
+        await logJobExecution(pool, jobId, 'warn', 
+          `SOURCE file profiling failed: ${sourceProfilingError.message}`, {
+          error: sourceProfilingError.stack
+        });
+      }
+    }
+    
     // Step 4: Upload transformed data to target (if not dry run)
     if (!dryRun && transformedRows.length > 0 && mapping.target_connection_id) {
       // Determine output format (use target_file_format from mapping, default to csv)
@@ -920,17 +975,22 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           });
         }
 
-        // Step 6: Profile the output file (populate files, file_columns, profiling_metrics)
+        // Step 6: Profile the TARGET file (output file after transformation)
         try {
+          // Use the same execution timestamp as source profiling for correlation
+          const executionTimestamp = new Date();
+          
           await logJobExecution(pool, jobId, 'info', 
-            `Profiling output file for quality metrics and insights`, {
-            filename: outputFilename
+            `Profiling TARGET file for quality metrics and insights`, {
+            filename: outputFilename,
+            fileRole: 'target',
+            executionTimestamp
           });
 
           // Calculate column statistics from transformed rows
           const columnStats = calculateColumnStatistics(transformedRows, outputSchema);
 
-          const profilingResult = await profileETLOutputFile(pool, {
+          const profilingResult = await profileETLFile(pool, {
             fileId: `transformed_${jobId}_${file.filename}`,
             filename: outputFilename,
             filepath: uploadResult.location,
@@ -943,7 +1003,10 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             checksum: crypto.createHash('sha256').update(outputBuffer).digest('hex'),
             mappingId,
             jobId,
-            userId
+            userId,
+            fileRole: 'target',
+            executionTimestamp,
+            projectId: mapping.project_id
           });
 
           if (profilingResult.success) {
@@ -1158,10 +1221,12 @@ function convertVariables(dbVariables) {
 async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, pool) {
   return new Promise((resolve, reject) => {
     const transformedRows = [];
+    const sourceRows = []; // Capture source rows for profiling
     let rowsRead = 0;
     let rowsWritten = 0;
     let rowsFailed = 0;
     let firstRow = null;
+    const MAX_SOURCE_ROWS_FOR_PROFILING = 1000; // Limit memory usage
     
     // Convert field mappings and variables to expected format
     const convertedMappings = convertFieldMappings(fieldMappings);
@@ -1173,6 +1238,11 @@ async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, poo
       .pipe(csv())
       .on('data', (row) => {
         rowsRead++;
+        
+        // Capture source row for profiling (limit to first 1000 rows)
+        if (rowsRead <= MAX_SOURCE_ROWS_FOR_PROFILING) {
+          sourceRows.push({...row}); // Clone the row
+        }
         
         // Log first row for debugging (only column names, not data)
         if (rowsRead === 1) {
@@ -1224,11 +1294,13 @@ async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, poo
           rowsWritten,
           rowsFailed,
           transformedRowsCount: transformedRows.length,
+          sourceRowsCount: sourceRows.length,
           hasData: transformedRows.length > 0
         });
         
         resolve({ 
-          transformedRows, 
+          transformedRows,
+          sourceRows, // Include source rows for profiling
           rowsRead, 
           rowsWritten, 
           rowsFailed 
@@ -1249,6 +1321,8 @@ async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, po
     const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
     
     const transformedRows = [];
+    const sourceRows = []; // Capture source rows for profiling
+    const MAX_SOURCE_ROWS_FOR_PROFILING = 1000;
     let rowsRead = 0;
     let rowsWritten = 0;
     let rowsFailed = 0;
@@ -1259,6 +1333,12 @@ async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, po
     
     for (const row of dataArray) {
       rowsRead++;
+      
+      // Capture source row for profiling (limit to first 1000 rows)
+      if (rowsRead <= MAX_SOURCE_ROWS_FOR_PROFILING) {
+        sourceRows.push({...row});
+      }
+      
       try {
         const transformedRow = transformRow(row, convertedMappings, convertedVariables);
         transformedRows.push(transformedRow);
@@ -1273,7 +1353,8 @@ async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, po
     }
     
     return { 
-      transformedRows, 
+      transformedRows,
+      sourceRows,
       rowsRead, 
       rowsWritten, 
       rowsFailed 
@@ -1296,6 +1377,8 @@ async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, po
     const jsonData = xlsx.utils.sheet_to_json(worksheet);
     
     const transformedRows = [];
+    const sourceRows = []; // Capture source rows for profiling
+    const MAX_SOURCE_ROWS_FOR_PROFILING = 1000;
     let rowsRead = 0;
     let rowsWritten = 0;
     let rowsFailed = 0;
@@ -1306,6 +1389,12 @@ async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, po
     
     for (const row of jsonData) {
       rowsRead++;
+      
+      // Capture source row for profiling (limit to first 1000 rows)
+      if (rowsRead <= MAX_SOURCE_ROWS_FOR_PROFILING) {
+        sourceRows.push({...row});
+      }
+      
       try {
         const transformedRow = transformRow(row, convertedMappings, convertedVariables);
         transformedRows.push(transformedRow);
@@ -1320,7 +1409,8 @@ async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, po
     }
     
     return { 
-      transformedRows, 
+      transformedRows,
+      sourceRows,
       rowsRead, 
       rowsWritten, 
       rowsFailed 
@@ -1350,6 +1440,8 @@ async function parseAndTransformParquet(buffer, fieldMappings, variables, jobId,
     const convertedVariables = convertVariables(variables);
     
     const transformedRows = [];
+    const sourceRows = []; // Capture source rows for profiling
+    const MAX_SOURCE_ROWS_FOR_PROFILING = 1000;
     let rowsRead = 0;
     let rowsWritten = 0;
     let rowsFailed = 0;
@@ -1362,6 +1454,12 @@ async function parseAndTransformParquet(buffer, fieldMappings, variables, jobId,
     // Consume async iterator properly
     for await (const row of parquetIterator) {
       rowsRead++;
+      
+      // Capture source row for profiling (limit to first 1000 rows)
+      if (rowsRead <= MAX_SOURCE_ROWS_FOR_PROFILING) {
+        sourceRows.push({...row});
+      }
+      
       try {
         // Log first row for debugging
         if (rowsRead === 1) {
@@ -1386,11 +1484,13 @@ async function parseAndTransformParquet(buffer, fieldMappings, variables, jobId,
     systemLogger.info('Parquet parsing complete', {
       rowsRead,
       rowsWritten,
-      rowsFailed
+      rowsFailed,
+      sourceRowsCount: sourceRows.length
     });
     
     return { 
-      transformedRows, 
+      transformedRows,
+      sourceRows,
       rowsRead, 
       rowsWritten, 
       rowsFailed 
@@ -1549,6 +1649,8 @@ async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, poo
     });
     
     const transformedRows = [];
+    const sourceRows = []; // Capture source rows for profiling
+    const MAX_SOURCE_ROWS_FOR_PROFILING = 1000;
     let rowsRead = 0;
     let rowsWritten = 0;
     let rowsFailed = 0;
@@ -1562,6 +1664,11 @@ async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, poo
       try {
         // Flatten nested XML structure before transformation
         const flattenedRow = flattenObject(row);
+        
+        // Capture source row for profiling (limit to first 1000 rows)
+        if (rowsRead <= MAX_SOURCE_ROWS_FOR_PROFILING) {
+          sourceRows.push({...flattenedRow});
+        }
         
         // Log first flattened row for debugging
         if (rowsRead === 1) {
@@ -1590,11 +1697,13 @@ async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, poo
       rowsRead,
       rowsWritten,
       rowsFailed,
+      sourceRowsCount: sourceRows.length,
       jobId
     });
     
     return { 
-      transformedRows, 
+      transformedRows,
+      sourceRows,
       rowsRead, 
       rowsWritten, 
       rowsFailed 

@@ -89,9 +89,6 @@ async function addHistoricalProfilingColumns(pool) {
       
       CREATE INDEX IF NOT EXISTS idx_file_columns_file_timestamp 
       ON file_columns(file_id, profile_timestamp DESC);
-      
-      CREATE INDEX IF NOT EXISTS idx_file_columns_job_role 
-      ON file_columns(job_id, file_role) WHERE job_id IS NOT NULL;
     `);
     console.log('INFO: ✓ Created indexes for historical profiling queries');
     
