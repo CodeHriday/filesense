@@ -2924,6 +2924,78 @@ app.get('/api/files/:fileId/profile',
   }
 });
 
+// Historical profiling endpoint - get all profiles for a file over time
+app.get('/api/files/:fileId/profile-history',
+  authenticateToken,
+  cacheMiddleware(300),
+  requireProjectAccess({
+    resourceType: 'file'
+  }),
+  async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if file exists
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Get historical profiles (all profile snapshots with their timestamps)
+    const historyResult = await dbPool.query(`
+      SELECT 
+        pm.metric_id,
+        pm.profile_timestamp,
+        pm.file_role,
+        pm.source_file_id,
+        pm.target_file_id,
+        pm.row_count,
+        pm.column_count,
+        pm.completeness_score,
+        pm.consistency_score,
+        pm.validity_score,
+        pm.uniqueness_score,
+        pm.overall_quality_score,
+        pm.created_at,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'column_name', fc.column_name,
+              'column_type', fc.column_type,
+              'non_null_count', fc.non_null_count,
+              'null_count', fc.null_count,
+              'unique_count', fc.unique_count,
+              'min_value', fc.min_value,
+              'max_value', fc.max_value,
+              'mean_value', fc.mean_value,
+              'median_value', fc.median_value,
+              'std_dev', fc.std_dev
+            )
+          )
+          FROM file_columns fc
+          WHERE fc.file_id = pm.file_id 
+            AND fc.profile_timestamp = pm.profile_timestamp
+          ORDER BY fc.column_index
+        ) as columns
+      FROM profiling_metrics pm
+      WHERE pm.file_id = $1
+      ORDER BY pm.profile_timestamp DESC
+      LIMIT 100
+    `, [fileId]);
+    
+    res.json({
+      fileId,
+      filename: fileResult.rows[0].filename,
+      totalSnapshots: historyResult.rows.length,
+      history: historyResult.rows
+    });
+  } catch (err) {
+    console.error('Error fetching profile history:', err);
+    res.status(500).json({ error: 'Failed to fetch profile history' });
+  }
+});
+
 // File Ownership API endpoints
 
 // Get file ownership
@@ -6359,6 +6431,80 @@ app.get('/api/jobs/:id', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error fetching job:', err);
     res.status(500).json({ error: 'Failed to fetch job' });
+  }
+});
+
+// Get source vs target profiles for a transformation job
+app.get('/api/jobs/:jobId/profiles', authenticateToken, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    
+    // Get source and target profiles with the same execution timestamp
+    const profilesResult = await dbPool.query(`
+      WITH job_profiles AS (
+        SELECT 
+          pm.metric_id,
+          pm.file_id,
+          pm.profile_timestamp,
+          pm.file_role,
+          pm.source_file_id,
+          pm.target_file_id,
+          pm.row_count,
+          pm.column_count,
+          pm.completeness_score,
+          pm.consistency_score,
+          pm.validity_score,
+          pm.uniqueness_score,
+          pm.overall_quality_score,
+          pm.created_at,
+          f.filename,
+          f.file_type,
+          (
+            SELECT json_agg(
+              json_build_object(
+                'column_name', fc.column_name,
+                'column_type', fc.column_type,
+                'non_null_count', fc.non_null_count,
+                'null_count', fc.null_count,
+                'unique_count', fc.unique_count,
+                'min_value', fc.min_value,
+                'max_value', fc.max_value,
+                'mean_value', fc.mean_value,
+                'median_value', fc.median_value,
+                'std_dev', fc.std_dev
+              )
+            )
+            FROM file_columns fc
+            WHERE fc.file_id = pm.file_id 
+              AND fc.profile_timestamp = pm.profile_timestamp
+            ORDER BY fc.column_index
+          ) as columns
+        FROM profiling_metrics pm
+        LEFT JOIN files f ON pm.file_id = f.file_id
+        WHERE pm.job_id = $1
+        ORDER BY pm.profile_timestamp DESC, pm.file_role DESC
+        LIMIT 2
+      )
+      SELECT 
+        (SELECT row_to_json(jp) FROM job_profiles jp WHERE jp.file_role = 'source') as source_profile,
+        (SELECT row_to_json(jp) FROM job_profiles jp WHERE jp.file_role = 'target') as target_profile
+    `, [jobId]);
+    
+    if (profilesResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No profiles found for this job' });
+    }
+    
+    const result = profilesResult.rows[0];
+    
+    res.json({
+      jobId,
+      sourceProfile: result.source_profile,
+      targetProfile: result.target_profile,
+      hasBothProfiles: !!(result.source_profile && result.target_profile)
+    });
+  } catch (err) {
+    console.error('Error fetching job profiles:', err);
+    res.status(500).json({ error: 'Failed to fetch job profiles' });
   }
 });
 

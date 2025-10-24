@@ -688,9 +688,11 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rows_failed: rowsFailed
     });
     
+    // Create execution timestamp for profiling correlation (used for both source and target)
+    const executionTimestamp = new Date();
+    
     // Step 3.5: Profile SOURCE file (capture baseline metrics before transformation)
     if (!dryRun && parseResult.sourceRows && parseResult.sourceRows.length > 0) {
-      const executionTimestamp = new Date();
       const sourceFileId = `source_${jobId}_${file.filename}`;
       const sourceChecksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
       
@@ -977,9 +979,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
 
         // Step 6: Profile the TARGET file (output file after transformation)
         try {
-          // Use the same execution timestamp as source profiling for correlation
-          const executionTimestamp = new Date();
-          
+          // Use the same execution timestamp from source profiling for correlation
           await logJobExecution(pool, jobId, 'info', 
             `Profiling TARGET file for quality metrics and insights`, {
             filename: outputFilename,
