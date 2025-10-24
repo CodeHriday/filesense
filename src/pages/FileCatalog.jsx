@@ -27,6 +27,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState({});
   
   // Using React Query to fetch file catalog
   const { 
@@ -239,12 +240,44 @@ export const FileCatalog = ({ onFileSelect }) => {
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-  // Pagination calculations
-  const totalItems = filteredAndSortedFiles.length;
+  // Group files by filename
+  const groupedFiles = filteredAndSortedFiles.reduce((groups, file) => {
+    const filename = file.filename;
+    if (!groups[filename]) {
+      groups[filename] = [];
+    }
+    groups[filename].push(file);
+    return groups;
+  }, {});
+
+  // Sort files within each group by date (newest first)
+  Object.keys(groupedFiles).forEach(filename => {
+    groupedFiles[filename].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  });
+
+  // Convert to array of groups for easier handling
+  const fileGroups = Object.entries(groupedFiles).map(([filename, files]) => {
+    // Create a unique group ID based on the first file's ID to avoid cross-page conflicts
+    const groupId = `group_${files[0].file_id}`;
+    return {
+      filename,
+      groupId, // Unique identifier for this group
+      files,
+      count: files.length,
+      // Use the most recent file for display data
+      representativeFile: files[0]
+    };
+  });
+
+  // Pagination calculations (based on groups)
+  const totalItems = fileGroups.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
+  const paginatedGroups = fileGroups.slice(startIndex, endIndex);
+  
+  // For backwards compatibility - get all files from paginated groups for selection
+  const paginatedFiles = paginatedGroups.flatMap(group => group.files);
 
   // Reset to page 1 when filters change
   React.useEffect(() => {
@@ -261,6 +294,13 @@ export const FileCatalog = ({ onFileSelect }) => {
     setItemsPerPage(Number(e.target.value));
     setCurrentPage(1);
     setSelectedFiles([]);
+  };
+
+  const toggleGroup = (groupId) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId]
+    }));
   };
 
   const getPageNumbers = () => {
@@ -386,7 +426,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           <>
             <div className="pagination-info">
               <span>
-                Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} files
+                Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} file groups ({filteredAndSortedFiles.length} total files)
               </span>
               <div className="items-per-page">
                 <label htmlFor="itemsPerPage">Items per page:</label>
@@ -428,93 +468,203 @@ export const FileCatalog = ({ onFileSelect }) => {
                 </tr>
               </thead>
               <tbody>
-                {paginatedFiles.map(file => (
-                <tr key={file.file_id}>
-                  <td className="checkbox-cell">
-                    <input
-                      type="checkbox"
-                      checked={selectedFiles.includes(file.file_id)}
-                      onChange={() => handleSelectFile(file.file_id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </td>
-                  <td>
-                    {file.project_name || 'Default Project'}
-                  </td>
-                  <td className="file-name-cell">
-                    <span className="file-icon">
-                      {file.file_type === 'csv' ? '📄' : 
-                       file.file_type === 'json' ? '🔠' : '📊'}
-                    </span>
-                    <span className="file-name">{file.filename}</span>
-                    {file.processing_error && (
-                      <span 
-                        className="file-error-indicator" 
-                        title={`Processing failed: ${file.processing_error}`}
-                      >
-                        ⚠️
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
-                  </td>
-                  <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
-                  <td>
-                    {file.processing_error ? (
-                      <span className="error-text" title={file.processing_error}>Failed</span>
-                    ) : (
-                      file.row_count != null ? file.row_count.toLocaleString() : '-'
-                    )}
-                  </td>
-                  <td>
-                    {file.processing_error ? (
-                      <span className="error-text" title={file.processing_error}>Failed</span>
-                    ) : (
-                      file.column_count || '-'
-                    )}
-                  </td>
-                  <td title={file.created_at ? formatDate(file.created_at) : ''}>
-                    {file.created_at ? getTimeSince(file.created_at) : '-'}
-                  </td>
-                  <td>
-                    <QualityTooltip 
-                      score={parseFloat(file.quality_score)}
-                      components={{
-                        completeness: file.quality_components?.completeness || 95,
-                        consistency: file.quality_components?.consistency || 85,
-                        validity: file.quality_components?.validity || 80,
-                        uniqueness: file.quality_components?.uniqueness || 75,
-                        timeliness: file.quality_components?.timeliness || 90
-                      }}
-                      position="top"
-                      animated={true}
-                    >
-                      <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
-                        {parseFloat(file.quality_score).toFixed(1)}%
-                      </span>
-                    </QualityTooltip>
-                  </td>
-                  <td className="actions-cell">
-                    <button
-                      className="icon-button view-button"
-                      onClick={() => handleViewDetails(file)}
-                      title="View Details"
-                    >
-                      <FiEye />
-                    </button>
-                    <button
-                      className="icon-button delete-button"
-                      onClick={() => handleDelete(file)}
-                      disabled={deletingFileId === file.file_id}
-                      title="Delete"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+                {paginatedGroups.map(group => {
+                  const isExpanded = expandedGroups[group.groupId];
+                  const file = group.representativeFile;
+                  
+                  return (
+                    <React.Fragment key={group.groupId}>
+                      {/* Group Header Row */}
+                      <tr className={`group-header-row ${isExpanded ? 'expanded' : ''}`}>
+                        <td className="checkbox-cell">
+                          <input
+                            type="checkbox"
+                            checked={group.files.every(f => selectedFiles.includes(f.file_id))}
+                            onChange={() => {
+                              const allSelected = group.files.every(f => selectedFiles.includes(f.file_id));
+                              if (allSelected) {
+                                setSelectedFiles(prev => prev.filter(id => !group.files.some(f => f.file_id === id)));
+                              } else {
+                                const newIds = group.files.map(f => f.file_id);
+                                setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </td>
+                        <td>
+                          {file.project_name || 'Default Project'}
+                        </td>
+                        <td className="file-name-cell" onClick={() => toggleGroup(group.groupId)} style={{cursor: 'pointer'}}>
+                          <span className="expand-icon">
+                            {isExpanded ? '▼' : '▶'}
+                          </span>
+                          <span className="file-icon">
+                            {file.file_type === 'csv' ? '📄' : 
+                             file.file_type === 'json' ? '🔠' : '📊'}
+                          </span>
+                          <span className="file-name">{file.filename}</span>
+                          {group.count > 1 && (
+                            <span className="file-count-badge">×{group.count}</span>
+                          )}
+                          {file.processing_error && (
+                            <span 
+                              className="file-error-indicator" 
+                              title={`Processing failed: ${file.processing_error}`}
+                            >
+                              ⚠️
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
+                        </td>
+                        <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
+                        <td>
+                          {file.processing_error ? (
+                            <span className="error-text" title={file.processing_error}>Failed</span>
+                          ) : (
+                            file.row_count != null ? file.row_count.toLocaleString() : '-'
+                          )}
+                        </td>
+                        <td>
+                          {file.processing_error ? (
+                            <span className="error-text" title={file.processing_error}>Failed</span>
+                          ) : (
+                            file.column_count || '-'
+                          )}
+                        </td>
+                        <td title={file.created_at ? formatDate(file.created_at) : ''}>
+                          {file.created_at ? getTimeSince(file.created_at) : '-'}
+                        </td>
+                        <td>
+                          <QualityTooltip 
+                            score={parseFloat(file.quality_score)}
+                            components={{
+                              completeness: file.quality_components?.completeness || 95,
+                              consistency: file.quality_components?.consistency || 85,
+                              validity: file.quality_components?.validity || 80,
+                              uniqueness: file.quality_components?.uniqueness || 75,
+                              timeliness: file.quality_components?.timeliness || 90
+                            }}
+                            position="top"
+                            animated={true}
+                          >
+                            <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
+                              {parseFloat(file.quality_score).toFixed(1)}%
+                            </span>
+                          </QualityTooltip>
+                        </td>
+                        <td className="actions-cell">
+                          <button
+                            className="icon-button view-button"
+                            onClick={() => handleViewDetails(file)}
+                            title="View Details"
+                          >
+                            <FiEye />
+                          </button>
+                          <button
+                            className="icon-button delete-button"
+                            onClick={() => handleDelete(file)}
+                            disabled={deletingFileId === file.file_id}
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </td>
+                      </tr>
+                      
+                      {/* Expanded Child Rows */}
+                      {isExpanded && group.files.length > 1 && group.files.slice(1).map((childFile, index) => (
+                        <tr key={childFile.file_id} className="child-file-row">
+                          <td className="checkbox-cell">
+                            <input
+                              type="checkbox"
+                              checked={selectedFiles.includes(childFile.file_id)}
+                              onChange={() => handleSelectFile(childFile.file_id)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
+                          <td>
+                            {childFile.project_name || 'Default Project'}
+                          </td>
+                          <td className="file-name-cell" style={{paddingLeft: '3rem'}}>
+                            <span className="file-icon">
+                              {childFile.file_type === 'csv' ? '📄' : 
+                               childFile.file_type === 'json' ? '🔠' : '📊'}
+                            </span>
+                            <span className="file-name">{childFile.filename}</span>
+                            {childFile.processing_error && (
+                              <span 
+                                className="file-error-indicator" 
+                                title={`Processing failed: ${childFile.processing_error}`}
+                              >
+                                ⚠️
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="file-type-badge">{childFile.file_type?.toUpperCase() || 'N/A'}</span>
+                          </td>
+                          <td>{childFile.file_size ? formatBytes(parseInt(childFile.file_size)) : '-'}</td>
+                          <td>
+                            {childFile.processing_error ? (
+                              <span className="error-text" title={childFile.processing_error}>Failed</span>
+                            ) : (
+                              childFile.row_count != null ? childFile.row_count.toLocaleString() : '-'
+                            )}
+                          </td>
+                          <td>
+                            {childFile.processing_error ? (
+                              <span className="error-text" title={childFile.processing_error}>Failed</span>
+                            ) : (
+                              childFile.column_count || '-'
+                            )}
+                          </td>
+                          <td title={childFile.created_at ? formatDate(childFile.created_at) : ''}>
+                            {childFile.created_at ? getTimeSince(childFile.created_at) : '-'}
+                          </td>
+                          <td>
+                            <QualityTooltip 
+                              score={parseFloat(childFile.quality_score)}
+                              components={{
+                                completeness: childFile.quality_components?.completeness || 95,
+                                consistency: childFile.quality_components?.consistency || 85,
+                                validity: childFile.quality_components?.validity || 80,
+                                uniqueness: childFile.quality_components?.uniqueness || 75,
+                                timeliness: childFile.quality_components?.timeliness || 90
+                              }}
+                              position="top"
+                              animated={true}
+                            >
+                              <span className={`quality-score ${getQualityClass(parseFloat(childFile.quality_score))}`}>
+                                {parseFloat(childFile.quality_score).toFixed(1)}%
+                              </span>
+                            </QualityTooltip>
+                          </td>
+                          <td className="actions-cell">
+                            <button
+                              className="icon-button view-button"
+                              onClick={() => handleViewDetails(childFile)}
+                              title="View Details"
+                            >
+                              <FiEye />
+                            </button>
+                            <button
+                              className="icon-button delete-button"
+                              onClick={() => handleDelete(childFile)}
+                              disabled={deletingFileId === childFile.file_id}
+                              title="Delete"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
           </table>
           
           {totalPages > 1 && (

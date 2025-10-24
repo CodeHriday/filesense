@@ -181,7 +181,7 @@
 .file-catalog-table td {
   padding: var(--space-3) var(--space-4);
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
 }
 
 .file-name-cell {
@@ -189,6 +189,41 @@
   align-items: center;
   gap: var(--space-2);
   font-weight: var(--font-medium);
+}
+
+.expand-icon {
+  font-size: 0.7em;
+  color: var(--text-tertiary);
+  margin-right: var(--space-1);
+  transition: transform var(--transition-fast);
+}
+
+.file-count-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  margin-left: var(--space-2);
+  background-color: var(--color-primary);
+  color: white;
+  font-size: 0.75em;
+  font-weight: var(--font-semibold);
+  border-radius: var(--radius-sm);
+}
+
+.group-header-row {
+  background-color: var(--bg-card);
+  font-weight: var(--font-medium);
+}
+
+.group-header-row:hover {
+  background-color: var(--bg-surface) !important;
+}
+
+.child-file-row {
+  background-color: var(--bg-surface);
+}
+
+.child-file-row:hover {
+  background-color: var(--color-gray-100) !important;
 }
 
 .file-icon {
