@@ -99,10 +99,10 @@ async function captureFileAudit(pool, auditData, options = {}) {
             correlation_id, parent_audit_id, transformation_job_id, mapping_name,
             user_id, user_email, ip_address, session_id,
             processing_duration_ms, status, error_message, error_type,
-            retention_until, created_by
+            retention_until, created_by, file_role
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-            $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
+            $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32
           ) RETURNING id
         `, [
           auditData.fileId,
@@ -135,7 +135,8 @@ async function captureFileAudit(pool, auditData, options = {}) {
           auditData.errorMessage,
           auditData.errorType,
           retentionDate,
-          auditData.createdBy
+          auditData.createdBy,
+          auditData.fileRole || null
         ]);
 
         const auditId = auditResult.rows[0].id;
