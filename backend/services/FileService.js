@@ -287,12 +287,16 @@ class FileService extends ServiceBase {
       const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
       
       let query = `
-        SELECT files.*, projects.name as project_name 
+        SELECT DISTINCT files.*, projects.name as project_name 
         FROM files 
         LEFT JOIN projects ON files.project_id = projects.id
+        LEFT JOIN file_audit_details fad ON files.file_id = fad.file_id
       `;
       const params = [];
       let whereClauses = [];
+      
+      // Exclude transformation target files from File Catalog (only show ad-hoc uploads)
+      whereClauses.push("(fad.file_role IS NULL OR fad.file_role != 'target')");
       
       // Add project filtering (if projectIds provided)
       if (projectIds && Array.isArray(projectIds) && projectIds.length > 0) {

@@ -129,6 +129,8 @@ router.get('/', async (req, res) => {
     source,
     fileType,
     correlationId,
+    load_type,
+    file_role,
     limit,
     offset
   } = req.query;
@@ -141,6 +143,8 @@ router.get('/', async (req, res) => {
       source,
       fileType,
       correlationId,
+      loadType: load_type,
+      fileRole: file_role,
       limit: parseInt(limit) || 100,
       offset: parseInt(offset) || 0,
       userId: req.user.id, // Pass user info for project filtering (guaranteed to exist)

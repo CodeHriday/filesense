@@ -354,6 +354,8 @@ async function getAuditRecords(pool, filters = {}) {
     source,
     fileType,
     correlationId,
+    loadType,
+    fileRole,
     limit = 100,
     offset = 0,
     userId,
@@ -425,6 +427,18 @@ async function getAuditRecords(pool, filters = {}) {
     if (correlationId) {
       conditions.push(`fad.correlation_id = $${paramIndex}`);
       params.push(correlationId);
+      paramIndex++;
+    }
+
+    if (loadType) {
+      conditions.push(`fad.load_type = $${paramIndex}`);
+      params.push(loadType);
+      paramIndex++;
+    }
+
+    if (fileRole) {
+      conditions.push(`fad.file_role = $${paramIndex}`);
+      params.push(fileRole);
       paramIndex++;
     }
 
