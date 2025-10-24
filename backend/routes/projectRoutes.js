@@ -14,6 +14,10 @@ function createProjectRoutes(dbPool) {
   router.get('/', async (req, res) => {
     try {
       const { archived, search } = req.query;
+      const userId = req.user?.id;
+      
+      // Check if user is admin
+      const isAdmin = req.user?.roles?.includes('Admin') || false;
       
       let query = `
         SELECT 
@@ -23,10 +27,30 @@ function createProjectRoutes(dbPool) {
         FROM projects p
         LEFT JOIN project_members pm ON p.id = pm.project_id
         LEFT JOIN project_access_groups pag ON p.id = pag.project_id
-        WHERE 1=1
       `;
+      
       const params = [];
       let paramIndex = 1;
+      
+      // Non-admin users can only see projects they have access to
+      if (!isAdmin) {
+        query += `
+        WHERE p.id IN (
+          -- Projects where user is a direct member
+          SELECT project_id FROM project_members WHERE user_id = $${paramIndex}
+          UNION
+          -- Projects accessible via user's access groups
+          SELECT pag2.project_id 
+          FROM project_access_groups pag2
+          JOIN access_group_members agm ON pag2.group_id = agm.group_id
+          WHERE agm.user_id = $${paramIndex}
+        )
+        `;
+        params.push(userId);
+        paramIndex++;
+      } else {
+        query += ' WHERE 1=1';
+      }
 
       if (archived !== undefined) {
         query += ` AND p.is_archived = $${paramIndex}`;
@@ -53,6 +77,7 @@ function createProjectRoutes(dbPool) {
       
       systemLogger.info('Projects listed', {
         userId: req.user?.id,
+        isAdmin,
         count: result.rows.length
       });
 
