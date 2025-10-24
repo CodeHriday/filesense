@@ -234,8 +234,8 @@ function FileUpload() {
       setDiagnosticInfo(`Checking for duplicate file: ${file.name}...\n`);
       setUploadStatus('checking');
       
-      // Check for duplicate file first
-      const duplicateCheck = await checkDuplicateFile(file);
+      // Check for duplicate file first (scoped to selected project)
+      const duplicateCheck = await checkDuplicateFile(file, selectedProject);
       
       if (duplicateCheck.isDuplicate) {
         // Show duplicate modal

@@ -1116,7 +1116,7 @@ app.post('/api/files/bulk-delete',
 });
 
 // File duplicate check endpoint
-app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), async (req, res) => {
+app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -1124,6 +1124,7 @@ app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), asy
     
     const file = req.file;
     const crypto = require('crypto');
+    const projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
     
     // Calculate SHA-256 hash of the file
     const fileHash = await new Promise((resolve, reject) => {
@@ -1135,11 +1136,18 @@ app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), asy
       stream.on('error', reject);
     });
     
-    // Check if file with same hash exists
-    const result = await dbPool.query(
-      'SELECT file_id, filename, file_size, created_at FROM files WHERE checksum = $1 LIMIT 1',
-      [fileHash]
-    );
+    // Check if file with same hash exists in the SAME PROJECT
+    let query, params;
+    if (projectId) {
+      query = 'SELECT file_id, filename, file_size, created_at, project_id FROM files WHERE checksum = $1 AND project_id = $2 LIMIT 1';
+      params = [fileHash, projectId];
+    } else {
+      // If no project_id provided, check without project filter (backwards compatibility)
+      query = 'SELECT file_id, filename, file_size, created_at, project_id FROM files WHERE checksum = $1 LIMIT 1';
+      params = [fileHash];
+    }
+    
+    const result = await dbPool.query(query, params);
     
     // Delete temporary uploaded file
     fs.unlinkSync(file.path);
@@ -1152,7 +1160,8 @@ app.post('/api/files/check-duplicate', uploadLimiter, upload.single('file'), asy
           fileId: existingFile.file_id,
           filename: existingFile.filename,
           fileSize: existingFile.file_size,
-          uploadedAt: existingFile.created_at
+          uploadedAt: existingFile.created_at,
+          projectId: existingFile.project_id
         },
         fileHash
       });

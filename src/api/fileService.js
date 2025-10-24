@@ -97,10 +97,13 @@ export const getFileQuality = async (fileId) => {
 /**
  * Check if a file is a duplicate based on its hash
  */
-export const checkDuplicateFile = async (file) => {
+export const checkDuplicateFile = async (file, projectId = null) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    if (projectId) {
+      formData.append('project_id', projectId);
+    }
     
     const response = await axios.post(`${API_URL}/files/check-duplicate`, formData, {
       headers: {
