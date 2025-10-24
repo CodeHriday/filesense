@@ -473,6 +473,8 @@ async function getAuditRecords(pool, filters = {}) {
         p.name as project_name,
         f.project_id,
         f.quality_score,
+        f.column_count as number_of_columns,
+        f.row_count,
         tj.job_id,
         (
           SELECT json_agg(
