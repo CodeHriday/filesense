@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -10,6 +10,28 @@ import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } fr
 import { useAuth } from '../context/AuthContext';
 import './DataProfile.css';
 import axios from 'axios';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, setErrorMessage }) {
   const [classificationLevel, setClassificationLevel] = useState(currentTag?.classification_level || '');
@@ -349,6 +371,8 @@ function DataProfile() {
   const [policies, setPolicies] = useState([]);
   const [columnTags, setColumnTags] = useState([]);
   const [showTagModal, setShowTagModal] = useState(false);
+  const [profileHistory, setProfileHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [showColumnGovernanceTagModal, setShowColumnGovernanceTagModal] = useState(false);
   const [showColumnPolicyModal, setShowColumnPolicyModal] = useState(false);
   const [selectedColumn, setSelectedColumn] = useState(null);
@@ -1205,6 +1229,200 @@ function DataProfile() {
     );
   };
 
+  const fetchProfileHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/files/${fileId}/profile-history`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProfileHistory(response.data);
+    } catch (err) {
+      console.error('Error fetching profile history:', err);
+      setErrorMessage('Failed to load profile history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const renderHistoryTab = () => {
+    // Fetch history when tab is first accessed
+    if (!profileHistory && !historyLoading) {
+      fetchProfileHistory();
+    }
+
+    if (historyLoading) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <LoadingSpinner />
+        </div>
+      );
+    }
+
+    if (!profileHistory || !profileHistory.history || profileHistory.history.length === 0) {
+      return (
+        <div className="empty-state">
+          <FiClock size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+          <p>No profile history available</p>
+          <p className="empty-state-hint">
+            Profile history is captured when files are processed through ETL transformations
+          </p>
+        </div>
+      );
+    }
+
+    // Prepare data for quality metrics chart
+    const history = profileHistory.history.sort((a, b) => 
+      new Date(a.profile_timestamp) - new Date(b.profile_timestamp)
+    );
+
+    const chartData = {
+      labels: history.map(h => formatDate(h.profile_timestamp)),
+      datasets: [
+        {
+          label: 'Overall Quality',
+          data: history.map(h => h.overall_quality_score || 0),
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          tension: 0.4
+        },
+        {
+          label: 'Completeness',
+          data: history.map(h => h.completeness_score || 0),
+          borderColor: 'rgb(54, 162, 235)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          tension: 0.4
+        },
+        {
+          label: 'Consistency',
+          data: history.map(h => h.consistency_score || 0),
+          borderColor: 'rgb(255, 206, 86)',
+          backgroundColor: 'rgba(255, 206, 86, 0.2)',
+          tension: 0.4
+        },
+        {
+          label: 'Validity',
+          data: history.map(h => h.validity_score || 0),
+          borderColor: 'rgb(153, 102, 255)',
+          backgroundColor: 'rgba(153, 102, 255, 0.2)',
+          tension: 0.4
+        },
+        {
+          label: 'Uniqueness',
+          data: history.map(h => h.uniqueness_score || 0),
+          borderColor: 'rgb(255, 159, 64)',
+          backgroundColor: 'rgba(255, 159, 64, 0.2)',
+          tension: 0.4
+        }
+      ]
+    };
+
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        title: {
+          display: true,
+          text: 'Data Quality Trends Over Time'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          title: {
+            display: true,
+            text: 'Score (%)'
+          }
+        }
+      }
+    };
+
+    return (
+      <div className="history-tab">
+        <div className="history-summary">
+          <Card>
+            <div className="summary-stats">
+              <div className="stat">
+                <div className="stat-label">Total Snapshots</div>
+                <div className="stat-value">{profileHistory.totalSnapshots}</div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">Latest Profile</div>
+                <div className="stat-value">
+                  {history[history.length - 1]?.file_role === 'source' ? 'Source' : 
+                   history[history.length - 1]?.file_role === 'target' ? 'Target' : 'Unknown'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">Last Updated</div>
+                <div className="stat-value">{formatDate(history[history.length - 1]?.profile_timestamp)}</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <Card>
+          <h3>Quality Metrics Timeline</h3>
+          <div style={{ height: '400px', marginTop: '20px' }}>
+            <Line data={chartData} options={chartOptions} />
+          </div>
+        </Card>
+
+        <Card style={{ marginTop: '20px' }}>
+          <h3>Profile Snapshots</h3>
+          <div className="history-table-container">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Role</th>
+                  <th>Rows</th>
+                  <th>Columns</th>
+                  <th>Completeness</th>
+                  <th>Consistency</th>
+                  <th>Validity</th>
+                  <th>Uniqueness</th>
+                  <th>Overall Quality</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((snapshot, index) => (
+                  <tr key={index}>
+                    <td>{formatDate(snapshot.profile_timestamp)}</td>
+                    <td>
+                      <span className={`badge badge-${snapshot.file_role}`}>
+                        {snapshot.file_role === 'source' ? 'Source' : 
+                         snapshot.file_role === 'target' ? 'Target' : 'Ad-hoc'}
+                      </span>
+                    </td>
+                    <td>{formatNumber(snapshot.row_count)}</td>
+                    <td>{snapshot.column_count}</td>
+                    <td>{snapshot.completeness_score ? `${snapshot.completeness_score.toFixed(1)}%` : 'N/A'}</td>
+                    <td>{snapshot.consistency_score ? `${snapshot.consistency_score.toFixed(1)}%` : 'N/A'}</td>
+                    <td>{snapshot.validity_score ? `${snapshot.validity_score.toFixed(1)}%` : 'N/A'}</td>
+                    <td>{snapshot.uniqueness_score ? `${snapshot.uniqueness_score.toFixed(1)}%` : 'N/A'}</td>
+                    <td>
+                      <span className={`quality-badge quality-${
+                        (snapshot.overall_quality_score || 0) >= 80 ? 'high' :
+                        (snapshot.overall_quality_score || 0) >= 60 ? 'medium' : 'low'
+                      }`}>
+                        {snapshot.overall_quality_score ? `${snapshot.overall_quality_score.toFixed(1)}%` : 'N/A'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="data-profile-container">
       {loading ? (
@@ -1375,6 +1593,12 @@ function DataProfile() {
               Distribution
             </button>
             <button 
+              className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              <FiClock className="tab-icon" /> Profile History
+            </button>
+            <button 
               className={`tab-button ${activeTab === 'preview' ? 'active' : ''}`}
               onClick={() => setActiveTab('preview')}
             >
@@ -1386,6 +1610,7 @@ function DataProfile() {
             {activeTab === 'attributes' && renderOverviewTab()}
             {activeTab === 'profile' && renderColumnsTab()}
             {activeTab === 'distribution' && renderDistributionTab()}
+            {activeTab === 'history' && renderHistoryTab()}
             {activeTab === 'preview' && renderPreviewTab()}
           </div>
         </>

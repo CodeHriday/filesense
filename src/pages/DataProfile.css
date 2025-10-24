@@ -1089,3 +1089,125 @@
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* Profile History Tab */
+.history-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.history-summary {
+  margin-bottom: var(--space-4);
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.summary-stats .stat {
+  text-align: center;
+  padding: var(--space-3);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+}
+
+.summary-stats .stat-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.summary-stats .stat-value {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.history-table-container {
+  overflow-x: auto;
+  margin-top: var(--space-4);
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.history-table thead {
+  background-color: var(--color-gray-100);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.history-table th {
+  padding: var(--space-3);
+  text-align: left;
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.history-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.history-table tbody tr:hover {
+  background-color: var(--color-gray-50);
+}
+
+.badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+}
+
+.badge-source {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.badge-target {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+.badge-adhoc {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.quality-badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+.quality-badge.quality-high {
+  background-color: #c8e6c9;
+  color: #2e7d32;
+}
+
+.quality-badge.quality-medium {
+  background-color: #fff9c4;
+  color: #f57f17;
+}
+
+.quality-badge.quality-low {
+  background-color: #ffcdd2;
+  color: #c62828;
+}
+
+.empty-state-hint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-2);
+}
