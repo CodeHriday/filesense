@@ -471,6 +471,79 @@ const uploadLimiter = rateLimit({
   }
 });
 
+// File processing status endpoint (exempt from rate limiting for polling)
+// Placed BEFORE general rate limiter to allow frequent polling without hitting limits
+// Uses simplified access check for performance
+app.get('/api/files/:fileId/status', 
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const userId = req.user.id;
+      
+      // Check if user is admin (admin bypass)
+      const isAdmin = req.user.roles && (
+        req.user.roles.includes('Admin') || 
+        req.user.roles.includes('admin') ||
+        req.user.roles.some(r => typeof r === 'object' && (
+          r.name === 'Admin' || r.name === 'admin' ||
+          r.role_name === 'Admin' || r.role_name === 'admin'
+        ))
+      );
+      
+      // Get file with project_id
+      const fileResult = await dbPool.query(
+        'SELECT processing_step, row_count, column_count, processed_at, project_id FROM files WHERE file_id = $1',
+        [fileId]
+      );
+      
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      
+      const file = fileResult.rows[0];
+      
+      // Check project access (skip for admins)
+      if (!isAdmin) {
+        const accessResult = await dbPool.query(
+          `SELECT 1 FROM project_members pm
+           WHERE pm.project_id = $1 AND pm.user_id = $2
+           UNION
+           SELECT 1 FROM access_group_members agm
+           JOIN project_access_groups pag ON agm.group_id = pag.group_id
+           WHERE pag.project_id = $1 AND agm.user_id = $2
+           LIMIT 1`,
+          [file.project_id, userId]
+        );
+        
+        if (accessResult.rows.length === 0) {
+          return res.status(403).json({ error: 'Access denied to this file\'s project' });
+        }
+      }
+      
+      const processingStep = file.processing_step || 'pending';
+      const isComplete = processingStep === 'complete' || file.processed_at !== null;
+      
+      res.json({
+        fileId,
+        step: processingStep,
+        isComplete,
+        rowCount: file.row_count,
+        columnCount: file.column_count,
+        processedAt: file.processed_at
+      });
+    } catch (err) {
+      logger.error('Error fetching file status', { 
+        error: err.message, 
+        stack: err.stack,
+        fileId: req.params.fileId,
+        userId: req.user?.id
+      });
+      res.status(500).json({ error: 'Failed to fetch file status' });
+    }
+  }
+);
+
 // Apply general rate limiting to all API routes
 app.use('/api/', generalLimiter);
 
@@ -777,45 +850,6 @@ app.get('/api/files/:fileId',
     } catch (err) {
       logger.error('Error fetching file details', { error: err.message, fileId: req.params.fileId });
       res.status(500).json({ error: 'Failed to fetch file details' });
-    }
-  }
-);
-
-// File processing status endpoint (no caching - real-time status)
-app.get('/api/files/:fileId/status', 
-  authenticateToken,
-  authorizeProjectResource({
-    resourceType: 'file',
-    requiredPermissions: ['file:read', 'file_view', 'file_upload:read', 'file_profile:read']
-  }),
-  async (req, res) => {
-    try {
-      const { fileId } = req.params;
-      
-      const result = await dbPool.query(
-        'SELECT processing_step, row_count, column_count, processed_at FROM files WHERE file_id = $1',
-        [fileId]
-      );
-      
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-      
-      const file = result.rows[0];
-      const processingStep = file.processing_step || 'pending';
-      const isComplete = processingStep === 'complete' || file.processed_at !== null;
-      
-      res.json({
-        fileId,
-        step: processingStep,
-        isComplete,
-        rowCount: file.row_count,
-        columnCount: file.column_count,
-        processedAt: file.processed_at
-      });
-    } catch (err) {
-      logger.error('Error fetching file status', { error: err.message, fileId: req.params.fileId });
-      res.status(500).json({ error: 'Failed to fetch file status' });
     }
   }
 );
