@@ -14,6 +14,7 @@ const {
 } = require('../utils/cloudStorageFileList');
 const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const { profileETLOutputFile, profileETLFile } = require('./etlProfilingService');
+const { profileFileBuffer, downloadAndProfileFile } = require('./transformationProfilingService');
 const crypto = require('crypto');
 
 /**
@@ -697,51 +698,50 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     // Create execution timestamp for profiling correlation (used for both source and target)
     const executionTimestamp = new Date();
     
-    // Step 3.5: Profile SOURCE file (capture baseline metrics before transformation)
-    if (!dryRun && parseResult.sourceRows && parseResult.sourceRows.length > 0) {
-      const sourceFileId = `source_${jobId}_${file.filename}`;
-      const sourceChecksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-      
-      // Extract source schema from first row
-      const sourceSchema = Object.keys(parseResult.sourceRows[0]).map((key, index) => ({
-        name: key,
-        type: inferDataType(parseResult.sourceRows[0][key])
-      }));
-      
-      // Calculate source column statistics
-      const sourceColumnStats = calculateColumnStatistics(parseResult.sourceRows, sourceSchema);
+    // Step 3.5: Profile SOURCE file using Python profilers (same as file upload)
+    // This downloads and profiles the actual S3 file instead of in-memory data
+    // IMPORTANT: Use the same file_id that will be used in audit records for proper joining
+    if (!dryRun && fileBuffer && fileBuffer.length > 0) {
+      const sourceFileId = file.file_id || `source_${file.filename}`;
       
       try {
         await logJobExecution(pool, jobId, 'info', 
-          `Profiling SOURCE file for baseline metrics`, {
+          `Profiling SOURCE file using Python profilers (matching file upload flow)`, {
           filename: file.filename,
-          rows: parseResult.sourceRows.length
+          fileSize: fileBuffer.length,
+          sourceFileId
         });
         
-        await profileETLFile(pool, {
-          fileId: sourceFileId,
+        // Profile source file buffer using Python scripts (same as file upload)
+        const sourceProfilingResult = await profileFileBuffer({
+          fileBuffer,
           filename: file.filename,
-          filepath: file.filename,
           fileType: fileExtension,
-          fileSize: fileBuffer.length,
-          rowCount: parseResult.sourceRows.length,
-          columnCount: sourceSchema.length,
-          schema: sourceSchema,
-          columnStats: sourceColumnStats,
-          checksum: sourceChecksum,
+          pool,
+          fileId: sourceFileId,
+          fileRole: 'source',
           mappingId: mapping.mapping_id,
           jobId,
           userId,
-          fileRole: 'source',
-          executionTimestamp,
           projectId: mapping.project_id
         });
         
-        await logJobExecution(pool, jobId, 'info', 
-          `SOURCE file profiling completed`, {
-          fileId: sourceFileId,
-          fileRole: 'source'
-        });
+        if (sourceProfilingResult.success) {
+          await logJobExecution(pool, jobId, 'info', 
+            `SOURCE file profiling completed`, {
+            fileId: sourceFileId,
+            fileRole: 'source',
+            rowCount: sourceProfilingResult.rowCount,
+            columnCount: sourceProfilingResult.columnCount,
+            qualityScore: sourceProfilingResult.qualityScore
+          });
+        } else {
+          await logJobExecution(pool, jobId, 'warn', 
+            `SOURCE file profiling failed: ${sourceProfilingResult.error}`, {
+            fileId: sourceFileId,
+            fileRole: 'source'
+          });
+        }
       } catch (sourceProfilingError) {
         // Log but don't fail the job if source profiling fails
         await logJobExecution(pool, jobId, 'warn', 
@@ -992,53 +992,51 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           });
         }
 
-        // Step 6: Profile the TARGET file (output file after transformation)
+        // Step 6: Profile the TARGET file using Python profilers (same as file upload)
+        // Download the uploaded file from S3 and profile it to ensure we profile what's actually stored
         try {
-          // Use the same execution timestamp from source profiling for correlation
           await logJobExecution(pool, jobId, 'info', 
-            `Profiling TARGET file for quality metrics and insights`, {
+            `Downloading and profiling TARGET file from S3 using Python profilers`, {
             filename: outputFilename,
             fileRole: 'target',
-            executionTimestamp
+            targetConnectionId: mapping.target_connection_id,
+            filePath: outputFilename
           });
 
-          // Calculate column statistics from transformed rows
-          const columnStats = calculateColumnStatistics(transformedRows, outputSchema);
-
-          const profilingResult = await profileETLFile(pool, {
-            fileId: `transformed_${jobId}_${file.filename}`,
+          // Download and profile the actual uploaded file from S3
+          const targetProfilingResult = await downloadAndProfileFile({
+            pool,
+            connectionId: mapping.target_connection_id,
+            filePath: outputFilename,
             filename: outputFilename,
-            filepath: uploadResult.location,
             fileType: outputFormat,
-            fileSize: outputBuffer.length,
-            rowCount: rowsWritten,
-            columnCount: outputSchema.length,
-            schema: outputSchema,
-            columnStats,
-            checksum: crypto.createHash('sha256').update(outputBuffer).digest('hex'),
+            fileId: `transformed_${jobId}_${file.filename}`,
+            fileRole: 'target',
             mappingId: mapping.mapping_id,
             jobId,
             userId,
-            fileRole: 'target',
-            executionTimestamp,
             projectId: mapping.project_id
           });
 
-          if (profilingResult.success) {
+          if (targetProfilingResult.success) {
             await logJobExecution(pool, jobId, 'info', 
-              `File profiling completed`, {
-              anomaliesDetected: profilingResult.anomaliesDetected,
-              checks: profilingResult.checks
+              `TARGET file profiling completed`, {
+              fileId: targetProfilingResult.fileId,
+              fileRole: 'target',
+              rowCount: targetProfilingResult.rowCount,
+              columnCount: targetProfilingResult.columnCount,
+              qualityScore: targetProfilingResult.qualityScore
             });
           } else {
             await logJobExecution(pool, jobId, 'warn', 
-              `File profiling failed: ${profilingResult.error}`
-            );
+              `TARGET file profiling failed: ${targetProfilingResult.error}`, {
+              fileRole: 'target'
+            });
           }
         } catch (profilingError) {
           // Log but don't fail the job if profiling fails
           await logJobExecution(pool, jobId, 'warn', 
-            `File profiling failed: ${profilingError.message}`, {
+            `TARGET file profiling failed: ${profilingError.message}`, {
             error: profilingError.stack
           });
         }
