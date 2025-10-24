@@ -244,39 +244,37 @@ async function profileETLFile(pool, fileData) {
       executionTimestamp
     });
 
-    // Step 1: Register or update file in the files table (only for target files)
+    // Step 1: Register or update file in the files table (for both source and target files)
     const fileId = fileData.fileId;
     const qualityScore = 100; // Will be updated after profiling
     
-    if (fileRole === 'target') {
-      await client.query(`
-        INSERT INTO files (
-          file_id, filename, file_type, file_size, row_count, column_count,
-          quality_score, checksum, created_at, updated_at, project_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
-        ON CONFLICT (file_id) 
-        DO UPDATE SET
-          filename = EXCLUDED.filename,
-          file_type = EXCLUDED.file_type,
-          file_size = EXCLUDED.file_size,
-          row_count = EXCLUDED.row_count,
-          column_count = EXCLUDED.column_count,
-          checksum = EXCLUDED.checksum,
-          updated_at = NOW()
-      `, [
-        fileId,
-        fileData.filename,
-        fileData.fileType,
-        fileData.fileSize,
-        fileData.rowCount,
-        fileData.columnCount,
-        qualityScore,
-        fileData.checksum,
-        fileData.projectId || null
-      ]);
+    await client.query(`
+      INSERT INTO files (
+        file_id, filename, file_type, file_size, row_count, column_count,
+        quality_score, checksum, created_at, updated_at, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
+      ON CONFLICT (file_id) 
+      DO UPDATE SET
+        filename = EXCLUDED.filename,
+        file_type = EXCLUDED.file_type,
+        file_size = EXCLUDED.file_size,
+        row_count = EXCLUDED.row_count,
+        column_count = EXCLUDED.column_count,
+        checksum = EXCLUDED.checksum,
+        updated_at = NOW()
+    `, [
+      fileId,
+      fileData.filename,
+      fileData.fileType,
+      fileData.fileSize,
+      fileData.rowCount,
+      fileData.columnCount,
+      qualityScore,
+      fileData.checksum,
+      fileData.projectId || null
+    ]);
 
-      systemLogger.info('File registered in files table', { fileId, fileRole });
-    }
+    systemLogger.info('File registered in files table', { fileId, fileRole });
 
     // Step 2: Populate file_columns table with historical tracking
     if (fileData.schema && fileData.schema.length > 0) {
