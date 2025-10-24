@@ -81,7 +81,7 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
           </div>
           <div className="attr-item">
             <label>Row Count</label>
-            <div>{formatNumber(data.load_step1_rec_cnt || 0)}</div>
+            <div>{formatNumber(data.load_step_1_rec_cnt || 0)}</div>
           </div>
           <div className="attr-item">
             <label>Column Count</label>
