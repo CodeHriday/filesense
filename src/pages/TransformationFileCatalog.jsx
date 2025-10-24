@@ -5,8 +5,10 @@ import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TransformationProfilingModal from '../components/TransformationProfilingModal';
+import TransformationDetailsPanel from '../components/TransformationDetailsPanel';
 import { PageTransition } from '../components/MicroAnimations';
 import { formatBytes, formatDate } from '../utils/formatters';
+import { getLineages } from '../api/lineageService';
 import './TransformationFileCatalog.css';
 
 const TransformationFileCatalog = () => {
@@ -18,6 +20,7 @@ const TransformationFileCatalog = () => {
   const [error, setError] = useState(null);
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [showProfilingModal, setShowProfilingModal] = useState(false);
+  const [selectedLineage, setSelectedLineage] = useState(null);
 
   useEffect(() => {
     fetchTransformationFiles();
@@ -96,6 +99,29 @@ const TransformationFileCatalog = () => {
     return Object.values(groupedFiles).reduce((sum, files) => sum + files.length, 0);
   };
 
+  const handleViewLineage = async (mappingName) => {
+    try {
+      // Fetch all lineage data
+      const lineageData = await getLineages();
+      
+      // Find the transformation lineage for this specific mapping
+      const transformationLineage = lineageData.transformation_lineage || [];
+      const mappingLineage = transformationLineage.find(
+        lineage => lineage.mapping_name === mappingName
+      );
+
+      if (mappingLineage) {
+        // Add type property for TransformationDetailsPanel
+        setSelectedLineage({ ...mappingLineage, type: 'transformation' });
+      } else {
+        alert(`No lineage found for mapping "${mappingName}"`);
+      }
+    } catch (err) {
+      console.error('Error fetching lineage:', err);
+      alert('Failed to load lineage data. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <PageTransition>
@@ -164,7 +190,7 @@ const TransformationFileCatalog = () => {
                         className="view-lineage-link"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate('/lineage');
+                          handleViewLineage(mappingName);
                         }}
                         title="View lineage for this mapping"
                       >
@@ -245,6 +271,14 @@ const TransformationFileCatalog = () => {
               setShowProfilingModal(false);
               setSelectedJobId(null);
             }}
+          />
+        )}
+
+        {/* Lineage Details Modal */}
+        {selectedLineage && (
+          <TransformationDetailsPanel
+            transformationData={selectedLineage}
+            onClose={() => setSelectedLineage(null)}
           />
         )}
       </div>
