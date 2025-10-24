@@ -76,12 +76,12 @@ router.get('/counts', async (req, res) => {
     };
     
     // Audit & Monitoring category
-    const fileAuditCount = await pool.query('SELECT COUNT(*) FROM file_audit_trail');
+    const fileAuditCount = await pool.query('SELECT COUNT(*) FROM file_audit_details');
     const alertsCount = await pool.query('SELECT COUNT(*) FROM alert_history');
     const insightsCount = await pool.query('SELECT COUNT(*) FROM file_pattern_metrics');
     
     counts.audits = {
-      file_audit_trail: parseInt(fileAuditCount.rows[0].count),
+      file_audit_details: parseInt(fileAuditCount.rows[0].count),
       alert_history: parseInt(alertsCount.rows[0].count),
       file_pattern_metrics: parseInt(insightsCount.rows[0].count)
     };
@@ -235,10 +235,10 @@ router.post('/', async (req, res) => {
     if (categories.includes('audits')) {
       const insightsResult = await client.query('DELETE FROM file_pattern_metrics RETURNING id');
       const alertsResult = await client.query('DELETE FROM alert_history RETURNING id');
-      const auditResult = await client.query('DELETE FROM file_audit_trail RETURNING id');
+      const auditResult = await client.query('DELETE FROM file_audit_details RETURNING id');
       
       deletedCounts.audits = {
-        file_audit_trail: auditResult.rowCount,
+        file_audit_details: auditResult.rowCount,
         alert_history: alertsResult.rowCount,
         file_pattern_metrics: insightsResult.rowCount
       };

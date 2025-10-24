@@ -35,7 +35,7 @@ const SystemCleanup = () => {
     audits: {
       name: 'Audit & Monitoring',
       description: 'All audit trails, alert history, and file insights metrics',
-      tables: ['file_audit_trail', 'alert_history', 'file_pattern_metrics']
+      tables: ['file_audit_details', 'alert_history', 'file_pattern_metrics']
     },
     projects: {
       name: 'Projects & Access Control',
@@ -293,7 +293,7 @@ const SystemCleanup = () => {
                     </div>
                     <p>{category.description}</p>
                     <div className="review-tables">
-                      {Object.entries(counts[key]).map(([table, count]) => (
+                      {counts[key] && Object.entries(counts[key]).map(([table, count]) => (
                         count > 0 && (
                           <div key={table} className="review-table">
                             <span>{table}</span>
