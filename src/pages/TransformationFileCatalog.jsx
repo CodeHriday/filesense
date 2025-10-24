@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowRight } from 'react-icons/fi';
+import { FiArrowRight, FiTrash2 } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -40,6 +40,21 @@ const TransformationFileCatalog = () => {
       setError('Failed to load transformation file catalog');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteProfiling = async (correlationId, fileName) => {
+    if (!window.confirm(`Are you sure you want to delete all profiling results for "${fileName}"? This will remove both source and target profiling data.`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/file-audit/correlation/${correlationId}`);
+      // Refresh the file list after deletion
+      await fetchTransformationFiles();
+    } catch (err) {
+      console.error('Error deleting profiling results:', err);
+      alert('Failed to delete profiling results. Please try again.');
     }
   };
 
@@ -132,16 +147,32 @@ const TransformationFileCatalog = () => {
                     </td>
                     <td>{file.project_name || 'Default Project'}</td>
                     <td>
-                      <button 
-                        className="btn btn-sm btn-primary"
-                        onClick={() => {
-                          setSelectedJobId(file.job_id);
-                          setShowProfilingModal(true);
-                        }}
-                        disabled={!file.job_id}
-                      >
-                        View Profiling Results
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          className="btn btn-sm btn-primary"
+                          onClick={() => {
+                            setSelectedJobId(file.job_id);
+                            setShowProfilingModal(true);
+                          }}
+                          disabled={!file.job_id}
+                        >
+                          View Profiling Results
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleDeleteProfiling(file.correlation_id, file.file_name)}
+                          disabled={!file.correlation_id}
+                          title="Delete profiling results"
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.25rem',
+                            padding: '0.375rem 0.75rem'
+                          }}
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
