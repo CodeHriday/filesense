@@ -12,7 +12,7 @@ import {
   FiAlertTriangle,
   FiRefreshCw,
   FiX,
-  FiGitCompare
+  FiColumns
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -307,7 +307,7 @@ function ETLJobDetails() {
               if (!profiles) fetchProfileComparison();
             }}
           >
-            <FiGitCompare /> Profile Comparison
+            <FiColumns /> Profile Comparison
           </button>
           <button
             className={`tab-button ${activeTab === 'logs' ? 'active' : ''}`}
@@ -366,7 +366,7 @@ function ETLJobDetails() {
                 </div>
               ) : !profiles.sourceProfile || !profiles.targetProfile ? (
                 <div className="empty-state">
-                  <FiGitCompare size={48} />
+                  <FiColumns size={48} />
                   <p>Profile comparison not available</p>
                   <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
                     Both source and target profiles are required for comparison
