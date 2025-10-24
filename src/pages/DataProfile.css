@@ -1043,3 +1043,49 @@
   font-style: italic;
   font-size: var(--text-sm);
 }
+
+/* Processing error banner */
+.processing-error-banner {
+  background-color: #fee;
+  border: 2px solid #dc3545;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.error-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.error-text-content h3 {
+  margin: 0 0 8px 0;
+  color: #dc3545;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.error-text-content p {
+  margin: 0;
+  color: #721c24;
+  font-size: 14px;
+  line-height: 1.5;
+}

@@ -1264,6 +1264,18 @@ function DataProfile() {
             </div>
           </div>
           
+          {file.processing_error && (
+            <div className="processing-error-banner">
+              <div className="error-banner-content">
+                <span className="error-icon">⚠️</span>
+                <div className="error-text-content">
+                  <h3>File Processing Failed</h3>
+                  <p>{file.processing_error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {showOwnershipModal && (
             <OwnershipModal
               fileId={fileId}
