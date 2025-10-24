@@ -373,6 +373,7 @@ function DataProfile() {
   const [showTagModal, setShowTagModal] = useState(false);
   const [profileHistory, setProfileHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFetched, setHistoryFetched] = useState(false);
   const [showColumnGovernanceTagModal, setShowColumnGovernanceTagModal] = useState(false);
   const [showColumnPolicyModal, setShowColumnPolicyModal] = useState(false);
   const [selectedColumn, setSelectedColumn] = useState(null);
@@ -1232,6 +1233,7 @@ function DataProfile() {
   const fetchProfileHistory = async () => {
     try {
       setHistoryLoading(true);
+      setHistoryFetched(true);
       const token = localStorage.getItem('token');
       const response = await axios.get(`/api/files/${fileId}/profile-history`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1246,8 +1248,8 @@ function DataProfile() {
   };
 
   const renderHistoryTab = () => {
-    // Fetch history when tab is first accessed
-    if (!profileHistory && !historyLoading) {
+    // Fetch history when tab is first accessed (only once)
+    if (!historyFetched && !historyLoading) {
       fetchProfileHistory();
     }
 

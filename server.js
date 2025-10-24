@@ -2945,19 +2945,16 @@ app.get('/api/files/:fileId/profile-history',
     // Get historical profiles (all profile snapshots with their timestamps)
     const historyResult = await dbPool.query(`
       SELECT 
-        pm.metric_id,
+        pm.id as metric_id,
         pm.profile_timestamp,
         pm.file_role,
-        pm.source_file_id,
-        pm.target_file_id,
         pm.row_count,
         pm.column_count,
         pm.completeness_score,
         pm.consistency_score,
         pm.validity_score,
-        pm.uniqueness_score,
         pm.overall_quality_score,
-        pm.created_at,
+        pm.profiled_at as created_at,
         (
           SELECT json_agg(
             json_build_object(
