@@ -40,10 +40,10 @@ const TransformationFileCatalog = () => {
 
     setGroupedFiles(grouped);
 
-    // Auto-expand all mappings on initial load
+    // Start all mappings collapsed
     const initialExpanded = {};
     Object.keys(grouped).forEach(key => {
-      initialExpanded[key] = true;
+      initialExpanded[key] = false;
     });
     setExpandedMappings(initialExpanded);
   }, [files]);
