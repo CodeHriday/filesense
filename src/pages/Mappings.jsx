@@ -147,7 +147,7 @@ function Mappings() {
           <button 
             className="btn btn-primary"
             onClick={handleCreateMapping}
-            disabled={!hasWritePermission}
+            disabled={!hasWritePermission('transformation')}
           >
             <FiPlus /> Create Mapping
           </button>
@@ -227,7 +227,7 @@ function Mappings() {
                           <td>{formatDate(mapping.created_at)}</td>
                           <td>
                             <div className="table-actions">
-                              {hasExecutePermission('mapping') && (
+                              {hasExecutePermission('transformation') && (
                                 <button
                                   className="icon-btn"
                                   onClick={() => handleExecuteMapping(mapping.mapping_id)}
@@ -236,7 +236,7 @@ function Mappings() {
                                   <FiPlay />
                                 </button>
                               )}
-                              {hasWritePermission('mapping') && (
+                              {hasWritePermission('transformation') && (
                                 <>
                                   <button
                                     className="icon-btn"
