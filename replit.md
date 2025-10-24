@@ -8,6 +8,8 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 ### October 24, 2025
+- **Transformation Output File Fixes**: Fixed cloud storage target file path bug where transformation outputs were uploading to bucket root instead of specified folder paths (e.g., `dp-de-target/` within bucket). Fixed target file profiling failure caused by undefined `mappingId` variable.
+- **Transformation File Catalog**: Created new page under Jobs and Monitoring section at `/transformation-catalog` to track all transformation-generated output files. Removed Profile History tab from File Profile page as it fits better in this dedicated catalog view. Added `transformation_catalog:read` permission to Admin, Data Engineer, Data Steward, and Viewer roles.
 - **Mandatory Project Selection**: Mapping Groups and N-Step Workflows now require explicit project selection during creation. Authorization middleware added to POST routes with `authorizeProjectResource` using `mapping_group:create` and `workflow:create` permissions. Zero-tolerance security - no default project fallbacks for non-admin users.
 - **Permission Standardization**: Fixed permission checks in Mappings.jsx to use 'transformation' instead of 'mapping' for edit/delete/execute buttons, aligning with standardized colon-separated permission format.
 - **Jobs Log Enhancement**: Added Project column as first data column in Jobs Log display (frontend). Backend already supported project_name via JOIN with transformation_mappings and projects tables.
