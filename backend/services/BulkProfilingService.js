@@ -108,6 +108,108 @@ class BulkProfilingService {
   }
   
   /**
+   * Browse S3 path - list folders and files for navigation
+   */
+  async browseS3Path(connectionId, s3Path = '') {
+    try {
+      // Get connection details
+      const connection = await connectionService.getConnectionById(connectionId);
+      
+      if (!connection) {
+        throw new Error(`Connection ${connectionId} not found`);
+      }
+      
+      if (connection.type !== 'aws') {
+        throw new Error(`Connection type ${connection.type} not supported. Only AWS S3 is supported`);
+      }
+      
+      // Decrypt connection config
+      const config = connectionService.decryptSensitiveFields(connection.type, connection.config);
+      
+      // Parse S3 path
+      let bucketName = config.bucket_name;
+      let prefix = '';
+      
+      if (s3Path.startsWith('s3://')) {
+        const pathParts = s3Path.replace('s3://', '').split('/');
+        bucketName = pathParts[0];
+        prefix = pathParts.slice(1).join('/');
+      } else {
+        prefix = s3Path.replace(/^\//, ''); // Remove leading slash
+      }
+      
+      // Ensure prefix ends with / if not empty
+      if (prefix && !prefix.endsWith('/')) {
+        prefix += '/';
+      }
+      
+      // Configure AWS S3
+      const s3 = new AWS.S3({
+        accessKeyId: config.access_key,
+        secretAccessKey: config.secret_key,
+        region: config.region
+      });
+      
+      // List objects at this level only (non-recursive)
+      const params = {
+        Bucket: bucketName,
+        Prefix: prefix,
+        Delimiter: '/',
+        MaxKeys: 1000
+      };
+      
+      const data = await s3.listObjectsV2(params).promise();
+      
+      // Extract folders (CommonPrefixes)
+      const folders = (data.CommonPrefixes || []).map(item => {
+        const folderPath = item.Prefix;
+        const folderName = folderPath.slice(prefix.length).replace(/\/$/, '');
+        return {
+          name: folderName,
+          path: `/${folderPath}`,
+          type: 'folder'
+        };
+      });
+      
+      // Extract files (Contents) - only those directly in this folder
+      const compatibleExtensions = ['.csv', '.json', '.parquet', '.xlsx', '.xml'];
+      const files = (data.Contents || [])
+        .filter(item => {
+          // Skip the folder itself and folders (keys ending with /)
+          if (item.Key === prefix || item.Key.endsWith('/')) return false;
+          
+          const fileName = path.basename(item.Key);
+          const fileExt = path.extname(fileName).toLowerCase();
+          
+          // Only include compatible file types
+          return compatibleExtensions.includes(fileExt);
+        })
+        .map(item => {
+          const fileName = path.basename(item.Key);
+          const fileExt = path.extname(fileName).toLowerCase();
+          return {
+            name: fileName,
+            path: `/${item.Key}`,
+            type: fileExt.replace('.', ''),
+            size: item.Size,
+            lastModified: item.LastModified
+          };
+        });
+      
+      return {
+        currentPath: prefix ? `/${prefix.replace(/\/$/, '')}` : '/',
+        bucketName,
+        folders,
+        files
+      };
+      
+    } catch (error) {
+      systemLogger.error('Error browsing S3 path', { error: error.message });
+      throw error;
+    }
+  }
+  
+  /**
    * Check if filename matches pattern (supports * wildcard)
    */
   matchesPattern(filename, pattern) {

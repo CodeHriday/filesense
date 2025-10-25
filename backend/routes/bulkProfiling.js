@@ -10,6 +10,40 @@ const authenticateToken = require('../middleware/authenticate');
 const { systemLogger } = require('../utils/logger');
 
 /**
+ * POST /api/bulk-profiling/browse
+ * Browse S3 folders and files at a given path
+ */
+router.post('/browse', authenticateToken, async (req, res) => {
+  try {
+    const { connectionId, s3Path } = req.body;
+    
+    if (!connectionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Connection ID is required'
+      });
+    }
+    
+    const contents = await BulkProfilingService.browseS3Path(
+      connectionId,
+      s3Path || ''
+    );
+    
+    res.json({
+      success: true,
+      ...contents
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error browsing S3 path', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * POST /api/bulk-profiling/discover
  * Discover files from S3 path
  */
