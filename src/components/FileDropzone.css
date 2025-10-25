@@ -35,10 +35,14 @@
   margin-bottom: var(--space-4);
 }
 
-.success-icon {
-  font-size: 3rem;
-  color: var(--color-success);
+.success-icon-wrapper {
   margin-bottom: var(--space-4);
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  color: var(--color-success);
 }
 
 .error-icon {
