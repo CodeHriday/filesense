@@ -2263,6 +2263,15 @@ app.use('/api/dbt', authenticateToken, dbtRoutes);
 const dropLocationRoutes = require('./backend/routes/dropLocation');
 app.use('/api/drop-location', authenticateToken, dropLocationRoutes);
 
+// Bulk profiling routes
+try {
+  const bulkProfilingRoutes = require('./backend/routes/bulkProfiling');
+  app.use('/api/bulk-profiling', authenticateToken, bulkProfilingRoutes);
+  console.log('✓ Registered /api/bulk-profiling route');
+} catch (error) {
+  console.error('✗ Failed to register /api/bulk-profiling:', error.message);
+}
+
 // Transformation routes
 try {
   const transformationRoutes = require('./backend/routes/transformations');

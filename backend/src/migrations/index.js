@@ -217,6 +217,80 @@ const migrations = [
       await client.query('DROP TABLE IF EXISTS file_mappings');
       console.log('File mappings migration rolled back');
     }
+  },
+  {
+    name: '004_add_bulk_profiling',
+    up: async (client) => {
+      // Create bulk_profiling_jobs table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS bulk_profiling_jobs (
+          id VARCHAR(36) PRIMARY KEY,
+          job_name VARCHAR(255) NOT NULL,
+          project_id INTEGER,
+          connection_id INTEGER NOT NULL,
+          s3_path TEXT NOT NULL,
+          file_pattern VARCHAR(255) DEFAULT '*',
+          duplicate_handling VARCHAR(50) DEFAULT 'skip',
+          recursive BOOLEAN DEFAULT FALSE,
+          status VARCHAR(50) DEFAULT 'pending',
+          total_files INTEGER DEFAULT 0,
+          processed_files INTEGER DEFAULT 0,
+          successful_files INTEGER DEFAULT 0,
+          failed_files INTEGER DEFAULT 0,
+          error_message TEXT,
+          execution_type VARCHAR(50) DEFAULT 'manual',
+          schedule_id VARCHAR(36),
+          created_by VARCHAR(36) REFERENCES users(id),
+          started_at TIMESTAMP,
+          completed_at TIMESTAMP,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `);
+      
+      // Create bulk_profiling_files table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS bulk_profiling_files (
+          id SERIAL PRIMARY KEY,
+          job_id VARCHAR(36) NOT NULL REFERENCES bulk_profiling_jobs(id) ON DELETE CASCADE,
+          file_path TEXT NOT NULL,
+          file_name VARCHAR(255) NOT NULL,
+          file_size BIGINT,
+          file_type VARCHAR(50),
+          status VARCHAR(50) DEFAULT 'pending',
+          file_id VARCHAR(255),
+          error_message TEXT,
+          started_at TIMESTAMP,
+          completed_at TIMESTAMP,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `);
+      
+      // Create indexes for performance
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_bulk_profiling_jobs_status ON bulk_profiling_jobs(status);
+      `);
+      
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_bulk_profiling_jobs_created_by ON bulk_profiling_jobs(created_by);
+      `);
+      
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_bulk_profiling_files_job_id ON bulk_profiling_files(job_id);
+      `);
+      
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_bulk_profiling_files_status ON bulk_profiling_files(status);
+      `);
+      
+      console.log('Bulk profiling migration completed');
+    },
+    down: async (client) => {
+      await client.query('DROP TABLE IF EXISTS bulk_profiling_files');
+      await client.query('DROP TABLE IF EXISTS bulk_profiling_jobs');
+      console.log('Bulk profiling migration rolled back');
+    }
   }
 ];
 

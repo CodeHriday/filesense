@@ -5,6 +5,7 @@ import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
 import StepProgress from '../components/StepProgress';
+import BulkProfilingTab from '../components/BulkProfilingTab';
 import { uploadFile, uploadFilesBatch, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
@@ -743,6 +744,12 @@ function FileUpload() {
               Drop File (S3 Direct)
             </button>
           )}
+          <button 
+            className={`tab-button ${activeTab === 'bulk-profiling' ? 'active' : ''}`}
+            onClick={() => setActiveTab('bulk-profiling')}
+          >
+            Bulk Profiling
+          </button>
         </div>
         
         <div className="upload-instructions">
@@ -927,6 +934,11 @@ function FileUpload() {
               <p>You do not have permission to drop files. Please contact an administrator.</p>
             </div>
           )
+        )}
+        
+        {/* Bulk Profiling tab */}
+        {activeTab === 'bulk-profiling' && (
+          <BulkProfilingTab selectedProject={selectedProject} />
         )}
         
         {uploadStatus === 'success' && uploadedFile && activeTab === 'upload-profile' && !isProcessing && !batchResults && (
