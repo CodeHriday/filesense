@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import './FileDropzone.css';
 
-function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null, externalStatus = null }) {
+function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null, externalStatus = null }) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
@@ -124,8 +124,82 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
     
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      if (multiple) {
-        // Handle multiple files
+      if (multiple && onBatchFileDrop) {
+        // Handle batch upload - all files in one request
+        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
+        setCompletedFiles([]);
+        setUploadStatus('uploading');
+        
+        // Validate all files first
+        const validFiles = [];
+        const invalidFiles = [];
+        
+        for (const file of files) {
+          const error = validateFile(file);
+          if (error) {
+            invalidFiles.push({ name: file.name, error });
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'error', error } : f
+            ));
+          } else {
+            validFiles.push(file);
+          }
+        }
+        
+        // If we have valid files, send batch upload
+        if (validFiles.length > 0) {
+          try {
+            // Call batch upload with progress handler
+            const result = await onBatchFileDrop(validFiles, (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(percentCompleted);
+            });
+            
+            // Process batch response - update each file status based on results
+            if (result.results) {
+              result.results.forEach(fileResult => {
+                if (fileResult.success) {
+                  setUploadingFiles(prev => prev.map(f => 
+                    f.name === fileResult.filename ? { ...f, status: 'success', progress: 100 } : f
+                  ));
+                  setCompletedFiles(prev => [...prev, fileResult.filename]);
+                } else {
+                  setUploadingFiles(prev => prev.map(f => 
+                    f.name === fileResult.filename ? { ...f, status: 'error', error: fileResult.message } : f
+                  ));
+                }
+              });
+            }
+            
+            // Set overall status
+            const successCount = result.successCount || 0;
+            const failedCount = (result.failedCount || 0) + invalidFiles.length;
+            
+            if (successCount > 0 && failedCount === 0) {
+              setUploadStatus('success');
+            } else if (successCount === 0 && failedCount > 0) {
+              setUploadStatus('error');
+              setFileError(`All ${failedCount} file(s) failed to upload`);
+            } else if (successCount > 0 && failedCount > 0) {
+              setUploadStatus('partial');
+              setFileError(`${failedCount} of ${files.length} file(s) failed to upload`);
+            }
+          } catch (err) {
+            console.error('Batch upload error:', err);
+            setUploadStatus('error');
+            setFileError(err.message || 'Batch upload failed');
+            // Mark all pending files as errors
+            setUploadingFiles(prev => prev.map(f => 
+              f.status === 'pending' ? { ...f, status: 'error', error: 'Upload failed' } : f
+            ));
+          }
+        } else {
+          // All files were invalid
+          setUploadStatus('error');
+          setFileError(`All ${files.length} file(s) failed validation`);
+        }
+      } else if (multiple) {
+        // Handle multiple files individually (legacy mode)
         setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
         setCompletedFiles([]);
         setUploadStatus('uploading');
@@ -135,8 +209,6 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         
         // Helper to update individual file status
         const updateFileStatus = (fileName, status, progress = 0) => {
-          // Use flushSync for 'scanning' status to force immediate render
-          // This ensures users see the scanning indicator during the 15-18s virus scan
           if (status === 'scanning') {
             flushSync(() => {
               setUploadingFiles(prev => prev.map(f => 
@@ -204,13 +276,87 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         processFileUpload(file);
       }
     }
-  }, [validateFile, processFileUpload, multiple]);
+  }, [validateFile, processFileUpload, multiple, onBatchFileDrop]);
   
   const handleFileSelect = useCallback(async (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      if (multiple) {
-        // Handle multiple files
+      if (multiple && onBatchFileDrop) {
+        // Handle batch upload - all files in one request
+        setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
+        setCompletedFiles([]);
+        setUploadStatus('uploading');
+        
+        // Validate all files first
+        const validFiles = [];
+        const invalidFiles = [];
+        
+        for (const file of files) {
+          const error = validateFile(file);
+          if (error) {
+            invalidFiles.push({ name: file.name, error });
+            setUploadingFiles(prev => prev.map(f => 
+              f.name === file.name ? { ...f, status: 'error', error } : f
+            ));
+          } else {
+            validFiles.push(file);
+          }
+        }
+        
+        // If we have valid files, send batch upload
+        if (validFiles.length > 0) {
+          try {
+            // Call batch upload with progress handler
+            const result = await onBatchFileDrop(validFiles, (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(percentCompleted);
+            });
+            
+            // Process batch response - update each file status based on results
+            if (result.results) {
+              result.results.forEach(fileResult => {
+                if (fileResult.success) {
+                  setUploadingFiles(prev => prev.map(f => 
+                    f.name === fileResult.filename ? { ...f, status: 'success', progress: 100 } : f
+                  ));
+                  setCompletedFiles(prev => [...prev, fileResult.filename]);
+                } else {
+                  setUploadingFiles(prev => prev.map(f => 
+                    f.name === fileResult.filename ? { ...f, status: 'error', error: fileResult.message } : f
+                  ));
+                }
+              });
+            }
+            
+            // Set overall status
+            const successCount = result.successCount || 0;
+            const failedCount = (result.failedCount || 0) + invalidFiles.length;
+            
+            if (successCount > 0 && failedCount === 0) {
+              setUploadStatus('success');
+            } else if (successCount === 0 && failedCount > 0) {
+              setUploadStatus('error');
+              setFileError(`All ${failedCount} file(s) failed to upload`);
+            } else if (successCount > 0 && failedCount > 0) {
+              setUploadStatus('partial');
+              setFileError(`${failedCount} of ${files.length} file(s) failed to upload`);
+            }
+          } catch (err) {
+            console.error('Batch upload error:', err);
+            setUploadStatus('error');
+            setFileError(err.message || 'Batch upload failed');
+            // Mark all pending files as errors
+            setUploadingFiles(prev => prev.map(f => 
+              f.status === 'pending' ? { ...f, status: 'error', error: 'Upload failed' } : f
+            ));
+          }
+        } else {
+          // All files were invalid
+          setUploadStatus('error');
+          setFileError(`All ${files.length} file(s) failed validation`);
+        }
+      } else if (multiple) {
+        // Handle multiple files individually (legacy mode)
         setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
         setCompletedFiles([]);
         setUploadStatus('uploading');
@@ -220,8 +366,6 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         
         // Helper to update individual file status
         const updateFileStatus = (fileName, status, progress = 0) => {
-          // Use flushSync for 'scanning' status to force immediate render
-          // This ensures users see the scanning indicator during the 15-18s virus scan
           if (status === 'scanning') {
             flushSync(() => {
               setUploadingFiles(prev => prev.map(f => 
@@ -289,7 +433,7 @@ function FileDropzone({ onFileDrop, acceptedFileTypes = ['.csv', '.json', '.parq
         processFileUpload(file);
       }
     }
-  }, [validateFile, processFileUpload, multiple]);
+  }, [validateFile, processFileUpload, multiple, onBatchFileDrop]);
   
   // Use externalStatus if provided, otherwise use internal uploadStatus
   const currentStatus = externalStatus || uploadStatus;

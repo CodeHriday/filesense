@@ -5,7 +5,7 @@ import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
 import StepProgress from '../components/StepProgress';
-import { uploadFile, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
+import { uploadFile, uploadFilesBatch, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
 import axios from 'axios';
@@ -254,6 +254,50 @@ function FileUpload() {
     } catch (error) {
       console.error('Error checking for duplicate or uploading file:', error);
       setDiagnosticInfo(prev => prev + `Error: ${error.message}\n`);
+      setUploadStatus('error');
+      setCurrentStep(null);
+      setIsProcessing(false);
+      throw error;
+    }
+  };
+
+  const handleBatchFileDrop = async (files, progressHandler) => {
+    try {
+      setDiagnosticInfo(`Starting batch upload for ${files.length} files...\n`);
+      setUploadStatus('uploading');
+      setIsProcessing(true);
+      setCurrentStep('uploading');
+      setUploadProgress(0);
+      
+      // Create a wrapped progress handler that updates our state
+      const wrappedProgressHandler = (progressEvent) => {
+        const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        setUploadProgress(percentage);
+        
+        // Call the original progress handler
+        if (progressHandler) {
+          progressHandler(progressEvent);
+        }
+      };
+      
+      // Validate project selection
+      if (!selectedProject) {
+        throw new Error('Please select a project before uploading');
+      }
+      
+      // Upload files in batch with progress tracking
+      const result = await uploadFilesBatch(files, wrappedProgressHandler, fileOwner, selectedProject);
+      
+      setDiagnosticInfo(prev => prev + `Batch upload successful: ${result.successCount} files uploaded, ${result.failedCount} failed\n`);
+      
+      setUploadStatus('success');
+      setCurrentStep('complete');
+      setIsProcessing(false);
+      
+      return result;
+    } catch (error) {
+      console.error('Error in batch upload:', error);
+      setDiagnosticInfo(prev => prev + `Batch upload error: ${error.message}\n`);
       setUploadStatus('error');
       setCurrentStep(null);
       setIsProcessing(false);
@@ -700,8 +744,10 @@ function FileUpload() {
               <FileDropzone 
                 key={`profile-${dropzoneKey}`}
                 onFileDrop={handleFileDrop}
+                onBatchFileDrop={handleBatchFileDrop}
                 acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
                 maxSizeMB={50}
+                multiple={true}
                 externalStatus={uploadStatus}
               />
             ) : (
@@ -730,6 +776,7 @@ function FileUpload() {
             <FileDropzone 
               key={`drop-${dropzoneKey}`}
               onFileDrop={handleDropFile}
+              onBatchFileDrop={handleBatchFileDrop}
               acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
               maxSizeMB={50}
               multiple={true}

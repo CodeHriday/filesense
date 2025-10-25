@@ -177,6 +177,43 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
 };
 
 /**
+ * Upload multiple files in a single batch request with progress tracking
+ */
+export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null) => {
+  try {
+    const formData = new FormData();
+    
+    // Append all files with 'files' field name (backend expects array)
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    
+    if (owner) {
+      formData.append('owner', owner);
+    }
+    if (projectId) {
+      formData.append('project_id', projectId);
+    }
+    
+    const response = await axios.post(`${API_URL}/files/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressCallback && typeof progressCallback === 'function') {
+          progressCallback(progressEvent);
+        }
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    throw new Error(error.response?.data?.message || 'Failed to upload files');
+  }
+};
+
+/**
  * Run quality checks on a file
  */
 export const runQualityCheck = async (fileId, rules = null) => {
