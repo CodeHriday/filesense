@@ -7,6 +7,9 @@ Data File Observatory is a comprehensive platform for monitoring and analyzing d
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+### October 25, 2025
+- **Mapping Group Members Permission Fix**: Fixed GET /api/mapping-groups/:id/members endpoint that was requiring legacy `mapping_group_view` permission alongside `mapping_group:read`. This was causing 403 Forbidden errors that made mappings appear to "disappear" after being added to groups. Now uses only standardized `mapping_group:read` permission, consistent with other read endpoints.
+
 ### October 24, 2025
 - **Transformation Output File Fixes**: Fixed cloud storage target file path bug where transformation outputs were uploading to bucket root instead of specified folder paths (e.g., `dp-de-target/` within bucket). Fixed target file profiling failure caused by undefined `mappingId` variable.
 - **Transformation File Catalog**: Created new page under Jobs and Monitoring section at `/transformation-catalog` to track all transformation-generated output files. Removed Profile History tab from File Profile page as it fits better in this dedicated catalog view. Added `transformation_catalog:read` permission to Admin, Data Engineer, Data Steward, and Viewer roles.
