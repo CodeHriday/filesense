@@ -17,7 +17,7 @@ class BulkProfilingService {
   async discoverFiles(connectionId, s3Path, filePattern = '*', recursive = false) {
     try {
       // Get connection details
-      const connection = await connectionService.getConnection(connectionId);
+      const connection = await connectionService.getConnectionById(connectionId);
       
       if (!connection) {
         throw new Error(`Connection ${connectionId} not found`);
@@ -28,7 +28,7 @@ class BulkProfilingService {
       }
       
       // Decrypt connection config
-      const config = await connectionService.decryptConnectionConfig(connection.config);
+      const config = connectionService.decryptSensitiveFields(connection.type, connection.config);
       
       // Parse S3 path (format: s3://bucket/prefix or just /prefix)
       let bucketName = config.bucket_name;
@@ -436,12 +436,12 @@ class BulkProfilingService {
    */
   async _processFilesAsync(jobId, job, userId) {
     try {
-      const connection = await connectionService.getConnection(job.connection_id);
+      const connection = await connectionService.getConnectionById(job.connection_id);
       if (!connection) {
         throw new Error('Connection not found');
       }
       
-      const config = await connectionService.decryptConnectionConfig(connection.config);
+      const config = connectionService.decryptSensitiveFields(connection.type, connection.config);
       
       // Configure AWS S3
       const s3 = new AWS.S3({
