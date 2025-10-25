@@ -339,8 +339,16 @@ function FileUpload() {
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
-      // Extract fileId from either result.fileId or result.file.file_id
-      const fileId = result.fileId || (result.file && result.file.file_id);
+      // Extract fileId - handle both batch response (results array) and legacy single response
+      let fileId;
+      if (result.results && result.results.length > 0) {
+        // Batch response: extract from first result
+        const firstResult = result.results[0];
+        fileId = firstResult.fileId || (firstResult.file && firstResult.file.file_id);
+      } else {
+        // Legacy single file response
+        fileId = result.fileId || (result.file && result.file.file_id);
+      }
       console.log('Extracted file ID from result:', fileId);
       
       const fileDetails = {
@@ -395,7 +403,16 @@ function FileUpload() {
       } catch (deleteError) {
         // Log deletion error but don't fail the upload since new file is already uploaded
         console.error('Error deleting existing file:', deleteError);
-        setDiagnosticInfo(prev => prev + `Warning: Could not delete existing file: ${deleteError.message}\n`);
+        const errorMsg = deleteError.message || 'Unknown error';
+        
+        // Show user-friendly error message based on the type of error
+        if (errorMsg.includes('permission') || errorMsg.includes('Access denied')) {
+          setDiagnosticInfo(prev => prev + `Warning: Could not delete existing file: You do not have the required permissions for this action\n`);
+          alert('New file uploaded successfully! However, the old file could not be deleted due to missing permissions. Please contact your administrator to remove the old file.');
+        } else {
+          setDiagnosticInfo(prev => prev + `Warning: Could not delete existing file: ${errorMsg}\n`);
+          alert(`New file uploaded successfully! However, the old file could not be deleted: ${errorMsg}`);
+        }
       }
       
       // Clean up state after successful replace
