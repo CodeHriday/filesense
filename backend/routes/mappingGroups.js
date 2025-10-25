@@ -411,6 +411,68 @@ router.delete('/:id/members/:memberId',
   }
 });
 
+// Replace all members atomically (PUT endpoint for bulk sync)
+router.put('/:id/members',
+  authorizeProjectResource({
+    resourceType: 'mapping_group',
+    requiredPermissions: ['mapping_group:update']
+  }),
+  async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { id } = req.params;
+    const { members } = req.body; // Array of {mapping_id, execution_order}
+    
+    if (!Array.isArray(members)) {
+      return res.status(400).json({
+        success: false,
+        error: 'members must be an array'
+      });
+    }
+
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Delete all existing members
+    await client.query('DELETE FROM mapping_group_members WHERE group_id = $1', [id]);
+    
+    // Insert all new members
+    for (const member of members) {
+      await client.query(`
+        INSERT INTO mapping_group_members (group_id, mapping_id, execution_order)
+        VALUES ($1, $2, $3)
+      `, [id, member.mapping_id, member.execution_order]);
+    }
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
+    systemLogger.info('Mapping group members replaced', { 
+      groupId: id, 
+      memberCount: members.length 
+    });
+    
+    res.json({
+      success: true,
+      message: 'Members updated successfully',
+      count: members.length
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    systemLogger.error('Error replacing group members', { 
+      groupId: req.params.id, 
+      error: error.message 
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update members'
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // Execute a mapping group
 router.post('/:id/execute',
   authorizeProjectResource({

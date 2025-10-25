@@ -100,6 +100,17 @@ const MappingGroupForm = () => {
           description: formData.description,
           max_concurrency: formData.concurrency_limit
         });
+
+        // Sync members using atomic PUT endpoint
+        // This replaces all members in a single database transaction
+        const membersPayload = members.map((m, index) => ({
+          mapping_id: m.mapping_id,
+          execution_order: index + 1
+        }));
+        
+        await axios.put(`/api/mapping-groups/${groupId}/members`, {
+          members: membersPayload
+        });
       } else {
         // Backend expects: name, description, max_concurrency, project_id
         const response = await axios.post('/api/mapping-groups', {
