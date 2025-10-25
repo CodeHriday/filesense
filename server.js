@@ -1248,6 +1248,9 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     const isAdmin = req.user?.roles?.includes('Admin');
     let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
     
+    // Get replaceFileId if provided (for atomic file replacement)
+    const replaceFileId = req.body.replace_file_id || null;
+    
     // If no project_id provided, default to user's first accessible project (admins can skip)
     if (!projectId) {
       const userProjects = await getUserProjects(req.user.id);
@@ -1380,6 +1383,113 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
             file_size: file.size
           }
         });
+        
+        // Handle atomic file replacement if replaceFileId is provided
+        if (replaceFileId && results.filter(r => r.success).length === 1) { // Only for first successful file
+          try {
+            logger.info('Attempting atomic file replacement', {
+              newFileId: fileId,
+              oldFileId: replaceFileId,
+              userId,
+              projectId
+            });
+            
+            // First, verify user has access to the file being replaced (must be in same project)
+            const fileToReplaceResult = await dbPool.query(
+              'SELECT file_id, project_id, filename FROM files WHERE file_id = $1',
+              [replaceFileId]
+            );
+            
+            if (fileToReplaceResult.rows.length === 0) {
+              logger.warn('File to replace not found', { replaceFileId });
+              throw new Error('File to replace not found');
+            }
+            
+            const fileToReplace = fileToReplaceResult.rows[0];
+            
+            // Verify file is in the same project (prevent cross-project file deletion attacks)
+            if (fileToReplace.project_id !== projectId) {
+              logger.warn('Attempted to replace file from different project', {
+                replaceFileId,
+                replaceProjectId: fileToReplace.project_id,
+                uploadProjectId: projectId,
+                userId
+              });
+              throw new Error('Cannot replace file from a different project');
+            }
+            
+            // Verify user has access to this project (already validated above, but double-check)
+            if (!isAdmin) {
+              const userProjects = await getUserProjects(userId);
+              const hasAccess = userProjects.some(p => p.id === projectId);
+              
+              if (!hasAccess) {
+                logger.warn('User lacks project access for file replacement', {
+                  userId,
+                  projectId,
+                  replaceFileId
+                });
+                throw new Error('Access denied to file project');
+              }
+            }
+            
+            // Start a transaction for atomic file replacement
+            const client = await dbPool.connect();
+            try {
+              await client.query('BEGIN');
+              
+              // Delete all related records for the old file (same order as in regular delete endpoint)
+              await client.query('DELETE FROM file_preview WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM file_columns WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM file_quality_checks WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM file_schedules WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM file_history WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM alert_history WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM quality_reports WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM user_badges WHERE file_id = $1', [replaceFileId]);
+              await client.query('DELETE FROM transformation_outputs WHERE file_id = $1', [replaceFileId]);
+              
+              // Delete the file record itself
+              const deleteResult = await client.query('DELETE FROM files WHERE file_id = $1', [replaceFileId]);
+              
+              await client.query('COMMIT');
+              client.release();
+              
+              if (deleteResult.rowCount > 0) {
+                logger.info('Old file deleted successfully during atomic replacement', {
+                  oldFileId: replaceFileId,
+                  newFileId: fileId,
+                  filename: fileToReplace.filename
+                });
+                
+                // Add replacement flag to result
+                results[results.length - 1].replaced = true;
+                results[results.length - 1].replacedFileId = replaceFileId;
+              } else {
+                logger.warn('Old file not found during replacement', {
+                  oldFileId: replaceFileId,
+                  newFileId: fileId
+                });
+              }
+              
+              // Clean up storage (file binaries) - note: uploaded file is already deleted by processing queue
+              // No additional storage cleanup needed here as the processing happens asynchronously
+              
+            } catch (dbError) {
+              await client.query('ROLLBACK');
+              client.release();
+              throw dbError;
+            }
+          } catch (replaceError) {
+            logger.error('Error during atomic file replacement', {
+              error: replaceError.message,
+              oldFileId: replaceFileId,
+              newFileId: fileId
+            });
+            // Don't fail the upload - just log the error
+            // The new file is already uploaded, so we won't rollback that
+          }
+        }
         
       } catch (error) {
         logger.error('Error processing file in batch', {

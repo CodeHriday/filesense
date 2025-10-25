@@ -310,7 +310,7 @@ function FileUpload() {
     }
   };
 
-  const proceedWithUpload = async (file, progressHandler) => {
+  const proceedWithUpload = async (file, progressHandler, replaceFileId = null) => {
     try {
       setDiagnosticInfo(`Starting file upload for ${file.name} (${file.size} bytes, type: ${file.type})...\n`);
       setUploadStatus('uploading');
@@ -334,8 +334,8 @@ function FileUpload() {
         throw new Error('Please select a project before uploading');
       }
       
-      // Upload the file with progress tracking
-      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject);
+      // Upload the file with progress tracking (optionally with atomic replacement)
+      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -382,6 +382,10 @@ function FileUpload() {
     }
   };
 
+  const proceedWithUploadWithReplacement = async (file, progressHandler, replaceFileId) => {
+    return proceedWithUpload(file, progressHandler, replaceFileId);
+  };
+
   const handleReplaceFile = async () => {
     setShowDuplicateModal(false);
     
@@ -393,26 +397,14 @@ function FileUpload() {
     }
     
     try {
-      // Upload new file FIRST
-      await proceedWithUpload(pendingFile, pendingProgressHandler);
+      // Upload new file with atomic replacement (backend handles deletion)
+      const result = await proceedWithUploadWithReplacement(pendingFile, pendingProgressHandler, duplicateFileInfo.fileId);
       
-      // Only delete existing file after successful upload
-      try {
-        await deleteFile(duplicateFileInfo.fileId);
-        setDiagnosticInfo(prev => prev + `Replaced existing file: ${duplicateFileInfo.filename}\n`);
-      } catch (deleteError) {
-        // Log deletion error but don't fail the upload since new file is already uploaded
-        console.error('Error deleting existing file:', deleteError);
-        const errorMsg = deleteError.message || 'Unknown error';
-        
-        // Show user-friendly error message based on the type of error
-        if (errorMsg.includes('permission') || errorMsg.includes('Access denied')) {
-          setDiagnosticInfo(prev => prev + `Warning: Could not delete existing file: You do not have the required permissions for this action\n`);
-          alert('New file uploaded successfully! However, the old file could not be deleted due to missing permissions. Please contact your administrator to remove the old file.');
-        } else {
-          setDiagnosticInfo(prev => prev + `Warning: Could not delete existing file: ${errorMsg}\n`);
-          alert(`New file uploaded successfully! However, the old file could not be deleted: ${errorMsg}`);
-        }
+      // Check if replacement was successful
+      if (result && result.results && result.results.length > 0 && result.results[0].replaced) {
+        setDiagnosticInfo(prev => prev + `Successfully replaced file: ${duplicateFileInfo.filename}\n`);
+      } else {
+        setDiagnosticInfo(prev => prev + `New file uploaded. Note: Old file may not have been deleted.\n`);
       }
       
       // Clean up state after successful replace
