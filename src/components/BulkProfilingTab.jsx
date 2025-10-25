@@ -4,8 +4,10 @@ import { FiFolder, FiSearch, FiPlay, FiClock, FiCheck, FiX, FiDownload } from 'r
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-function BulkProfilingTab({ selectedProject }) {
+function BulkProfilingTab({ selectedProject: initialProject }) {
   const [connections, setConnections] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(initialProject || null);
   const [selectedConnection, setSelectedConnection] = useState('');
   const [s3Path, setS3Path] = useState('');
   const [filePattern, setFilePattern] = useState('*');
@@ -20,9 +22,17 @@ function BulkProfilingTab({ selectedProject }) {
   const [jobStatus, setJobStatus] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(null);
 
-  // Fetch connections on mount
+  // Update selected project when prop changes
+  useEffect(() => {
+    if (initialProject) {
+      setSelectedProject(initialProject);
+    }
+  }, [initialProject]);
+
+  // Fetch connections and projects on mount
   useEffect(() => {
     fetchConnections();
+    fetchProjects();
   }, []);
   
   // Poll for job status when job is running
@@ -50,6 +60,27 @@ function BulkProfilingTab({ selectedProject }) {
     } catch (err) {
       console.error('Error fetching connections:', err);
       setError('Failed to load connections');
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setProjects(response.data);
+      
+      // If no project selected yet, try to select default
+      if (!selectedProject) {
+        const defaultProject = response.data.find(p => p.name === 'Default Project' || p.is_default);
+        if (defaultProject) {
+          setSelectedProject(defaultProject.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching projects:', err);
     }
   };
 
@@ -371,6 +402,26 @@ function BulkProfilingTab({ selectedProject }) {
 
       {/* Configuration Section */}
       <div style={{ marginBottom: '2rem' }}>
+        <div className="form-group">
+          <label htmlFor="project">Project *</label>
+          <select
+            id="project"
+            className="form-control"
+            value={selectedProject || ''}
+            onChange={(e) => setSelectedProject(e.target.value)}
+          >
+            <option value="">Select a project...</option>
+            {projects.map(proj => (
+              <option key={proj.id} value={proj.id}>
+                {proj.name}
+              </option>
+            ))}
+          </select>
+          <small style={{ color: '#666' }}>
+            Files will be organized under this project
+          </small>
+        </div>
+
         <div className="form-group">
           <label htmlFor="connection">S3 Connection *</label>
           <select
