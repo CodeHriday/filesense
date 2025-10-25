@@ -1413,7 +1413,19 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     });
     
   } catch (error) {
-    logger.error('File upload error', { error: error.message });
+    logger.error('File upload error', { 
+      error: error.message,
+      stack: error.stack,
+      filesReceived: req.files ? req.files.length : 0
+    });
+    
+    // Clean up any uploaded files on error
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+      });
+    }
+    
     res.status(500).json({ 
       error: 'File upload failed',
       details: error.message 
