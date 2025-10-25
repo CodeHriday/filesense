@@ -294,6 +294,11 @@ function FileUpload() {
       setCurrentStep('complete');
       setIsProcessing(false);
       
+      // Navigate to file catalog after successful batch upload
+      setTimeout(() => {
+        navigate('/files');
+      }, 1500);
+      
       return result;
     } catch (error) {
       console.error('Error in batch upload:', error);
