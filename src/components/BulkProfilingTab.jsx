@@ -23,6 +23,12 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
   const [jobStatus, setJobStatus] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(null);
   const [showBrowser, setShowBrowser] = useState(false);
+  
+  // Scheduling fields
+  const [executionType, setExecutionType] = useState('manual'); // 'manual' or 'scheduled'
+  const [scheduleType, setScheduleType] = useState('recurring'); // 'one-time' or 'recurring'
+  const [cronExpression, setCronExpression] = useState('0 0 * * *'); // Daily at midnight
+  const [scheduleStartDate, setScheduleStartDate] = useState('');
 
   // Update selected project when prop changes
   useEffect(() => {
@@ -150,22 +156,47 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       return;
     }
 
+    // Validate scheduling fields
+    if (executionType === 'scheduled') {
+      if (scheduleType === 'recurring' && !cronExpression) {
+        setError('Please provide a cron expression');
+        return;
+      }
+      if (scheduleType === 'one-time' && !scheduleStartDate) {
+        setError('Please select a start date and time');
+        return;
+      }
+    }
+
     setIsCreatingJob(true);
     setError(null);
 
     try {
       const token = localStorage.getItem('token');
+      const jobData = {
+        jobName: `Bulk Profile - ${s3Path}`,
+        projectId: selectedProject,
+        connectionId: selectedConnection,
+        s3Path,
+        filePattern,
+        duplicateHandling,
+        recursive,
+        executionType
+      };
+
+      // Add scheduling data if scheduled
+      if (executionType === 'scheduled') {
+        jobData.scheduleType = scheduleType;
+        if (scheduleType === 'recurring') {
+          jobData.cronExpression = cronExpression;
+        } else {
+          jobData.scheduleStartDate = scheduleStartDate;
+        }
+      }
+
       const response = await axios.post(
         `${API_BASE_URL}/api/bulk-profiling/jobs`,
-        {
-          jobName: `Bulk Profile - ${s3Path}`,
-          projectId: selectedProject,
-          connectionId: selectedConnection,
-          s3Path,
-          filePattern,
-          duplicateHandling,
-          recursive
-        },
+        jobData,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -174,8 +205,13 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       const job = response.data.job;
       setCreatedJob(job);
       
-      // Automatically start the job
-      handleStartJob(job.id);
+      // Auto-scroll to top to show results
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Only start immediately if manual execution
+      if (executionType === 'manual') {
+        handleStartJob(job.id);
+      }
     } catch (err) {
       console.error('Error creating job:', err);
       setError(err.response?.data?.message || 'Failed to create profiling job');
@@ -526,11 +562,78 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
           </select>
         </div>
 
+        {/* Scheduling Section */}
+        <div className="form-group" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
+          <label htmlFor="executionType">
+            <FiClock style={{ marginRight: '0.5rem' }} />
+            Execution Type
+          </label>
+          <select
+            id="executionType"
+            className="form-control"
+            value={executionType}
+            onChange={(e) => setExecutionType(e.target.value)}
+          >
+            <option value="manual">Run Now (Manual)</option>
+            <option value="scheduled">Schedule for Later</option>
+          </select>
+        </div>
+
+        {executionType === 'scheduled' && (
+          <>
+            <div className="form-group">
+              <label htmlFor="scheduleType">Schedule Type</label>
+              <select
+                id="scheduleType"
+                className="form-control"
+                value={scheduleType}
+                onChange={(e) => setScheduleType(e.target.value)}
+              >
+                <option value="recurring">Recurring (Cron)</option>
+                <option value="one-time">One-time</option>
+              </select>
+            </div>
+
+            {scheduleType === 'recurring' && (
+              <div className="form-group">
+                <label htmlFor="cronExpression">Cron Expression</label>
+                <input
+                  id="cronExpression"
+                  type="text"
+                  className="form-control"
+                  value={cronExpression}
+                  onChange={(e) => setCronExpression(e.target.value)}
+                  placeholder="0 0 * * * (Daily at midnight)"
+                />
+                <small style={{ color: '#666' }}>
+                  Examples: <code>0 0 * * *</code> (daily at midnight), <code>0 */6 * * *</code> (every 6 hours)
+                </small>
+              </div>
+            )}
+
+            {scheduleType === 'one-time' && (
+              <div className="form-group">
+                <label htmlFor="scheduleStartDate">Start Date & Time</label>
+                <input
+                  id="scheduleStartDate"
+                  type="datetime-local"
+                  className="form-control"
+                  value={scheduleStartDate}
+                  onChange={(e) => setScheduleStartDate(e.target.value)}
+                />
+                <small style={{ color: '#666' }}>
+                  Choose when to run this profiling job
+                </small>
+              </div>
+            )}
+          </>
+        )}
+
         <button
           className="btn btn-primary"
           onClick={handleDiscover}
           disabled={isDiscovering || !selectedConnection || !s3Path}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}
         >
           <FiSearch />
           {isDiscovering ? 'Discovering Files...' : 'Discover Files'}
