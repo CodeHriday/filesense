@@ -7,7 +7,9 @@ import axios from 'axios';
 import './Monitor.css';
 
 function Monitor() {
+  const [activeTab, setActiveTab] = useState('file-audit');
   const [audits, setAudits] = useState([]);
+  const [bulkJobs, setBulkJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -17,10 +19,14 @@ function Monitor() {
   const [pageSize, setPageSize] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
   
-  // Fetch audit data on mount and when pagination changes
+  // Fetch audit data on mount and when pagination/tab changes
   useEffect(() => {
-    fetchAuditData();
-  }, [currentPage, pageSize]);
+    if (activeTab === 'file-audit') {
+      fetchAuditData();
+    } else if (activeTab === 'bulk-profiling') {
+      fetchBulkJobs();
+    }
+  }, [currentPage, pageSize, activeTab]);
   
   const fetchAuditData = async () => {
     try {
@@ -45,6 +51,37 @@ function Monitor() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  const fetchBulkJobs = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const offset = (currentPage - 1) * pageSize;
+      
+      const response = await axios.get('/api/bulk-profiling/jobs', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          limit: pageSize,
+          offset: offset
+        }
+      });
+      
+      setBulkJobs(response.data.jobs || []);
+      setTotalRecords(response.data.total || 0);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching bulk profiling jobs:', err);
+      setError('Failed to load bulk profiling jobs. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+    setExpandedRows(new Set());
   };
   
   const toggleRowExpansion = (auditId) => {
@@ -148,10 +185,51 @@ function Monitor() {
   return (
     <div className="monitor-container">
       <div className="monitor-header">
-        <h1>File Audit Trail</h1>
+        <h1>Data Observatory Monitor</h1>
         <div className="monitor-actions">
           <span className="total-records">{totalRecords} total records</span>
         </div>
+      </div>
+      
+      {/* Tabs */}
+      <div style={{
+        display: 'flex',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+        borderBottom: '2px solid #e5e7eb'
+      }}>
+        <button
+          onClick={() => handleTabChange('file-audit')}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'file-audit' ? '3px solid #3b82f6' : '3px solid transparent',
+            color: activeTab === 'file-audit' ? '#3b82f6' : '#6b7280',
+            fontWeight: activeTab === 'file-audit' ? 'bold' : 'normal',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            transition: 'all 0.2s'
+          }}
+        >
+          File Audit Logs
+        </button>
+        <button
+          onClick={() => handleTabChange('bulk-profiling')}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'bulk-profiling' ? '3px solid #3b82f6' : '3px solid transparent',
+            color: activeTab === 'bulk-profiling' ? '#3b82f6' : '#6b7280',
+            fontWeight: activeTab === 'bulk-profiling' ? 'bold' : 'normal',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            transition: 'all 0.2s'
+          }}
+        >
+          Bulk Profiling Jobs
+        </button>
       </div>
       
       {loading ? (
@@ -160,6 +238,7 @@ function Monitor() {
         <div className="error">{error}</div>
       ) : (
         <>
+          {activeTab === 'file-audit' && (
           <Card className="audit-trail-card">
             <div className="audit-table-container">
               <table className="audit-table">
@@ -349,10 +428,120 @@ function Monitor() {
               </table>
             </div>
           </Card>
+          )}
+          
+          {activeTab === 'bulk-profiling' && (
+          <Card className="bulk-jobs-card">
+            <div className="audit-table-container">
+              <table className="audit-table">
+                <thead>
+                  <tr>
+                    <th className="expand-col"></th>
+                    <th>Job Name</th>
+                    <th>Project</th>
+                    <th>Connection</th>
+                    <th>S3 Path</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Total Files</th>
+                    <th>Successful</th>
+                    <th>Failed</th>
+                    <th>Created</th>
+                    <th>Started</th>
+                    <th>Completed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkJobs.length === 0 ? (
+                    <tr>
+                      <td colSpan="13" className="no-data">No bulk profiling jobs found</td>
+                    </tr>
+                  ) : (
+                    bulkJobs.map((job) => (
+                      <React.Fragment key={job.id}>
+                        <tr className="audit-row">
+                          <td className="expand-col">
+                            <button 
+                              className="expand-btn"
+                              onClick={() => toggleRowExpansion(job.id)}
+                              title="View job details"
+                            >
+                              {expandedRows.has(job.id) ? <FiChevronDown /> : <FiChevronRight />}
+                            </button>
+                          </td>
+                          <td>{job.job_name}</td>
+                          <td>{job.project_name || 'N/A'}</td>
+                          <td>{job.connection_name || 'N/A'}</td>
+                          <td title={job.s3_path}>{job.s3_path}</td>
+                          <td>
+                            <span className={`status-badge ${getStatusClass(job.status)}`}>
+                              {job.status}
+                            </span>
+                          </td>
+                          <td>
+                            {job.total_files > 0 ? 
+                              `${Math.round((job.processed_files / job.total_files) * 100)}%` : 
+                              '0%'}
+                          </td>
+                          <td className="number-col">{job.total_files}</td>
+                          <td className="number-col">{job.successful_files}</td>
+                          <td className="number-col">{job.failed_files}</td>
+                          <td className="date-col">{formatDate(job.created_at)}</td>
+                          <td className="date-col">{job.started_at ? formatDate(job.started_at) : '-'}</td>
+                          <td className="date-col">{job.completed_at ? formatDate(job.completed_at) : '-'}</td>
+                        </tr>
+                        {expandedRows.has(job.id) && (
+                          <tr className="expanded-row">
+                            <td colSpan="13">
+                              <div className="expanded-content">
+                                <div className="expanded-section">
+                                  <h3>Job Configuration</h3>
+                                  <div className="detail-grid">
+                                    <div className="detail-item">
+                                      <span className="detail-label">Job ID:</span>
+                                      <span className="detail-value">{job.id}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">File Pattern:</span>
+                                      <span className="detail-value">{job.file_pattern || '*'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Recursive:</span>
+                                      <span className="detail-value">{job.recursive ? 'Yes' : 'No'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Duplicate Handling:</span>
+                                      <span className="detail-value">{job.duplicate_handling}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">Processed Files:</span>
+                                      <span className="detail-value">{job.processed_files} / {job.total_files}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  {job.error_message && (
+                                    <div className="error-details">
+                                      <h4>Error Details</h4>
+                                      <pre>{job.error_message}</pre>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          )}
           
           <div className="pagination-container">
             <div className="pagination-info">
-              Showing {audits.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
+              Showing {(activeTab === 'file-audit' ? audits.length : bulkJobs.length) > 0 ? ((currentPage - 1) * pageSize) + 1 : 0} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} records
             </div>
             
             <div className="pagination-controls">
