@@ -1003,7 +1003,7 @@ function FileUpload() {
               {batchResults.successCount > 0 && (
                 <button 
                   className="btn btn-primary"
-                  onClick={() => navigate('/files')}
+                  onClick={() => navigate('/file-catalog')}
                   style={{ flex: 1 }}
                 >
                   View File Catalog
