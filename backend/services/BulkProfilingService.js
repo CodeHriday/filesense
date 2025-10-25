@@ -9,6 +9,10 @@ const pool = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const connectionService = require('./ConnectionService');
 const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
+const virusScanService = require('./VirusScanService');
 
 class BulkProfilingService {
   /**
@@ -563,8 +567,8 @@ class BulkProfilingService {
           if (job.duplicate_handling === 'skip') {
             const existingFile = await this._checkFileExists(file.file_name, job.project_id);
             if (existingFile) {
-              systemLogger.info('Skipping duplicate file', { jobId, fileName: file.file_name });
-              await this.updateFileStatus(jobId, file.file_path, 'skipped', null, 'File already exists');
+              systemLogger.info('Skipping duplicate file', { jobId, fileName: file.file_name, existingFileId: existingFile.file_id });
+              await this.updateFileStatus(jobId, file.file_path, 'skipped', existingFile.file_id, 'Already in catalog - duplicate skipped');
               await this.updateJobProgress(jobId);
               continue;
             }
@@ -572,22 +576,153 @@ class BulkProfilingService {
           
           // Download file from S3 to temp location
           const tempFilePath = `/tmp/bulk_profiling_${jobId}_${Date.now()}_${file.file_name}`;
-          // Extract S3 key from path (convert s3://bucket/key to just key)
           const s3Key = this._extractS3Key(file.file_path);
           await this._downloadFileFromS3(s3, bucketName, s3Key, tempFilePath);
+          systemLogger.info('File downloaded from S3', { jobId, fileName: file.file_name, size: file.file_size });
           
-          // TODO: Trigger file profiling
-          // This would integrate with the existing file upload/profiling pipeline
-          // For now, we'll mark as completed
-          systemLogger.info('File downloaded successfully', { jobId, fileName: file.file_name });
+          // Virus scan the downloaded file
+          const scanResult = await virusScanService.scanFile(tempFilePath);
+          if (scanResult.isInfected) {
+            systemLogger.warn('Infected file detected and deleted', { 
+              jobId, 
+              fileName: file.file_name, 
+              virus: scanResult.viruses.join(', ')
+            });
+            // Delete infected file
+            if (fs.existsSync(tempFilePath)) {
+              fs.unlinkSync(tempFilePath);
+            }
+            await this.updateFileStatus(
+              jobId, 
+              file.file_path, 
+              'failed', 
+              null, 
+              `Virus detected: ${scanResult.viruses.join(', ')}`
+            );
+            await this.updateJobProgress(jobId);
+            continue;
+          }
           
-          await this.updateFileStatus(jobId, file.file_path, 'completed', null, null);
-          await this.updateJobProgress(jobId);
+          // Profile the file
+          const fileId = uuidv4();
+          const startTime = Date.now();
           
-          // Clean up temp file
-          const fs = require('fs');
-          if (fs.existsSync(tempFilePath)) {
-            fs.unlinkSync(tempFilePath);
+          try {
+            // Step 1: Extract schema and basic file info
+            const fileInfo = await this._callPythonProcessor(tempFilePath, file.file_type);
+            systemLogger.info('File analysis completed', { 
+              jobId, 
+              fileName: file.file_name,
+              rows: fileInfo.row_count,
+              columns: fileInfo.column_count 
+            });
+            
+            // Step 2: Generate detailed column profiling
+            const profilingData = await this._callProfilingScript(tempFilePath, file.file_type);
+            
+            // Merge profiling data with schema
+            if (fileInfo.schema && profilingData.columns) {
+              fileInfo.schema = fileInfo.schema.map(col => {
+                const profiling = profilingData.columns.find(p => p.name === col.name);
+                if (profiling) {
+                  const { type, ...profilingFields } = profiling;
+                  return { ...col, ...profilingFields };
+                }
+                return col;
+              });
+            }
+            
+            // Step 3: Detect duplicates
+            const duplicateStats = await this._detectDuplicates(tempFilePath, file.file_type);
+            
+            // Step 4: Save to files table
+            const fileHash = uuidv4(); // Generate file hash
+            await this._saveFileMetadata(
+              fileId, 
+              file.file_name, 
+              file.file_type, 
+              file.file_size, 
+              fileInfo, 
+              userId, 
+              fileHash, 
+              duplicateStats, 
+              job.project_id
+            );
+            
+            // Step 5: Save column information
+            if (fileInfo.schema && fileInfo.schema.length > 0) {
+              await this._saveColumnInfo(fileId, fileInfo.schema);
+            }
+            
+            // Step 6: Save preview data
+            if (fileInfo.preview_data && fileInfo.preview_data.length > 0) {
+              await this._savePreviewData(fileId, fileInfo.preview_data);
+            }
+            
+            // Step 7: Create file ownership
+            await this._createFileOwnership(fileId, userId, file.file_name);
+            
+            // Step 8: Capture audit logs
+            const correlationId = uuidv4();
+            await captureFileSchema(pool, {
+              fileId,
+              fileName: file.file_name,
+              fileSchema: {
+                columns: fileInfo.schema || [],
+                encoding: fileInfo.encoding,
+                delimiter: fileInfo.delimiter
+              },
+              correlationId,
+              createdBy: userId
+            });
+            
+            await captureFileAudit(pool, {
+              fileId,
+              fileName: file.file_name,
+              fileSchemaId: null,
+              fileHash,
+              filePattern: job.file_pattern,
+              fileType: file.file_type,
+              fileDelimiter: fileInfo.delimiter,
+              encoding: fileInfo.encoding,
+              numberOfColumns: fileInfo.column_count,
+              fileSizeBytes: file.file_size,
+              source: 's3_bulk_profiling',
+              sourcePath: file.file_path,
+              noOfRecordsInSource: fileInfo.row_count,
+              loadStep1: 'bulk_profiling',
+              loadStep1Path: tempFilePath,
+              loadStep1RecCnt: fileInfo.row_count,
+              loadType: 'bulk_profiling',
+              correlationId,
+              userId,
+              processingDurationMs: Date.now() - startTime,
+              status: 'success',
+              createdBy: userId
+            });
+            
+            systemLogger.info('File profiling completed successfully', { 
+              jobId, 
+              fileName: file.file_name,
+              fileId 
+            });
+            
+            await this.updateFileStatus(jobId, file.file_path, 'completed', fileId, null);
+            await this.updateJobProgress(jobId);
+            
+          } catch (profilingError) {
+            systemLogger.error('Error profiling file', { 
+              jobId, 
+              fileName: file.file_name, 
+              error: profilingError.message 
+            });
+            await this.updateFileStatus(jobId, file.file_path, 'failed', null, profilingError.message);
+            await this.updateJobProgress(jobId);
+          } finally {
+            // Clean up temp file
+            if (fs.existsSync(tempFilePath)) {
+              fs.unlinkSync(tempFilePath);
+            }
           }
           
         } catch (fileError) {
@@ -655,6 +790,285 @@ class BulkProfilingService {
       systemLogger.error('Error checking file existence', { error: error.message });
       return null;
     }
+  }
+  
+  /**
+   * Call Python processor to extract schema and file info
+   */
+  async _callPythonProcessor(filePath, fileType) {
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, '../../utils/process_file.py');
+      
+      if (!fs.existsSync(pythonScript)) {
+        return reject(new Error(`Python processor script not found at ${pythonScript}`));
+      }
+      
+      const workspaceRoot = path.join(__dirname, '../..');
+      const env = { ...process.env, PYTHONPATH: workspaceRoot };
+      const python = spawn('python3', [pythonScript, filePath, fileType], { env });
+      
+      let stdout = '';
+      let stderr = '';
+      
+      python.stdout.on('data', (data) => { stdout += data.toString(); });
+      python.stderr.on('data', (data) => { stderr += data.toString(); });
+      
+      python.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Python processor failed: ${stderr || 'Unknown error'}`));
+        } else {
+          try {
+            const result = JSON.parse(stdout);
+            if (result.error) {
+              reject(new Error(`Python processing error: ${result.error}`));
+            } else {
+              resolve(result);
+            }
+          } catch (error) {
+            reject(new Error(`Failed to parse Python output: ${error.message}`));
+          }
+        }
+      });
+      
+      python.on('error', (error) => reject(error));
+    });
+  }
+  
+  /**
+   * Call Python profiling script for detailed column statistics
+   */
+  async _callProfilingScript(filePath, fileType) {
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, '../../utils/profile_columns.py');
+      
+      if (!fs.existsSync(pythonScript)) {
+        systemLogger.warn('Profiling script not found, skipping profiling');
+        return resolve({ columns: [] });
+      }
+      
+      const workspaceRoot = path.join(__dirname, '../..');
+      const env = { ...process.env, PYTHONPATH: workspaceRoot };
+      const python = spawn('python3', [pythonScript, filePath, fileType], { env });
+      
+      let stdout = '';
+      let stderr = '';
+      
+      python.stdout.on('data', (data) => { stdout += data.toString(); });
+      python.stderr.on('data', (data) => { stderr += data.toString(); });
+      
+      python.on('close', (code) => {
+        if (code !== 0) {
+          systemLogger.error('Profiling script error', { code, stderr });
+          resolve({ columns: [] });
+        } else {
+          try {
+            resolve(JSON.parse(stdout));
+          } catch (error) {
+            systemLogger.error('Failed to parse profiling output', { error: error.message });
+            resolve({ columns: [] });
+          }
+        }
+      });
+      
+      python.on('error', (error) => {
+        systemLogger.error('Failed to spawn profiling script', { error: error.message });
+        resolve({ columns: [] });
+      });
+    });
+  }
+  
+  /**
+   * Detect duplicate rows in file
+   */
+  async _detectDuplicates(filePath, fileType) {
+    return new Promise((resolve) => {
+      const pythonCode = `
+import sys
+import json
+sys.path.insert(0, '.')
+from quality_checks import detect_duplicate_rows
+
+result = detect_duplicate_rows('${filePath.replace(/'/g, "\\'")}', '${fileType}')
+print(json.dumps(result))
+`;
+      
+      const python = spawn('python3', ['-c', pythonCode]);
+      let stdout = '';
+      let stderr = '';
+      
+      python.stdout.on('data', (data) => { stdout += data.toString(); });
+      python.stderr.on('data', (data) => { stderr += data.toString(); });
+      
+      python.on('close', (code) => {
+        if (code !== 0) {
+          systemLogger.error('Duplicate detection error', { code, stderr });
+          resolve({ total_rows: 0, unique_rows: 0, duplicate_count: 0, duplicate_percentage: 0.0 });
+        } else {
+          try {
+            resolve(JSON.parse(stdout));
+          } catch (error) {
+            systemLogger.error('Failed to parse duplicate detection output', { error: error.message });
+            resolve({ total_rows: 0, unique_rows: 0, duplicate_count: 0, duplicate_percentage: 0.0 });
+          }
+        }
+      });
+      
+      python.on('error', (error) => {
+        systemLogger.error('Failed to spawn duplicate detection', { error: error.message });
+        resolve({ total_rows: 0, unique_rows: 0, duplicate_count: 0, duplicate_percentage: 0.0 });
+      });
+    });
+  }
+  
+  /**
+   * Save file metadata to files table
+   */
+  async _saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, projectId) {
+    const metadata = {
+      encoding: fileInfo.encoding || null,
+      delimiter: fileInfo.delimiter || null,
+      preview_data: fileInfo.preview_data || []
+    };
+    
+    const query = `
+      INSERT INTO files (
+        file_id, filename, file_type, file_size, 
+        row_count, column_count, quality_score, metadata, checksum,
+        duplicate_records_count, duplicate_records_percentage, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ON CONFLICT (file_id) 
+      DO UPDATE SET
+        row_count = EXCLUDED.row_count,
+        column_count = EXCLUDED.column_count,
+        quality_score = EXCLUDED.quality_score,
+        metadata = EXCLUDED.metadata,
+        checksum = EXCLUDED.checksum,
+        duplicate_records_count = EXCLUDED.duplicate_records_count,
+        duplicate_records_percentage = EXCLUDED.duplicate_records_percentage,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
+    
+    const values = [
+      fileId,
+      filename,
+      fileType,
+      fileSize,
+      fileInfo.row_count || 0,
+      fileInfo.column_count || 0,
+      85, // Default quality score
+      JSON.stringify(metadata),
+      fileHash || null,
+      duplicateStats?.duplicate_count || 0,
+      duplicateStats?.duplicate_percentage || 0.0,
+      projectId
+    ];
+    
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  }
+  
+  /**
+   * Save column information to file_columns table
+   */
+  async _saveColumnInfo(fileId, schema) {
+    await pool.query('DELETE FROM file_columns WHERE file_id = $1', [fileId]);
+    
+    const insertQuery = `
+      INSERT INTO file_columns (
+        file_id, column_name, column_type, column_index,
+        unique_count, null_count, min_value, max_value,
+        most_frequent_value, least_frequent_value,
+        min_value_decimal, max_value_decimal,
+        most_frequent_count, least_frequent_count,
+        min_frequency, max_frequency,
+        min_is_frequent, max_is_frequent,
+        patterns
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    `;
+    
+    for (const col of schema) {
+      try {
+        const isNumericType = ['integer', 'float', 'decimal', 'numeric', 'number'].includes(col.type?.toLowerCase());
+        const minValueDecimal = isNumericType ? this._safeParseFloat(col.min_value) : null;
+        const maxValueDecimal = isNumericType ? this._safeParseFloat(col.max_value) : null;
+        
+        await pool.query(insertQuery, [
+          fileId,
+          col.name,
+          col.type,
+          schema.indexOf(col),
+          col.unique_count || 0,
+          col.null_count || 0,
+          col.min_value !== undefined && col.min_value !== null ? String(col.min_value) : null,
+          col.max_value !== undefined && col.max_value !== null ? String(col.max_value) : null,
+          col.most_frequent_value || null,
+          col.least_frequent_value || null,
+          minValueDecimal,
+          maxValueDecimal,
+          col.most_frequent_count || null,
+          col.least_frequent_count || null,
+          col.min_frequency || null,
+          col.max_frequency || null,
+          col.min_is_frequent !== undefined ? col.min_is_frequent : null,
+          col.max_is_frequent !== undefined ? col.max_is_frequent : null,
+          col.patterns && col.patterns.length > 0 ? JSON.stringify(col.patterns) : null
+        ]);
+      } catch (columnErr) {
+        systemLogger.error('Error saving column', { 
+          column: col.name, 
+          error: columnErr.message 
+        });
+      }
+    }
+  }
+  
+  /**
+   * Save preview data to file_preview_data table
+   */
+  async _savePreviewData(fileId, previewRows) {
+    try {
+      const limitedRows = previewRows.slice(0, 100);
+      
+      for (let i = 0; i < limitedRows.length; i++) {
+        await pool.query(
+          `INSERT INTO file_preview_data (file_id, row_number, row_data)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (file_id, row_number) 
+           DO UPDATE SET row_data = EXCLUDED.row_data`,
+          [fileId, i + 1, JSON.stringify(limitedRows[i])]
+        );
+      }
+      
+      systemLogger.info('Preview data saved', { fileId, rowsSaved: limitedRows.length });
+    } catch (error) {
+      systemLogger.error('Error saving preview data', { fileId, error: error.message });
+    }
+  }
+  
+  /**
+   * Create file ownership record
+   */
+  async _createFileOwnership(fileId, userId, filename) {
+    try {
+      await pool.query(
+        `INSERT INTO file_ownership (file_id, creator, owner, filename, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NOW(), NOW())
+         ON CONFLICT (file_id) DO NOTHING`,
+        [fileId, userId, userId, filename]
+      );
+    } catch (error) {
+      systemLogger.error('Error creating file ownership', { fileId, error: error.message });
+    }
+  }
+  
+  /**
+   * Safely parse float value
+   */
+  _safeParseFloat(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = parseFloat(value);
+    return !isNaN(parsed) && isFinite(parsed) ? parsed : null;
   }
 }
 
