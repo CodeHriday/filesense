@@ -34,6 +34,7 @@ function FileUpload() {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [batchUploadStatus, setBatchUploadStatus] = useState(null); // Track batch upload progress
   const pollingInterval = useRef(null);
   const navigate = useNavigate();
   const { hasWritePermission, currentUser } = useAuth();
@@ -268,44 +269,118 @@ function FileUpload() {
       setIsProcessing(true);
       setCurrentStep('uploading');
       setUploadProgress(0);
-      
-      // Create a wrapped progress handler that updates our state
-      const wrappedProgressHandler = (progressEvent) => {
-        const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        setUploadProgress(percentage);
-        
-        // Call the original progress handler
-        if (progressHandler) {
-          progressHandler(progressEvent);
-        }
-      };
+      setBatchUploadStatus({ total: files.length, current: 0, currentFile: null });
       
       // Validate project selection
       if (!selectedProject) {
         throw new Error('Please select a project before uploading');
       }
       
-      // Upload files in batch with progress tracking
-      const result = await uploadFilesBatch(files, wrappedProgressHandler, fileOwner, selectedProject);
+      const results = [];
+      let successCount = 0;
+      let failedCount = 0;
       
-      setDiagnosticInfo(prev => prev + `Batch upload successful: ${result.successCount} files uploaded, ${result.failedCount} failed\n`);
+      // Process each file sequentially to show individual progress
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileNumber = i + 1;
+        
+        try {
+          // Update batch status
+          setBatchUploadStatus({ 
+            total: files.length, 
+            current: fileNumber, 
+            currentFile: file.name 
+          });
+          
+          setDiagnosticInfo(prev => prev + `\n📁 Uploading file ${fileNumber} of ${files.length}: ${file.name}\n`);
+          
+          // Create a wrapped progress handler for this specific file
+          const wrappedProgressHandler = (progressEvent) => {
+            const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentage);
+            
+            // Call the original progress handler
+            if (progressHandler) {
+              progressHandler(progressEvent);
+            }
+          };
+          
+          // Upload individual file
+          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject);
+          
+          // Extract fileId from result
+          let fileId;
+          if (result.results && result.results.length > 0) {
+            const firstResult = result.results[0];
+            fileId = firstResult.fileId || (firstResult.file && firstResult.file.file_id);
+          } else {
+            fileId = result.fileId || (result.file && result.file.file_id);
+          }
+          
+          setDiagnosticInfo(prev => prev + `✅ File ${fileNumber} uploaded successfully: ${file.name} (ID: ${fileId})\n`);
+          
+          results.push({
+            success: true,
+            filename: file.name,
+            fileId: fileId
+          });
+          successCount++;
+          
+        } catch (error) {
+          console.error(`Error uploading file ${fileNumber} (${file.name}):`, error);
+          setDiagnosticInfo(prev => prev + `❌ File ${fileNumber} failed: ${file.name} - ${error.message}\n`);
+          
+          results.push({
+            success: false,
+            filename: file.name,
+            error: error.message
+          });
+          failedCount++;
+        }
+      }
       
-      setUploadStatus('success');
-      setCurrentStep('complete');
+      // Show final summary
+      setDiagnosticInfo(prev => prev + `\n📊 Batch upload complete: ${successCount} succeeded, ${failedCount} failed\n`);
+      
+      // Set status based on results
+      if (successCount === 0) {
+        // All files failed
+        setUploadStatus('error');
+        setCurrentStep(null);
+      } else if (failedCount > 0) {
+        // Partial success
+        setUploadStatus('warning');
+        setCurrentStep('complete');
+      } else {
+        // All succeeded
+        setUploadStatus('success');
+        setCurrentStep('complete');
+      }
+      
       setIsProcessing(false);
+      setBatchUploadStatus(null);
       
-      // Navigate to file catalog after successful batch upload
-      setTimeout(() => {
-        navigate('/files');
-      }, 1500);
+      // Only navigate to file catalog if at least one file succeeded
+      if (successCount > 0) {
+        setTimeout(() => {
+          navigate('/files');
+        }, 2000);
+      }
       
-      return result;
+      return {
+        success: successCount > 0,
+        successCount,
+        failedCount,
+        results
+      };
     } catch (error) {
       console.error('Error in batch upload:', error);
       setDiagnosticInfo(prev => prev + `Batch upload error: ${error.message}\n`);
       setUploadStatus('error');
       setCurrentStep(null);
       setIsProcessing(false);
+      setBatchUploadStatus(null);
       throw error;
     }
   };
@@ -745,10 +820,31 @@ function FileUpload() {
         
         {/* Show StepProgress when processing */}
         {isProcessing && currentStep && activeTab === 'upload-profile' && (
-          <StepProgress 
-            currentStep={currentStep}
-            uploadProgress={currentStep === 'uploading' ? uploadProgress : null}
-          />
+          <>
+            <StepProgress 
+              currentStep={currentStep}
+              uploadProgress={currentStep === 'uploading' ? uploadProgress : null}
+            />
+            {batchUploadStatus && (
+              <div style={{
+                margin: '1rem',
+                padding: '1rem',
+                background: '#f0f9ff',
+                border: '1px solid #3b82f6',
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#1e40af', marginBottom: '0.5rem' }}>
+                  Uploading file {batchUploadStatus.current} of {batchUploadStatus.total}
+                </div>
+                {batchUploadStatus.currentFile && (
+                  <div style={{ fontSize: '0.95rem', color: '#475569' }}>
+                    {batchUploadStatus.currentFile}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
         
         {/* Show upload dropzone when not processing */}
