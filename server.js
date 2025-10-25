@@ -642,7 +642,7 @@ const upload = multer({
   limits: {
     fileSize: MAX_FILE_SIZE, // Configurable, default 100MB (reduced from 1GB)
     fieldSize: 10 * 1024 * 1024, // 10MB for form fields
-    files: 1 // Only allow 1 file per upload
+    files: 20 // Allow up to 20 files per upload for batch processing
   },
   fileFilter: fileFilter
 });
