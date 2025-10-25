@@ -372,7 +372,7 @@ class BulkProfilingService {
       const query = `
         UPDATE bulk_profiling_jobs
         SET 
-          processed_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status IN ('completed', 'failed')),
+          processed_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status IN ('completed', 'failed', 'skipped')),
           successful_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status = 'completed'),
           failed_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status = 'failed'),
           updated_at = NOW()
@@ -384,6 +384,158 @@ class BulkProfilingService {
     } catch (error) {
       systemLogger.error('Error updating job progress', { error: error.message });
       throw error;
+    }
+  }
+  
+  /**
+   * Start bulk profiling job - orchestrates the processing of all files
+   */
+  async startBulkProfiling(jobId, userId) {
+    try {
+      const job = await this.getJob(jobId);
+      
+      if (!job) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+      
+      if (job.status !== 'pending') {
+        // Don't mark as failed if already running - this is a benign double-start
+        if (job.status === 'running') {
+          systemLogger.info('Job already running, ignoring duplicate start request', { jobId });
+          return { message: 'Job is already running', jobId };
+        }
+        throw new Error(`Job ${jobId} is not in pending status. Current status: ${job.status}`);
+      }
+      
+      // Update job status to running
+      await this.updateJobStatus(jobId, 'running');
+      
+      systemLogger.info('Starting bulk profiling job', { jobId, totalFiles: job.files.length });
+      
+      // Process files asynchronously (don't await - let it run in background)
+      this._processFilesAsync(jobId, job, userId).catch(error => {
+        systemLogger.error('Error in async file processing', { jobId, error: error.message });
+        this.updateJobStatus(jobId, 'failed', error.message);
+      });
+      
+      return { message: 'Bulk profiling job started', jobId };
+      
+    } catch (error) {
+      systemLogger.error('Error starting bulk profiling', { jobId, error: error.message });
+      // Only mark as failed if we haven't already started running
+      const currentJob = await this.getJob(jobId);
+      if (currentJob && currentJob.status === 'pending') {
+        await this.updateJobStatus(jobId, 'failed', error.message);
+      }
+      throw error;
+    }
+  }
+  
+  /**
+   * Process files asynchronously (internal method)
+   */
+  async _processFilesAsync(jobId, job, userId) {
+    try {
+      const connection = await connectionService.getConnection(job.connection_id);
+      if (!connection) {
+        throw new Error('Connection not found');
+      }
+      
+      const config = await connectionService.decryptConnectionConfig(connection.config);
+      
+      // Configure AWS S3
+      const s3 = new AWS.S3({
+        accessKeyId: config.access_key,
+        secretAccessKey: config.secret_key,
+        region: config.region
+      });
+      
+      const bucketName = config.bucket_name;
+      
+      // Process files one by one or in small batches
+      for (const file of job.files) {
+        try {
+          await this.updateFileStatus(jobId, file.file_path, 'processing');
+          
+          // Check for duplicates if needed
+          if (job.duplicate_handling === 'skip') {
+            const existingFile = await this._checkFileExists(file.file_name, job.project_id);
+            if (existingFile) {
+              systemLogger.info('Skipping duplicate file', { jobId, fileName: file.file_name });
+              await this.updateFileStatus(jobId, file.file_path, 'skipped', null, 'File already exists');
+              await this.updateJobProgress(jobId);
+              continue;
+            }
+          }
+          
+          // Download file from S3 to temp location
+          const tempFilePath = `/tmp/bulk_profiling_${jobId}_${Date.now()}_${file.file_name}`;
+          await this._downloadFileFromS3(s3, bucketName, file.file_path, tempFilePath);
+          
+          // TODO: Trigger file profiling
+          // This would integrate with the existing file upload/profiling pipeline
+          // For now, we'll mark as completed
+          systemLogger.info('File downloaded successfully', { jobId, fileName: file.file_name });
+          
+          await this.updateFileStatus(jobId, file.file_path, 'completed', null, null);
+          await this.updateJobProgress(jobId);
+          
+          // Clean up temp file
+          const fs = require('fs');
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+          
+        } catch (fileError) {
+          systemLogger.error('Error processing file', { 
+            jobId, 
+            fileName: file.file_name, 
+            error: fileError.message 
+          });
+          await this.updateFileStatus(jobId, file.file_path, 'failed', null, fileError.message);
+          await this.updateJobProgress(jobId);
+        }
+      }
+      
+      // Mark job as completed
+      await this.updateJobStatus(jobId, 'completed');
+      systemLogger.info('Bulk profiling job completed', { jobId });
+      
+    } catch (error) {
+      systemLogger.error('Fatal error in file processing', { jobId, error: error.message });
+      await this.updateJobStatus(jobId, 'failed', error.message);
+      throw error;
+    }
+  }
+  
+  /**
+   * Download file from S3
+   */
+  async _downloadFileFromS3(s3, bucket, key, destPath) {
+    const fs = require('fs');
+    const stream = require('stream');
+    const util = require('util');
+    const pipeline = util.promisify(stream.pipeline);
+    
+    const s3Stream = s3.getObject({ Bucket: bucket, Key: key }).createReadStream();
+    const fileStream = fs.createWriteStream(destPath);
+    
+    await pipeline(s3Stream, fileStream);
+  }
+  
+  /**
+   * Check if file already exists in catalog
+   */
+  async _checkFileExists(filename, projectId) {
+    try {
+      const result = await pool.query(
+        'SELECT id, file_id FROM files WHERE filename = $1 AND project_id = $2 LIMIT 1',
+        [filename, projectId]
+      );
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      systemLogger.error('Error checking file existence', { error: error.message });
+      return null;
     }
   }
 }

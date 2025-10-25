@@ -17,11 +17,25 @@ function BulkProfilingTab({ selectedProject }) {
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [error, setError] = useState(null);
   const [createdJob, setCreatedJob] = useState(null);
+  const [jobStatus, setJobStatus] = useState(null);
+  const [pollingInterval, setPollingInterval] = useState(null);
 
   // Fetch connections on mount
   useEffect(() => {
     fetchConnections();
   }, []);
+  
+  // Poll for job status when job is running
+  useEffect(() => {
+    if (createdJob && ['running', 'pending'].includes(jobStatus?.status)) {
+      const interval = setInterval(() => {
+        fetchJobStatus(createdJob.id);
+      }, 2000); // Poll every 2 seconds
+      
+      setPollingInterval(interval);
+      return () => clearInterval(interval);
+    }
+  }, [createdJob, jobStatus]);
 
   const fetchConnections = async () => {
     try {
@@ -76,6 +90,22 @@ function BulkProfilingTab({ selectedProject }) {
     }
   };
 
+  const fetchJobStatus = async (jobId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${API_BASE_URL}/api/bulk-profiling/jobs/${jobId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      setJobStatus(response.data.job);
+    } catch (err) {
+      console.error('Error fetching job status:', err);
+    }
+  };
+
   const handleCreateJob = async () => {
     if (discoveredFiles.length === 0) {
       setError('No files to profile');
@@ -108,12 +138,35 @@ function BulkProfilingTab({ selectedProject }) {
         }
       );
 
-      setCreatedJob(response.data.job);
+      const job = response.data.job;
+      setCreatedJob(job);
+      
+      // Automatically start the job
+      handleStartJob(job.id);
     } catch (err) {
       console.error('Error creating job:', err);
       setError(err.response?.data?.message || 'Failed to create profiling job');
     } finally {
       setIsCreatingJob(false);
+    }
+  };
+  
+  const handleStartJob = async (jobId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_BASE_URL}/api/bulk-profiling/jobs/${jobId}/start`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      // Start polling for status
+      fetchJobStatus(jobId);
+    } catch (err) {
+      console.error('Error starting job:', err);
+      setError(err.response?.data?.message || 'Failed to start profiling job');
     }
   };
 
@@ -132,26 +185,161 @@ function BulkProfilingTab({ selectedProject }) {
     else return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
   };
 
-  if (createdJob) {
+  if (createdJob && jobStatus) {
+    const isRunning = jobStatus.status === 'running' || jobStatus.status === 'pending';
+    const isCompleted = jobStatus.status === 'completed';
+    const isFailed = jobStatus.status === 'failed';
+    const progress = jobStatus.total_files > 0 ? (jobStatus.processed_files / jobStatus.total_files) * 100 : 0;
+    
     return (
       <div style={{ padding: '2rem' }}>
         <div style={{
-          background: '#f0fdf4',
-          border: '2px solid #10b981',
+          background: isCompleted ? '#f0fdf4' : isFailed ? '#fef2f2' : '#f8f9fa',
+          border: `2px solid ${isCompleted ? '#10b981' : isFailed ? '#ef4444' : '#6b7280'}`,
           borderRadius: '8px',
-          padding: '2rem',
-          textAlign: 'center'
+          padding: '2rem'
         }}>
-          <FiCheck size={48} style={{ color: '#10b981', marginBottom: '1rem' }} />
-          <h2 style={{ color: '#065f46', marginBottom: '1rem' }}>Bulk Profiling Job Created</h2>
-          <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>
-            Job "{createdJob.job_name}" has been created with {createdJob.total_files} files
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
+            {isRunning && <FiClock size={32} style={{ color: '#f59e0b', marginRight: '1rem' }} />}
+            {isCompleted && <FiCheck size={32} style={{ color: '#10b981', marginRight: '1rem' }} />}
+            {isFailed && <FiX size={32} style={{ color: '#ef4444', marginRight: '1rem' }} />}
+            <div>
+              <h2 style={{ margin: 0 }}>
+                {isRunning && 'Bulk Profiling In Progress'}
+                {isCompleted && 'Bulk Profiling Completed'}
+                {isFailed && 'Bulk Profiling Failed'}
+              </h2>
+              <p style={{ margin: '0.5rem 0 0 0', color: '#666' }}>
+                Job: {jobStatus.job_name}
+              </p>
+            </div>
+          </div>
           
+          {/* Progress Bar */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: '0.5rem',
+              fontSize: '0.875rem',
+              color: '#666'
+            }}>
+              <span>Progress: {jobStatus.processed_files} / {jobStatus.total_files} files</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+            <div style={{
+              width: '100%',
+              height: '8px',
+              background: '#e5e7eb',
+              borderRadius: '4px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${progress}%`,
+                height: '100%',
+                background: isCompleted ? '#10b981' : isFailed ? '#ef4444' : '#3b82f6',
+                transition: 'width 0.3s ease'
+              }} />
+            </div>
+          </div>
+          
+          {/* Stats */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '1rem',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ textAlign: 'center', padding: '1rem', background: 'white', borderRadius: '4px' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>
+                {jobStatus.successful_files}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#666' }}>Successful</div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem', background: 'white', borderRadius: '4px' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ef4444' }}>
+                {jobStatus.failed_files}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#666' }}>Failed</div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem', background: 'white', borderRadius: '4px' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#6b7280' }}>
+                {jobStatus.total_files - jobStatus.processed_files}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#666' }}>Remaining</div>
+            </div>
+          </div>
+          
+          {/* File Details */}
+          {jobStatus.files && jobStatus.files.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>File Details</h3>
+              <div style={{
+                maxHeight: '300px',
+                overflowY: 'auto',
+                border: '1px solid #e5e7eb',
+                borderRadius: '4px',
+                background: 'white'
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: '#f9fafb' }}>
+                    <tr>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>File</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '1px solid #e5e7eb' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobStatus.files.map((file, index) => (
+                      <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '0.5rem' }}>{file.file_name}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            background: 
+                              file.status === 'completed' ? '#d1fae5' :
+                              file.status === 'failed' ? '#fee2e2' :
+                              file.status === 'processing' ? '#dbeafe' :
+                              file.status === 'skipped' ? '#fef3c7' : '#f3f4f6',
+                            color:
+                              file.status === 'completed' ? '#065f46' :
+                              file.status === 'failed' ? '#991b1b' :
+                              file.status === 'processing' ? '#1e40af' :
+                              file.status === 'skipped' ? '#92400e' : '#6b7280'
+                          }}>
+                            {file.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          
+          {/* Error Message */}
+          {jobStatus.error_message && (
+            <div style={{
+              padding: '1rem',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '4px',
+              marginBottom: '1.5rem',
+              color: '#991b1b'
+            }}>
+              <strong>Error:</strong> {jobStatus.error_message}
+            </div>
+          )}
+          
+          {/* Actions */}
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button className="btn btn-secondary" onClick={handleReset}>
-              Create Another Job
-            </button>
+            {!isRunning && (
+              <button className="btn btn-secondary" onClick={handleReset}>
+                Create Another Job
+              </button>
+            )}
             <button className="btn btn-primary" onClick={() => window.location.href = '/monitor'}>
               View in Monitor
             </button>

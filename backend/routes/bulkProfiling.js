@@ -164,33 +164,13 @@ router.get('/jobs/:jobId', authenticateToken, async (req, res) => {
 router.post('/jobs/:jobId/start', authenticateToken, async (req, res) => {
   try {
     const { jobId } = req.params;
+    const userId = req.user.id;
     
-    const job = await BulkProfilingService.getJob(jobId);
-    
-    if (!job) {
-      return res.status(404).json({
-        success: false,
-        message: 'Job not found'
-      });
-    }
-    
-    if (job.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: `Job is already ${job.status}`
-      });
-    }
-    
-    // Update job status to running
-    await BulkProfilingService.updateJobStatus(jobId, 'running');
-    
-    // Start async processing (will be implemented in next phase)
-    // For now, just return success
+    const result = await BulkProfilingService.startBulkProfiling(jobId, userId);
     
     res.json({
       success: true,
-      message: 'Job started',
-      jobId
+      ...result
     });
     
   } catch (error) {
