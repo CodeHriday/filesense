@@ -6,7 +6,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const BulkProfilingService = require('../services/BulkProfilingService');
-const { authenticateToken } = require('../middleware/auth');
+const authenticateToken = require('../middleware/authenticate');
 const { systemLogger } = require('../utils/logger');
 
 /**
