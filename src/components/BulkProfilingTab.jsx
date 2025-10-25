@@ -254,6 +254,62 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
     else return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
   };
 
+  // Show scheduled job confirmation
+  if (createdJob && createdJob.execution_type === 'scheduled' && !jobStatus) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <div style={{
+          background: '#f0fdf4',
+          border: '2px solid #10b981',
+          borderRadius: '8px',
+          padding: '2rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <FiCheck size={32} style={{ color: '#10b981', marginRight: '1rem' }} />
+            <div>
+              <h2 style={{ margin: 0 }}>Bulk Profiling Job Scheduled</h2>
+              <p style={{ margin: '0.5rem 0 0 0', color: '#666' }}>
+                Job: {createdJob.job_name}
+              </p>
+            </div>
+          </div>
+          
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            marginBottom: '1.5rem'
+          }}>
+            <p style={{ marginBottom: '0.75rem' }}>
+              <strong>Files to process:</strong> {createdJob.total_files} files
+            </p>
+            <p style={{ marginBottom: '0.75rem' }}>
+              <strong>Schedule:</strong> {createdJob.schedule_type === 'recurring' ? 'Recurring' : 'One-time'}
+            </p>
+            {createdJob.schedule_type === 'recurring' && (
+              <p style={{ marginBottom: 0 }}>
+                <strong>Cron expression:</strong> <code style={{ 
+                  background: '#f3f4f6', 
+                  padding: '0.25rem 0.5rem', 
+                  borderRadius: '4px' 
+                }}>{createdJob.cron_expression}</code>
+              </p>
+            )}
+          </div>
+          
+          <button
+            className="btn btn-secondary"
+            onClick={handleReset}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <FiRefreshCw />
+            Schedule Another Job
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
   if (createdJob && jobStatus) {
     const isRunning = jobStatus.status === 'running' || jobStatus.status === 'pending';
     const isCompleted = jobStatus.status === 'completed';
@@ -691,7 +747,12 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
             <FiPlay />
-            {isCreatingJob ? 'Creating Job...' : `Start Profiling ${discoveredFiles.length} Files`}
+            {isCreatingJob 
+              ? 'Creating Job...' 
+              : executionType === 'scheduled'
+                ? `Schedule Profiling Job (${discoveredFiles.length} Files)`
+                : `Start Profiling ${discoveredFiles.length} Files`
+            }
           </button>
         </div>
       )}
