@@ -93,6 +93,7 @@ async function createSchedule(scheduleData) {
     interval_value,
     interval_unit,
     timezone = 'UTC',
+    project_id,
     created_by,
     is_active = true
   } = scheduleData;
@@ -112,8 +113,8 @@ async function createSchedule(scheduleData) {
     const result = await pool.query(`
       INSERT INTO schedules 
       (entity_type, entity_id, schedule_name, schedule_type, cron_expression, 
-       interval_value, interval_unit, timezone, next_run, created_by, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       interval_value, interval_unit, timezone, next_run, project_id, created_by, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `, [
       entity_type,
@@ -125,6 +126,7 @@ async function createSchedule(scheduleData) {
       interval_unit || null,
       timezone,
       nextRun,
+      project_id,
       created_by,
       is_active
     ]);
