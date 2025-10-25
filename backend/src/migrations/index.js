@@ -291,6 +291,32 @@ const migrations = [
       await client.query('DROP TABLE IF EXISTS bulk_profiling_jobs');
       console.log('Bulk profiling migration rolled back');
     }
+  },
+  {
+    name: '005_add_bulk_profiling_schedule_id',
+    up: async (client) => {
+      // Add schedule_id column to bulk_profiling_jobs if it doesn't exist
+      await client.query(`
+        DO $$ 
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'bulk_profiling_jobs' AND column_name = 'schedule_id'
+          ) THEN
+            ALTER TABLE bulk_profiling_jobs ADD COLUMN schedule_id VARCHAR(36);
+            RAISE NOTICE 'Added schedule_id column to bulk_profiling_jobs table';
+          ELSE
+            RAISE NOTICE 'schedule_id column already exists in bulk_profiling_jobs table';
+          END IF;
+        END $$;
+      `);
+      
+      console.log('Bulk profiling schedule_id migration completed');
+    },
+    down: async (client) => {
+      await client.query('ALTER TABLE bulk_profiling_jobs DROP COLUMN IF EXISTS schedule_id');
+      console.log('Bulk profiling schedule_id migration rolled back');
+    }
   }
 ];
 
