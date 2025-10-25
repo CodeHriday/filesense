@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const AWS = require('aws-sdk');
 const pool = require('../config/database');
 const { systemLogger } = require('../utils/logger');
-const ConnectionService = require('./ConnectionService');
+const connectionService = require('./ConnectionService');
 const path = require('path');
 
 class BulkProfilingService {
@@ -17,7 +17,6 @@ class BulkProfilingService {
   async discoverFiles(connectionId, s3Path, filePattern = '*', recursive = false) {
     try {
       // Get connection details
-      const connectionService = new ConnectionService();
       const connection = await connectionService.getConnection(connectionId);
       
       if (!connection) {
