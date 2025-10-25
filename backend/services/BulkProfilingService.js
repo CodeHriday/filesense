@@ -244,6 +244,7 @@ class BulkProfilingService {
           entity_type: 'bulk_profiling_job',
           entity_id: jobId,
           schedule_name: jobData.jobName || `Bulk Profile Schedule - ${jobData.s3Path}`,
+          project_id: jobData.projectId,
           created_by: jobData.createdBy,
           is_active: true
         };
