@@ -1220,14 +1220,16 @@ app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.
   }
 });
 
-// File upload endpoint with async queue processing
-app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files*'), uploadLimiter, upload.single('file'), async (req, res) => {
+// File upload endpoint with async queue processing (supports batch uploads)
+app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files*'), uploadLimiter, upload.array('files', 20), async (req, res) => {
   try {
     // Check if user has file_upload:write permission
     if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_upload:write')) {
-      // Clean up temp file if it exists
-      if (req.file && req.file.path) {
-        try { fs.unlinkSync(req.file.path); } catch (e) {}
+      // Clean up temp files if they exist
+      if (req.files && req.files.length > 0) {
+        req.files.forEach(file => {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        });
       }
       
       return res.status(403).json({ 
@@ -1237,8 +1239,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     }
     
     // Validate file upload
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
     }
     
     // Validate and get project_id
@@ -1250,9 +1252,9 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     if (!projectId) {
       const userProjects = await getUserProjects(req.user.id);
       if (userProjects.length === 0 && !isAdmin) {
-        if (req.file && req.file.path) {
-          try { fs.unlinkSync(req.file.path); } catch (e) {}
-        }
+        req.files.forEach(file => {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        });
         return res.status(403).json({
           error: 'No project access',
           message: 'You must be assigned to at least one project to upload files'
@@ -1266,9 +1268,9 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
         const hasAccess = userProjects.some(p => p.id === projectId);
         
         if (!hasAccess) {
-          if (req.file && req.file.path) {
-            try { fs.unlinkSync(req.file.path); } catch (e) {}
-          }
+          req.files.forEach(file => {
+            try { fs.unlinkSync(file.path); } catch (e) {}
+          });
           return res.status(403).json({
             error: 'Project access denied',
             message: 'You do not have access to the specified project'
@@ -1277,116 +1279,137 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       }
     }
     
-    const file = req.file;
-    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
-    const fileType = path.extname(file.originalname).substring(1).toLowerCase();
     const userId = req.user ? req.user.id : null;
     const crypto = require('crypto');
-    
-    // Virus scan the uploaded file
     const virusScanner = require('./backend/services/VirusScanService');
-    try {
-      const scanResult = await virusScanner.scanFile(file.path);
+    
+    // Process each file in batch
+    const results = [];
+    
+    for (const file of req.files) {
+      const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+      const fileType = path.extname(file.originalname).substring(1).toLowerCase();
       
-      if (scanResult.isInfected) {
-        logger.warn('Virus detected in uploaded file', {
-          fileId,
-          filename: file.originalname,
-          viruses: scanResult.viruses,
-          userId
+      try {
+        // Virus scan the uploaded file
+        const scanResult = await virusScanner.scanFile(file.path);
+        
+        if (scanResult.isInfected) {
+          logger.warn('Virus detected in uploaded file', {
+            fileId,
+            filename: file.originalname,
+            viruses: scanResult.viruses,
+            userId
+          });
+          
+          // Delete infected file
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          
+          results.push({
+            success: false,
+            filename: file.originalname,
+            error: 'Virus detected',
+            message: `The uploaded file contains malware: ${scanResult.viruses.join(', ')}`,
+            viruses: scanResult.viruses
+          });
+          continue;
+        }
+        
+        if (scanResult.skipped) {
+          logger.warn('Virus scan skipped for uploaded file', {
+            fileId,
+            filename: file.originalname,
+            reason: scanResult.message,
+            userId
+          });
+        } else {
+          logger.info('File passed virus scan', {
+            fileId,
+            filename: file.originalname,
+            userId
+          });
+        }
+        
+        // Calculate file hash
+        const fileHash = await new Promise((resolve, reject) => {
+          const hash = crypto.createHash('sha256');
+          const stream = fs.createReadStream(file.path);
+          
+          stream.on('data', (data) => hash.update(data));
+          stream.on('end', () => resolve(hash.digest('hex')));
+          stream.on('error', reject);
         });
         
-        // Delete infected file
+        logger.info('File uploaded, adding to processing queue', { 
+          fileId,
+          filename: file.originalname, 
+          size: file.size,
+          type: fileType,
+          userId,
+          fileHash: fileHash.substring(0, 16) + '...'
+        });
+        
+        // Add job to processing queue (non-blocking)
+        const jobId = await queue.addJob('file-processing', {
+          fileId,
+          filePath: file.path,
+          originalName: file.originalname,
+          fileSize: file.size,
+          fileType,
+          userId,
+          fileHash,
+          projectId
+        }, {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+          timeout: 1800000 // 30 minutes for large files
+        });
+        
+        logger.info('File processing job queued', { fileId, jobId });
+        
+        results.push({
+          success: true,
+          fileId,
+          jobId,
+          status: 'queued',
+          filename: file.originalname,
+          file: {
+            file_id: fileId,
+            filename: file.originalname,
+            file_type: fileType,
+            file_size: file.size
+          }
+        });
+        
+      } catch (error) {
+        logger.error('Error processing file in batch', {
+          filename: file.originalname,
+          error: error.message
+        });
+        
+        // Clean up file on error
         try { fs.unlinkSync(file.path); } catch (e) {}
         
-        return res.status(400).json({
-          error: 'Virus detected',
-          message: `The uploaded file contains malware: ${scanResult.viruses.join(', ')}`,
-          viruses: scanResult.viruses
+        results.push({
+          success: false,
+          filename: file.originalname,
+          error: 'Processing failed',
+          message: error.message
         });
       }
-      
-      if (scanResult.skipped) {
-        logger.warn('Virus scan skipped for uploaded file', {
-          fileId,
-          filename: file.originalname,
-          reason: scanResult.message,
-          userId
-        });
-      } else {
-        logger.info('File passed virus scan', {
-          fileId,
-          filename: file.originalname,
-          userId
-        });
-      }
-    } catch (scanError) {
-      // With the updated VirusScanService, this should rarely be hit
-      // as all errors are handled gracefully within the service
-      logger.error('Unexpected virus scan error', {
-        fileId,
-        filename: file.originalname,
-        error: scanError.message,
-        userId
-      });
-      
-      // Allow upload to continue with warning instead of blocking
-      logger.warn('Allowing file upload despite scan error', {
-        fileId,
-        filename: file.originalname
-      });
     }
     
-    // Calculate file hash
-    const fileHash = await new Promise((resolve, reject) => {
-      const hash = crypto.createHash('sha256');
-      const stream = fs.createReadStream(file.path);
-      
-      stream.on('data', (data) => hash.update(data));
-      stream.on('end', () => resolve(hash.digest('hex')));
-      stream.on('error', reject);
-    });
+    // Return batch results
+    const successCount = results.filter(r => r.success).length;
+    const failedCount = results.length - successCount;
     
-    logger.info('File uploaded, adding to processing queue', { 
-      fileId,
-      filename: file.originalname, 
-      size: file.size,
-      type: fileType,
-      userId,
-      fileHash: fileHash.substring(0, 16) + '...'
-    });
-    
-    // Add job to processing queue (non-blocking)
-    const jobId = await queue.addJob('file-processing', {
-      fileId,
-      filePath: file.path,
-      originalName: file.originalname,
-      fileSize: file.size,
-      fileType,
-      userId,
-      fileHash,
-      projectId
-    }, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 },
-      timeout: 1800000 // 30 minutes for large files
-    });
-    
-    logger.info('File processing job queued', { fileId, jobId });
-    
-    // Return immediately with job information
     res.json({
-      success: true,
-      fileId,
-      jobId,
-      status: 'queued',
-      message: 'File uploaded successfully and queued for processing',
-      file: {
-        file_id: fileId,
-        filename: file.originalname,
-        file_type: fileType,
-        file_size: file.size
-      }
+      success: successCount > 0,
+      message: `Batch upload complete: ${successCount} succeeded, ${failedCount} failed`,
+      totalFiles: results.length,
+      successCount,
+      failedCount,
+      results
     });
     
   } catch (error) {
