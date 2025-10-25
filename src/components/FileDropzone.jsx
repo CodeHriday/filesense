@@ -124,7 +124,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
     
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      if (multiple && onBatchFileDrop) {
+      if (multiple && onBatchFileDrop && files.length > 1) {
         // Handle batch upload - all files in one request
         setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
         setCompletedFiles([]);
@@ -281,7 +281,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
   const handleFileSelect = useCallback(async (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      if (multiple && onBatchFileDrop) {
+      if (multiple && onBatchFileDrop && files.length > 1) {
         // Handle batch upload - all files in one request
         setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending', progress: 0 })));
         setCompletedFiles([]);
