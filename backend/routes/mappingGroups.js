@@ -286,7 +286,7 @@ router.delete('/:id',
 router.get('/:id/members',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:read', 'mapping_group_view']
+    requiredPermissions: ['mapping_group:read']
   }),
   async (req, res) => {
   try {
