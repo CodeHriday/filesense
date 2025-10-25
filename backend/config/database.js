@@ -341,10 +341,18 @@ async function getHealthStatus() {
   }
 }
 
+/**
+ * Get a client from the pool for transactions
+ */
+async function getClient() {
+  return await pool.connect();
+}
+
 module.exports = {
   query,
   transaction,
   pool,
+  getClient,
   initialize,
   testConnection,
   close,
