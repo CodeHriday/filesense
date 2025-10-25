@@ -3,6 +3,7 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
+const bulkProfilingService = require('./BulkProfilingService');
 const parser = require('cron-parser');
 
 /**
@@ -316,6 +317,12 @@ async function processDueSchedules() {
         } else if (schedule.entity_type === 'workflow') {
           executionResult = await executeNStepWorkflow(
             parseInt(schedule.entity_id),
+            userId
+          );
+        } else if (schedule.entity_type === 'bulk_profiling_job') {
+          // Start the bulk profiling job
+          executionResult = await bulkProfilingService.startJob(
+            schedule.entity_id,
             userId
           );
         } else {

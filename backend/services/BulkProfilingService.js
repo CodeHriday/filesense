@@ -13,6 +13,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const virusScanService = require('./VirusScanService');
+const { createSchedule } = require('./cronSchedulerService');
 
 class BulkProfilingService {
   /**
@@ -235,12 +236,45 @@ class BulkProfilingService {
   async createJob(jobData) {
     try {
       const jobId = uuidv4();
+      let scheduleId = null;
+      
+      // If scheduled execution, create a schedule record first
+      if (jobData.executionType === 'scheduled') {
+        const scheduleData = {
+          entity_type: 'bulk_profiling_job',
+          entity_id: jobId,
+          schedule_name: jobData.jobName || `Bulk Profile Schedule - ${jobData.s3Path}`,
+          created_by: jobData.createdBy,
+          is_active: true
+        };
+        
+        // For recurring schedules
+        if (jobData.scheduleType === 'recurring') {
+          scheduleData.schedule_type = 'cron';
+          scheduleData.cron_expression = jobData.cronExpression;
+        } 
+        // For one-time schedules, use the start date as a one-time cron
+        else if (jobData.scheduleType === 'one-time') {
+          // Convert datetime to cron expression for one-time execution
+          const startDate = new Date(jobData.scheduleStartDate);
+          const minute = startDate.getMinutes();
+          const hour = startDate.getHours();
+          const day = startDate.getDate();
+          const month = startDate.getMonth() + 1;
+          scheduleData.schedule_type = 'cron';
+          scheduleData.cron_expression = `${minute} ${hour} ${day} ${month} *`;
+        }
+        
+        const scheduleResult = await createSchedule(scheduleData);
+        scheduleId = scheduleResult.schedule.id;
+        systemLogger.info('Created schedule for bulk profiling job', { jobId, scheduleId });
+      }
       
       const query = `
         INSERT INTO bulk_profiling_jobs (
           id, job_name, project_id, connection_id, s3_path, file_pattern,
-          duplicate_handling, recursive, status, execution_type, created_by, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+          duplicate_handling, recursive, status, execution_type, schedule_id, created_by, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
         RETURNING *
       `;
       
@@ -255,11 +289,12 @@ class BulkProfilingService {
         jobData.recursive || false,
         'pending',
         jobData.executionType || 'manual',
+        scheduleId,
         jobData.createdBy
       ];
       
       const result = await pool.query(query, values);
-      systemLogger.info('Created bulk profiling job', { jobId });
+      systemLogger.info('Created bulk profiling job', { jobId, executionType: jobData.executionType });
       
       return result.rows[0];
       
