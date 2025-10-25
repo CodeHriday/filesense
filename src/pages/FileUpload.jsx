@@ -588,7 +588,8 @@ function FileUpload() {
     // Check if drop location is configured
     if (!dropLocationConfigured) {
       setShowDropLocationModal(true);
-      return;
+      setUploadStatus('error');
+      throw new Error('Drop location not configured');
     }
     
     try {
@@ -897,15 +898,30 @@ function FileUpload() {
         {/* Drop file tab (separate from upload-profile) */}
         {activeTab === 'drop-file' && (
           hasWritePermission('file_drop') ? (
-            <FileDropzone 
-              key={`drop-${dropzoneKey}`}
-              onFileDrop={handleDropFile}
-              onBatchFileDrop={handleBatchFileDrop}
-              acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
-              maxSizeMB={50}
-              multiple={true}
-              virusScan={uploadedFile?.virusScan}
-            />
+            <>
+              <FileDropzone 
+                key={`drop-${dropzoneKey}`}
+                onFileDrop={handleDropFile}
+                onBatchFileDrop={handleBatchFileDrop}
+                acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+                maxSizeMB={50}
+                multiple={true}
+                virusScan={uploadedFile?.virusScan}
+                externalStatus={uploadStatus}
+              />
+              
+              {/* Reset button for drop file tab */}
+              {(uploadStatus === 'success' || uploadStatus === 'error') && (
+                <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={handleUploadAnother}
+                  >
+                    Reset / Upload Another File
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="access-denied-message">
               <p>You do not have permission to drop files. Please contact an administrator.</p>
