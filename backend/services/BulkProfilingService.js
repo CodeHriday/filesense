@@ -470,7 +470,9 @@ class BulkProfilingService {
           
           // Download file from S3 to temp location
           const tempFilePath = `/tmp/bulk_profiling_${jobId}_${Date.now()}_${file.file_name}`;
-          await this._downloadFileFromS3(s3, bucketName, file.file_path, tempFilePath);
+          // Extract S3 key from path (convert s3://bucket/key to just key)
+          const s3Key = this._extractS3Key(file.file_path);
+          await this._downloadFileFromS3(s3, bucketName, s3Key, tempFilePath);
           
           // TODO: Trigger file profiling
           // This would integrate with the existing file upload/profiling pipeline
@@ -506,6 +508,20 @@ class BulkProfilingService {
       await this.updateJobStatus(jobId, 'failed', error.message);
       throw error;
     }
+  }
+  
+  /**
+   * Extract S3 key from s3://bucket/key or /key format
+   */
+  _extractS3Key(filePath) {
+    if (filePath.startsWith('s3://')) {
+      // Format: s3://bucket/path/to/file.ext
+      const parts = filePath.replace('s3://', '').split('/');
+      // Remove bucket name and return the rest
+      return parts.slice(1).join('/');
+    }
+    // Already just a key or path
+    return filePath.replace(/^\//, ''); // Remove leading slash if present
   }
   
   /**
