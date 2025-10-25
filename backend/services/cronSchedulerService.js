@@ -21,8 +21,8 @@ const parser = require('cron-parser');
  */
 function parseAndCalculateNextRun(cronExpression, fromDate = new Date()) {
   try {
-    // Parse cron expression using CronExpressionParser.parse static method
-    const interval = parser.CronExpressionParser.parse(cronExpression, {
+    // Parse cron expression using cron-parser
+    const interval = parser.parseExpression(cronExpression, {
       currentDate: fromDate,
       tz: 'UTC'
     });
