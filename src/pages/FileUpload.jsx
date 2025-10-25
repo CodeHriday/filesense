@@ -206,7 +206,7 @@ function FileUpload() {
       
       // Manually create FormData
       const formData = new FormData();
-      formData.append('file', testFile);
+      formData.append('files', testFile);
       
       setDiagnosticInfo(prev => prev + 'Sending direct axios request...\n');
       
@@ -498,7 +498,7 @@ function FileUpload() {
       setUploadStatus('uploading');
       
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('files', file);
       
       const token = localStorage.getItem('token');
       const response = await axios.post(`${API_BASE_URL}/api/files/drop`, formData, {

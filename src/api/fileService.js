@@ -150,7 +150,7 @@ export const bulkDeleteFiles = async (fileIds) => {
 export const uploadFile = async (file, progressCallback, owner = null, projectId = null) => {
   try {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('files', file);
     if (owner) {
       formData.append('owner', owner);
     }
