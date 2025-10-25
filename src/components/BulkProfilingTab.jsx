@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiFolder, FiSearch, FiPlay, FiClock, FiCheck, FiX, FiDownload } from 'react-icons/fi';
+import S3FolderBrowser from './S3FolderBrowser';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -21,6 +22,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
   const [createdJob, setCreatedJob] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(null);
+  const [showBrowser, setShowBrowser] = useState(false);
 
   // Update selected project when prop changes
   useEffect(() => {
@@ -441,18 +443,47 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
 
         <div className="form-group">
           <label htmlFor="s3path">S3 Path *</label>
-          <input
-            id="s3path"
-            type="text"
-            className="form-control"
-            placeholder="s3://bucket-name/path/to/files/ or /path/to/files/"
-            value={s3Path}
-            onChange={(e) => setS3Path(e.target.value)}
-          />
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              id="s3path"
+              type="text"
+              className="form-control"
+              placeholder="s3://bucket-name/path/to/files/ or /path/to/files/"
+              value={s3Path}
+              onChange={(e) => setS3Path(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowBrowser(!showBrowser)}
+              disabled={!selectedConnection}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              <FiFolder style={{ marginRight: '0.5rem' }} />
+              Browse
+            </button>
+          </div>
           <small style={{ color: '#666' }}>
-            Enter the S3 path to scan for files (e.g., s3://my-bucket/data/2024/)
+            {selectedConnection 
+              ? 'Enter the S3 path or click Browse to navigate folders'
+              : 'Select a connection first to enable browsing'
+            }
           </small>
         </div>
+
+        {showBrowser && selectedConnection && (
+          <div className="form-group">
+            <S3FolderBrowser
+              connectionId={selectedConnection}
+              initialPath={s3Path || '/'}
+              onSelectPath={(path) => {
+                setS3Path(path);
+                setShowBrowser(false);
+              }}
+            />
+          </div>
+        )}
 
         <div className="form-group">
           <label htmlFor="pattern">File Pattern</label>
