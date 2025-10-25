@@ -35,6 +35,7 @@ function FileUpload() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [batchUploadStatus, setBatchUploadStatus] = useState(null); // Track batch upload progress
+  const [batchResults, setBatchResults] = useState(null); // Store batch upload results
   const pollingInterval = useRef(null);
   const navigate = useNavigate();
   const { hasWritePermission, currentUser } = useAuth();
@@ -270,6 +271,7 @@ function FileUpload() {
       setCurrentStep('uploading');
       setUploadProgress(0);
       setBatchUploadStatus({ total: files.length, current: 0, currentFile: null });
+      setBatchResults(null); // Clear previous results
       
       // Validate project selection
       if (!selectedProject) {
@@ -327,6 +329,11 @@ function FileUpload() {
           });
           successCount++;
           
+          // Add a small delay between files to make progress visible (400ms)
+          if (i < files.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 400));
+          }
+          
         } catch (error) {
           console.error(`Error uploading file ${fileNumber} (${file.name}):`, error);
           setDiagnosticInfo(prev => prev + `❌ File ${fileNumber} failed: ${file.name} - ${error.message}\n`);
@@ -337,6 +344,11 @@ function FileUpload() {
             error: error.message
           });
           failedCount++;
+          
+          // Add delay even on error to show the failure
+          if (i < files.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 400));
+          }
         }
       }
       
@@ -361,12 +373,13 @@ function FileUpload() {
       setIsProcessing(false);
       setBatchUploadStatus(null);
       
-      // Only navigate to file catalog if at least one file succeeded
-      if (successCount > 0) {
-        setTimeout(() => {
-          navigate('/files');
-        }, 2000);
-      }
+      // Store results for display (do NOT auto-redirect)
+      setBatchResults({
+        total: files.length,
+        successCount,
+        failedCount,
+        results
+      });
       
       return {
         success: successCount > 0,
@@ -547,6 +560,7 @@ function FileUpload() {
     setCurrentStep(null);
     setUploadProgress(0);
     setIsProcessing(false);
+    setBatchResults(null); // Clear batch results
     setDropzoneKey(prev => prev + 1); // Reset FileDropzone component
   };
   
@@ -899,7 +913,7 @@ function FileUpload() {
           )
         )}
         
-        {uploadStatus === 'success' && uploadedFile && activeTab === 'upload-profile' && !isProcessing && (
+        {uploadStatus === 'success' && uploadedFile && activeTab === 'upload-profile' && !isProcessing && !batchResults && (
           <>
             <div className="upload-success-actions">
               <button 
@@ -916,6 +930,94 @@ function FileUpload() {
               </button>
             </div>
           </>
+        )}
+        
+        {/* Batch Upload Results Summary */}
+        {batchResults && activeTab === 'upload-profile' && !isProcessing && (
+          <div style={{
+            margin: '2rem 0',
+            padding: '1.5rem',
+            background: batchResults.successCount === batchResults.total ? '#f0fdf4' : 
+                        batchResults.successCount === 0 ? '#fef2f2' : '#fefce8',
+            border: `2px solid ${batchResults.successCount === batchResults.total ? '#10b981' : 
+                                  batchResults.successCount === 0 ? '#ef4444' : '#f59e0b'}`,
+            borderRadius: '8px'
+          }}>
+            <h3 style={{ 
+              margin: '0 0 1rem 0', 
+              color: batchResults.successCount === batchResults.total ? '#065f46' : 
+                     batchResults.successCount === 0 ? '#991b1b' : '#92400e'
+            }}>
+              Batch Upload Complete
+            </h3>
+            
+            <div style={{ 
+              fontSize: '1.1rem', 
+              fontWeight: 'bold', 
+              marginBottom: '1rem',
+              color: '#1f2937'
+            }}>
+              {batchResults.successCount} of {batchResults.total} files uploaded successfully
+              {batchResults.failedCount > 0 && ` • ${batchResults.failedCount} failed`}
+            </div>
+            
+            {/* File-by-file results */}
+            <div style={{
+              maxHeight: '300px',
+              overflowY: 'auto',
+              background: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              padding: '1rem',
+              marginBottom: '1.5rem'
+            }}>
+              {batchResults.results.map((result, index) => (
+                <div key={index} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0.5rem',
+                  borderBottom: index < batchResults.results.length - 1 ? '1px solid #f3f4f6' : 'none'
+                }}>
+                  <span style={{ 
+                    marginRight: '0.75rem', 
+                    fontSize: '1.2rem'
+                  }}>
+                    {result.success ? '✅' : '❌'}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '500', color: '#374151' }}>
+                      {result.filename}
+                    </div>
+                    {!result.success && result.error && (
+                      <div style={{ fontSize: '0.875rem', color: '#ef4444', marginTop: '0.25rem' }}>
+                        {result.error}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              {batchResults.successCount > 0 && (
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => navigate('/files')}
+                  style={{ flex: 1 }}
+                >
+                  View File Catalog
+                </button>
+              )}
+              <button 
+                className="btn btn-secondary"
+                onClick={handleUploadAnother}
+                style={{ flex: 1 }}
+              >
+                Upload More Files
+              </button>
+            </div>
+          </div>
         )}
       </Card>
 
