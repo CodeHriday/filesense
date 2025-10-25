@@ -639,7 +639,7 @@ function FileUpload() {
 
   return (
     <div className="file-upload-container">
-      <h1>Upload File</h1>
+      <h1>File Upload & Profile</h1>
       
       {showDuplicateModal && duplicateFileInfo && (
         <DuplicateFileModal
