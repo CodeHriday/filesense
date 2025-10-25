@@ -1087,7 +1087,7 @@ print(json.dumps(result))
   async _createFileOwnership(fileId, userId, filename) {
     try {
       await pool.query(
-        `INSERT INTO file_ownership (file_id, creator, owner, filename, created_at, updated_at)
+        `INSERT INTO file_ownership (file_id, creator_user_id, owner, filename, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW())
          ON CONFLICT (file_id) DO NOTHING`,
         [fileId, userId, userId, filename]
