@@ -52,7 +52,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'file_upload', 
-    name: 'File Upload', 
+    name: 'File Upload & Profile', 
     category: 'Project & File Management',
     icon: FiUpload,
     route: '/upload',
