@@ -48,11 +48,15 @@ export const getCurrentUser = async () => {
 
 /**
  * Get all users (admin only)
- * @returns {Promise<Array>} Array of user objects
+ * @param {number} page - Page number (default: 1)
+ * @param {number} limit - Items per page (default: 10)
+ * @returns {Promise<Object>} Object with users array and pagination info
  */
-export const getAllUsers = async () => {
+export const getAllUsers = async (page = 1, limit = 10) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/users`);
+    const response = await axios.get(`${API_BASE_URL}/api/users`, {
+      params: { page, limit }
+    });
     console.log('Get all users response:', response);
     return response.data;
   } catch (error) {
@@ -114,11 +118,15 @@ export const deleteUser = async (userId) => {
 
 /**
  * Get all roles (admin only)
- * @returns {Promise<Array>} Array of role objects
+ * @param {number} page - Page number (default: 1)
+ * @param {number} limit - Items per page (default: 10)
+ * @returns {Promise<Object>} Object with roles array and pagination info
  */
-export const getRoles = async () => {
+export const getRoles = async (page = 1, limit = 10) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/roles`);
+    const response = await axios.get(`${API_BASE_URL}/api/roles`, {
+      params: { page, limit }
+    });
     return response.data;
   } catch (error) {
     console.error('Get roles error:', error);
