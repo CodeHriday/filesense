@@ -603,7 +603,7 @@ function FileUpload() {
       setUploadStatus('uploading');
       
       const formData = new FormData();
-      formData.append('files', file);
+      formData.append('file', file);
       
       const token = localStorage.getItem('token');
       const response = await axios.post(`${API_BASE_URL}/api/files/drop`, formData, {
