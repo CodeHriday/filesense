@@ -20,26 +20,158 @@ import re
 import json
 
 
-def is_header_like(row_data: pd.Series, threshold: float = 0.7) -> bool:
+def is_data_pattern(value) -> bool:
+    """
+    Detect if a value looks like data (not a header).
+    Common data patterns:
+    - Dates (1/11/25, 2025-01-11, 12/10/79)
+    - Single letters (M, F)
+    - Code patterns (US-01, EU-09, ABC-123)
+    - Pure numbers
+    - Email addresses
+    - Multi-word strings with spaces (John Doe, 123 Main St)
+    - Contains @ or common data symbols
+    """
+    if not value or pd.isna(value):
+        return False
+    
+    val_str = str(value).strip()
+    
+    # Single letter (often categorical data like M/F)
+    if len(val_str) == 1 and val_str.isalpha():
+        return True
+    
+    # Date patterns (slashes or dashes with numbers)
+    if re.match(r'^\d{1,4}[-/]\d{1,2}[-/]\d{1,4}$', val_str):
+        return True
+    
+    # Code patterns (letters-numbers, numbers-letters)
+    if re.match(r'^[A-Z]{2,4}-\d{2,4}$', val_str, re.IGNORECASE):
+        return True
+    
+    # Numeric data (including decimals and negative numbers)
+    if val_str.replace('.', '', 1).replace('-', '', 1).isdigit():
+        return True
+    
+    # Email addresses
+    if '@' in val_str and '.' in val_str:
+        return True
+    
+    # Multi-word strings (names, addresses, descriptions)
+    # Headers are usually 1-2 words, data often has 2+ words with spaces
+    words = val_str.split()
+    if len(words) >= 2:
+        # But avoid flagging things like "Customer ID" or "Full Name" as data
+        # Check if it has numbers or special chars that suggest data
+        if any(char.isdigit() for char in val_str) or any(c in val_str for c in ['@', '#', '&', '(', ')', '/']):
+            return True
+    
+    # Contains digits mixed with letters (street addresses, product codes)
+    has_digit = any(c.isdigit() for c in val_str)
+    has_letter = any(c.isalpha() for c in val_str)
+    if has_digit and has_letter and len(val_str) > 3:
+        # But skip things that are clearly header-like patterns
+        if not re.search(r'^(id|code|number|key|name|date|time)', val_str, re.IGNORECASE):
+            return True
+    
+    return False
+
+
+def is_header_like(row_data: pd.Series, actual_headers = None, threshold: float = 0.6) -> bool:
     """
     Determine if a row looks like a header row.
-    Headers typically contain:
-    - Mostly strings
-    - Short values (column names are usually concise)
-    - No purely numeric values
-    - Common header patterns (ID, Name, Date, etc.)
+    
+    Strategy:
+    1. First check if values match data patterns - if most are clearly data, reject immediately
+    2. Check similarity to actual headers if provided
+    3. Fall back to broader header heuristics for non-exact duplicates
+    
+    Args:
+        row_data: The row to check
+        actual_headers: The actual column headers (to compare against)
+        threshold: Similarity threshold for header detection
+    
+    Returns:
+        True if row looks like headers, False otherwise
     """
     if len(row_data) == 0:
         return False
     
+    # Step 1: Check if most values look like data (not headers)
+    data_pattern_count = 0
     string_count = 0
-    pattern_matches = 0
+    total_values = 0
     
-    # Common header patterns
+    for val in row_data:
+        if pd.isna(val):
+            continue
+        
+        total_values += 1
+        val_str = str(val).strip()
+        
+        if is_data_pattern(val):
+            data_pattern_count += 1
+        
+        # Track if it's a string for broader heuristic
+        if isinstance(val, str) or not isinstance(val, (int, float, bool)):
+            string_count += 1
+    
+    if total_values == 0:
+        return False
+    
+    data_ratio = data_pattern_count / total_values
+    string_ratio = string_count / total_values
+    
+    # If most values (>70%) look like data patterns, it's NOT a header
+    if data_ratio > 0.7:
+        return False
+    
+    # Step 2: If we have actual headers, check similarity
+    if actual_headers is not None:
+        similarity_count = 0
+        total_compared = 0
+        
+        for i, (val, header) in enumerate(zip(row_data, actual_headers)):
+            if pd.isna(val):
+                continue
+            
+            total_compared += 1
+            val_str = str(val).strip().lower()
+            header_str = str(header).strip().lower()
+            
+            # Check if value matches header name (exact or substring)
+            if val_str == header_str:
+                similarity_count += 1
+            elif val_str in header_str or header_str in val_str:
+                similarity_count += 0.5
+        
+        if total_compared > 0:
+            similarity_ratio = similarity_count / total_compared
+            # If row matches headers significantly, it's a duplicate header
+            if similarity_ratio >= threshold:
+                return True
+    
+    # Step 3: Broader header heuristic for non-exact duplicates
+    # Headers typically have mostly strings, short values, and header-like patterns
+    
+    # If mostly strings (>80%) and not mostly data, likely a header
+    if string_ratio > 0.8 and data_ratio < 0.5:
+        return True
+    
+    # Check for header-specific patterns
+    pattern_matches = 0
     header_patterns = [
-        r'^(id|name|date|time|created|updated|user|email|phone|address|city|state|country|zip|postal)',
-        r'_(id|name|date|at|by)$',
-        r'^(column|field|attr|property)[\d_]',
+        # Common business/database terms
+        r'^(subject|patient|customer|client|user|employee|record|item|product|order|invoice|transaction|account)',
+        # ID and identifier patterns
+        r'(id|number|code|key|ref|reference)$',
+        r'^(id|number|code|key|ref)',
+        # Name and description patterns
+        r'(name|title|description|label|category|type|status|class|group)$',
+        # Date and time patterns
+        r'^(date|time|timestamp|created|updated|modified|deleted|start|end|due)',
+        # Address and contact patterns
+        r'(address|street|city|state|zip|postal|country|phone|email|contact)',
     ]
     
     for val in row_data:
@@ -48,48 +180,42 @@ def is_header_like(row_data: pd.Series, threshold: float = 0.7) -> bool:
             
         val_str = str(val).strip().lower()
         
-        # Check if string
-        if isinstance(val, str) or (not isinstance(val, (int, float, bool))):
-            string_count += 1
-            
-        # Check length (headers are usually short)
-        if len(val_str) < 50:
-            string_count += 0.5
-            
-        # Check for header patterns
+        # Skip obvious data patterns for pattern matching
+        if is_data_pattern(val):
+            continue
+        
+        # Check for header-specific patterns
         for pattern in header_patterns:
             if re.search(pattern, val_str, re.IGNORECASE):
                 pattern_matches += 1
                 break
     
-    # Calculate ratio
-    total_values = len(row_data.dropna())
-    if total_values == 0:
-        return False
+    # If we find header patterns in a reasonable number of columns (>30%)
+    # and it's mostly strings, likely a header
+    pattern_ratio = pattern_matches / total_values if total_values > 0 else 0
+    if pattern_ratio > 0.3 and string_ratio > 0.7:
+        return True
     
-    string_ratio = string_count / total_values
-    pattern_ratio = pattern_matches / total_values
-    
-    # Header-like if mostly strings or has header patterns
-    return string_ratio >= threshold or pattern_ratio >= 0.3
+    return False
 
 
 def detect_multiple_headers(df: pd.DataFrame, sample_size: int = 5) -> Dict[str, Any]:
     """
     Detect if there are multiple header rows in the data.
-    Check first few rows to see if they look like headers.
+    Check first few rows to see if they match the actual column headers.
     """
     if len(df) < 2:
         return {"has_issue": False}
     
     duplicate_header_rows = []
+    actual_headers = df.columns
     
     # Check first few rows (skip row 0 as it's already the header)
     for i in range(min(sample_size, len(df))):
         row = df.iloc[i]
         
-        # Check if this row looks like a header
-        if is_header_like(row):
+        # Pass actual headers for comparison
+        if is_header_like(row, actual_headers=actual_headers):
             duplicate_header_rows.append(i + 1)  # +1 because row 0 is header
     
     if duplicate_header_rows:
