@@ -105,7 +105,7 @@
   gap: 4px;
 }
 
-.role-badge {
+.users-table .role-badge {
   background-color: #e8f0fe;
   color: #1a73e8;
   padding: 2px 6px;
@@ -319,7 +319,7 @@
 
 /* Accessibility high contrast mode */
 body.high-contrast .user-management-container h1,
-body.high-contrast .role-badge {
+body.high-contrast .users-table .role-badge {
   color: #fff;
 }
 
@@ -341,7 +341,7 @@ body.high-contrast .users-table tbody tr:hover {
   background-color: #333;
 }
 
-body.high-contrast .role-badge {
+body.high-contrast .users-table .role-badge {
   background-color: #fff;
   color: #000;
 }
