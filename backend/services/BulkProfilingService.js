@@ -14,6 +14,7 @@ const fs = require('fs');
 const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const virusScanService = require('./VirusScanService');
 const { createSchedule } = require('./cronSchedulerService');
+const { describeCronExpression } = require('../utils/cronDescriber');
 
 class BulkProfilingService {
   /**
@@ -358,9 +359,13 @@ class BulkProfilingService {
   async getJob(jobId) {
     try {
       const jobQuery = `
-        SELECT bpj.*, u.username as created_by_username
+        SELECT bpj.*, u.username as created_by_username,
+               s.id as schedule_id, s.cron_expression, s.schedule_type,
+               s.interval_value, s.interval_unit, s.is_active as schedule_active,
+               s.next_run, s.last_run
         FROM bulk_profiling_jobs bpj
         LEFT JOIN users u ON bpj.created_by = u.id
+        LEFT JOIN schedules s ON s.entity_id = bpj.id AND s.entity_type = 'bulk_profiling_job'
         WHERE bpj.id = $1
       `;
       
@@ -371,6 +376,13 @@ class BulkProfilingService {
       }
       
       const job = jobResult.rows[0];
+      
+      // Add human-readable frequency
+      if (job.schedule_id && job.cron_expression) {
+        job.frequency = describeCronExpression(job.cron_expression);
+      } else {
+        job.frequency = 'Ad-hoc';
+      }
       
       // Get files for this job
       const filesQuery = `
@@ -396,9 +408,13 @@ class BulkProfilingService {
   async getAllJobs(filters = {}) {
     try {
       let query = `
-        SELECT bpj.*, u.username as created_by_username
+        SELECT bpj.*, u.username as created_by_username,
+               s.id as schedule_id, s.cron_expression, s.schedule_type,
+               s.interval_value, s.interval_unit, s.is_active as schedule_active,
+               s.next_run, s.last_run
         FROM bulk_profiling_jobs bpj
         LEFT JOIN users u ON bpj.created_by = u.id
+        LEFT JOIN schedules s ON s.entity_id = bpj.id AND s.entity_type = 'bulk_profiling_job'
         WHERE 1=1
       `;
       const params = [];
@@ -425,7 +441,18 @@ class BulkProfilingService {
       }
       
       const result = await pool.query(query, params);
-      return result.rows;
+      
+      // Add human-readable frequency to each job
+      const jobs = result.rows.map(job => {
+        if (job.schedule_id && job.cron_expression) {
+          job.frequency = describeCronExpression(job.cron_expression);
+        } else {
+          job.frequency = 'Ad-hoc';
+        }
+        return job;
+      });
+      
+      return jobs;
       
     } catch (error) {
       systemLogger.error('Error getting bulk profiling jobs', { error: error.message });
