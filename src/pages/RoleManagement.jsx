@@ -30,9 +30,19 @@ const RoleManagement = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  
+  // Expanded permissions state
+  const [expandedRoles, setExpandedRoles] = useState({});
 
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
+  
+  const togglePermissionsExpand = (roleId) => {
+    setExpandedRoles(prev => ({
+      ...prev,
+      [roleId]: !prev[roleId]
+    }));
+  };
 
   // Check if user has permission to manage roles
   useEffect(() => {
@@ -399,9 +409,17 @@ const RoleManagement = () => {
     <div className="role-management-container">
       <div className="role-management-header">
         <h1>Role Management</h1>
-        <Link to="/users" className="user-management-link">
-          User Management
-        </Link>
+        <div className="header-actions">
+          <Link to="/users" className="user-management-link">
+            User Management
+          </Link>
+          <button 
+            className="create-role-btn"
+            onClick={openCreateModal}
+          >
+            Add New Role
+          </button>
+        </div>
       </div>
       
       {error && (
@@ -409,15 +427,6 @@ const RoleManagement = () => {
           {error}
         </div>
       )}
-      
-      <div className="role-management-actions">
-        <button 
-          className="create-role-btn"
-          onClick={openCreateModal}
-        >
-          Add New Role
-        </button>
-      </div>
       
       <div className="roles-table-container">
         <table className="roles-table">
@@ -438,6 +447,9 @@ const RoleManagement = () => {
             ) : (
               roles.map(role => {
                 const permissions = formatPermissionsDisplay(role.permissions);
+                const isExpanded = expandedRoles[role.id];
+                const displayedPermissions = isExpanded ? permissions : permissions.slice(0, 3);
+                
                 return (
                   <tr key={role.id}>
                     <td>{role.name}</td>
@@ -445,7 +457,7 @@ const RoleManagement = () => {
                     <td>
                       <div className="permission-tags">
                         {permissions.length > 0 ? 
-                          permissions.slice(0, 3).map(perm => (
+                          displayedPermissions.map(perm => (
                             <div key={perm.id} className="permission-tag">
                               {perm.name} {perm.write ? '(Edit)' : '(View)'}
                             </div>
@@ -453,8 +465,12 @@ const RoleManagement = () => {
                           '-'
                         }
                         {permissions.length > 3 && (
-                          <div className="permission-tag">
-                            +{permissions.length - 3} more
+                          <div 
+                            className="permission-tag permission-tag-more" 
+                            onClick={() => togglePermissionsExpand(role.id)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {isExpanded ? 'Show less' : `+${permissions.length - 3} more`}
                           </div>
                         )}
                       </div>
