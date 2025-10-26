@@ -1211,3 +1211,112 @@
   color: var(--text-secondary);
   margin-top: var(--space-2);
 }
+
+/* Anomaly badges */
+.anomaly-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.anomaly-badge.anomaly-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.card-with-anomaly {
+  border-left: 3px solid #fbbf24 !important;
+}
+
+/* Pattern section */
+.pattern-section {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  background-color: #f9fafb;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #3b82f6;
+}
+
+.pattern-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.pattern-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pattern-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2);
+  background-color: white;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.pattern-code {
+  background-color: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.pattern-count {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* Numeric summary (replaces fake histogram) */
+.numeric-summary {
+  padding: var(--space-3);
+  background-color: #f9fafb;
+  border-radius: var(--radius-sm);
+}
+
+.min-max-display {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-around;
+}
+
+.min-max-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.min-max-item .label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+}
+
+.min-max-item .value {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+/* Empty distribution state */
+.empty-distribution {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}

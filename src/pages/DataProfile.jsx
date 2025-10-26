@@ -997,13 +997,62 @@ function DataProfile() {
     if (!profile || !profile.columns) return null;
     
     const columns = profile.columns;
+    const basicInfo = profile.basic_info || {};
+    const totalRows = file.row_count || basicInfo.rowCount || 100;
+    
+    // Helper to check if column has anomalies
+    const hasAnomalies = (column) => {
+      const nullCount = column.missing || 0;
+      const missingPercentage = (nullCount / totalRows) * 100;
+      const hasHighNulls = missingPercentage > 10;
+      const hasMultiplePatterns = column.patterns && column.patterns.length > 1;
+      return hasHighNulls || hasMultiplePatterns;
+    };
+    
+    // Helper to generate anomaly badges
+    const getAnomalyBadges = (column) => {
+      const badges = [];
+      const nullCount = column.missing || 0;
+      const missingPercentage = (nullCount / totalRows) * 100;
+      
+      if (missingPercentage > 10) {
+        badges.push(
+          <span key="nulls" className="anomaly-badge anomaly-warning" title={`${missingPercentage.toFixed(1)}% null values`}>
+            High Nulls ({missingPercentage.toFixed(1)}%)
+          </span>
+        );
+      }
+      
+      if (column.patterns && column.patterns.length > 1) {
+        badges.push(
+          <span key="patterns" className="anomaly-badge anomaly-warning" title={`${column.patterns.length} different patterns detected`}>
+            Multiple Patterns ({column.patterns.length})
+          </span>
+        );
+      }
+      
+      return badges;
+    };
     
     return (
       <div className="distribution-tab">
         <div className="distribution-cards">
-          {columns.map((column) => (
-            <Card key={column.name} title={column.name}>
-              <div className="column-distribution">
+          {columns.map((column) => {
+            const anomalyBadges = getAnomalyBadges(column);
+            const columnTitle = (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span>{column.name}</span>
+                {anomalyBadges}
+              </div>
+            );
+            
+            return (
+              <Card 
+                key={column.name} 
+                title={columnTitle}
+                className={hasAnomalies(column) ? 'card-with-anomaly' : ''}
+              >
+                <div className="column-distribution">
                 <div className="column-stats-table">
                   <div className="column-stat-row">
                     <div className="column-stat-label">Type:</div>
@@ -1058,159 +1107,95 @@ function DataProfile() {
                 </div>
                 
                 <div className="distribution-visualization">
+                  {/* Pattern Detection */}
+                  {column.patterns && column.patterns.length > 0 && (
+                    <div className="pattern-section">
+                      <div className="pattern-header">
+                        <strong>Detected Patterns:</strong>
+                        {column.patterns.length > 1 && (
+                          <span className="anomaly-badge anomaly-warning" style={{ marginLeft: '8px' }}>
+                            Multiple Patterns
+                          </span>
+                        )}
+                      </div>
+                      <div className="pattern-list">
+                        {column.patterns.map((p, idx) => (
+                          <div key={idx} className="pattern-item">
+                            <code className="pattern-code">{p.pattern}</code>
+                            <span className="pattern-count">
+                              {p.count} occurrences ({p.percentage}%)
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="histogram-container">
                     <div className="histogram-title">Value Distribution</div>
                     <div className="pseudo-histogram">
                       {hasMinMaxValues(column) ? (
-                        // Create a data-based histogram for numeric/datetime data with min-max labels
-                        <div className="numeric-distribution">
-                          <div className="value-labels">
-                            <span className="min-label">
-                              {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.min, column)}
-                            </span>
-                            <span className="max-label">
-                              {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.max, column)}
-                            </span>
-                          </div>
-                          <div className="bars">
-                            {/* Generate bars representing distribution between min and max */}
-                            {column.min && column.max && [...Array(8)].map((_, i) => {
-                              // Create a bell curve pattern with higher bars in the middle
-                              let heightFactor;
-                              if (i === 0 || i === 7) heightFactor = 30;
-                              else if (i === 1 || i === 6) heightFactor = 50;
-                              else if (i === 2 || i === 5) heightFactor = 70;
-                              else if (i === 3 || i === 4) heightFactor = 90;
-                              
-                              // Calculate range values
-                              let rangeStart, rangeEnd, rangeTitle;
-                              if (isDateTimeColumn(column)) {
-                                // For datetime, use timestamps for calculation
-                                const minTime = new Date(column.min).getTime();
-                                const maxTime = new Date(column.max).getTime();
-                                
-                                // Guard against invalid dates
-                                if (!isNaN(minTime) && !isNaN(maxTime)) {
-                                  const rangeStartTime = minTime + ((maxTime - minTime) * i / 7);
-                                  const rangeEndTime = minTime + ((maxTime - minTime) * (i+1) / 7);
-                                  rangeTitle = `Range: ${new Date(rangeStartTime).toLocaleDateString()} - ${new Date(rangeEndTime).toLocaleDateString()}`;
-                                } else {
-                                  rangeTitle = 'Date range';
-                                }
-                              } else {
-                                // For numeric, use parseFloat
-                                rangeStart = parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * i / 7);
-                                rangeEnd = parseFloat(column.min) + ((parseFloat(column.max) - parseFloat(column.min)) * (i+1) / 7);
-                                rangeTitle = `Range: ${formatDecimal(rangeStart)} - ${formatDecimal(rangeEnd)}`;
-                              }
-                              
-                              return (
-                                <div 
-                                  key={i} 
-                                  className="bar" 
-                                  style={{ 
-                                    height: `${heightFactor}%`,
-                                    backgroundColor: `rgba(52, 152, 219, ${0.5 + (i / 16)})`
-                                  }}
-                                  title={rangeTitle}
-                                ></div>
-                              );
-                            })}
+                        // Simple min/max display for numeric/datetime data
+                        <div className="numeric-summary">
+                          <div className="min-max-display">
+                            <div className="min-max-item">
+                              <span className="label">Min:</span>
+                              <span className="value">
+                                {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.min, column)}
+                              </span>
+                            </div>
+                            <div className="min-max-item">
+                              <span className="label">Max:</span>
+                              <span className="value">
+                                {shouldMaskValue(column) ? '****' : formatMinMaxValue(column.max, column)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ) : (
                         // Create a data-based distribution for categorical data based on top_values
                         <div className="categorical-distribution">
                           {(() => {
-                            // Create distribution based on actual column data
-                            // For demonstration, we'll use the available properties to create a more accurate representation
-                            let topValues = [];
-                            
-                            // For specific columns, hard-code the top values to demonstrate actual data
-                            if (column.name === 'Item_Fat_Content') {
-                              // Based on the mockup image, we know this column's distribution
-                              topValues = [
-                                { value: 'Low Fat', frequency: 20 },
-                                { value: 'Other Values', frequency: 60 },
-                                { value: 'reg', frequency: 20 }
-                              ];
-                            } else if (column.name === 'Item_Identifier') {
-                              // Based on the other mockup image
-                              topValues = [
-                                { value: column.most_frequent_value || 'FDW49', frequency: 5 },
-                                { value: 'Other Values', frequency: 90 },
-                                { value: column.least_frequent_value || 'NCP06', frequency: 5 }
-                              ];
-                            } else if (column.name === 'Item_Type') {
-                              // For this field, create a more varied distribution
-                              topValues = [
-                                { value: 'Fruits and Vegetables', frequency: 30 },
-                                { value: 'Snack Foods', frequency: 25 },
-                                { value: 'Household', frequency: 20 },
-                                { value: 'Frozen Foods', frequency: 15 },
-                                { value: 'Dairy', frequency: 10 }
-                              ];
-                            } else {
-                              // Default behavior with most_frequent and least_frequent for other string columns
-                              if (column.most_frequent_value) {
-                                topValues.push({ 
-                                  value: column.most_frequent_value, 
-                                  frequency: 40 
-                                });
-                              }
-                              
-                              // Add "Other Values" if there are many unique values
-                              if (column.unique > 3) {
-                                topValues.push({ 
-                                  value: 'Other Values', 
-                                  frequency: 30 
-                                });
-                              }
-                              
-                              // Add second most common value (we'll use least_frequent as proxy since we don't have the full distribution)
-                              if (column.least_frequent_value && column.least_frequent_value !== column.most_frequent_value) {
-                                topValues.push({ 
-                                  value: column.least_frequent_value, 
-                                  frequency: 30
-                                });
-                              }
-                              
-                              // If we have fewer than 2 values, add a default entry
-                              if (topValues.length === 0) {
-                                topValues.push({ value: 'No Data Available', frequency: 100 });
-                              }
+                            // Use actual top_values from profiling if available
+                            if (column.top_values && column.top_values.length > 0) {
+                              return column.top_values.map((item, index) => (
+                                <div key={index} className="category-row">
+                                  <div className="category-label">
+                                    {shouldMaskValue(column) ? '****' : item.value}
+                                  </div>
+                                  <div className="category-bar-container">
+                                    <div 
+                                      className="category-bar" 
+                                      style={{ 
+                                        width: `${Math.max(5, Math.min(95, item.percentage))}%`,
+                                        backgroundColor: `rgba(52, 152, 219, ${0.8 - (index * 0.05)})`
+                                      }}
+                                    ></div>
+                                  </div>
+                                  <div className="category-percentage">{`${item.percentage}%`}</div>
+                                </div>
+                              ));
                             }
                             
-                            // We want a maximum of 5 values
-                            const limitedValues = topValues.slice(0, 5);
-                            
-                            return limitedValues.map((item, index) => (
-                              <div key={index} className="category-row">
-                                <div className="category-label">{item.value}</div>
-                                <div className="category-bar-container">
-                                  <div 
-                                    className="category-bar" 
-                                    style={{ 
-                                      width: `${Math.max(20, Math.min(80, item.frequency))}%`,
-                                      backgroundColor: `rgba(52, 152, 219, ${0.8 - (index * 0.1)})`
-                                    }}
-                                  ></div>
-                                </div>
-                                <div className="category-percentage">{`${item.frequency}%`}</div>
+                            // Fallback if no top_values available
+                            return (
+                              <div className="empty-distribution">
+                                <p>No distribution data available</p>
                               </div>
-                            ));
+                            );
                           })()}
                         </div>
                       )}
                     </div>
                     <div className="histogram-footer">
-                      <div className="note">Based on min/max and frequency data</div>
+                      <div className="note">Based on actual data distribution</div>
                     </div>
                   </div>
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
