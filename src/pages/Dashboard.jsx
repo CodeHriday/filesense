@@ -164,6 +164,13 @@ const Dashboard = () => {
           // Timeliness: Based on file recency (files updated in last 7 days)
           const timelinessRatio = stats.recentlyUpdated / Math.max(1, stats.totalFiles);
           metrics.timeliness = Math.round(timelinessRatio * 100);
+        } else {
+          // No files with quality scores, set defaults
+          metrics.completeness = 0;
+          metrics.validity = 0;
+          metrics.consistency = 0;
+          metrics.accuracy = 0;
+          metrics.timeliness = 0;
         }
         
         // Generate trend data based on file upload history
@@ -199,12 +206,12 @@ const Dashboard = () => {
         // Generate metrics for each day based on files available
         // If no files on a day, use previous day's value
         let prevMetrics = {
-          overall: stats.avgQualityScore,
-          completeness: metrics.completeness,
-          consistency: metrics.consistency,
-          accuracy: metrics.accuracy,
-          validity: metrics.validity,
-          timeliness: metrics.timeliness
+          overall: stats.avgQualityScore || 0,
+          completeness: metrics.completeness || 0,
+          consistency: metrics.consistency || 0,
+          accuracy: metrics.accuracy || 0,
+          validity: metrics.validity || 0,
+          timeliness: metrics.timeliness || 0
         };
         
         // Build the trend array from the date map
