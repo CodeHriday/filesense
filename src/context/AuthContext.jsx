@@ -137,20 +137,8 @@ export const AuthProvider = ({ children }) => {
     // Password was successfully changed
     setShowForcePasswordChange(false);
     
-    // Refresh user data to get updated force_password_change flag
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const userResponse = await axios.get(`${API_BASE_URL}/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        setCurrentUser(userResponse.data);
-      } catch (error) {
-        console.error('Error refreshing user data:', error);
-      }
-    }
+    // Reload the page to refresh dashboard and all components with new auth state
+    window.location.reload();
   };
   
   const logout = async () => {
