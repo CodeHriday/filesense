@@ -1580,6 +1580,12 @@ app.get('/api/files/:fileId/job-status', async (req, res) => {
 // Drop File endpoint - uploads directly to S3 without profiling
 app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('file'), async (req, res) => {
   try {
+    logger.info('Drop file request received', { 
+      userId: req.user?.id, 
+      hasFile: !!req.file,
+      projectId: req.body?.project_id 
+    });
+    
     // Check if user has file_drop:write permission
     if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_drop:write')) {
       return res.status(403).json({ 
@@ -1896,6 +1902,32 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       details: error.message 
     });
   }
+});
+
+// Multer error handling for drop file endpoint
+app.use('/api/files/drop', (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    logger.error('Multer error in drop file upload', { 
+      code: error.code, 
+      message: error.message,
+      field: error.field 
+    });
+    return res.status(400).json({ 
+      error: 'File upload error', 
+      details: error.message,
+      code: error.code
+    });
+  } else if (error) {
+    logger.error('Unexpected error in drop file upload middleware', { 
+      error: error.message,
+      stack: error.stack 
+    });
+    return res.status(500).json({ 
+      error: 'File upload failed', 
+      details: error.message 
+    });
+  }
+  next();
 });
 
 // Legacy file processing code removed - now handled by FileProcessingWorker in queue
