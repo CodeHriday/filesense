@@ -169,7 +169,6 @@ const S3FolderBrowser = ({ connectionId, onSelectPath, initialPath = '/' }) => {
               key={`file-${index}`}
               className="s3-item s3-file"
             >
-              <FaFile className="icon file-icon" />
               <span className="name">{file.name}</span>
               <span className="type">{file.type.toUpperCase()}</span>
               <span className="size">{formatFileSize(file.size)}</span>
