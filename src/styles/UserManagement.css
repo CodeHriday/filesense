@@ -108,9 +108,9 @@
 .role-badge {
   background-color: #e8f0fe;
   color: #1a73e8;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -387,9 +387,9 @@ body.high-contrast .save-btn {
 /* Auth Provider Badge */
 .auth-provider-badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
