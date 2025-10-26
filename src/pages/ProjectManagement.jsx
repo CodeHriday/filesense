@@ -139,10 +139,7 @@ function ProjectManagement() {
     }
   };
 
-  const handleDelete = async (projectId) => {
-    if (!window.confirm('Are you sure you want to delete this project? This cannot be undone.')) {
-      return;
-    }
+  const executeDeleteProject = async (projectId) => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_BASE_URL}/projects/${projectId}`, {
@@ -181,8 +178,7 @@ function ProjectManagement() {
     }
   };
 
-  const handleRemoveMember = async (userId) => {
-    if (!window.confirm('Remove this member from the project?')) return;
+  const executeRemoveMember = async (userId) => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
@@ -215,8 +211,7 @@ function ProjectManagement() {
     }
   };
 
-  const handleRemoveGroup = async (groupId) => {
-    if (!window.confirm('Remove this access group from the project?')) return;
+  const executeRemoveGroup = async (groupId) => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
@@ -239,6 +234,54 @@ function ProjectManagement() {
       parent_id: project.parent_id
     });
     setShowEditModal(true);
+  };
+
+  const openDeleteProjectConfirm = (project) => {
+    setConfirmModal({
+      isOpen: true,
+      action: 'deleteProject',
+      title: 'Delete Project',
+      message: `Are you sure you want to delete "${project.name}"? This cannot be undone.`,
+      data: { projectId: project.id }
+    });
+  };
+
+  const openRemoveMemberConfirm = (userId, userName) => {
+    setConfirmModal({
+      isOpen: true,
+      action: 'removeMember',
+      title: 'Remove Member',
+      message: `Remove ${userName} from the project?`,
+      data: { userId }
+    });
+  };
+
+  const openRemoveGroupConfirm = (groupId, groupName) => {
+    setConfirmModal({
+      isOpen: true,
+      action: 'removeGroup',
+      title: 'Remove Access Group',
+      message: `Remove ${groupName} from the project?`,
+      data: { groupId }
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    const { action, data } = confirmModal;
+    
+    if (action === 'deleteProject') {
+      await executeDeleteProject(data.projectId);
+    } else if (action === 'removeMember') {
+      await executeRemoveMember(data.userId);
+    } else if (action === 'removeGroup') {
+      await executeRemoveGroup(data.groupId);
+    }
+    
+    setConfirmModal({ isOpen: false, action: null, title: '', message: '', data: null });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ isOpen: false, action: null, title: '', message: '', data: null });
   };
 
   return (
