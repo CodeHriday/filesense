@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import '../styles/RoleManagement.css';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -23,6 +24,12 @@ const RoleManagement = () => {
     permissions: {},
     tagPermissions: {}
   });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -42,7 +49,7 @@ const RoleManagement = () => {
     // }
 
     fetchData();
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, currentPage, pageSize]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -50,15 +57,18 @@ const RoleManagement = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const [rolesData, permissionsData, tagsResponse] = await Promise.all([
-        getRoles(),
+      const [rolesResponse, permissionsData, tagsResponse] = await Promise.all([
+        getRoles(currentPage, pageSize),
         getPermissions(),
         axios.get('/api/governance-tags', {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
-      setRoles(rolesData);
+      setRoles(rolesResponse.roles || rolesResponse);
+      setTotalPages(rolesResponse.pagination?.totalPages || 1);
+      setTotalCount(rolesResponse.pagination?.totalCount || 0);
+      
       setAvailablePermissions(permissionsData);
       setGovernanceTags(tagsResponse.data || []);
     } catch (error) {
@@ -477,6 +487,15 @@ const RoleManagement = () => {
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Controls */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        itemsPerPage={pageSize}
+        totalItems={totalCount}
+      />
       
       {/* Role Form Modal */}
       {modalOpen && (
