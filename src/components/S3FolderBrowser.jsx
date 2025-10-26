@@ -292,11 +292,12 @@ const S3FolderBrowser = ({ connectionId, onSelectPath, initialPath = '/' }) => {
 
         .s3-item .icon {
           color: #FFA726;
-          font-size: 18px;
+          font-size: 16px;
         }
 
         .s3-item .file-icon {
           color: #666;
+          font-size: 16px;
         }
 
         .s3-item .name {
