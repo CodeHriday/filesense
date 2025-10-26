@@ -615,6 +615,50 @@ print(json.dumps(result))
   }
 
   /**
+   * Calculate quality score based on multiple factors
+   */
+  calculateQualityScore(fileInfo, duplicateStats, headerValidation) {
+    let qualityScore = 100;
+
+    // Factor 1: Header validation health score (most important - up to -50 points)
+    if (headerValidation && headerValidation.health_score !== undefined) {
+      const headerPenalty = 100 - headerValidation.health_score;
+      qualityScore -= (headerPenalty * 0.5); // Weight: 50%
+    }
+
+    // Factor 2: Duplicate records (up to -30 points)
+    if (duplicateStats && duplicateStats.duplicate_percentage > 0) {
+      const duplicatePenalty = Math.min(duplicateStats.duplicate_percentage, 100) * 0.3;
+      qualityScore -= duplicatePenalty; // Weight: 30%
+    }
+
+    // Factor 3: Missing data in columns (up to -20 points)
+    if (fileInfo && fileInfo.schema && fileInfo.schema.length > 0) {
+      let totalNullPercentage = 0;
+      let columnsWithData = 0;
+
+      fileInfo.schema.forEach(col => {
+        if (col.null_count !== undefined && fileInfo.row_count > 0) {
+          const nullPercentage = (col.null_count / fileInfo.row_count) * 100;
+          totalNullPercentage += nullPercentage;
+          columnsWithData++;
+        }
+      });
+
+      if (columnsWithData > 0) {
+        const avgNullPercentage = totalNullPercentage / columnsWithData;
+        const nullPenalty = Math.min(avgNullPercentage, 100) * 0.2;
+        qualityScore -= nullPenalty; // Weight: 20%
+      }
+    }
+
+    // Ensure score is between 0 and 100
+    qualityScore = Math.max(0, Math.min(100, Math.round(qualityScore)));
+
+    return qualityScore;
+  }
+
+  /**
    * Save file metadata to database
    */
   async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId) {
@@ -625,6 +669,16 @@ print(json.dumps(result))
       preview_data: fileInfo.preview_data || [],
       header_validation: headerValidation || null
     };
+
+    // Calculate dynamic quality score based on multiple factors
+    const qualityScore = this.calculateQualityScore(fileInfo, duplicateStats, headerValidation);
+
+    this.logger.info('Calculated quality score', {
+      fileId,
+      qualityScore,
+      headerHealthScore: headerValidation?.health_score,
+      duplicatePercentage: duplicateStats?.duplicate_percentage
+    });
 
     const query = `
       INSERT INTO files (
@@ -652,7 +706,7 @@ print(json.dumps(result))
       fileSize,
       fileInfo.row_count || 0,
       fileInfo.column_count || 0,
-      85, // Default quality score
+      qualityScore,
       JSON.stringify(metadata),
       fileHash || null,
       duplicateStats?.duplicate_count || 0,
