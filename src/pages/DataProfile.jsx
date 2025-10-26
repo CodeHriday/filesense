@@ -813,9 +813,29 @@ function DataProfile() {
                     const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
                     const columnPoliciesData = allColumnPolicies[column.name] || [];
                     
+                    // Check for anomalies
+                    const nullPercentage = (nullCount / totalRows) * 100;
+                    const hasHighNulls = nullPercentage > 10;
+                    const hasMultiplePatterns = column.patterns && column.patterns.length > 1;
+                    const hasAnomaly = hasHighNulls || hasMultiplePatterns;
+                    
                     return (
-                      <tr key={column.name} className="completeness-row">
-                        <td className="col-name">{column.name}</td>
+                      <tr key={column.name} className={`completeness-row ${hasAnomaly ? 'row-with-anomaly' : ''}`}>
+                        <td className="col-name">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span>{column.name}</span>
+                            {hasHighNulls && (
+                              <span className="anomaly-badge anomaly-warning" title={`${nullPercentage.toFixed(1)}% null values`}>
+                                High Nulls
+                              </span>
+                            )}
+                            {hasMultiplePatterns && (
+                              <span className="anomaly-badge anomaly-warning" title={`${column.patterns.length} different patterns detected`}>
+                                Multiple Patterns
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="col-type">{column.type}</td>
                         <td className="col-completeness-compact">
                           <div className="completeness-bar-container-compact">
@@ -1039,19 +1059,19 @@ function DataProfile() {
         <div className="distribution-cards">
           {columns.map((column) => {
             const anomalyBadges = getAnomalyBadges(column);
-            const columnTitle = (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span>{column.name}</span>
-                {anomalyBadges}
-              </div>
-            );
             
             return (
               <Card 
                 key={column.name} 
-                title={columnTitle}
                 className={hasAnomalies(column) ? 'card-with-anomaly' : ''}
               >
+                <div className="distribution-card-header">
+                  <h3>
+                    <span>{column.name}</span>
+                    {anomalyBadges}
+                  </h3>
+                </div>
+                <div className="distribution-card-content">
                 <div className="column-distribution">
                 <div className="column-stats-table">
                   <div className="column-stat-row">
@@ -1193,6 +1213,7 @@ function DataProfile() {
                   </div>
                 </div>
               </div>
+                </div>
             </Card>
           );
           })}
