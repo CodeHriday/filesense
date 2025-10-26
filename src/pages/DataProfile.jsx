@@ -420,7 +420,16 @@ function DataProfile() {
       }
     } else {
       // Format numeric values
-      return formatDecimal(value, 2);
+      const columnType = column.type ? column.type.toLowerCase() : '';
+      const isInteger = columnType === 'integer' || columnType === 'int64' || columnType === 'int32' || columnType === 'int';
+      
+      if (isInteger) {
+        // Format integers without decimal places
+        return Math.round(value).toLocaleString();
+      } else {
+        // Format floats/decimals with 2 decimal places
+        return formatDecimal(value, 2);
+      }
     }
   };
   
