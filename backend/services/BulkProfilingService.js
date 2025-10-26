@@ -532,6 +532,13 @@ class BulkProfilingService {
   /**
    * Start bulk profiling job - orchestrates the processing of all files
    */
+  /**
+   * Start a bulk profiling job (alias for scheduler compatibility)
+   */
+  async startJob(jobId, userId) {
+    return this.startBulkProfiling(jobId, userId);
+  }
+  
   async startBulkProfiling(jobId, userId) {
     try {
       const job = await this.getJob(jobId);

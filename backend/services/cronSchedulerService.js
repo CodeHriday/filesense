@@ -3,7 +3,6 @@ const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
-const bulkProfilingService = require('./BulkProfilingService');
 const parser = require('cron-parser');
 
 /**
@@ -273,6 +272,9 @@ async function deleteSchedule(scheduleId) {
  */
 async function processDueSchedules() {
   try {
+    // Load BulkProfilingService here to avoid circular dependency
+    const bulkProfilingService = require('./BulkProfilingService');
+    
     const now = new Date();
     
     // Fetch all active schedules that are due
