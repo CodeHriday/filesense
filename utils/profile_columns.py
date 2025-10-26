@@ -118,15 +118,30 @@ def profile_columns(file_path, file_type):
             else:
                 # Categorical/String stats - get most and least frequent values
                 value_counts = df[col].value_counts()
+                total_non_null = len(df[col].dropna())
                 
                 if len(value_counts) > 0:
-                    # Most frequent
-                    stats["most_frequent_value"] = str(value_counts.index[0])
-                    stats["most_frequent_count"] = int(value_counts.iloc[0])
+                    # Only show most/least frequent if there are repeated values
+                    # If all values are unique (unique_count == total_non_null), don't show
+                    if stats["unique_count"] < total_non_null:
+                        # Most frequent
+                        stats["most_frequent_value"] = str(value_counts.index[0])
+                        stats["most_frequent_count"] = int(value_counts.iloc[0])
+                        
+                        # Least frequent (last item in the sorted series)
+                        stats["least_frequent_value"] = str(value_counts.index[-1])
+                        stats["least_frequent_count"] = int(value_counts.iloc[-1])
                     
-                    # Least frequent (last item in the sorted series)
-                    stats["least_frequent_value"] = str(value_counts.index[-1])
-                    stats["least_frequent_count"] = int(value_counts.iloc[-1])
+                    # Calculate top values with actual percentages (top 10)
+                    top_values = []
+                    for idx, (value, count) in enumerate(value_counts.head(10).items()):
+                        percentage = round((count / total_non_null) * 100, 2)
+                        top_values.append({
+                            "value": str(value),
+                            "count": int(count),
+                            "percentage": percentage
+                        })
+                    stats["top_values"] = top_values
                 
                 # String length statistics
                 # Drop nulls for string length analysis
