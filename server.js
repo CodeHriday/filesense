@@ -4873,9 +4873,10 @@ app.post('/api/auth/force-change-password', authenticateToken, async (req, res) 
       return res.status(400).json({ error: 'New password is required' });
     }
     
-    // Validate password requirements using enhanced auth service
-    const passwordValidation = enhancedAuthService.validatePassword(newPassword);
-    if (!passwordValidation.isValid) {
+    // Validate password requirements using password security utility
+    const passwordSecurity = require('./backend/utils/passwordSecurity');
+    const passwordValidation = passwordSecurity.validatePasswordStrength(newPassword);
+    if (!passwordValidation.valid) {
       return res.status(400).json({ 
         error: 'Password does not meet requirements',
         details: passwordValidation.errors
