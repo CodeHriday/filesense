@@ -442,6 +442,7 @@ function Monitor() {
                     <th>Connection</th>
                     <th>S3 Path</th>
                     <th>Status</th>
+                    <th>Frequency</th>
                     <th>Progress</th>
                     <th>Total Files</th>
                     <th>Successful</th>
@@ -454,7 +455,7 @@ function Monitor() {
                 <tbody>
                   {bulkJobs.length === 0 ? (
                     <tr>
-                      <td colSpan="13" className="no-data">No bulk profiling jobs found</td>
+                      <td colSpan="14" className="no-data">No bulk profiling jobs found</td>
                     </tr>
                   ) : (
                     bulkJobs.map((job) => (
@@ -478,6 +479,7 @@ function Monitor() {
                               {job.status}
                             </span>
                           </td>
+                          <td>{job.frequency || 'Ad-hoc'}</td>
                           <td>
                             {job.total_files > 0 ? 
                               `${Math.round((job.processed_files / job.total_files) * 100)}%` : 
@@ -492,7 +494,7 @@ function Monitor() {
                         </tr>
                         {expandedRows.has(job.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="13">
+                            <td colSpan="14">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Job Configuration</h3>
