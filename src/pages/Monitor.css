@@ -161,6 +161,11 @@
   color: #1e40af;
 }
 
+.status-badge.status-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
 .status-badge.status-unknown {
   background-color: #e5e7eb;
   color: #4b5563;

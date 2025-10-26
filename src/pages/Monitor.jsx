@@ -115,10 +115,12 @@ function Monitor() {
     return `${(ms / 1000).toFixed(2)}s`;
   };
   
-  const getStatusClass = (status) => {
+  const getStatusClass = (status, skippedFiles = 0) => {
     if (!status) return 'status-unknown';
     const statusLower = status.toLowerCase();
-    if (statusLower === 'success' || statusLower === 'completed') return 'status-success';
+    if (statusLower === 'success' || statusLower === 'completed') {
+      return skippedFiles > 0 ? 'status-warning' : 'status-success';
+    }
     if (statusLower === 'failed' || statusLower === 'error') return 'status-error';
     if (statusLower === 'processing' || statusLower === 'in_progress') return 'status-processing';
     return 'status-unknown';
@@ -447,6 +449,7 @@ function Monitor() {
                     <th>Total Files</th>
                     <th>Successful</th>
                     <th>Failed</th>
+                    <th>Skipped</th>
                     <th>Created</th>
                     <th>Started</th>
                     <th>Completed</th>
@@ -455,7 +458,7 @@ function Monitor() {
                 <tbody>
                   {bulkJobs.length === 0 ? (
                     <tr>
-                      <td colSpan="14" className="no-data">No bulk profiling jobs found</td>
+                      <td colSpan="15" className="no-data">No bulk profiling jobs found</td>
                     </tr>
                   ) : (
                     bulkJobs.map((job) => (
@@ -475,7 +478,7 @@ function Monitor() {
                           <td>{job.connection_name || 'N/A'}</td>
                           <td title={job.s3_path}>{job.s3_path}</td>
                           <td>
-                            <span className={`status-badge ${getStatusClass(job.status)}`}>
+                            <span className={`status-badge ${getStatusClass(job.status, job.skipped_files || 0)}`}>
                               {job.status}
                             </span>
                           </td>
@@ -488,13 +491,14 @@ function Monitor() {
                           <td className="number-col">{job.total_files}</td>
                           <td className="number-col">{job.successful_files}</td>
                           <td className="number-col">{job.failed_files}</td>
+                          <td className="number-col">{job.skipped_files || 0}</td>
                           <td className="date-col">{formatDate(job.created_at)}</td>
                           <td className="date-col">{job.started_at ? formatDate(job.started_at) : '-'}</td>
                           <td className="date-col">{job.completed_at ? formatDate(job.completed_at) : '-'}</td>
                         </tr>
                         {expandedRows.has(job.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="14">
+                            <td colSpan="15">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Job Configuration</h3>
