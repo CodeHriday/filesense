@@ -8,6 +8,8 @@ const pool = require('../config/database');
 const BulkProfilingService = require('../services/BulkProfilingService');
 const authenticateToken = require('../middleware/authenticate');
 const { systemLogger } = require('../utils/logger');
+const { getSchedulesByType, updateSchedule, deleteSchedule } = require('../services/cronSchedulerService');
+const { describeCronExpression } = require('../utils/cronDescriber');
 
 /**
  * POST /api/bulk-profiling/browse
@@ -250,6 +252,87 @@ router.delete('/jobs/:jobId', authenticateToken, async (req, res) => {
     
   } catch (error) {
     systemLogger.error('Error deleting bulk profiling job', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/bulk-profiling/schedules
+ * Get all scheduled bulk profiling jobs
+ */
+router.get('/schedules', authenticateToken, async (req, res) => {
+  try {
+    const result = await getSchedulesByType('bulk_profiling_job');
+    
+    // Enrich schedules with job details and human-readable frequency
+    const enrichedSchedules = await Promise.all(
+      result.schedules.map(async (schedule) => {
+        const job = await BulkProfilingService.getJob(schedule.entity_id);
+        return {
+          ...schedule,
+          job_name: job ? job.job_name : 'Unknown',
+          job_status: job ? job.status : 'Unknown',
+          frequency: schedule.cron_expression ? describeCronExpression(schedule.cron_expression) : 'N/A'
+        };
+      })
+    );
+    
+    res.json({
+      success: true,
+      schedules: enrichedSchedules
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error getting scheduled bulk profiling jobs', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/bulk-profiling/schedules/:scheduleId
+ * Update a scheduled bulk profiling job
+ */
+router.put('/schedules/:scheduleId', authenticateToken, async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const { cronExpression, isActive } = req.body;
+    
+    const result = await updateSchedule(scheduleId, {
+      cronExpression,
+      isActive
+    });
+    
+    res.json(result);
+    
+  } catch (error) {
+    systemLogger.error('Error updating schedule', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/bulk-profiling/schedules/:scheduleId
+ * Delete a scheduled bulk profiling job
+ */
+router.delete('/schedules/:scheduleId', authenticateToken, async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    
+    const result = await deleteSchedule(scheduleId);
+    
+    res.json(result);
+    
+  } catch (error) {
+    systemLogger.error('Error deleting schedule', { error: error.message });
     res.status(500).json({
       success: false,
       message: error.message

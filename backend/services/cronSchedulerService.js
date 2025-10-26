@@ -180,6 +180,32 @@ async function getEntitySchedules(entityType, entityId) {
 }
 
 /**
+ * Get all schedules for a specific entity type
+ * @param {string} entityType - The entity type (e.g., 'bulk_profiling_job')
+ * @returns {Promise<Object>} Schedules result
+ */
+async function getSchedulesByType(entityType) {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM schedules
+      WHERE entity_type = $1
+      ORDER BY created_at DESC
+    `, [entityType]);
+    
+    return {
+      success: true,
+      schedules: result.rows
+    };
+  } catch (error) {
+    systemLogger.error('Error fetching schedules by type', {
+      entityType,
+      error: error.message
+    });
+    throw error;
+  }
+}
+
+/**
  * Update a schedule
  * @param {number} scheduleId - Schedule ID
  * @param {Object} updates - Fields to update
@@ -395,6 +421,7 @@ async function processDueSchedules() {
 module.exports = {
   createSchedule,
   getEntitySchedules,
+  getSchedulesByType,
   updateSchedule,
   deleteSchedule,
   processDueSchedules,

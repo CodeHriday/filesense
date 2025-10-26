@@ -25,6 +25,12 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
   const [pollingInterval, setPollingInterval] = useState(null);
   const [showBrowser, setShowBrowser] = useState(false);
   
+  // View mode: 'create' or 'scheduled'
+  const [viewMode, setViewMode] = useState('create');
+  const [scheduledJobs, setScheduledJobs] = useState([]);
+  const [isLoadingScheduled, setIsLoadingScheduled] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState(null);
+  
   // Scheduling fields
   const [executionType, setExecutionType] = useState('manual'); // 'manual' or 'scheduled'
   const [scheduleType, setScheduleType] = useState('recurring'); // 'one-time' or 'recurring'
@@ -55,6 +61,13 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       return () => clearInterval(interval);
     }
   }, [createdJob, jobStatus]);
+
+  // Fetch scheduled jobs when switching to scheduled view
+  useEffect(() => {
+    if (viewMode === 'scheduled') {
+      fetchScheduledJobs();
+    }
+  }, [viewMode]);
 
   const fetchConnections = async () => {
     try {
@@ -90,6 +103,66 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       }
     } catch (err) {
       console.error('Error fetching projects:', err);
+    }
+  };
+
+  const fetchScheduledJobs = async () => {
+    setIsLoadingScheduled(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/bulk-profiling/schedules`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setScheduledJobs(response.data.schedules);
+    } catch (err) {
+      console.error('Error fetching scheduled jobs:', err);
+      setError('Failed to load scheduled jobs');
+    } finally {
+      setIsLoadingScheduled(false);
+    }
+  };
+
+  const handleCancelSchedule = async (scheduleId) => {
+    if (!confirm('Are you sure you want to cancel this scheduled job?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/api/bulk-profiling/schedules/${scheduleId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Refresh the list
+      fetchScheduledJobs();
+    } catch (err) {
+      console.error('Error canceling schedule:', err);
+      setError('Failed to cancel schedule');
+    }
+  };
+
+  const handleUpdateSchedule = async () => {
+    if (!editingSchedule) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `${API_BASE_URL}/api/bulk-profiling/schedules/${editingSchedule.id}`,
+        {
+          cronExpression: editingSchedule.cron_expression,
+          isActive: editingSchedule.is_active
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      setEditingSchedule(null);
+      fetchScheduledJobs();
+    } catch (err) {
+      console.error('Error updating schedule:', err);
+      setError('Failed to update schedule');
     }
   };
 
@@ -488,10 +561,138 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       />
       
       <h2 style={{ marginBottom: '1.5rem' }}>Bulk Profiling from S3</h2>
-      <p style={{ color: '#666', marginBottom: '2rem' }}>
+      <p style={{ color: '#666', marginBottom: '1.5rem' }}>
         Discover and profile multiple files from an S3 location automatically
       </p>
 
+      {/* View Mode Toggle */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '1rem', 
+        marginBottom: '2rem',
+        borderBottom: '2px solid #e5e7eb'
+      }}>
+        <button
+          onClick={() => setViewMode('create')}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: viewMode === 'create' ? '3px solid #3b82f6' : '3px solid transparent',
+            color: viewMode === 'create' ? '#3b82f6' : '#6b7280',
+            fontWeight: viewMode === 'create' ? 'bold' : 'normal',
+            cursor: 'pointer',
+            fontSize: '1rem'
+          }}
+        >
+          Create New Job
+        </button>
+        <button
+          onClick={() => {
+            setViewMode('scheduled');
+            fetchScheduledJobs();
+          }}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: viewMode === 'scheduled' ? '3px solid #3b82f6' : '3px solid transparent',
+            color: viewMode === 'scheduled' ? '#3b82f6' : '#6b7280',
+            fontWeight: viewMode === 'scheduled' ? 'bold' : 'normal',
+            cursor: 'pointer',
+            fontSize: '1rem'
+          }}
+        >
+          Scheduled Jobs
+        </button>
+      </div>
+
+      {/* Scheduled Jobs View */}
+      {viewMode === 'scheduled' && (
+        <div>
+          <h3 style={{ marginBottom: '1rem' }}>Scheduled Bulk Profiling Jobs</h3>
+          {isLoadingScheduled ? (
+            <p>Loading...</p>
+          ) : scheduledJobs.length === 0 ? (
+            <p style={{ color: '#666', padding: '2rem', textAlign: 'center', background: '#f9fafb', borderRadius: '8px' }}>
+              No scheduled jobs found. Create a new job with scheduling enabled to see it here.
+            </p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+                <thead>
+                  <tr style={{ background: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
+                    <th style={{ padding: '1rem', textAlign: 'left' }}>Job Name</th>
+                    <th style={{ padding: '1rem', textAlign: 'left' }}>Frequency</th>
+                    <th style={{ padding: '1rem', textAlign: 'left' }}>Cron Expression</th>
+                    <th style={{ padding: '1rem', textAlign: 'left' }}>Status</th>
+                    <th style={{ padding: '1rem', textAlign: 'left' }}>Next Run</th>
+                    <th style={{ padding: '1rem', textAlign: 'left' }}>Last Run</th>
+                    <th style={{ padding: '1rem', textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduledJobs.map((schedule) => (
+                    <tr key={schedule.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '1rem' }}>{schedule.job_name}</td>
+                      <td style={{ padding: '1rem' }}>{schedule.frequency}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <code style={{ background: '#f3f4f6', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                          {schedule.cron_expression}
+                        </code>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.875rem',
+                          background: schedule.is_active ? '#d1fae5' : '#fee2e2',
+                          color: schedule.is_active ? '#065f46' : '#991b1b'
+                        }}>
+                          {schedule.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
+                        {schedule.next_run ? new Date(schedule.next_run).toLocaleString() : '-'}
+                      </td>
+                      <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
+                        {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : '-'}
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => setEditingSchedule(schedule)}
+                            style={{ padding: '0.375rem 0.75rem', fontSize: '0.875rem' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn"
+                            onClick={() => handleCancelSchedule(schedule.id)}
+                            style={{ 
+                              padding: '0.375rem 0.75rem', 
+                              fontSize: '0.875rem',
+                              background: '#ef4444',
+                              color: 'white'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create New Job View */}
+      {viewMode === 'create' && (
+        <>
       {/* Configuration Section */}
       <div style={{ marginBottom: '2rem' }}>
         <div className="form-group">
@@ -752,6 +953,91 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                 : `Start Profiling ${discoveredFiles.length} Files`
             }
           </button>
+        </div>
+      )}
+        </>
+      )}
+
+      {/* Edit Schedule Modal */}
+      {editingSchedule && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '90%'
+          }}>
+            <h3 style={{ marginBottom: '1.5rem' }}>Edit Schedule</h3>
+            
+            <div className="form-group">
+              <label>Job Name</label>
+              <input
+                type="text"
+                className="form-control"
+                value={editingSchedule.job_name}
+                disabled
+                style={{ background: '#f9fafb' }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="editCronExpression">Cron Expression</label>
+              <input
+                id="editCronExpression"
+                type="text"
+                className="form-control"
+                value={editingSchedule.cron_expression}
+                onChange={(e) => setEditingSchedule({
+                  ...editingSchedule,
+                  cron_expression: e.target.value
+                })}
+              />
+              <small style={{ color: '#666' }}>
+                Examples: <code>0 0 * * *</code> (daily at midnight), <code>* * * * *</code> (every minute)
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="checkbox"
+                  checked={editingSchedule.is_active}
+                  onChange={(e) => setEditingSchedule({
+                    ...editingSchedule,
+                    is_active: e.target.checked
+                  })}
+                />
+                Active
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setEditingSchedule(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleUpdateSchedule}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
