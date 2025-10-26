@@ -41,9 +41,9 @@ export const Tooltip = ({
   return (
     <div className="tooltip-container" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       {children}
-      {(isVisible || isAnimating) && (
+      {isVisible && (
         <div 
-          className={`tooltip tooltip-${position} tooltip-${type} ${isVisible ? 'visible' : ''} ${animated ? 'animated' : ''}`}
+          className={`tooltip tooltip-${position} tooltip-${type} visible ${animated ? 'animated' : ''}`}
         >
           {typeof content === 'string' ? content : content}
           <div className={`tooltip-arrow tooltip-arrow-${position}`}></div>
