@@ -87,7 +87,7 @@ const Dashboard = () => {
           
           // Add to quality score calculation if available
           if (file.quality_score) {
-            totalQualityScore += file.quality_score;
+            totalQualityScore += parseFloat(file.quality_score);
             filesWithScore++;
           }
         });
@@ -99,7 +99,7 @@ const Dashboard = () => {
         let filesWithIssues = 0;
         files.forEach(file => {
           const hasHeaderIssues = file.metadata?.header_validation?.issues_found > 0;
-          const hasLowQuality = file.quality_score && file.quality_score < 90;
+          const hasLowQuality = file.quality_score && parseFloat(file.quality_score) < 90;
           if (hasHeaderIssues || hasLowQuality) {
             filesWithIssues++;
           }
@@ -133,20 +133,21 @@ const Dashboard = () => {
           
           metricsCount++;
           
+          const qualityScore = parseFloat(file.quality_score);
+          
           // Completeness: Based on null percentages in columns (inverse of missing data)
           // We'll estimate from quality score since column data isn't always available
           // Files with higher quality scores generally have better completeness
-          const estimatedCompleteness = file.quality_score;
-          totalCompleteness += estimatedCompleteness;
+          totalCompleteness += qualityScore;
           
           // Validity: Based on header validation (files passing all checks)
           const headerValidation = file.metadata?.header_validation;
           const hasNoHeaderIssues = !headerValidation || headerValidation.issues_found === 0;
-          const validityScore = hasNoHeaderIssues ? 100 : Math.max(0, file.quality_score - 10);
+          const validityScore = hasNoHeaderIssues ? 100 : Math.max(0, qualityScore - 10);
           totalValidity += validityScore;
           
           // Consistency: Based on duplicate records (100% - duplicate percentage)
-          const duplicatePercentage = file.duplicate_records_percentage || 0;
+          const duplicatePercentage = parseFloat(file.duplicate_records_percentage) || 0;
           const consistencyScore = Math.max(0, 100 - (duplicatePercentage * 0.5)); // Weight duplicates at 50%
           totalConsistency += consistencyScore;
         });
@@ -227,16 +228,18 @@ const Dashboard = () => {
             let dayConsistency = 0;
             
             dayData.files.forEach(file => {
+              const qualityScore = parseFloat(file.quality_score) || 0;
+              
               // Completeness from quality score
-              dayCompleteness += file.quality_score || 0;
+              dayCompleteness += qualityScore;
               
               // Validity from header validation
               const headerValidation = file.metadata?.header_validation;
               const hasNoHeaderIssues = !headerValidation || headerValidation.issues_found === 0;
-              dayValidity += hasNoHeaderIssues ? 100 : Math.max(0, (file.quality_score || 0) - 10);
+              dayValidity += hasNoHeaderIssues ? 100 : Math.max(0, qualityScore - 10);
               
               // Consistency from duplicates
-              const dupPercentage = file.duplicate_records_percentage || 0;
+              const dupPercentage = parseFloat(file.duplicate_records_percentage) || 0;
               dayConsistency += Math.max(0, 100 - (dupPercentage * 0.5));
             });
             
