@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import PasswordInput from './PasswordInput';
 import '../styles/ForcePasswordChange.css';
 
 const ForcePasswordChange = ({ onPasswordChanged }) => {
@@ -63,9 +64,9 @@ const ForcePasswordChange = ({ onPasswordChanged }) => {
         <form onSubmit={handleSubmit} className="force-password-form">
           <div className="form-group">
             <label htmlFor="newPassword">New Password</label>
-            <input
-              type="password"
+            <PasswordInput
               id="newPassword"
+              name="newPassword"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               disabled={loading}
@@ -80,9 +81,9 @@ const ForcePasswordChange = ({ onPasswordChanged }) => {
           
           <div className="form-group">
             <label htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              type="password"
+            <PasswordInput
               id="confirmPassword"
+              name="confirmPassword"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
