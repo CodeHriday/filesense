@@ -363,7 +363,7 @@ function ProjectManagement() {
                         Edit
                       </button>
                       {!project.is_default && (
-                        <button className="btn-small btn-danger" onClick={() => handleDelete(project.id)}>
+                        <button className="btn-small btn-danger" onClick={() => openDeleteProjectConfirm(project)}>
                           Delete
                         </button>
                       )}
@@ -487,7 +487,7 @@ function ProjectManagement() {
                           <td>
                             <button
                               className="btn-small btn-danger"
-                              onClick={() => handleRemoveMember(member.user_id)}
+                              onClick={() => openRemoveMemberConfirm(member.user_id, member.full_name || member.username)}
                             >
                               Remove
                             </button>
@@ -542,7 +542,7 @@ function ProjectManagement() {
                           <td>
                             <button
                               className="btn-small btn-danger"
-                              onClick={() => handleRemoveGroup(group.group_id)}
+                              onClick={() => openRemoveGroupConfirm(group.group_id, group.group_name)}
                             >
                               Remove
                             </button>
@@ -566,6 +566,17 @@ function ProjectManagement() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={handleConfirmAction}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="Confirm"
+        cancelText="Cancel"
+        variant="danger"
+      />
 
     </div>
   );
