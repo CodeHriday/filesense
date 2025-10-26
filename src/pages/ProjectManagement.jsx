@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import ConfirmModal from '../components/ConfirmModal';
 import './ProjectManagement.css';
 
 const API_BASE_URL = '/api';
@@ -30,6 +31,14 @@ function ProjectManagement() {
 
   const [availableUsers, setAvailableUsers] = useState([]);
   const [availableGroups, setAvailableGroups] = useState([]);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    action: null,
+    title: '',
+    message: '',
+    data: null
+  });
 
   useEffect(() => {
     fetchProjects();
