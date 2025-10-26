@@ -562,6 +562,11 @@ function FileUpload() {
     setUploadProgress(0);
     setIsProcessing(false);
     setBatchResults(null); // Clear batch results
+    setBatchUploadStatus(null); // Clear batch upload status
+    setDiagnosticInfo(''); // Clear diagnostic info
+    setPendingFile(null); // Clear pending file
+    setPendingProgressHandler(null); // Clear pending progress handler
+    setDuplicateFileInfo(null); // Clear duplicate file info
     setDropzoneKey(prev => prev + 1); // Reset FileDropzone component
   };
   
@@ -867,6 +872,32 @@ function FileUpload() {
               </div>
             )}
           </>
+        )}
+        
+        {/* Show error message with reset button */}
+        {uploadStatus === 'error' && !isProcessing && activeTab === 'upload-profile' && (
+          <div style={{
+            margin: '1rem 0',
+            padding: '1.5rem',
+            background: '#fef2f2',
+            border: '2px solid #ef4444',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#991b1b', marginBottom: '0.5rem' }}>
+              ❌ Upload Failed
+            </div>
+            <div style={{ fontSize: '0.95rem', color: '#7f1d1d', marginBottom: '1.5rem' }}>
+              There was an error uploading your file. Please try again.
+            </div>
+            <button 
+              className="btn btn-primary"
+              onClick={handleUploadAnother}
+              style={{ fontSize: '1rem', padding: '0.75rem 2rem' }}
+            >
+              Reset & Try Again
+            </button>
+          </div>
         )}
         
         {/* Show upload dropzone when not processing */}
