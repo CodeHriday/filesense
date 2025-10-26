@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import './Tooltip.css';
 
 /**
@@ -21,12 +21,20 @@ export const Tooltip = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const timeoutRef = useRef(null);
 
   const handleMouseEnter = () => {
-    if (animated) {
+    // Clear any pending timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (animated && delay > 0) {
       setIsAnimating(true);
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setIsVisible(true);
+        timeoutRef.current = null;
       }, delay);
     } else {
       setIsVisible(true);
@@ -34,6 +42,12 @@ export const Tooltip = ({
   };
 
   const handleMouseLeave = () => {
+    // Clear any pending timeout to prevent race condition
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
     setIsVisible(false);
     setIsAnimating(false);
   };
