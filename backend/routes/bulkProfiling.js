@@ -304,8 +304,8 @@ router.put('/schedules/:scheduleId', authenticateToken, async (req, res) => {
     const { cronExpression, isActive } = req.body;
     
     const result = await updateSchedule(scheduleId, {
-      cronExpression,
-      isActive
+      cron_expression: cronExpression,
+      is_active: isActive
     });
     
     res.json(result);
