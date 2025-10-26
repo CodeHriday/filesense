@@ -5069,6 +5069,16 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     //   return res.status(403).json({ error: 'You do not have permission to view users' });
     // }
     
+    // Get pagination parameters from query string
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Get total count
+    const countResult = await dbPool.query('SELECT COUNT(*) FROM users');
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Get paginated users
     const result = await dbPool.query(`
       SELECT u.id, u.username, u.email, 
         u.first_name, u.middle_name, u.last_name, u.full_name,
@@ -5082,7 +5092,8 @@ app.get('/api/users', authenticateToken, async (req, res) => {
       LEFT JOIN roles r ON ur.role_id = r.id
       GROUP BY u.id
       ORDER BY u.id ASC
-    `);
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
     
     // Remove null values from roles array
     const users = result.rows.map(user => ({
@@ -5090,7 +5101,15 @@ app.get('/api/users', authenticateToken, async (req, res) => {
       roles: user.roles.filter(role => role !== null)
     }));
     
-    res.json(users);
+    res.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     console.error('Error fetching users:', err);
     res.status(500).json({ error: 'Failed to fetch users' });
