@@ -330,6 +330,12 @@ const UserManagement = () => {
                   )}
                 </button>
               )}
+              <button 
+                className="create-user-btn"
+                onClick={openCreateModal}
+              >
+                Add New User
+              </button>
             </div>
           </div>
           
@@ -338,16 +344,7 @@ const UserManagement = () => {
               {error}
             </div>
           )}
-          
-          <div className="user-management-actions">
-        {/* Temporarily enable Add New User button for all users */}
-        <button 
-          className="create-user-btn"
-          onClick={openCreateModal}
-        >
-          Add New User
-        </button>
-      </div>
+      
       
       <div className="users-table-container">
         <table className="users-table">
