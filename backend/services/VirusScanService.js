@@ -79,6 +79,7 @@ class VirusScanService {
           debugMode: false,
           clamscan: {
             path: clamScanPath, // Auto-detected path
+            db: '/home/runner/.clamav', // Custom virus definitions location
             active: true
           },
           clamdscan: {
