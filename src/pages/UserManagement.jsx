@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import PasswordInput from '../components/PasswordInput';
 import Pagination from '../components/Pagination';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
@@ -465,12 +466,12 @@ const UserManagement = () => {
                   <label htmlFor="password">
                     Password {modalMode === 'edit' && '(leave blank to keep current)'}
                   </label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     id="password"
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
+                    placeholder={modalMode === 'edit' ? 'Leave blank to keep current' : 'Enter password'}
                     required={modalMode === 'create'}
                   />
                   {modalMode === 'create' && formData.password && (
