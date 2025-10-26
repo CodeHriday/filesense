@@ -1357,3 +1357,63 @@
   color: var(--text-secondary);
   font-style: italic;
 }
+
+/* NULL Values Section */
+.null-values-section {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  background-color: #f9fafb;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #94a3b8;
+}
+
+.null-values-section.null-warning {
+  background-color: #fef3c7;
+  border-left-color: #f59e0b;
+}
+
+.null-values-section.null-info {
+  background-color: #dbeafe;
+  border-left-color: #3b82f6;
+}
+
+.null-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.null-metrics {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.null-metric {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background-color: white;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.null-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+}
+
+.null-value {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+.null-value.has-nulls {
+  color: #dc2626;
+  font-weight: var(--font-bold);
+}

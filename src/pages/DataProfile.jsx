@@ -1073,6 +1073,40 @@ function DataProfile() {
                 </div>
                 <div className="distribution-card-content">
                 <div className="column-distribution">
+                {/* NULL Values Section */}
+                {(() => {
+                  const nullCount = column.missing || 0;
+                  const nullPercentage = ((nullCount / totalRows) * 100).toFixed(2);
+                  const hasNulls = nullCount > 0;
+                  const highNulls = parseFloat(nullPercentage) > 10;
+                  
+                  return (
+                    <div className={`null-values-section ${highNulls ? 'null-warning' : hasNulls ? 'null-info' : ''}`}>
+                      <div className="null-header">
+                        <strong>NULL Values:</strong>
+                        {highNulls && (
+                          <span className="anomaly-badge anomaly-warning" style={{ marginLeft: '8px' }}>
+                            High Nulls
+                          </span>
+                        )}
+                      </div>
+                      <div className="null-metrics">
+                        <div className="null-metric">
+                          <span className="null-label">Count:</span>
+                          <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
+                            {nullCount.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="null-metric">
+                          <span className="null-label">Percentage:</span>
+                          <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
+                            {nullPercentage}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="column-stats-table">
                   <div className="column-stat-row">
                     <div className="column-stat-label">Type:</div>
