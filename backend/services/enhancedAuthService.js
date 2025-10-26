@@ -138,6 +138,26 @@ async function registerLocalUser(userData) {
   const client = await db.pool.connect();
   
   try {
+    // Validate required fields
+    const errors = [];
+    if (!username || username.trim() === '') {
+      errors.push('Username is required');
+    }
+    if (!email || email.trim() === '') {
+      errors.push('Email is required');
+    }
+    if (!password || password.trim() === '') {
+      errors.push('Password is required');
+    }
+    
+    if (errors.length > 0) {
+      return {
+        success: false,
+        message: 'Validation failed',
+        errors
+      };
+    }
+    
     // Validate password strength
     const passwordValidation = passwordSecurity.validatePasswordStrength(password);
     if (!passwordValidation.valid) {
@@ -148,9 +168,9 @@ async function registerLocalUser(userData) {
       };
     }
     
-    // Check if username exists
+    // Check if username exists (case-insensitive)
     const existingUser = await client.query(
-      'SELECT id FROM users WHERE username = $1 OR email = $2',
+      'SELECT id FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2)',
       [username, email]
     );
     
