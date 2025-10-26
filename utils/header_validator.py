@@ -345,6 +345,139 @@ def detect_missing_headers(df: pd.DataFrame) -> Dict[str, Any]:
     return {"has_issue": False}
 
 
+def detect_duplicate_column_names(df: pd.DataFrame, raw_headers = None) -> Dict[str, Any]:
+    """
+    Detect duplicate column names by comparing raw headers (before pandas rename)
+    with pandas-renamed headers.
+    
+    Args:
+        df: DataFrame after pandas has auto-renamed duplicates
+        raw_headers: Optional list of original header names before pandas rename
+    """
+    # If raw headers not provided, detect duplicates from pandas-mangled columns
+    if raw_headers is None:
+        # For non-CSV files (Excel, Parquet, etc.), pandas also auto-renames duplicates
+        # Detect pandas pattern: base + base.1 + base.2 (consecutive from .1)
+        columns = df.columns.tolist()
+        seen = {}
+        duplicates_found = []
+        
+        for i, col in enumerate(columns):
+            col_str = str(col).strip()
+            
+            # Check if this has pandas auto-rename suffix
+            match = re.match(r'^(.+)\.(\d+)$', col_str)
+            if match:
+                base_name = match.group(1)
+                suffix = int(match.group(2))
+                base_lower = base_name.lower()
+                
+                if base_lower not in seen:
+                    seen[base_lower] = {
+                        "original_name": base_name,
+                        "has_unsuffixed": False,
+                        "suffixes": [],
+                        "positions": [],
+                        "names": []
+                    }
+                
+                seen[base_lower]["suffixes"].append(suffix)
+                seen[base_lower]["positions"].append(i)
+                seen[base_lower]["names"].append(col_str)
+            else:
+                col_lower = col_str.lower()
+                if col_lower not in seen:
+                    seen[col_lower] = {
+                        "original_name": col_str,
+                        "has_unsuffixed": True,
+                        "unsuffixed_position": i,
+                        "suffixes": [],
+                        "positions": [i],
+                        "names": [col_str]
+                    }
+                else:
+                    seen[col_lower]["has_unsuffixed"] = True
+                    seen[col_lower]["unsuffixed_position"] = i
+                    seen[col_lower]["positions"].append(i)
+                    seen[col_lower]["names"].append(col_str)
+        
+        # Find duplicates in two ways:
+        # 1. Pandas auto-rename pattern: base + base.1 + base.2
+        # 2. Pure case-insensitive duplicates: Value vs value (pandas keeps as-is)
+        
+        for col_lower, info in seen.items():
+            # Case 1: Pandas auto-renamed duplicates
+            if info.get("has_unsuffixed") and len(info.get("suffixes", [])) > 0 and 1 in info.get("suffixes", []):
+                # Pandas pattern confirmed - report as duplicate
+                duplicates_found.append({
+                    "column_name": info["original_name"],
+                    "count": len(info["positions"]),
+                    "positions": sorted(info["positions"]),
+                    "renamed_as": [name for _, name in sorted(zip(info["positions"], info["names"]))]
+                })
+            # Case 2: Pure case-insensitive duplicates (pandas didn't rename)
+            elif info.get("has_unsuffixed") and len(info["positions"]) > 1:
+                # Check if the names are actually different (case-insensitive duplicates)
+                # Not just pandas suffixes
+                unique_names = set(name for name in info["names"])
+                if len(unique_names) > 1:
+                    # Different case variations of the same name
+                    duplicates_found.append({
+                        "column_name": info["original_name"],
+                        "count": len(info["positions"]),
+                        "positions": sorted(info["positions"]),
+                        "renamed_as": [name for _, name in sorted(zip(info["positions"], info["names"]))]
+                    })
+    else:
+        # Use raw headers to detect true duplicates
+        seen = {}
+        duplicates_found = []
+        
+        for i, col in enumerate(raw_headers):
+            col_str = str(col).strip()
+            col_lower = col_str.lower()
+            
+            if col_lower not in seen:
+                seen[col_lower] = {
+                    "original_name": col_str,
+                    "positions": [i],
+                    "pandas_names": [str(df.columns[i])]
+                }
+            else:
+                seen[col_lower]["positions"].append(i)
+                seen[col_lower]["pandas_names"].append(str(df.columns[i]))
+        
+        # Find actual duplicates
+        for col_lower, info in seen.items():
+            if len(info["positions"]) > 1:
+                duplicates_found.append({
+                    "column_name": info["original_name"],
+                    "count": len(info["positions"]),
+                    "positions": sorted(info["positions"]),
+                    "renamed_as": info["pandas_names"]
+                })
+    
+    if duplicates_found:
+        # Sort by first position
+        duplicates_found.sort(key=lambda x: x["positions"][0])
+        
+        total_duplicates = sum(d["count"] - 1 for d in duplicates_found)
+        duplicate_names = [d["column_name"] for d in duplicates_found]
+        
+        return {
+            "has_issue": True,
+            "issue_type": "duplicate_column_names",
+            "severity": "medium",
+            "duplicates": duplicates_found,
+            "count": len(duplicates_found),
+            "total_duplicate_columns": total_duplicates,
+            "message": f"{len(duplicates_found)} column name(s) appear multiple times: {', '.join(duplicate_names[:3])}{'...' if len(duplicate_names) > 3 else ''}",
+            "recommendation": f"Rename duplicate columns to unique names. Pandas auto-renamed them, but this may cause confusion."
+        }
+    
+    return {"has_issue": False}
+
+
 def validate_headers(file_path: str, file_type: str, sample_rows: int = 10000) -> Dict[str, Any]:
     """
     Main validation function that checks for all header issues.
@@ -364,8 +497,36 @@ def validate_headers(file_path: str, file_type: str, sample_rows: int = 10000) -
             file_type = 'excel'
         
         # Load the file based on type
+        raw_headers = None
+        csv_delimiter = None
         if file_type == 'csv':
-            df = pd.read_csv(file_path, nrows=sample_rows)
+            # Read raw headers from CSV file using csv module for proper parsing
+            import csv
+            try:
+                # Sniff delimiter to match pandas behavior
+                with open(file_path, 'r', encoding='utf-8-sig', newline='') as f:
+                    sample = f.read(8192)
+                    f.seek(0)
+                    sniffer = csv.Sniffer()
+                    try:
+                        dialect = sniffer.sniff(sample)
+                        csv_delimiter = dialect.delimiter
+                    except:
+                        dialect = csv.excel  # Default to standard CSV
+                        csv_delimiter = ','
+                    
+                    csv_reader = csv.reader(f, dialect=dialect)
+                    raw_headers = next(csv_reader, None)
+                    if raw_headers:
+                        raw_headers = [col.strip() for col in raw_headers]
+            except:
+                pass  # If reading raw headers fails, use fallback detection
+            
+            # Pass delimiter to pandas to ensure alignment
+            if csv_delimiter:
+                df = pd.read_csv(file_path, nrows=sample_rows, delimiter=csv_delimiter)
+            else:
+                df = pd.read_csv(file_path, nrows=sample_rows)
         elif file_type == 'json':
             try:
                 df = pd.read_json(file_path, lines=True)
@@ -394,22 +555,27 @@ def validate_headers(file_path: str, file_type: str, sample_rows: int = 10000) -
         # Run all validation checks
         issues = []
         
-        # 1. Check for multiple headers
+        # 1. Check for duplicate column names
+        duplicate_columns = detect_duplicate_column_names(df, raw_headers=raw_headers)
+        if duplicate_columns["has_issue"]:
+            issues.append(duplicate_columns)
+        
+        # 2. Check for multiple headers
         multiple_headers = detect_multiple_headers(df)
         if multiple_headers["has_issue"]:
             issues.append(multiple_headers)
         
-        # 2. Check for no headers
+        # 3. Check for no headers
         no_headers = detect_no_headers(df)
         if no_headers["has_issue"]:
             issues.append(no_headers)
         
-        # 3. Check for orphan headers
+        # 4. Check for orphan headers
         orphan_headers = detect_orphan_headers(df)
         if orphan_headers["has_issue"]:
             issues.append(orphan_headers)
         
-        # 4. Check for missing headers
+        # 5. Check for missing headers
         missing_headers = detect_missing_headers(df)
         if missing_headers["has_issue"]:
             issues.append(missing_headers)
