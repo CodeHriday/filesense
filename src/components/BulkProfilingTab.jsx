@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiFolder, FiSearch, FiPlay, FiClock, FiCheck, FiX, FiDownload } from 'react-icons/fi';
+import { FiFolder, FiSearch, FiPlay, FiClock, FiCheck, FiX, FiDownload, FiRefreshCw } from 'react-icons/fi';
 import S3FolderBrowser from './S3FolderBrowser';
+import ErrorModal from './ErrorModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -476,23 +477,15 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
 
   return (
     <div style={{ padding: '2rem' }}>
+      <ErrorModal 
+        message={error}
+        onClose={() => setError(null)}
+      />
+      
       <h2 style={{ marginBottom: '1.5rem' }}>Bulk Profiling from S3</h2>
       <p style={{ color: '#666', marginBottom: '2rem' }}>
         Discover and profile multiple files from an S3 location automatically
       </p>
-
-      {error && (
-        <div style={{
-          background: '#fef2f2',
-          border: '1px solid #ef4444',
-          borderRadius: '4px',
-          padding: '1rem',
-          marginBottom: '1.5rem',
-          color: '#991b1b'
-        }}>
-          {error}
-        </div>
-      )}
 
       {/* Configuration Section */}
       <div style={{ marginBottom: '2rem' }}>
