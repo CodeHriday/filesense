@@ -105,46 +105,16 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
     const columnData = columnQualityData.find(col => col.name === columnName);
     if (!columnData) return null;
     
-    // Calculate quality score based on the existing formula components
     // Use the actual total rows from the dataset, not the preview length
     const rows = previewData.rows || previewData.data || [];
     const totalRows = previewData.totalRows || previewData.total_rows || rows.length;
     
-    // Component weights from our quality formula
-    const weights = {
-      completeness: 0.30,
-      uniqueness: 0.15,
-      validity: 0.20,
-      consistency: 0.25,
-      timeliness: 0.10
-    };
-    
-    // Calculate component scores - cap completeness at 100%
+    // Quality score is based on completeness (non-null percentage)
+    // This is the most accurate indicator of column data quality
     const completeness = columnData.missing !== undefined ? 
       Math.min(((totalRows - columnData.missing) / totalRows) * 100, 100) : 100;
     
-    // Calculate uniqueness only if it makes sense for this column
-    // Higher uniqueness is better for ID columns, but not for category columns
-    const uniqueness = columnData.unique !== undefined ? 
-      Math.min((columnData.unique / totalRows) * 100, 100) : 100;
-    
-    // For simplicity, assume validity and consistency are high if we don't have specific data
-    const validity = 95;
-    const consistency = 90;
-    
-    // Timeliness is based on the file's freshness, not column-specific
-    const timeliness = 100;
-    
-    // Calculate weighted score
-    const score = (
-      weights.completeness * completeness +
-      weights.uniqueness * uniqueness +
-      weights.validity * validity +
-      weights.consistency * consistency +
-      weights.timeliness * timeliness
-    );
-    
-    return Math.round(score) / 100; // Return on a scale of 0-1
+    return Math.round(completeness) / 100; // Return on a scale of 0-1
   };
   
   // Get color for quality score
@@ -251,16 +221,18 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
     const scoreColor = getScoreColor(qualityScore);
     const scorePercentage = Math.round(qualityScore * 100);
     
+    const columnData = columnQualityData.find(col => col.name === columnName);
+    const nullCount = columnData?.missing || 0;
+    const totalRows = previewData.totalRows || previewData.total_rows || (previewData.rows || previewData.data || []).length;
+    const nonNullCount = totalRows - nullCount;
+    
     return (
       <div 
         className="quality-score-circle" 
         style={{ backgroundColor: scoreColor }}
-        title={`Quality Score: ${scorePercentage}%
-Completeness: 30%
-Consistency: 25%
-Validity: 20%
-Uniqueness: 15%
-Timeliness: 10%`}
+        title={`Data Completeness: ${scorePercentage}%
+${nonNullCount} of ${totalRows} values present
+${nullCount} null values`}
       >
         {scorePercentage}
       </div>
