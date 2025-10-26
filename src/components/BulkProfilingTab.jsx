@@ -288,13 +288,18 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
               <strong>Schedule:</strong> {createdJob.schedule_type === 'recurring' ? 'Recurring' : 'One-time'}
             </p>
             {createdJob.schedule_type === 'recurring' && (
-              <p style={{ marginBottom: 0 }}>
-                <strong>Cron expression:</strong> <code style={{ 
-                  background: '#f3f4f6', 
-                  padding: '0.25rem 0.5rem', 
-                  borderRadius: '4px' 
-                }}>{createdJob.cron_expression}</code>
-              </p>
+              <>
+                <p style={{ marginBottom: '0.5rem' }}>
+                  <strong>Frequency:</strong> {createdJob.frequency || 'Custom Schedule'}
+                </p>
+                <p style={{ marginBottom: 0 }}>
+                  <strong>Cron expression:</strong> <code style={{ 
+                    background: '#f3f4f6', 
+                    padding: '0.25rem 0.5rem', 
+                    borderRadius: '4px' 
+                  }}>{createdJob.cron_expression}</code>
+                </p>
+              </>
             )}
           </div>
           
