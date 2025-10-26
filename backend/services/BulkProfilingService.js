@@ -544,6 +544,7 @@ class BulkProfilingService {
           processed_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status IN ('completed', 'failed', 'skipped')),
           successful_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status = 'completed'),
           failed_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status = 'failed'),
+          skipped_files = (SELECT COUNT(*) FROM bulk_profiling_files WHERE job_id = $1 AND status = 'skipped'),
           updated_at = NOW()
         WHERE id = $1
       `;
