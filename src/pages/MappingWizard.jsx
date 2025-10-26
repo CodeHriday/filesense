@@ -16,13 +16,15 @@ import {
   FiEdit2,
   FiPlay,
   FiChevronDown,
-  FiChevronUp
+  FiChevronUp,
+  FiFolder
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TableBasedMapper from '../components/TableBasedMapper';
+import S3FolderBrowser from '../components/S3FolderBrowser';
 import './MappingWizard.css';
 
 const TRANSFORMATION_FUNCTIONS = {
@@ -107,6 +109,10 @@ function MappingWizard() {
     { metric: 'null_spike', threshold: 15, enabled: true },
     { metric: 'type_mismatch', threshold: 5, enabled: true }
   ]);
+
+  // S3 Browse modals
+  const [showSourceBrowse, setShowSourceBrowse] = useState(false);
+  const [showTargetBrowse, setShowTargetBrowse] = useState(false);
 
   useEffect(() => {
     fetchConnections();
@@ -577,13 +583,26 @@ function MappingWizard() {
 
             <div className="form-group">
               <label>File Path</label>
-              <input
-                type="text"
-                className="form-control"
-                value={filePath}
-                onChange={(e) => setFilePath(e.target.value)}
-                placeholder="e.g., /year/month/day/ or leave blank for root"
-              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={filePath}
+                  onChange={(e) => setFilePath(e.target.value)}
+                  placeholder="e.g., /year/month/day/ or leave blank for root"
+                  style={{ flex: 1 }}
+                />
+                {sourceConnectionId && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowSourceBrowse(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                  >
+                    <FiFolder /> Browse
+                  </button>
+                )}
+              </div>
               <small className="form-help">
                 Leave blank if file is in the main bucket. For files in subfolders, provide the path starting with /.<br/>
                 Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
@@ -659,13 +678,26 @@ function MappingWizard() {
 
             <div className="form-group">
               <label>Target File Path</label>
-              <input
-                type="text"
-                className="form-control"
-                value={targetFilePath}
-                onChange={(e) => setTargetFilePath(e.target.value)}
-                placeholder="e.g., /output/processed/ or /data/transform/"
-              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={targetFilePath}
+                  onChange={(e) => setTargetFilePath(e.target.value)}
+                  placeholder="e.g., /output/processed/ or /data/transform/"
+                  style={{ flex: 1 }}
+                />
+                {targetConnectionId && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowTargetBrowse(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                  >
+                    <FiFolder /> Browse
+                  </button>
+                )}
+              </div>
               <small className="form-help">
                 Optional: Specify folder path for output files (e.g., <code>/folder/</code>). Leave empty for root directory.
               </small>
@@ -809,6 +841,50 @@ function MappingWizard() {
               <button className="btn btn-primary" onClick={handleExecuteModalOk}>
                 OK
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Source Path Browse Modal */}
+      {showSourceBrowse && (
+        <div className="modal-overlay" onClick={() => setShowSourceBrowse(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <h2><FiFolder /> Browse Source Path</h2>
+              <button className="btn-icon" onClick={() => setShowSourceBrowse(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              <S3FolderBrowser
+                connectionId={sourceConnectionId}
+                initialPath={filePath || '/'}
+                onSelectPath={(path) => {
+                  setFilePath(path);
+                  setShowSourceBrowse(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Target Path Browse Modal */}
+      {showTargetBrowse && (
+        <div className="modal-overlay" onClick={() => setShowTargetBrowse(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <h2><FiFolder /> Browse Target Path</h2>
+              <button className="btn-icon" onClick={() => setShowTargetBrowse(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              <S3FolderBrowser
+                connectionId={targetConnectionId}
+                initialPath={targetFilePath || '/'}
+                onSelectPath={(path) => {
+                  setTargetFilePath(path);
+                  setShowTargetBrowse(false);
+                }}
+              />
             </div>
           </div>
         </div>
