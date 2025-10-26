@@ -165,6 +165,7 @@ function ProjectManagement() {
       );
       setMemberFormData({ user_id: '' });
       fetchProjectDetails(selectedProject.id);
+      fetchProjects(); // Refresh the projects list to update member count
     } catch (err) {
       setError('Failed to add member');
       console.error(err);
@@ -180,6 +181,7 @@ function ProjectManagement() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       fetchProjectDetails(selectedProject.id);
+      fetchProjects(); // Refresh the projects list to update member count
     } catch (err) {
       setError('Failed to remove member');
       console.error(err);
@@ -197,6 +199,7 @@ function ProjectManagement() {
       );
       setGroupFormData({ group_id: '' });
       fetchProjectDetails(selectedProject.id);
+      fetchProjects(); // Refresh the projects list
     } catch (err) {
       setError('Failed to add access group');
       console.error(err);
@@ -212,6 +215,7 @@ function ProjectManagement() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       fetchProjectDetails(selectedProject.id);
+      fetchProjects(); // Refresh the projects list
     } catch (err) {
       setError('Failed to remove access group');
       console.error(err);
