@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 import ConfirmModal from '../components/ConfirmModal';
 import './ProjectManagement.css';
 
 const API_BASE_URL = '/api';
 
 function ProjectManagement() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -73,9 +76,10 @@ function ProjectManagement() {
       const response = await axios.get(`${API_BASE_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setAvailableUsers(response.data);
+      setAvailableUsers(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to fetch users:', err);
+      setAvailableUsers([]);
     }
   };
 
@@ -85,9 +89,10 @@ function ProjectManagement() {
       const response = await axios.get(`${API_BASE_URL}/groups`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setAvailableGroups(response.data);
+      setAvailableGroups(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to fetch groups:', err);
+      setAvailableGroups([]);
     }
   };
 
@@ -334,7 +339,13 @@ function ProjectManagement() {
                 <tr key={project.id}>
                   <td>
                     <div className="project-name">
-                      {project.name}
+                      <Link 
+                        to={`/file-catalog?project=${project.id}`}
+                        className="project-name-link" 
+                        style={{ color: '#4a90e2', textDecoration: 'none' }}
+                      >
+                        {project.name}
+                      </Link>
                       {project.is_default && <span className="badge badge-default">DEFAULT</span>}
                     </div>
                   </td>
@@ -359,12 +370,24 @@ function ProjectManagement() {
                   <td>{new Date(project.created_at).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
-                      <button className="btn-small" onClick={() => openEditModal(project)}>
-                        Edit
+                      <button 
+                        className="btn-icon" 
+                        onClick={() => openEditModal(project)}
+                        title="Edit Project"
+                        aria-label={`Edit project ${project.name}`}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#4a90e2' }}
+                      >
+                        <FaEdit size={18} aria-hidden="true" />
                       </button>
                       {!project.is_default && (
-                        <button className="btn-small btn-danger" onClick={() => openDeleteProjectConfirm(project)}>
-                          Delete
+                        <button 
+                          className="btn-icon btn-danger" 
+                          onClick={() => openDeleteProjectConfirm(project)}
+                          title="Delete Project"
+                          aria-label={`Delete project ${project.name}`}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#dc3545' }}
+                        >
+                          <FaTrash size={18} aria-hidden="true" />
                         </button>
                       )}
                     </div>

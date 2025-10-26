@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiEye, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
@@ -13,10 +13,12 @@ import './FileCatalog.css';
 export const FileCatalog = ({ onFileSelect }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedType, setSelectedType] = useState('all');
+  const [selectedProject, setSelectedProject] = useState(null);
   const [deletingFileId, setDeletingFileId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
@@ -46,6 +48,16 @@ export const FileCatalog = ({ onFileSelect }) => {
     // Refetch the file catalog to show newly uploaded files
     refetch();
   }, []); // Empty dependency array means this runs once when component mounts
+  
+  // Handle project filter from URL parameter
+  useEffect(() => {
+    const projectParam = searchParams.get('project');
+    if (projectParam) {
+      setSelectedProject(parseInt(projectParam));
+    } else {
+      setSelectedProject(null);
+    }
+  }, [searchParams]);
   
   // File delete mutation
   const deleteFileMutation = useFileDelete({
@@ -224,7 +236,10 @@ export const FileCatalog = ({ onFileSelect }) => {
       // Filter by file type
       const matchesType = selectedType === 'all' || file.file_type === selectedType;
       
-      return matchesSearch && matchesType;
+      // Filter by project
+      const matchesProject = selectedProject === null || file.project_id === selectedProject;
+      
+      return matchesSearch && matchesType && matchesProject;
     })
     .sort((a, b) => {
       // Sort based on selected criteria
@@ -296,7 +311,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   // Reset to page 1 when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedType, sortBy, sortOrder]);
+  }, [searchTerm, selectedType, sortBy, sortOrder, selectedProject]);
 
   // Pagination handlers
   const handlePageChange = (page) => {
@@ -386,6 +401,37 @@ export const FileCatalog = ({ onFileSelect }) => {
             className="search-input"
           />
         </div>
+        
+        {selectedProject && (
+          <div className="active-filter-badge" style={{ 
+            padding: '0.5rem 1rem', 
+            background: '#e3f2fd', 
+            borderRadius: '4px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            fontSize: '0.9rem'
+          }}>
+            <span>Project Filter: {files.find(f => f.project_id === selectedProject)?.project_name || `ID ${selectedProject}`}</span>
+            <button 
+              onClick={() => {
+                setSearchParams({});
+                setSelectedProject(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                padding: '0 0.25rem',
+                color: '#666'
+              }}
+              title="Clear project filter"
+            >
+              ×
+            </button>
+          </div>
+        )}
         
         <div className="filter-container">
           {selectedFiles.length > 0 && (
