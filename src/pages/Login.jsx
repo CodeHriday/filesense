@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { THEME } from '../config';
 import axios from 'axios';
+import PasswordInput from '../components/PasswordInput';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -144,15 +145,13 @@ const Login = () => {
           
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              type="password"
+            <PasswordInput
               id="password"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
               placeholder="Enter your password"
-              aria-label="Password"
-              autoComplete="current-password"
             />
           </div>
           
