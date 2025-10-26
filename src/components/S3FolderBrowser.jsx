@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { FaFolder, FaChevronRight, FaHome, FaSpinner } from 'react-icons/fa';
-import { FaSquare } from 'react-icons/fa';
 import axios from 'axios';
 import './S3FolderBrowser.css';
 
@@ -170,7 +169,14 @@ const S3FolderBrowser = ({ connectionId, onSelectPath, initialPath = '/' }) => {
               key={`file-${index}`}
               className="s3-item s3-file"
             >
-              <FaSquare className="icon file-icon" style={{ fontSize: '8px', color: '#999' }} />
+              <div style={{ 
+                width: '4px', 
+                height: '4px', 
+                borderRadius: '50%', 
+                backgroundColor: '#999',
+                flexShrink: 0,
+                marginLeft: '10px'
+              }} />
               <span className="name">{file.name}</span>
               <span className="type">{file.type.toUpperCase()}</span>
               <span className="size">{formatFileSize(file.size)}</span>
