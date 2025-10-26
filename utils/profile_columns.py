@@ -13,6 +13,7 @@ import sys
 import json
 import pandas as pd
 from data_profiling import detect_column_patterns
+from dtype_converter import get_user_friendly_type
 
 def profile_columns(file_path, file_type):
     """Generate detailed column statistics"""
@@ -77,7 +78,7 @@ def profile_columns(file_path, file_type):
         for col in df.columns:
             stats = {
                 "name": str(col),
-                "type": str(df[col].dtype),
+                "type": get_user_friendly_type(df[col].dtype),
                 "null_count": int(df[col].isna().sum()),
                 "unique_count": int(df[col].nunique())
             }
