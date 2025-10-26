@@ -384,6 +384,42 @@
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Column width control */
+.projects-table th:nth-child(1),
+.projects-table td:nth-child(1) {
+  width: 18%;  /* Project Name - bigger */
+}
+
+.projects-table th:nth-child(2),
+.projects-table td:nth-child(2) {
+  width: 20%;  /* Description - 15% smaller */
+}
+
+.projects-table th:nth-child(3),
+.projects-table td:nth-child(3) {
+  width: 15%;  /* Members - bigger */
+}
+
+.projects-table th:nth-child(4),
+.projects-table td:nth-child(4) {
+  width: 13%;  /* Access Groups */
+}
+
+.projects-table th:nth-child(5),
+.projects-table td:nth-child(5) {
+  width: 10%;  /* Status */
+}
+
+.projects-table th:nth-child(6),
+.projects-table td:nth-child(6) {
+  width: 12%;  /* Created */
+}
+
+.projects-table th:nth-child(7),
+.projects-table td:nth-child(7) {
+  width: 12%;  /* Actions */
+}
+
 .projects-table th {
   background: var(--bg-secondary);
   font-weight: 600;
@@ -412,5 +448,6 @@
 .action-buttons {
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
 }
