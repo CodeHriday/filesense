@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import Pagination from '../components/Pagination';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import axios from 'axios';
@@ -27,6 +28,12 @@ const UserManagement = () => {
     auth_provider: 'local',
     roles: []
   });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   
   // Password reset requests state
   const [resetRequestsModalOpen, setResetRequestsModalOpen] = useState(false);
@@ -55,20 +62,23 @@ const UserManagement = () => {
     // }
     
     fetchData();
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, currentPage, pageSize]);
   
   const fetchData = async () => {
     setLoading(true);
     setError('');
     
     try {
-      const [usersData, rolesData] = await Promise.all([
-        getAllUsers(),
-        getRoles()
+      const [usersResponse, rolesData] = await Promise.all([
+        getAllUsers(currentPage, pageSize),
+        getRoles(1, 100)
       ]);
       
-      setUsers(usersData);
-      setRoles(rolesData);
+      setUsers(usersResponse.users || []);
+      setTotalPages(usersResponse.pagination?.totalPages || 1);
+      setTotalCount(usersResponse.pagination?.totalCount || 0);
+      
+      setRoles(rolesData.roles || rolesData);
       
       // Fetch password reset requests count for admins
       if (hasRole && hasRole('Admin')) {
@@ -407,6 +417,15 @@ const UserManagement = () => {
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Controls */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        itemsPerPage={pageSize}
+        totalItems={totalCount}
+      />
       
       {/* User Form Modal */}
       {modalOpen && (
