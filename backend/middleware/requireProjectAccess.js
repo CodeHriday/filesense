@@ -40,18 +40,7 @@ function requireProjectAccess(options = {}) {
     }
 
     try {
-      // Admin bypass (global admins can access all projects)
-      if (allowAdminBypass && req.user.roles && req.user.roles.includes('Admin')) {
-        systemLogger.info('Admin bypass granted for project access', {
-          userId: req.user.id,
-          username: req.user.username
-        });
-        req.projectRole = 'Admin';
-        req.isAdminBypass = true;
-        return next();
-      }
-
-      // Extract project_id from request
+      // Extract project_id from request (do this BEFORE admin bypass check)
       let projectId = null;
 
       if (getProjectId && typeof getProjectId === 'function') {
@@ -69,6 +58,20 @@ function requireProjectAccess(options = {}) {
           path: req.path
         });
         return res.status(400).json({ error: 'Project context required' });
+      }
+
+      // Admin bypass (global admins can access all projects)
+      // Note: We still extract project_id above so req.projectId is set correctly
+      if (allowAdminBypass && req.user.roles && req.user.roles.includes('Admin')) {
+        systemLogger.info('Admin bypass granted for project access', {
+          userId: req.user.id,
+          username: req.user.username,
+          projectId
+        });
+        req.projectId = projectId;
+        req.projectRole = 'Admin';
+        req.isAdminBypass = true;
+        return next();
       }
 
       // Check project membership
