@@ -1194,7 +1194,7 @@ function DataProfile() {
                 </div>
               </div>
             </Card>
-            );
+          );
           })}
         </div>
       </div>
