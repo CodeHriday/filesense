@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiEye, FiTrash2 } from 'react-icons/fi';
+import { FiEye, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -198,6 +198,20 @@ export const FileCatalog = ({ onFileSelect }) => {
     if (score >= 90) return 'high';
     if (score >= 70) return 'medium';
     return 'low';
+  };
+
+  const getHeaderValidationInfo = (file) => {
+    const headerValidation = file.metadata?.header_validation;
+    if (!headerValidation) return null;
+    
+    const hasIssues = headerValidation.issues_found > 0 || headerValidation.status !== 'healthy';
+    if (!hasIssues) return null;
+    
+    return {
+      issuesCount: headerValidation.issues_found || 0,
+      status: headerValidation.status || 'warning',
+      issues: headerValidation.issues || []
+    };
   };
 
   // Filter and sort the files
@@ -538,22 +552,40 @@ export const FileCatalog = ({ onFileSelect }) => {
                           {file.created_at ? getTimeSince(file.created_at) : '-'}
                         </td>
                         <td>
-                          <QualityTooltip 
-                            score={parseFloat(file.quality_score)}
-                            components={{
-                              completeness: file.quality_components?.completeness || 95,
-                              consistency: file.quality_components?.consistency || 85,
-                              validity: file.quality_components?.validity || 80,
-                              uniqueness: file.quality_components?.uniqueness || 75,
-                              timeliness: file.quality_components?.timeliness || 90
-                            }}
-                            position="top"
-                            animated={true}
-                          >
-                            <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
-                              {parseFloat(file.quality_score).toFixed(1)}%
-                            </span>
-                          </QualityTooltip>
+                          <div className="quality-cell">
+                            <QualityTooltip 
+                              score={parseFloat(file.quality_score)}
+                              components={{
+                                completeness: file.quality_components?.completeness || 95,
+                                consistency: file.quality_components?.consistency || 85,
+                                validity: file.quality_components?.validity || 80,
+                                uniqueness: file.quality_components?.uniqueness || 75,
+                                timeliness: file.quality_components?.timeliness || 90
+                              }}
+                              position="top"
+                              animated={true}
+                            >
+                              <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
+                                {parseFloat(file.quality_score).toFixed(1)}%
+                              </span>
+                            </QualityTooltip>
+                            {(() => {
+                              const headerInfo = getHeaderValidationInfo(file);
+                              if (headerInfo) {
+                                const severityClass = headerInfo.status === 'critical' ? 'critical' : 'warning';
+                                const tooltip = headerInfo.issues.map(issue => issue.message).join('; ');
+                                return (
+                                  <span 
+                                    className={`header-validation-badge ${severityClass}`}
+                                    title={tooltip}
+                                  >
+                                    <FiAlertTriangle /> {headerInfo.issuesCount}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
                         </td>
                         <td className="actions-cell">
                           <button
@@ -625,22 +657,40 @@ export const FileCatalog = ({ onFileSelect }) => {
                             {childFile.created_at ? getTimeSince(childFile.created_at) : '-'}
                           </td>
                           <td>
-                            <QualityTooltip 
-                              score={parseFloat(childFile.quality_score)}
-                              components={{
-                                completeness: childFile.quality_components?.completeness || 95,
-                                consistency: childFile.quality_components?.consistency || 85,
-                                validity: childFile.quality_components?.validity || 80,
-                                uniqueness: childFile.quality_components?.uniqueness || 75,
-                                timeliness: childFile.quality_components?.timeliness || 90
-                              }}
-                              position="top"
-                              animated={true}
-                            >
-                              <span className={`quality-score ${getQualityClass(parseFloat(childFile.quality_score))}`}>
-                                {parseFloat(childFile.quality_score).toFixed(1)}%
-                              </span>
-                            </QualityTooltip>
+                            <div className="quality-cell">
+                              <QualityTooltip 
+                                score={parseFloat(childFile.quality_score)}
+                                components={{
+                                  completeness: childFile.quality_components?.completeness || 95,
+                                  consistency: childFile.quality_components?.consistency || 85,
+                                  validity: childFile.quality_components?.validity || 80,
+                                  uniqueness: childFile.quality_components?.uniqueness || 75,
+                                  timeliness: childFile.quality_components?.timeliness || 90
+                                }}
+                                position="top"
+                                animated={true}
+                              >
+                                <span className={`quality-score ${getQualityClass(parseFloat(childFile.quality_score))}`}>
+                                  {parseFloat(childFile.quality_score).toFixed(1)}%
+                                </span>
+                              </QualityTooltip>
+                              {(() => {
+                                const headerInfo = getHeaderValidationInfo(childFile);
+                                if (headerInfo) {
+                                  const severityClass = headerInfo.status === 'critical' ? 'critical' : 'warning';
+                                  const tooltip = headerInfo.issues.map(issue => issue.message).join('; ');
+                                  return (
+                                    <span 
+                                      className={`header-validation-badge ${severityClass}`}
+                                      title={tooltip}
+                                    >
+                                      <FiAlertTriangle /> {headerInfo.issuesCount}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
                           </td>
                           <td className="actions-cell">
                             <button

@@ -266,6 +266,13 @@
   text-transform: uppercase;
 }
 
+.quality-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .quality-score {
   font-weight: var(--font-semibold);
   font-size: var(--text-sm);
@@ -281,6 +288,35 @@
 
 .quality-score.low {
   color: var(--color-error);
+}
+
+.header-validation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7em;
+  font-weight: var(--font-semibold);
+  cursor: help;
+  white-space: nowrap;
+}
+
+.header-validation-badge.warning {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.header-validation-badge.critical {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
+.header-validation-badge svg {
+  width: 12px;
+  height: 12px;
 }
 
 .actions-cell {

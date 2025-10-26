@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
@@ -717,6 +717,24 @@ function DataProfile() {
       }
     };
     
+    const headerValidation = file.metadata?.header_validation;
+    const hasHeaderIssues = headerValidation && (headerValidation.issues_found > 0 || headerValidation.status !== 'healthy');
+    
+    const getHeaderStatusIcon = () => {
+      if (!headerValidation) return null;
+      
+      switch (headerValidation.status) {
+        case 'healthy':
+          return <FiCheckCircle className="status-icon healthy" />;
+        case 'warning':
+          return <FiAlertTriangle className="status-icon warning" />;
+        case 'critical':
+          return <FiXCircle className="status-icon critical" />;
+        default:
+          return <FiAlertTriangle className="status-icon warning" />;
+      }
+    };
+    
     return (
       <div className="profile-overview">
         <Card title="File Governance">
@@ -737,6 +755,57 @@ function DataProfile() {
             </div>
           </div>
         </Card>
+        
+        {headerValidation && (
+          <Card title="Header Validation">
+            <div className="header-validation-container">
+              <div className="header-validation-status">
+                {getHeaderStatusIcon()}
+                <div className="status-text">
+                  <h4>
+                    {headerValidation.status === 'healthy' ? 'Healthy' : 
+                     headerValidation.status === 'warning' ? 'Warning' : 'Critical'}
+                  </h4>
+                  <p>
+                    {headerValidation.issues_found === 0 
+                      ? 'No header issues detected' 
+                      : `${headerValidation.issues_found} issue${headerValidation.issues_found > 1 ? 's' : ''} found`}
+                  </p>
+                </div>
+                <div className="health-score">
+                  <span className={`score ${headerValidation.status}`}>
+                    {headerValidation.health_score || 0}%
+                  </span>
+                  <span className="score-label">Health Score</span>
+                </div>
+              </div>
+              
+              {hasHeaderIssues && headerValidation.issues && headerValidation.issues.length > 0 && (
+                <div className="header-validation-issues">
+                  <h5>Issues Detected:</h5>
+                  {headerValidation.issues.map((issue, index) => (
+                    <div key={index} className={`issue-item ${issue.severity}`}>
+                      <div className="issue-header">
+                        <span className={`severity-badge ${issue.severity}`}>
+                          {issue.severity === 'high' ? 'High' : 'Medium'}
+                        </span>
+                        <span className="issue-type">
+                          {issue.issue_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      </div>
+                      <div className="issue-message">{issue.message}</div>
+                      {issue.recommendation && (
+                        <div className="issue-recommendation">
+                          <strong>Recommendation:</strong> {issue.recommendation}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
         
         <div className="file-stats-grid">
           <Card className="file-stat-card">

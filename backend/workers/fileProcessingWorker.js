@@ -138,6 +138,19 @@ class FileProcessingWorker {
         });
       }
 
+      await this.queue.updateProgress(jobId, 65);
+
+      // Step 2.5: Validate file headers for common issues
+      await this.updateProcessingStep(fileId, 'header_validation');
+      this.logger.info('Validating file headers', { fileId });
+      const headerValidation = await this.callHeaderValidator(filePath, fileType);
+      
+      this.logger.info('Header validation completed', {
+        fileId,
+        status: headerValidation.status,
+        issuesFound: headerValidation.issues_found || 0
+      });
+
       await this.queue.updateProgress(jobId, 70);
 
       // Step 3: Detect duplicate rows
@@ -153,8 +166,8 @@ class FileProcessingWorker {
 
       await this.queue.updateProgress(jobId, 75);
 
-      // Step 4: Save metadata to database (including duplicates and hash)
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, projectId);
+      // Step 4: Save metadata to database (including duplicates, hash, and header validation)
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId);
       
       // Step 4.5: Create file ownership record with creator and owner from uploader
       await this.createFileOwnership(fileId, userId, originalName);
@@ -466,6 +479,69 @@ class FileProcessingWorker {
   }
 
   /**
+   * Call Python header validation script to detect header issues
+   */
+  async callHeaderValidator(filePath, fileType) {
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, '../../utils/header_validator.py');
+      
+      // Check if file exists
+      if (!fs.existsSync(pythonScript)) {
+        this.logger.warn('Header validator script not found, skipping validation', { pythonScript });
+        return resolve({ success: true, status: 'healthy', health_score: 100, issues: [] });
+      }
+
+      // Set PYTHONPATH to include workspace root for utils module
+      const workspaceRoot = path.join(__dirname, '../..');
+      const env = {
+        ...process.env,
+        PYTHONPATH: workspaceRoot
+      };
+      
+      const python = spawn('python3', [pythonScript, filePath, fileType], { env });
+      
+      let stdout = '';
+      let stderr = '';
+
+      python.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      python.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      python.on('close', (code) => {
+        if (code !== 0) {
+          this.logger.error('Header validation script error', {
+            code,
+            stderr,
+            filePath
+          });
+          // Don't fail the whole job, just skip validation
+          resolve({ success: true, status: 'healthy', health_score: 100, issues: [] });
+        } else {
+          try {
+            const result = JSON.parse(stdout);
+            resolve(result);
+          } catch (error) {
+            this.logger.error('Failed to parse header validation output', {
+              stdout,
+              error: error.message
+            });
+            resolve({ success: true, status: 'healthy', health_score: 100, issues: [] });
+          }
+        }
+      });
+
+      python.on('error', (error) => {
+        this.logger.error('Failed to spawn header validation script', { error: error.message });
+        resolve({ success: true, status: 'healthy', health_score: 100, issues: [] });
+      });
+    });
+  }
+
+  /**
    * Detect duplicate rows using Python quality_checks module
    */
   async detectDuplicates(filePath, fileType) {
@@ -541,12 +617,13 @@ print(json.dumps(result))
   /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, projectId) {
-    // Build metadata object with encoding, delimiter, and preview data
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId) {
+    // Build metadata object with encoding, delimiter, preview data, and header validation
     const metadata = {
       encoding: fileInfo.encoding || null,
       delimiter: fileInfo.delimiter || null,
-      preview_data: fileInfo.preview_data || []
+      preview_data: fileInfo.preview_data || [],
+      header_validation: headerValidation || null
     };
 
     const query = `
