@@ -95,16 +95,26 @@ const Dashboard = () => {
         // Generate recent files list
         const recent = sortedFiles.slice(0, 5);
         
+        // Count files with quality issues (header problems or low quality score)
+        let filesWithIssues = 0;
+        files.forEach(file => {
+          const hasHeaderIssues = file.metadata?.header_validation?.issues_found > 0;
+          const hasLowQuality = file.quality_score && file.quality_score < 90;
+          if (hasHeaderIssues || hasLowQuality) {
+            filesWithIssues++;
+          }
+        });
+        
         // Calculate stats
         const stats = {
           totalFiles: files.length,
           recentlyUpdated: files.filter(f => new Date(f.last_updated || f.created_at) > last7Days).length,
-          qualityIssues: alertsData.length,
+          qualityIssues: filesWithIssues,
           filesByType: fileTypes,
           avgQualityScore: filesWithScore > 0 ? Math.round(totalQualityScore / filesWithScore) : 0
         };
         
-        // Generate health metrics from actual file quality checks
+        // Calculate real health metrics from actual file data
         const metrics = {
           completeness: 0,
           consistency: 0,
@@ -113,31 +123,46 @@ const Dashboard = () => {
           timeliness: 0
         };
         
-        // Extract quality check data from files where available
-        let qualityChecksCount = 0;
+        let totalCompleteness = 0;
+        let totalValidity = 0;
+        let totalConsistency = 0;
+        let metricsCount = 0;
         
         files.forEach(file => {
-          if (file.quality_score) {
-            // Incrementally calculate metrics based on weighted formulas
-            metrics.completeness += parseFloat(file.quality_score);
-            
-            // Different weighting for metrics based on real scoring patterns
-            metrics.consistency += (parseFloat(file.quality_score) * 0.95);
-            metrics.accuracy += (parseFloat(file.quality_score) * 0.88);
-            metrics.validity += (parseFloat(file.quality_score) * 1.05);
-            metrics.timeliness += (parseFloat(file.quality_score) * 0.82);
-            
-            qualityChecksCount++;
-          }
+          if (!file.quality_score) return;
+          
+          metricsCount++;
+          
+          // Completeness: Based on null percentages in columns (inverse of missing data)
+          // We'll estimate from quality score since column data isn't always available
+          // Files with higher quality scores generally have better completeness
+          const estimatedCompleteness = file.quality_score;
+          totalCompleteness += estimatedCompleteness;
+          
+          // Validity: Based on header validation (files passing all checks)
+          const headerValidation = file.metadata?.header_validation;
+          const hasNoHeaderIssues = !headerValidation || headerValidation.issues_found === 0;
+          const validityScore = hasNoHeaderIssues ? 100 : Math.max(0, file.quality_score - 10);
+          totalValidity += validityScore;
+          
+          // Consistency: Based on duplicate records (100% - duplicate percentage)
+          const duplicatePercentage = file.duplicate_records_percentage || 0;
+          const consistencyScore = Math.max(0, 100 - (duplicatePercentage * 0.5)); // Weight duplicates at 50%
+          totalConsistency += consistencyScore;
         });
         
         // Calculate averages if data is available
-        if (qualityChecksCount > 0) {
-          metrics.completeness = Math.round(metrics.completeness / qualityChecksCount);
-          metrics.consistency = Math.round(metrics.consistency / qualityChecksCount);
-          metrics.accuracy = Math.round(metrics.accuracy / qualityChecksCount);
-          metrics.validity = Math.round(metrics.validity / qualityChecksCount);
-          metrics.timeliness = Math.round(metrics.timeliness / qualityChecksCount);
+        if (metricsCount > 0) {
+          metrics.completeness = Math.round(totalCompleteness / metricsCount);
+          metrics.validity = Math.round(totalValidity / metricsCount);
+          metrics.consistency = Math.round(totalConsistency / metricsCount);
+          
+          // Accuracy: For now, use quality score as proxy (would need field-level validation data)
+          metrics.accuracy = stats.avgQualityScore;
+          
+          // Timeliness: Based on file recency (files updated in last 7 days)
+          const timelinessRatio = stats.recentlyUpdated / Math.max(1, stats.totalFiles);
+          metrics.timeliness = Math.round(timelinessRatio * 100);
         }
         
         // Generate trend data based on file upload history
@@ -171,14 +196,14 @@ const Dashboard = () => {
         });
         
         // Generate metrics for each day based on files available
-        // If no files on a day, use previous day's value or base value
+        // If no files on a day, use previous day's value
         let prevMetrics = {
-          overall: fileStats.avgQualityScore || 80,
-          completeness: metrics.completeness || 85,
-          consistency: metrics.consistency || 82,
-          accuracy: metrics.accuracy || 78,
-          validity: metrics.validity || 88,
-          timeliness: metrics.timeliness || 75
+          overall: stats.avgQualityScore,
+          completeness: metrics.completeness,
+          consistency: metrics.consistency,
+          accuracy: metrics.accuracy,
+          validity: metrics.validity,
+          timeliness: metrics.timeliness
         };
         
         // Build the trend array from the date map
@@ -196,13 +221,32 @@ const Dashboard = () => {
             
             const avgScore = dayData.files.length > 0 ? Math.round(dayScore / dayData.files.length) : prevMetrics.overall;
             
-            // Update metrics based on available data
+            // Calculate real metrics for the day from the files
+            let dayCompleteness = 0;
+            let dayValidity = 0;
+            let dayConsistency = 0;
+            
+            dayData.files.forEach(file => {
+              // Completeness from quality score
+              dayCompleteness += file.quality_score || 0;
+              
+              // Validity from header validation
+              const headerValidation = file.metadata?.header_validation;
+              const hasNoHeaderIssues = !headerValidation || headerValidation.issues_found === 0;
+              dayValidity += hasNoHeaderIssues ? 100 : Math.max(0, (file.quality_score || 0) - 10);
+              
+              // Consistency from duplicates
+              const dupPercentage = file.duplicate_records_percentage || 0;
+              dayConsistency += Math.max(0, 100 - (dupPercentage * 0.5));
+            });
+            
+            const fileCount = dayData.files.length;
             dayData.overall = avgScore;
-            dayData.completeness = Math.round(avgScore * 1.02); // Weighted scaling based on business rules
-            dayData.consistency = Math.round(avgScore * 0.97);
-            dayData.accuracy = Math.round(avgScore * 0.92);
-            dayData.validity = Math.round(avgScore * 1.07);
-            dayData.timeliness = Math.round(avgScore * 0.88);
+            dayData.completeness = Math.round(dayCompleteness / fileCount);
+            dayData.consistency = Math.round(dayConsistency / fileCount);
+            dayData.accuracy = avgScore; // Use quality score as proxy
+            dayData.validity = Math.round(dayValidity / fileCount);
+            dayData.timeliness = metrics.timeliness; // Use overall timeliness
             
             // Update previous metrics for next day with no data
             prevMetrics = {
