@@ -5126,8 +5126,30 @@ app.get('/api/roles', authenticateToken, async (req, res) => {
     //   return res.status(403).json({ error: 'You do not have permission to view roles' });
     // }
     
-    const result = await dbPool.query('SELECT * FROM roles ORDER BY id ASC');
-    res.json(result.rows);
+    // Get pagination parameters from query string
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Get total count
+    const countResult = await dbPool.query('SELECT COUNT(*) FROM roles');
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Get paginated roles
+    const result = await dbPool.query(
+      'SELECT * FROM roles ORDER BY id ASC LIMIT $1 OFFSET $2',
+      [limit, offset]
+    );
+    
+    res.json({
+      roles: result.rows,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     console.error('Error fetching roles:', err);
     res.status(500).json({ error: 'Failed to fetch roles' });
