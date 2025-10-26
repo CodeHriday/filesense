@@ -19,6 +19,12 @@ import traceback
 # Import the original file processing module
 import file_processing
 
+# Import dtype converter
+try:
+    from dtype_converter import get_user_friendly_type
+except ImportError:
+    from utils.dtype_converter import get_user_friendly_type
+
 # Import the logger
 from utils.logger import file_logger, log_execution_time, async_handler
 
@@ -116,7 +122,7 @@ def _process_dataframe_chunk(chunk, file_extension):
     
     for col in chunk.columns:
         chunk_info["column_stats"][col] = {
-            "type": str(chunk[col].dtype),
+            "type": get_user_friendly_type(chunk[col].dtype),
             "null_count": chunk[col].isna().sum(),
             "unique_count": chunk[col].nunique(),
             "min": chunk[col].min() if pd.api.types.is_numeric_dtype(chunk[col]) else None,

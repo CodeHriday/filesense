@@ -20,6 +20,12 @@ import data_profiling
 # Import logging utilities
 from utils.logger import data_logger, log_execution_time, async_handler
 
+# Import dtype converter
+try:
+    from dtype_converter import get_user_friendly_type
+except ImportError:
+    from utils.dtype_converter import get_user_friendly_type
+
 # Thread pool for CPU-bound tasks
 thread_pool = concurrent.futures.ThreadPoolExecutor(
     max_workers=4
@@ -76,7 +82,7 @@ async def _profile_column_async(df, column):
         
         # Basic stats
         col_stats = {
-            "type": str(col.dtype),
+            "type": get_user_friendly_type(col.dtype),
             "unique_count": int(col.nunique()),
             "missing_count": int(col.isna().sum()),
             "missing_percentage": float(col.isna().sum() / len(df) * 100)
@@ -213,7 +219,7 @@ async def profile_dataframe_async(df):
         if not categorical_df.empty:
             def get_categorical_summary():
                 return pd.DataFrame({
-                    "type": categorical_df.dtypes,
+                    "type": categorical_df.dtypes.apply(get_user_friendly_type),
                     "unique": categorical_df.nunique(),
                     "missing": categorical_df.isna().sum(),
                     "missing_pct": (categorical_df.isna().sum() / len(df) * 100),

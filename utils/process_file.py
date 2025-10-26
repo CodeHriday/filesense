@@ -22,9 +22,11 @@ try:
     try:
         from streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
         from memory_monitor import MemoryGuard, check_before_processing
+        from dtype_converter import get_user_friendly_type
     except ImportError:
         from utils.streaming_processors import StreamingFileReader, detect_encoding, detect_delimiter
         from utils.memory_monitor import MemoryGuard, check_before_processing
+        from utils.dtype_converter import get_user_friendly_type
 except Exception as import_error:
     # If imports fail, output the error and exit
     error_msg = {
@@ -120,7 +122,7 @@ def process_file(file_path, file_type):
                 for col in first_chunk.columns:
                     schema.append({
                         "name": str(col),
-                        "type": str(first_chunk[col].dtype),
+                        "type": get_user_friendly_type(first_chunk[col].dtype),
                         "nullable": bool(first_chunk[col].isna().any()),
                         "unique_count": int(first_chunk[col].nunique()),
                         "null_count": int(first_chunk[col].isna().sum())
