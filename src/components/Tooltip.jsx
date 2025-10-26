@@ -35,11 +35,7 @@ export const Tooltip = ({
 
   const handleMouseLeave = () => {
     setIsVisible(false);
-    if (animated) {
-      setTimeout(() => {
-        setIsAnimating(false);
-      }, 300); // Animation duration
-    }
+    setIsAnimating(false);
   };
 
   return (
