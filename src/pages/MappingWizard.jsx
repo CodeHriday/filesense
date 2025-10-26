@@ -552,7 +552,7 @@ function MappingWizard() {
                 value={sourceConnectionId}
                 onChange={(e) => setSourceConnectionId(e.target.value ? parseInt(e.target.value) : '')}
               >
-                <option value="">Local Files</option>
+                <option value="">Select source connection</option>
                 {connections.filter(c => c.connection_direction === 'source').map(conn => (
                   <option key={conn.id} value={conn.id}>
                     {conn.name} ({conn.type})
@@ -666,7 +666,7 @@ function MappingWizard() {
                 value={targetConnectionId}
                 onChange={(e) => setTargetConnectionId(e.target.value ? parseInt(e.target.value) : '')}
               >
-                <option value="">Local Files</option>
+                <option value="">Select target connection</option>
                 {connections.filter(c => c.connection_direction === 'target').map(conn => (
                   <option key={conn.id} value={conn.id}>
                     {conn.name} ({conn.type})
