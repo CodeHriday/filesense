@@ -1213,7 +1213,7 @@ function DataProfile() {
                   </div>
                 </div>
               </div>
-                </div>
+            </div>
             </Card>
           );
           })}
