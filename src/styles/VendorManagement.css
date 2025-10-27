@@ -460,3 +460,38 @@ body.high-contrast .save-btn {
     flex-direction: column;
   }
 }
+
+/* Vendor Connection Form Styles */
+.vendor-connection-form .form-group {
+  margin-bottom: 0.875rem;
+}
+
+.vendor-connection-form .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.vendor-connection-form .error-message {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.vendor-connection-form .test-result {
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.vendor-connection-form .test-result.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.vendor-connection-form .test-result.error {
+  background: #fee2e2;
+  color: #991b1b;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ThreeSectionModal from './ThreeSectionModal';
 import axios from 'axios';
+import '../styles/VendorManagement.css';
 
 const VendorConnectionModal = ({
   isOpen,
