@@ -158,8 +158,8 @@ function MappingWizard() {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       // Filter for approved and locked agreements only
-      const approvedAgreements = (response.data || []).filter(
-        agreement => agreement.status === 'approved' && agreement.is_locked
+      const approvedAgreements = (response.data.agreements || response.data || []).filter(
+        agreement => agreement.approval_status === 'fully_approved' && agreement.is_locked
       );
       setVendorAgreements(approvedAgreements);
     } catch (err) {
