@@ -165,9 +165,7 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Connection name is required' });
     }
     
-    if (!project_id) {
-      return res.status(400).json({ error: 'Project ID is required' });
-    }
+    // project_id is now optional for global vendor connections
     
     // Validate provider-specific fields
     if (provider === 'aws' && !bucket) {
@@ -369,6 +367,78 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   } catch (error) {
     systemLogger.error('Error deleting vendor connection', { error: error.message });
     res.status(500).json({ error: 'Failed to delete vendor connection' });
+  }
+});
+
+/**
+ * POST /api/vendor-connections/test-new
+ * Test a vendor connection configuration without saving it
+ */
+router.post('/test-new', requireAdmin, async (req, res) => {
+  try {
+    const {
+      provider = 'aws',
+      // AWS fields
+      region,
+      bucket,
+      access_key_id,
+      secret_access_key,
+      endpoint,
+      use_ssl = true,
+      // GCP fields
+      gcp_project_id,
+      service_account_json,
+      gcp_bucket,
+      // Azure fields
+      account_name,
+      account_key,
+      container_name,
+      azure_endpoint
+    } = req.body;
+    
+    // Build test config (no encryption needed for testing)
+    const config = {
+      provider,
+      storage_type: provider === 'aws' ? 's3' : provider === 'gcp' ? 'gcs' : 'azure-blob'
+    };
+    
+    if (provider === 'aws') {
+      config.region = region;
+      config.bucket = bucket;
+      config.access_key_id = access_key_id; // No encryption for test
+      config.secret_access_key = secret_access_key;
+      config.endpoint = endpoint;
+      config.use_ssl = use_ssl;
+    } else if (provider === 'gcp') {
+      config.project_id = gcp_project_id;
+      config.gcp_bucket = gcp_bucket;
+      config.service_account_json = service_account_json; // No encryption for test
+    } else if (provider === 'azure') {
+      config.account_name = account_name;
+      config.container_name = container_name;
+      config.account_key = account_key; // No encryption for test
+      config.azure_endpoint = azure_endpoint;
+    }
+    
+    let testResult;
+    
+    if (provider === 'aws') {
+      testResult = await testAWSConnection(config);
+    } else if (provider === 'gcp') {
+      testResult = await testGCPConnection(config);
+    } else if (provider === 'azure') {
+      testResult = await testAzureConnection(config);
+    } else {
+      testResult = { success: false, message: `Provider '${provider}' test not implemented` };
+    }
+    
+    res.json(testResult);
+  } catch (error) {
+    systemLogger.error('Error testing new vendor connection', { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: `Connection test failed: ${error.message}` 
+    });
   }
 });
 
