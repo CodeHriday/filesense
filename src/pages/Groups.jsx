@@ -11,7 +11,7 @@ const SimpleModal = ({ show, title, onClose, children }) => {
   if (!show) return null;
   
   return (
-    <div className="modal-overlay" onClick={onClose} style={{
+    <div className="modal-overlay" style={{
       position: 'fixed',
       top: 0,
       left: 0,
@@ -25,7 +25,6 @@ const SimpleModal = ({ show, title, onClose, children }) => {
       padding: '20px'
     }}>
       <div 
-        onClick={e => e.stopPropagation()}
         style={{
           backgroundColor: 'white',
           borderRadius: '8px',

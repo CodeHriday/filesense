@@ -747,8 +747,8 @@ const VendorAgreements = () => {
           )}
           
           {detailModalOpen && selectedAgreement && (
-            <div className="modal-overlay" onClick={closeDetailModal}>
-              <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-overlay">
+              <div className="detail-modal">
                 <div className="modal-header">
                   <h2>Agreement Details - {selectedAgreement.agreement_code}</h2>
                   <button className="close-modal-btn" onClick={closeDetailModal}>

@@ -277,8 +277,8 @@ function Mappings() {
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
-        <div className="modal-overlay" onClick={cancelDelete}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="modal-header">
               <h2>Delete Mapping</h2>
               <button className="modal-close" onClick={cancelDelete}>×</button>
@@ -313,8 +313,8 @@ function Mappings() {
 
       {/* Execution Result Modal */}
       {executionModalOpen && executionResult && (
-        <div className="modal-overlay" onClick={closeExecutionModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="modal-header">
               <h2>{executionResult.success ? 'Execution Started' : 'Execution Failed'}</h2>
               <button className="modal-close" onClick={closeExecutionModal}>×</button>

@@ -677,8 +677,8 @@ function FileUpload() {
       
       {/* Owner Edit Modal */}
       {showOwnerModal && (
-        <div className="modal-overlay" onClick={handleCancelOwnerModal}>
-          <div className="modal-content ownership-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content ownership-modal">
             <h2>Edit File Owner</h2>
             <p className="modal-description">
               Set the owner for files you upload. This defaults to your email address.
@@ -720,8 +720,8 @@ function FileUpload() {
       
       {/* Drop Location Not Configured Modal */}
       {showDropLocationModal && (
-        <div className="modal-overlay" onClick={() => setShowDropLocationModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <h2>Drop Location Not Configured</h2>
             <p>
               {isAdmin 

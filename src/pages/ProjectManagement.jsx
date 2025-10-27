@@ -410,8 +410,8 @@ function ProjectManagement() {
       )}
 
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal">
             <div className="modal-header">
               <h2>Create New Project</h2>
               <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
@@ -448,8 +448,8 @@ function ProjectManagement() {
       )}
 
       {showEditModal && selectedProject && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal modal-large">
             <div className="modal-header">
               <h2>Edit Project - {selectedProject.name}</h2>
               <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>

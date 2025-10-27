@@ -202,8 +202,8 @@ function PolicyModal({ policy, onClose, onSave }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content policy-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content policy-modal">
         <h2>{policy ? 'Edit Policy' : 'Create New Policy'}</h2>
 
         <div className="form-group">

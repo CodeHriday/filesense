@@ -531,8 +531,8 @@ const VendorConnectionModal = ({
 
       {/* Browse Modal */}
       {showBrowseModal && canBrowse && (
-        <div className="modal-overlay" onClick={() => setShowBrowseModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '800px' }}>
             <div className="modal-header">
               <h2><FaFolder /> Browse File Path</h2>
               <button className="btn-icon" onClick={() => setShowBrowseModal(false)}>×</button>

@@ -582,8 +582,8 @@ const UserManagement = () => {
       
       {/* Password Reset Requests Modal */}
       {resetRequestsModalOpen && (
-        <div className="modal-overlay" onClick={() => setResetRequestsModalOpen(false)}>
-          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content large-modal">
             <div className="modal-header">
               <h3>Password Reset Requests</h3>
               <button

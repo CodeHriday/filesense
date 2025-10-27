@@ -217,8 +217,8 @@ function TagManagement() {
       </Card>
 
       {showModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content tag-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content tag-modal">
             <h2>{modalMode === 'create' ? 'Create New Tag' : 'Edit Tag'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
