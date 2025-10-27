@@ -851,7 +851,8 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
 });
 
 app.get('/api/files/:fileId', 
-  authenticateToken, 
+  authenticateToken,
+  attachVendorProfile,
   cacheMiddleware(600),
   requireProjectAccess({
     resourceType: 'file'
@@ -866,6 +867,23 @@ app.get('/api/files/:fileId',
       
       if (!file) {
         return res.status(404).json({ error: 'File not found' });
+      }
+      
+      // SECURITY: Verify vendor can only access files from their drop location
+      if (req.isVendor && req.vendorProfile) {
+        const vendorPath = req.vendorProfile.drop_location_path;
+        const filePath = file.file_path || file.location || '';
+        
+        if (vendorPath && !filePath.startsWith(vendorPath)) {
+          logger.warn('Vendor attempted to access file outside their drop location', {
+            userId: req.user.id,
+            vendorId: req.vendorProfile.id,
+            fileId,
+            filePath,
+            vendorPath
+          });
+          return res.status(403).json({ error: 'Access denied. You can only access files from your drop location.' });
+        }
       }
       
       res.json(file);

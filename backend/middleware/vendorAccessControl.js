@@ -39,7 +39,7 @@ async function attachVendorProfile(req, res, next) {
 
 /**
  * Middleware to restrict vendors to only their own vendor data
- * Use this on vendor-specific routes
+ * Use this on vendor-specific routes that include vendor ID in params
  */
 function requireOwnVendorAccess(req, res, next) {
   // Admin can access everything
@@ -54,6 +54,21 @@ function requireOwnVendorAccess(req, res, next) {
       path: req.path
     });
     return res.status(403).json({ error: 'Access denied. Vendor access required.' });
+  }
+  
+  // CRITICAL: Verify the requested vendor ID matches the authenticated vendor's ID
+  const requestedVendorId = parseInt(req.params.id || req.params.vendorId);
+  const authenticatedVendorId = parseInt(req.vendorProfile.id);
+  
+  if (requestedVendorId && !isNaN(requestedVendorId) && requestedVendorId !== authenticatedVendorId) {
+    systemLogger.warn('Vendor attempted to access another vendor\'s data', {
+      userId: req.user.id,
+      vendorId: authenticatedVendorId,
+      requestedVendorId,
+      path: req.path,
+      method: req.method
+    });
+    return res.status(403).json({ error: 'Access denied. You can only access your own vendor data.' });
   }
   
   next();
