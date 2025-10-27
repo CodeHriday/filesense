@@ -230,6 +230,22 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'vendor_management', 
+    name: 'Vendor Management', 
+    category: 'Administration',
+    icon: FiTruck,
+    route: '/vendor-management',
+    showInSidebar: true
+  },
+  { 
+    id: 'vendor_agreements', 
+    name: 'Vendor Agreements', 
+    category: 'Administration',
+    icon: FiCheckCircle,
+    route: '/vendor-agreements',
+    showInSidebar: true
+  },
+  { 
     id: 'system_cleanup', 
     name: 'System Cleanup', 
     category: 'Administration',
