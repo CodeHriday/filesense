@@ -40,9 +40,7 @@ class VendorService {
         backup_contact_name,
         backup_contact_phone,
         backup_contact_email,
-        project_id,
-        drop_location_path,
-        vendor_connection_id
+        project_id
       } = vendorData;
       
       // Validation
@@ -92,9 +90,6 @@ class VendorService {
           [vendorCode]
         );
       }
-      
-      // Generate drop location path if not provided
-      const dropPath = drop_location_path || `vendors/${vendorCode.toLowerCase()}`;
       
       // Create user account for vendor
       // Check if user with this email already exists
@@ -239,33 +234,18 @@ class VendorService {
         }
       }
       
-      // Validate vendor_connection_id if provided
-      if (vendor_connection_id) {
-        const connCheck = await client.query(
-          `SELECT connection_id FROM storage_connections 
-           WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
-          [vendor_connection_id]
-        );
-        
-        if (connCheck.rows.length === 0) {
-          throw new Error('Invalid vendor connection ID or connection is not a vendor drop connection');
-        }
-        
-        // Connections are global and not tied to projects, so no project validation needed
-      }
-      
       // Create vendor record
       const vendorResult = await client.query(
         `INSERT INTO vendors (
           vendor_code, vendor_name, description, contact_name, contact_email, contact_phone,
           address, backup_contact_name, backup_contact_phone, backup_contact_email,
-          vendor_user_id, project_id, drop_location_path, vendor_connection_id, status, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active', $15, CURRENT_TIMESTAMP)
+          vendor_user_id, project_id, status, created_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active', $13, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendorCode, vendor_name, description, contact_name, contact_email, contact_phone,
           address, backup_contact_name, backup_contact_phone, backup_contact_email,
-          vendorUserId, finalProjectId, dropPath, vendor_connection_id, createdBy
+          vendorUserId, finalProjectId, createdBy
         ]
       );
       
@@ -474,9 +454,7 @@ class VendorService {
         backup_contact_phone,
         backup_contact_email,
         project_id,
-        status,
-        drop_location_path,
-        vendor_connection_id
+        status
       } = updateData;
       
       // Fetch current vendor data for validation
@@ -603,33 +581,6 @@ class VendorService {
       if (status !== undefined) {
         updates.push(`status = $${paramIndex}`);
         params.push(status);
-        paramIndex++;
-      }
-      
-      if (drop_location_path !== undefined) {
-        updates.push(`drop_location_path = $${paramIndex}`);
-        params.push(drop_location_path);
-        paramIndex++;
-      }
-      
-      if (vendor_connection_id !== undefined) {
-        // Validate vendor_connection_id if provided
-        if (vendor_connection_id) {
-          const connCheck = await client.query(
-            `SELECT connection_id FROM storage_connections 
-             WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
-            [vendor_connection_id]
-          );
-          
-          if (connCheck.rows.length === 0) {
-            throw new Error('Invalid vendor connection ID or connection is not a vendor drop connection');
-          }
-          
-          // Connections are global and not tied to projects, so no project validation needed
-        }
-        
-        updates.push(`vendor_connection_id = $${paramIndex}`);
-        params.push(vendor_connection_id);
         paramIndex++;
       }
       

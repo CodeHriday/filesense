@@ -24,6 +24,10 @@ const VendorAgreements = () => {
   const [changeHistory, setChangeHistory] = useState([]);
   const [rejectComments, setRejectComments] = useState('');
   
+  // Vendor connections state
+  const [vendorConnections, setVendorConnections] = useState([]);
+  const [filteredConnections, setFilteredConnections] = useState([]);
+  
   const [formData, setFormData] = useState({
     vendor_id: '',
     file_name: '',
@@ -35,7 +39,9 @@ const VendorAgreements = () => {
     file_owner_user_id: '',
     vendor_contact: '',
     owner_contact: '',
-    metadata: ''
+    metadata: '',
+    vendor_connection_id: '',
+    drop_location_path: ''
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -67,12 +73,13 @@ const VendorAgreements = () => {
     setError('');
     
     try {
-      const [agreementsResponse, vendorsResponse, usersResponse] = await Promise.all([
+      const [agreementsResponse, vendorsResponse, usersResponse, connectionsResponse] = await Promise.all([
         axios.get('/api/vendor-agreements', {
           params: { page: currentPage, pageSize }
         }),
         axios.get('/api/vendors'),
-        axios.get('/api/users')
+        axios.get('/api/users'),
+        axios.get('/api/vendor-connections')
       ]);
       
       setAgreements(agreementsResponse.data.agreements || agreementsResponse.data || []);
@@ -81,6 +88,7 @@ const VendorAgreements = () => {
       
       setVendors(vendorsResponse.data.vendors || vendorsResponse.data || []);
       setUsers(usersResponse.data.users || usersResponse.data || []);
+      setVendorConnections(connectionsResponse.data.connections || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load vendor agreements data');
@@ -106,6 +114,52 @@ const VendorAgreements = () => {
     }
   };
   
+  // Filter vendor connections - show only vendor type connections
+  useEffect(() => {
+    const filtered = vendorConnections.filter(conn => conn.type === 'vendor');
+    setFilteredConnections(filtered);
+  }, [vendorConnections]);
+  
+  // Auto-populate drop_location_path from selected vendor connection
+  useEffect(() => {
+    if (formData.vendor_connection_id && filteredConnections.length > 0) {
+      const selectedConnection = filteredConnections.find(
+        conn => String(conn.connection_id) === String(formData.vendor_connection_id)
+      );
+      
+      if (selectedConnection) {
+        const config = selectedConnection.config || {};
+        const bucket = config.bucket || config.bucket_name || '';
+        const filePath = config.path_prefix || '';
+        
+        // Combine bucket and file path with proper slash handling
+        let fullPath = bucket;
+        if (filePath) {
+          fullPath = filePath.startsWith('/') 
+            ? `${bucket}${filePath}` 
+            : `${bucket}/${filePath}`;
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          drop_location_path: fullPath
+        }));
+      } else {
+        // Connection not found, clear path
+        setFormData(prev => ({
+          ...prev,
+          drop_location_path: ''
+        }));
+      }
+    } else {
+      // No connection selected, clear path
+      setFormData(prev => ({
+        ...prev,
+        drop_location_path: ''
+      }));
+    }
+  }, [formData.vendor_connection_id, filteredConnections]);
+  
   const openCreateModal = () => {
     setFormData({
       vendor_id: isVendor && currentUser.vendor_id ? currentUser.vendor_id : '',
@@ -118,7 +172,9 @@ const VendorAgreements = () => {
       file_owner_user_id: '',
       vendor_contact: '',
       owner_contact: '',
-      metadata: ''
+      metadata: '',
+      vendor_connection_id: '',
+      drop_location_path: ''
     });
     setTemplateFile(null);
     setModalMode('create');
@@ -141,7 +197,9 @@ const VendorAgreements = () => {
       file_owner_user_id: agreement.file_owner_user_id || '',
       vendor_contact: agreement.vendor_contact || '',
       owner_contact: agreement.owner_contact || '',
-      metadata: agreement.metadata ? JSON.stringify(agreement.metadata, null, 2) : ''
+      metadata: agreement.metadata ? JSON.stringify(agreement.metadata, null, 2) : '',
+      vendor_connection_id: agreement.vendor_connection_id || '',
+      drop_location_path: agreement.drop_location_path || ''
     });
     setTemplateFile(null);
     setModalMode('edit');
@@ -827,6 +885,47 @@ const VendorAgreements = () => {
                       rows="3"
                       placeholder='{"key": "value"}'
                     />
+                  </div>
+                </div>
+                
+                {/* Section 5: Vendor File Drop Connection */}
+                <div className="form-section">
+                  <h3 className="section-title">File Drop Connection</h3>
+                  
+                  <div className="form-group">
+                    <label htmlFor="vendor_connection_id">Vendor File Drop Connection</label>
+                    <select
+                      id="vendor_connection_id"
+                      name="vendor_connection_id"
+                      value={formData.vendor_connection_id}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Select a vendor connection</option>
+                      {filteredConnections.map(conn => (
+                        <option key={conn.connection_id} value={conn.connection_id}>
+                          {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                      Select the connection where vendor will drop files
+                    </small>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="drop_location_path">Drop Location Path</label>
+                    <input
+                      type="text"
+                      id="drop_location_path"
+                      name="drop_location_path"
+                      value={formData.drop_location_path}
+                      readOnly
+                      placeholder="Auto-populated from selected connection"
+                      style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
+                    />
+                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                      This path is automatically populated from the selected connection
+                    </small>
                   </div>
                 </div>
                 

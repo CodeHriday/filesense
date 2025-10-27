@@ -28,8 +28,6 @@ const VendorManagement = () => {
     backup_contact_user_id: '', // Selected vendor user ID for backup contact
     project_id: '',
     project_name: '',
-    drop_location_path: '',
-    vendor_connection_id: '', // Replaces drop_location_path
     status: 'active'
   });
   
@@ -43,10 +41,6 @@ const VendorManagement = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  
-  // Vendor connections state
-  const [vendorConnections, setVendorConnections] = useState([]);
-  const [filteredConnections, setFilteredConnections] = useState([]);
   
   // Vendor users state
   const [vendorUsers, setVendorUsers] = useState([]);
@@ -64,12 +58,11 @@ const VendorManagement = () => {
     setError('');
     
     try {
-      const [vendorsResponse, projectsResponse, connectionsResponse, vendorUsersResponse] = await Promise.all([
+      const [vendorsResponse, projectsResponse, vendorUsersResponse] = await Promise.all([
         axios.get('/api/vendors', {
           params: { page: currentPage, pageSize }
         }),
         axios.get('/api/projects'),
-        axios.get('/api/vendor-connections'),
         axios.get('/api/users/by-role/vendor')
       ]);
       
@@ -78,7 +71,6 @@ const VendorManagement = () => {
       setTotalCount(vendorsResponse.data.pagination?.totalCount || 0);
       
       setProjects(projectsResponse.data || []);
-      setVendorConnections(connectionsResponse.data.connections || []);
       setVendorUsers(vendorUsersResponse.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -102,51 +94,6 @@ const VendorManagement = () => {
     fetchData();
   }, [currentUser, isAdmin, navigate, fetchData]);
   
-  // Filter vendor connections - show only vendor type connections (project_id is NULL for vendor connections)
-  useEffect(() => {
-    // Vendor connections are global and have type='vendor'
-    const filtered = vendorConnections.filter(conn => conn.type === 'vendor');
-    setFilteredConnections(filtered);
-  }, [vendorConnections]);
-  
-  // Auto-populate drop_location_path from selected vendor connection (bucket + file_path)
-  useEffect(() => {
-    if (formData.vendor_connection_id && filteredConnections.length > 0) {
-      const selectedConnection = filteredConnections.find(
-        conn => String(conn.connection_id) === String(formData.vendor_connection_id)
-      );
-      
-      if (selectedConnection) {
-        const config = selectedConnection.config || {};
-        const bucket = config.bucket || config.bucket_name || '';
-        const filePath = config.path_prefix || '';
-        
-        // Combine bucket and file path
-        let fullPath = bucket;
-        if (filePath) {
-          fullPath = filePath.startsWith('/') 
-            ? `${bucket}${filePath}` 
-            : `${bucket}/${filePath}`;
-        }
-        
-        setFormData(prev => ({
-          ...prev,
-          drop_location_path: fullPath
-        }));
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          drop_location_path: ''
-        }));
-      }
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        drop_location_path: ''
-      }));
-    }
-  }, [formData.vendor_connection_id, filteredConnections]);
-  
   const openCreateModal = () => {
     setFormData({
       vendor_name: '',
@@ -160,8 +107,6 @@ const VendorManagement = () => {
       backup_contact_email: '',
       project_id: '',
       project_name: '',
-      drop_location_path: '',
-      vendor_connection_id: '',
       status: 'active'
     });
     setModalMode('create');
@@ -200,8 +145,6 @@ const VendorManagement = () => {
       backup_contact_user_id: backupContactUser ? String(backupContactUser.id) : '',
       project_id: vendor.project_id || '',
       project_name: vendor.project_name || '',
-      drop_location_path: vendor.drop_location_path || '',
-      vendor_connection_id: vendor.vendor_connection_id || '',
       status: vendor.status || 'active'
     });
     setModalMode('edit');
@@ -385,16 +328,6 @@ const VendorManagement = () => {
       return;
     }
     
-    if (!formData.vendor_connection_id) {
-      setModalError('Please select a vendor connection');
-      return;
-    }
-    
-    if (!formData.drop_location_path) {
-      setModalError('Drop location path is required');
-      return;
-    }
-    
     try {
       const vendorId = savedVendorId || selectedVendor.id;
       
@@ -410,8 +343,6 @@ const VendorManagement = () => {
         backup_contact_phone: formData.backup_contact_phone,
         backup_contact_email: formData.backup_contact_email,
         project_id: formData.project_id,
-        drop_location_path: formData.drop_location_path,
-        vendor_connection_id: formData.vendor_connection_id,
         status: formData.status
       };
       
@@ -592,10 +523,10 @@ const VendorManagement = () => {
               <button 
                 type="submit" 
                 form="vendor-form"
-                disabled={!formData.project_id || !formData.vendor_connection_id || !formData.drop_location_path}
+                disabled={!formData.project_id}
                 style={{
-                  opacity: (!formData.project_id || !formData.vendor_connection_id || !formData.drop_location_path) ? 0.5 : 1,
-                  cursor: (!formData.project_id || !formData.vendor_connection_id || !formData.drop_location_path) ? 'not-allowed' : 'pointer'
+                  opacity: !formData.project_id ? 0.5 : 1,
+                  cursor: !formData.project_id ? 'not-allowed' : 'pointer'
                 }}
               >
                 {modalMode === 'create' ? 'Create Vendor' : 'Update Vendor'}
@@ -824,36 +755,6 @@ const VendorManagement = () => {
               <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
                 Select the project for this vendor
               </small>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="vendor_connection_id">Vendor File Drop Connection</label>
-              <select
-                id="vendor_connection_id"
-                name="vendor_connection_id"
-                value={formData.vendor_connection_id}
-                onChange={handleInputChange}
-              >
-                <option value="">Select a vendor connection</option>
-                {filteredConnections.map(conn => (
-                  <option key={conn.connection_id} value={conn.connection_id}>
-                    {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="drop_location_path">Drop Location Path</label>
-              <input
-                type="text"
-                id="drop_location_path"
-                name="drop_location_path"
-                value={formData.drop_location_path}
-                readOnly
-                placeholder="Auto-populated from selected connection"
-                style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
-              />
             </div>
           </div>
           )}

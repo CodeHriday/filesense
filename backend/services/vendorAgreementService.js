@@ -40,7 +40,9 @@ class VendorAgreementService {
         file_owner_user_id,
         vendor_contact,
         owner_contact,
-        metadata
+        metadata,
+        vendor_connection_id,
+        drop_location_path
       } = agreementData;
       
       // Validation
@@ -58,6 +60,21 @@ class VendorAgreementService {
       const ownerCheck = await client.query('SELECT id FROM users WHERE id = $1', [file_owner_user_id]);
       if (ownerCheck.rows.length === 0) {
         throw new Error('File owner user not found');
+      }
+      
+      // Validate vendor_connection_id if provided
+      if (vendor_connection_id) {
+        const connCheck = await client.query(
+          `SELECT connection_id FROM storage_connections 
+           WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
+          [vendor_connection_id]
+        );
+        
+        if (connCheck.rows.length === 0) {
+          throw new Error('Invalid vendor connection or connection not configured for file drop');
+        }
+        
+        // Connections are global and not tied to projects, so no project validation needed
       }
       
       // Parse schema if file is provided
@@ -96,13 +113,15 @@ class VendorAgreementService {
           vendor_id, agreement_code, file_name, file_description, schema,
           frequency, frequency_description, file_creator, file_owner_user_id,
           vendor_contact, owner_contact, metadata,
+          vendor_connection_id, drop_location_path,
           approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'draft', 1, $13, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'draft', 1, $15, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, JSON.stringify(parsedSchema),
           frequency, frequency_description, file_creator, file_owner_user_id,
           vendor_contact, owner_contact, metadata ? JSON.stringify(metadata) : null,
+          vendor_connection_id || null, drop_location_path || null,
           createdBy
         ]
       );
@@ -174,8 +193,23 @@ class VendorAgreementService {
         file_owner_user_id,
         vendor_contact,
         owner_contact,
-        metadata
+        metadata,
+        vendor_connection_id,
+        drop_location_path
       } = updateData;
+      
+      // Validate vendor_connection_id if provided
+      if (vendor_connection_id !== undefined && vendor_connection_id) {
+        const connCheck = await client.query(
+          `SELECT connection_id FROM storage_connections 
+           WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
+          [vendor_connection_id]
+        );
+        
+        if (connCheck.rows.length === 0) {
+          throw new Error('Invalid vendor connection or connection not configured for file drop');
+        }
+      }
       
       // Parse schema if file is provided
       let parsedSchema = schema;
@@ -264,6 +298,20 @@ class VendorAgreementService {
           changes.metadata = { from: current.metadata, to: metadata };
           paramIndex++;
         }
+      }
+      
+      if (vendor_connection_id !== undefined && vendor_connection_id !== current.vendor_connection_id) {
+        updates.push(`vendor_connection_id = $${paramIndex}`);
+        params.push(vendor_connection_id || null);
+        changes.vendor_connection_id = { from: current.vendor_connection_id, to: vendor_connection_id };
+        paramIndex++;
+      }
+      
+      if (drop_location_path !== undefined && drop_location_path !== current.drop_location_path) {
+        updates.push(`drop_location_path = $${paramIndex}`);
+        params.push(drop_location_path || null);
+        changes.drop_location_path = { from: current.drop_location_path, to: drop_location_path };
+        paramIndex++;
       }
       
       if (updates.length === 0) {
