@@ -1110,19 +1110,22 @@ const VendorAgreements = () => {
                       <div className="detail-grid">
                         <div className="detail-item">
                           <label>Agreement Code:</label>
-                          <span>{selectedAgreement.agreement_code}</span>
+                          <span>{selectedAgreement.agreement_code || '-'}</span>
                         </div>
                         <div className="detail-item">
                           <label>File Name:</label>
-                          <span>{selectedAgreement.file_name}</span>
+                          <span>{selectedAgreement.file_name || '-'}</span>
                         </div>
                         <div className="detail-item">
                           <label>Vendor:</label>
-                          <span>{selectedAgreement.vendor_name} ({selectedAgreement.vendor_code})</span>
+                          <span>
+                            {selectedAgreement.vendor_name || '-'}
+                            {selectedAgreement.vendor_code ? ` (${selectedAgreement.vendor_code})` : ''}
+                          </span>
                         </div>
                         <div className="detail-item">
                           <label>Frequency:</label>
-                          <span>{selectedAgreement.frequency}</span>
+                          <span>{selectedAgreement.frequency || '-'}</span>
                         </div>
                         <div className="detail-item">
                           <label>File Creator:</label>
@@ -1130,7 +1133,10 @@ const VendorAgreements = () => {
                         </div>
                         <div className="detail-item">
                           <label>File Owner:</label>
-                          <span>{selectedAgreement.owner_username} ({selectedAgreement.owner_email})</span>
+                          <span>
+                            {selectedAgreement.owner_username || selectedAgreement.owner_email || '-'}
+                            {selectedAgreement.owner_username && selectedAgreement.owner_email ? ` (${selectedAgreement.owner_email})` : ''}
+                          </span>
                         </div>
                         <div className="detail-item">
                           <label>Vendor Contact:</label>
