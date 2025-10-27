@@ -409,6 +409,9 @@ class VendorService {
         contact_name,
         contact_email,
         contact_phone,
+        address,
+        backup_contact_name,
+        backup_contact_phone,
         project_id,
         status,
         drop_location_path,
@@ -447,6 +450,24 @@ class VendorService {
       if (contact_phone !== undefined) {
         updates.push(`contact_phone = $${paramIndex}`);
         params.push(contact_phone);
+        paramIndex++;
+      }
+      
+      if (address !== undefined) {
+        updates.push(`address = $${paramIndex}`);
+        params.push(address);
+        paramIndex++;
+      }
+      
+      if (backup_contact_name !== undefined) {
+        updates.push(`backup_contact_name = $${paramIndex}`);
+        params.push(backup_contact_name);
+        paramIndex++;
+      }
+      
+      if (backup_contact_phone !== undefined) {
+        updates.push(`backup_contact_phone = $${paramIndex}`);
+        params.push(backup_contact_phone);
         paramIndex++;
       }
       
