@@ -65,13 +65,20 @@ async function migrateTransformConnections() {
     const hasStatusColumn = columns.includes('status');
     
     if (hasStatusColumn) {
-      // If status column exists, only fetch active connections
-      const result = await client.query("SELECT * FROM storage_connections WHERE status = 'active'");
+      // If status column exists, only fetch active connections (exclude vendor connections)
+      const result = await client.query(`
+        SELECT * FROM storage_connections 
+        WHERE status = 'active' 
+        AND (type != 'vendor' OR type IS NULL)
+      `);
       transformConnections = result.rows;
       console.log(`Found ${transformConnections.length} active connections in Transform`);
     } else {
-      // Otherwise, fetch all connections
-      const result = await client.query('SELECT * FROM storage_connections');
+      // Otherwise, fetch all connections (exclude vendor connections)
+      const result = await client.query(`
+        SELECT * FROM storage_connections 
+        WHERE (type != 'vendor' OR type IS NULL)
+      `);
       transformConnections = result.rows;
       console.log(`Found ${transformConnections.length} connections in Transform (status unknown)`);
     }
