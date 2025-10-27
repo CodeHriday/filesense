@@ -38,6 +38,8 @@ import UserManagement from './pages/UserManagement';
 import RoleManagement from './pages/RoleManagement';
 import AuditTrail from './pages/AuditTrail';
 import VendorManagement from './pages/VendorManagement';
+import VendorUserManagement from './pages/VendorUserManagement';
+import VendorRoleManagement from './pages/VendorRoleManagement';
 import VendorAgreements from './pages/VendorAgreements';
 import DBTTransformations from './pages/DBTTransformations';
 import HooksDemo from './pages/HooksDemo';
@@ -230,6 +232,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
                 <Route path="/audit-trail" element={<ProtectedRoute><AuditTrail /></ProtectedRoute>} />
                 <Route path="/vendor-management" element={<ProtectedRoute><VendorManagement /></ProtectedRoute>} />
+                <Route path="/vendors" element={<ProtectedRoute><VendorManagement /></ProtectedRoute>} />
+                <Route path="/vendor-users" element={<ProtectedRoute><VendorUserManagement /></ProtectedRoute>} />
+                <Route path="/vendor-roles" element={<ProtectedRoute><VendorRoleManagement /></ProtectedRoute>} />
                 <Route path="/vendor-agreements" element={<ProtectedRoute><VendorAgreements /></ProtectedRoute>} />
                 <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} />
                 {/* Business Process Management routes */}

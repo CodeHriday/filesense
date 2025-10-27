@@ -96,6 +96,12 @@ function Header({ showAIInsights }) {
                       <Link to="/vendors" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                         <FaUsers /> Vendor Management
                       </Link>
+                      <Link to="/vendor-users" className="dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
+                        <FaUsers /> Vendor User Management
+                      </Link>
+                      <Link to="/vendor-roles" className="dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
+                        <FaCog /> Vendor Role Management
+                      </Link>
                       <Link to="/vendor-agreements" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                         <FaCog /> Vendor Agreements
                       </Link>

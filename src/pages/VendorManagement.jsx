@@ -24,6 +24,8 @@ const VendorManagement = () => {
     contact_name: '',
     contact_email: '',
     contact_phone: '',
+    contact_user_id: '', // Selected vendor user ID for primary contact
+    backup_contact_user_id: '', // Selected vendor user ID for backup contact
     project_id: '',
     project_name: '',
     drop_location_path: '',
@@ -46,6 +48,9 @@ const VendorManagement = () => {
   const [vendorConnections, setVendorConnections] = useState([]);
   const [filteredConnections, setFilteredConnections] = useState([]);
   
+  // Vendor users state
+  const [vendorUsers, setVendorUsers] = useState([]);
+  
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   
@@ -59,12 +64,13 @@ const VendorManagement = () => {
     setError('');
     
     try {
-      const [vendorsResponse, projectsResponse, connectionsResponse] = await Promise.all([
+      const [vendorsResponse, projectsResponse, connectionsResponse, vendorUsersResponse] = await Promise.all([
         axios.get('/api/vendors', {
           params: { page: currentPage, pageSize }
         }),
         axios.get('/api/projects'),
-        axios.get('/api/vendor-connections')
+        axios.get('/api/vendor-connections'),
+        axios.get('/api/users/by-role/vendor')
       ]);
       
       setVendors(vendorsResponse.data.vendors || []);
@@ -73,6 +79,7 @@ const VendorManagement = () => {
       
       setProjects(projectsResponse.data || []);
       setVendorConnections(connectionsResponse.data.connections || []);
+      setVendorUsers(vendorUsersResponse.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load vendor management data');
@@ -167,15 +174,28 @@ const VendorManagement = () => {
   
   const openEditModal = (vendor) => {
     setSelectedVendor(vendor);
+    
+    // Find matching vendor user IDs for contacts by matching name or email
+    const contactUser = vendorUsers.find(user => 
+      (user.full_name === vendor.contact_name || user.username === vendor.contact_name) ||
+      user.email === vendor.contact_email
+    );
+    
+    const backupContactUser = vendorUsers.find(user => 
+      (user.full_name === vendor.backup_contact_name || user.username === vendor.backup_contact_name)
+    );
+    
     setFormData({
       vendor_name: vendor.vendor_name || '',
       description: vendor.description || '',
       contact_name: vendor.contact_name || '',
       contact_email: vendor.contact_email || '',
       contact_phone: vendor.contact_phone || '',
+      contact_user_id: contactUser ? String(contactUser.id) : '',
       address: vendor.address || '',
       backup_contact_name: vendor.backup_contact_name || '',
       backup_contact_phone: vendor.backup_contact_phone || '',
+      backup_contact_user_id: backupContactUser ? String(backupContactUser.id) : '',
       project_id: vendor.project_id || '',
       project_name: vendor.project_name || '',
       drop_location_path: vendor.drop_location_path || '',
@@ -204,6 +224,52 @@ const VendorManagement = () => {
       ...prev,
       [name]: value
     }));
+  };
+  
+  // Handle vendor user selection for primary contact
+  const handleContactUserChange = (e) => {
+    const userId = e.target.value;
+    const selectedUser = vendorUsers.find(user => String(user.id) === String(userId));
+    
+    if (selectedUser) {
+      setFormData(prev => ({
+        ...prev,
+        contact_user_id: userId,
+        contact_name: selectedUser.full_name || selectedUser.username,
+        contact_email: selectedUser.email || '',
+        contact_phone: selectedUser.phone_number || ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        contact_user_id: '',
+        contact_name: '',
+        contact_email: '',
+        contact_phone: ''
+      }));
+    }
+  };
+  
+  // Handle vendor user selection for backup contact
+  const handleBackupContactUserChange = (e) => {
+    const userId = e.target.value;
+    const selectedUser = vendorUsers.find(user => String(user.id) === String(userId));
+    
+    if (selectedUser) {
+      setFormData(prev => ({
+        ...prev,
+        backup_contact_user_id: userId,
+        backup_contact_name: selectedUser.full_name || selectedUser.username,
+        backup_contact_phone: selectedUser.phone_number || ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        backup_contact_user_id: '',
+        backup_contact_name: '',
+        backup_contact_phone: ''
+      }));
+    }
   };
   
   const validateEmail = (email) => {
@@ -544,41 +610,64 @@ const VendorManagement = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="contact_name">
-                Contact Name <span className="required-field">*</span>
+              <label htmlFor="contact_user">
+                Contact User <span className="required-field">*</span>
               </label>
+              <select
+                id="contact_user"
+                name="contact_user"
+                value={formData.contact_user_id}
+                onChange={handleContactUserChange}
+                required
+              >
+                <option value="">Select a vendor user</option>
+                {vendorUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name || user.username} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="contact_name">Contact Name (Auto-filled)</label>
               <input
                 type="text"
                 id="contact_name"
                 name="contact_name"
                 value={formData.contact_name}
-                onChange={handleInputChange}
-                required
+                readOnly
+                disabled
+                style={{ backgroundColor: '#f3f4f6' }}
               />
             </div>
             
             <div className="form-group">
               <label htmlFor="contact_email">
-                Contact Email <span className="required-field">*</span>
+                Contact Email (Auto-filled) <span className="required-field">*</span>
               </label>
               <input
                 type="email"
                 id="contact_email"
                 name="contact_email"
                 value={formData.contact_email}
-                onChange={handleInputChange}
+                readOnly
+                disabled
                 required
+                style={{ backgroundColor: '#f3f4f6' }}
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="contact_phone">Contact Phone</label>
+              <label htmlFor="contact_phone">Contact Phone (Auto-filled)</label>
               <input
                 type="tel"
                 id="contact_phone"
                 name="contact_phone"
                 value={formData.contact_phone}
-                onChange={handleInputChange}
+                readOnly
+                disabled
+                style={{ backgroundColor: '#f3f4f6' }}
               />
             </div>
             
@@ -595,25 +684,46 @@ const VendorManagement = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="backup_contact_name">Backup Contact Name</label>
+              <label htmlFor="backup_contact_user">Backup Contact User</label>
+              <select
+                id="backup_contact_user"
+                name="backup_contact_user"
+                value={formData.backup_contact_user_id}
+                onChange={handleBackupContactUserChange}
+              >
+                <option value="">Select a vendor user (optional)</option>
+                {vendorUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name || user.username} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="backup_contact_name">Backup Contact Name (Auto-filled)</label>
               <input
                 type="text"
                 id="backup_contact_name"
                 name="backup_contact_name"
                 value={formData.backup_contact_name}
-                onChange={handleInputChange}
+                readOnly
+                disabled
+                style={{ backgroundColor: '#f3f4f6' }}
                 placeholder="Alternate contact person"
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="backup_contact_phone">Backup Contact Phone</label>
+              <label htmlFor="backup_contact_phone">Backup Contact Phone (Auto-filled)</label>
               <input
                 type="tel"
                 id="backup_contact_phone"
                 name="backup_contact_phone"
                 value={formData.backup_contact_phone}
-                onChange={handleInputChange}
+                readOnly
+                disabled
+                style={{ backgroundColor: '#f3f4f6' }}
                 placeholder="Alternate contact phone number"
               />
             </div>

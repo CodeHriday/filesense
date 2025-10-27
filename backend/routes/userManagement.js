@@ -53,6 +53,40 @@ router.get('/roles', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/users/by-role/:roleName
+ * Get users by role name (e.g., 'Vendor')
+ */
+router.get('/by-role/:roleName', authenticateToken, asyncHandler(async (req, res) => {
+  const { roleName } = req.params;
+  
+  const result = await db.query(
+    `SELECT 
+      u.id,
+      u.username,
+      u.email,
+      u.first_name,
+      u.middle_name,
+      u.last_name,
+      u.full_name,
+      u.phone_number,
+      u.address_line1,
+      u.address_line2,
+      u.city,
+      u.state,
+      u.postal_code,
+      u.country
+    FROM users u
+    INNER JOIN user_roles ur ON u.id = ur.user_id
+    INNER JOIN roles r ON ur.role_id = r.id
+    WHERE LOWER(r.name) = LOWER($1)
+    ORDER BY u.full_name, u.username`,
+    [roleName]
+  );
+  
+  res.json(result.rows);
+}));
+
+/**
  * PUT /api/users/change-password
  * Change user password (authenticated)
  */
