@@ -335,7 +335,21 @@ function MappingWizard() {
     setError(null);
   };
 
-  const handleSave = async () => {
+  const handleSaveDraft = async () => {
+    // Minimal validation for draft - only name and project required
+    if (!mappingName.trim()) {
+      setError('Please enter a mapping name to save draft');
+      return;
+    }
+    if (!projectId) {
+      setError('Please select a project to save draft');
+      return;
+    }
+    
+    await handleSave(true);
+  };
+
+  const handleSave = async (isDraft = false) => {
     try {
       setLoading(true);
       
@@ -390,6 +404,11 @@ function MappingWizard() {
       }
 
       setSaveSuccess(true);
+      if (isDraft) {
+        setError(null);
+        // Show success message for draft save
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
     } catch (err) {
       console.error('Save mapping error:', err);
       console.error('Error response:', err.response);
@@ -638,6 +657,11 @@ function MappingWizard() {
                     setSelectedVendorAgreement(value);
                     if (value) {
                       setSourceConnectionId('');
+                      // Auto-populate file path from agreement
+                      const agreement = vendorAgreements.find(a => a.id === parseInt(value));
+                      if (agreement && agreement.file_path) {
+                        setFilePath(agreement.file_path);
+                      }
                     }
                   }}
                   disabled={!!sourceConnectionId}
@@ -883,6 +907,14 @@ function MappingWizard() {
           <div className="wizard-actions-right">
             {currentStep < 4 ? (
               <>
+                <button 
+                  className="btn btn-outline-success" 
+                  onClick={handleSaveDraft} 
+                  disabled={loading}
+                  style={{ marginRight: '0.5rem' }}
+                >
+                  <FiSave /> {loading ? 'Saving...' : 'Save Draft'}
+                </button>
                 {isEditMode && (
                   <button className="btn btn-success" onClick={handleSave} disabled={loading} style={{ marginRight: '0.5rem' }}>
                     <FiSave /> {loading ? 'Saving...' : 'Save'}
@@ -893,9 +925,19 @@ function MappingWizard() {
                 </button>
               </>
             ) : (
-              <button className="btn btn-success" onClick={handleSave} disabled={loading}>
-                <FiSave /> {loading ? 'Saving...' : 'Save Mapping'}
-              </button>
+              <>
+                <button 
+                  className="btn btn-outline-success" 
+                  onClick={handleSaveDraft} 
+                  disabled={loading}
+                  style={{ marginRight: '0.5rem' }}
+                >
+                  <FiSave /> {loading ? 'Saving...' : 'Save Draft'}
+                </button>
+                <button className="btn btn-success" onClick={handleSave} disabled={loading}>
+                  <FiSave /> {loading ? 'Saving...' : 'Save Mapping'}
+                </button>
+              </>
             )}
           </div>
         </div>
