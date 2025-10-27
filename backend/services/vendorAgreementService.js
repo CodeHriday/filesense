@@ -595,6 +595,113 @@ class VendorAgreementService {
   }
 
   /**
+   * Get all vendor agreements with filtering and pagination
+   */
+  async getAllAgreements(options = {}) {
+    try {
+      const {
+        page = 1,
+        pageSize = 10,
+        projectId = null,
+        vendorId = null,
+        status = null,
+        userId,
+        userRoles = []
+      } = options;
+      
+      const offset = (page - 1) * pageSize;
+      const isAdmin = userRoles.includes('Admin');
+      
+      // Build WHERE clause based on filters
+      const whereClauses = [];
+      const queryParams = [];
+      let paramCounter = 1;
+      
+      // Filter by project if specified
+      if (projectId) {
+        whereClauses.push(`v.project_id = $${paramCounter}`);
+        queryParams.push(projectId);
+        paramCounter++;
+      }
+      
+      // Filter by vendor if specified
+      if (vendorId) {
+        whereClauses.push(`va.vendor_id = $${paramCounter}`);
+        queryParams.push(vendorId);
+        paramCounter++;
+      }
+      
+      // Filter by status if specified
+      if (status) {
+        whereClauses.push(`va.approval_status = $${paramCounter}`);
+        queryParams.push(status);
+        paramCounter++;
+      }
+      
+      // Apply role-based filtering for non-admin users
+      if (!isAdmin) {
+        whereClauses.push(`(va.file_owner_user_id = $${paramCounter} OR v.vendor_user_id = $${paramCounter})`);
+        queryParams.push(userId);
+        paramCounter++;
+      }
+      
+      const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) 
+        FROM vendor_agreements va
+        JOIN vendors v ON va.vendor_id = v.id
+        ${whereClause}
+      `;
+      
+      const countResult = await pool.query(countQuery, queryParams);
+      const totalCount = parseInt(countResult.rows[0].count);
+      
+      // Get paginated results with full details
+      const dataQuery = `
+        SELECT 
+          va.*,
+          v.vendor_code,
+          v.vendor_name,
+          v.vendor_user_id,
+          v.project_id,
+          owner.username as owner_username,
+          owner.email as owner_email,
+          vendor_approver.username as vendor_approver_username,
+          owner_approver.username as owner_approver_username
+        FROM vendor_agreements va
+        JOIN vendors v ON va.vendor_id = v.id
+        LEFT JOIN users owner ON va.file_owner_user_id = owner.id
+        LEFT JOIN users vendor_approver ON va.vendor_approved_by = vendor_approver.id
+        LEFT JOIN users owner_approver ON va.owner_approved_by = owner_approver.id
+        ${whereClause}
+        ORDER BY va.created_at DESC
+        LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
+      `;
+      
+      queryParams.push(pageSize, offset);
+      
+      const result = await pool.query(dataQuery, queryParams);
+      
+      return {
+        success: true,
+        agreements: result.rows,
+        pagination: {
+          page,
+          pageSize,
+          totalCount,
+          totalPages: Math.ceil(totalCount / pageSize)
+        }
+      };
+      
+    } catch (error) {
+      systemLogger.error('Error fetching all agreements', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
    * Get all agreements for a vendor
    */
   async getAgreementsByVendor(vendorId, page = 1, pageSize = 20) {

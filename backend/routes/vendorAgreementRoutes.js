@@ -129,6 +129,36 @@ router.post('/', requireAdmin, upload.single('schemaFile'), async (req, res) => 
 });
 
 /**
+ * GET /api/vendor-agreements
+ * List all vendor agreements with optional filtering and pagination
+ */
+router.get('/', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const projectId = req.query.project_id ? parseInt(req.query.project_id) : null;
+    const vendorId = req.query.vendor_id ? parseInt(req.query.vendor_id) : null;
+    const status = req.query.status || null;
+    
+    const result = await vendorAgreementService.getAllAgreements({
+      page,
+      pageSize,
+      projectId,
+      vendorId,
+      status,
+      userId: req.user.id,
+      userRoles: req.user.roles
+    });
+    
+    res.json(result);
+    
+  } catch (error) {
+    systemLogger.error('Error in GET /api/vendor-agreements', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch agreements' });
+  }
+});
+
+/**
  * GET /api/vendor-agreements/:id
  * Get agreement by ID
  */
