@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
+import ThreeSectionModal from '../components/ThreeSectionModal';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import '../styles/VendorAgreements.css';
@@ -508,22 +509,33 @@ const VendorAgreements = () => {
           />
           
           {modalOpen && (
-            <div className="modal-overlay" onClick={closeModal}>
-              <div className="agreement-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>{modalMode === 'create' ? 'Create New Agreement' : 'Edit Agreement'}</h2>
-                  <button className="close-modal-btn" onClick={closeModal}>
-                    &times;
+            <ThreeSectionModal
+              isOpen={modalOpen}
+              onClose={closeModal}
+              title={modalMode === 'create' ? 'Create New Agreement' : 'Edit Agreement'}
+              size="large"
+              footer={
+                <>
+                  <button type="button" onClick={closeModal}>
+                    Cancel
                   </button>
+                  <button type="submit" form="agreement-form">
+                    {modalMode === 'create' ? 'Create Agreement' : 'Update Agreement'}
+                  </button>
+                </>
+              }
+            >
+              {modalError && (
+                <div className="modal-error-message" role="alert">
+                  {modalError}
                 </div>
-                
-                {modalError && (
-                  <div className="modal-error-message" role="alert">
-                    {modalError}
-                  </div>
-                )}
-                
-                <form onSubmit={handleSubmit} className="agreement-form">
+              )}
+              
+              <form id="agreement-form" onSubmit={handleSubmit} className="agreement-form">
+                {/* Section 1: Agreement Information */}
+                <div className="form-section">
+                  <h3 className="section-title">Agreement Information</h3>
+                  
                   <div className="form-group">
                     <label htmlFor="vendor_id">
                       Vendor {isAdmin && <span className="required-field">*</span>}
@@ -573,91 +585,6 @@ const VendorAgreements = () => {
                       name="file_description"
                       value={formData.file_description}
                       onChange={handleInputChange}
-                      rows="3"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Schema</label>
-                    <div className="schema-input-toggle">
-                      <button
-                        type="button"
-                        className={schemaInputMode === 'file' ? 'active' : ''}
-                        onClick={() => setSchemaInputMode('file')}
-                      >
-                        Upload File
-                      </button>
-                      <button
-                        type="button"
-                        className={schemaInputMode === 'manual' ? 'active' : ''}
-                        onClick={() => setSchemaInputMode('manual')}
-                      >
-                        Enter Manually
-                      </button>
-                    </div>
-                    
-                    {schemaInputMode === 'file' ? (
-                      <div className="file-input-container">
-                        <input
-                          type="file"
-                          id="schemaFile"
-                          accept=".xlsx,.xls,.csv,.json"
-                          onChange={handleFileChange}
-                        />
-                        {schemaFile && (
-                          <p className="file-selected">Selected: {schemaFile.name}</p>
-                        )}
-                        <p className="input-help">Upload Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) file</p>
-                      </div>
-                    ) : (
-                      <textarea
-                        id="schema"
-                        name="schema"
-                        value={formData.schema}
-                        onChange={handleInputChange}
-                        rows="6"
-                        placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
-                      />
-                    )}
-                  </div>
-                  
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="frequency">
-                        Frequency <span className="required-field">*</span>
-                      </label>
-                      <select
-                        id="frequency"
-                        name="frequency"
-                        value={formData.frequency}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        {frequencyOptions.map(freq => (
-                          <option key={freq} value={freq}>{freq}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="file_creator">File Creator</label>
-                      <input
-                        type="text"
-                        id="file_creator"
-                        name="file_creator"
-                        value={formData.file_creator}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="frequency_description">Frequency Description</label>
-                    <textarea
-                      id="frequency_description"
-                      name="frequency_description"
-                      value={formData.frequency_description}
-                      onChange={handleInputChange}
                       rows="2"
                     />
                   </div>
@@ -682,28 +609,125 @@ const VendorAgreements = () => {
                     </select>
                   </div>
                   
-                  <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="file_creator">File Creator</label>
+                    <input
+                      type="text"
+                      id="file_creator"
+                      name="file_creator"
+                      value={formData.file_creator}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="vendor_contact">Vendor Contact</label>
+                    <input
+                      type="text"
+                      id="vendor_contact"
+                      name="vendor_contact"
+                      value={formData.vendor_contact}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="owner_contact">Owner Contact</label>
+                    <input
+                      type="text"
+                      id="owner_contact"
+                      name="owner_contact"
+                      value={formData.owner_contact}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+                
+                {/* Section 2: Schema Upload */}
+                <div className="form-section">
+                  <h3 className="section-title">Schema Upload</h3>
+                  
+                  <div className="form-group">
+                    <label>Schema Input Method</label>
+                    <div className="schema-input-toggle">
+                      <button
+                        type="button"
+                        className={schemaInputMode === 'file' ? 'active' : ''}
+                        onClick={() => setSchemaInputMode('file')}
+                      >
+                        Upload File
+                      </button>
+                      <button
+                        type="button"
+                        className={schemaInputMode === 'manual' ? 'active' : ''}
+                        onClick={() => setSchemaInputMode('manual')}
+                      >
+                        Enter Manually
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {schemaInputMode === 'file' ? (
                     <div className="form-group">
-                      <label htmlFor="vendor_contact">Vendor Contact</label>
+                      <label htmlFor="schemaFile">Schema File</label>
                       <input
-                        type="text"
-                        id="vendor_contact"
-                        name="vendor_contact"
-                        value={formData.vendor_contact}
+                        type="file"
+                        id="schemaFile"
+                        accept=".xlsx,.xls,.csv,.json"
+                        onChange={handleFileChange}
+                      />
+                      {schemaFile && (
+                        <p className="file-selected">Selected: {schemaFile.name}</p>
+                      )}
+                      <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                        Upload Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) file
+                      </small>
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label htmlFor="schema">Schema (JSON)</label>
+                      <textarea
+                        id="schema"
+                        name="schema"
+                        value={formData.schema}
                         onChange={handleInputChange}
+                        rows="6"
+                        placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
                       />
                     </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="owner_contact">Owner Contact</label>
-                      <input
-                        type="text"
-                        id="owner_contact"
-                        name="owner_contact"
-                        value={formData.owner_contact}
-                        onChange={handleInputChange}
-                      />
-                    </div>
+                  )}
+                </div>
+                
+                {/* Section 3: Configuration */}
+                <div className="form-section">
+                  <h3 className="section-title">Configuration</h3>
+                  
+                  <div className="form-group">
+                    <label htmlFor="frequency">
+                      Frequency <span className="required-field">*</span>
+                    </label>
+                    <select
+                      id="frequency"
+                      name="frequency"
+                      value={formData.frequency}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      {frequencyOptions.map(freq => (
+                        <option key={freq} value={freq}>{freq}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="frequency_description">Frequency Description</label>
+                    <textarea
+                      id="frequency_description"
+                      name="frequency_description"
+                      value={formData.frequency_description}
+                      onChange={handleInputChange}
+                      rows="2"
+                    />
                   </div>
                   
                   <div className="form-group">
@@ -717,18 +741,9 @@ const VendorAgreements = () => {
                       placeholder='{"key": "value"}'
                     />
                   </div>
-                  
-                  <div className="modal-actions">
-                    <button type="button" className="cancel-btn" onClick={closeModal}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="save-btn">
-                      {modalMode === 'create' ? 'Create Agreement' : 'Update Agreement'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
+                </div>
+              </form>
+            </ThreeSectionModal>
           )}
           
           {detailModalOpen && selectedAgreement && (

@@ -100,7 +100,7 @@ const VendorManagement = () => {
   useEffect(() => {
     if (formData.vendor_connection_id && filteredConnections.length > 0) {
       const selectedConnection = filteredConnections.find(
-        conn => conn.connection_id === formData.vendor_connection_id
+        conn => conn.connection_id === parseInt(formData.vendor_connection_id)
       );
       
       if (selectedConnection && selectedConnection.config?.path) {
@@ -108,7 +108,19 @@ const VendorManagement = () => {
           ...prev,
           drop_location_path: selectedConnection.config.path
         }));
+      } else {
+        // Clear the path if connection is deselected or doesn't have a path
+        setFormData(prev => ({
+          ...prev,
+          drop_location_path: ''
+        }));
       }
+    } else {
+      // Clear the path if no connection is selected
+      setFormData(prev => ({
+        ...prev,
+        drop_location_path: ''
+      }));
     }
   }, [formData.vendor_connection_id, filteredConnections]);
   
