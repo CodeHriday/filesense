@@ -178,17 +178,40 @@ class VendorService {
       }
       
       // Add vendor user to the project
+      systemLogger.info('Checking project membership', { 
+        projectId: finalProjectId, 
+        userId: vendorUserId,
+        createdBy: createdBy 
+      });
+      
       const memberCheck = await client.query(
         'SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2',
         [finalProjectId, vendorUserId]
       );
       
       if (memberCheck.rows.length === 0) {
-        await client.query(
-          `INSERT INTO project_members (project_id, user_id, invited_by, can_invite, can_manage_members, created_at)
-           VALUES ($1, $2, $3, false, false, CURRENT_TIMESTAMP)`,
-          [finalProjectId, vendorUserId, createdBy]
-        );
+        systemLogger.info('Adding vendor user to project', { 
+          projectId: finalProjectId, 
+          userId: vendorUserId,
+          invitedBy: createdBy 
+        });
+        
+        try {
+          await client.query(
+            `INSERT INTO project_members (project_id, user_id, invited_by, can_invite, can_manage_members, created_at)
+             VALUES ($1, $2, $3, false, false, CURRENT_TIMESTAMP)`,
+            [finalProjectId, vendorUserId, createdBy]
+          );
+          systemLogger.info('Successfully added vendor user to project');
+        } catch (memberError) {
+          systemLogger.error('Error adding vendor user to project', { 
+            error: memberError.message,
+            code: memberError.code,
+            detail: memberError.detail,
+            params: { finalProjectId, vendorUserId, createdBy }
+          });
+          throw memberError;
+        }
       }
       
       // Validate vendor_connection_id if provided
@@ -243,7 +266,14 @@ class VendorService {
       
     } catch (error) {
       await client.query('ROLLBACK');
-      systemLogger.error('Error creating vendor', { error: error.message });
+      systemLogger.error('Error creating vendor', { 
+        error: error.message,
+        code: error.code,
+        detail: error.detail,
+        stack: error.stack,
+        vendorData: { vendor_name: vendorData.vendor_name, contact_email: vendorData.contact_email },
+        createdBy: createdBy
+      });
       throw error;
     } finally {
       client.release();
