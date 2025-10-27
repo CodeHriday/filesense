@@ -124,9 +124,13 @@
 
 /* Form section styles for ThreeSectionModal */
 .form-section {
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.form-section:first-child {
+  margin-top: 0;
 }
 
 .form-section:last-child {
@@ -139,13 +143,17 @@
   font-size: 1.125rem;
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 2px solid #2563eb;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 0.875rem;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
 }
 
 .form-group label {

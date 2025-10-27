@@ -96,6 +96,22 @@ const VendorManagement = () => {
     }
   }, [formData.project_id, vendorConnections]);
   
+  // Auto-populate drop_location_path from selected vendor connection
+  useEffect(() => {
+    if (formData.vendor_connection_id && filteredConnections.length > 0) {
+      const selectedConnection = filteredConnections.find(
+        conn => conn.connection_id === formData.vendor_connection_id
+      );
+      
+      if (selectedConnection && selectedConnection.config?.path) {
+        setFormData(prev => ({
+          ...prev,
+          drop_location_path: selectedConnection.config.path
+        }));
+      }
+    }
+  }, [formData.vendor_connection_id, filteredConnections]);
+  
   const openCreateModal = () => {
     setFormData({
       vendor_name: '',
@@ -486,20 +502,22 @@ const VendorManagement = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="drop_location_path">Drop Location Path (Optional)</label>
+              <label htmlFor="drop_location_path">Drop Location Path</label>
               <input
                 type="text"
                 id="drop_location_path"
                 name="drop_location_path"
                 value={formData.drop_location_path}
-                onChange={handleInputChange}
-                placeholder="Auto-generated or custom path"
+                readOnly
+                placeholder="Select a vendor connection to see the path"
+                style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
               />
               <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                Will be auto-generated if left blank
+                {formData.vendor_connection_id 
+                  ? 'Path from selected vendor connection' 
+                  : 'Auto-populated from selected connection or auto-generated'}
               </small>
-            </div>
-          </div>
+            </div>          </div>
           
           {/* Section 3: Configuration */}
           <div className="form-section">
