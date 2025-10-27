@@ -210,7 +210,7 @@ class VendorAgreementService {
         manager_contact
       } = updateData;
       
-      // Validate vendor_connection_id if provided
+      // Validate vendor_connection_id if provided (optional in updates)
       if (vendor_connection_id !== undefined && vendor_connection_id) {
         const connCheck = await client.query(
           `SELECT connection_id FROM storage_connections 
@@ -223,14 +223,24 @@ class VendorAgreementService {
         }
       }
       
-      // Parse schema if file is provided
+      // Parse schema if file is provided (schema is optional)
       let parsedSchema = schema;
       
       if (schemaFilePath) {
         parsedSchema = await parseSchemaFile(schemaFilePath, schemaFileType);
         validateSchema(parsedSchema);
-      } else if (schema) {
-        validateSchema(schema);
+      } else if (schema && schema.trim() !== '' && schema !== '[]') {
+        // Only validate if schema is provided and not empty
+        const schemaObj = typeof schema === 'string' ? JSON.parse(schema) : schema;
+        if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+          validateSchema(schemaObj);
+          parsedSchema = schemaObj;
+        } else {
+          parsedSchema = null;
+        }
+      } else if (schema !== undefined) {
+        // Schema is being explicitly cleared
+        parsedSchema = null;
       }
       
       // Build update query
@@ -253,9 +263,9 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (parsedSchema && JSON.stringify(parsedSchema) !== JSON.stringify(current.schema)) {
+      if (parsedSchema !== undefined && JSON.stringify(parsedSchema) !== JSON.stringify(current.schema)) {
         updates.push(`schema = $${paramIndex}`);
-        params.push(JSON.stringify(parsedSchema));
+        params.push(parsedSchema ? JSON.stringify(parsedSchema) : null);
         changes.schema = { from: current.schema, to: parsedSchema };
         paramIndex++;
       }
