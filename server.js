@@ -53,6 +53,7 @@ const { cacheMiddleware, invalidateCache } = require('./backend/middleware/cache
 const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 const authorizeProjectResource = require('./backend/middleware/authorizeProjectResource');
 const { requireProjectAccess } = require('./backend/middleware/requireProjectAccess');
+const { attachVendorProfile, filterVendorFiles } = require('./backend/middleware/vendorAccessControl');
 
 // Import enhanced authentication service
 const enhancedAuthService = require('./backend/services/enhancedAuthService');
@@ -775,8 +776,8 @@ app.get('/api/test-di', (req, res) => {
   }
 });
 
-// Files API (with caching)
-app.get('/api/files', authenticateToken, cacheMiddleware(300), async (req, res) => {
+// Files API (with caching and vendor filtering)
+app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(300), async (req, res) => {
   try {
     // Check if user has permission to view files
     const userPermissions = req.user.permissions || [];
@@ -815,11 +816,32 @@ app.get('/api/files', authenticateToken, cacheMiddleware(300), async (req, res) 
     
     // Use the FileService from the DI container
     const fileService = diContainer.get('fileService');
-    const files = await fileService.getAllFiles({
+    let files = await fileService.getAllFiles({
       sortBy: 'created_at',
       sortOrder: 'DESC',
       projectIds: projectIds  // Pass user's accessible project IDs
     });
+    
+    // Apply vendor-specific filtering if user is a vendor
+    if (req.isVendor && req.vendorProfile) {
+      // Filter files to only show files from vendor's drop location
+      const vendorPath = req.vendorProfile.drop_location_path;
+      if (vendorPath) {
+        files = files.filter(file => {
+          // Check if file path/location matches vendor's drop location
+          // This assumes files have a 'file_path' or 'location' field
+          const filePath = file.file_path || file.location || '';
+          return filePath.startsWith(vendorPath);
+        });
+      }
+      
+      logger.info('Applied vendor file filtering', {
+        userId: req.user.id,
+        vendorId: req.vendorProfile.id,
+        originalCount: files.length,
+        vendorPath
+      });
+    }
     
     res.json(files);
   } catch (err) {
