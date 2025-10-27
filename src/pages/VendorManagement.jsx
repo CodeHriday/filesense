@@ -307,8 +307,26 @@ const VendorManagement = () => {
     try {
       const vendorId = savedVendorId || selectedVendor.id;
       
+      // Filter formData to send only valid backend fields (exclude project_name)
+      const updateData = {
+        vendor_name: formData.vendor_name,
+        description: formData.description,
+        contact_name: formData.contact_name,
+        contact_email: formData.contact_email,
+        contact_phone: formData.contact_phone,
+        address: formData.address,
+        backup_contact_name: formData.backup_contact_name,
+        backup_contact_phone: formData.backup_contact_phone,
+        project_id: formData.project_id,
+        drop_location_path: formData.drop_location_path,
+        vendor_connection_id: formData.vendor_connection_id,
+        status: formData.status
+      };
+      
+      console.log('Sending vendor update:', updateData);
+      
       // Update vendor with project and connection info
-      await axios.put(`/api/vendors/${vendorId}`, formData);
+      await axios.put(`/api/vendors/${vendorId}`, updateData);
       
       setSuccessMessage(`Vendor "${formData.vendor_name}" configured successfully!`);
       
@@ -320,6 +338,7 @@ const VendorManagement = () => {
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
       console.error('Error saving vendor:', error);
+      console.error('Error response:', error.response?.data);
       
       // Extract detailed error message
       let errorMessage = 'Failed to save vendor';
@@ -628,19 +647,23 @@ const VendorManagement = () => {
             <h3 className="section-title">Project & Connection</h3>
             
             <div className="form-group">
-              <label htmlFor="project_name">Project</label>
-              <input
-                type="text"
-                id="project_name"
-                name="project_name"
-                value={formData.project_name}
-                readOnly
-                disabled
-                placeholder="Auto-created project"
-                style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
-              />
+              <label htmlFor="project_id">Project</label>
+              <select
+                id="project_id"
+                name="project_id"
+                value={formData.project_id}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select a project</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
               <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                Project is auto-created based on vendor name
+                Select the project for this vendor
               </small>
             </div>
             
