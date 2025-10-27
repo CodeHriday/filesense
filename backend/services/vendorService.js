@@ -178,10 +178,24 @@ class VendorService {
       }
       
       // Add vendor user to the project
+      // Validate createdBy - it must be a valid user ID or NULL
+      let validInvitedBy = createdBy;
+      if (createdBy) {
+        const creatorCheck = await client.query(
+          'SELECT id FROM users WHERE id = $1',
+          [createdBy]
+        );
+        if (creatorCheck.rows.length === 0) {
+          systemLogger.warn('Invalid createdBy user ID, setting invited_by to NULL', { createdBy });
+          validInvitedBy = null;
+        }
+      }
+      
       systemLogger.info('Checking project membership', { 
         projectId: finalProjectId, 
         userId: vendorUserId,
-        createdBy: createdBy 
+        createdBy: createdBy,
+        validInvitedBy: validInvitedBy
       });
       
       const memberCheck = await client.query(
@@ -193,14 +207,14 @@ class VendorService {
         systemLogger.info('Adding vendor user to project', { 
           projectId: finalProjectId, 
           userId: vendorUserId,
-          invitedBy: createdBy 
+          invitedBy: validInvitedBy 
         });
         
         try {
           await client.query(
             `INSERT INTO project_members (project_id, user_id, invited_by, can_invite, can_manage_members, created_at)
              VALUES ($1, $2, $3, false, false, CURRENT_TIMESTAMP)`,
-            [finalProjectId, vendorUserId, createdBy]
+            [finalProjectId, vendorUserId, validInvitedBy]
           );
           systemLogger.info('Successfully added vendor user to project');
         } catch (memberError) {
@@ -208,7 +222,7 @@ class VendorService {
             error: memberError.message,
             code: memberError.code,
             detail: memberError.detail,
-            params: { finalProjectId, vendorUserId, createdBy }
+            params: { finalProjectId, vendorUserId, validInvitedBy }
           });
           throw memberError;
         }
