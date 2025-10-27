@@ -43,7 +43,8 @@ const VendorAgreements = () => {
     vendor_connection_id: '',
     drop_location_path: '',
     project_id: '',
-    project_name: ''
+    project_name: '',
+    manager_contact: ''
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -193,6 +194,34 @@ const VendorAgreements = () => {
     }
   }, [formData.vendor_id, vendors]);
   
+  // Auto-populate manager_contact from selected vendor manager
+  useEffect(() => {
+    if (formData.file_owner_user_id && users.length > 0) {
+      const selectedUser = users.find(
+        user => String(user.id) === String(formData.file_owner_user_id)
+      );
+      
+      if (selectedUser) {
+        setFormData(prev => ({
+          ...prev,
+          manager_contact: selectedUser.email || ''
+        }));
+      } else {
+        // User not found, clear manager_contact
+        setFormData(prev => ({
+          ...prev,
+          manager_contact: ''
+        }));
+      }
+    } else {
+      // No user selected, clear manager_contact
+      setFormData(prev => ({
+        ...prev,
+        manager_contact: ''
+      }));
+    }
+  }, [formData.file_owner_user_id, users]);
+  
   const openCreateModal = () => {
     setFormData({
       vendor_id: isVendor && currentUser.vendor_id ? currentUser.vendor_id : '',
@@ -209,7 +238,8 @@ const VendorAgreements = () => {
       vendor_connection_id: '',
       drop_location_path: '',
       project_id: '',
-      project_name: ''
+      project_name: '',
+      manager_contact: ''
     });
     setTemplateFile(null);
     setModalMode('create');
@@ -236,7 +266,8 @@ const VendorAgreements = () => {
       vendor_connection_id: agreement.vendor_connection_id || '',
       drop_location_path: agreement.drop_location_path || '',
       project_id: agreement.project_id || '',
-      project_name: agreement.project_name || ''
+      project_name: agreement.project_name || '',
+      manager_contact: agreement.manager_contact || ''
     });
     setTemplateFile(null);
     setModalMode('edit');
@@ -686,127 +717,94 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">Agreement Information</h3>
                   
-                  <div className="form-group">
-                    <label htmlFor="vendor_id">
-                      Vendor {isAdmin && <span className="required-field">*</span>}
-                    </label>
-                    {isAdmin ? (
-                      <select
-                        id="vendor_id"
-                        name="vendor_id"
-                        value={formData.vendor_id}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="">Select a vendor</option>
-                        {vendors.map(vendor => (
-                          <option key={vendor.id} value={vendor.id}>
-                            {vendor.vendor_name} ({vendor.vendor_code})
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={vendors.find(v => v.id === formData.vendor_id)?.vendor_name || 'Your Vendor'}
-                        disabled
-                      />
+                  {/* Row 1: Vendor and Project */}
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="vendor_id">
+                        Vendor {isAdmin && <span className="required-field">*</span>}
+                      </label>
+                      {isAdmin ? (
+                        <select
+                          id="vendor_id"
+                          name="vendor_id"
+                          value={formData.vendor_id}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          <option value="">Select a vendor</option>
+                          {vendors.map(vendor => (
+                            <option key={vendor.id} value={vendor.id}>
+                              {vendor.vendor_name} ({vendor.vendor_code})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={vendors.find(v => v.id === formData.vendor_id)?.vendor_name || 'Your Vendor'}
+                          disabled
+                        />
+                      )}
+                    </div>
+                    
+                    {formData.vendor_id && (
+                      <div className="form-group">
+                        <label htmlFor="project_name">Project</label>
+                        <input
+                          type="text"
+                          id="project_name"
+                          value={formData.project_name || 'Loading...'}
+                          readOnly
+                          placeholder="Auto-populated from selected vendor"
+                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Automatically assigned from the vendor's project
+                        </small>
+                      </div>
                     )}
                   </div>
                   
-                  {formData.vendor_id && (
+                  {/* Row 2: Vendor Manager and Manager Contact */}
+                  <div className="form-row-grid">
                     <div className="form-group">
-                      <label htmlFor="project_name">Project</label>
-                      <input
-                        type="text"
-                        id="project_name"
-                        value={formData.project_name || 'Loading...'}
-                        readOnly
-                        placeholder="Auto-populated from selected vendor"
-                        style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
-                      />
-                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                        Automatically assigned from the vendor's project
-                      </small>
+                      <label htmlFor="file_owner_user_id">
+                        Vendor Manager <span className="required-field">*</span>
+                      </label>
+                      <select
+                        id="file_owner_user_id"
+                        name="file_owner_user_id"
+                        value={formData.file_owner_user_id}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select a user</option>
+                        {users.map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.username} - {user.email}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  )}
-                  
-                  <div className="form-group">
-                    <label htmlFor="file_name">
-                      File Name <span className="required-field">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="file_name"
-                      name="file_name"
-                      value={formData.file_name}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="file_description">File Description</label>
-                    <textarea
-                      id="file_description"
-                      name="file_description"
-                      value={formData.file_description}
-                      onChange={handleInputChange}
-                      rows="2"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="file_owner_user_id">
-                      File Owner <span className="required-field">*</span>
-                    </label>
-                    <select
-                      id="file_owner_user_id"
-                      name="file_owner_user_id"
-                      value={formData.file_owner_user_id}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select a user</option>
-                      {users.map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.username} - {user.email}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="file_creator">File Creator</label>
-                    <input
-                      type="text"
-                      id="file_creator"
-                      name="file_creator"
-                      value={formData.file_creator}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="vendor_contact">Vendor Contact</label>
-                    <input
-                      type="text"
-                      id="vendor_contact"
-                      name="vendor_contact"
-                      value={formData.vendor_contact}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="owner_contact">Owner Contact</label>
-                    <input
-                      type="text"
-                      id="owner_contact"
-                      name="owner_contact"
-                      value={formData.owner_contact}
-                      onChange={handleInputChange}
-                    />
+                    
+                    {formData.file_owner_user_id && (
+                      <div className="form-group">
+                        <label htmlFor="manager_contact">Manager Contact</label>
+                        <input
+                          type="text"
+                          id="manager_contact"
+                          name="manager_contact"
+                          value={formData.manager_contact}
+                          onChange={handleInputChange}
+                          readOnly
+                          placeholder="Auto-populated from vendor manager"
+                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Automatically populated from vendor manager's email
+                        </small>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -876,7 +874,79 @@ const VendorAgreements = () => {
                   </div>
                 )}
                 
-                {/* Section 3: Schema */}
+                {/* Section 2.5: Additional Contact Information */}
+                <div className="form-section">
+                  <h3 className="section-title">Contact Information</h3>
+                  
+                  {/* Row 3: File Creator and Vendor Contact */}
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="file_creator">File Creator</label>
+                      <input
+                        type="text"
+                        id="file_creator"
+                        name="file_creator"
+                        value={formData.file_creator}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="vendor_contact">Vendor Contact</label>
+                      <input
+                        type="text"
+                        id="vendor_contact"
+                        name="vendor_contact"
+                        value={formData.vendor_contact}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Row 4: Owner Contact */}
+                  <div className="form-group">
+                    <label htmlFor="owner_contact">Owner Contact</label>
+                    <input
+                      type="text"
+                      id="owner_contact"
+                      name="owner_contact"
+                      value={formData.owner_contact}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+                
+                {/* Section 3: File Details */}
+                <div className="form-section">
+                  <h3 className="section-title">File Details</h3>
+                  
+                  <div className="form-group">
+                    <label htmlFor="file_name">
+                      File Name <span className="required-field">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="file_name"
+                      name="file_name"
+                      value={formData.file_name}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="file_description">File Description</label>
+                    <textarea
+                      id="file_description"
+                      name="file_description"
+                      value={formData.file_description}
+                      onChange={handleInputChange}
+                      rows="2"
+                    />
+                  </div>
+                </div>
+                
+                {/* Section 4: Schema */}
                 <div className="form-section">
                   <h3 className="section-title">File Schema</h3>
                   
@@ -897,7 +967,7 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 4: Configuration */}
+                {/* Section 5: Configuration */}
                 <div className="form-section">
                   <h3 className="section-title">Configuration</h3>
                   
@@ -942,7 +1012,7 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 5: Vendor File Drop Connection */}
+                {/* Section 6: Vendor File Drop Connection */}
                 <div className="form-section">
                   <h3 className="section-title">File Drop Connection</h3>
                   

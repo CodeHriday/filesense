@@ -334,6 +334,17 @@
   margin-bottom: 0.75rem;
 }
 
+.form-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-row-grid .form-group {
+  margin-bottom: 0;
+}
+
 .required-field {
   color: #dc2626;
 }
@@ -771,7 +782,8 @@ body.high-contrast .approve-btn {
     flex-direction: column;
   }
   
-  .form-row {
+  .form-row,
+  .form-row-grid {
     grid-template-columns: 1fr;
   }
   
