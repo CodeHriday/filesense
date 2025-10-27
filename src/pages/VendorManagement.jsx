@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -39,25 +39,15 @@ const VendorManagement = () => {
   const [vendorConnections, setVendorConnections] = useState([]);
   const [filteredConnections, setFilteredConnections] = useState([]);
   
-  const { currentUser, hasRole } = useAuth();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   
-  // Check if user has Admin role
-  useEffect(() => {
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-    
-    if (!hasRole || !hasRole('Admin')) {
-      navigate('/');
-      return;
-    }
-    
-    fetchData();
-  }, [currentUser, navigate, currentPage, pageSize]);
+  // Check if user has Admin role - memoized to prevent recalculation
+  const isAdmin = useMemo(() => {
+    return currentUser?.roles?.includes('Admin') || currentUser?.role_id === 1;
+  }, [currentUser?.roles, currentUser?.role_id]);
   
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
     
@@ -82,7 +72,21 @@ const VendorManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, pageSize]);
+  
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!isAdmin) {
+      navigate('/');
+      return;
+    }
+    
+    fetchData();
+  }, [currentUser, isAdmin, navigate, fetchData]);
   
   // Filter vendor connections by selected project
   useEffect(() => {
