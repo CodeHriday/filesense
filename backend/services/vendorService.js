@@ -185,8 +185,8 @@ class VendorService {
       
       if (memberCheck.rows.length === 0) {
         await client.query(
-          `INSERT INTO project_members (project_id, user_id, role, added_by, created_at)
-           VALUES ($1, $2, 'member', $3, CURRENT_TIMESTAMP)`,
+          `INSERT INTO project_members (project_id, user_id, invited_by, can_invite, can_manage_members, created_at)
+           VALUES ($1, $2, $3, false, false, CURRENT_TIMESTAMP)`,
           [finalProjectId, vendorUserId, createdBy]
         );
       }
@@ -487,9 +487,9 @@ class VendorService {
             
             // Add to new project
             await client.query(
-              `INSERT INTO project_members (project_id, user_id, role, added_by, created_at)
-               VALUES ($1, $2, 'member', $3, CURRENT_TIMESTAMP)
-               ON CONFLICT DO NOTHING`,
+              `INSERT INTO project_members (project_id, user_id, invited_by, can_invite, can_manage_members, created_at)
+               VALUES ($1, $2, $3, false, false, CURRENT_TIMESTAMP)
+               ON CONFLICT (project_id, user_id) DO NOTHING`,
               [project_id, userId, updatedBy]
             );
           }
