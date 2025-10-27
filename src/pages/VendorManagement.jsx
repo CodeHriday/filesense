@@ -145,6 +145,9 @@ const VendorManagement = () => {
       contact_name: '',
       contact_email: '',
       contact_phone: '',
+      address: '',
+      backup_contact_name: '',
+      backup_contact_phone: '',
       project_id: '',
       drop_location_path: '',
       vendor_connection_id: '',
@@ -167,6 +170,9 @@ const VendorManagement = () => {
       contact_name: vendor.contact_name || '',
       contact_email: vendor.contact_email || '',
       contact_phone: vendor.contact_phone || '',
+      address: vendor.address || '',
+      backup_contact_name: vendor.backup_contact_name || '',
+      backup_contact_phone: vendor.backup_contact_phone || '',
       project_id: vendor.project_id || '',
       drop_location_path: vendor.drop_location_path || '',
       vendor_connection_id: vendor.vendor_connection_id || '',
@@ -545,6 +551,42 @@ const VendorManagement = () => {
                 name="contact_phone"
                 value={formData.contact_phone}
                 onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="address">Address</label>
+              <textarea
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                rows="3"
+                placeholder="Enter vendor's full address"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="backup_contact_name">Backup Contact Name</label>
+              <input
+                type="text"
+                id="backup_contact_name"
+                name="backup_contact_name"
+                value={formData.backup_contact_name}
+                onChange={handleInputChange}
+                placeholder="Alternate contact person"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="backup_contact_phone">Backup Contact Phone</label>
+              <input
+                type="tel"
+                id="backup_contact_phone"
+                name="backup_contact_phone"
+                value={formData.backup_contact_phone}
+                onChange={handleInputChange}
+                placeholder="Alternate contact phone number"
               />
             </div>
             
