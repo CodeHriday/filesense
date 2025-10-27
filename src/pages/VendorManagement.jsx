@@ -24,6 +24,7 @@ const VendorManagement = () => {
     contact_email: '',
     contact_phone: '',
     project_id: '',
+    project_name: '',
     drop_location_path: '',
     vendor_connection_id: '', // Replaces drop_location_path
     status: 'active'
@@ -149,6 +150,7 @@ const VendorManagement = () => {
       backup_contact_name: '',
       backup_contact_phone: '',
       project_id: '',
+      project_name: '',
       drop_location_path: '',
       vendor_connection_id: '',
       status: 'active'
@@ -174,6 +176,7 @@ const VendorManagement = () => {
       backup_contact_name: vendor.backup_contact_name || '',
       backup_contact_phone: vendor.backup_contact_phone || '',
       project_id: vendor.project_id || '',
+      project_name: vendor.project_name || '',
       drop_location_path: vendor.drop_location_path || '',
       vendor_connection_id: vendor.vendor_connection_id || '',
       status: vendor.status || 'active'
@@ -247,17 +250,19 @@ const VendorManagement = () => {
       
       const response = await axios.post('/api/vendors', basicData);
       
-      // Store vendor ID and project ID from response
+      // Store vendor ID, project ID, and project name from response
       const newVendorId = response.data.vendor.id;
       const projectId = response.data.vendor.project_id;
+      const projectName = response.data.vendor.project_name;
       
       setSavedVendorId(newVendorId);
       setBasicInfoSaved(true);
       
-      // Auto-populate project ID from the created vendor
+      // Auto-populate project info from the created vendor
       setFormData(prev => ({
         ...prev,
-        project_id: projectId
+        project_id: projectId,
+        project_name: projectName
       }));
       
       setModalError('');
@@ -623,17 +628,19 @@ const VendorManagement = () => {
             <h3 className="section-title">Project & Connection</h3>
             
             <div className="form-group">
-              <label htmlFor="project_id">Project</label>
+              <label htmlFor="project_name">Project</label>
               <input
                 type="text"
-                id="project_id"
-                name="project_id"
-                value={formData.project_id}
-                onChange={handleInputChange}
-                placeholder="Project name (defaults to vendor name)"
+                id="project_name"
+                name="project_name"
+                value={formData.project_name}
+                readOnly
+                disabled
+                placeholder="Auto-created project"
+                style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
               />
               <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                Edit if needed, or leave as vendor name
+                Project is auto-created based on vendor name
               </small>
             </div>
             

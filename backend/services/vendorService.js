@@ -266,6 +266,15 @@ class VendorService {
       
       const vendor = vendorResult.rows[0];
       
+      // Fetch project name to include in response
+      const projectResult = await client.query(
+        'SELECT name FROM projects WHERE id = $1',
+        [finalProjectId]
+      );
+      
+      // Add project_name to vendor object
+      vendor.project_name = projectResult.rows[0]?.name || null;
+      
       systemLogger.info('Vendor created successfully', { 
         vendorId: vendor.id, 
         vendorCode: vendor.vendor_code,
