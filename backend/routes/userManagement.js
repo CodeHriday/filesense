@@ -53,6 +53,45 @@ router.get('/roles', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/users/roles/:id
+ * Get a single role by ID with permissions (admin only)
+ */
+router.get('/roles/:id', authenticateToken, asyncHandler(async (req, res) => {
+  const roleId = parseInt(req.params.id);
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can view role details'
+    });
+  }
+  
+  const result = await db.query(
+    `SELECT 
+      r.id, 
+      r.name, 
+      r.description,
+      r.permissions,
+      r.created_at,
+      r.updated_at
+    FROM roles r
+    WHERE r.id = $1`,
+    [roleId]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.status(404).json({ 
+      error: 'Role not found',
+      message: `No role found with ID ${roleId}`
+    });
+  }
+  
+  res.json(result.rows[0]);
+}));
+
+/**
  * GET /api/users/by-role/:roleName
  * Get users by role name (e.g., 'Vendor')
  */
@@ -201,6 +240,52 @@ router.put('/profile', authenticateToken, asyncHandler(async (req, res) => {
     message: 'Profile updated successfully',
     user: result.rows[0]
   });
+}));
+
+/**
+ * GET /api/users/:id
+ * Get a single user by ID with roles (admin only)
+ */
+router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = parseInt(req.params.id);
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can view user details'
+    });
+  }
+  
+  const result = await db.query(
+    `SELECT 
+      u.id, u.username, u.email,
+      u.first_name, u.middle_name, u.last_name, u.full_name,
+      u.phone_number,
+      u.address_line1, u.address_line2, u.city, u.state, u.postal_code, u.country,
+      u.auth_provider,
+      u.created_at, u.updated_at, u.last_login,
+      COALESCE(
+        json_agg(r.name) FILTER (WHERE r.name IS NOT NULL),
+        '[]'
+      ) as roles
+    FROM users u
+    LEFT JOIN user_roles ur ON u.id = ur.user_id
+    LEFT JOIN roles r ON ur.role_id = r.id
+    WHERE u.id = $1
+    GROUP BY u.id`,
+    [userId]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.status(404).json({ 
+      error: 'User not found',
+      message: `No user found with ID ${userId}`
+    });
+  }
+  
+  res.json(result.rows[0]);
 }));
 
 /**
