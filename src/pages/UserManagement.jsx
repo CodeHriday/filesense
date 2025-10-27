@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import PasswordInput from '../components/PasswordInput';
@@ -47,6 +47,7 @@ const UserManagement = () => {
   
   const { currentUser, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Check if user has permission to view users
   useEffect(() => {
@@ -189,6 +190,59 @@ const UserManagement = () => {
     setModalError('');
     setModalOpen(true);
   };
+  
+  // Handle URL parameters for opening modals from vendor management pages
+  useEffect(() => {
+    if (loading) return;
+    
+    const action = searchParams.get('action');
+    const role = searchParams.get('role');
+    const userId = searchParams.get('userId');
+    
+    if (action === 'create' && role === 'vendor') {
+      // Open create modal with Vendor role pre-selected
+      setFormData({
+        username: '',
+        password: '',
+        email: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        phone_number: '',
+        auth_provider: 'local',
+        roles: ['Vendor']
+      });
+      setModalMode('create');
+      setError('');
+      setModalError('');
+      setModalOpen(true);
+      
+      // Clear URL parameters
+      setSearchParams({});
+    } else if (action === 'edit' && userId) {
+      // Fetch the specific user by ID
+      const fetchUserById = async () => {
+        try {
+          const response = await axios.get(`/api/users/${userId}`);
+          const user = response.data;
+          
+          if (user) {
+            openEditModal(user);
+          } else {
+            setError('User not found');
+          }
+        } catch (error) {
+          console.error('Error fetching user:', error);
+          setError('Failed to load user for editing');
+        } finally {
+          // Clear URL parameters regardless of outcome
+          setSearchParams({});
+        }
+      };
+      
+      fetchUserById();
+    }
+  }, [loading, searchParams, setSearchParams]);
   
   const closeModal = () => {
     setModalOpen(false);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { FaEdit, FaUserPlus } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/UserManagement.css';
 
@@ -46,6 +47,14 @@ const VendorUserManagement = () => {
     }
   };
   
+  const handleCreateVendorUser = () => {
+    navigate('/users?action=create&role=vendor');
+  };
+  
+  const handleEditUser = (userId) => {
+    navigate(`/users?action=edit&userId=${userId}`);
+  };
+  
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -54,6 +63,13 @@ const VendorUserManagement = () => {
     <div className="user-management-container">
       <div className="user-management-header">
         <h1>Vendor User Management</h1>
+        <button 
+          className="btn-primary"
+          onClick={handleCreateVendorUser}
+          title="Create new vendor user"
+        >
+          <FaUserPlus /> Create Vendor User
+        </button>
       </div>
       
       {error && (
@@ -77,12 +93,13 @@ const VendorUserManagement = () => {
               <th>Email</th>
               <th>Phone</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {vendorUsers.length === 0 ? (
               <tr>
-                <td colSpan="5" className="no-users-message">No vendor users found</td>
+                <td colSpan="6" className="no-users-message">No vendor users found</td>
               </tr>
             ) : (
               vendorUsers.map(user => (
@@ -93,6 +110,15 @@ const VendorUserManagement = () => {
                   <td>{user.phone_number || '-'}</td>
                   <td>
                     <span className="status-badge status-active">Active</span>
+                  </td>
+                  <td>
+                    <button
+                      className="icon-button edit-button"
+                      onClick={() => handleEditUser(user.id)}
+                      title="Edit user"
+                    >
+                      <FaEdit />
+                    </button>
                   </td>
                 </tr>
               ))

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { FaEdit } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/RoleManagement.css';
 
@@ -50,6 +51,10 @@ const VendorRoleManagement = () => {
     }
   };
   
+  const handleEditRole = (roleId) => {
+    navigate(`/roles?action=edit&roleId=${roleId}`);
+  };
+  
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -78,18 +83,28 @@ const VendorRoleManagement = () => {
             <tr>
               <th>Role Name</th>
               <th>Description</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {roles.length === 0 ? (
               <tr>
-                <td colSpan="2" className="no-roles-message">No vendor roles found</td>
+                <td colSpan="3" className="no-roles-message">No vendor roles found</td>
               </tr>
             ) : (
               roles.map(role => (
                 <tr key={role.id}>
                   <td>{role.name}</td>
                   <td>{role.description || '-'}</td>
+                  <td>
+                    <button
+                      className="icon-button edit-button"
+                      onClick={() => handleEditRole(role.id)}
+                      title="Edit role"
+                    >
+                      <FaEdit />
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
