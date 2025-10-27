@@ -299,11 +299,15 @@ const VendorAgreements = () => {
     try {
       const submitData = new FormData();
       
+      // Wrap form data in agreementData as expected by backend
+      const agreementData = {};
       Object.keys(formData).forEach(key => {
         if (formData[key] !== '') {
-          submitData.append(key, formData[key]);
+          agreementData[key] = formData[key];
         }
       });
+      
+      submitData.append('agreementData', JSON.stringify(agreementData));
       
       let response;
       if (modalMode === 'create') {
@@ -582,12 +586,6 @@ const VendorAgreements = () => {
                 </>
               }
             >
-              {modalError && (
-                <div className="modal-error-message" role="alert">
-                  {modalError}
-                </div>
-              )}
-              
               <form id="agreement-form" onSubmit={handleSubmit} className="agreement-form">
                 {/* Section 1: Agreement Information */}
                 <div className="form-section">
@@ -831,6 +829,13 @@ const VendorAgreements = () => {
                     />
                   </div>
                 </div>
+                
+                {/* Error Message at Bottom */}
+                {modalError && (
+                  <div className="modal-error-message" role="alert" style={{ marginTop: '1.5rem' }}>
+                    {modalError}
+                  </div>
+                )}
               </form>
             </ThreeSectionModal>
           )}
