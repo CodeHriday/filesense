@@ -86,8 +86,8 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <h2>Classify Column: {columnName}</h2>
         
         <div className="form-group">
@@ -160,8 +160,8 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <h2>Edit File Ownership</h2>
         
         <div className="form-group">
@@ -243,8 +243,8 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <h2>Assign Tags to Column: {columnName}</h2>
         
         <div className="form-group">
@@ -319,8 +319,8 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <h2>Assign Policies to Column: {columnName}</h2>
         
         <div className="form-group">

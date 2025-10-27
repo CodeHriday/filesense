@@ -9,7 +9,7 @@ const Modal = ({
   children, 
   footer, 
   size = 'medium',
-  closeOnOverlayClick = true
+  closeOnOverlayClick = false
 }) => {
   const modalRef = useRef(null);
   
@@ -33,33 +33,11 @@ const Modal = ({
     };
   }, [isOpen]);
   
-  // Handle Escape key
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
-  
-  // Click outside to close
-  const handleOverlayClick = (e) => {
-    if (closeOnOverlayClick && e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-  
   if (!isOpen) return null;
   
   return (
     <div 
-      className="modal-overlay" 
-      onClick={handleOverlayClick}
+      className="modal-overlay"
     >
       <div 
         className={`modal modal-${size}`} 

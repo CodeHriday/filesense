@@ -24,15 +24,9 @@ const ThreeSectionModal = ({
 }) => {
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   return (
-    <div className="three-section-modal-overlay" onClick={handleOverlayClick}>
-      <div className={`three-section-modal three-section-modal-${size} ${className}`} onClick={(e) => e.stopPropagation()}>
+    <div className="three-section-modal-overlay">
+      <div className={`three-section-modal three-section-modal-${size} ${className}`}>
         {/* Fixed Header - 10% */}
         <div className="three-section-modal-header">
           <h2>{title}</h2>

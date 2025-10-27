@@ -839,7 +839,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
       {editingExpression && (
         <div className="expression-editor-modal">
-          <div className="modal-overlay" onClick={() => setEditingExpression(null)}></div>
+          <div className="modal-overlay"></div>
           <div className="modal-content">
             <div className="modal-header">
               <h4>Edit Expression</h4>
@@ -923,7 +923,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
       {addingNewColumn && (
         <div className="expression-editor-modal">
-          <div className="modal-overlay" onClick={() => setAddingNewColumn(false)}></div>
+          <div className="modal-overlay"></div>
           <div className="modal-content">
             <div className="modal-header">
               <h4>Add New Column</h4>
@@ -1037,7 +1037,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
       {addingVariable && (
         <div className="expression-editor-modal variable-builder-modal">
-          <div className="modal-overlay" onClick={() => setAddingVariable(false)}></div>
+          <div className="modal-overlay"></div>
           <div className="modal-content">
             <div className="modal-header">
               <h4>Add Variable</h4>
@@ -1199,7 +1199,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
       {editingVariable && (
         <div className="expression-editor-modal variable-builder-modal">
-          <div className="modal-overlay" onClick={() => setEditingVariable(null)}></div>
+          <div className="modal-overlay"></div>
           <div className="modal-content">
             <div className="modal-header">
               <h4>Edit Variable: ${editingVariable.name}</h4>

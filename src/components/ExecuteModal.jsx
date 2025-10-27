@@ -6,8 +6,8 @@ const ExecuteModal = ({ isOpen, onClose, success, message, groupName }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <div className="modal-header">
           <h3>{success ? 'Execution Started' : 'Execution Failed'}</h3>
           <button onClick={onClose} className="modal-close-btn">
