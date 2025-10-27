@@ -305,6 +305,8 @@ const VendorAgreements = () => {
     setApprovalHistory([]);
     setChangeHistory([]);
     setRejectComments('');
+    setDetailModalError('');
+    setDetailModalSuccess('');
   };
   
   const handleInputChange = (e) => {
@@ -1295,6 +1297,18 @@ const VendorAgreements = () => {
                     </div>
                   )}
                 </div>
+                
+                {/* Success/Error Messages at Bottom of Modal */}
+                {detailModalSuccess && (
+                  <div className="modal-success-message" role="alert" style={{ marginTop: '1rem', padding: '12px 16px', backgroundColor: '#e6f4ea', color: '#137333', borderRadius: '5px', fontSize: '14px' }}>
+                    {detailModalSuccess}
+                  </div>
+                )}
+                {detailModalError && (
+                  <div className="modal-error-message" role="alert" style={{ marginTop: '1rem', padding: '12px 16px', backgroundColor: '#fce8e6', color: '#d93025', borderRadius: '5px', fontSize: '14px' }}>
+                    {detailModalError}
+                  </div>
+                )}
               </div>
             </ThreeSectionModal>
           )}
