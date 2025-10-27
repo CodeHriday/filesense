@@ -26,6 +26,24 @@ class ConnectionService {
         }
         break;
       
+      case 'vendor':
+        // Vendor connections use access_key_id and secret_access_key
+        if (config.access_key_id) {
+          encryptedConfig.access_key_id = encrypt(config.access_key_id);
+        }
+        if (config.secret_access_key) {
+          encryptedConfig.secret_access_key = encrypt(config.secret_access_key);
+        }
+        // Also handle GCP service account key for vendor connections
+        if (config.service_account_key) {
+          encryptedConfig.service_account_key = encrypt(config.service_account_key);
+        }
+        // Azure account key for vendor connections
+        if (config.account_key) {
+          encryptedConfig.account_key = encrypt(config.account_key);
+        }
+        break;
+      
       case 'gcp':
         if (config.private_key) {
           encryptedConfig.private_key = encrypt(config.private_key);
@@ -82,6 +100,24 @@ class ConnectionService {
         }
         if (config.secret_key) {
           decryptedConfig.secret_key = decrypt(config.secret_key);
+        }
+        break;
+      
+      case 'vendor':
+        // Vendor connections use access_key_id and secret_access_key
+        if (config.access_key_id) {
+          decryptedConfig.access_key_id = decrypt(config.access_key_id);
+        }
+        if (config.secret_access_key) {
+          decryptedConfig.secret_access_key = decrypt(config.secret_access_key);
+        }
+        // Also handle GCP service account key for vendor connections
+        if (config.service_account_key) {
+          decryptedConfig.service_account_key = decrypt(config.service_account_key);
+        }
+        // Azure account key for vendor connections
+        if (config.account_key) {
+          decryptedConfig.account_key = decrypt(config.account_key);
         }
         break;
       
@@ -190,15 +226,28 @@ class ConnectionService {
   /**
    * Get a connection by ID
    * 
-   * @param {number} id - Connection ID
+   * @param {number|string} id - Connection ID (integer for transform_connections, UUID for vendor connections)
    * @returns {Promise<Object>} - Connection details
    */
   async getConnectionById(id) {
     try {
-      const result = await pool.query(
-        'SELECT * FROM transform_connections WHERE id = $1',
-        [id]
-      );
+      // Check if ID is a UUID (vendor connection) or integer (transform connection)
+      const isUUID = typeof id === 'string' && id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      
+      let result;
+      if (isUUID) {
+        // Query storage_connections for vendor connections
+        result = await pool.query(
+          'SELECT * FROM storage_connections WHERE connection_id = $1',
+          [id]
+        );
+      } else {
+        // Query transform_connections for regular connections
+        result = await pool.query(
+          'SELECT * FROM transform_connections WHERE id = $1',
+          [id]
+        );
+      }
       
       if (result.rows.length === 0) {
         throw new Error(`Connection with ID ${id} not found`);

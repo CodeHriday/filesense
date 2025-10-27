@@ -125,15 +125,33 @@ class BulkProfilingService {
         throw new Error(`Connection ${connectionId} not found`);
       }
       
-      if (connection.type !== 'aws') {
-        throw new Error(`Connection type ${connection.type} not supported. Only AWS S3 is supported`);
+      // Handle both transform connections and vendor connections
+      let connectionType = connection.type;
+      let config = connection.config;
+      
+      // For vendor connections, extract the actual provider type from config
+      if (connectionType === 'vendor') {
+        config = typeof config === 'string' ? JSON.parse(config) : config;
+        const provider = config.provider || config.storage_type;
+        
+        if (provider !== 'aws' && provider !== 's3') {
+          throw new Error(`Vendor connection provider ${provider} not supported. Only AWS S3 is supported`);
+        }
+        
+        // Decrypt vendor connection credentials
+        config = connectionService.decryptSensitiveFields('vendor', config);
+      } else {
+        // For transform connections, ensure it's AWS type
+        if (connectionType !== 'aws') {
+          throw new Error(`Connection type ${connectionType} not supported. Only AWS S3 is supported`);
+        }
+        
+        // Decrypt transform connection config
+        config = connectionService.decryptSensitiveFields(connectionType, config);
       }
       
-      // Decrypt connection config
-      const config = connectionService.decryptSensitiveFields(connection.type, connection.config);
-      
       // Parse S3 path
-      let bucketName = config.bucket_name;
+      let bucketName = config.bucket_name || config.bucket;
       let prefix = '';
       
       if (s3Path.startsWith('s3://')) {
@@ -149,10 +167,10 @@ class BulkProfilingService {
         prefix += '/';
       }
       
-      // Configure AWS S3
+      // Configure AWS S3 - handle both transform and vendor connection formats
       const s3 = new AWS.S3({
-        accessKeyId: config.access_key,
-        secretAccessKey: config.secret_key,
+        accessKeyId: config.access_key || config.access_key_id,
+        secretAccessKey: config.secret_key || config.secret_access_key,
         region: config.region
       });
       
