@@ -239,21 +239,21 @@ export const APP_FEATURES = [
     isCollapsible: true,
     children: [
       {
-        id: 'vendor_details',
-        name: 'Vendor Details',
-        parentId: 'vendor_management',
-        category: 'Administration',
-        icon: null,
-        route: '/vendor-management',
-        showInSidebar: true
-      },
-      {
         id: 'vendor_connections',
         name: 'Vendor Connections',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
         route: '/connections?type=vendor',
+        showInSidebar: true
+      },
+      {
+        id: 'vendor_details',
+        name: 'Vendor Details',
+        parentId: 'vendor_management',
+        category: 'Administration',
+        icon: null,
+        route: '/vendor-management',
         showInSidebar: true
       },
       {
