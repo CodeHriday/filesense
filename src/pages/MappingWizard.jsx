@@ -659,8 +659,8 @@ function MappingWizard() {
                       setSourceConnectionId('');
                       // Auto-populate file path from agreement
                       const agreement = vendorAgreements.find(a => a.id === parseInt(value));
-                      if (agreement && agreement.file_path) {
-                        setFilePath(agreement.file_path);
+                      if (agreement && agreement.drop_location_path) {
+                        setFilePath(agreement.drop_location_path);
                       }
                     }
                   }}

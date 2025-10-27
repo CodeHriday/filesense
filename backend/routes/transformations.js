@@ -249,8 +249,8 @@ router.post('/',
     let actualSourceConnectionId = source_connection_id;
     if (vendor_agreement_id) {
       const agreementResult = await pool.query(
-        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND status = $2 AND is_locked = TRUE',
-        [vendor_agreement_id, 'approved']
+        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
+        [vendor_agreement_id, 'fully_approved']
       );
       
       if (agreementResult.rows.length === 0) {
@@ -416,8 +416,8 @@ router.put('/:id',
     let resolvedSourceConnectionId = source_connection_id;
     if (vendor_agreement_id !== undefined && vendor_agreement_id) {
       const agreementResult = await pool.query(
-        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND status = $2 AND is_locked = TRUE',
-        [vendor_agreement_id, 'approved']
+        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
+        [vendor_agreement_id, 'fully_approved']
       );
       
       if (agreementResult.rows.length === 0) {
