@@ -108,9 +108,16 @@ const VendorAgreements = () => {
         axios.get(`/api/vendor-agreements/${agreementId}/changes`)
       ]);
       
-      setSelectedAgreement(agreementResponse.data);
-      setApprovalHistory(approvalsResponse.data || []);
-      setChangeHistory(changesResponse.data || []);
+      // Update selected agreement with fresh data from API
+      setSelectedAgreement(agreementResponse.data.agreement || agreementResponse.data);
+      
+      // Handle approval history - API might return {approvals: [...]} or just [...]
+      const approvals = approvalsResponse.data?.approvals || approvalsResponse.data || [];
+      setApprovalHistory(Array.isArray(approvals) ? approvals : []);
+      
+      // Handle change history - API might return {changes: [...]} or just [...]
+      const changes = changesResponse.data?.changes || changesResponse.data || [];
+      setChangeHistory(Array.isArray(changes) ? changes : []);
     } catch (error) {
       console.error('Error fetching agreement details:', error);
       setError('Failed to load agreement details');
