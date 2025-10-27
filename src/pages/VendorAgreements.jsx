@@ -562,11 +562,15 @@ const VendorAgreements = () => {
   };
   
   const canApproveAsVendor = (agreement) => {
-    return isVendor && currentUser.vendor_id === agreement.vendor_id && !agreement.vendor_approved_at && !agreement.is_locked;
+    // Admins can approve on behalf of vendor, or actual vendor users can approve
+    const isVendorUser = isVendor && currentUser.vendor_id === agreement.vendor_id;
+    return (isAdmin || isVendorUser) && !agreement.vendor_approved_at && !agreement.is_locked;
   };
   
   const canApproveAsOwner = (agreement) => {
-    return currentUser.id === agreement.file_owner_user_id && !agreement.owner_approved_at && !agreement.is_locked;
+    // Admins can approve on behalf of owner, or actual owner can approve
+    const isOwnerUser = currentUser.id === agreement.file_owner_user_id;
+    return (isAdmin || isOwnerUser) && !agreement.owner_approved_at && !agreement.is_locked;
   };
   
   const renderSchemaTable = (schema) => {
