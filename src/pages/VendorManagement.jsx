@@ -157,6 +157,7 @@ const VendorManagement = () => {
       address: '',
       backup_contact_name: '',
       backup_contact_phone: '',
+      backup_contact_email: '',
       project_id: '',
       project_name: '',
       drop_location_path: '',
@@ -195,6 +196,7 @@ const VendorManagement = () => {
       address: vendor.address || '',
       backup_contact_name: vendor.backup_contact_name || '',
       backup_contact_phone: vendor.backup_contact_phone || '',
+      backup_contact_email: vendor.backup_contact_email || '',
       backup_contact_user_id: backupContactUser ? String(backupContactUser.id) : '',
       project_id: vendor.project_id || '',
       project_name: vendor.project_name || '',
@@ -232,6 +234,16 @@ const VendorManagement = () => {
     const selectedUser = vendorUsers.find(user => String(user.id) === String(userId));
     
     if (selectedUser) {
+      // Check if primary contact is same as backup contact
+      if (formData.backup_contact_email && selectedUser.email && 
+          formData.backup_contact_email.toLowerCase() === selectedUser.email.toLowerCase()) {
+        setModalError('Primary contact cannot be the same as backup contact');
+        // Reset selection
+        e.target.value = formData.contact_user_id || '';
+        return;
+      }
+      
+      setModalError(''); // Clear any previous errors
       setFormData(prev => ({
         ...prev,
         contact_user_id: userId,
@@ -256,10 +268,21 @@ const VendorManagement = () => {
     const selectedUser = vendorUsers.find(user => String(user.id) === String(userId));
     
     if (selectedUser) {
+      // Check if backup user is same as primary contact
+      if (formData.contact_email && selectedUser.email && 
+          formData.contact_email.toLowerCase() === selectedUser.email.toLowerCase()) {
+        setModalError('Backup contact cannot be the same as primary contact');
+        // Reset selection
+        e.target.value = formData.backup_contact_user_id || '';
+        return;
+      }
+      
+      setModalError(''); // Clear any previous errors
       setFormData(prev => ({
         ...prev,
         backup_contact_user_id: userId,
         backup_contact_name: selectedUser.full_name || selectedUser.username,
+        backup_contact_email: selectedUser.email || '',
         backup_contact_phone: selectedUser.phone_number || ''
       }));
     } else {
@@ -267,6 +290,7 @@ const VendorManagement = () => {
         ...prev,
         backup_contact_user_id: '',
         backup_contact_name: '',
+        backup_contact_email: '',
         backup_contact_phone: ''
       }));
     }
@@ -384,6 +408,7 @@ const VendorManagement = () => {
         address: formData.address,
         backup_contact_name: formData.backup_contact_name,
         backup_contact_phone: formData.backup_contact_phone,
+        backup_contact_email: formData.backup_contact_email,
         project_id: formData.project_id,
         drop_location_path: formData.drop_location_path,
         vendor_connection_id: formData.vendor_connection_id,
@@ -711,6 +736,20 @@ const VendorManagement = () => {
                 disabled
                 style={{ backgroundColor: '#f3f4f6' }}
                 placeholder="Alternate contact person"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="backup_contact_email">Backup Contact Email (Auto-filled)</label>
+              <input
+                type="email"
+                id="backup_contact_email"
+                name="backup_contact_email"
+                value={formData.backup_contact_email}
+                readOnly
+                disabled
+                style={{ backgroundColor: '#f3f4f6' }}
+                placeholder="Alternate contact email"
               />
             </div>
             

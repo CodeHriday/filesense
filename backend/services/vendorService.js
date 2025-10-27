@@ -39,6 +39,7 @@ class VendorService {
         address,
         backup_contact_name,
         backup_contact_phone,
+        backup_contact_email,
         project_id,
         drop_location_path,
         vendor_connection_id
@@ -52,7 +53,17 @@ class VendorService {
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(contact_email)) {
-        throw new Error('Invalid email format');
+        throw new Error('Invalid contact email format');
+      }
+      
+      // Validate backup contact email if provided
+      if (backup_contact_email && !emailRegex.test(backup_contact_email)) {
+        throw new Error('Invalid backup contact email format');
+      }
+      
+      // Prevent duplicate primary and backup contacts
+      if (backup_contact_email && contact_email.toLowerCase() === backup_contact_email.toLowerCase()) {
+        throw new Error('Backup contact cannot be the same as primary contact');
       }
       
       // Check if vendor with same email already exists
@@ -100,8 +111,8 @@ class VendorService {
         systemLogger.info('Using existing user account for vendor', { userId: vendorUserId, email: contact_email });
         
       } else {
-        // Create new user account
-        const username = contact_email.split('@')[0] + '_vendor_' + Date.now();
+        // Create new user account - username is the email
+        const username = contact_email;
         
         // Generate a temporary password - vendor should reset on first login
         const tempPassword = crypto.randomBytes(16).toString('hex');
@@ -247,13 +258,13 @@ class VendorService {
       const vendorResult = await client.query(
         `INSERT INTO vendors (
           vendor_code, vendor_name, description, contact_name, contact_email, contact_phone,
-          address, backup_contact_name, backup_contact_phone,
+          address, backup_contact_name, backup_contact_phone, backup_contact_email,
           vendor_user_id, project_id, drop_location_path, vendor_connection_id, status, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active', $14, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active', $15, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendorCode, vendor_name, description, contact_name, contact_email, contact_phone,
-          address, backup_contact_name, backup_contact_phone,
+          address, backup_contact_name, backup_contact_phone, backup_contact_email,
           vendorUserId, finalProjectId, dropPath, vendor_connection_id, createdBy
         ]
       );
@@ -461,11 +472,49 @@ class VendorService {
         address,
         backup_contact_name,
         backup_contact_phone,
+        backup_contact_email,
         project_id,
         status,
         drop_location_path,
         vendor_connection_id
       } = updateData;
+      
+      // Fetch current vendor data for validation
+      const currentVendorResult = await client.query(
+        'SELECT contact_email, backup_contact_email FROM vendors WHERE id = $1',
+        [vendorId]
+      );
+      
+      if (currentVendorResult.rows.length === 0) {
+        throw new Error(`Vendor with ID ${vendorId} not found`);
+      }
+      
+      const currentVendor = currentVendorResult.rows[0];
+      
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (contact_email && !emailRegex.test(contact_email)) {
+        throw new Error('Invalid contact email format');
+      }
+      
+      // Validate backup contact email if provided
+      if (backup_contact_email && !emailRegex.test(backup_contact_email)) {
+        throw new Error('Invalid backup contact email format');
+      }
+      
+      // Prevent duplicate primary and backup contacts
+      // Use new values if provided, otherwise use existing values
+      const finalContactEmail = contact_email || currentVendor.contact_email;
+      const finalBackupEmail = backup_contact_email !== undefined ? backup_contact_email : currentVendor.backup_contact_email;
+      
+      // Treat empty strings as null/absence
+      const normalizedContactEmail = finalContactEmail?.trim() || null;
+      const normalizedBackupEmail = finalBackupEmail?.trim() || null;
+      
+      if (normalizedContactEmail && normalizedBackupEmail && 
+          normalizedContactEmail.toLowerCase() === normalizedBackupEmail.toLowerCase()) {
+        throw new Error('Backup contact cannot be the same as primary contact');
+      }
       
       // Build update query dynamically
       const updates = [];
@@ -517,6 +566,12 @@ class VendorService {
       if (backup_contact_phone !== undefined) {
         updates.push(`backup_contact_phone = $${paramIndex}`);
         params.push(backup_contact_phone);
+        paramIndex++;
+      }
+      
+      if (backup_contact_email !== undefined) {
+        updates.push(`backup_contact_email = $${paramIndex}`);
+        params.push(backup_contact_email);
         paramIndex++;
       }
       
