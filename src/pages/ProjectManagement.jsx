@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 import ConfirmModal from '../components/ConfirmModal';
 import './ProjectManagement.css';
 
@@ -370,6 +370,15 @@ function ProjectManagement() {
                   <td>{new Date(project.created_at).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
+                      <button 
+                        className="btn-icon" 
+                        onClick={() => navigate(`/upload?project_id=${project.id}`)}
+                        title="Add File to Project"
+                        aria-label={`Add file to project ${project.name}`}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#28a745' }}
+                      >
+                        <FaPlus size={18} aria-hidden="true" />
+                      </button>
                       <button 
                         className="btn-icon" 
                         onClick={() => openEditModal(project)}
