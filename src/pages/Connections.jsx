@@ -11,6 +11,7 @@ import './Connections.css';
 
 // Import the connection service
 import { getConnections, createConnection, updateConnection, deleteConnection, testConnection, testSavedConnection, testConnectionWithUpdates } from '../api/connectionService';
+import VendorConnectionModal from '../components/VendorConnectionModal';
 
 const Connections = () => {
   const { hasWritePermission, hasExecutePermission, currentUser } = useAuth();
@@ -67,6 +68,14 @@ const Connections = () => {
   
   const isAdmin = currentUser?.roles?.includes('Admin');
   
+  // Vendor Connections state
+  const [vendorConnections, setVendorConnections] = useState([]);
+  const [vendorConnectionsLoading, setVendorConnectionsLoading] = useState(false);
+  const [showVendorConnectionModal, setShowVendorConnectionModal] = useState(false);
+  const [editingVendorConnection, setEditingVendorConnection] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [deletingVendorConnectionId, setDeletingVendorConnectionId] = useState(null);
+  
   // Connection form state
   const [formData, setFormData] = useState({
     connection_name: '',
@@ -114,6 +123,8 @@ const Connections = () => {
     fetchConnections();
     if (isAdmin) {
       fetchDropLocationConfig();
+      fetchVendorConnections();
+      fetchProjects();
     }
   }, [isAdmin]);
   
@@ -295,6 +306,75 @@ const Connections = () => {
       });
     } finally {
       setTestingDropLocation(false);
+    }
+  };
+  
+  // Vendor Connections functions
+  const fetchVendorConnections = async () => {
+    if (!isAdmin) return;
+    
+    try {
+      setVendorConnectionsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/vendor-connections`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setVendorConnections(response.data.connections || []);
+    } catch (err) {
+      console.error('Error fetching vendor connections:', err);
+      setError('Failed to load vendor connections');
+    } finally {
+      setVendorConnectionsLoading(false);
+    }
+  };
+  
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setProjects(response.data || []);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+    }
+  };
+  
+  const handleCreateVendorConnection = () => {
+    setEditingVendorConnection(null);
+    setShowVendorConnectionModal(true);
+  };
+  
+  const handleEditVendorConnection = (connection) => {
+    setEditingVendorConnection(connection);
+    setShowVendorConnectionModal(true);
+  };
+  
+  const handleVendorConnectionSuccess = () => {
+    fetchVendorConnections();
+    setError(null);
+  };
+  
+  const handleDeleteVendorConnection = async (connectionId) => {
+    if (!window.confirm('Are you sure you want to delete this vendor connection?')) {
+      return;
+    }
+    
+    try {
+      setDeletingVendorConnectionId(connectionId);
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/api/vendor-connections/${connectionId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      fetchVendorConnections();
+    } catch (err) {
+      console.error('Error deleting vendor connection:', err);
+      setError(err.response?.data?.error || 'Failed to delete vendor connection');
+    } finally {
+      setDeletingVendorConnectionId(null);
     }
   };
   
@@ -1322,6 +1402,99 @@ const Connections = () => {
         <h1>Cloud Storage Connections</h1>
       </div>
       
+      {/* Vendor Connections Section (Admin Only) */}
+      {isAdmin && (
+        <Card style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <FiTruck />
+                Vendor Connections
+              </h2>
+              <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0.5rem 0 0 0' }}>
+                Manage multiple vendor file drop connections
+              </p>
+            </div>
+            <button 
+              className="btn btn-primary"
+              onClick={handleCreateVendorConnection}
+            >
+              <FiPlus /> Create Vendor Connection
+            </button>
+          </div>
+          
+          {vendorConnectionsLoading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              Loading vendor connections...
+            </div>
+          ) : vendorConnections.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+              <p>No vendor connections configured.</p>
+              <p>Create a vendor connection to enable vendor file uploads.</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="connections-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Project</th>
+                    <th>Provider</th>
+                    <th>Bucket/Container</th>
+                    <th>Path</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendorConnections.map(conn => {
+                    const config = conn.config || {};
+                    const bucket = config.bucket || config.gcp_bucket || config.container_name || '-';
+                    const path = config.path_prefix || '/';
+                    
+                    return (
+                      <tr key={conn.connection_id}>
+                        <td>{conn.name}</td>
+                        <td>{conn.project_name || '-'}</td>
+                        <td style={{ textTransform: 'uppercase' }}>
+                          {config.provider || 'AWS'}
+                        </td>
+                        <td>{bucket}</td>
+                        <td>{path}</td>
+                        <td>
+                          <span className={`status-badge ${conn.status === 'active' ? 'status-active' : 'status-inactive'}`}>
+                            {conn.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={() => handleEditVendorConnection(conn)}
+                              title="Edit"
+                            >
+                              <FiEdit2 />
+                            </button>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleDeleteVendorConnection(conn.connection_id)}
+                              disabled={deletingVendorConnectionId === conn.connection_id}
+                              title="Delete"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+      
       {/* Drop Location Configuration (Admin Only) */}
       {isAdmin && (
         <Card className="drop-location-card" style={{ marginBottom: '2rem' }}>
@@ -2132,6 +2305,15 @@ const Connections = () => {
         onConfirm={confirmDropLocationRemove}
         fileName="Drop Location Configuration"
         isDeleting={false}
+      />
+      
+      {/* Vendor Connection Modal */}
+      <VendorConnectionModal
+        isOpen={showVendorConnectionModal}
+        onClose={() => setShowVendorConnectionModal(false)}
+        onSuccess={handleVendorConnectionSuccess}
+        connection={editingVendorConnection}
+        projects={projects}
       />
     </div>
   );

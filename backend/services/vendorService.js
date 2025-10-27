@@ -37,7 +37,8 @@ class VendorService {
         contact_email,
         contact_phone,
         project_id,
-        drop_location_path
+        drop_location_path,
+        vendor_connection_id
       } = vendorData;
       
       // Validation
@@ -139,9 +140,30 @@ class VendorService {
         });
       }
       
-      // Assign user to project if project_id is provided
-      if (project_id) {
-        // Check if project exists
+      // Auto-create or assign project
+      let finalProjectId = project_id;
+      
+      if (!finalProjectId) {
+        // Auto-create a project for this vendor
+        const projectName = `${vendor_name} - Vendor Project`;
+        const projectDescription = `Auto-created project for vendor: ${vendor_name}`;
+        
+        const newProjectResult = await client.query(
+          `INSERT INTO projects (name, description, created_at, updated_at)
+           VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           RETURNING id`,
+          [projectName, projectDescription]
+        );
+        
+        finalProjectId = newProjectResult.rows[0].id;
+        
+        systemLogger.info('Auto-created project for vendor', { 
+          projectId: finalProjectId, 
+          projectName,
+          vendorName: vendor_name 
+        });
+      } else {
+        // Verify provided project exists
         const projectResult = await client.query(
           'SELECT id FROM projects WHERE id = $1',
           [project_id]
@@ -150,20 +172,38 @@ class VendorService {
         if (projectResult.rows.length === 0) {
           throw new Error(`Project with ID ${project_id} not found`);
         }
-        
-        // Check if user is already a member of the project
-        const memberCheck = await client.query(
-          'SELECT id FROM project_members WHERE project_id = $1 AND user_id = $2',
-          [project_id, vendorUserId]
+      }
+      
+      // Add vendor user to the project
+      const memberCheck = await client.query(
+        'SELECT id FROM project_members WHERE project_id = $1 AND user_id = $2',
+        [finalProjectId, vendorUserId]
+      );
+      
+      if (memberCheck.rows.length === 0) {
+        await client.query(
+          `INSERT INTO project_members (project_id, user_id, role, added_by, created_at)
+           VALUES ($1, $2, 'member', $3, CURRENT_TIMESTAMP)`,
+          [finalProjectId, vendorUserId, createdBy]
+        );
+      }
+      
+      // Validate vendor_connection_id if provided
+      if (vendor_connection_id) {
+        const connCheck = await client.query(
+          `SELECT connection_id, project_id FROM storage_connections 
+           WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
+          [vendor_connection_id]
         );
         
-        if (memberCheck.rows.length === 0) {
-          // Add user to project
-          await client.query(
-            `INSERT INTO project_members (project_id, user_id, role, added_by, created_at)
-             VALUES ($1, $2, 'member', $3, CURRENT_TIMESTAMP)`,
-            [project_id, vendorUserId, createdBy]
-          );
+        if (connCheck.rows.length === 0) {
+          throw new Error('Invalid vendor connection ID or connection is not a vendor drop connection');
+        }
+        
+        // Validate that the connection belongs to the vendor's project
+        const connectionProjectId = connCheck.rows[0].project_id;
+        if (connectionProjectId !== finalProjectId) {
+          throw new Error(`Vendor connection must belong to the vendor's project (Project ID: ${finalProjectId})`);
         }
       }
       
@@ -171,12 +211,12 @@ class VendorService {
       const vendorResult = await client.query(
         `INSERT INTO vendors (
           vendor_code, vendor_name, description, contact_name, contact_email, contact_phone,
-          vendor_user_id, project_id, drop_location_path, status, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10, CURRENT_TIMESTAMP)
+          vendor_user_id, project_id, drop_location_path, vendor_connection_id, status, created_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendorCode, vendor_name, description, contact_name, contact_email, contact_phone,
-          vendorUserId, project_id, dropPath, createdBy
+          vendorUserId, finalProjectId, dropPath, vendor_connection_id, createdBy
         ]
       );
       
@@ -366,7 +406,8 @@ class VendorService {
         contact_phone,
         project_id,
         status,
-        drop_location_path
+        drop_location_path,
+        vendor_connection_id
       } = updateData;
       
       // Build update query dynamically
@@ -438,6 +479,42 @@ class VendorService {
       if (drop_location_path !== undefined) {
         updates.push(`drop_location_path = $${paramIndex}`);
         params.push(drop_location_path);
+        paramIndex++;
+      }
+      
+      if (vendor_connection_id !== undefined) {
+        // Validate vendor_connection_id if provided
+        if (vendor_connection_id) {
+          const connCheck = await client.query(
+            `SELECT connection_id, project_id FROM storage_connections 
+             WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
+            [vendor_connection_id]
+          );
+          
+          if (connCheck.rows.length === 0) {
+            throw new Error('Invalid vendor connection ID or connection is not a vendor drop connection');
+          }
+          
+          // Get the vendor's current project_id to validate
+          const vendorProjectResult = await client.query(
+            'SELECT project_id FROM vendors WHERE id = $1',
+            [vendorId]
+          );
+          
+          if (vendorProjectResult.rows.length === 0) {
+            throw new Error('Vendor not found');
+          }
+          
+          const vendorProjectId = project_id !== undefined ? project_id : vendorProjectResult.rows[0].project_id;
+          const connectionProjectId = connCheck.rows[0].project_id;
+          
+          if (connectionProjectId !== vendorProjectId) {
+            throw new Error(`Vendor connection must belong to the vendor's project (Project ID: ${vendorProjectId})`);
+          }
+        }
+        
+        updates.push(`vendor_connection_id = $${paramIndex}`);
+        params.push(vendor_connection_id);
         paramIndex++;
       }
       

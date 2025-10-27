@@ -1,0 +1,198 @@
+/* Three Section Modal Styles */
+
+.three-section-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.three-section-modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Modal sizes */
+.three-section-modal-small {
+  width: 90%;
+  max-width: 500px;
+}
+
+.three-section-modal-medium {
+  width: 90%;
+  max-width: 700px;
+}
+
+.three-section-modal-large {
+  width: 90%;
+  max-width: 900px;
+}
+
+/* Fixed Header - 10% */
+.three-section-modal-header {
+  flex: 0 0 10%;
+  min-height: 60px;
+  max-height: 80px;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f9fafb;
+  border-radius: 8px 8px 0 0;
+}
+
+.three-section-modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.three-section-modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #6b7280;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.three-section-modal-close:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+/* Scrollable Center - 80% */
+.three-section-modal-content {
+  flex: 0 0 80%;
+  overflow-y: auto;
+  padding: 2rem;
+  background: white;
+}
+
+.three-section-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.three-section-modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.three-section-modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.three-section-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Fixed Footer - 10% */
+.three-section-modal-footer {
+  flex: 0 0 10%;
+  min-height: 60px;
+  max-height: 80px;
+  padding: 1rem 2rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: #f9fafb;
+  border-radius: 0 0 8px 8px;
+}
+
+.three-section-modal-footer button {
+  padding: 0.625rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.three-section-modal-footer button:first-child {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.three-section-modal-footer button:first-child:hover {
+  background: #e5e7eb;
+}
+
+.three-section-modal-footer button:last-child {
+  background: #2563eb;
+  color: white;
+}
+
+.three-section-modal-footer button:last-child:hover {
+  background: #1d4ed8;
+}
+
+.three-section-modal-footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .three-section-modal {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .three-section-modal-header {
+    padding: 1rem 1.5rem;
+  }
+  
+  .three-section-modal-content {
+    padding: 1.5rem;
+  }
+  
+  .three-section-modal-footer {
+    padding: 0.75rem 1.5rem;
+  }
+}

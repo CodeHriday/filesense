@@ -1,0 +1,64 @@
+import React from 'react';
+import './ThreeSectionModal.css';
+
+/**
+ * ThreeSectionModal Component
+ * A modal with three sections: fixed header (10%), scrollable center (80%), fixed footer (10%)
+ * 
+ * @param {boolean} isOpen - Controls modal visibility
+ * @param {function} onClose - Callback when modal is closed
+ * @param {string} title - Modal title
+ * @param {ReactNode} children - Center content (scrollable)
+ * @param {ReactNode} footer - Footer content (typically buttons)
+ * @param {string} className - Additional CSS classes
+ * @param {string} size - Modal size: 'small', 'medium', 'large' (default: 'large')
+ */
+const ThreeSectionModal = ({
+  isOpen,
+  onClose,
+  title,
+  children,
+  footer,
+  className = '',
+  size = 'large'
+}) => {
+  if (!isOpen) return null;
+
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div className="three-section-modal-overlay" onClick={handleOverlayClick}>
+      <div className={`three-section-modal three-section-modal-${size} ${className}`} onClick={(e) => e.stopPropagation()}>
+        {/* Fixed Header - 10% */}
+        <div className="three-section-modal-header">
+          <h2>{title}</h2>
+          <button 
+            className="three-section-modal-close" 
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Scrollable Center - 80% */}
+        <div className="three-section-modal-content">
+          {children}
+        </div>
+
+        {/* Fixed Footer - 10% */}
+        {footer && (
+          <div className="three-section-modal-footer">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ThreeSectionModal;

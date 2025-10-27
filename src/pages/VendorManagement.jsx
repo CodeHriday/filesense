@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
+import ThreeSectionModal from '../components/ThreeSectionModal';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import '../styles/VendorManagement.css';
@@ -24,6 +25,7 @@ const VendorManagement = () => {
     contact_phone: '',
     project_id: '',
     drop_location_path: '',
+    vendor_connection_id: '', // Replaces drop_location_path
     status: 'active'
   });
   
@@ -32,6 +34,10 @@ const VendorManagement = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  
+  // Vendor connections state
+  const [vendorConnections, setVendorConnections] = useState([]);
+  const [filteredConnections, setFilteredConnections] = useState([]);
   
   const { currentUser, hasRole } = useAuth();
   const navigate = useNavigate();
@@ -56,11 +62,12 @@ const VendorManagement = () => {
     setError('');
     
     try {
-      const [vendorsResponse, projectsResponse] = await Promise.all([
+      const [vendorsResponse, projectsResponse, connectionsResponse] = await Promise.all([
         axios.get('/api/vendors', {
           params: { page: currentPage, pageSize }
         }),
-        axios.get('/api/projects')
+        axios.get('/api/projects'),
+        axios.get('/api/vendor-connections')
       ]);
       
       setVendors(vendorsResponse.data.vendors || []);
@@ -68,6 +75,7 @@ const VendorManagement = () => {
       setTotalCount(vendorsResponse.data.pagination?.totalCount || 0);
       
       setProjects(projectsResponse.data || []);
+      setVendorConnections(connectionsResponse.data.connections || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load vendor management data');
@@ -75,6 +83,18 @@ const VendorManagement = () => {
       setLoading(false);
     }
   };
+  
+  // Filter vendor connections by selected project
+  useEffect(() => {
+    if (formData.project_id) {
+      const filtered = vendorConnections.filter(
+        conn => conn.project_id === parseInt(formData.project_id)
+      );
+      setFilteredConnections(filtered);
+    } else {
+      setFilteredConnections([]);
+    }
+  }, [formData.project_id, vendorConnections]);
   
   const openCreateModal = () => {
     setFormData({
@@ -85,6 +105,7 @@ const VendorManagement = () => {
       contact_phone: '',
       project_id: '',
       drop_location_path: '',
+      vendor_connection_id: '',
       status: 'active'
     });
     setModalMode('create');
@@ -104,6 +125,7 @@ const VendorManagement = () => {
       contact_phone: vendor.contact_phone || '',
       project_id: vendor.project_id || '',
       drop_location_path: vendor.drop_location_path || '',
+      vendor_connection_id: vendor.vendor_connection_id || '',
       status: vendor.status || 'active'
     });
     setModalMode('edit');
@@ -318,143 +340,187 @@ const VendorManagement = () => {
         totalItems={totalCount}
       />
       
-      {/* Create/Edit Modal */}
-      {modalOpen && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="vendor-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{modalMode === 'create' ? 'Add New Vendor' : 'Edit Vendor'}</h2>
-              <button className="close-modal-btn" onClick={closeModal}>
-                &times;
-              </button>
+      {/* Create/Edit Modal using ThreeSectionModal */}
+      <ThreeSectionModal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        title={modalMode === 'create' ? 'Add New Vendor' : 'Edit Vendor'}
+        size="large"
+        footer={
+          <>
+            <button type="button" onClick={closeModal}>
+              Cancel
+            </button>
+            <button type="submit" form="vendor-form">
+              {modalMode === 'create' ? 'Create Vendor' : 'Update Vendor'}
+            </button>
+          </>
+        }
+      >
+        {modalError && (
+          <div className="modal-error-message" role="alert" style={{ marginBottom: '1rem' }}>
+            {modalError}
+          </div>
+        )}
+        
+        <form id="vendor-form" onSubmit={handleSubmit} className="vendor-form">
+          {/* Section 1: Vendor Information */}
+          <div className="form-section">
+            <h3 className="section-title">Vendor Information</h3>
+            
+            <div className="form-group">
+              <label htmlFor="vendor_name">
+                Vendor Name <span className="required-field">*</span>
+              </label>
+              <input
+                type="text"
+                id="vendor_name"
+                name="vendor_name"
+                value={formData.vendor_name}
+                onChange={handleInputChange}
+                required
+              />
             </div>
             
-            {modalError && (
-              <div className="modal-error-message" role="alert">
-                {modalError}
-              </div>
-            )}
+            <div className="form-group">
+              <label htmlFor="description">Description</label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows="3"
+              />
+            </div>
             
-            <form onSubmit={handleSubmit} className="vendor-form">
-              <div className="form-group">
-                <label htmlFor="vendor_name">
-                  Vendor Name <span className="required-field">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="vendor_name"
-                  name="vendor_name"
-                  value={formData.vendor_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="description">Description</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="3"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="contact_name">
-                  Contact Name <span className="required-field">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="contact_name"
-                  name="contact_name"
-                  value={formData.contact_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="contact_email">
-                  Contact Email <span className="required-field">*</span>
-                </label>
-                <input
-                  type="email"
-                  id="contact_email"
-                  name="contact_email"
-                  value={formData.contact_email}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="contact_phone">Contact Phone</label>
-                <input
-                  type="tel"
-                  id="contact_phone"
-                  name="contact_phone"
-                  value={formData.contact_phone}
-                  onChange={handleInputChange}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="project_id">Project</label>
-                <select
-                  id="project_id"
-                  name="project_id"
-                  value={formData.project_id}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select a project</option>
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="drop_location_path">Drop Location Path</label>
-                <input
-                  type="text"
-                  id="drop_location_path"
-                  name="drop_location_path"
-                  value={formData.drop_location_path}
-                  onChange={handleInputChange}
-                  placeholder="Auto-generated or custom path"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="status">Status</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
-                </select>
-              </div>
-              
-              <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button type="submit" className="save-btn">
-                  {modalMode === 'create' ? 'Create Vendor' : 'Update Vendor'}
-                </button>
-              </div>
-            </form>
+            <div className="form-group">
+              <label htmlFor="contact_name">
+                Contact Name <span className="required-field">*</span>
+              </label>
+              <input
+                type="text"
+                id="contact_name"
+                name="contact_name"
+                value={formData.contact_name}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="contact_email">
+                Contact Email <span className="required-field">*</span>
+              </label>
+              <input
+                type="email"
+                id="contact_email"
+                name="contact_email"
+                value={formData.contact_email}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="contact_phone">Contact Phone</label>
+              <input
+                type="tel"
+                id="contact_phone"
+                name="contact_phone"
+                value={formData.contact_phone}
+                onChange={handleInputChange}
+              />
+            </div>
           </div>
-        </div>
-      )}
+          
+          {/* Section 2: Project & Connection */}
+          <div className="form-section">
+            <h3 className="section-title">Project & Connection</h3>
+            
+            <div className="form-group">
+              <label htmlFor="project_id">Project</label>
+              <select
+                id="project_id"
+                name="project_id"
+                value={formData.project_id}
+                onChange={handleInputChange}
+              >
+                <option value="">Select a project</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                A project will be auto-created if not selected
+              </small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="vendor_connection_id">Vendor File Drop Connection</label>
+              <select
+                id="vendor_connection_id"
+                name="vendor_connection_id"
+                value={formData.vendor_connection_id}
+                onChange={handleInputChange}
+                disabled={!formData.project_id}
+              >
+                <option value="">Select a vendor connection</option>
+                {filteredConnections.map(conn => (
+                  <option key={conn.connection_id} value={conn.connection_id}>
+                    {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
+                  </option>
+                ))}
+              </select>
+              {!formData.project_id && (
+                <small style={{ color: '#f59e0b', fontSize: '0.875rem' }}>
+                  Select a project first to see available connections
+                </small>
+              )}
+              {formData.project_id && filteredConnections.length === 0 && (
+                <small style={{ color: '#f59e0b', fontSize: '0.875rem' }}>
+                  No vendor connections available for this project. Create one in Connections page.
+                </small>
+              )}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="drop_location_path">Drop Location Path (Optional)</label>
+              <input
+                type="text"
+                id="drop_location_path"
+                name="drop_location_path"
+                value={formData.drop_location_path}
+                onChange={handleInputChange}
+                placeholder="Auto-generated or custom path"
+              />
+              <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                Will be auto-generated if left blank
+              </small>
+            </div>
+          </div>
+          
+          {/* Section 3: Configuration */}
+          <div className="form-section">
+            <h3 className="section-title">Configuration</h3>
+            
+            <div className="form-group">
+              <label htmlFor="status">Status</label>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </ThreeSectionModal>
         </>
       )}
     </div>
