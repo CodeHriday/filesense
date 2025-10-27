@@ -247,17 +247,17 @@ const VendorManagement = () => {
       
       const response = await axios.post('/api/vendors', basicData);
       
-      // Store vendor ID and auto-populate project with vendor name
+      // Store vendor ID and project ID from response
       const newVendorId = response.data.vendor.id;
-      const vendorName = response.data.vendor.vendor_name;
+      const projectId = response.data.vendor.project_id;
       
       setSavedVendorId(newVendorId);
       setBasicInfoSaved(true);
       
-      // Auto-populate project field with vendor name (user can edit if needed)
+      // Auto-populate project ID from the created vendor
       setFormData(prev => ({
         ...prev,
-        project_id: vendorName
+        project_id: projectId
       }));
       
       setModalError('');
@@ -284,8 +284,8 @@ const VendorManagement = () => {
     e.preventDefault();
     
     // Validate all fields are filled
-    if (!formData.project_id.trim()) {
-      setModalError('Project name is required');
+    if (!formData.project_id) {
+      setModalError('Project is required');
       return;
     }
     
