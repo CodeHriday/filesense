@@ -41,7 +41,9 @@ const VendorAgreements = () => {
     owner_contact: '',
     metadata: '',
     vendor_connection_id: '',
-    drop_location_path: ''
+    drop_location_path: '',
+    project_id: '',
+    project_name: ''
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -160,6 +162,37 @@ const VendorAgreements = () => {
     }
   }, [formData.vendor_connection_id, filteredConnections]);
   
+  // Auto-populate project fields from selected vendor
+  useEffect(() => {
+    if (formData.vendor_id && vendors.length > 0) {
+      const selectedVendor = vendors.find(
+        vendor => String(vendor.id) === String(formData.vendor_id)
+      );
+      
+      if (selectedVendor) {
+        setFormData(prev => ({
+          ...prev,
+          project_id: selectedVendor.project_id || '',
+          project_name: selectedVendor.project_name || ''
+        }));
+      } else {
+        // Vendor not found, clear project fields
+        setFormData(prev => ({
+          ...prev,
+          project_id: '',
+          project_name: ''
+        }));
+      }
+    } else {
+      // No vendor selected, clear project fields
+      setFormData(prev => ({
+        ...prev,
+        project_id: '',
+        project_name: ''
+      }));
+    }
+  }, [formData.vendor_id, vendors]);
+  
   const openCreateModal = () => {
     setFormData({
       vendor_id: isVendor && currentUser.vendor_id ? currentUser.vendor_id : '',
@@ -174,7 +207,9 @@ const VendorAgreements = () => {
       owner_contact: '',
       metadata: '',
       vendor_connection_id: '',
-      drop_location_path: ''
+      drop_location_path: '',
+      project_id: '',
+      project_name: ''
     });
     setTemplateFile(null);
     setModalMode('create');
@@ -199,7 +234,9 @@ const VendorAgreements = () => {
       owner_contact: agreement.owner_contact || '',
       metadata: agreement.metadata ? JSON.stringify(agreement.metadata, null, 2) : '',
       vendor_connection_id: agreement.vendor_connection_id || '',
-      drop_location_path: agreement.drop_location_path || ''
+      drop_location_path: agreement.drop_location_path || '',
+      project_id: agreement.project_id || '',
+      project_name: agreement.project_name || ''
     });
     setTemplateFile(null);
     setModalMode('edit');
@@ -676,6 +713,23 @@ const VendorAgreements = () => {
                       />
                     )}
                   </div>
+                  
+                  {formData.vendor_id && (
+                    <div className="form-group">
+                      <label htmlFor="project_name">Project</label>
+                      <input
+                        type="text"
+                        id="project_name"
+                        value={formData.project_name || 'Loading...'}
+                        readOnly
+                        placeholder="Auto-populated from selected vendor"
+                        style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
+                      />
+                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                        Automatically assigned from the vendor's project
+                      </small>
+                    </div>
+                  )}
                   
                   <div className="form-group">
                     <label htmlFor="file_name">

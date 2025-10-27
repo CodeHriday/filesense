@@ -50,11 +50,13 @@ class VendorAgreementService {
         throw new Error('vendor_id, file_name, and file_owner_user_id are required');
       }
       
-      // Verify vendor exists
-      const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
+      // Verify vendor exists and get project_id
+      const vendorCheck = await client.query('SELECT id, project_id FROM vendors WHERE id = $1', [vendor_id]);
       if (vendorCheck.rows.length === 0) {
         throw new Error('Vendor not found');
       }
+      
+      const project_id = vendorCheck.rows[0].project_id;
       
       // Verify file owner exists
       const ownerCheck = await client.query('SELECT id FROM users WHERE id = $1', [file_owner_user_id]);
@@ -113,15 +115,15 @@ class VendorAgreementService {
           vendor_id, agreement_code, file_name, file_description, schema,
           frequency, frequency_description, file_creator, file_owner_user_id,
           vendor_contact, owner_contact, metadata,
-          vendor_connection_id, drop_location_path,
+          vendor_connection_id, drop_location_path, project_id,
           approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'draft', 1, $15, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'draft', 1, $16, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, JSON.stringify(parsedSchema),
           frequency, frequency_description, file_creator, file_owner_user_id,
           vendor_contact, owner_contact, metadata ? JSON.stringify(metadata) : null,
-          vendor_connection_id || null, drop_location_path || null,
+          vendor_connection_id || null, drop_location_path || null, project_id,
           createdBy
         ]
       );
