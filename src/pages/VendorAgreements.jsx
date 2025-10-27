@@ -23,6 +23,8 @@ const VendorAgreements = () => {
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [changeHistory, setChangeHistory] = useState([]);
   const [rejectComments, setRejectComments] = useState('');
+  const [detailModalError, setDetailModalError] = useState('');
+  const [detailModalSuccess, setDetailModalSuccess] = useState('');
   
   // Vendor connections state
   const [vendorConnections, setVendorConnections] = useState([]);
@@ -488,24 +490,30 @@ const VendorAgreements = () => {
   };
   
   const handleApprove = async () => {
+    setDetailModalError('');
+    setDetailModalSuccess('');
+    
     try {
-      const response = await axios.post(`/api/vendor-agreements/${selectedAgreement.id}/approve`);
+      const response = await axios.post(`/api/vendor-agreements/${selectedAgreement.id}/approve`, {});
       
-      setSuccessMessage('Agreement approved successfully!');
+      setDetailModalSuccess('Agreement approved successfully!');
       
       await fetchAgreementDetails(selectedAgreement.id);
       fetchData();
       
-      setTimeout(() => setSuccessMessage(''), 5000);
+      setTimeout(() => setDetailModalSuccess(''), 5000);
     } catch (error) {
       console.error('Error approving agreement:', error);
-      setError('Failed to approve agreement: ' + (error.response?.data?.error || error.message));
+      setDetailModalError('Failed to approve agreement: ' + (error.response?.data?.error || error.message));
     }
   };
   
   const handleReject = async () => {
+    setDetailModalError('');
+    setDetailModalSuccess('');
+    
     if (!rejectComments.trim()) {
-      setError('Comments are required for rejection');
+      setDetailModalError('Comments are required for rejection');
       return;
     }
     
@@ -514,16 +522,16 @@ const VendorAgreements = () => {
         comments: rejectComments
       });
       
-      setSuccessMessage('Agreement rejected successfully!');
+      setDetailModalSuccess('Agreement rejected successfully!');
       setRejectComments('');
       
       await fetchAgreementDetails(selectedAgreement.id);
       fetchData();
       
-      setTimeout(() => setSuccessMessage(''), 5000);
+      setTimeout(() => setDetailModalSuccess(''), 5000);
     } catch (error) {
       console.error('Error rejecting agreement:', error);
-      setError('Failed to reject agreement: ' + (error.response?.data?.error || error.message));
+      setDetailModalError('Failed to reject agreement: ' + (error.response?.data?.error || error.message));
     }
   };
   
