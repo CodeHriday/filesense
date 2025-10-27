@@ -192,6 +192,7 @@ router.post('/',
     const {
       mapping_name,
       source_connection_id,
+      vendor_agreement_id,
       source_type = 'files',
       file_path = '',
       file_name_pattern,
@@ -211,6 +212,7 @@ router.post('/',
     systemLogger.info('Extracted fields', { 
       mapping_name, 
       source_connection_id,
+      vendor_agreement_id,
       source_type,
       file_path,
       file_name_pattern: actualFilePattern,
@@ -220,18 +222,61 @@ router.post('/',
       anomaly_rules_type: typeof anomaly_rules
     });
     
+    // Validation - ensure mutual exclusivity
+    if (source_connection_id && vendor_agreement_id) {
+      systemLogger.warn('Both source_connection_id and vendor_agreement_id provided');
+      return res.status(400).json({ 
+        error: 'Cannot specify both source_connection_id and vendor_agreement_id. Please select only one.' 
+      });
+    }
+    
+    if (!source_connection_id && !vendor_agreement_id) {
+      systemLogger.warn('Neither source_connection_id nor vendor_agreement_id provided');
+      return res.status(400).json({ 
+        error: 'Either source_connection_id or vendor_agreement_id must be provided' 
+      });
+    }
+    
     // Validation
-    if (!mapping_name || !source_connection_id || !actualFilePattern) {
+    if (!mapping_name || !actualFilePattern) {
       systemLogger.warn('Missing required fields');
       return res.status(400).json({ 
-        error: 'Missing required fields: mapping_name, source_connection_id, file_name_pattern' 
+        error: 'Missing required fields: mapping_name, file_name_pattern' 
+      });
+    }
+    
+    // Resolve connection from vendor agreement if needed
+    let actualSourceConnectionId = source_connection_id;
+    if (vendor_agreement_id) {
+      const agreementResult = await pool.query(
+        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND status = $2 AND is_locked = TRUE',
+        [vendor_agreement_id, 'approved']
+      );
+      
+      if (agreementResult.rows.length === 0) {
+        return res.status(400).json({ 
+          error: 'Vendor agreement not found or not approved. Please select an approved and locked vendor agreement.' 
+        });
+      }
+      
+      actualSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
+      
+      if (!actualSourceConnectionId) {
+        return res.status(400).json({ 
+          error: 'Vendor agreement does not have an associated vendor connection. Please contact your administrator.' 
+        });
+      }
+      
+      systemLogger.info('Resolved connection from vendor agreement', { 
+        vendor_agreement_id, 
+        vendor_connection_id: actualSourceConnectionId 
       });
     }
     
     // Validate source connection exists in transform_connections
     const sourceConnCheck = await pool.query(
       'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
-      [source_connection_id]
+      [actualSourceConnectionId]
     );
     
     if (sourceConnCheck.rows.length === 0) {
@@ -281,14 +326,14 @@ router.post('/',
     
     const result = await pool.query(`
       INSERT INTO transformation_mappings (
-        mapping_id, mapping_name, source_connection_id, source_type, file_path,
+        mapping_id, mapping_name, source_connection_id, vendor_agreement_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_path, target_file_name, target_file_format,
         field_mappings, variables, anomaly_rules, status, created_by, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `, [
-      mappingId, mapping_name, source_connection_id, source_type, file_path,
+      mappingId, mapping_name, actualSourceConnectionId, vendor_agreement_id, source_type, file_path,
       actualFilePattern, actualFilePattern, target_connection_id, target_table_name,
       req.body.target_file_path, target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null, projectId
@@ -319,6 +364,7 @@ router.put('/:id',
     const {
       mapping_name,
       source_connection_id,
+      vendor_agreement_id,
       source_type,
       file_path,
       file_name_pattern,
@@ -334,6 +380,15 @@ router.put('/:id',
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
+    
+    // Validate mutual exclusivity if both are being updated
+    if (source_connection_id !== undefined && vendor_agreement_id !== undefined) {
+      if (source_connection_id && vendor_agreement_id) {
+        return res.status(400).json({ 
+          error: 'Cannot specify both source_connection_id and vendor_agreement_id. Please select only one.' 
+        });
+      }
+    }
     
     // Validate variables if provided
     if (variables !== undefined && variables.length > 0) {
@@ -357,11 +412,39 @@ router.put('/:id',
       }
     }
     
+    // Resolve and validate vendor agreement if provided
+    let resolvedSourceConnectionId = source_connection_id;
+    if (vendor_agreement_id !== undefined && vendor_agreement_id) {
+      const agreementResult = await pool.query(
+        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND status = $2 AND is_locked = TRUE',
+        [vendor_agreement_id, 'approved']
+      );
+      
+      if (agreementResult.rows.length === 0) {
+        return res.status(400).json({ 
+          error: 'Vendor agreement not found or not approved. Please select an approved and locked vendor agreement.' 
+        });
+      }
+      
+      resolvedSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
+      
+      if (!resolvedSourceConnectionId) {
+        return res.status(400).json({ 
+          error: 'Vendor agreement does not have an associated vendor connection. Please contact your administrator.' 
+        });
+      }
+      
+      systemLogger.info('Resolved connection from vendor agreement for update', { 
+        vendor_agreement_id, 
+        vendor_connection_id: resolvedSourceConnectionId 
+      });
+    }
+    
     // Validate source connection exists (if being updated)
-    if (source_connection_id !== undefined) {
+    if (resolvedSourceConnectionId !== undefined && resolvedSourceConnectionId) {
       const sourceConnCheck = await pool.query(
         'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
-        [source_connection_id]
+        [resolvedSourceConnectionId]
       );
       
       if (sourceConnCheck.rows.length === 0) {
@@ -394,9 +477,14 @@ router.put('/:id',
       values.push(mapping_name);
       paramIndex++;
     }
-    if (source_connection_id !== undefined) {
+    if (resolvedSourceConnectionId !== undefined) {
       updates.push(`source_connection_id = $${paramIndex}`);
-      values.push(source_connection_id);
+      values.push(resolvedSourceConnectionId);
+      paramIndex++;
+    }
+    if (vendor_agreement_id !== undefined) {
+      updates.push(`vendor_agreement_id = $${paramIndex}`);
+      values.push(vendor_agreement_id);
       paramIndex++;
     }
     if (source_type !== undefined) {

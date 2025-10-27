@@ -77,6 +77,7 @@ function MappingWizard() {
 
   // Step 1: Basic Info & Source
   const [mappingName, setMappingName] = useState('');
+  const [mappingDescription, setMappingDescription] = useState('');
   const [projectId, setProjectId] = useState('');
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -176,8 +177,10 @@ function MappingWizard() {
       
       const mapping = response.data;
       setMappingName(mapping.mapping_name || mapping.name);
+      setMappingDescription(mapping.description || '');
       setProjectId(mapping.project_id || '');
       setSourceConnectionId(mapping.source_connection_id || '');
+      setSelectedVendorAgreement(mapping.vendor_agreement_id ? String(mapping.vendor_agreement_id) : '');
       setSourceType(mapping.source_type || 'files');
       setFilePath(mapping.file_path || '');
       setFileNamePattern(mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern || '*.csv');
@@ -244,10 +247,22 @@ function MappingWizard() {
   const extractSchema = async () => {
     try {
       setLoadingSchema(true);
+      
+      // Determine which connection to use
+      let connectionIdToUse = sourceConnectionId;
+      
+      // If vendor agreement is selected, we need to get the vendor_connection_id
+      if (selectedVendorAgreement) {
+        const agreement = vendorAgreements.find(a => a.id === parseInt(selectedVendorAgreement));
+        if (agreement && agreement.vendor_connection_id) {
+          connectionIdToUse = agreement.vendor_connection_id;
+        }
+      }
+      
       const response = await axios.post(
         `${API_BASE_URL}/api/transformations/extract-schema`,
         { 
-          source_connection_id: sourceConnectionId || null,
+          source_connection_id: connectionIdToUse || null,
           source_type: sourceType,
           file_path: filePath,
           file_name_pattern: fileNamePattern
@@ -289,8 +304,12 @@ function MappingWizard() {
         setError('Please select a project');
         return;
       }
-      if (!sourceConnectionId) {
-        setError('Please select a source connection');
+      if (!sourceConnectionId && !selectedVendorAgreement) {
+        setError('Please select either a source connection or a vendor agreement');
+        return;
+      }
+      if (sourceConnectionId && selectedVendorAgreement) {
+        setError('Please select only one: either a source connection or a vendor agreement');
         return;
       }
       setError(null);
@@ -333,10 +352,11 @@ function MappingWizard() {
       
       const mappingData = {
         mapping_name: mappingName,
+        description: mappingDescription || null,
         project_id: projectId,
-        source_connection_id: sourceConnectionId || null,
+        source_connection_id: selectedVendorAgreement ? null : (sourceConnectionId || null),
+        vendor_agreement_id: selectedVendorAgreement ? parseInt(selectedVendorAgreement) : null,
         source_type: sourceType,
-        vendor_agreement_id: sourceType === 'vendor_agreement' ? (selectedVendorAgreement || null) : null,
         file_path: filePath,
         file_name_pattern: fileNamePattern,
         target_connection_id: targetConnectionId || null,
@@ -534,19 +554,9 @@ function MappingWizard() {
         {/* Step 1: Basic Info & Source */}
         {currentStep === 1 && (
           <div className="wizard-step-content">
-            <h2><FiServer /> Mapping Name & Source Connection</h2>
+            <h2><FiServer /> Mapping Configuration</h2>
             
-            <div className="form-group">
-              <label>Mapping Name *</label>
-              <input
-                type="text"
-                className="form-control"
-                value={mappingName}
-                onChange={(e) => setMappingName(e.target.value)}
-                placeholder="e.g., Daily Sales Data Transformation"
-              />
-            </div>
-
+            {/* Project - First field */}
             <div className="form-group">
               <label>Project *</label>
               <select
@@ -565,21 +575,91 @@ function MappingWizard() {
               <small className="form-help">Select the project for this mapping</small>
             </div>
 
-            <div className="form-group">
-              <label>Source Connection</label>
-              <select
-                className="form-control"
-                value={sourceConnectionId}
-                onChange={(e) => setSourceConnectionId(e.target.value ? parseInt(e.target.value) : '')}
-              >
-                <option value="">Select source connection</option>
-                {connections.filter(c => c.connection_direction === 'source').map(conn => (
-                  <option key={conn.id} value={conn.id}>
-                    {conn.name} ({conn.type})
-                  </option>
-                ))}
-              </select>
-              <small className="form-help">Select where to read files from</small>
+            {/* Name and Description side-by-side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Mapping Name *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={mappingName}
+                  onChange={(e) => setMappingName(e.target.value)}
+                  placeholder="e.g., Daily Sales Data Transformation"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Mapping Description</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={mappingDescription}
+                  onChange={(e) => setMappingDescription(e.target.value)}
+                  placeholder="Brief description of this mapping"
+                />
+              </div>
+            </div>
+
+            {/* Source Connection and Vendor Agreement side-by-side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Source Connection</label>
+                <select
+                  className="form-control"
+                  value={sourceConnectionId}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseInt(e.target.value) : '';
+                    setSourceConnectionId(value);
+                    if (value) {
+                      setSelectedVendorAgreement('');
+                    }
+                  }}
+                  disabled={!!selectedVendorAgreement}
+                >
+                  <option value="">Select source connection</option>
+                  {connections.filter(c => c.connection_direction === 'source').map(conn => (
+                    <option key={conn.id} value={conn.id}>
+                      {conn.name} ({conn.type})
+                    </option>
+                  ))}
+                </select>
+                <small className="form-help">
+                  {selectedVendorAgreement ? 'Disabled (Vendor Agreement selected)' : 'Select where to read files from'}
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label>Vendor Agreement</label>
+                <select
+                  className="form-control"
+                  value={selectedVendorAgreement}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedVendorAgreement(value);
+                    if (value) {
+                      setSourceConnectionId('');
+                    }
+                  }}
+                  disabled={!!sourceConnectionId}
+                >
+                  <option value="">Select vendor agreement</option>
+                  {vendorAgreements.map(agreement => (
+                    <option key={agreement.id} value={agreement.id}>
+                      {agreement.agreement_name} ({agreement.vendor_name})
+                    </option>
+                  ))}
+                </select>
+                <small className="form-help">
+                  {sourceConnectionId ? 'Disabled (Source Connection selected)' : 'Or select an approved vendor agreement'}
+                </small>
+              </div>
+            </div>
+
+            <div className="info-box" style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
+              <small style={{ color: '#1e40af' }}>
+                <strong>Note:</strong> Select either a Source Connection OR a Vendor Agreement (mutually exclusive). 
+                When a Vendor Agreement is selected, the system will automatically use its associated connection for file operations.
+              </small>
             </div>
           </div>
         )}
@@ -589,63 +669,6 @@ function MappingWizard() {
           <div className="wizard-step-content">
             <h2><FiFilter /> Source Configuration</h2>
             
-            <div className="form-group">
-              <label>Source Type *</label>
-              <select
-                className="form-control"
-                value={sourceType}
-                onChange={(e) => setSourceType(e.target.value)}
-              >
-                <option value="files">Files</option>
-                <option value="vendor_agreement">Vendor Agreement</option>
-              </select>
-              <small className="form-help">Type of data source (Files or Vendor Agreement)</small>
-            </div>
-
-            {/* Vendor Agreement Selection */}
-            {sourceType === 'vendor_agreement' && (
-              <div className="form-group">
-                <label>Vendor Agreement *</label>
-                <select
-                  className="form-control"
-                  value={selectedVendorAgreement}
-                  onChange={(e) => {
-                    const agreementId = e.target.value;
-                    setSelectedVendorAgreement(agreementId);
-                    
-                    // Auto-populate fields from selected vendor agreement
-                    if (agreementId) {
-                      const agreement = vendorAgreements.find(a => a.id === parseInt(agreementId));
-                      if (agreement) {
-                        // Set connection if exists
-                        if (agreement.connection_id) {
-                          setSourceConnectionId(agreement.connection_id.toString());
-                        }
-                        // Set file path and pattern if available
-                        if (agreement.drop_location_path) {
-                          setFilePath(agreement.drop_location_path);
-                        }
-                        if (agreement.file_name_pattern) {
-                          setFileNamePattern(agreement.file_name_pattern);
-                        }
-                        // Schema will be loaded from agreement when extracting
-                      }
-                    }
-                  }}
-                >
-                  <option value="">-- Select a Vendor Agreement --</option>
-                  {vendorAgreements.map(agreement => (
-                    <option key={agreement.id} value={agreement.id}>
-                      {agreement.agreement_name} ({agreement.vendor_name}) - {agreement.file_name || 'No file name'}
-                    </option>
-                  ))}
-                </select>
-                <small className="form-help">
-                  Select an approved and locked vendor agreement. Connection, file path, and schema will be auto-populated.
-                </small>
-              </div>
-            )}
-
             <div className="form-group">
               <label>File Path</label>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -657,7 +680,7 @@ function MappingWizard() {
                   placeholder="e.g., /year/month/day/ or leave blank for root"
                   style={{ flex: 1 }}
                 />
-                {sourceConnectionId && (
+                {(sourceConnectionId || selectedVendorAgreement) && (
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -912,26 +935,37 @@ function MappingWizard() {
       )}
 
       {/* Source Path Browse Modal */}
-      {showSourceBrowse && (
-        <div className="modal-overlay" onClick={() => setShowSourceBrowse(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
-            <div className="modal-header">
-              <h2><FiFolder /> Browse Source Path</h2>
-              <button className="btn-icon" onClick={() => setShowSourceBrowse(false)}>×</button>
-            </div>
-            <div className="modal-body" style={{ padding: 0 }}>
-              <S3FolderBrowser
-                connectionId={sourceConnectionId}
-                initialPath={filePath || '/'}
-                onSelectPath={(path) => {
-                  setFilePath(path);
-                  setShowSourceBrowse(false);
-                }}
-              />
+      {showSourceBrowse && (() => {
+        // Determine which connection to use for browsing
+        let connectionIdForBrowsing = sourceConnectionId;
+        if (selectedVendorAgreement) {
+          const agreement = vendorAgreements.find(a => a.id === parseInt(selectedVendorAgreement));
+          if (agreement && agreement.vendor_connection_id) {
+            connectionIdForBrowsing = agreement.vendor_connection_id;
+          }
+        }
+        
+        return (
+          <div className="modal-overlay" onClick={() => setShowSourceBrowse(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+              <div className="modal-header">
+                <h2><FiFolder /> Browse Source Path</h2>
+                <button className="btn-icon" onClick={() => setShowSourceBrowse(false)}>×</button>
+              </div>
+              <div className="modal-body" style={{ padding: 0 }}>
+                <S3FolderBrowser
+                  connectionId={connectionIdForBrowsing}
+                  initialPath={filePath || '/'}
+                  onSelectPath={(path) => {
+                    setFilePath(path);
+                    setShowSourceBrowse(false);
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Target Path Browse Modal */}
       {showTargetBrowse && (
