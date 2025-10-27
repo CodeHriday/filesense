@@ -229,7 +229,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                 <Route path="/roles" element={<ProtectedRoute><RoleManagement /></ProtectedRoute>} />
                 <Route path="/audit-trail" element={<ProtectedRoute><AuditTrail /></ProtectedRoute>} />
-                <Route path="/vendors" element={<ProtectedRoute><VendorManagement /></ProtectedRoute>} />
+                <Route path="/vendor-management" element={<ProtectedRoute><VendorManagement /></ProtectedRoute>} />
                 <Route path="/vendor-agreements" element={<ProtectedRoute><VendorAgreements /></ProtectedRoute>} />
                 <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} />
                 {/* Business Process Management routes */}
