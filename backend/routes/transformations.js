@@ -247,6 +247,8 @@ router.post('/',
     
     // Resolve connection from vendor agreement if needed
     let actualSourceConnectionId = source_connection_id;
+    let isVendorConnection = false;
+    
     if (vendor_agreement_id) {
       const agreementResult = await pool.query(
         'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
@@ -260,6 +262,7 @@ router.post('/',
       }
       
       actualSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
+      isVendorConnection = true;
       
       if (!actualSourceConnectionId) {
         return res.status(400).json({ 
@@ -273,16 +276,31 @@ router.post('/',
       });
     }
     
-    // Validate source connection exists in transform_connections
-    const sourceConnCheck = await pool.query(
-      'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
-      [actualSourceConnectionId]
-    );
-    
-    if (sourceConnCheck.rows.length === 0) {
-      return res.status(400).json({ 
-        error: 'Source connection not found. Please select a valid source connection.' 
-      });
+    // Validate source connection exists (check appropriate table based on connection type)
+    if (isVendorConnection) {
+      // Vendor connections are in storage_connections table with connection_id column
+      const sourceConnCheck = await pool.query(
+        'SELECT connection_id FROM storage_connections WHERE connection_id = $1 AND status = $2',
+        [actualSourceConnectionId, 'active']
+      );
+      
+      if (sourceConnCheck.rows.length === 0) {
+        return res.status(400).json({ 
+          error: 'Vendor connection not found or inactive. Please contact your administrator.' 
+        });
+      }
+    } else {
+      // Regular transform connections are in transform_connections table with id column
+      const sourceConnCheck = await pool.query(
+        'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
+        [actualSourceConnectionId]
+      );
+      
+      if (sourceConnCheck.rows.length === 0) {
+        return res.status(400).json({ 
+          error: 'Source connection not found. Please select a valid source connection.' 
+        });
+      }
     }
     
     // Validate target connection exists (if provided)
