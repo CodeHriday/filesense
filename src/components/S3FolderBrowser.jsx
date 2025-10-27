@@ -3,7 +3,7 @@ import { FaFolder, FaChevronRight, FaHome, FaSpinner } from 'react-icons/fa';
 import axios from 'axios';
 import './S3FolderBrowser.css';
 
-const S3FolderBrowser = ({ connectionId, onSelectPath, initialPath = '/' }) => {
+const S3FolderBrowser = ({ connectionId, onSelectPath, onSelectFile, initialPath = '/' }) => {
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
@@ -47,6 +47,12 @@ const S3FolderBrowser = ({ connectionId, onSelectPath, initialPath = '/' }) => {
 
   const handlePathSelect = () => {
     onSelectPath(currentPath);
+  };
+
+  const handleFileClick = (file) => {
+    if (onSelectFile) {
+      onSelectFile(file.name);
+    }
   };
 
   const navigateToParent = () => {
@@ -168,6 +174,8 @@ const S3FolderBrowser = ({ connectionId, onSelectPath, initialPath = '/' }) => {
             <div 
               key={`file-${index}`}
               className="s3-item s3-file"
+              onClick={() => handleFileClick(file)}
+              style={{ cursor: onSelectFile ? 'pointer' : 'default' }}
             >
               <div style={{ 
                 width: '4px', 

@@ -1010,6 +1010,10 @@ function MappingWizard() {
                     setFilePath(path);
                     setShowSourceBrowse(false);
                   }}
+                  onSelectFile={(filename) => {
+                    setFileNamePattern(filename);
+                    setShowSourceBrowse(false);
+                  }}
                 />
               </div>
             </div>
