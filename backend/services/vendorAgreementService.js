@@ -42,7 +42,8 @@ class VendorAgreementService {
         owner_contact,
         metadata,
         vendor_connection_id,
-        drop_location_path
+        drop_location_path,
+        manager_contact
       } = agreementData;
       
       // Validation
@@ -58,11 +59,14 @@ class VendorAgreementService {
       
       const project_id = vendorCheck.rows[0].project_id;
       
-      // Verify file owner exists
-      const ownerCheck = await client.query('SELECT id FROM users WHERE id = $1', [file_owner_user_id]);
+      // Verify file owner exists and get contact info
+      const ownerCheck = await client.query('SELECT id, email FROM users WHERE id = $1', [file_owner_user_id]);
       if (ownerCheck.rows.length === 0) {
         throw new Error('File owner user not found');
       }
+      
+      // Auto-populate manager_contact from file owner's email if not provided
+      const finalManagerContact = manager_contact || ownerCheck.rows[0].email;
       
       // Validate vendor_connection_id if provided
       if (vendor_connection_id) {
@@ -116,14 +120,16 @@ class VendorAgreementService {
           frequency, frequency_description, file_creator, file_owner_user_id,
           vendor_contact, owner_contact, metadata,
           vendor_connection_id, drop_location_path, project_id,
+          manager_contact,
           approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'draft', 1, $16, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'draft', 1, $17, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, JSON.stringify(parsedSchema),
           frequency, frequency_description, file_creator, file_owner_user_id,
           vendor_contact, owner_contact, metadata ? JSON.stringify(metadata) : null,
           vendor_connection_id || null, drop_location_path || null, project_id,
+          finalManagerContact,
           createdBy
         ]
       );
@@ -197,7 +203,8 @@ class VendorAgreementService {
         owner_contact,
         metadata,
         vendor_connection_id,
-        drop_location_path
+        drop_location_path,
+        manager_contact
       } = updateData;
       
       // Validate vendor_connection_id if provided
@@ -275,6 +282,23 @@ class VendorAgreementService {
         updates.push(`file_owner_user_id = $${paramIndex}`);
         params.push(file_owner_user_id);
         changes.file_owner_user_id = { from: current.file_owner_user_id, to: file_owner_user_id };
+        paramIndex++;
+        
+        // Auto-update manager_contact when file owner changes
+        const ownerResult = await client.query('SELECT email FROM users WHERE id = $1', [file_owner_user_id]);
+        if (ownerResult.rows.length > 0) {
+          const newManagerContact = ownerResult.rows[0].email;
+          updates.push(`manager_contact = $${paramIndex}`);
+          params.push(newManagerContact);
+          changes.manager_contact = { from: current.manager_contact, to: newManagerContact };
+          paramIndex++;
+        }
+      }
+      
+      if (manager_contact !== undefined && manager_contact !== current.manager_contact) {
+        updates.push(`manager_contact = $${paramIndex}`);
+        params.push(manager_contact);
+        changes.manager_contact = { from: current.manager_contact, to: manager_contact };
         paramIndex++;
       }
       
