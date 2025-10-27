@@ -479,12 +479,6 @@ const VendorManagement = () => {
           </>
         }
       >
-        {modalError && (
-          <div className="modal-error-message" role="alert" style={{ marginBottom: '1rem' }}>
-            {modalError}
-          </div>
-        )}
-        
         <form id="vendor-form" onSubmit={handleSubmit} className="vendor-form">
           {/* Section 1: Vendor Information */}
           <div className="form-section">
@@ -593,6 +587,11 @@ const VendorManagement = () => {
             {/* Save button for basic info in create mode */}
             {modalMode === 'create' && !basicInfoSaved && (
               <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                {modalError && (
+                  <div className="modal-error-message" role="alert" style={{ marginBottom: '1rem' }}>
+                    {modalError}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={handleSaveBasicInfo}

@@ -179,7 +179,7 @@ class VendorService {
       
       // Add vendor user to the project
       const memberCheck = await client.query(
-        'SELECT id FROM project_members WHERE project_id = $1 AND user_id = $2',
+        'SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2',
         [finalProjectId, vendorUserId]
       );
       
