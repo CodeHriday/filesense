@@ -498,7 +498,7 @@ class VendorAgreementService {
   /**
    * Approve agreement (vendor or owner)
    */
-  async approveAgreement(agreementId, approverUserId, approverType, comments = null, ipAddress = null, userAgent = null) {
+  async approveAgreement(agreementId, approverUserId, approverType, comments = null, ipAddress = null, userAgent = null, isAdmin = false) {
     const client = await pool.connect();
     
     try {
@@ -524,13 +524,15 @@ class VendorAgreementService {
       
       const agreement = agreementResult.rows[0];
       
-      // Verify approver authorization
-      if (approverType === 'vendor' && agreement.vendor_user_id !== approverUserId) {
-        throw new Error('Only the vendor user can provide vendor approval');
-      }
-      
-      if (approverType === 'owner' && agreement.file_owner_user_id !== approverUserId) {
-        throw new Error('Only the file owner can provide owner approval');
+      // Verify approver authorization (skip for admins)
+      if (!isAdmin) {
+        if (approverType === 'vendor' && agreement.vendor_user_id !== approverUserId) {
+          throw new Error('Only the vendor user can provide vendor approval');
+        }
+        
+        if (approverType === 'owner' && agreement.file_owner_user_id !== approverUserId) {
+          throw new Error('Only the file owner can provide owner approval');
+        }
       }
       
       // Check if already approved by this type
@@ -632,7 +634,7 @@ class VendorAgreementService {
   /**
    * Reject agreement
    */
-  async rejectAgreement(agreementId, approverUserId, approverType, comments, ipAddress = null, userAgent = null) {
+  async rejectAgreement(agreementId, approverUserId, approverType, comments, ipAddress = null, userAgent = null, isAdmin = false) {
     const client = await pool.connect();
     
     try {
@@ -662,13 +664,15 @@ class VendorAgreementService {
       
       const agreement = agreementResult.rows[0];
       
-      // Verify approver authorization
-      if (approverType === 'vendor' && agreement.vendor_user_id !== approverUserId) {
-        throw new Error('Only the vendor user can reject as vendor');
-      }
-      
-      if (approverType === 'owner' && agreement.file_owner_user_id !== approverUserId) {
-        throw new Error('Only the file owner can reject as owner');
+      // Verify approver authorization (skip for admins)
+      if (!isAdmin) {
+        if (approverType === 'vendor' && agreement.vendor_user_id !== approverUserId) {
+          throw new Error('Only the vendor user can reject as vendor');
+        }
+        
+        if (approverType === 'owner' && agreement.file_owner_user_id !== approverUserId) {
+          throw new Error('Only the file owner can reject as owner');
+        }
       }
       
       // Record rejection
