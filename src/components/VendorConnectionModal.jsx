@@ -449,12 +449,6 @@ const VendorConnectionModal = ({
             </div>
           )}
           
-          {testResult && (
-            <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
-              {testResult.message}
-            </div>
-          )}
-          
           <div className="form-group">
             <label>Connection Name *</label>
             <input
@@ -482,6 +476,12 @@ const VendorConnectionModal = ({
           </div>
           
           {renderProviderFields()}
+          
+          {testResult && (
+            <div className={`test-result ${testResult.success ? 'success' : 'error'}`} style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+              {testResult.message}
+            </div>
+          )}
           
           <div className="form-group">
             <label>File Path (Optional)</label>
