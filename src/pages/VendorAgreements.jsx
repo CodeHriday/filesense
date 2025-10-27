@@ -1203,13 +1203,13 @@ const VendorAgreements = () => {
                         
                         <div className="approval-actions">
                           {canApproveAsVendor(selectedAgreement) && (
-                            <button className="approve-btn vendor-approve" onClick={handleApprove}>
+                            <button className="approve-btn vendor-approve" onClick={() => handleApprove('vendor')}>
                               Vendor Approve
                             </button>
                           )}
                           
                           {canApproveAsOwner(selectedAgreement) && (
-                            <button className="approve-btn owner-approve" onClick={handleApprove}>
+                            <button className="approve-btn owner-approve" onClick={() => handleApprove('owner')}>
                               Owner Approve
                             </button>
                           )}
@@ -1222,9 +1222,16 @@ const VendorAgreements = () => {
                                 onChange={(e) => setRejectComments(e.target.value)}
                                 rows="3"
                               />
-                              <button className="reject-btn" onClick={handleReject}>
-                                Reject
-                              </button>
+                              {canApproveAsVendor(selectedAgreement) && (
+                                <button className="reject-btn" onClick={() => handleReject('vendor')} style={{ marginRight: '8px' }}>
+                                  Vendor Reject
+                                </button>
+                              )}
+                              {canApproveAsOwner(selectedAgreement) && (
+                                <button className="reject-btn" onClick={() => handleReject('owner')}>
+                                  Owner Reject
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
