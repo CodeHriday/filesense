@@ -491,14 +491,16 @@ const VendorAgreements = () => {
     }
   };
   
-  const handleApprove = async () => {
+  const handleApprove = async (approverType) => {
     setDetailModalError('');
     setDetailModalSuccess('');
     
     try {
-      const response = await axios.post(`/api/vendor-agreements/${selectedAgreement.id}/approve`, {});
+      const response = await axios.post(`/api/vendor-agreements/${selectedAgreement.id}/approve`, {
+        approver_type: approverType
+      });
       
-      setDetailModalSuccess('Agreement approved successfully!');
+      setDetailModalSuccess(`Agreement approved as ${approverType} successfully!`);
       
       await fetchAgreementDetails(selectedAgreement.id);
       fetchData();
@@ -510,7 +512,7 @@ const VendorAgreements = () => {
     }
   };
   
-  const handleReject = async () => {
+  const handleReject = async (approverType) => {
     setDetailModalError('');
     setDetailModalSuccess('');
     
@@ -521,10 +523,11 @@ const VendorAgreements = () => {
     
     try {
       await axios.post(`/api/vendor-agreements/${selectedAgreement.id}/reject`, {
-        comments: rejectComments
+        comments: rejectComments,
+        approver_type: approverType
       });
       
-      setDetailModalSuccess('Agreement rejected successfully!');
+      setDetailModalSuccess(`Agreement rejected as ${approverType} successfully!`);
       setRejectComments('');
       
       await fetchAgreementDetails(selectedAgreement.id);
