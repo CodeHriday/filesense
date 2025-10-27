@@ -1218,7 +1218,7 @@ const VendorAgreements = () => {
                   {activeTab === 'approvals' && (
                     <div className="approvals-tab">
                       <h3>Approval History</h3>
-                      {approvalHistory.length === 0 ? (
+                      {!Array.isArray(approvalHistory) || approvalHistory.length === 0 ? (
                         <p className="no-data">No approval history</p>
                       ) : (
                         <table className="history-table">
@@ -1231,7 +1231,7 @@ const VendorAgreements = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {approvalHistory.map((approval, index) => (
+                            {Array.isArray(approvalHistory) && approvalHistory.map((approval, index) => (
                               <tr key={index}>
                                 <td>{new Date(approval.timestamp || approval.created_at).toLocaleString()}</td>
                                 <td>{approval.username || approval.user_id}</td>
@@ -1252,7 +1252,7 @@ const VendorAgreements = () => {
                   {activeTab === 'changes' && (
                     <div className="changes-tab">
                       <h3>Change History</h3>
-                      {changeHistory.length === 0 ? (
+                      {!Array.isArray(changeHistory) || changeHistory.length === 0 ? (
                         <p className="no-data">No change history</p>
                       ) : (
                         <table className="history-table">
@@ -1265,7 +1265,7 @@ const VendorAgreements = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {changeHistory.map((change, index) => (
+                            {Array.isArray(changeHistory) && changeHistory.map((change, index) => (
                               <tr key={index}>
                                 <td>{new Date(change.timestamp || change.created_at).toLocaleString()}</td>
                                 <td>{change.username || change.user_id}</td>
