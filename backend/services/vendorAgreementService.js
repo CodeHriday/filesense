@@ -47,8 +47,8 @@ class VendorAgreementService {
       } = agreementData;
       
       // Validation
-      if (!vendor_id || !file_name || !file_owner_user_id) {
-        throw new Error('vendor_id, file_name, and file_owner_user_id are required');
+      if (!vendor_id || !file_name || !file_owner_user_id || !vendor_connection_id) {
+        throw new Error('vendor_id, file_name, file_owner_user_id, and vendor_connection_id are required');
       }
       
       // Verify vendor exists and get project_id
@@ -68,32 +68,35 @@ class VendorAgreementService {
       // Auto-populate manager_contact from file owner's email if not provided
       const finalManagerContact = manager_contact || ownerCheck.rows[0].email;
       
-      // Validate vendor_connection_id if provided
-      if (vendor_connection_id) {
-        const connCheck = await client.query(
-          `SELECT connection_id FROM storage_connections 
-           WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
-          [vendor_connection_id]
-        );
-        
-        if (connCheck.rows.length === 0) {
-          throw new Error('Invalid vendor connection or connection not configured for file drop');
-        }
-        
-        // Connections are global and not tied to projects, so no project validation needed
+      // Validate vendor_connection_id (required)
+      const connCheck = await client.query(
+        `SELECT connection_id FROM storage_connections 
+         WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
+        [vendor_connection_id]
+      );
+      
+      if (connCheck.rows.length === 0) {
+        throw new Error('Invalid vendor connection or connection not configured for file drop');
       }
       
-      // Parse schema if file is provided
+      // Parse schema if file is provided (schema is optional)
       let parsedSchema = schema;
       
       if (schemaFilePath) {
         parsedSchema = await parseSchemaFile(schemaFilePath, schemaFileType);
         validateSchema(parsedSchema);
-      } else if (schema) {
-        // Validate provided schema
-        validateSchema(schema);
+      } else if (schema && schema.trim() !== '' && schema !== '[]') {
+        // Only validate if schema is provided and not empty
+        const schemaObj = typeof schema === 'string' ? JSON.parse(schema) : schema;
+        if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+          validateSchema(schemaObj);
+          parsedSchema = schemaObj;
+        } else {
+          parsedSchema = null;
+        }
       } else {
-        throw new Error('Either schema or schemaFilePath must be provided');
+        // Schema is optional - set to null if not provided
+        parsedSchema = null;
       }
       
       // Generate agreement code
@@ -125,10 +128,10 @@ class VendorAgreementService {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'draft', 1, $17, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
-          vendor_id, agreementCode, file_name, file_description, JSON.stringify(parsedSchema),
+          vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
           frequency, frequency_description, file_creator, file_owner_user_id,
           vendor_contact, owner_contact, metadata ? JSON.stringify(metadata) : null,
-          vendor_connection_id || null, drop_location_path || null, project_id,
+          vendor_connection_id, drop_location_path || null, project_id,
           finalManagerContact,
           createdBy
         ]

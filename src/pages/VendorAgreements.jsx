@@ -920,29 +920,32 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">File Details</h3>
                   
-                  <div className="form-group">
-                    <label htmlFor="file_name">
-                      File Name <span className="required-field">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="file_name"
-                      name="file_name"
-                      value={formData.file_name}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="file_description">File Description</label>
-                    <textarea
-                      id="file_description"
-                      name="file_description"
-                      value={formData.file_description}
-                      onChange={handleInputChange}
-                      rows="2"
-                    />
+                  {/* File Name and File Description in same row */}
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="file_name">
+                        File Name <span className="required-field">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="file_name"
+                        name="file_name"
+                        value={formData.file_name}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="file_description">File Description</label>
+                      <textarea
+                        id="file_description"
+                        name="file_description"
+                        value={formData.file_description}
+                        onChange={handleInputChange}
+                        rows="2"
+                      />
+                    </div>
                   </div>
                 </div>
                 
@@ -951,7 +954,7 @@ const VendorAgreements = () => {
                   <h3 className="section-title">File Schema</h3>
                   
                   <div className="form-group">
-                    <label htmlFor="schema">Schema (JSON) <span className="required-field">*</span></label>
+                    <label htmlFor="schema">Schema (JSON)</label>
                     <textarea
                       id="schema"
                       name="schema"
@@ -959,10 +962,9 @@ const VendorAgreements = () => {
                       onChange={handleInputChange}
                       rows="6"
                       placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
-                      required
                     />
                     <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                      Define the file structure as a JSON array of column definitions
+                      Optional: Define the file structure as a JSON array of column definitions
                     </small>
                   </div>
                 </div>
@@ -971,44 +973,35 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">Configuration</h3>
                   
-                  <div className="form-group">
-                    <label htmlFor="frequency">
-                      Frequency <span className="required-field">*</span>
-                    </label>
-                    <select
-                      id="frequency"
-                      name="frequency"
-                      value={formData.frequency}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      {frequencyOptions.map(freq => (
-                        <option key={freq} value={freq}>{freq}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="frequency_description">Frequency Description</label>
-                    <textarea
-                      id="frequency_description"
-                      name="frequency_description"
-                      value={formData.frequency_description}
-                      onChange={handleInputChange}
-                      rows="2"
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="metadata">Metadata (JSON)</label>
-                    <textarea
-                      id="metadata"
-                      name="metadata"
-                      value={formData.metadata}
-                      onChange={handleInputChange}
-                      rows="3"
-                      placeholder='{"key": "value"}'
-                    />
+                  {/* Frequency and Frequency Description in same row */}
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="frequency">
+                        Frequency <span className="required-field">*</span>
+                      </label>
+                      <select
+                        id="frequency"
+                        name="frequency"
+                        value={formData.frequency}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        {frequencyOptions.map(freq => (
+                          <option key={freq} value={freq}>{freq}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="frequency_description">Frequency Description</label>
+                      <textarea
+                        id="frequency_description"
+                        name="frequency_description"
+                        value={formData.frequency_description}
+                        onChange={handleInputChange}
+                        rows="2"
+                      />
+                    </div>
                   </div>
                 </div>
                 
@@ -1017,12 +1010,15 @@ const VendorAgreements = () => {
                   <h3 className="section-title">File Drop Connection</h3>
                   
                   <div className="form-group">
-                    <label htmlFor="vendor_connection_id">Vendor File Drop Connection</label>
+                    <label htmlFor="vendor_connection_id">
+                      Vendor File Drop Connection <span className="required-field">*</span>
+                    </label>
                     <select
                       id="vendor_connection_id"
                       name="vendor_connection_id"
                       value={formData.vendor_connection_id}
                       onChange={handleInputChange}
+                      required
                     >
                       <option value="">Select a vendor connection</option>
                       {filteredConnections.map(conn => (
