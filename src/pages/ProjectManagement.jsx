@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaFilePlus } from 'react-icons/fa';
 import ConfirmModal from '../components/ConfirmModal';
 import './ProjectManagement.css';
 
@@ -377,7 +377,7 @@ function ProjectManagement() {
                         aria-label={`Add file to project ${project.name}`}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#28a745' }}
                       >
-                        <FaPlus size={18} aria-hidden="true" />
+                        <FaFilePlus size={16} aria-hidden="true" />
                       </button>
                       <button 
                         className="btn-icon" 
