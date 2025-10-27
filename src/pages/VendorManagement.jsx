@@ -29,6 +29,11 @@ const VendorManagement = () => {
     status: 'active'
   });
   
+  // Two-stage form state
+  const [savedVendorId, setSavedVendorId] = useState(null);
+  const [savingBasicInfo, setSavingBasicInfo] = useState(false);
+  const [basicInfoSaved, setBasicInfoSaved] = useState(false);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -88,39 +93,44 @@ const VendorManagement = () => {
     fetchData();
   }, [currentUser, isAdmin, navigate, fetchData]);
   
-  // Filter vendor connections by selected project
+  // Filter vendor connections - show only vendor type connections (project_id is NULL for vendor connections)
   useEffect(() => {
-    if (formData.project_id) {
-      const filtered = vendorConnections.filter(
-        conn => conn.project_id === parseInt(formData.project_id)
-      );
-      setFilteredConnections(filtered);
-    } else {
-      setFilteredConnections([]);
-    }
-  }, [formData.project_id, vendorConnections]);
+    // Vendor connections are global and have type='vendor'
+    const filtered = vendorConnections.filter(conn => conn.type === 'vendor');
+    setFilteredConnections(filtered);
+  }, [vendorConnections]);
   
-  // Auto-populate drop_location_path from selected vendor connection
+  // Auto-populate drop_location_path from selected vendor connection (bucket + file_path)
   useEffect(() => {
     if (formData.vendor_connection_id && filteredConnections.length > 0) {
       const selectedConnection = filteredConnections.find(
-        conn => conn.connection_id === parseInt(formData.vendor_connection_id)
+        conn => String(conn.connection_id) === String(formData.vendor_connection_id)
       );
       
-      if (selectedConnection && selectedConnection.config?.path) {
+      if (selectedConnection) {
+        const config = selectedConnection.config || {};
+        const bucket = config.bucket || config.bucket_name || '';
+        const filePath = config.path_prefix || '';
+        
+        // Combine bucket and file path
+        let fullPath = bucket;
+        if (filePath) {
+          fullPath = filePath.startsWith('/') 
+            ? `${bucket}${filePath}` 
+            : `${bucket}/${filePath}`;
+        }
+        
         setFormData(prev => ({
           ...prev,
-          drop_location_path: selectedConnection.config.path
+          drop_location_path: fullPath
         }));
       } else {
-        // Clear the path if connection is deselected or doesn't have a path
         setFormData(prev => ({
           ...prev,
           drop_location_path: ''
         }));
       }
     } else {
-      // Clear the path if no connection is selected
       setFormData(prev => ({
         ...prev,
         drop_location_path: ''
@@ -144,6 +154,8 @@ const VendorManagement = () => {
     setError('');
     setModalError('');
     setSuccessMessage('');
+    setSavedVendorId(null);
+    setBasicInfoSaved(false);
     setModalOpen(true);
   };
   
@@ -163,6 +175,8 @@ const VendorManagement = () => {
     setModalMode('edit');
     setModalError('');
     setSuccessMessage('');
+    setSavedVendorId(vendor.id);
+    setBasicInfoSaved(true); // In edit mode, basic info is already saved
     setModalOpen(true);
   };
   
@@ -170,6 +184,8 @@ const VendorManagement = () => {
     setModalOpen(false);
     setSelectedVendor(null);
     setModalError('');
+    setSavedVendorId(null);
+    setBasicInfoSaved(false);
   };
   
   const handleInputChange = (e) => {
@@ -185,10 +201,11 @@ const VendorManagement = () => {
     return emailRegex.test(email);
   };
   
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Handler for saving basic vendor info (Stage 1)
+  const handleSaveBasicInfo = async () => {
+    setModalError('');
     
-    // Validate required fields
+    // Validate required fields for basic info
     if (!formData.vendor_name.trim()) {
       setModalError('Vendor name is required');
       return;
@@ -209,23 +226,80 @@ const VendorManagement = () => {
       return;
     }
     
+    setSavingBasicInfo(true);
+    
     try {
-      if (modalMode === 'create') {
-        const response = await axios.post('/api/vendors', formData);
-        
-        // Show success message with info about created user account
-        if (response.data.vendor && response.data.vendor.vendor_username) {
-          setSuccessMessage(
-            `Vendor "${response.data.vendor.vendor_name}" created successfully! ` +
-            `A user account has been created with username: ${response.data.vendor.vendor_username}`
-          );
-        } else {
-          setSuccessMessage(`Vendor created successfully!`);
-        }
-      } else {
-        await axios.put(`/api/vendors/${selectedVendor.id}`, formData);
-        setSuccessMessage(`Vendor "${formData.vendor_name}" updated successfully!`);
+      // Save basic vendor info with minimal fields
+      const basicData = {
+        vendor_name: formData.vendor_name,
+        description: formData.description,
+        contact_name: formData.contact_name,
+        contact_email: formData.contact_email,
+        contact_phone: formData.contact_phone,
+        status: formData.status
+      };
+      
+      const response = await axios.post('/api/vendors', basicData);
+      
+      // Store vendor ID and auto-populate project with vendor name
+      const newVendorId = response.data.vendor.id;
+      const vendorName = response.data.vendor.vendor_name;
+      
+      setSavedVendorId(newVendorId);
+      setBasicInfoSaved(true);
+      
+      // Auto-populate project field with vendor name (user can edit if needed)
+      setFormData(prev => ({
+        ...prev,
+        project_id: vendorName
+      }));
+      
+      setModalError('');
+      
+      // Refresh vendors list to show new vendor
+      fetchData();
+    } catch (error) {
+      console.error('Error saving basic vendor info:', error);
+      
+      let errorMessage = 'Failed to save vendor information';
+      if (error.response?.data) {
+        const { error: errorMsg, message } = error.response.data;
+        errorMessage = errorMsg || message || errorMessage;
       }
+      
+      setModalError(errorMessage);
+    } finally {
+      setSavingBasicInfo(false);
+    }
+  };
+  
+  // Handler for final vendor creation with project & connection (Stage 2)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate all fields are filled
+    if (!formData.project_id.trim()) {
+      setModalError('Project name is required');
+      return;
+    }
+    
+    if (!formData.vendor_connection_id) {
+      setModalError('Please select a vendor connection');
+      return;
+    }
+    
+    if (!formData.drop_location_path) {
+      setModalError('Drop location path is required');
+      return;
+    }
+    
+    try {
+      const vendorId = savedVendorId || selectedVendor.id;
+      
+      // Update vendor with project and connection info
+      await axios.put(`/api/vendors/${vendorId}`, formData);
+      
+      setSuccessMessage(`Vendor "${formData.vendor_name}" configured successfully!`);
       
       closeModal();
       fetchData();
@@ -383,9 +457,19 @@ const VendorManagement = () => {
             <button type="button" onClick={closeModal}>
               Cancel
             </button>
-            <button type="submit" form="vendor-form">
-              {modalMode === 'create' ? 'Create Vendor' : 'Update Vendor'}
-            </button>
+            {basicInfoSaved && (
+              <button 
+                type="submit" 
+                form="vendor-form"
+                disabled={!formData.project_id || !formData.vendor_connection_id || !formData.drop_location_path}
+                style={{
+                  opacity: (!formData.project_id || !formData.vendor_connection_id || !formData.drop_location_path) ? 0.5 : 1,
+                  cursor: (!formData.project_id || !formData.vendor_connection_id || !formData.drop_location_path) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {modalMode === 'create' ? 'Create Vendor' : 'Update Vendor'}
+              </button>
+            )}
           </>
         }
       >
@@ -463,29 +547,52 @@ const VendorManagement = () => {
                 onChange={handleInputChange}
               />
             </div>
+            
+            {/* Save button for basic info in create mode */}
+            {modalMode === 'create' && !basicInfoSaved && (
+              <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveBasicInfo}
+                  disabled={savingBasicInfo}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: '#4a90e2',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                    cursor: savingBasicInfo ? 'not-allowed' : 'pointer',
+                    opacity: savingBasicInfo ? 0.6 : 1
+                  }}
+                >
+                  {savingBasicInfo ? 'Saving...' : 'Save Vendor Information'}
+                </button>
+                <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                  Save basic information to continue with project and connection setup
+                </small>
+              </div>
+            )}
           </div>
           
-          {/* Section 2: Project & Connection */}
+          {/* Section 2: Project & Connection - Only show after basic info is saved */}
+          {basicInfoSaved && (
           <div className="form-section">
             <h3 className="section-title">Project & Connection</h3>
             
             <div className="form-group">
               <label htmlFor="project_id">Project</label>
-              <select
+              <input
+                type="text"
                 id="project_id"
                 name="project_id"
                 value={formData.project_id}
                 onChange={handleInputChange}
-              >
-                <option value="">Select a project</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Project name (defaults to vendor name)"
+              />
               <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                A project will be auto-created if not selected
+                Edit if needed, or leave as vendor name
               </small>
             </div>
             
@@ -496,7 +603,6 @@ const VendorManagement = () => {
                 name="vendor_connection_id"
                 value={formData.vendor_connection_id}
                 onChange={handleInputChange}
-                disabled={!formData.project_id}
               >
                 <option value="">Select a vendor connection</option>
                 {filteredConnections.map(conn => (
@@ -505,16 +611,6 @@ const VendorManagement = () => {
                   </option>
                 ))}
               </select>
-              {!formData.project_id && (
-                <small style={{ color: '#f59e0b', fontSize: '0.875rem' }}>
-                  Select a project first to see available connections
-                </small>
-              )}
-              {formData.project_id && filteredConnections.length === 0 && (
-                <small style={{ color: '#f59e0b', fontSize: '0.875rem' }}>
-                  No vendor connections available for this project. Create one in Connections page.
-                </small>
-              )}
             </div>
             
             <div className="form-group">
@@ -525,34 +621,12 @@ const VendorManagement = () => {
                 name="drop_location_path"
                 value={formData.drop_location_path}
                 readOnly
-                placeholder="Select a vendor connection to see the path"
+                placeholder="Auto-populated from selected connection"
                 style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
               />
-              <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                {formData.vendor_connection_id 
-                  ? 'Path from selected vendor connection' 
-                  : 'Auto-populated from selected connection or auto-generated'}
-              </small>
-            </div>          </div>
-          
-          {/* Section 3: Configuration */}
-          <div className="form-section">
-            <h3 className="section-title">Configuration</h3>
-            
-            <div className="form-group">
-              <label htmlFor="status">Status</label>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
-              </select>
             </div>
           </div>
+          )}
         </form>
       </ThreeSectionModal>
         </>
