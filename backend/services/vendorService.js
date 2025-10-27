@@ -128,7 +128,7 @@ class VendorService {
         
         // Assign Vendor role to user
         await client.query(
-          `INSERT INTO user_roles (user_id, role_id, assigned_at)
+          `INSERT INTO user_roles (user_id, role_id, created_at)
            VALUES ($1, $2, CURRENT_TIMESTAMP)`,
           [vendorUserId, vendorRoleId]
         );
