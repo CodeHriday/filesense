@@ -36,6 +36,9 @@ class VendorService {
         contact_name,
         contact_email,
         contact_phone,
+        address,
+        backup_contact_name,
+        backup_contact_phone,
         project_id,
         drop_location_path,
         vendor_connection_id
@@ -211,11 +214,13 @@ class VendorService {
       const vendorResult = await client.query(
         `INSERT INTO vendors (
           vendor_code, vendor_name, description, contact_name, contact_email, contact_phone,
+          address, backup_contact_name, backup_contact_phone,
           vendor_user_id, project_id, drop_location_path, vendor_connection_id, status, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active', $14, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendorCode, vendor_name, description, contact_name, contact_email, contact_phone,
+          address, backup_contact_name, backup_contact_phone,
           vendorUserId, finalProjectId, dropPath, vendor_connection_id, createdBy
         ]
       );
