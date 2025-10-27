@@ -231,7 +231,7 @@ class VendorService {
       // Validate vendor_connection_id if provided
       if (vendor_connection_id) {
         const connCheck = await client.query(
-          `SELECT connection_id, project_id FROM storage_connections 
+          `SELECT connection_id FROM storage_connections 
            WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
           [vendor_connection_id]
         );
@@ -240,11 +240,7 @@ class VendorService {
           throw new Error('Invalid vendor connection ID or connection is not a vendor drop connection');
         }
         
-        // Validate that the connection belongs to the vendor's project
-        const connectionProjectId = connCheck.rows[0].project_id;
-        if (connectionProjectId !== finalProjectId) {
-          throw new Error(`Vendor connection must belong to the vendor's project (Project ID: ${finalProjectId})`);
-        }
+        // Connections are global and not tied to projects, so no project validation needed
       }
       
       // Create vendor record
@@ -565,7 +561,7 @@ class VendorService {
         // Validate vendor_connection_id if provided
         if (vendor_connection_id) {
           const connCheck = await client.query(
-            `SELECT connection_id, project_id FROM storage_connections 
+            `SELECT connection_id FROM storage_connections 
              WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
             [vendor_connection_id]
           );
@@ -574,22 +570,7 @@ class VendorService {
             throw new Error('Invalid vendor connection ID or connection is not a vendor drop connection');
           }
           
-          // Get the vendor's current project_id to validate
-          const vendorProjectResult = await client.query(
-            'SELECT project_id FROM vendors WHERE id = $1',
-            [vendorId]
-          );
-          
-          if (vendorProjectResult.rows.length === 0) {
-            throw new Error('Vendor not found');
-          }
-          
-          const vendorProjectId = project_id !== undefined ? project_id : vendorProjectResult.rows[0].project_id;
-          const connectionProjectId = connCheck.rows[0].project_id;
-          
-          if (connectionProjectId !== vendorProjectId) {
-            throw new Error(`Vendor connection must belong to the vendor's project (Project ID: ${vendorProjectId})`);
-          }
+          // Connections are global and not tied to projects, so no project validation needed
         }
         
         updates.push(`vendor_connection_id = $${paramIndex}`);
