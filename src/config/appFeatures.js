@@ -58,7 +58,7 @@ export const APP_FEATURES = [
     category: 'Project & File Management',
     icon: FiUpload,
     route: '/upload',
-    showInSidebar: true
+    showInSidebar: false
   },
   { 
     id: 'file_drop', 
