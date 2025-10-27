@@ -255,16 +255,23 @@ router.put('/:id', requireAdmin, upload.single('schemaFile'), async (req, res) =
 router.post('/:id/approve', checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
-    const { comments } = req.body;
+    const { comments, approver_type } = req.body;
     
     // Determine approver type
     let approverType;
-    if (req.isVendor) {
+    
+    if (req.isAdmin) {
+      // Admins must specify which type of approval (vendor or owner)
+      if (!approver_type || !['vendor', 'owner'].includes(approver_type)) {
+        return res.status(400).json({ error: 'Admin must specify approver_type (vendor or owner)' });
+      }
+      approverType = approver_type;
+    } else if (req.isVendor) {
       approverType = 'vendor';
     } else if (req.isOwner) {
       approverType = 'owner';
     } else {
-      return res.status(403).json({ error: 'Only vendor or owner can approve' });
+      return res.status(403).json({ error: 'Only vendor, owner, or admin can approve' });
     }
     
     const result = await vendorAgreementService.approveAgreement(
@@ -291,7 +298,7 @@ router.post('/:id/approve', checkAgreementAccess, async (req, res) => {
 router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
-    const { comments } = req.body;
+    const { comments, approver_type } = req.body;
     
     if (!comments) {
       return res.status(400).json({ error: 'Comments are required for rejection' });
@@ -299,12 +306,19 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
     
     // Determine approver type
     let approverType;
-    if (req.isVendor) {
+    
+    if (req.isAdmin) {
+      // Admins must specify which type of rejection (vendor or owner)
+      if (!approver_type || !['vendor', 'owner'].includes(approver_type)) {
+        return res.status(400).json({ error: 'Admin must specify approver_type (vendor or owner)' });
+      }
+      approverType = approver_type;
+    } else if (req.isVendor) {
       approverType = 'vendor';
     } else if (req.isOwner) {
       approverType = 'owner';
     } else {
-      return res.status(403).json({ error: 'Only vendor or owner can reject' });
+      return res.status(403).json({ error: 'Only vendor, owner, or admin can reject' });
     }
     
     const result = await vendorAgreementService.rejectAgreement(
