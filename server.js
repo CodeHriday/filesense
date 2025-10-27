@@ -7800,6 +7800,16 @@ const adminSettingsRoutes = require('./backend/routes/adminSettingsRoutes');
 app.use('/api/admin', authenticateToken, requireAdmin, adminSettingsRoutes);
 console.log('Added admin settings routes');
 
+// Vendor management routes
+const vendorRoutes = require('./backend/routes/vendorRoutes');
+app.use('/api/vendors', authenticateToken, vendorRoutes);
+console.log('Added vendor management routes');
+
+// Vendor agreement routes
+const vendorAgreementRoutes = require('./backend/routes/vendorAgreementRoutes');
+app.use('/api/vendor-agreements', authenticateToken, vendorAgreementRoutes);
+console.log('Added vendor agreement routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 

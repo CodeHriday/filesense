@@ -89,9 +89,17 @@ function Header({ showAIInsights }) {
                   </Link>
                   
                   {(currentUser.roles.includes('Admin') || hasPermission('user_view')) && (
-                    <Link to="/users" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                      <FaUsers /> User Management
-                    </Link>
+                    <>
+                      <Link to="/users" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaUsers /> User Management
+                      </Link>
+                      <Link to="/vendors" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaUsers /> Vendor Management
+                      </Link>
+                      <Link to="/vendor-agreements" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaCog /> Vendor Agreements
+                      </Link>
+                    </>
                   )}
                   
                   <button className="dropdown-item" onClick={handleLogout}>

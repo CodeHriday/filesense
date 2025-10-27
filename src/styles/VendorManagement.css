@@ -1,0 +1,391 @@
+.vendor-management-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.vendor-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.vendor-management-container h1 {
+  margin-bottom: 0;
+  color: #1a73e8;
+}
+
+.vendor-management-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 18px;
+  color: #5f6368;
+}
+
+.error-message {
+  background-color: #feeceb;
+  color: #d93025;
+  padding: 12px 16px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.success-message {
+  background-color: #e6f4ea;
+  color: #137333;
+  padding: 12px 16px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.vendor-management-actions {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.create-vendor-btn {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-vendor-btn:hover {
+  background-color: #0d62cb;
+}
+
+/* Table styles */
+.vendors-table-container {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.vendors-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #dadce0;
+}
+
+.vendors-table th,
+.vendors-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #dadce0;
+}
+
+.vendors-table th {
+  background-color: #f8f9fa;
+  font-weight: 500;
+  color: #5f6368;
+}
+
+.vendors-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.vendor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-vendor-btn,
+.delete-vendor-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.edit-vendor-btn {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+}
+
+.edit-vendor-btn:hover {
+  background-color: #d2e3fc;
+}
+
+.delete-vendor-btn {
+  background-color: #feeceb;
+  color: #d93025;
+}
+
+.delete-vendor-btn:hover {
+  background-color: #fed7d7;
+}
+
+.no-vendors-message {
+  text-align: center;
+  padding: 30px;
+  color: #5f6368;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-active {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+
+.status-inactive {
+  background-color: #f1f3f4;
+  color: #5f6368;
+}
+
+.status-suspended {
+  background-color: #fef7e0;
+  color: #ea8600;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.vendor-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #dadce0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #202124;
+  font-weight: 500;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #5f6368;
+  cursor: pointer;
+}
+
+.modal-error-message {
+  background-color: #feeceb;
+  color: #d93025;
+  padding: 12px 24px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.vendor-form {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #5f6368;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="tel"],
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.required-field {
+  color: #d93025;
+  margin-left: 4px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.cancel-btn,
+.save-btn {
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn {
+  background-color: transparent;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+}
+
+.cancel-btn:hover {
+  background-color: #f8f9fa;
+}
+
+.save-btn {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+}
+
+.save-btn:hover {
+  background-color: #0d62cb;
+}
+
+/* Accessibility high contrast mode */
+body.high-contrast .vendor-management-container h1 {
+  color: #fff;
+}
+
+body.high-contrast .vendors-table {
+  border-color: #fff;
+}
+
+body.high-contrast .vendors-table th,
+body.high-contrast .vendors-table td {
+  border-color: #fff;
+}
+
+body.high-contrast .vendors-table th {
+  background-color: #000;
+  color: #fff;
+}
+
+body.high-contrast .vendors-table tbody tr:hover {
+  background-color: #333;
+}
+
+body.high-contrast .status-active,
+body.high-contrast .status-inactive,
+body.high-contrast .status-suspended {
+  background-color: #fff;
+  color: #000;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .edit-vendor-btn {
+  background-color: #fff;
+  color: #000;
+}
+
+body.high-contrast .delete-vendor-btn {
+  background-color: #ff6b6b;
+  color: #000;
+}
+
+body.high-contrast .vendor-modal {
+  background-color: #000;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .modal-header {
+  border-color: #fff;
+}
+
+body.high-contrast .modal-header h2 {
+  color: #fff;
+}
+
+body.high-contrast .form-group label {
+  color: #fff;
+}
+
+body.high-contrast .form-group input,
+body.high-contrast .form-group textarea,
+body.high-contrast .form-group select {
+  background-color: #000;
+  color: #fff;
+  border-color: #fff;
+}
+
+body.high-contrast .save-btn {
+  background-color: #fff;
+  color: #000;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .vendor-management-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .vendors-table-container {
+    overflow-x: scroll;
+  }
+  
+  .vendor-modal {
+    max-width: 95%;
+    margin: 10px;
+  }
+  
+  .vendor-actions {
+    flex-direction: column;
+  }
+}
