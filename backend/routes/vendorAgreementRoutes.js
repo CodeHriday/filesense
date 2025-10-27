@@ -280,7 +280,8 @@ router.post('/:id/approve', checkAgreementAccess, async (req, res) => {
       approverType,
       comments,
       req.ip,
-      req.get('User-Agent')
+      req.get('User-Agent'),
+      req.isAdmin || false
     );
     
     res.json(result);
@@ -327,7 +328,8 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
       approverType,
       comments,
       req.ip,
-      req.get('User-Agent')
+      req.get('User-Agent'),
+      req.isAdmin || false
     );
     
     res.json(result);
