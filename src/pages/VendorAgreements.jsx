@@ -1102,7 +1102,7 @@ const VendorAgreements = () => {
                   </button>
                 </div>
                 
-                <div className="detail-content" style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
+                <div className="detail-content">
                   {activeTab === 'details' && (
                     <div className="details-tab">
                       {selectedAgreement.is_locked && (
