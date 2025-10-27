@@ -96,8 +96,52 @@
 .vendor-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
+/* Icon button styles */
+.icon-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+}
+
+.icon-btn:hover {
+  transform: translateY(-2px);
+}
+
+.edit-icon-btn {
+  color: #1a73e8;
+}
+
+.edit-icon-btn:hover {
+  background-color: #e8f0fe;
+}
+
+.project-icon-btn {
+  color: #137333;
+}
+
+.project-icon-btn:hover {
+  background-color: #e6f4ea;
+}
+
+.delete-icon-btn {
+  color: #d93025;
+}
+
+.delete-icon-btn:hover {
+  background-color: #feeceb;
+}
+
+/* Legacy button styles (keeping for backward compatibility) */
 .edit-vendor-btn,
 .delete-vendor-btn {
   border: none;
@@ -360,6 +404,22 @@ body.high-contrast .status-suspended {
   background-color: #fff;
   color: #000;
   border: 2px solid #fff;
+}
+
+body.high-contrast .icon-btn {
+  border: 1px solid #fff;
+}
+
+body.high-contrast .edit-icon-btn {
+  color: #fff;
+}
+
+body.high-contrast .project-icon-btn {
+  color: #fff;
+}
+
+body.high-contrast .delete-icon-btn {
+  color: #ff6b6b;
 }
 
 body.high-contrast .edit-vendor-btn {

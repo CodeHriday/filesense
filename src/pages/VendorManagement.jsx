@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiEdit2, FiTrash2, FiFolderPlus } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
@@ -447,16 +448,25 @@ const VendorManagement = () => {
                   <td>
                     <div className="vendor-actions">
                       <button 
-                        className="edit-vendor-btn" 
+                        className="icon-btn edit-icon-btn" 
                         onClick={() => openEditModal(vendor)}
+                        title="Edit Vendor"
                       >
-                        Edit
+                        <FiEdit2 />
                       </button>
                       <button 
-                        className="delete-vendor-btn" 
-                        onClick={() => handleDeleteVendor(vendor.id, vendor.vendor_name)}
+                        className="icon-btn project-icon-btn" 
+                        onClick={() => navigate('/projects')}
+                        title="Go to Projects"
                       >
-                        Delete
+                        <FiFolderPlus />
+                      </button>
+                      <button 
+                        className="icon-btn delete-icon-btn" 
+                        onClick={() => handleDeleteVendor(vendor.id, vendor.vendor_name)}
+                        title="Delete Vendor"
+                      >
+                        <FiTrash2 />
                       </button>
                     </div>
                   </td>
