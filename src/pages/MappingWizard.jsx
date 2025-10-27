@@ -657,10 +657,18 @@ function MappingWizard() {
                     setSelectedVendorAgreement(value);
                     if (value) {
                       setSourceConnectionId('');
-                      // Auto-populate file path from agreement
+                      // Auto-populate file path from agreement (strip bucket name)
                       const agreement = vendorAgreements.find(a => a.id === parseInt(value));
                       if (agreement && agreement.drop_location_path) {
-                        setFilePath(agreement.drop_location_path);
+                        let path = agreement.drop_location_path;
+                        // Strip bucket name - keep only the path after the first "/"
+                        const slashIndex = path.indexOf('/');
+                        if (slashIndex >= 0) {
+                          path = path.substring(slashIndex);
+                        } else if (!path.startsWith('/')) {
+                          path = '/' + path;
+                        }
+                        setFilePath(path);
                       }
                     }
                   }}
