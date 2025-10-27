@@ -82,6 +82,8 @@ function MappingWizard() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [sourceConnectionId, setSourceConnectionId] = useState('');
   const [connections, setConnections] = useState([]);
+  const [vendorAgreements, setVendorAgreements] = useState([]);
+  const [selectedVendorAgreement, setSelectedVendorAgreement] = useState('');
 
   // Step 2: Source Configuration
   const [sourceType, setSourceType] = useState('files');
@@ -117,6 +119,7 @@ function MappingWizard() {
   useEffect(() => {
     fetchConnections();
     fetchProjects();
+    fetchVendorAgreements();
     if (isEditMode) {
       loadMapping();
     }
@@ -145,6 +148,22 @@ function MappingWizard() {
       setProjects([]);
     } finally {
       setLoadingProjects(false);
+    }
+  };
+
+  const fetchVendorAgreements = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      // Filter for approved and locked agreements only
+      const approvedAgreements = (response.data || []).filter(
+        agreement => agreement.status === 'approved' && agreement.is_locked
+      );
+      setVendorAgreements(approvedAgreements);
+    } catch (err) {
+      console.error('Error fetching vendor agreements:', err);
+      setVendorAgreements([]);
     }
   };
 
@@ -317,6 +336,7 @@ function MappingWizard() {
         project_id: projectId,
         source_connection_id: sourceConnectionId || null,
         source_type: sourceType,
+        vendor_agreement_id: sourceType === 'vendor_agreement' ? (selectedVendorAgreement || null) : null,
         file_path: filePath,
         file_name_pattern: fileNamePattern,
         target_connection_id: targetConnectionId || null,
@@ -577,9 +597,54 @@ function MappingWizard() {
                 onChange={(e) => setSourceType(e.target.value)}
               >
                 <option value="files">Files</option>
+                <option value="vendor_agreement">Vendor Agreement</option>
               </select>
-              <small className="form-help">Type of data source (currently supports Files only)</small>
+              <small className="form-help">Type of data source (Files or Vendor Agreement)</small>
             </div>
+
+            {/* Vendor Agreement Selection */}
+            {sourceType === 'vendor_agreement' && (
+              <div className="form-group">
+                <label>Vendor Agreement *</label>
+                <select
+                  className="form-control"
+                  value={selectedVendorAgreement}
+                  onChange={(e) => {
+                    const agreementId = e.target.value;
+                    setSelectedVendorAgreement(agreementId);
+                    
+                    // Auto-populate fields from selected vendor agreement
+                    if (agreementId) {
+                      const agreement = vendorAgreements.find(a => a.id === parseInt(agreementId));
+                      if (agreement) {
+                        // Set connection if exists
+                        if (agreement.connection_id) {
+                          setSourceConnectionId(agreement.connection_id.toString());
+                        }
+                        // Set file path and pattern if available
+                        if (agreement.drop_location_path) {
+                          setFilePath(agreement.drop_location_path);
+                        }
+                        if (agreement.file_name_pattern) {
+                          setFileNamePattern(agreement.file_name_pattern);
+                        }
+                        // Schema will be loaded from agreement when extracting
+                      }
+                    }
+                  }}
+                >
+                  <option value="">-- Select a Vendor Agreement --</option>
+                  {vendorAgreements.map(agreement => (
+                    <option key={agreement.id} value={agreement.id}>
+                      {agreement.agreement_name} ({agreement.vendor_name}) - {agreement.file_name || 'No file name'}
+                    </option>
+                  ))}
+                </select>
+                <small className="form-help">
+                  Select an approved and locked vendor agreement. Connection, file path, and schema will be auto-populated.
+                </small>
+              </div>
+            )}
 
             <div className="form-group">
               <label>File Path</label>
