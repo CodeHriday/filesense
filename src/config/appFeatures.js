@@ -21,7 +21,9 @@ import {
   FiSettings,
   FiMessageSquare,
   FiBookOpen,
-  FiBriefcase
+  FiBriefcase,
+  FiTruck,
+  FiCheckCircle
 } from 'react-icons/fi';
 
 export const APP_FEATURES = [
