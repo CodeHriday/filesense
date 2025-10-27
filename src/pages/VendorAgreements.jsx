@@ -38,8 +38,8 @@ const VendorAgreements = () => {
     metadata: ''
   });
   
-  const [schemaFile, setSchemaFile] = useState(null);
-  const [schemaInputMode, setSchemaInputMode] = useState('file');
+  const [templateFile, setTemplateFile] = useState(null);
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -120,8 +120,7 @@ const VendorAgreements = () => {
       owner_contact: '',
       metadata: ''
     });
-    setSchemaFile(null);
-    setSchemaInputMode('file');
+    setTemplateFile(null);
     setModalMode('create');
     setError('');
     setModalError('');
@@ -144,8 +143,7 @@ const VendorAgreements = () => {
       owner_contact: agreement.owner_contact || '',
       metadata: agreement.metadata ? JSON.stringify(agreement.metadata, null, 2) : ''
     });
-    setSchemaFile(null);
-    setSchemaInputMode('manual');
+    setTemplateFile(null);
     setModalMode('edit');
     setModalError('');
     setSuccessMessage('');
@@ -163,7 +161,7 @@ const VendorAgreements = () => {
     setModalOpen(false);
     setSelectedAgreement(null);
     setModalError('');
-    setSchemaFile(null);
+    setTemplateFile(null);
   };
   
   const closeDetailModal = () => {
@@ -182,20 +180,86 @@ const VendorAgreements = () => {
     }));
   };
   
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const validExtensions = ['.xlsx', '.xls', '.csv', '.json'];
-      const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  const handleDownloadTemplate = async (format) => {
+    try {
+      const response = await axios.get(`/api/vendor-agreements/template/${format}`, {
+        responseType: 'blob'
+      });
       
-      if (!validExtensions.includes(fileExtension)) {
-        setModalError('Invalid file type. Please upload Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) file.');
-        setSchemaFile(null);
-        return;
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `agreement_template.${format === 'excel' ? 'xlsx' : format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      setModalError('Failed to download template');
+    }
+  };
+  
+  const handleTemplateUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const validExtensions = ['.xlsx', '.xls', '.csv', '.json'];
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    if (!validExtensions.includes(fileExtension)) {
+      setModalError('Invalid file type. Please upload Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) file.');
+      setTemplateFile(null);
+      return;
+    }
+    
+    setTemplateFile(file);
+    setUploadingTemplate(true);
+    setModalError('');
+    
+    try {
+      const formDataToUpload = new FormData();
+      formDataToUpload.append('templateFile', file);
+      
+      const response = await axios.post('/api/vendor-agreements/parse-template', formDataToUpload, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.data.success) {
+        // Auto-populate form fields with parsed data
+        const data = response.data.data;
+        setFormData(prev => ({
+          ...prev,
+          file_name: data.file_name || prev.file_name,
+          file_description: data.file_description || prev.file_description,
+          file_creator: data.file_creator || prev.file_creator,
+          vendor_contact: data.vendor_contact || prev.vendor_contact,
+          owner_contact: data.owner_contact || prev.owner_contact,
+          frequency: data.frequency || prev.frequency,
+          frequency_description: data.frequency_description || prev.frequency_description,
+          schema: data.schema || prev.schema
+        }));
+        
+        setModalError('');
+      }
+    } catch (error) {
+      console.error('Error parsing template:', error);
+      let errorMessage = 'Failed to parse template file';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
       }
       
-      setSchemaFile(file);
-      setModalError('');
+      if (error.response?.data?.validationErrors) {
+        errorMessage += ': ' + error.response.data.validationErrors.join(', ');
+      }
+      
+      setModalError(errorMessage);
+      setTemplateFile(null);
+    } finally {
+      setUploadingTemplate(false);
     }
   };
   
@@ -222,7 +286,7 @@ const VendorAgreements = () => {
       return;
     }
     
-    if (schemaInputMode === 'manual' && formData.schema && !validateJSON(formData.schema)) {
+    if (formData.schema && !validateJSON(formData.schema)) {
       setModalError('Invalid JSON format in schema');
       return;
     }
@@ -236,17 +300,10 @@ const VendorAgreements = () => {
       const submitData = new FormData();
       
       Object.keys(formData).forEach(key => {
-        if (key === 'schema' && schemaInputMode === 'file') {
-          return;
-        }
         if (formData[key] !== '') {
           submitData.append(key, formData[key]);
         }
       });
-      
-      if (schemaInputMode === 'file' && schemaFile) {
-        submitData.append('schemaFile', schemaFile);
-      }
       
       let response;
       if (modalMode === 'create') {
@@ -643,62 +700,94 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 2: Schema Upload */}
-                <div className="form-section">
-                  <h3 className="section-title">Schema Upload</h3>
-                  
-                  <div className="form-group">
-                    <label>Schema Input Method</label>
-                    <div className="schema-input-toggle">
-                      <button
-                        type="button"
-                        className={schemaInputMode === 'file' ? 'active' : ''}
-                        onClick={() => setSchemaInputMode('file')}
-                      >
-                        Upload File
-                      </button>
-                      <button
-                        type="button"
-                        className={schemaInputMode === 'manual' ? 'active' : ''}
-                        onClick={() => setSchemaInputMode('manual')}
-                      >
-                        Enter Manually
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {schemaInputMode === 'file' ? (
+                {/* Section 2: Template Upload (Optional - Auto-populate fields) */}
+                {formData.vendor_id && modalMode === 'create' && (
+                  <div className="form-section" style={{ backgroundColor: '#f8f9fa', padding: '1.5rem', borderRadius: '8px' }}>
+                    <h3 className="section-title" style={{ marginBottom: '0.5rem' }}>
+                      Quick Setup with Template
+                    </h3>
+                    <p style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '1rem' }}>
+                      Download a template, fill it with your agreement details, and upload to auto-populate all fields.
+                    </p>
+                    
                     <div className="form-group">
-                      <label htmlFor="schemaFile">Schema File</label>
+                      <label>Download Template</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTemplate('xlsx')}
+                          className="btn-secondary"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                        >
+                          Excel (.xlsx)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTemplate('csv')}
+                          className="btn-secondary"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                        >
+                          CSV (.csv)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTemplate('json')}
+                          className="btn-secondary"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                        >
+                          JSON (.json)
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="templateFile">Upload Filled Template</label>
                       <input
                         type="file"
-                        id="schemaFile"
+                        id="templateFile"
                         accept=".xlsx,.xls,.csv,.json"
-                        onChange={handleFileChange}
+                        onChange={handleTemplateUpload}
+                        disabled={uploadingTemplate}
                       />
-                      {schemaFile && (
-                        <p className="file-selected">Selected: {schemaFile.name}</p>
+                      {templateFile && (
+                        <p className="file-selected" style={{ color: '#059669', marginTop: '0.5rem' }}>
+                          ✓ Template uploaded: {templateFile.name}
+                        </p>
                       )}
-                      <small style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                      {uploadingTemplate && (
+                        <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>
+                          Processing template...
+                        </p>
+                      )}
+                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
                         Upload Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) file
                       </small>
                     </div>
-                  ) : (
-                    <div className="form-group">
-                      <label htmlFor="schema">Schema (JSON)</label>
-                      <textarea
-                        id="schema"
-                        name="schema"
-                        value={formData.schema}
-                        onChange={handleInputChange}
-                        rows="6"
-                        placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
-                      />
-                    </div>
-                  )}
+                  </div>
+                )}
+                
+                {/* Section 3: Schema */}
+                <div className="form-section">
+                  <h3 className="section-title">File Schema</h3>
+                  
+                  <div className="form-group">
+                    <label htmlFor="schema">Schema (JSON) <span className="required-field">*</span></label>
+                    <textarea
+                      id="schema"
+                      name="schema"
+                      value={formData.schema}
+                      onChange={handleInputChange}
+                      rows="6"
+                      placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
+                      required
+                    />
+                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                      Define the file structure as a JSON array of column definitions
+                    </small>
+                  </div>
                 </div>
                 
-                {/* Section 3: Configuration */}
+                {/* Section 4: Configuration */}
                 <div className="form-section">
                   <h3 className="section-title">Configuration</h3>
                   

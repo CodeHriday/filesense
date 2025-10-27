@@ -10,6 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const vendorAgreementService = require('../services/vendorAgreementService');
 const vendorService = require('../services/vendorService');
+const AgreementTemplateUtils = require('../utils/agreementTemplateUtils');
 const { systemLogger } = require('../utils/logger');
 
 // Configure multer for schema file uploads
@@ -17,6 +18,24 @@ const upload = multer({
   dest: 'uploads/schemas/',
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedExtensions = ['.xlsx', '.xls', '.csv', '.json'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel (.xlsx, .xls), CSV (.csv), and JSON (.json) files are allowed'));
+    }
+  }
+});
+
+// Configure multer for template file uploads
+const templateUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit for templates
   },
   fileFilter: (req, file, cb) => {
     const allowedExtensions = ['.xlsx', '.xls', '.csv', '.json'];
@@ -390,6 +409,108 @@ router.get('/approved', async (req, res) => {
   } catch (error) {
     systemLogger.error('Error in GET /api/vendor-agreements/approved', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch approved agreements' });
+  }
+});
+
+/**
+ * GET /api/vendor-agreements/template/:format
+ * Download agreement template in specified format (xlsx, csv, json)
+ */
+router.get('/template/:format', async (req, res) => {
+  try {
+    const format = req.params.format.toLowerCase();
+    let buffer, filename, contentType;
+    
+    switch (format) {
+      case 'xlsx':
+      case 'excel':
+        buffer = AgreementTemplateUtils.generateExcelTemplate();
+        filename = 'agreement_template.xlsx';
+        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        break;
+        
+      case 'csv':
+        buffer = AgreementTemplateUtils.generateCSVTemplate();
+        filename = 'agreement_template.csv';
+        contentType = 'text/csv';
+        break;
+        
+      case 'json':
+        buffer = AgreementTemplateUtils.generateJSONTemplate();
+        filename = 'agreement_template.json';
+        contentType = 'application/json';
+        break;
+        
+      default:
+        return res.status(400).json({ error: 'Invalid format. Use xlsx, csv, or json.' });
+    }
+    
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', contentType);
+    res.send(buffer);
+    
+  } catch (error) {
+    systemLogger.error('Error generating template', { format: req.params.format, error: error.message });
+    res.status(500).json({ error: 'Failed to generate template' });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/parse-template
+ * Parse uploaded template file and return extracted data
+ */
+router.post('/parse-template', templateUpload.single('templateFile'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    let parsedData;
+    
+    switch (fileExtension) {
+      case '.xlsx':
+      case '.xls':
+        parsedData = AgreementTemplateUtils.parseExcelTemplate(req.file.buffer);
+        break;
+        
+      case '.csv':
+        parsedData = AgreementTemplateUtils.parseCSVTemplate(req.file.buffer);
+        break;
+        
+      case '.json':
+        parsedData = AgreementTemplateUtils.parseJSONTemplate(req.file.buffer);
+        break;
+        
+      default:
+        return res.status(400).json({ error: 'Unsupported file type' });
+    }
+    
+    // Validate the parsed data
+    const validation = AgreementTemplateUtils.validateTemplateData(parsedData);
+    
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        error: 'Template validation failed',
+        validationErrors: validation.errors
+      });
+    }
+    
+    // Convert schema to JSON string if it's an array
+    if (Array.isArray(parsedData.schema)) {
+      parsedData.schema = JSON.stringify(parsedData.schema, null, 2);
+    }
+    
+    res.json({
+      success: true,
+      data: parsedData
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error parsing template', { error: error.message });
+    res.status(400).json({ 
+      error: error.message || 'Failed to parse template file'
+    });
   }
 });
 
