@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
@@ -7,7 +8,15 @@ import './Sidebar.css';
 
 function Sidebar() {
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
   const { currentUser, hasPermission } = useAuth();
+  
+  const toggleMenu = (featureId) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [featureId]: !prev[featureId]
+    }));
+  };
   
   // If user is not logged in, show minimal sidebar
   if (!currentUser) {
@@ -64,6 +73,39 @@ function Sidebar() {
         </li>
         {features.map(feature => {
           const IconComponent = feature.icon;
+          const isExpanded = expandedMenus[feature.id];
+          
+          // Handle collapsible menu items
+          if (feature.isCollapsible && feature.children) {
+            return (
+              <React.Fragment key={feature.id}>
+                <li>
+                  <div 
+                    className="collapsible-menu-item" 
+                    onClick={() => toggleMenu(feature.id)}
+                  >
+                    {IconComponent && <IconComponent className="icon" />}
+                    <span>{feature.name}</span>
+                    {isExpanded ? <FiChevronDown className="chevron" /> : <FiChevronRight className="chevron" />}
+                  </div>
+                </li>
+                {isExpanded && feature.children.map(child => {
+                  if (child.showInSidebar && canViewFeature(child.id)) {
+                    return (
+                      <li key={child.id} className="submenu-item">
+                        <NavLink to={child.route} className={({ isActive }) => isActive ? 'active' : ''}>
+                          <span>{child.name}</span>
+                        </NavLink>
+                      </li>
+                    );
+                  }
+                  return null;
+                })}
+              </React.Fragment>
+            );
+          }
+          
+          // Regular menu items
           return (
             <li key={feature.id}>
               <NavLink to={feature.route} className={({ isActive }) => isActive ? 'active' : ''}>

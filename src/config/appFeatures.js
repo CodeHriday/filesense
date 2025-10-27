@@ -234,16 +234,38 @@ export const APP_FEATURES = [
     name: 'Vendor Management', 
     category: 'Administration',
     icon: FiTruck,
-    route: '/vendor-management',
-    showInSidebar: true
-  },
-  { 
-    id: 'vendor_agreements', 
-    name: 'Vendor Agreements', 
-    category: 'Administration',
-    icon: FiCheckCircle,
-    route: '/vendor-agreements',
-    showInSidebar: true
+    route: null,
+    showInSidebar: true,
+    isCollapsible: true,
+    children: [
+      {
+        id: 'vendor_details',
+        name: 'Vendor Details',
+        parentId: 'vendor_management',
+        category: 'Administration',
+        icon: null,
+        route: '/vendor-management',
+        showInSidebar: true
+      },
+      {
+        id: 'vendor_connections',
+        name: 'Vendor Connections',
+        parentId: 'vendor_management',
+        category: 'Administration',
+        icon: null,
+        route: '/connections?type=vendor',
+        showInSidebar: true
+      },
+      {
+        id: 'vendor_agreements',
+        name: 'Vendor Agreements',
+        parentId: 'vendor_management',
+        category: 'Administration',
+        icon: null,
+        route: '/vendor-agreements',
+        showInSidebar: true
+      }
+    ]
   },
   { 
     id: 'system_cleanup', 
