@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { FaFolder } from 'react-icons/fa';
 import ThreeSectionModal from './ThreeSectionModal';
+import S3FolderBrowser from './S3FolderBrowser';
 import axios from 'axios';
 import '../styles/VendorManagement.css';
 
@@ -7,12 +9,10 @@ const VendorConnectionModal = ({
   isOpen,
   onClose,
   onSuccess,
-  connection = null, // For editing existing connection
-  projects = []
+  connection = null
 }) => {
   const [formData, setFormData] = useState({
     name: '',
-    project_id: '',
     provider: 'aws',
     // AWS fields
     region: '',
@@ -31,22 +31,25 @@ const VendorConnectionModal = ({
     container_name: '',
     azure_endpoint: '',
     // Common
-    path_prefix: ''
+    file_path: ''
   });
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
+  const [savedConnectionId, setSavedConnectionId] = useState(null);
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
   
   const isEditMode = !!connection;
+  const connectionId = savedConnectionId || connection?.connection_id;
+  const canBrowse = !!connectionId; // Can browse if connection is saved (edit mode or after first save)
   
   useEffect(() => {
     if (connection) {
       const config = connection.config || {};
       setFormData({
         name: connection.name || '',
-        project_id: connection.project_id || '',
         provider: config.provider || 'aws',
         // AWS
         region: config.region || '',
@@ -65,13 +68,13 @@ const VendorConnectionModal = ({
         container_name: config.container_name || '',
         azure_endpoint: config.azure_endpoint || '',
         // Common
-        path_prefix: config.path_prefix || ''
+        file_path: config.path_prefix || ''
       });
+      setSavedConnectionId(connection.connection_id);
     } else {
       // Reset for create mode
       setFormData({
         name: '',
-        project_id: '',
         provider: 'aws',
         region: '',
         bucket: '',
@@ -86,8 +89,9 @@ const VendorConnectionModal = ({
         account_key: '',
         container_name: '',
         azure_endpoint: '',
-        path_prefix: ''
+        file_path: ''
       });
+      setSavedConnectionId(null);
     }
     setError('');
     setTestResult(null);
@@ -112,10 +116,6 @@ const VendorConnectionModal = ({
         throw new Error('Connection name is required');
       }
       
-      if (!formData.project_id) {
-        throw new Error('Project selection is required');
-      }
-      
       if (formData.provider === 'aws' && !formData.bucket) {
         throw new Error('AWS bucket name is required');
       }
@@ -128,16 +128,33 @@ const VendorConnectionModal = ({
         throw new Error('Azure account name and container are required');
       }
       
-      const url = isEditMode 
-        ? `/api/vendor-connections/${connection.connection_id}`
+      // Prepare payload with file_path mapped to path_prefix for backend
+      const payload = {
+        ...formData,
+        path_prefix: formData.file_path
+      };
+      delete payload.file_path;
+      
+      const url = connectionId 
+        ? `/api/vendor-connections/${connectionId}`
         : '/api/vendor-connections';
       
-      const method = isEditMode ? 'put' : 'post';
+      const method = connectionId ? 'put' : 'post';
       
-      await axios[method](url, formData);
+      const response = await axios[method](url, payload);
       
+      // After first save, store the connection ID so user can browse
+      if (!connectionId && response.data.connection_id) {
+        setSavedConnectionId(response.data.connection_id);
+      }
+      
+      // Call onSuccess to refresh the list
       onSuccess();
-      onClose();
+      
+      // Don't close the modal - let user browse and set file path
+      setError('');
+      setTestResult({ success: true, message: 'Connection saved successfully! You can now browse and select a file path.' });
+      
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Failed to save vendor connection');
     } finally {
@@ -146,16 +163,60 @@ const VendorConnectionModal = ({
   };
   
   const handleTestConnection = async () => {
-    if (!connection) {
-      setTestResult({ success: false, message: 'Please save the connection before testing' });
+    // For new connections that haven't been saved yet
+    if (!connectionId) {
+      setError('');
+      setTesting(true);
+      setTestResult(null);
+      
+      try {
+        // Validate required fields first
+        if (!formData.name.trim()) {
+          throw new Error('Connection name is required');
+        }
+        
+        if (formData.provider === 'aws' && !formData.bucket) {
+          throw new Error('AWS bucket name is required');
+        }
+        
+        if (formData.provider === 'gcp' && (!formData.gcp_project_id || !formData.gcp_bucket)) {
+          throw new Error('GCP project ID and bucket are required');
+        }
+        
+        if (formData.provider === 'azure' && (!formData.account_name || !formData.container_name)) {
+          throw new Error('Azure account name and container are required');
+        }
+        
+        // Test the connection by attempting to create it
+        const payload = {
+          ...formData,
+          path_prefix: formData.file_path || ''
+        };
+        delete payload.file_path;
+        
+        const response = await axios.post('/api/vendor-connections/test-new', payload);
+        
+        setTestResult({
+          success: true,
+          message: response.data.message || 'Connection test successful! You can now save the connection.'
+        });
+      } catch (err) {
+        setTestResult({
+          success: false,
+          message: err.response?.data?.error || err.message || 'Connection test failed'
+        });
+      } finally {
+        setTesting(false);
+      }
       return;
     }
     
+    // For existing saved connections
     setTesting(true);
     setTestResult(null);
     
     try {
-      const response = await axios.post(`/api/vendor-connections/${connection.connection_id}/test`);
+      const response = await axios.post(`/api/vendor-connections/${connectionId}/test`);
       setTestResult(response.data);
     } catch (err) {
       setTestResult({
@@ -165,6 +226,22 @@ const VendorConnectionModal = ({
     } finally {
       setTesting(false);
     }
+  };
+  
+  const handleBrowseClick = () => {
+    if (!canBrowse) {
+      setError('Please save the connection first before browsing');
+      return;
+    }
+    setShowBrowseModal(true);
+  };
+  
+  const handlePathSelect = (path) => {
+    setFormData(prev => ({
+      ...prev,
+      file_path: path
+    }));
+    setShowBrowseModal(false);
   };
   
   const renderProviderFields = () => {
@@ -267,14 +344,17 @@ const VendorConnectionModal = ({
             </div>
             
             <div className="form-group">
-              <label>Service Account JSON {!isEditMode && '*'}</label>
+              <label>Service Account JSON (JSON format) {!isEditMode && '*'}</label>
               <textarea
                 name="service_account_json"
                 value={formData.service_account_json}
                 onChange={handleInputChange}
                 rows="4"
-                placeholder={isEditMode ? 'Leave blank to keep existing' : 'Paste service account JSON'}
+                placeholder={isEditMode ? 'Leave blank to keep existing' : 'Paste service account JSON key file content'}
               />
+              <small style={{ color: '#6b7280' }}>
+                Paste the entire JSON key file content from GCP
+              </small>
             </div>
           </>
         );
@@ -334,111 +414,140 @@ const VendorConnectionModal = ({
   };
   
   return (
-    <ThreeSectionModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={isEditMode ? 'Edit Vendor Connection' : 'Create Vendor Connection'}
-      size="large"
-      footer={
-        <>
-          <button onClick={onClose} disabled={loading}>
-            Cancel
-          </button>
-          {isEditMode && (
+    <>
+      <ThreeSectionModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={isEditMode ? 'Edit Vendor Connection' : 'Create Vendor Connection'}
+        size="large"
+        footer={
+          <>
+            <button onClick={onClose} disabled={loading || testing}>
+              Close
+            </button>
             <button 
               type="button"
               onClick={handleTestConnection}
-              disabled={testing}
+              disabled={testing || loading}
               style={{ background: '#10b981' }}
             >
               {testing ? 'Testing...' : 'Test Connection'}
             </button>
+            <button 
+              onClick={handleSubmit} 
+              disabled={loading || testing}
+            >
+              {loading ? 'Saving...' : connectionId ? 'Update' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="vendor-connection-form">
+          {error && (
+            <div className="error-message" role="alert">
+              {error}
+            </div>
           )}
-          <button onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Saving...' : isEditMode ? 'Update' : 'Create'}
-          </button>
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit} className="vendor-connection-form">
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
+          
+          {testResult && (
+            <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
+              {testResult.message}
+            </div>
+          )}
+          
+          <div className="form-group">
+            <label>Connection Name *</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              placeholder="My Vendor Connection"
+            />
           </div>
-        )}
-        
-        {testResult && (
-          <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
-            {testResult.message}
+          
+          <div className="form-group">
+            <label>Provider *</label>
+            <select
+              name="provider"
+              value={formData.provider}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="aws">AWS S3</option>
+              <option value="gcp">Google Cloud Storage</option>
+              <option value="azure">Azure Blob Storage</option>
+            </select>
           </div>
-        )}
-        
-        <div className="form-group">
-          <label>Connection Name *</label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleInputChange}
-            required
-            placeholder="My Vendor Connection"
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Project *</label>
-          <select
-            name="project_id"
-            value={formData.project_id}
-            onChange={handleInputChange}
-            required
-            disabled={isEditMode} // Can't change project after creation
-          >
-            <option value="">Select a project</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-          {isEditMode && (
+          
+          {renderProviderFields()}
+          
+          <div className="form-group">
+            <label>File Path (Optional)</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                name="file_path"
+                value={formData.file_path}
+                onChange={handleInputChange}
+                placeholder="vendors/uploads"
+                disabled={!canBrowse}
+                style={{ 
+                  flex: 1,
+                  backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
+                  cursor: !canBrowse ? 'not-allowed' : 'text'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleBrowseClick}
+                disabled={!canBrowse}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: canBrowse ? '#4a90e2' : '#d1d5db',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: canBrowse ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                title={!canBrowse ? 'Save the connection first to enable browsing' : 'Browse folders'}
+              >
+                <FaFolder /> Browse
+              </button>
+            </div>
             <small style={{ color: '#6b7280' }}>
-              Project cannot be changed after creation
+              {!canBrowse 
+                ? 'Save the connection first to enable folder browsing'
+                : 'Folder path within the bucket/container. Click Browse to select from available folders.'
+              }
             </small>
-          )}
+          </div>
+        </form>
+      </ThreeSectionModal>
+
+      {/* Browse Modal */}
+      {showBrowseModal && canBrowse && (
+        <div className="modal-overlay" onClick={() => setShowBrowseModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <h2><FaFolder /> Browse File Path</h2>
+              <button className="btn-icon" onClick={() => setShowBrowseModal(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              <S3FolderBrowser
+                connectionId={connectionId}
+                initialPath={formData.file_path || '/'}
+                onSelectPath={handlePathSelect}
+              />
+            </div>
+          </div>
         </div>
-        
-        <div className="form-group">
-          <label>Provider *</label>
-          <select
-            name="provider"
-            value={formData.provider}
-            onChange={handleInputChange}
-            required
-          >
-            <option value="aws">AWS S3</option>
-            <option value="gcp">Google Cloud Storage</option>
-            <option value="azure">Azure Blob Storage</option>
-          </select>
-        </div>
-        
-        {renderProviderFields()}
-        
-        <div className="form-group">
-          <label>Path Prefix (Optional)</label>
-          <input
-            type="text"
-            name="path_prefix"
-            value={formData.path_prefix}
-            onChange={handleInputChange}
-            placeholder="vendors/uploads"
-          />
-          <small style={{ color: '#6b7280' }}>
-            Folder path within the bucket/container
-          </small>
-        </div>
-      </form>
-    </ThreeSectionModal>
+      )}
+    </>
   );
 };
 
