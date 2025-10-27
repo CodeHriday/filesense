@@ -1067,15 +1067,16 @@ const VendorAgreements = () => {
           )}
           
           {detailModalOpen && selectedAgreement && (
-            <div className="modal-overlay">
-              <div className="detail-modal">
-                <div className="modal-header">
-                  <h2>Agreement Details - {selectedAgreement.agreement_code}</h2>
-                  <button className="close-modal-btn" onClick={closeDetailModal}>
-                    &times;
-                  </button>
-                </div>
-                
+            <ThreeSectionModal
+              isOpen={detailModalOpen}
+              onClose={closeDetailModal}
+              title={`Agreement Details - ${selectedAgreement.agreement_code || ''}`}
+              primaryAction={null}
+              secondaryAction="Close"
+              onSecondaryClick={closeDetailModal}
+              maxWidth="900px"
+            >
+              <div className="detail-modal-wrapper">
                 <div className="detail-tabs">
                   <button
                     className={activeTab === 'details' ? 'active' : ''}
@@ -1097,7 +1098,7 @@ const VendorAgreements = () => {
                   </button>
                 </div>
                 
-                <div className="detail-content">
+                <div className="detail-content" style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
                   {activeTab === 'details' && (
                     <div className="details-tab">
                       {selectedAgreement.is_locked && (
@@ -1277,7 +1278,7 @@ const VendorAgreements = () => {
                   )}
                 </div>
               </div>
-            </div>
+            </ThreeSectionModal>
           )}
         </>
       )}
