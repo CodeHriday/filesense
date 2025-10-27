@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiUpload } from 'react-icons/fi';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
@@ -39,6 +39,7 @@ function FileUpload() {
   const [batchResults, setBatchResults] = useState(null); // Store batch upload results
   const pollingInterval = useRef(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { hasWritePermission, currentUser } = useAuth();
   
   const isAdmin = currentUser?.roles?.includes('Admin');
@@ -65,10 +66,28 @@ function FileUpload() {
         
         setProjects(response.data);
         
-        // Find and select Default Project by default
-        const defaultProject = response.data.find(p => p.name === 'Default Project' || p.is_default);
-        if (defaultProject) {
-          setSelectedProject(defaultProject.id);
+        // Check if project_id is in URL parameters
+        const projectIdFromUrl = searchParams.get('project_id');
+        
+        if (projectIdFromUrl) {
+          // Auto-select the project from URL parameter
+          const projectId = parseInt(projectIdFromUrl);
+          const projectExists = response.data.find(p => p.id === projectId);
+          if (projectExists) {
+            setSelectedProject(projectId);
+          } else {
+            // Fallback to default if project not found
+            const defaultProject = response.data.find(p => p.name === 'Default Project' || p.is_default);
+            if (defaultProject) {
+              setSelectedProject(defaultProject.id);
+            }
+          }
+        } else {
+          // Find and select Default Project by default
+          const defaultProject = response.data.find(p => p.name === 'Default Project' || p.is_default);
+          if (defaultProject) {
+            setSelectedProject(defaultProject.id);
+          }
         }
       } catch (error) {
         console.error('Error fetching projects:', error);
@@ -78,7 +97,7 @@ function FileUpload() {
     };
     
     fetchProjects();
-  }, []);
+  }, [searchParams]);
   
   // Cleanup polling on unmount
   useEffect(() => {
