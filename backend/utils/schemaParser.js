@@ -318,6 +318,7 @@ async function parseSchemaFile(filePath, fileType) {
 
 /**
  * Validate schema structure
+ * Accepts both formats: {column_name, data_type} and {name, type}
  */
 function validateSchema(schema) {
   if (!Array.isArray(schema) || schema.length === 0) {
@@ -328,18 +329,22 @@ function validateSchema(schema) {
   const columnNames = new Set();
   
   schema.forEach((col, index) => {
-    if (!col.column_name) {
-      errors.push(`Row ${index + 1}: column_name is required`);
+    // Check for column name in either format
+    const columnName = col.column_name || col.name;
+    const dataType = col.data_type || col.type;
+    
+    if (!columnName) {
+      errors.push(`Row ${index + 1}: column_name (or name) is required`);
     } else {
       // Check for duplicate column names
-      if (columnNames.has(col.column_name.toLowerCase())) {
-        errors.push(`Row ${index + 1}: duplicate column name "${col.column_name}"`);
+      if (columnNames.has(columnName.toLowerCase())) {
+        errors.push(`Row ${index + 1}: duplicate column name "${columnName}"`);
       }
-      columnNames.add(col.column_name.toLowerCase());
+      columnNames.add(columnName.toLowerCase());
     }
     
-    if (!col.data_type) {
-      errors.push(`Row ${index + 1}: data_type is required`);
+    if (!dataType) {
+      errors.push(`Row ${index + 1}: data_type (or type) is required`);
     }
   });
   

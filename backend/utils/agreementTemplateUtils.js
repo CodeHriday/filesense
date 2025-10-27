@@ -19,7 +19,7 @@ class AgreementTemplateUtils {
       owner_contact: 'Contact person at your organization',
       frequency: 'Daily',
       frequency_description: 'Detailed description of frequency (e.g., "Every business day at 9:00 AM EST")',
-      schema: '[{"name":"column1","type":"string","description":"Description of column1"},{"name":"column2","type":"integer","description":"Description of column2"}]'
+      schema: '[{"column_name":"column1","data_type":"string","description":"Description of column1"},{"column_name":"column2","data_type":"integer","description":"Description of column2"}]'
     };
   }
 
@@ -120,13 +120,13 @@ class AgreementTemplateUtils {
         frequency_description: fields.frequency_description,
         schema: [
           {
-            name: 'column1',
-            type: 'string',
+            column_name: 'column1',
+            data_type: 'string',
             description: 'Description of column1'
           },
           {
-            name: 'column2',
-            type: 'integer',
+            column_name: 'column2',
+            data_type: 'integer',
             description: 'Description of column2'
           }
         ]
@@ -245,11 +245,15 @@ class AgreementTemplateUtils {
         errors.push('schema must be an array');
       } else {
         data.schema.forEach((col, idx) => {
-          if (!col.name) {
-            errors.push(`schema[${idx}] missing 'name' field`);
+          // Accept both formats: column_name/data_type and name/type
+          const columnName = col.column_name || col.name;
+          const dataType = col.data_type || col.type;
+          
+          if (!columnName) {
+            errors.push(`schema[${idx}] missing 'column_name' (or 'name') field`);
           }
-          if (!col.type) {
-            errors.push(`schema[${idx}] missing 'type' field`);
+          if (!dataType) {
+            errors.push(`schema[${idx}] missing 'data_type' (or 'type') field`);
           }
         });
       }
