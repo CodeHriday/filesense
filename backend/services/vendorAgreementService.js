@@ -89,8 +89,17 @@ class VendorAgreementService {
         // Only validate if schema is provided and not empty
         const schemaObj = typeof schema === 'string' ? JSON.parse(schema) : schema;
         if (Array.isArray(schemaObj) && schemaObj.length > 0) {
-          validateSchema(schemaObj);
-          parsedSchema = schemaObj;
+          // Filter out empty objects (no column_name or data_type)
+          const validRows = schemaObj.filter(row => 
+            row && (row.column_name || row.name || row.data_type || row.type)
+          );
+          
+          if (validRows.length > 0) {
+            validateSchema(validRows);
+            parsedSchema = validRows;
+          } else {
+            parsedSchema = null;
+          }
         } else {
           parsedSchema = null;
         }
@@ -233,8 +242,17 @@ class VendorAgreementService {
         // Only validate if schema is provided and not empty
         const schemaObj = typeof schema === 'string' ? JSON.parse(schema) : schema;
         if (Array.isArray(schemaObj) && schemaObj.length > 0) {
-          validateSchema(schemaObj);
-          parsedSchema = schemaObj;
+          // Filter out empty objects (no column_name or data_type)
+          const validRows = schemaObj.filter(row => 
+            row && (row.column_name || row.name || row.data_type || row.type)
+          );
+          
+          if (validRows.length > 0) {
+            validateSchema(validRows);
+            parsedSchema = validRows;
+          } else {
+            parsedSchema = null;
+          }
         } else {
           parsedSchema = null;
         }
