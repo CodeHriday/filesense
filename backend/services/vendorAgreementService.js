@@ -85,22 +85,45 @@ class VendorAgreementService {
       if (schemaFilePath) {
         parsedSchema = await parseSchemaFile(schemaFilePath, schemaFileType);
         validateSchema(parsedSchema);
-      } else if (schema && schema.trim() !== '' && schema !== '[]') {
-        // Only validate if schema is provided and not empty
-        const schemaObj = typeof schema === 'string' ? JSON.parse(schema) : schema;
-        if (Array.isArray(schemaObj) && schemaObj.length > 0) {
-          // Filter out empty objects (no column_name or data_type)
-          const validRows = schemaObj.filter(row => 
-            row && (row.column_name || row.name || row.data_type || row.type)
-          );
-          
-          if (validRows.length > 0) {
-            validateSchema(validRows);
-            parsedSchema = validRows;
-          } else {
+      } else if (schema) {
+        // Log what we received for debugging
+        systemLogger.info('Received schema data', { 
+          schemaType: typeof schema, 
+          schemaValue: JSON.stringify(schema).substring(0, 200) 
+        });
+        
+        // Handle string schemas
+        if (typeof schema === 'string' && schema.trim() !== '' && schema !== '[]') {
+          try {
+            const schemaObj = JSON.parse(schema);
+            if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+              // Filter out empty objects - check for any meaningful data
+              const validRows = schemaObj.filter(row => {
+                if (!row || typeof row !== 'object') return false;
+                // Check if row has any non-empty, non-null values
+                const hasData = (row.column_name && row.column_name.trim()) || 
+                               (row.name && row.name.trim()) || 
+                               (row.data_type && row.data_type.trim()) || 
+                               (row.type && row.type.trim());
+                return hasData;
+              });
+              
+              if (validRows.length > 0) {
+                validateSchema(validRows);
+                parsedSchema = validRows;
+              } else {
+                systemLogger.info('Schema has no valid rows after filtering, setting to null');
+                parsedSchema = null;
+              }
+            } else {
+              parsedSchema = null;
+            }
+          } catch (e) {
+            systemLogger.error('Error parsing schema JSON', { error: e.message });
             parsedSchema = null;
           }
         } else {
+          // Schema is empty string or '[]'
           parsedSchema = null;
         }
       } else {
@@ -238,22 +261,45 @@ class VendorAgreementService {
       if (schemaFilePath) {
         parsedSchema = await parseSchemaFile(schemaFilePath, schemaFileType);
         validateSchema(parsedSchema);
-      } else if (schema && schema.trim() !== '' && schema !== '[]') {
-        // Only validate if schema is provided and not empty
-        const schemaObj = typeof schema === 'string' ? JSON.parse(schema) : schema;
-        if (Array.isArray(schemaObj) && schemaObj.length > 0) {
-          // Filter out empty objects (no column_name or data_type)
-          const validRows = schemaObj.filter(row => 
-            row && (row.column_name || row.name || row.data_type || row.type)
-          );
-          
-          if (validRows.length > 0) {
-            validateSchema(validRows);
-            parsedSchema = validRows;
-          } else {
+      } else if (schema) {
+        // Log what we received for debugging
+        systemLogger.info('Received schema data for update', { 
+          schemaType: typeof schema, 
+          schemaValue: JSON.stringify(schema).substring(0, 200) 
+        });
+        
+        // Handle string schemas
+        if (typeof schema === 'string' && schema.trim() !== '' && schema !== '[]') {
+          try {
+            const schemaObj = JSON.parse(schema);
+            if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+              // Filter out empty objects - check for any meaningful data
+              const validRows = schemaObj.filter(row => {
+                if (!row || typeof row !== 'object') return false;
+                // Check if row has any non-empty, non-null values
+                const hasData = (row.column_name && row.column_name.trim()) || 
+                               (row.name && row.name.trim()) || 
+                               (row.data_type && row.data_type.trim()) || 
+                               (row.type && row.type.trim());
+                return hasData;
+              });
+              
+              if (validRows.length > 0) {
+                validateSchema(validRows);
+                parsedSchema = validRows;
+              } else {
+                systemLogger.info('Schema has no valid rows after filtering, setting to null');
+                parsedSchema = null;
+              }
+            } else {
+              parsedSchema = null;
+            }
+          } catch (e) {
+            systemLogger.error('Error parsing schema JSON for update', { error: e.message });
             parsedSchema = null;
           }
         } else {
+          // Schema is empty string or '[]'
           parsedSchema = null;
         }
       } else if (schema !== undefined) {
