@@ -63,13 +63,10 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     setError('');
     try {
-      // Force username to be case-insensitive (lowercase)
-      const usernameNormalized = username.toLowerCase();
-      
-      console.log('Attempting login with:', usernameNormalized);
+      console.log('Attempting login with:', username);
       
       const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
-        username: usernameNormalized,
+        username: username,
         password
       });
       
