@@ -4,6 +4,7 @@ import { FiEdit2, FiTrash2, FiFolderPlus } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import '../styles/VendorManagement.css';
@@ -44,6 +45,10 @@ const VendorManagement = () => {
   
   // Vendor users state
   const [vendorUsers, setVendorUsers] = useState([]);
+  
+  // Delete confirmation modal state
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [vendorToDelete, setVendorToDelete] = useState(null);
   
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -377,14 +382,19 @@ const VendorManagement = () => {
     }
   };
   
-  const handleDeleteVendor = async (vendorId, vendorName) => {
-    if (!window.confirm(`Are you sure you want to delete vendor "${vendorName}"? This will deactivate the vendor.`)) {
-      return;
-    }
+  const openDeleteConfirmation = (vendorId, vendorName) => {
+    setVendorToDelete({ id: vendorId, name: vendorName });
+    setDeleteConfirmationOpen(true);
+  };
+  
+  const handleDeleteVendor = async () => {
+    if (!vendorToDelete) return;
     
     try {
-      await axios.delete(`/api/vendors/${vendorId}`);
-      setSuccessMessage(`Vendor "${vendorName}" deleted successfully!`);
+      await axios.delete(`/api/vendors/${vendorToDelete.id}`);
+      setSuccessMessage(`Vendor "${vendorToDelete.name}" deleted successfully!`);
+      setDeleteConfirmationOpen(false);
+      setVendorToDelete(null);
       fetchData();
       
       // Clear success message after 5 seconds
@@ -392,6 +402,8 @@ const VendorManagement = () => {
     } catch (error) {
       console.error('Error deleting vendor:', error);
       setError('Failed to delete vendor: ' + (error.response?.data?.error || error.message));
+      setDeleteConfirmationOpen(false);
+      setVendorToDelete(null);
     }
   };
   
@@ -485,7 +497,7 @@ const VendorManagement = () => {
                       </button>
                       <button 
                         className="icon-btn delete-icon-btn" 
-                        onClick={() => handleDeleteVendor(vendor.id, vendor.vendor_name)}
+                        onClick={() => openDeleteConfirmation(vendor.id, vendor.vendor_name)}
                         title="Delete Vendor"
                       >
                         <FiTrash2 />
@@ -760,6 +772,21 @@ const VendorManagement = () => {
           )}
         </form>
       </ThreeSectionModal>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmationOpen}
+        onClose={() => {
+          setDeleteConfirmationOpen(false);
+          setVendorToDelete(null);
+        }}
+        onConfirm={handleDeleteVendor}
+        title="Delete Vendor"
+        message={`Are you sure you want to delete vendor "${vendorToDelete?.name}"? This will deactivate the vendor.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonStyle={{ background: '#dc2626' }}
+      />
         </>
       )}
     </div>

@@ -4,6 +4,7 @@ import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
@@ -75,6 +76,8 @@ const Connections = () => {
   const [editingVendorConnection, setEditingVendorConnection] = useState(null);
   const [projects, setProjects] = useState([]);
   const [deletingVendorConnectionId, setDeletingVendorConnectionId] = useState(null);
+  const [vendorConnectionDeleteConfirmOpen, setVendorConnectionDeleteConfirmOpen] = useState(false);
+  const [vendorConnectionToDelete, setVendorConnectionToDelete] = useState(null);
   
   // Connection form state
   const [formData, setFormData] = useState({
@@ -357,22 +360,29 @@ const Connections = () => {
     setError(null);
   };
   
-  const handleDeleteVendorConnection = async (connectionId) => {
-    if (!window.confirm('Are you sure you want to delete this vendor connection?')) {
-      return;
-    }
+  const openVendorConnectionDeleteConfirmation = (connectionId, connectionName) => {
+    setVendorConnectionToDelete({ id: connectionId, name: connectionName });
+    setVendorConnectionDeleteConfirmOpen(true);
+  };
+  
+  const handleDeleteVendorConnection = async () => {
+    if (!vendorConnectionToDelete) return;
     
     try {
-      setDeletingVendorConnectionId(connectionId);
+      setDeletingVendorConnectionId(vendorConnectionToDelete.id);
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/api/vendor-connections/${connectionId}`, {
+      await axios.delete(`${API_BASE_URL}/api/vendor-connections/${vendorConnectionToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      setVendorConnectionDeleteConfirmOpen(false);
+      setVendorConnectionToDelete(null);
       fetchVendorConnections();
     } catch (err) {
       console.error('Error deleting vendor connection:', err);
       setError(err.response?.data?.error || 'Failed to delete vendor connection');
+      setVendorConnectionDeleteConfirmOpen(false);
+      setVendorConnectionToDelete(null);
     } finally {
       setDeletingVendorConnectionId(null);
     }
@@ -1477,7 +1487,7 @@ const Connections = () => {
                             </button>
                             <button
                               className="btn btn-sm btn-danger"
-                              onClick={() => handleDeleteVendorConnection(conn.connection_id)}
+                              onClick={() => openVendorConnectionDeleteConfirmation(conn.connection_id, conn.name)}
                               disabled={deletingVendorConnectionId === conn.connection_id}
                               title="Delete"
                             >
@@ -2314,6 +2324,21 @@ const Connections = () => {
         onSuccess={handleVendorConnectionSuccess}
         connection={editingVendorConnection}
         projects={projects}
+      />
+      
+      {/* Vendor Connection Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={vendorConnectionDeleteConfirmOpen}
+        onClose={() => {
+          setVendorConnectionDeleteConfirmOpen(false);
+          setVendorConnectionToDelete(null);
+        }}
+        onConfirm={handleDeleteVendorConnection}
+        title="Delete Vendor Connection"
+        message={`Are you sure you want to delete the vendor connection "${vendorConnectionToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonStyle={{ background: '#dc2626' }}
       />
     </div>
   );
