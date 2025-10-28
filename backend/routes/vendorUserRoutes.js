@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const vendorUserService = require('../services/vendorUserService');
-const { authenticate } = require('../middleware/auth');
-const { authorizePermission } = require('../middleware/authorize');
+const authenticateToken = require('../middleware/authenticate');
 
 /**
  * GET /api/vendors/:vendorId/users
  * Get all users for a specific vendor
  */
-router.get('/vendors/:vendorId/users', authenticate, async (req, res) => {
+router.get('/vendors/:vendorId/users', authenticateToken, async (req, res) => {
   try {
     const { vendorId } = req.params;
     const activeOnly = req.query.active_only !== 'false'; // Default to true
@@ -26,7 +25,7 @@ router.get('/vendors/:vendorId/users', authenticate, async (req, res) => {
  * GET /api/vendor-users/:id
  * Get a specific vendor user by ID
  */
-router.get('/vendor-users/:id', authenticate, async (req, res) => {
+router.get('/vendor-users/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -43,7 +42,7 @@ router.get('/vendor-users/:id', authenticate, async (req, res) => {
  * POST /api/vendor-users
  * Create a new vendor user
  */
-router.post('/vendor-users', authenticate, authorizePermission('vendor', 'create'), async (req, res) => {
+router.post('/vendor-users', authenticateToken, async (req, res) => {
   try {
     const result = await vendorUserService.createVendorUser(req.body, req.user.id);
     
@@ -58,7 +57,7 @@ router.post('/vendor-users', authenticate, authorizePermission('vendor', 'create
  * PUT /api/vendor-users/:id
  * Update a vendor user
  */
-router.put('/vendor-users/:id', authenticate, authorizePermission('vendor', 'update'), async (req, res) => {
+router.put('/vendor-users/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -79,7 +78,7 @@ router.put('/vendor-users/:id', authenticate, authorizePermission('vendor', 'upd
  * DELETE /api/vendor-users/:id
  * Delete a vendor user
  */
-router.delete('/vendor-users/:id', authenticate, authorizePermission('vendor', 'delete'), async (req, res) => {
+router.delete('/vendor-users/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     

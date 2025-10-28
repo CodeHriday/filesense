@@ -1,0 +1,203 @@
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import './VendorUserSelect.css';
+
+const VendorUserSelect = ({ 
+  vendorId, 
+  value, 
+  onChange, 
+  placeholder = 'Select contact',
+  disabled = false,
+  required = false,
+  name = 'vendor_user'
+}) => {
+  const [vendorUsers, setVendorUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (vendorId) {
+      fetchVendorUsers();
+    } else {
+      setVendorUsers([]);
+    }
+  }, [vendorId]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const fetchVendorUsers = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await axios.get(`/api/vendors/${vendorId}/users`);
+      setVendorUsers(response.data || []);
+    } catch (err) {
+      console.error('Error fetching vendor users:', err);
+      setError('Failed to load vendor users');
+      setVendorUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSelectedUser = () => {
+    if (!value) return null;
+    
+    // Check if value is a vendor user object or just an ID
+    if (typeof value === 'object') {
+      return value;
+    }
+    
+    // Find user by ID
+    return vendorUsers.find(user => user.id === value);
+  };
+
+  const getDisplayText = () => {
+    const selectedUser = getSelectedUser();
+    if (selectedUser) {
+      return `${selectedUser.name}${selectedUser.email ? ` (${selectedUser.email})` : ''}`;
+    }
+    return value || '';
+  };
+
+  const filteredUsers = vendorUsers.filter(user => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      user.name?.toLowerCase().includes(searchLower) ||
+      user.email?.toLowerCase().includes(searchLower) ||
+      user.phone?.toLowerCase().includes(searchLower) ||
+      user.designation?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const handleSelect = (user) => {
+    onChange({
+      target: {
+        name,
+        value: user.id,
+        vendorUser: user
+      }
+    });
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange({
+      target: {
+        name,
+        value: '',
+        vendorUser: null
+      }
+    });
+  };
+
+  if (!vendorId) {
+    return (
+      <div className="vendor-user-select disabled">
+        <input
+          type="text"
+          placeholder="Select a vendor first"
+          disabled
+          className="vendor-user-input"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="vendor-user-select" ref={dropdownRef}>
+      <div 
+        className={`vendor-user-input-wrapper ${disabled ? 'disabled' : ''} ${isOpen ? 'open' : ''}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <input
+          type="text"
+          className="vendor-user-input"
+          value={isOpen ? searchTerm : getDisplayText()}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClick={(e) => {
+            if (!disabled) {
+              e.stopPropagation();
+              setIsOpen(true);
+            }
+          }}
+          placeholder={placeholder}
+          disabled={disabled}
+          required={required}
+          readOnly={!isOpen}
+        />
+        
+        {value && !disabled && (
+          <button
+            type="button"
+            className="clear-button"
+            onClick={handleClear}
+            title="Clear selection"
+          >
+            ×
+          </button>
+        )}
+        
+        <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
+      </div>
+
+      {isOpen && (
+        <div className="vendor-user-dropdown">
+          {loading ? (
+            <div className="dropdown-message">Loading...</div>
+          ) : error ? (
+            <div className="dropdown-message error">{error}</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="dropdown-message">
+              {searchTerm ? 'No users match your search' : 'No vendor users found'}
+            </div>
+          ) : (
+            <div className="vendor-user-list">
+              {filteredUsers.map(user => (
+                <div
+                  key={user.id}
+                  className={`vendor-user-item ${value === user.id ? 'selected' : ''}`}
+                  onClick={() => handleSelect(user)}
+                >
+                  <div className="user-name">{user.name}</div>
+                  <div className="user-details">
+                    {user.email && <span className="user-email">{user.email}</span>}
+                    {user.phone && <span className="user-phone">{user.phone}</span>}
+                  </div>
+                  {user.designation && (
+                    <div className="user-designation">{user.designation}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VendorUserSelect;

@@ -27,16 +27,14 @@ The application features a hybrid architecture designed for scalability, securit
 -   **Vendor Onboarding Module**: Comprehensive vendor management system where admins manage vendor connections at the agreement level using UUID identifiers. Vendor agreements integrate into the ETL transformation mapping workflow, allowing users to select agreements as alternative sources to regular connections for automated file processing. Includes file browsing capabilities with folder/file selection and a transformation file catalog with search functionality.
 
 ## Recent Changes
--   **2025-10-28**: Made `storage_connections.project_id` nullable to support global vendor connections. Vendor connections are admin-managed and not tied to specific projects initially; vendor agreements link them to projects as needed. This change allows the POST /api/vendor-connections endpoint to create connections without a project_id. SQL migration executed:
-    ```sql
-    -- Drop foreign key constraint
-    ALTER TABLE storage_connections DROP CONSTRAINT fk_storage_connections_project;
-    -- Make column nullable
-    ALTER TABLE storage_connections ALTER COLUMN project_id DROP NOT NULL;
-    -- Recreate foreign key constraint (allows NULL)
-    ALTER TABLE storage_connections ADD CONSTRAINT fk_storage_connections_project FOREIGN KEY (project_id) REFERENCES projects(id);
-    ```
-    Backend code in `vendorConnectionRoutes.js` converts `undefined` to `null` before database insertion.
+-   **2025-10-28**: 
+    - Enhanced vendor agreement system with template download/upload and vendor user management.
+    - Updated labels: 'Owner Contact' → 'Vendor Department Email', 'Vendor' → 'Vendor Name'.
+    - Created `vendor_users` table to store contact information for vendor personnel (name, email, phone, designation).
+    - Added backend service `vendorUserService.js` and routes `/api/vendors/:vendorId/users` for vendor user CRUD operations.
+    - Contact fields in vendor agreements will be converted to dropdowns populated from vendor users.
+    - Excel template functionality planned for bulk agreement creation (excluding admin-only fields).
+    - Made `storage_connections.project_id` nullable to support global vendor connections. Vendor connections are admin-managed and not tied to specific projects initially; vendor agreements link them to projects as needed. This change allows the POST /api/vendor-connections endpoint to create connections without a project_id.
 
 ## External Dependencies
 -   **Runtimes**: Python 3.11+, Node.js 20

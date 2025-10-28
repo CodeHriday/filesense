@@ -5,6 +5,7 @@ import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
+import VendorUserSelect from '../components/VendorUserSelect';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import '../styles/VendorAgreements.css';
@@ -54,10 +55,12 @@ const VendorAgreements = () => {
     frequency_description: '',
     vendor_department_team: '',
     file_owner_user_id: '',
+    primary_contact_user_id: '',
     primary_contact_name: '',
     primary_contact_phone: '',
     primary_contact_email: '',
     primary_contact_designation: '',
+    secondary_contact_user_id: '',
     secondary_contact_name: '',
     secondary_contact_phone: '',
     secondary_contact_email: '',
@@ -274,10 +277,12 @@ const VendorAgreements = () => {
       frequency_description: '',
       vendor_department_team: '',
       file_owner_user_id: '',
+      primary_contact_user_id: '',
       primary_contact_name: '',
       primary_contact_phone: '',
       primary_contact_email: '',
       primary_contact_designation: '',
+      secondary_contact_user_id: '',
       secondary_contact_name: '',
       secondary_contact_phone: '',
       secondary_contact_email: '',
@@ -320,10 +325,12 @@ const VendorAgreements = () => {
       frequency_description: agreement.frequency_description || '',
       vendor_department_team: agreement.vendor_department_team || agreement.file_creator || '',
       file_owner_user_id: agreement.file_owner_user_id || '',
+      primary_contact_user_id: agreement.primary_contact_user_id || '',
       primary_contact_name: agreement.primary_contact_name || agreement.vendor_contact || '',
       primary_contact_phone: agreement.primary_contact_phone || '',
       primary_contact_email: agreement.primary_contact_email || '',
       primary_contact_designation: agreement.primary_contact_designation || '',
+      secondary_contact_user_id: agreement.secondary_contact_user_id || '',
       secondary_contact_name: agreement.secondary_contact_name || '',
       secondary_contact_phone: agreement.secondary_contact_phone || '',
       secondary_contact_email: agreement.secondary_contact_email || '',
@@ -1129,54 +1136,50 @@ const VendorAgreements = () => {
                       </h4>
                       
                       <div className="form-group">
-                        <label htmlFor="primary_contact_name">
-                          Name <span className="required-field">*</span>
+                        <label htmlFor="primary_contact_user_id">
+                          Select Contact <span className="required-field">*</span>
                         </label>
-                        <input
-                          type="text"
-                          id="primary_contact_name"
-                          name="primary_contact_name"
-                          value={formData.primary_contact_name}
-                          onChange={handleInputChange}
+                        <VendorUserSelect
+                          vendorId={formData.vendor_id}
+                          value={formData.primary_contact_user_id || ''}
+                          onChange={(e) => {
+                            const user = e.target.vendorUser;
+                            setFormData(prev => ({
+                              ...prev,
+                              primary_contact_user_id: e.target.value,
+                              primary_contact_name: user?.name || '',
+                              primary_contact_phone: user?.phone || '',
+                              primary_contact_email: user?.email || '',
+                              primary_contact_designation: user?.designation || ''
+                            }));
+                          }}
+                          placeholder="Select primary contact"
                           required
+                          name="primary_contact_user_id"
                         />
                       </div>
                       
-                      <div className="form-group">
-                        <label htmlFor="primary_contact_phone">Phone</label>
-                        <input
-                          type="tel"
-                          id="primary_contact_phone"
-                          name="primary_contact_phone"
-                          value={formData.primary_contact_phone}
-                          onChange={handleInputChange}
-                          placeholder="+1-234-567-8900"
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label htmlFor="primary_contact_email">Email</label>
-                        <input
-                          type="email"
-                          id="primary_contact_email"
-                          name="primary_contact_email"
-                          value={formData.primary_contact_email}
-                          onChange={handleInputChange}
-                          placeholder="contact@vendor.com"
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label htmlFor="primary_contact_designation">Designation</label>
-                        <input
-                          type="text"
-                          id="primary_contact_designation"
-                          name="primary_contact_designation"
-                          value={formData.primary_contact_designation}
-                          onChange={handleInputChange}
-                          placeholder="e.g., Data Manager"
-                        />
-                      </div>
+                      {formData.primary_contact_name && (
+                        <div style={{ 
+                          marginTop: '1rem', 
+                          padding: '0.75rem', 
+                          backgroundColor: 'white', 
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '4px',
+                          fontSize: '0.875rem'
+                        }}>
+                          <div><strong>Name:</strong> {formData.primary_contact_name}</div>
+                          {formData.primary_contact_email && (
+                            <div><strong>Email:</strong> {formData.primary_contact_email}</div>
+                          )}
+                          {formData.primary_contact_phone && (
+                            <div><strong>Phone:</strong> {formData.primary_contact_phone}</div>
+                          )}
+                          {formData.primary_contact_designation && (
+                            <div><strong>Designation:</strong> {formData.primary_contact_designation}</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Secondary Contact (Right Column) */}
@@ -1197,51 +1200,48 @@ const VendorAgreements = () => {
                       </h4>
                       
                       <div className="form-group">
-                        <label htmlFor="secondary_contact_name">Name</label>
-                        <input
-                          type="text"
-                          id="secondary_contact_name"
-                          name="secondary_contact_name"
-                          value={formData.secondary_contact_name}
-                          onChange={handleInputChange}
+                        <label htmlFor="secondary_contact_user_id">Select Contact</label>
+                        <VendorUserSelect
+                          vendorId={formData.vendor_id}
+                          value={formData.secondary_contact_user_id || ''}
+                          onChange={(e) => {
+                            const user = e.target.vendorUser;
+                            setFormData(prev => ({
+                              ...prev,
+                              secondary_contact_user_id: e.target.value,
+                              secondary_contact_name: user?.name || '',
+                              secondary_contact_phone: user?.phone || '',
+                              secondary_contact_email: user?.email || '',
+                              secondary_contact_designation: user?.designation || ''
+                            }));
+                          }}
+                          placeholder="Select secondary contact (optional)"
+                          required={false}
+                          name="secondary_contact_user_id"
                         />
                       </div>
                       
-                      <div className="form-group">
-                        <label htmlFor="secondary_contact_phone">Phone</label>
-                        <input
-                          type="tel"
-                          id="secondary_contact_phone"
-                          name="secondary_contact_phone"
-                          value={formData.secondary_contact_phone}
-                          onChange={handleInputChange}
-                          placeholder="+1-234-567-8900"
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label htmlFor="secondary_contact_email">Email</label>
-                        <input
-                          type="email"
-                          id="secondary_contact_email"
-                          name="secondary_contact_email"
-                          value={formData.secondary_contact_email}
-                          onChange={handleInputChange}
-                          placeholder="backup@vendor.com"
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label htmlFor="secondary_contact_designation">Designation</label>
-                        <input
-                          type="text"
-                          id="secondary_contact_designation"
-                          name="secondary_contact_designation"
-                          value={formData.secondary_contact_designation}
-                          onChange={handleInputChange}
-                          placeholder="e.g., Backup Contact"
-                        />
-                      </div>
+                      {formData.secondary_contact_name && (
+                        <div style={{ 
+                          marginTop: '1rem', 
+                          padding: '0.75rem', 
+                          backgroundColor: 'white', 
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '4px',
+                          fontSize: '0.875rem'
+                        }}>
+                          <div><strong>Name:</strong> {formData.secondary_contact_name}</div>
+                          {formData.secondary_contact_email && (
+                            <div><strong>Email:</strong> {formData.secondary_contact_email}</div>
+                          )}
+                          {formData.secondary_contact_phone && (
+                            <div><strong>Phone:</strong> {formData.secondary_contact_phone}</div>
+                          )}
+                          {formData.secondary_contact_designation && (
+                            <div><strong>Designation:</strong> {formData.secondary_contact_designation}</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
