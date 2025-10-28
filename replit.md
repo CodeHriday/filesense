@@ -41,6 +41,7 @@ The application features a hybrid architecture designed for scalability, securit
         - Template includes 17 user-fillable fields, excludes admin-only fields (vendor_id, project_id, connections, contacts).
         - Validation enforces dropdown values, boolean TRUE/FALSE, number formats, and JSON structure.
     - Made `storage_connections.project_id` nullable to support global vendor connections. Vendor connections are admin-managed and not tied to specific projects initially; vendor agreements link them to projects as needed.
+    - Implemented email-based contract access control: Users listed as primary or secondary contacts (by email) can now view and approve vendor contracts, enabling designated vendor personnel to participate in the approval workflow without requiring direct vendor_user_id association. JWT tokens now include email field for contact-based authorization. Both frontend and backend authorization layers validate email matching for contract access and approval/rejection operations.
 
 ## External Dependencies
 -   **Runtimes**: Python 3.11+, Node.js 20
