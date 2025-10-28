@@ -747,6 +747,45 @@ const UserManagement = () => {
           </div>
         </div>
       )}
+      
+      {/* Delete User Confirmation Modal */}
+      {deleteModalOpen && userToDelete && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>Delete User</h2>
+              <button className="close-modal-btn" onClick={closeDeleteModal} aria-label="Close">
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning-icon">⚠️</div>
+              <p className="delete-confirmation-text">
+                Are you sure you want to delete the user <strong>{userToDelete.username}</strong>?
+              </p>
+              {userToDelete.full_name && (
+                <p className="user-detail">Full Name: {userToDelete.full_name}</p>
+              )}
+              {userToDelete.email && (
+                <p className="user-detail">Email: {userToDelete.email}</p>
+              )}
+              <p className="delete-warning-text">
+                This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button type="button" className="cancel-btn" onClick={closeDeleteModal}>
+                Cancel
+              </button>
+              <button type="button" className="delete-confirm-btn" onClick={confirmDeleteUser}>
+                Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
         </>
       )}
     </div>
