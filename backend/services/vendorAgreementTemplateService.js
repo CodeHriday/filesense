@@ -90,7 +90,7 @@ class VendorAgreementTemplateService {
       case 'file_description':
         return 'Daily export of customer information';
       case 'schema':
-        return '{"columns":["id","name","email"]}';
+        return '[{"name":"ID","type":"integer","description":"Primary Key"},{"name":"Name","type":"string","description":"Customer name"},{"name":"Email","type":"string","description":"Email address"}]';
       case 'frequency':
         return 'Daily';
       case 'frequency_description':
@@ -152,7 +152,7 @@ class VendorAgreementTemplateService {
       ['6. Fields marked with * are required'],
       ['7. For dropdown fields, use only the values listed in the instructions'],
       ['8. For boolean fields (like Contains PII), use TRUE or FALSE'],
-      ['9. For JSON fields (like Schema), ensure valid JSON format'],
+      ['9. For Schema field, use JSON array format: [{"name":"Col","type":"datatype","description":"info"}]'],
       [''],
       ['Important Notes:'],
       ['- Admin-only fields (Vendor, Project, Connections, Contacts, File Owner) will be set in the creation form'],
@@ -166,7 +166,8 @@ class VendorAgreementTemplateService {
       ['File Description: A description of what the file contains'],
       ['Vendor Department/Team: Name of the vendor department/team responsible'],
       ['Vendor Department Email: Contact email for the vendor department/team'],
-      ['Schema: JSON representation of the file structure'],
+      ['Schema: JSON array of column definitions. Format: [{"name":"ColumnName","type":"datatype","description":"details"}]'],
+      ['  Example: [{"name":"ID","type":"integer","description":"Primary Key"},{"name":"Sales","type":"integer","description":"Total sales"}]'],
       ['Frequency: How often the file is delivered (Daily, Weekly, etc.)'],
       ['Frequency Description: Details about delivery timing'],
       ['Contains PII: Whether the file contains personally identifiable information'],

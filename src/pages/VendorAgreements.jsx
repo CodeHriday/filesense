@@ -634,8 +634,11 @@ const VendorAgreements = () => {
       
       setLoading(false);
       
+      console.log('Template upload response:', response.data);
+      
       if (response.data.success && response.data.agreements.length > 0) {
         const agreement = response.data.agreements[0];
+        console.log('First agreement data:', agreement);
         
         setFormData({
           vendor_id: '',
