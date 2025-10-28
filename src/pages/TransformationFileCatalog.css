@@ -4,16 +4,11 @@
   margin: 0 auto;
 }
 
-.catalog-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
 .search-input-container {
   position: relative;
   display: flex;
   align-items: center;
+  margin-bottom: 1.5rem;
 }
 
 .search-input-container .search-icon {
@@ -29,7 +24,8 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-size: 0.875rem;
-  min-width: 280px;
+  width: 100%;
+  max-width: 400px;
   transition: all 0.2s;
   background: white;
   color: #0f172a;
@@ -307,20 +303,8 @@
     padding: 1rem;
   }
 
-  .catalog-header-actions {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-    width: 100%;
-  }
-
-  .search-input-container {
-    width: 100%;
-  }
-
   .search-input {
-    width: 100%;
-    min-width: auto;
+    max-width: 100%;
   }
 
   .mapping-header-left {

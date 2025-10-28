@@ -160,24 +160,23 @@ const TransformationFileCatalog = () => {
           title="Transformation File Catalog"
           subtitle="Files created by ETL transformations with profiling history"
           actions={
-            <div className="catalog-header-actions">
-              <div className="search-input-container">
-                <FiSearch className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search by mapping or file name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-              <div className="catalog-file-count">
-                <strong>{getTotalFiles()}</strong>
-                <span>Total Files</span>
-              </div>
+            <div className="catalog-file-count">
+              <strong>{getTotalFiles()}</strong>
+              <span>Total Files</span>
             </div>
           }
         />
+
+        <div className="search-input-container">
+          <FiSearch className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search by mapping or file name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
 
         {error && (
           <div className="alert alert-danger">{error}</div>
