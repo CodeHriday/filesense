@@ -456,4 +456,70 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
   });
 }));
 
+/**
+ * DELETE /api/users/:id
+ * Delete a user (admin only)
+ */
+router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = parseInt(req.params.id);
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can delete users'
+    });
+  }
+  
+  // Prevent deleting self
+  if (userId === req.user.id) {
+    return res.status(400).json({ 
+      error: 'Cannot delete self',
+      message: 'You cannot delete your own user account'
+    });
+  }
+  
+  // Use transaction to ensure atomicity
+  try {
+    await db.transaction(async (client) => {
+      // Check if user exists
+      const userCheck = await client.query(
+        'SELECT id, username FROM users WHERE id = $1',
+        [userId]
+      );
+      
+      if (userCheck.rows.length === 0) {
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        throw error;
+      }
+      
+      // Delete user role assignments first (foreign key constraint)
+      await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+      
+      // Delete from user_project_access if exists
+      await client.query('DELETE FROM user_project_access WHERE user_id = $1', [userId]);
+      
+      // Delete from user_group_access if exists
+      await client.query('DELETE FROM user_group_access WHERE user_id = $1', [userId]);
+      
+      // Delete the user
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    });
+    
+    res.json({
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    if (error.statusCode === 404) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        message: `No user found with ID ${userId}`
+      });
+    }
+    throw error;
+  }
+}));
+
 module.exports = router;

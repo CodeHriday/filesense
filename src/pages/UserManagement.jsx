@@ -370,7 +370,20 @@ const UserManagement = () => {
       fetchData();
     } catch (error) {
       console.error('Error deleting user:', error);
-      setError('Failed to delete user: ' + (error.response?.data?.error || error.message));
+      
+      // Extract error message properly
+      let errorMessage = 'Failed to delete user';
+      if (error.response?.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       closeDeleteModal();
     }
   };
