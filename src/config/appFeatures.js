@@ -276,7 +276,7 @@ export const APP_FEATURES = [
       },
       {
         id: 'vendor_agreements',
-        name: 'Vendor Agreements',
+        name: 'Vendor Contracts',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,

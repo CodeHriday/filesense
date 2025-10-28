@@ -103,7 +103,7 @@ function Header({ showAIInsights }) {
                         <FaCog /> Vendor Role Management
                       </Link>
                       <Link to="/vendor-agreements" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaCog /> Vendor Agreements
+                        <FaCog /> Vendor Contracts
                       </Link>
                     </>
                   )}
