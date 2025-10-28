@@ -46,6 +46,8 @@ const VendorAgreements = () => {
   // Vendor connections state
   const [vendorConnections, setVendorConnections] = useState([]);
   const [filteredConnections, setFilteredConnections] = useState([]);
+  const [allConnections, setAllConnections] = useState([]);
+  const [targetConnections, setTargetConnections] = useState([]);
   
   const [formData, setFormData] = useState({
     vendor_id: '',
@@ -126,6 +128,15 @@ const VendorAgreements = () => {
         console.warn('Could not fetch vendor connections (this is normal for non-admin roles):', connError.response?.status);
       }
       
+      // Fetch all connections for target connection dropdown
+      let allConnectionsData = [];
+      try {
+        const allConnectionsResponse = await axios.get('/api/connections');
+        allConnectionsData = allConnectionsResponse.data || [];
+      } catch (connError) {
+        console.warn('Could not fetch all connections:', connError.response?.status);
+      }
+      
       // Fetch vendors separately with error handling (optional for vendor users without vendor profiles)
       let vendorsData = [];
       try {
@@ -151,6 +162,7 @@ const VendorAgreements = () => {
       setVendors(vendorsData);
       setUsers(usersResponse.data.users || usersResponse.data || []);
       setVendorConnections(connectionsData);
+      setAllConnections(allConnectionsData);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load vendor contracts data');
@@ -235,6 +247,59 @@ const VendorAgreements = () => {
       }
     }
   }, [formData.vendor_connection_id, formData.drop_location_path, filteredConnections]);
+  
+  // Filter target connections - show only target type connections
+  useEffect(() => {
+    const filtered = allConnections.filter(conn => conn.connection_direction === 'target');
+    setTargetConnections(filtered);
+  }, [allConnections]);
+  
+  // Auto-populate target_file_path from selected target connection
+  useEffect(() => {
+    if (formData.target_connection_id && targetConnections.length > 0) {
+      const selectedConnection = targetConnections.find(
+        conn => String(conn.id) === String(formData.target_connection_id)
+      );
+      
+      if (selectedConnection) {
+        const config = selectedConnection.config || {};
+        const bucket = config.bucket || config.bucket_name || '';
+        const filePath = config.path_prefix || '';
+        
+        // Combine bucket and file path with proper slash handling
+        let fullPath = bucket;
+        if (filePath) {
+          fullPath = filePath.startsWith('/') 
+            ? `${bucket}${filePath}` 
+            : `${bucket}/${filePath}`;
+        }
+        
+        // Only update if the value would actually change
+        if (formData.target_file_path !== fullPath) {
+          setFormData(prev => ({
+            ...prev,
+            target_file_path: fullPath
+          }));
+        }
+      } else {
+        // Connection not found, clear path
+        if (formData.target_file_path !== '') {
+          setFormData(prev => ({
+            ...prev,
+            target_file_path: ''
+          }));
+        }
+      }
+    } else {
+      // No connection selected, clear path
+      if (formData.target_file_path !== '') {
+        setFormData(prev => ({
+          ...prev,
+          target_file_path: ''
+        }));
+      }
+    }
+  }, [formData.target_connection_id, formData.target_file_path, targetConnections]);
   
   // Auto-populate project fields from selected vendor
   useEffect(() => {
@@ -1581,18 +1646,19 @@ const VendorAgreements = () => {
                       
                       <div className="form-group" style={{ marginBottom: '1rem' }}>
                         <label htmlFor="target_connection_id">
-                          Target File Connection
+                          Target File Connection <span className="required-field">*</span>
                         </label>
                         <select
                           id="target_connection_id"
                           name="target_connection_id"
                           value={formData.target_connection_id}
                           onChange={handleInputChange}
+                          required
                         >
-                          <option value="">Select a target connection (optional)</option>
-                          {filteredConnections.map(conn => (
-                            <option key={conn.connection_id} value={conn.connection_id}>
-                              {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
+                          <option value="">Select a target connection</option>
+                          {targetConnections.map(conn => (
+                            <option key={conn.id} value={conn.id}>
+                              {conn.name} ({conn.type?.toUpperCase() || 'AWS'})
                             </option>
                           ))}
                         </select>
@@ -1602,37 +1668,19 @@ const VendorAgreements = () => {
                       </div>
                       
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label htmlFor="target_file_path">Target File Path</label>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <input
-                            type="text"
-                            id="target_file_path"
-                            name="target_file_path"
-                            value={formData.target_file_path}
-                            onChange={handleInputChange}
-                            placeholder="/path/to/target/folder"
-                            style={{ flex: 1 }}
-                          />
-                          {formData.target_connection_id && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setS3BrowserConnectionId(formData.target_connection_id);
-                                setS3BrowserCallback(() => (path) => {
-                                  setFormData(prev => ({ ...prev, target_file_path: path }));
-                                  setS3BrowserOpen(false);
-                                });
-                                setS3BrowserOpen(true);
-                              }}
-                              className="btn-secondary"
-                              style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}
-                            >
-                              Browse
-                            </button>
-                          )}
-                        </div>
+                        <label htmlFor="target_file_path">Target File Path <span className="required-field">*</span></label>
+                        <input
+                          type="text"
+                          id="target_file_path"
+                          name="target_file_path"
+                          value={formData.target_file_path}
+                          readOnly
+                          placeholder="Auto-populated"
+                          style={{ backgroundColor: '#ffffff', cursor: 'not-allowed' }}
+                          required
+                        />
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Specify the target path for processed files
+                          Auto-populated from connection
                         </small>
                       </div>
                     </div>
