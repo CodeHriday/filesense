@@ -260,7 +260,8 @@ const authenticateUser = async (username, password, userAgent) => {
         email: user.email,
         roles: user.roles,
         internal_user: user.internal_user !== undefined ? user.internal_user : true,
-        user_type: user.user_type || null
+        user_type: user.user_type || null,
+        force_password_change: user.force_password_change || false
       },
       tokens: {
         accessToken,
