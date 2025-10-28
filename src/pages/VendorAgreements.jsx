@@ -778,6 +778,11 @@ const VendorAgreements = () => {
   };
   
   const canApproveAsOwner = (agreement) => {
+    // Vendor users should NEVER see the Owner Approve button
+    if (isVendor) {
+      return false;
+    }
+    
     // Check if user has vendor_agreements:approve permission
     const hasApprovePermission = hasPermission && hasPermission('vendor_agreements:approve');
     
