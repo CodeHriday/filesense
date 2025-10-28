@@ -96,22 +96,37 @@ async function listAzureFiles(config) {
 /**
  * List files from a cloud storage connection
  * @param {Pool} pool - Database connection pool
- * @param {number} connectionId - Connection ID
+ * @param {number|string} connectionId - Connection ID (integer for regular connections, UUID for vendor connections)
  * @returns {Promise<Array>} - List of files
  */
 async function listFilesFromConnection(pool, connectionId) {
   try {
-    // Get connection details from transform_connections table
-    const result = await pool.query(
-      'SELECT * FROM transform_connections WHERE id = $1',
-      [connectionId]
+    let connection = null;
+    
+    // Try transform_connections first (regular connections with integer IDs)
+    const transformResult = await pool.query(
+      'SELECT * FROM transform_connections WHERE id::text = $1',
+      [String(connectionId)]
     );
 
-    if (result.rows.length === 0) {
+    if (transformResult.rows.length > 0) {
+      connection = transformResult.rows[0];
+    } else {
+      // Try storage_connections (vendor connections with UUID IDs)
+      const storageResult = await pool.query(
+        'SELECT * FROM storage_connections WHERE connection_id = $1',
+        [connectionId]
+      );
+      
+      if (storageResult.rows.length > 0) {
+        connection = storageResult.rows[0];
+      }
+    }
+
+    if (!connection) {
       throw new Error('Connection not found');
     }
 
-    const connection = result.rows[0];
     const config = connection.config || {};
 
     // Decrypt credentials if encrypted

@@ -413,17 +413,33 @@ async function extractSchemaFromCloud(pool, connectionId, filePattern) {
     // Get the first file to extract schema
     const sampleFile = files[0];
     
-    // Get connection details
-    const connResult = await pool.query(
-      'SELECT * FROM transform_connections WHERE id = $1',
-      [connectionId]
+    // Get connection details - try both tables
+    let connection = null;
+    
+    // Try transform_connections first (regular connections with integer IDs)
+    const transformResult = await pool.query(
+      'SELECT * FROM transform_connections WHERE id::text = $1',
+      [String(connectionId)]
     );
     
-    if (connResult.rows.length === 0) {
+    if (transformResult.rows.length > 0) {
+      connection = transformResult.rows[0];
+    } else {
+      // Try storage_connections (vendor connections with UUID IDs)
+      const storageResult = await pool.query(
+        'SELECT * FROM storage_connections WHERE connection_id = $1',
+        [connectionId]
+      );
+      
+      if (storageResult.rows.length > 0) {
+        connection = storageResult.rows[0];
+      }
+    }
+    
+    if (!connection) {
       throw new Error('Connection not found');
     }
     
-    const connection = connResult.rows[0];
     const config = decryptCredentials(connection.type, connection.config || {});
     
     // Download file content based on connection type
