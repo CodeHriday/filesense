@@ -495,14 +495,18 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
         throw error;
       }
       
-      // Delete user role assignments first (foreign key constraint)
+      // Delete related records in the correct order (foreign key constraints)
+      // Delete user role assignments
       await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
       
-      // Delete from user_project_access if exists
-      await client.query('DELETE FROM user_project_access WHERE user_id = $1', [userId]);
+      // Delete user policy attachments
+      await client.query('DELETE FROM user_policy_attachments WHERE user_id = $1', [userId]);
       
-      // Delete from user_group_access if exists
-      await client.query('DELETE FROM user_group_access WHERE user_id = $1', [userId]);
+      // Delete user groups
+      await client.query('DELETE FROM user_groups WHERE user_id = $1', [userId]);
+      
+      // Delete user job groups
+      await client.query('DELETE FROM user_job_groups WHERE user_id = $1', [userId]);
       
       // Delete the user
       await client.query('DELETE FROM users WHERE id = $1', [userId]);
