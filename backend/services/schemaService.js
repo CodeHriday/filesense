@@ -440,13 +440,37 @@ async function extractSchemaFromCloud(pool, connectionId, filePattern) {
       throw new Error('Connection not found');
     }
     
-    const config = decryptCredentials(connection.type, connection.config || {});
+    const rawConfig = connection.config || {};
     
-    // Download file content based on connection type
+    // Determine the actual storage type
+    let storageType = connection.type.toLowerCase();
+    
+    // For vendor connections, get the storage type from config
+    if (storageType === 'vendor') {
+      storageType = (rawConfig.storage_type || rawConfig.provider || '').toLowerCase();
+    }
+    
+    const config = decryptCredentials(storageType, rawConfig);
+    
+    // Normalize field names for vendor connections
+    if (connection.type.toLowerCase() === 'vendor') {
+      if (rawConfig.bucket && !config.bucket_name) {
+        config.bucket_name = rawConfig.bucket;
+      }
+      if (config.access_key_id && !config.access_key) {
+        config.access_key = config.access_key_id;
+      }
+      if (config.secret_access_key && !config.secret_key) {
+        config.secret_key = config.secret_access_key;
+      }
+      if (rawConfig.region) config.region = rawConfig.region;
+    }
+    
+    // Download file content based on storage type
     let fileContent;
     let fileExtension = sampleFile.filename.split('.').pop().toLowerCase();
     
-    switch (connection.type.toLowerCase()) {
+    switch (storageType) {
       case 'aws':
       case 's3':
         const s3 = new AWS.S3({
@@ -487,7 +511,7 @@ async function extractSchemaFromCloud(pool, connectionId, filePattern) {
         break;
         
       default:
-        throw new Error(`Unsupported connection type: ${connection.type}`);
+        throw new Error(`Unsupported storage type: ${storageType} (connection type: ${connection.type})`);
     }
     
     // Parse file content based on extension
