@@ -657,19 +657,29 @@ function MappingWizard() {
                     setSelectedVendorAgreement(value);
                     if (value) {
                       setSourceConnectionId('');
-                      // Auto-populate file path from agreement (strip bucket name)
+                      // Auto-populate file path and target connection from agreement
                       const agreement = vendorAgreements.find(a => a.id === parseInt(value));
-                      if (agreement && agreement.drop_location_path) {
-                        let path = agreement.drop_location_path;
-                        // Strip bucket name - keep only the path after the first "/"
-                        const slashIndex = path.indexOf('/');
-                        if (slashIndex >= 0) {
-                          path = path.substring(slashIndex);
-                        } else if (!path.startsWith('/')) {
-                          path = '/' + path;
+                      if (agreement) {
+                        // Auto-populate file path (strip bucket name)
+                        if (agreement.drop_location_path) {
+                          let path = agreement.drop_location_path;
+                          // Strip bucket name - keep only the path after the first "/"
+                          const slashIndex = path.indexOf('/');
+                          if (slashIndex >= 0) {
+                            path = path.substring(slashIndex);
+                          } else if (!path.startsWith('/')) {
+                            path = '/' + path;
+                          }
+                          setFilePath(path);
                         }
-                        setFilePath(path);
+                        // Auto-populate target connection if available
+                        if (agreement.target_connection_id) {
+                          setTargetConnectionId(agreement.target_connection_id);
+                        }
                       }
+                    } else {
+                      // Clear target connection when vendor agreement is deselected
+                      setTargetConnectionId('');
                     }
                   }}
                   disabled={!!sourceConnectionId}
@@ -687,12 +697,50 @@ function MappingWizard() {
               </div>
             </div>
 
-            <div className="info-box" style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
-              <small style={{ color: '#1e40af' }}>
-                <strong>Note:</strong> Select either a Source Connection OR a Vendor Agreement (mutually exclusive). 
-                When a Vendor Agreement is selected, the system will automatically use its associated connection for file operations.
-              </small>
-            </div>
+            {/* Show resolved connections when vendor agreement is selected */}
+            {selectedVendorAgreement && (() => {
+              const agreement = vendorAgreements.find(a => a.id === parseInt(selectedVendorAgreement));
+              if (!agreement) return null;
+              
+              return (
+                <div className="info-box" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <FiCheckCircle style={{ color: '#16a34a' }} />
+                    <strong style={{ color: '#15803d' }}>Vendor Agreement Selected - Connections Auto-Populated</strong>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '8px' }}>
+                    <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1fae5' }}>
+                      <small style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Source Connection:</small>
+                      <div style={{ color: '#15803d', fontWeight: '500' }}>
+                        {agreement.vendor_connection_name || 'Vendor Connection'}
+                      </div>
+                      <small style={{ color: '#6b7280' }}>ID: {agreement.vendor_connection_id?.substring(0, 8)}...</small>
+                    </div>
+                    <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1fae5' }}>
+                      <small style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Target Connection:</small>
+                      <div style={{ color: '#15803d', fontWeight: '500' }}>
+                        {agreement.target_connection_id ? (agreement.target_connection_name || 'Vendor Connection') : 'Not Set'}
+                      </div>
+                      {agreement.target_connection_id && (
+                        <small style={{ color: '#6b7280' }}>ID: {agreement.target_connection_id?.substring(0, 8)}...</small>
+                      )}
+                    </div>
+                  </div>
+                  <small style={{ color: '#15803d', display: 'block', marginTop: '8px' }}>
+                    Both source and target connections are managed by the vendor agreement and will be used for ETL operations.
+                  </small>
+                </div>
+              );
+            })()}
+
+            {!selectedVendorAgreement && (
+              <div className="info-box" style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
+                <small style={{ color: '#1e40af' }}>
+                  <strong>Note:</strong> Select either a Source Connection OR a Vendor Agreement (mutually exclusive). 
+                  When a Vendor Agreement is selected, the system will automatically use its associated connections for file operations.
+                </small>
+              </div>
+            )}
           </div>
         )}
 
@@ -785,6 +833,7 @@ function MappingWizard() {
                 className="form-control"
                 value={targetConnectionId}
                 onChange={(e) => setTargetConnectionId(e.target.value ? parseInt(e.target.value) : '')}
+                disabled={!!selectedVendorAgreement}
               >
                 <option value="">Select target connection</option>
                 {connections.filter(c => c.connection_direction === 'target').map(conn => (
@@ -793,8 +842,27 @@ function MappingWizard() {
                   </option>
                 ))}
               </select>
-              <small className="form-help">Select where to write transformed files</small>
+              <small className="form-help">
+                {selectedVendorAgreement 
+                  ? 'Auto-populated from vendor agreement (see Step 1 for details)' 
+                  : 'Select where to write transformed files'}
+              </small>
             </div>
+            
+            {/* Show target connection info when vendor agreement is selected */}
+            {selectedVendorAgreement && (() => {
+              const agreement = vendorAgreements.find(a => a.id === parseInt(selectedVendorAgreement));
+              if (!agreement) return null;
+              
+              return (
+                <div className="info-box" style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px' }}>
+                  <small style={{ color: '#15803d' }}>
+                    <FiCheckCircle style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                    <strong>Target Connection from Vendor Agreement:</strong> {agreement.target_connection_id ? (agreement.target_connection_name || 'Vendor Connection') : 'Not configured in agreement'}
+                  </small>
+                </div>
+              );
+            })()}
 
             <div className="form-group">
               <label>Target File Path</label>

@@ -43,6 +43,7 @@ const VendorAgreements = () => {
     owner_contact: '',
     metadata: '',
     vendor_connection_id: '',
+    target_connection_id: '',
     drop_location_path: '',
     project_id: '',
     project_name: '',
@@ -245,6 +246,7 @@ const VendorAgreements = () => {
       owner_contact: '',
       metadata: '',
       vendor_connection_id: '',
+      target_connection_id: '',
       drop_location_path: '',
       project_id: '',
       project_name: '',
@@ -273,6 +275,7 @@ const VendorAgreements = () => {
       owner_contact: agreement.owner_contact || '',
       metadata: agreement.metadata ? JSON.stringify(agreement.metadata, null, 2) : '',
       vendor_connection_id: agreement.vendor_connection_id || '',
+      target_connection_id: agreement.target_connection_id || '',
       drop_location_path: agreement.drop_location_path || '',
       project_id: agreement.project_id || '',
       project_name: agreement.project_name || '',
@@ -1029,47 +1032,107 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 6: Vendor File Drop Connection */}
+                {/* Section 6: Connection Configuration */}
                 <div className="form-section">
-                  <h3 className="section-title">File Drop Connection</h3>
+                  <h3 className="section-title">Connection Configuration</h3>
                   
-                  <div className="form-group">
-                    <label htmlFor="vendor_connection_id">
-                      Vendor File Drop Connection <span className="required-field">*</span>
-                    </label>
-                    <select
-                      id="vendor_connection_id"
-                      name="vendor_connection_id"
-                      value={formData.vendor_connection_id}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select a vendor connection</option>
-                      {filteredConnections.map(conn => (
-                        <option key={conn.connection_id} value={conn.connection_id}>
-                          {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
-                        </option>
-                      ))}
-                    </select>
-                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                      Select the connection where vendor will drop files
-                    </small>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="drop_location_path">Drop Location Path</label>
-                    <input
-                      type="text"
-                      id="drop_location_path"
-                      name="drop_location_path"
-                      value={formData.drop_location_path}
-                      readOnly
-                      placeholder="Auto-populated from selected connection"
-                      style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
-                    />
-                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                      This path is automatically populated from the selected connection
-                    </small>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                    {/* Source Connection Panel */}
+                    <div style={{ 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      padding: '1.5rem',
+                      backgroundColor: '#f9fafb'
+                    }}>
+                      <h4 style={{ 
+                        marginTop: 0, 
+                        marginBottom: '1rem', 
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: '#374151'
+                      }}>
+                        Source Connection
+                      </h4>
+                      
+                      <div className="form-group" style={{ marginBottom: '1rem' }}>
+                        <label htmlFor="vendor_connection_id">
+                          Vendor File Drop Connection <span className="required-field">*</span>
+                        </label>
+                        <select
+                          id="vendor_connection_id"
+                          name="vendor_connection_id"
+                          value={formData.vendor_connection_id}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          <option value="">Select a vendor connection</option>
+                          {filteredConnections.map(conn => (
+                            <option key={conn.connection_id} value={conn.connection_id}>
+                              {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
+                            </option>
+                          ))}
+                        </select>
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Where vendor will drop files
+                        </small>
+                      </div>
+                      
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label htmlFor="drop_location_path">Drop Location Path</label>
+                        <input
+                          type="text"
+                          id="drop_location_path"
+                          name="drop_location_path"
+                          value={formData.drop_location_path}
+                          readOnly
+                          placeholder="Auto-populated"
+                          style={{ backgroundColor: '#ffffff', cursor: 'not-allowed' }}
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Auto-populated from connection
+                        </small>
+                      </div>
+                    </div>
+                    
+                    {/* Target Connection Panel */}
+                    <div style={{ 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      padding: '1.5rem',
+                      backgroundColor: '#f9fafb'
+                    }}>
+                      <h4 style={{ 
+                        marginTop: 0, 
+                        marginBottom: '1rem', 
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: '#374151'
+                      }}>
+                        Target Connection
+                      </h4>
+                      
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label htmlFor="target_connection_id">
+                          Target File Connection
+                        </label>
+                        <select
+                          id="target_connection_id"
+                          name="target_connection_id"
+                          value={formData.target_connection_id}
+                          onChange={handleInputChange}
+                        >
+                          <option value="">Select a target connection (optional)</option>
+                          {filteredConnections.map(conn => (
+                            <option key={conn.connection_id} value={conn.connection_id}>
+                              {conn.name} ({conn.config?.provider?.toUpperCase() || 'AWS'})
+                            </option>
+                          ))}
+                        </select>
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Where processed files will be stored
+                        </small>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 

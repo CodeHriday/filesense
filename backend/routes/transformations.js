@@ -245,13 +245,14 @@ router.post('/',
       });
     }
     
-    // Resolve connection from vendor agreement if needed
+    // Resolve connections from vendor agreement if needed
     let actualSourceConnectionId = source_connection_id;
+    let actualTargetConnectionId = target_connection_id;
     let isVendorConnection = false;
     
     if (vendor_agreement_id) {
       const agreementResult = await pool.query(
-        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
+        'SELECT vendor_connection_id, target_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
         [vendor_agreement_id, 'fully_approved']
       );
       
@@ -262,6 +263,7 @@ router.post('/',
       }
       
       actualSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
+      actualTargetConnectionId = agreementResult.rows[0].target_connection_id;
       isVendorConnection = true;
       
       if (!actualSourceConnectionId) {
@@ -270,9 +272,10 @@ router.post('/',
         });
       }
       
-      systemLogger.info('Resolved connection from vendor agreement', { 
+      systemLogger.info('Resolved connections from vendor agreement', { 
         vendor_agreement_id, 
-        vendor_connection_id: actualSourceConnectionId 
+        vendor_connection_id: actualSourceConnectionId,
+        target_connection_id: actualTargetConnectionId
       });
     }
     
@@ -304,16 +307,35 @@ router.post('/',
     }
     
     // Validate target connection exists (if provided)
-    if (target_connection_id) {
-      const targetConnCheck = await pool.query(
-        'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
-        [target_connection_id]
-      );
+    if (actualTargetConnectionId) {
+      // Detect connection type: UUID (vendor connection) or integer (transform connection)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isUuidFormat = typeof actualTargetConnectionId === 'string' && uuidRegex.test(actualTargetConnectionId);
       
-      if (targetConnCheck.rows.length === 0) {
-        return res.status(400).json({ 
-          error: 'Target connection not found. Please select a valid target connection.' 
-        });
+      if (isUuidFormat) {
+        // UUID format - check storage_connections table (vendor connection)
+        const targetConnCheck = await pool.query(
+          'SELECT connection_id FROM storage_connections WHERE connection_id = $1 AND status = $2',
+          [actualTargetConnectionId, 'active']
+        );
+        
+        if (targetConnCheck.rows.length === 0) {
+          return res.status(400).json({ 
+            error: 'Vendor target connection not found or inactive. Please contact your administrator.' 
+          });
+        }
+      } else {
+        // Integer format - check transform_connections table (regular connection)
+        const targetConnCheck = await pool.query(
+          'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
+          [actualTargetConnectionId]
+        );
+        
+        if (targetConnCheck.rows.length === 0) {
+          return res.status(400).json({ 
+            error: 'Target connection not found. Please select a valid target connection.' 
+          });
+        }
       }
     }
     
@@ -355,7 +377,7 @@ router.post('/',
       RETURNING *
     `, [
       mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, source_type, file_path,
-      actualFilePattern, actualFilePattern, target_connection_id, target_table_name,
+      actualFilePattern, actualFilePattern, actualTargetConnectionId, target_table_name,
       req.body.target_file_path, target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null, projectId
     ]);
@@ -435,11 +457,12 @@ router.put('/:id',
     
     // Resolve and validate vendor agreement if provided
     let resolvedSourceConnectionId = source_connection_id;
+    let resolvedTargetConnectionId = target_connection_id;
     let isVendorConnection = false;
     
     if (vendor_agreement_id !== undefined && vendor_agreement_id) {
       const agreementResult = await pool.query(
-        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
+        'SELECT vendor_connection_id, target_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
         [vendor_agreement_id, 'fully_approved']
       );
       
@@ -450,6 +473,7 @@ router.put('/:id',
       }
       
       resolvedSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
+      resolvedTargetConnectionId = agreementResult.rows[0].target_connection_id;
       isVendorConnection = true;
       
       if (!resolvedSourceConnectionId) {
@@ -458,9 +482,10 @@ router.put('/:id',
         });
       }
       
-      systemLogger.info('Resolved connection from vendor agreement for update', { 
+      systemLogger.info('Resolved connections from vendor agreement for update', { 
         vendor_agreement_id, 
-        vendor_connection_id: resolvedSourceConnectionId 
+        vendor_connection_id: resolvedSourceConnectionId,
+        target_connection_id: resolvedTargetConnectionId
       });
     }
     
@@ -494,16 +519,35 @@ router.put('/:id',
     }
     
     // Validate target connection exists (if being updated)
-    if (target_connection_id !== undefined) {
-      const targetConnCheck = await pool.query(
-        'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
-        [target_connection_id]
-      );
+    if (resolvedTargetConnectionId !== undefined && resolvedTargetConnectionId) {
+      // Detect connection type: UUID (vendor connection) or integer (transform connection)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isUuidFormat = typeof resolvedTargetConnectionId === 'string' && uuidRegex.test(resolvedTargetConnectionId);
       
-      if (targetConnCheck.rows.length === 0) {
-        return res.status(400).json({ 
-          error: 'Target connection not found. Please select a valid target connection.' 
-        });
+      if (isUuidFormat) {
+        // UUID format - check storage_connections table (vendor connection)
+        const targetConnCheck = await pool.query(
+          'SELECT connection_id FROM storage_connections WHERE connection_id = $1 AND status = $2',
+          [resolvedTargetConnectionId, 'active']
+        );
+        
+        if (targetConnCheck.rows.length === 0) {
+          return res.status(400).json({ 
+            error: 'Vendor target connection not found or inactive. Please contact your administrator.' 
+          });
+        }
+      } else {
+        // Integer format - check transform_connections table (regular connection)
+        const targetConnCheck = await pool.query(
+          'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
+          [resolvedTargetConnectionId]
+        );
+        
+        if (targetConnCheck.rows.length === 0) {
+          return res.status(400).json({ 
+            error: 'Target connection not found. Please select a valid target connection.' 
+          });
+        }
       }
     }
     
@@ -545,9 +589,9 @@ router.put('/:id',
       values.push(actualFilePattern);
       paramIndex++;
     }
-    if (target_connection_id !== undefined) {
+    if (resolvedTargetConnectionId !== undefined) {
       updates.push(`target_connection_id = $${paramIndex}`);
-      values.push(target_connection_id);
+      values.push(resolvedTargetConnectionId);
       paramIndex++;
     }
     if (target_table_name !== undefined) {
