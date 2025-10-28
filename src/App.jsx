@@ -174,6 +174,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
               <Routes>
                 <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
+                <Route path="/drop" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
                 <Route path="/file-catalog" element={<ProtectedRoute><FileCatalog /></ProtectedRoute>} />
                 <Route path="/profile/:fileId" element={<ProtectedRoute>
                   {({ fileId }) => {

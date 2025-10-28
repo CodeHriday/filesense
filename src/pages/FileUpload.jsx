@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { FiUpload } from 'react-icons/fi';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
@@ -39,10 +39,18 @@ function FileUpload() {
   const [batchResults, setBatchResults] = useState(null); // Store batch upload results
   const pollingInterval = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { hasWritePermission, currentUser } = useAuth();
   
   const isAdmin = currentUser?.roles?.includes('Admin');
+  
+  // Set initial tab based on route
+  useEffect(() => {
+    if (location.pathname === '/drop') {
+      setActiveTab('drop-file');
+    }
+  }, [location.pathname]);
   
   useEffect(() => {
     if (currentUser?.email) {
