@@ -438,3 +438,90 @@ body.high-contrast .auth-provider-badge.okta {
   color: #000;
   border-color: #fff;
 }
+
+/* Delete Confirmation Modal */
+.delete-confirmation-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+.delete-confirmation-modal .modal-body {
+  padding: 24px;
+  text-align: center;
+}
+
+.delete-warning-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.delete-confirmation-text {
+  font-size: 16px;
+  color: #202124;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.delete-confirmation-text strong {
+  color: #d93025;
+}
+
+.user-detail {
+  font-size: 14px;
+  color: #5f6368;
+  margin: 8px 0;
+}
+
+.delete-warning-text {
+  font-size: 13px;
+  color: #d93025;
+  margin-top: 16px;
+  font-weight: 500;
+}
+
+.delete-confirm-btn {
+  background-color: #d93025;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.delete-confirm-btn:hover {
+  background-color: #c5221f;
+}
+
+/* High contrast mode for delete modal */
+body.high-contrast .delete-confirmation-modal {
+  background-color: #000;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .delete-confirmation-text {
+  color: #fff;
+}
+
+body.high-contrast .delete-confirmation-text strong {
+  color: #ff6b6b;
+}
+
+body.high-contrast .user-detail {
+  color: #fff;
+}
+
+body.high-contrast .delete-warning-text {
+  color: #ff6b6b;
+}
+
+body.high-contrast .delete-confirm-btn {
+  background-color: #ff6b6b;
+  color: #000;
+}
