@@ -126,12 +126,21 @@ const VendorAgreements = () => {
         console.warn('Could not fetch vendor connections (this is normal for non-admin roles):', connError.response?.status);
       }
       
+      // Fetch vendors separately with error handling (optional for vendor users without vendor profiles)
+      let vendorsData = [];
+      try {
+        const vendorsResponse = await axios.get('/api/vendors');
+        vendorsData = vendorsResponse.data.vendors || vendorsResponse.data || [];
+      } catch (vendorsError) {
+        // Vendors endpoint might return 404 for vendor users without vendor profiles, this is okay
+        console.warn('Could not fetch vendors (this is normal for vendor contact users):', vendorsError.response?.status);
+      }
+      
       // Fetch required data
-      const [agreementsResponse, vendorsResponse, usersResponse] = await Promise.all([
+      const [agreementsResponse, usersResponse] = await Promise.all([
         axios.get('/api/vendor-agreements', {
           params: { page: currentPage, pageSize }
         }),
-        axios.get('/api/vendors'),
         axios.get('/api/users')
       ]);
       
@@ -139,7 +148,7 @@ const VendorAgreements = () => {
       setTotalPages(agreementsResponse.data.pagination?.totalPages || 1);
       setTotalCount(agreementsResponse.data.pagination?.totalCount || 0);
       
-      setVendors(vendorsResponse.data.vendors || vendorsResponse.data || []);
+      setVendors(vendorsData);
       setUsers(usersResponse.data.users || usersResponse.data || []);
       setVendorConnections(connectionsData);
     } catch (error) {
@@ -828,7 +837,7 @@ const VendorAgreements = () => {
         <>
           <div className="vendor-agreements-header">
             <h1>Vendor Contracts</h1>
-            {(isAdmin || isVendor) && (
+            {isAdmin && (
               <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
                 <button 
                   className="btn-secondary"
