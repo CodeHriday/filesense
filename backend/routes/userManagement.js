@@ -264,7 +264,7 @@ router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
       u.first_name, u.middle_name, u.last_name, u.full_name,
       u.phone_number,
       u.address_line1, u.address_line2, u.city, u.state, u.postal_code, u.country,
-      u.auth_provider,
+      u.auth_provider, u.internal_user, u.user_type,
       u.created_at, u.updated_at, u.last_login,
       COALESCE(
         json_agg(r.name) FILTER (WHERE r.name IS NOT NULL),
@@ -307,6 +307,8 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
     state,
     postal_code,
     country,
+    internal_user,
+    user_type,
     roles
   } = req.body;
   
@@ -339,14 +341,16 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
           state = COALESCE($10, state),
           postal_code = COALESCE($11, postal_code),
           country = COALESCE($12, country),
+          internal_user = COALESCE($13, internal_user),
+          user_type = COALESCE($14, user_type),
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $13
+        WHERE id = $15
         RETURNING 
           id, username, email,
           first_name, middle_name, last_name, full_name,
           phone_number,
           address_line1, address_line2, city, state, postal_code, country,
-          auth_provider,
+          auth_provider, internal_user, user_type,
           updated_at
       `;
       
@@ -363,6 +367,8 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
         state,
         postal_code,
         country,
+        internal_user,
+        user_type,
         userId
       ]);
       
@@ -422,7 +428,7 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
         u.first_name, u.middle_name, u.last_name, u.full_name,
         u.phone_number,
         u.address_line1, u.address_line2, u.city, u.state, u.postal_code, u.country,
-        u.auth_provider,
+        u.auth_provider, u.internal_user, u.user_type,
         u.created_at, u.updated_at, u.last_login,
         COALESCE(
           json_agg(r.name) FILTER (WHERE r.name IS NOT NULL),

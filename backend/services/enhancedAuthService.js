@@ -132,6 +132,8 @@ async function registerLocalUser(userData) {
     last_name,
     middle_name,
     phone_number,
+    internal_user = false,
+    user_type,
     roles = []
   } = userData;
   
@@ -201,9 +203,11 @@ async function registerLocalUser(userData) {
         phone_number,
         auth_provider,
         password_history,
-        failed_login_attempts
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id, username, email, first_name, last_name, auth_provider
+        failed_login_attempts,
+        internal_user,
+        user_type
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, username, email, first_name, last_name, auth_provider, internal_user, user_type
     `;
     
     const result = await client.query(insertQuery, [
@@ -216,7 +220,9 @@ async function registerLocalUser(userData) {
       phone_number || null,
       'local',
       JSON.stringify(passwordHistory),
-      0
+      0,
+      internal_user,
+      user_type || null
     ]);
     
     const newUser = result.rows[0];
