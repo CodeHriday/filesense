@@ -2640,6 +2640,7 @@ const { addProjectIdToRemainingTables } = require('./backend/migrations/addProje
 const { createPolicyEngine } = require('./backend/migrations/createPolicyEngine');
 const { createABACAttributes } = require('./backend/migrations/createABACAttributes');
 const { createSCIMProvisioning } = require('./backend/migrations/createSCIMProvisioning');
+const createVendorUsersTable = require('./backend/migrations/createVendorUsers');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2813,6 +2814,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ SCIM provisioning migration completed');
+    
+    // Create vendor users table
+    return createVendorUsersTable();
+  })
+  .then(() => {
+    console.log('✅ Vendor users table migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);
@@ -7854,6 +7861,11 @@ console.log('Added vendor agreement routes');
 const vendorConnectionRoutes = require('./backend/routes/vendorConnectionRoutes');
 app.use('/api/vendor-connections', authenticateToken, vendorConnectionRoutes);
 console.log('Added vendor connections routes');
+
+// Vendor user routes
+const vendorUserRoutes = require('./backend/routes/vendorUserRoutes');
+app.use('/api', authenticateToken, vendorUserRoutes);
+console.log('Added vendor user routes');
 
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
