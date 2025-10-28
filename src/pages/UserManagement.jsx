@@ -51,6 +51,16 @@ const UserManagement = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   
+  // Password reset confirmation modal state
+  const [resetConfirmModalOpen, setResetConfirmModalOpen] = useState(false);
+  const [resetActionType, setResetActionType] = useState(null);
+  const [resetRequestToAction, setResetRequestToAction] = useState(null);
+  
+  // Temporary password display modal state
+  const [tempPasswordModalOpen, setTempPasswordModalOpen] = useState(false);
+  const [displayTempPassword, setDisplayTempPassword] = useState('');
+  const [tempPasswordUsername, setTempPasswordUsername] = useState('');
+  
   const { currentUser, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -128,21 +138,25 @@ const UserManagement = () => {
     await fetchResetRequests();
   };
   
-  const handleApproveReset = async (requestId) => {
+  const handleApproveReset = async (requestId, username) => {
     try {
       const response = await axios.post(`/api/password-reset-requests/${requestId}/approve`, {
         notes: actionNotes
       });
       
       setTempPassword(response.data.tempPassword);
+      setDisplayTempPassword(response.data.tempPassword);
+      setTempPasswordUsername(username);
+      setResetConfirmModalOpen(false);
+      setTempPasswordModalOpen(true);
+      
       await fetchResetRequests();
       fetchResetRequestsCount();
       setActionNotes('');
-      
-      alert(`Password reset approved. Temporary password: ${response.data.tempPassword}\n\nPlease inform the user of this password.`);
     } catch (error) {
       console.error('Error approving reset:', error);
       setError(error.response?.data?.error || 'Failed to approve password reset');
+      setResetConfirmModalOpen(false);
     }
   };
   
@@ -152,12 +166,14 @@ const UserManagement = () => {
         notes: actionNotes
       });
       
+      setResetConfirmModalOpen(false);
       await fetchResetRequests();
       fetchResetRequestsCount();
       setActionNotes('');
     } catch (error) {
       console.error('Error denying reset:', error);
       setError(error.response?.data?.error || 'Failed to deny password reset');
+      setResetConfirmModalOpen(false);
     }
   };
   
@@ -774,9 +790,9 @@ const UserManagement = () => {
                             <div className="request-actions">
                               <button
                                 onClick={() => {
-                                  if (window.confirm(`Approve password reset for ${request.username}?\n\nThis will generate a temporary password that the user must change on first login.`)) {
-                                    handleApproveReset(request.id);
-                                  }
+                                  setResetRequestToAction(request);
+                                  setResetActionType('approve');
+                                  setResetConfirmModalOpen(true);
                                 }}
                                 className="btn-approve"
                               >
@@ -784,9 +800,9 @@ const UserManagement = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  if (window.confirm(`Deny password reset for ${request.username}?`)) {
-                                    handleDenyReset(request.id);
-                                  }
+                                  setResetRequestToAction(request);
+                                  setResetActionType('deny');
+                                  setResetConfirmModalOpen(true);
                                 }}
                                 className="btn-deny"
                               >
@@ -838,6 +854,111 @@ const UserManagement = () => {
               </button>
               <button type="button" className="delete-confirm-btn" onClick={confirmDeleteUser}>
                 Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Password Reset Confirmation Modal */}
+      {resetConfirmModalOpen && resetRequestToAction && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>{resetActionType === 'approve' ? 'Approve Password Reset' : 'Deny Password Reset'}</h2>
+              <button className="close-modal-btn" onClick={() => setResetConfirmModalOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning-icon">
+                {resetActionType === 'approve' ? '✓' : '✗'}
+              </div>
+              <p className="delete-confirmation-text">
+                {resetActionType === 'approve' 
+                  ? `Approve password reset for ${resetRequestToAction.username}?`
+                  : `Deny password reset for ${resetRequestToAction.username}?`
+                }
+              </p>
+              {resetRequestToAction.email && (
+                <p className="user-detail">Email: {resetRequestToAction.email}</p>
+              )}
+              {resetActionType === 'approve' && (
+                <p className="delete-warning-text">
+                  This will generate a temporary password that the user must change on first login.
+                </p>
+              )}
+            </div>
+            
+            <div className="modal-actions">
+              <button type="button" className="cancel-btn" onClick={() => setResetConfirmModalOpen(false)}>
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className={resetActionType === 'approve' ? 'btn-approve' : 'delete-confirm-btn'} 
+                onClick={() => {
+                  if (resetActionType === 'approve') {
+                    handleApproveReset(resetRequestToAction.id, resetRequestToAction.username);
+                  } else {
+                    handleDenyReset(resetRequestToAction.id);
+                  }
+                }}
+              >
+                {resetActionType === 'approve' ? 'Approve' : 'Deny'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Temporary Password Display Modal */}
+      {tempPasswordModalOpen && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>Password Reset Approved</h2>
+              <button className="close-modal-btn" onClick={() => setTempPasswordModalOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning-icon">✓</div>
+              <p className="delete-confirmation-text">
+                Password reset approved for <strong>{tempPasswordUsername}</strong>
+              </p>
+              <div style={{
+                margin: '20px 0',
+                padding: '15px',
+                backgroundColor: '#f0f9ff',
+                border: '2px solid #3b82f6',
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <p style={{ margin: '0 0 10px 0', fontWeight: '600', color: '#1e40af' }}>
+                  Temporary Password:
+                </p>
+                <p style={{
+                  margin: '0',
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                  fontFamily: 'monospace',
+                  color: '#1e3a8a',
+                  letterSpacing: '2px'
+                }}>
+                  {displayTempPassword}
+                </p>
+              </div>
+              <p className="delete-warning-text">
+                Please inform the user of this password. They must change it on first login.
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button type="button" className="btn-approve" onClick={() => setTempPasswordModalOpen(false)}>
+                OK
               </button>
             </div>
           </div>
