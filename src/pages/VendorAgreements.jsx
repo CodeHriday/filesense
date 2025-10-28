@@ -199,25 +199,32 @@ const VendorAgreements = () => {
             : `${bucket}/${filePath}`;
         }
         
-        setFormData(prev => ({
-          ...prev,
-          drop_location_path: fullPath
-        }));
+        // Only update if the value would actually change
+        if (formData.drop_location_path !== fullPath) {
+          setFormData(prev => ({
+            ...prev,
+            drop_location_path: fullPath
+          }));
+        }
       } else {
         // Connection not found, clear path
+        if (formData.drop_location_path !== '') {
+          setFormData(prev => ({
+            ...prev,
+            drop_location_path: ''
+          }));
+        }
+      }
+    } else {
+      // No connection selected, clear path
+      if (formData.drop_location_path !== '') {
         setFormData(prev => ({
           ...prev,
           drop_location_path: ''
         }));
       }
-    } else {
-      // No connection selected, clear path
-      setFormData(prev => ({
-        ...prev,
-        drop_location_path: ''
-      }));
     }
-  }, [formData.vendor_connection_id, filteredConnections]);
+  }, [formData.vendor_connection_id, formData.drop_location_path, filteredConnections]);
   
   // Auto-populate project fields from selected vendor
   useEffect(() => {
@@ -227,28 +234,38 @@ const VendorAgreements = () => {
       );
       
       if (selectedVendor) {
-        setFormData(prev => ({
-          ...prev,
-          project_id: selectedVendor.project_id || '',
-          project_name: selectedVendor.project_name || ''
-        }));
+        const newProjectId = selectedVendor.project_id || '';
+        const newProjectName = selectedVendor.project_name || '';
+        
+        // Only update if the values would actually change
+        if (formData.project_id !== newProjectId || formData.project_name !== newProjectName) {
+          setFormData(prev => ({
+            ...prev,
+            project_id: newProjectId,
+            project_name: newProjectName
+          }));
+        }
       } else {
         // Vendor not found, clear project fields
+        if (formData.project_id !== '' || formData.project_name !== '') {
+          setFormData(prev => ({
+            ...prev,
+            project_id: '',
+            project_name: ''
+          }));
+        }
+      }
+    } else {
+      // No vendor selected, clear project fields
+      if (formData.project_id !== '' || formData.project_name !== '') {
         setFormData(prev => ({
           ...prev,
           project_id: '',
           project_name: ''
         }));
       }
-    } else {
-      // No vendor selected, clear project fields
-      setFormData(prev => ({
-        ...prev,
-        project_id: '',
-        project_name: ''
-      }));
     }
-  }, [formData.vendor_id, vendors]);
+  }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
   
   // Auto-populate manager_contact from selected vendor manager
   useEffect(() => {
@@ -258,25 +275,34 @@ const VendorAgreements = () => {
       );
       
       if (selectedUser) {
-        setFormData(prev => ({
-          ...prev,
-          manager_contact: selectedUser.email || ''
-        }));
+        const newManagerContact = selectedUser.email || '';
+        
+        // Only update if the value would actually change
+        if (formData.manager_contact !== newManagerContact) {
+          setFormData(prev => ({
+            ...prev,
+            manager_contact: newManagerContact
+          }));
+        }
       } else {
         // User not found, clear manager_contact
+        if (formData.manager_contact !== '') {
+          setFormData(prev => ({
+            ...prev,
+            manager_contact: ''
+          }));
+        }
+      }
+    } else {
+      // No user selected, clear manager_contact
+      if (formData.manager_contact !== '') {
         setFormData(prev => ({
           ...prev,
           manager_contact: ''
         }));
       }
-    } else {
-      // No user selected, clear manager_contact
-      setFormData(prev => ({
-        ...prev,
-        manager_contact: ''
-      }));
     }
-  }, [formData.file_owner_user_id, users]);
+  }, [formData.file_owner_user_id, formData.manager_contact, users]);
   
   const openCreateModal = () => {
     setFormData({
