@@ -7867,6 +7867,11 @@ const vendorUserRoutes = require('./backend/routes/vendorUserRoutes');
 app.use('/api', authenticateToken, vendorUserRoutes);
 console.log('Added vendor user routes');
 
+// Vendor agreement template routes
+const vendorAgreementTemplateRoutes = require('./backend/routes/vendorAgreementTemplateRoutes');
+app.use('/api', vendorAgreementTemplateRoutes);
+console.log('Added vendor agreement template routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 

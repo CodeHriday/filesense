@@ -31,10 +31,16 @@ The application features a hybrid architecture designed for scalability, securit
     - Enhanced vendor agreement system with template download/upload and vendor user management.
     - Updated labels: 'Owner Contact' → 'Vendor Department Email', 'Vendor' → 'Vendor Name'.
     - Created `vendor_users` table to store contact information for vendor personnel (name, email, phone, designation).
-    - Added backend service `vendorUserService.js` and routes `/api/vendors/:vendorId/users` for vendor user CRUD operations.
-    - Contact fields in vendor agreements will be converted to dropdowns populated from vendor users.
-    - Excel template functionality planned for bulk agreement creation (excluding admin-only fields).
-    - Made `storage_connections.project_id` nullable to support global vendor connections. Vendor connections are admin-managed and not tied to specific projects initially; vendor agreements link them to projects as needed. This change allows the POST /api/vendor-connections endpoint to create connections without a project_id.
+    - Added backend service `vendorUserService.js` and routes `/api/vendor-users` for vendor user CRUD operations.
+    - Implemented VendorUserSelect searchable dropdown component for contact selection in vendor agreements.
+    - Contact dropdowns auto-populate name, email, phone, and designation fields from selected vendor user.
+    - Excel template system for bulk agreement creation:
+        - Download endpoint generates Excel template with headers, instructions, examples, and separate instructions sheet.
+        - Upload endpoint parses and validates template with row-level error reporting.
+        - Bulk upload modal allows admins to set context (vendor, project, connections, owner) for all agreements in batch.
+        - Template includes 17 user-fillable fields, excludes admin-only fields (vendor_id, project_id, connections, contacts).
+        - Validation enforces dropdown values, boolean TRUE/FALSE, number formats, and JSON structure.
+    - Made `storage_connections.project_id` nullable to support global vendor connections. Vendor connections are admin-managed and not tied to specific projects initially; vendor agreements link them to projects as needed.
 
 ## External Dependencies
 -   **Runtimes**: Python 3.11+, Node.js 20
