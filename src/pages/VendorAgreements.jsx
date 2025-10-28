@@ -615,7 +615,7 @@ const VendorAgreements = () => {
           setTimeout(() => setSuccessMessage(''), 5000);
         } catch (error) {
           console.error('Error deleting agreement:', error);
-          setError('Failed to delete agreement: ' + (error.response?.data?.error || error.message));
+          setError('Failed to delete contract: ' + (error.response?.data?.error || error.message));
         }
       }
     });

@@ -1049,8 +1049,8 @@ class VendorAgreementService {
       const queryParams = [];
       let paramCounter = 1;
       
-      // Always exclude deleted agreements
-      whereClauses.push(`(va.status IS NULL OR va.status != 'deleted')`);
+      // Always exclude archived agreements (soft deleted)
+      whereClauses.push(`(va.status IS NULL OR va.status != 'archived')`);
       
       // Filter by project if specified
       if (projectId) {
@@ -1297,7 +1297,7 @@ class VendorAgreementService {
   }
 
   /**
-   * Delete vendor agreement (soft delete by setting status to 'deleted')
+   * Delete vendor agreement (soft delete by setting status to 'archived')
    */
   async deleteAgreement(agreementId, deletedBy) {
     const client = await pool.connect();
@@ -1315,10 +1315,10 @@ class VendorAgreementService {
         throw new Error('Agreement not found');
       }
       
-      // Soft delete by updating status
+      // Soft delete by updating status to 'archived'
       const result = await client.query(
         `UPDATE vendor_agreements 
-         SET status = 'deleted', 
+         SET status = 'archived', 
              updated_at = CURRENT_TIMESTAMP,
              updated_by = $2
          WHERE id = $1
