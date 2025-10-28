@@ -183,11 +183,11 @@
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 850px;
+  height: 85vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .modal-header {
@@ -196,6 +196,9 @@
   align-items: center;
   padding: 16px 24px;
   border-bottom: 1px solid #dadce0;
+  flex-shrink: 0;
+  height: 10%;
+  min-height: 60px;
 }
 
 .modal-header h2 {
@@ -213,8 +216,29 @@
   cursor: pointer;
 }
 
+.modal-content-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  height: 80%;
+  padding: 0;
+}
+
 .role-form {
   padding: 24px;
+  height: 100%;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #dadce0;
+  flex-shrink: 0;
+  height: 10%;
+  min-height: 60px;
+  align-items: center;
+  background-color: #f8f9fa;
 }
 
 .form-group {
@@ -343,12 +367,6 @@
   grid-column: 1 / -1;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
 
 .cancel-btn,
 .save-btn {

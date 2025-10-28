@@ -570,6 +570,7 @@ const RoleManagement = () => {
       {modalOpen && (
         <div className="modal-overlay">
           <div className="role-modal" role="dialog" aria-labelledby="role-modal-title">
+            {/* Static Header */}
             <div className="modal-header">
               <h2 id="role-modal-title">
                 {modalMode === 'create' ? 'Create New Role' : 'Edit Role'}
@@ -579,6 +580,8 @@ const RoleManagement = () => {
               </button>
             </div>
             
+            {/* Scrollable Content */}
+            <div className="modal-content-scrollable">
             <form onSubmit={handleSubmit} className="role-form">
               <div className="form-group">
                 <label htmlFor="name">Role Name <span className="required-field">*</span></label>
@@ -760,16 +763,18 @@ const RoleManagement = () => {
                   </div>
                 </div>
               )}
-              
-              <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button type="submit" className="save-btn">
-                  {modalMode === 'create' ? 'Create Role' : 'Update Role'}
-                </button>
-              </div>
             </form>
+            </div>
+            
+            {/* Static Footer */}
+            <div className="modal-footer">
+              <button type="button" className="cancel-btn" onClick={closeModal}>
+                Cancel
+              </button>
+              <button type="submit" className="save-btn" onClick={handleSubmit}>
+                {modalMode === 'create' ? 'Create Role' : 'Update Role'}
+              </button>
+            </div>
           </div>
         </div>
       )}
