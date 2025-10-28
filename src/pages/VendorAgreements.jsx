@@ -435,7 +435,9 @@ const VendorAgreements = () => {
       // Wrap form data in agreementData/updateData as expected by backend
       const agreementData = {};
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== '') {
+        // For UPDATE, include all fields (even empty ones) so backend can detect changes
+        // For CREATE, only include non-empty fields to avoid sending unnecessary data
+        if (modalMode === 'edit' || formData[key] !== '') {
           agreementData[key] = formData[key];
         }
       });
