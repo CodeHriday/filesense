@@ -78,8 +78,8 @@ router.get('/', async (req, res) => {
         tc.name as target_connection_name,
         p.name as project_name
       FROM transformation_mappings tm
-      LEFT JOIN transform_connections sc ON tm.source_connection_id = sc.id::text
-      LEFT JOIN transform_connections tc ON tm.target_connection_id = tc.id::text
+      LEFT JOIN transform_connections sc ON CAST(tm.source_connection_id AS TEXT) = CAST(sc.id AS TEXT)
+      LEFT JOIN transform_connections tc ON CAST(tm.target_connection_id AS TEXT) = CAST(tc.id AS TEXT)
       LEFT JOIN projects p ON tm.project_id = p.id
     `;
     const params = [];
