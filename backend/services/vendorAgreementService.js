@@ -39,7 +39,6 @@ class VendorAgreementService {
         vendor_department_team,
         vendor_department_email,
         vendor_type,
-        vendor_onboarding_date,
         file_owner_user_id,
         primary_contact_name,
         primary_contact_phone,
@@ -202,7 +201,7 @@ class VendorAgreementService {
       const result = await client.query(
         `INSERT INTO vendor_agreements (
           vendor_id, agreement_code, file_name, file_description, schema,
-          frequency, frequency_description, vendor_department_team, vendor_department_email, vendor_type, vendor_onboarding_date, file_owner_user_id,
+          frequency, frequency_description, vendor_department_team, vendor_department_email, vendor_type, file_owner_user_id,
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata,
@@ -210,11 +209,11 @@ class VendorAgreementService {
           manager_contact,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 'draft', 1, $36, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, 'draft', 1, $35, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
-          frequency, frequency_description, vendor_department_team, vendor_department_email, vendor_type, vendor_onboarding_date, file_owner_user_id,
+          frequency, frequency_description, vendor_department_team, vendor_department_email, vendor_type, file_owner_user_id,
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata ? JSON.stringify(metadata) : null,

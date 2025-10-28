@@ -94,10 +94,38 @@ router.get('/roles/:id', authenticateToken, asyncHandler(async (req, res) => {
 /**
  * GET /api/users/by-role/:roleName
  * Get users by role name (e.g., 'Vendor')
+ * For 'vendor' role, uses attribute-based identification (internal_user = false AND user_type = 'Vendor')
  */
 router.get('/by-role/:roleName', authenticateToken, asyncHandler(async (req, res) => {
   const { roleName } = req.params;
   
+  // Use attribute-based identification for vendor users
+  if (roleName.toLowerCase() === 'vendor') {
+    const result = await db.query(
+      `SELECT 
+        u.id,
+        u.username,
+        u.email,
+        u.first_name,
+        u.middle_name,
+        u.last_name,
+        u.full_name,
+        u.phone_number,
+        u.address_line1,
+        u.address_line2,
+        u.city,
+        u.state,
+        u.postal_code,
+        u.country
+      FROM users u
+      WHERE u.internal_user = false AND u.user_type = 'Vendor'
+      ORDER BY u.full_name, u.username`
+    );
+    
+    return res.json(result.rows);
+  }
+  
+  // For other roles, use role-based lookup
   const result = await db.query(
     `SELECT 
       u.id,
