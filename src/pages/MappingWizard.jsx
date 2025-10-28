@@ -646,7 +646,7 @@ function MappingWizard() {
               </div>
             </div>
 
-            {/* Source Connection and Vendor Agreement side-by-side */}
+            {/* Source Connection and Vendor Contract side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
                 <label>Source Connection</label>
@@ -670,12 +670,12 @@ function MappingWizard() {
                   ))}
                 </select>
                 <small className="form-help">
-                  {selectedVendorAgreement ? 'Disabled (Vendor Agreement selected)' : 'Select where to read files from'}
+                  {selectedVendorAgreement ? 'Disabled (Vendor Contract selected)' : 'Select where to read files from'}
                 </small>
               </div>
 
               <div className="form-group">
-                <label>Vendor Agreement</label>
+                <label>Vendor Contract</label>
                 <select
                   className="form-control"
                   value={selectedVendorAgreement}
@@ -705,13 +705,13 @@ function MappingWizard() {
                         }
                       }
                     } else {
-                      // Clear target connection when vendor agreement is deselected
+                      // Clear target connection when vendor contract is deselected
                       setTargetConnectionId('');
                     }
                   }}
                   disabled={!!sourceConnectionId}
                 >
-                  <option value="">Select vendor agreement</option>
+                  <option value="">Select Vendor Contract</option>
                   {vendorAgreements.map(agreement => (
                     <option key={agreement.id} value={agreement.id}>
                       {agreement.agreement_name} ({agreement.vendor_name})
@@ -719,12 +719,12 @@ function MappingWizard() {
                   ))}
                 </select>
                 <small className="form-help">
-                  {sourceConnectionId ? 'Disabled (Source Connection selected)' : 'Or select an approved vendor agreement'}
+                  {sourceConnectionId ? 'Disabled (Source Connection selected)' : 'Or select an approved vendor contract'}
                 </small>
               </div>
             </div>
 
-            {/* Show resolved connections when vendor agreement is selected */}
+            {/* Show resolved connections when vendor contract is selected */}
             {selectedVendorAgreement && (() => {
               const agreement = vendorAgreements.find(a => a.id === parseInt(selectedVendorAgreement));
               if (!agreement) return null;
@@ -733,7 +733,7 @@ function MappingWizard() {
                 <div className="info-box" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     <FiCheckCircle style={{ color: '#16a34a' }} />
-                    <strong style={{ color: '#15803d' }}>Vendor Agreement Selected - Connections Auto-Populated</strong>
+                    <strong style={{ color: '#15803d' }}>Vendor Contract Selected - Connections Auto-Populated</strong>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '8px' }}>
                     <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1fae5' }}>
@@ -754,7 +754,7 @@ function MappingWizard() {
                     </div>
                   </div>
                   <small style={{ color: '#15803d', display: 'block', marginTop: '8px' }}>
-                    Both source and target connections are managed by the vendor agreement and will be used for ETL operations.
+                    Both source and target connections are managed by the vendor contract and will be used for ETL operations.
                   </small>
                 </div>
               );
@@ -763,8 +763,8 @@ function MappingWizard() {
             {!selectedVendorAgreement && (
               <div className="info-box" style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
                 <small style={{ color: '#1e40af' }}>
-                  <strong>Note:</strong> Select either a Source Connection OR a Vendor Agreement (mutually exclusive). 
-                  When a Vendor Agreement is selected, the system will automatically use its associated connections for file operations.
+                  <strong>Note:</strong> Select either a Source Connection OR a Vendor Contract (mutually exclusive). 
+                  When a Vendor Contract is selected, the system will automatically use its associated connections for file operations.
                 </small>
               </div>
             )}
@@ -860,7 +860,6 @@ function MappingWizard() {
                 className="form-control"
                 value={targetConnectionId}
                 onChange={(e) => setTargetConnectionId(e.target.value ? parseInt(e.target.value) : '')}
-                disabled={!!selectedVendorAgreement}
               >
                 <option value="">Select target connection</option>
                 {connections.filter(c => c.connection_direction === 'target').map(conn => (
@@ -871,12 +870,12 @@ function MappingWizard() {
               </select>
               <small className="form-help">
                 {selectedVendorAgreement 
-                  ? 'Auto-populated from vendor agreement (see Step 1 for details)' 
+                  ? 'Auto-populated from vendor contract (see Step 1 for details)' 
                   : 'Select where to write transformed files'}
               </small>
             </div>
             
-            {/* Show target connection info when vendor agreement is selected */}
+            {/* Show target connection info when vendor contract is selected */}
             {selectedVendorAgreement && (() => {
               const agreement = vendorAgreements.find(a => a.id === parseInt(selectedVendorAgreement));
               if (!agreement) return null;
@@ -885,7 +884,7 @@ function MappingWizard() {
                 <div className="info-box" style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px' }}>
                   <small style={{ color: '#15803d' }}>
                     <FiCheckCircle style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                    <strong>Target Connection from Vendor Agreement:</strong> {agreement.target_connection_id ? (agreement.target_connection_name || 'Vendor Connection') : 'Not configured in agreement'}
+                    <strong>Target Connection from Vendor Contract:</strong> {agreement.target_connection_id ? (agreement.target_connection_name || 'Vendor Connection') : 'Not configured in contract'}
                   </small>
                 </div>
               );
