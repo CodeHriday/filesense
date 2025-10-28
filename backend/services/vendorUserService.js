@@ -12,7 +12,7 @@ class VendorUserService {
       let query = `
         SELECT 
           vu.*,
-          v.name as vendor_name
+          v.vendor_name
         FROM vendor_users vu
         JOIN vendors v ON vu.vendor_id = v.id
         WHERE vu.vendor_id = $1
@@ -51,7 +51,7 @@ class VendorUserService {
       const result = await client.query(
         `SELECT 
           vu.*,
-          v.name as vendor_name
+          v.vendor_name
         FROM vendor_users vu
         JOIN vendors v ON vu.vendor_id = v.id
         WHERE vu.id = $1`,
