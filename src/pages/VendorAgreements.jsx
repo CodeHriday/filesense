@@ -1203,7 +1203,7 @@ const VendorAgreements = () => {
                       </div>
                       
                       <div className="form-group">
-                        <label htmlFor="vendor_type">Vendor Type</label>
+                        <label htmlFor="vendor_type">Vendor Type <span className="required-field">*</span></label>
                         <input
                           type="text"
                           id="vendor_type"
@@ -1211,18 +1211,20 @@ const VendorAgreements = () => {
                           value={formData.vendor_type}
                           onChange={handleInputChange}
                           placeholder="e.g., Data Provider, Service Provider"
+                          required
                         />
                       </div>
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="vendor_onboarding_date">Vendor Onboarding Date</label>
+                      <label htmlFor="vendor_onboarding_date">Vendor Onboarding Date <span className="required-field">*</span></label>
                       <input
                         type="date"
                         id="vendor_onboarding_date"
                         name="vendor_onboarding_date"
                         value={formData.vendor_onboarding_date}
                         onChange={handleInputChange}
+                        required
                       />
                     </div>
                   </div>
@@ -1234,7 +1236,7 @@ const VendorAgreements = () => {
                   
                   <div className="form-row-grid">
                     <div className="form-group">
-                      <label htmlFor="vendor_department_team">Vendor Department/Team</label>
+                      <label htmlFor="vendor_department_team">Vendor Department/Team <span className="required-field">*</span></label>
                       <input
                         type="text"
                         id="vendor_department_team"
@@ -1242,11 +1244,12 @@ const VendorAgreements = () => {
                         value={formData.vendor_department_team}
                         onChange={handleInputChange}
                         placeholder="e.g., Data Operations, Finance Team"
+                        required
                       />
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="vendor_department_email">Vendor Department Email</label>
+                      <label htmlFor="vendor_department_email">Vendor Department Email <span className="required-field">*</span></label>
                       <input
                         type="email"
                         id="vendor_department_email"
@@ -1254,6 +1257,7 @@ const VendorAgreements = () => {
                         value={formData.vendor_department_email}
                         onChange={handleInputChange}
                         placeholder="department@vendor.com"
+                        required
                       />
                     </div>
                   </div>
@@ -1378,7 +1382,7 @@ const VendorAgreements = () => {
                       </h4>
                       
                       <div className="form-group">
-                        <label htmlFor="secondary_contact_user_id">Select Contact</label>
+                        <label htmlFor="secondary_contact_user_id">Select Contact <span className="required-field">*</span></label>
                         <VendorUserSelect
                           value={formData.secondary_contact_user_id || ''}
                           onChange={(e) => {
@@ -1392,8 +1396,8 @@ const VendorAgreements = () => {
                               secondary_contact_designation: user?.username || ''
                             }));
                           }}
-                          placeholder="Select secondary contact (optional)"
-                          required={false}
+                          placeholder="Select secondary contact"
+                          required
                           name="secondary_contact_user_id"
                         />
                       </div>
@@ -1443,7 +1447,7 @@ const VendorAgreements = () => {
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="file_type">File Type</label>
+                      <label htmlFor="file_type">File Type <span className="required-field">*</span></label>
                       <input
                         type="text"
                         id="file_type"
@@ -1451,18 +1455,20 @@ const VendorAgreements = () => {
                         value={formData.file_type}
                         onChange={handleInputChange}
                         placeholder="e.g., CSV, JSON, XML"
+                        required
                       />
                     </div>
                   </div>
                   
                   <div className="form-row-grid">
                     <div className="form-group">
-                      <label htmlFor="data_classification">Data Classification</label>
+                      <label htmlFor="data_classification">Data Classification <span className="required-field">*</span></label>
                       <select
                         id="data_classification"
                         name="data_classification"
                         value={formData.data_classification}
                         onChange={handleInputChange}
+                        required
                       >
                         <option value="">Select classification</option>
                         <option value="Public">Public</option>
@@ -1472,7 +1478,7 @@ const VendorAgreements = () => {
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="domain">Domain</label>
+                      <label htmlFor="domain">Domain <span className="required-field">*</span></label>
                       <input
                         type="text"
                         id="domain"
@@ -1480,13 +1486,14 @@ const VendorAgreements = () => {
                         value={formData.domain}
                         onChange={handleInputChange}
                         placeholder="e.g., Finance, Operations"
+                        required
                       />
                     </div>
                   </div>
                   
                   <div className="form-row-grid">
                     <div className="form-group">
-                      <label htmlFor="retention_days">Retention (in Days)</label>
+                      <label htmlFor="retention_days">Retention (in Days) <span className="required-field">*</span></label>
                       <input
                         type="number"
                         id="retention_days"
@@ -1495,11 +1502,12 @@ const VendorAgreements = () => {
                         onChange={handleInputChange}
                         placeholder="e.g., 365"
                         min="0"
+                        required
                       />
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="expected_arrival_time">Expected Arrival Time</label>
+                      <label htmlFor="expected_arrival_time">Expected Arrival Time <span className="required-field">*</span></label>
                       <input
                         type="text"
                         id="expected_arrival_time"
@@ -1507,17 +1515,19 @@ const VendorAgreements = () => {
                         value={formData.expected_arrival_time}
                         onChange={handleInputChange}
                         placeholder="e.g., 9:00 AM EST"
+                        required
                       />
                     </div>
                   </div>
                   
                   <div className="form-group">
-                    <label htmlFor="delivery_method">Delivery Method</label>
+                    <label htmlFor="delivery_method">Delivery Method <span className="required-field">*</span></label>
                     <select
                       id="delivery_method"
                       name="delivery_method"
                       value={formData.delivery_method}
                       onChange={handleInputChange}
+                      required
                     >
                       <option value="">Select delivery method</option>
                       <option value="SFTP">SFTP</option>
