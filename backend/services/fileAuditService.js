@@ -80,7 +80,7 @@ async function captureFileAudit(pool, auditData, options = {}) {
       attempt++;
 
       // Begin transaction for atomic audit write
-      const client = await pool.getClient();
+      const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
@@ -195,7 +195,7 @@ async function captureFileSchema(pool, schemaData) {
   const fileSchemaId = `schema_${fileId}_${Date.now()}`;
 
   try {
-    const client = await pool.getClient();
+    const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
@@ -541,7 +541,7 @@ async function getAuditRecords(pool, filters = {}) {
  * Cleanup old audit records based on retention policy
  */
 async function cleanupOldAudits(pool, retentionDays = 90) {
-  const client = await pool.getClient();
+  const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
