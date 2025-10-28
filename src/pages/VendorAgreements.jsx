@@ -842,7 +842,7 @@ const VendorAgreements = () => {
                   <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="vendor_id">
-                        Vendor {isAdmin && <span className="required-field">*</span>}
+                        Vendor Name {isAdmin && <span className="required-field">*</span>}
                       </label>
                       {isAdmin ? (
                         <select
@@ -1060,7 +1060,7 @@ const VendorAgreements = () => {
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="owner_contact">Owner Contact</label>
+                      <label htmlFor="owner_contact">Vendor Department Email</label>
                       <input
                         type="text"
                         id="owner_contact"
@@ -1608,7 +1608,7 @@ const VendorAgreements = () => {
                           <span>{selectedAgreement.file_name || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Vendor:</label>
+                          <label>Vendor Name:</label>
                           <span>
                             {selectedAgreement.vendor_name || '-'}
                             {selectedAgreement.vendor_code ? ` (${selectedAgreement.vendor_code})` : ''}
@@ -1634,7 +1634,7 @@ const VendorAgreements = () => {
                           <span>{selectedAgreement.primary_contact_name || selectedAgreement.vendor_contact || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>Owner Contact:</label>
+                          <label>Vendor Department Email:</label>
                           <span>{selectedAgreement.owner_contact || '-'}</span>
                         </div>
                         <div className="detail-item full-width">
