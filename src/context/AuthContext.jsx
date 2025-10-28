@@ -192,25 +192,9 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem('refreshToken', tokens.refreshToken);
         }
         
-        // Re-fetch user data to check for force_password_change flag
-        try {
-          const userResponse = await axios.get(`${API_BASE_URL}/api/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${tokens.accessToken}`
-            }
-          });
-          
-          const userData = userResponse.data;
-          setCurrentUser(userData);
-          
-          // Check if user needs to change password
-          if (userData.force_password_change) {
-            console.log('User must change password (detected after token refresh)');
-            setShowForcePasswordChange(true);
-          }
-        } catch (fetchError) {
-          console.error('Error fetching user data after token refresh:', fetchError);
-        }
+        // Token refresh doesn't change user data, so we don't need to refetch it
+        // This prevents unnecessary re-renders in components that depend on currentUser
+        // The force_password_change flag is already set during initial login
         
         return tokens.accessToken;
       }
