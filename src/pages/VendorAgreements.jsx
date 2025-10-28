@@ -612,6 +612,7 @@ const VendorAgreements = () => {
     const file = event.target.files[0];
     if (!file) return;
     
+    setTemplateFile(file);
     event.target.value = '';
     
     if (!isAdmin) {
@@ -621,6 +622,7 @@ const VendorAgreements = () => {
     
     try {
       setError('');
+      setUploadingTemplate(true);
       setLoading(true);
       
       const formData = new FormData();
@@ -633,6 +635,7 @@ const VendorAgreements = () => {
       });
       
       setLoading(false);
+      setUploadingTemplate(false);
       
       console.log('Template upload response:', response.data);
       
@@ -686,6 +689,7 @@ const VendorAgreements = () => {
     } catch (error) {
       console.error('Error uploading template:', error);
       setLoading(false);
+      setUploadingTemplate(false);
       
       if (error.response?.data?.details) {
         const details = error.response.data.details;
