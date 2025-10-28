@@ -41,11 +41,13 @@ const VendorConnectionModal = ({
   const [savedConnectionId, setSavedConnectionId] = useState(null);
   const [showBrowseModal, setShowBrowseModal] = useState(false);
   const [connectionDetailsModified, setConnectionDetailsModified] = useState(false);
+  const [testSuccessful, setTestSuccessful] = useState(false);
+  const [testCredentials, setTestCredentials] = useState(null);
   
   const isEditMode = !!connection;
   const connectionId = savedConnectionId || connection?.connection_id;
-  // Can browse if connection is saved AND connection details haven't been modified
-  const canBrowse = !!connectionId && !connectionDetailsModified;
+  // Can browse if connection is saved OR test was successful, AND connection details haven't been modified
+  const canBrowse = (!!connectionId || testSuccessful) && !connectionDetailsModified;
   
   useEffect(() => {
     if (connection) {
@@ -98,6 +100,8 @@ const VendorConnectionModal = ({
     setError('');
     setTestResult(null);
     setConnectionDetailsModified(false);
+    setTestSuccessful(false);
+    setTestCredentials(null);
   }, [connection, isOpen]);
   
   const handleInputChange = (e) => {
@@ -114,6 +118,9 @@ const VendorConnectionModal = ({
       if (connectionId) {
         setConnectionDetailsModified(true);
       }
+      // Clear test success and file path when connection details change
+      setTestSuccessful(false);
+      setTestCredentials(null);
       // Clear file path when connection details change (bucket, container, etc.)
       setFormData(prev => ({
         ...prev,
@@ -222,11 +229,17 @@ const VendorConnectionModal = ({
         
         const response = await axios.post('/api/vendor-connections/test-new', payload);
         
+        // Store test credentials for browsing
+        setTestSuccessful(true);
+        setTestCredentials(payload);
+        
         setTestResult({
           success: true,
-          message: response.data.message || 'Connection test successful! You can now save the connection.'
+          message: response.data.message || 'Connection test successful! You can now browse folders or save the connection.'
         });
       } catch (err) {
+        setTestSuccessful(false);
+        setTestCredentials(null);
         setTestResult({
           success: false,
           message: err.response?.data?.error || err.message || 'Connection test failed'
@@ -534,14 +547,14 @@ const VendorConnectionModal = ({
                   alignItems: 'center',
                   gap: '0.5rem'
                 }}
-                title={!canBrowse ? 'Save the connection first to enable browsing' : 'Browse folders'}
+                title={!canBrowse ? 'Test connection or save to enable browsing' : 'Browse folders'}
               >
                 <FaFolder /> Browse
               </button>
             </div>
             <small style={{ color: '#6b7280' }}>
               {!canBrowse 
-                ? 'Save the connection first to enable folder browsing'
+                ? 'Test connection or save to enable folder browsing'
                 : 'Folder path within the bucket/container. Click Browse to select from available folders.'
               }
             </small>
@@ -566,6 +579,7 @@ const VendorConnectionModal = ({
             <div className="modal-body" style={{ padding: 0 }}>
               <S3FolderBrowser
                 connectionId={connectionId}
+                rawCredentials={testCredentials}
                 initialPath={formData.file_path || '/'}
                 onSelectPath={handlePathSelect}
               />

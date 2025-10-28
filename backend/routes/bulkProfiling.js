@@ -17,18 +17,19 @@ const { describeCronExpression } = require('../utils/cronDescriber');
  */
 router.post('/browse', authenticateToken, async (req, res) => {
   try {
-    const { connectionId, s3Path } = req.body;
+    const { connectionId, rawCredentials, s3Path } = req.body;
     
-    if (!connectionId) {
+    if (!connectionId && !rawCredentials) {
       return res.status(400).json({
         success: false,
-        message: 'Connection ID is required'
+        message: 'Connection ID or raw credentials are required'
       });
     }
     
     const contents = await BulkProfilingService.browseS3Path(
       connectionId,
-      s3Path || ''
+      s3Path || '',
+      rawCredentials
     );
     
     res.json({

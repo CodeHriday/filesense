@@ -116,38 +116,51 @@ class BulkProfilingService {
   /**
    * Browse S3 path - list folders and files for navigation
    */
-  async browseS3Path(connectionId, s3Path = '') {
+  async browseS3Path(connectionId, s3Path = '', rawCredentials = null) {
     try {
-      // Get connection details
-      const connection = await connectionService.getConnectionById(connectionId);
+      let config;
       
-      if (!connection) {
-        throw new Error(`Connection ${connectionId} not found`);
-      }
-      
-      // Handle both transform connections and vendor connections
-      let connectionType = connection.type;
-      let config = connection.config;
-      
-      // For vendor connections, extract the actual provider type from config
-      if (connectionType === 'vendor') {
-        config = typeof config === 'string' ? JSON.parse(config) : config;
+      // Use raw credentials if provided (for testing before save)
+      if (rawCredentials) {
+        config = rawCredentials;
+        
+        // Validate provider
         const provider = config.provider || config.storage_type;
-        
         if (provider !== 'aws' && provider !== 's3') {
-          throw new Error(`Vendor connection provider ${provider} not supported. Only AWS S3 is supported`);
+          throw new Error(`Provider ${provider} not supported. Only AWS S3 is supported`);
         }
-        
-        // Decrypt vendor connection credentials
-        config = connectionService.decryptSensitiveFields('vendor', config);
       } else {
-        // For transform connections, ensure it's AWS type
-        if (connectionType !== 'aws') {
-          throw new Error(`Connection type ${connectionType} not supported. Only AWS S3 is supported`);
+        // Get connection details from database
+        const connection = await connectionService.getConnectionById(connectionId);
+        
+        if (!connection) {
+          throw new Error(`Connection ${connectionId} not found`);
         }
         
-        // Decrypt transform connection config
-        config = connectionService.decryptSensitiveFields(connectionType, config);
+        // Handle both transform connections and vendor connections
+        let connectionType = connection.type;
+        config = connection.config;
+        
+        // For vendor connections, extract the actual provider type from config
+        if (connectionType === 'vendor') {
+          config = typeof config === 'string' ? JSON.parse(config) : config;
+          const provider = config.provider || config.storage_type;
+          
+          if (provider !== 'aws' && provider !== 's3') {
+            throw new Error(`Vendor connection provider ${provider} not supported. Only AWS S3 is supported`);
+          }
+          
+          // Decrypt vendor connection credentials
+          config = connectionService.decryptSensitiveFields('vendor', config);
+        } else {
+          // For transform connections, ensure it's AWS type
+          if (connectionType !== 'aws') {
+            throw new Error(`Connection type ${connectionType} not supported. Only AWS S3 is supported`);
+          }
+          
+          // Decrypt transform connection config
+          config = connectionService.decryptSensitiveFields(connectionType, config);
+        }
       }
       
       // Parse S3 path
