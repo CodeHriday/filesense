@@ -249,18 +249,21 @@ async function addProjectIdToResources(client) {
     systemLogger.info('✓ Added project_id column to storage_connections table');
 
     await client.query(`
-      UPDATE storage_connections SET project_id = $1 WHERE project_id IS NULL;
+      UPDATE storage_connections SET project_id = $1 WHERE project_id IS NULL AND type != 'vendor';
     `, [defaultProjectId]);
-    systemLogger.info('✓ Backfilled storage_connections with Default Project');
+    systemLogger.info('✓ Backfilled storage_connections with Default Project (excluding vendor connections)');
 
+    // NOTE: We explicitly DROP NOT NULL constraint on storage_connections.project_id
+    // because vendor connections are global and don't require a project_id
     await client.query(`
       DO $$ 
       BEGIN
-        ALTER TABLE storage_connections ALTER COLUMN project_id SET NOT NULL;
+        ALTER TABLE storage_connections ALTER COLUMN project_id DROP NOT NULL;
       EXCEPTION
         WHEN others THEN NULL;
       END $$;
     `);
+    systemLogger.info('✓ Dropped NOT NULL constraint on storage_connections.project_id (allows vendor connections)');
     
     await client.query(`
       DO $$ 
