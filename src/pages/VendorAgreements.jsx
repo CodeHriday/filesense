@@ -776,14 +776,7 @@ const VendorAgreements = () => {
   const canApproveAsOwner = (agreement) => {
     // Admins can approve on behalf of owner, or actual owner can approve
     const isOwnerUser = currentUser.id === agreement.file_owner_user_id;
-    
-    // Also allow if user's email matches primary or secondary contact email (for vendor-side owner contacts)
-    const isContactUser = currentUser.email && (
-      currentUser.email === agreement.primary_contact_email ||
-      currentUser.email === agreement.secondary_contact_email
-    );
-    
-    return (isAdmin || isOwnerUser || isContactUser) && !agreement.owner_approved_at && !agreement.is_locked;
+    return (isAdmin || isOwnerUser) && !agreement.owner_approved_at && !agreement.is_locked;
   };
   
   const renderSchemaTable = (schema) => {
