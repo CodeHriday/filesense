@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const vendorService = require('../services/vendorService');
 const { systemLogger} = require('../utils/logger');
+const { isVendorUser: checkVendorUser } = require('../utils/userHelpers');
 
 // Middleware to check admin access
 const requireAdmin = (req, res, next) => {
@@ -23,7 +24,8 @@ const requireAdmin = (req, res, next) => {
 
 // Middleware to check if user is vendor (for their own profile access)
 const isVendorUser = (req, res, next) => {
-  if (req.user && req.user.roles && req.user.roles.includes('Vendor')) {
+  // Use user attributes (internal_user and user_type) instead of roles
+  if (req.user && checkVendorUser(req.user)) {
     req.isVendor = true;
   }
   next();

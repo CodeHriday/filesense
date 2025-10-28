@@ -12,6 +12,7 @@ const vendorAgreementService = require('../services/vendorAgreementService');
 const vendorService = require('../services/vendorService');
 const AgreementTemplateUtils = require('../utils/agreementTemplateUtils');
 const { systemLogger } = require('../utils/logger');
+const { requirePermission, checkPermission, hasPermission } = require('../middleware/vendorPermissions');
 
 // Configure multer for schema file uploads
 const upload = multer({
@@ -58,6 +59,7 @@ const requireAdmin = (req, res, next) => {
 };
 
 // Middleware to check if user is vendor or owner
+// Also checks for vendor_agreements:approve permission
 const checkAgreementAccess = async (req, res, next) => {
   try {
     const agreementId = parseInt(req.params.id || req.body.agreement_id);
@@ -74,7 +76,23 @@ const checkAgreementAccess = async (req, res, next) => {
     
     const agreement = result.agreement;
     
-    // Admin has access to everything
+    // Check if user has vendor_agreements:approve permission
+    // This allows access regardless of relationship to the agreement
+    if (hasPermission(req.user, 'vendor_agreements:approve')) {
+      req.agreement = agreement;
+      req.hasApprovePermission = true;
+      req.isAdmin = true; // Treat approve permission holders as admins for backwards compatibility
+      return next();
+    }
+    
+    // Check if user has vendor_agreements:read permission
+    // This allows viewing but not necessarily approving
+    if (hasPermission(req.user, 'vendor_agreements:read')) {
+      req.agreement = agreement;
+      req.hasReadPermission = true;
+    }
+    
+    // Admin role has access to everything (backwards compatibility)
     if (req.user.roles && req.user.roles.includes('Admin')) {
       req.agreement = agreement;
       req.isAdmin = true;
@@ -110,6 +128,11 @@ const checkAgreementAccess = async (req, res, next) => {
       }
     }
     
+    // If user has read permission set earlier, allow access for viewing
+    if (req.hasReadPermission) {
+      return next();
+    }
+    
     return res.status(403).json({ error: 'Access denied' });
     
   } catch (error) {
@@ -120,9 +143,9 @@ const checkAgreementAccess = async (req, res, next) => {
 
 /**
  * POST /api/vendor-agreements
- * Create new vendor agreement (Admin only)
+ * Create new vendor agreement (Requires vendor_agreements:write permission)
  */
-router.post('/', requireAdmin, upload.single('schemaFile'), async (req, res) => {
+router.post('/', requirePermission('vendor_agreements:write'), upload.single('schemaFile'), async (req, res) => {
   let schemaFilePath = null;
   
   try {
@@ -212,9 +235,9 @@ router.get('/:id', checkAgreementAccess, async (req, res) => {
 
 /**
  * PUT /api/vendor-agreements/:id
- * Update agreement (Admin only, can modify locked agreements)
+ * Update agreement (Requires vendor_agreements:write permission, can modify locked agreements)
  */
-router.put('/:id', requireAdmin, upload.single('schemaFile'), async (req, res) => {
+router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('schemaFile'), async (req, res) => {
   let schemaFilePath = null;
   
   try {
@@ -265,20 +288,25 @@ router.put('/:id', requireAdmin, upload.single('schemaFile'), async (req, res) =
 
 /**
  * POST /api/vendor-agreements/:id/approve
- * Approve agreement (Vendor or Owner)
+ * Approve agreement (Vendor, Owner, or users with vendor_agreements:approve permission)
  */
 router.post('/:id/approve', checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { comments, approver_type } = req.body;
     
+    // Check if user has approval permission OR is vendor/owner
+    if (!req.hasApprovePermission && !req.isAdmin && !req.isVendor && !req.isOwner) {
+      return res.status(403).json({ error: 'Access denied. Requires vendor_agreements:approve permission or must be vendor/owner' });
+    }
+    
     // Determine approver type
     let approverType;
     
-    if (req.isAdmin) {
-      // Admins must specify which type of approval (vendor or owner)
+    if (req.isAdmin || req.hasApprovePermission) {
+      // Admins and users with approve permission must specify which type of approval (vendor or owner)
       if (!approver_type || !['vendor', 'owner'].includes(approver_type)) {
-        return res.status(400).json({ error: 'Admin must specify approver_type (vendor or owner)' });
+        return res.status(400).json({ error: 'Users with approval permission must specify approver_type (vendor or owner)' });
       }
       approverType = approver_type;
     } else if (req.isVendor) {
@@ -286,7 +314,7 @@ router.post('/:id/approve', checkAgreementAccess, async (req, res) => {
     } else if (req.isOwner) {
       approverType = 'owner';
     } else {
-      return res.status(403).json({ error: 'Only vendor, owner, or admin can approve' });
+      return res.status(403).json({ error: 'Only vendor, owner, or users with approval permission can approve' });
     }
     
     const result = await vendorAgreementService.approveAgreement(
@@ -309,12 +337,17 @@ router.post('/:id/approve', checkAgreementAccess, async (req, res) => {
 
 /**
  * POST /api/vendor-agreements/:id/reject
- * Reject agreement (Vendor or Owner)
+ * Reject agreement (Vendor, Owner, or users with vendor_agreements:approve permission)
  */
 router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { comments, approver_type } = req.body;
+    
+    // Check if user has approval permission OR is vendor/owner
+    if (!req.hasApprovePermission && !req.isAdmin && !req.isVendor && !req.isOwner) {
+      return res.status(403).json({ error: 'Access denied. Requires vendor_agreements:approve permission or must be vendor/owner' });
+    }
     
     if (!comments) {
       return res.status(400).json({ error: 'Comments are required for rejection' });
@@ -323,10 +356,10 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
     // Determine approver type
     let approverType;
     
-    if (req.isAdmin) {
-      // Admins must specify which type of rejection (vendor or owner)
+    if (req.isAdmin || req.hasApprovePermission) {
+      // Admins and users with approve permission must specify which type of rejection (vendor or owner)
       if (!approver_type || !['vendor', 'owner'].includes(approver_type)) {
-        return res.status(400).json({ error: 'Admin must specify approver_type (vendor or owner)' });
+        return res.status(400).json({ error: 'Users with approval permission must specify approver_type (vendor or owner)' });
       }
       approverType = approver_type;
     } else if (req.isVendor) {
@@ -334,7 +367,7 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
     } else if (req.isOwner) {
       approverType = 'owner';
     } else {
-      return res.status(403).json({ error: 'Only vendor, owner, or admin can reject' });
+      return res.status(403).json({ error: 'Only vendor, owner, or users with approval permission can reject' });
     }
     
     const result = await vendorAgreementService.rejectAgreement(

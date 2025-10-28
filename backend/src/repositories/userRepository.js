@@ -19,6 +19,7 @@ const findAll = async (filters = {}) => {
     let queryText = `
       SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
              u.created_at, u.updated_at, u.last_login,
+             u.internal_user, u.user_type,
              ARRAY_AGG(r.name) AS roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -58,7 +59,7 @@ const findAll = async (filters = {}) => {
     }
     
     // Complete the query with GROUP BY and ORDER BY
-    queryText += whereClause + ' GROUP BY u.id ORDER BY u.created_at DESC';
+    queryText += whereClause + ' GROUP BY u.id, u.internal_user, u.user_type ORDER BY u.created_at DESC';
     
     // Add pagination if provided
     if (filters.limit) {
@@ -94,12 +95,13 @@ const findById = async (id) => {
     const query = `
       SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
              u.created_at, u.updated_at, u.last_login,
+             u.internal_user, u.user_type,
              ARRAY_AGG(r.name) AS roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
       LEFT JOIN roles r ON ur.role_id = r.id
       WHERE u.id = $1
-      GROUP BY u.id
+      GROUP BY u.id, u.internal_user, u.user_type
     `;
     
     const result = await db.query(query, [id]);
@@ -132,12 +134,13 @@ const findByUsername = async (username) => {
     const query = `
       SELECT u.id, u.username, u.email, u.password, u.full_name, 
              u.created_at, u.updated_at, u.last_login,
+             u.internal_user, u.user_type,
              ARRAY_AGG(r.name) AS roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
       LEFT JOIN roles r ON ur.role_id = r.id
       WHERE u.username = $1
-      GROUP BY u.id
+      GROUP BY u.id, u.internal_user, u.user_type
     `;
     
     const result = await db.query(query, [username]);

@@ -7,6 +7,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import { useAuth } from '../context/AuthContext';
+import { isVendorUser } from '../utils/userHelpers';
 import axios from 'axios';
 import '../styles/VendorAgreements.css';
 
@@ -98,7 +99,7 @@ const VendorAgreements = () => {
   const navigate = useNavigate();
   
   const isAdmin = hasRole && hasRole('Admin');
-  const isVendor = hasRole && hasRole('Vendor');
+  const isVendor = isVendorUser(currentUser);
   const isOwner = hasRole && hasRole('Owner');
   
   useEffect(() => {
@@ -761,8 +762,11 @@ const VendorAgreements = () => {
   };
   
   const canApproveAsVendor = (agreement) => {
-    // Admins can approve on behalf of vendor, or actual vendor users can approve
-    const isVendorUser = isVendor && currentUser.vendor_id === agreement.vendor_id;
+    // Check if user has vendor_agreements:approve permission
+    const hasApprovePermission = hasPermission && hasPermission('vendor_agreements:approve');
+    
+    // Allow if user has approve permission OR is a vendor user for this agreement
+    const isVendorUserForAgreement = isVendor && currentUser.vendor_id === agreement.vendor_id;
     
     // Also allow if user's email matches primary or secondary contact email
     const isContactUser = currentUser.email && (
@@ -770,13 +774,16 @@ const VendorAgreements = () => {
       currentUser.email === agreement.secondary_contact_email
     );
     
-    return (isAdmin || isVendorUser || isContactUser) && !agreement.vendor_approved_at && !agreement.is_locked;
+    return (hasApprovePermission || isAdmin || isVendorUserForAgreement || isContactUser) && !agreement.vendor_approved_at && !agreement.is_locked;
   };
   
   const canApproveAsOwner = (agreement) => {
-    // Admins can approve on behalf of owner, or actual owner can approve
+    // Check if user has vendor_agreements:approve permission
+    const hasApprovePermission = hasPermission && hasPermission('vendor_agreements:approve');
+    
+    // Allow if user has approve permission OR is the owner
     const isOwnerUser = currentUser.id === agreement.file_owner_user_id;
-    return (isAdmin || isOwnerUser) && !agreement.owner_approved_at && !agreement.is_locked;
+    return (hasApprovePermission || isAdmin || isOwnerUser) && !agreement.owner_approved_at && !agreement.is_locked;
   };
   
   const renderSchemaTable = (schema) => {

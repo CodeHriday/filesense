@@ -23,7 +23,9 @@ const generateAccessToken = (user) => {
     id: user.id,
     username: user.username,
     email: user.email,
-    roles: user.roles
+    roles: user.roles,
+    internal_user: user.internal_user !== undefined ? user.internal_user : true,
+    user_type: user.user_type || null
   };
   
   return jwt.sign(
@@ -256,7 +258,9 @@ const authenticateUser = async (username, password, userAgent) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        roles: user.roles
+        roles: user.roles,
+        internal_user: user.internal_user !== undefined ? user.internal_user : true,
+        user_type: user.user_type || null
       },
       tokens: {
         accessToken,
@@ -321,7 +325,9 @@ const refreshAccessToken = async (refreshToken, userAgent) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        roles: user.roles
+        roles: user.roles,
+        internal_user: user.internal_user !== undefined ? user.internal_user : true,
+        user_type: user.user_type || null
       },
       tokens: {
         accessToken: newAccessToken,

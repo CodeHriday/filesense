@@ -4,6 +4,7 @@ import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
+import { isVendorUser } from '../utils/userHelpers';
 import './Sidebar.css';
 
 function Sidebar() {
@@ -18,10 +19,9 @@ function Sidebar() {
     }));
   };
   
-  // Check if user is a vendor (and ONLY a vendor)
-  const isVendorOnly = currentUser && 
+  // Check if user is a vendor using user attributes (not roles)
+  const isVendorOnly = isVendorUser(currentUser) && 
     currentUser.roles && 
-    currentUser.roles.includes('Vendor') && 
     currentUser.roles.length === 1;
   
   // If user is not logged in, show minimal sidebar

@@ -5,14 +5,15 @@
 
 const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
+const { isVendorUser } = require('../utils/userHelpers');
 
 /**
  * Middleware to check if user is a vendor and get their vendor profile
  */
 async function attachVendorProfile(req, res, next) {
   try {
-    // Skip if no user or not a vendor
-    if (!req.user || !req.user.roles || !req.user.roles.includes('Vendor')) {
+    // Skip if no user or not a vendor (use user attributes, not roles)
+    if (!req.user || !isVendorUser(req.user)) {
       return next();
     }
     
