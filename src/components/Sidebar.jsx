@@ -38,9 +38,16 @@ function Sidebar() {
   }
   
   // Helper function to check if user has read permission for a feature
-  const canViewFeature = (featureId) => {
+  const canViewFeature = (featureId, parentId = null) => {
     // Check for read permission in the format: featureId:read
     const readPermission = `${featureId}:read`;
+    
+    // If this is a child feature with a parent, also check parent permission
+    if (parentId) {
+      const parentPermission = `${parentId}:read`;
+      return hasPermission(readPermission) || hasPermission(parentPermission);
+    }
+    
     return hasPermission(readPermission);
   };
   
@@ -90,7 +97,7 @@ function Sidebar() {
                   </div>
                 </li>
                 {isExpanded && feature.children.map(child => {
-                  if (child.showInSidebar && canViewFeature(child.id)) {
+                  if (child.showInSidebar && canViewFeature(child.id, feature.id)) {
                     return (
                       <li key={child.id} className="submenu-item">
                         <NavLink to={child.route} className={({ isActive }) => isActive ? 'active' : ''}>

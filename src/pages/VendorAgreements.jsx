@@ -432,7 +432,7 @@ const VendorAgreements = () => {
     try {
       const submitData = new FormData();
       
-      // Wrap form data in agreementData as expected by backend
+      // Wrap form data in agreementData/updateData as expected by backend
       const agreementData = {};
       Object.keys(formData).forEach(key => {
         if (formData[key] !== '') {
@@ -440,7 +440,9 @@ const VendorAgreements = () => {
         }
       });
       
-      submitData.append('agreementData', JSON.stringify(agreementData));
+      // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
+      const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
+      submitData.append(dataKey, JSON.stringify(agreementData));
       
       let response;
       if (modalMode === 'create') {
@@ -993,9 +995,9 @@ const VendorAgreements = () => {
                         <input
                           type="text"
                           id="project_name"
-                          value={formData.project_name || 'Loading...'}
+                          value={formData.project_name || ''}
                           readOnly
-                          placeholder="Auto-populated from selected vendor"
+                          placeholder={formData.project_name ? "" : "No project assigned to vendor"}
                           style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
