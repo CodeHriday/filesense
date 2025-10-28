@@ -357,6 +357,7 @@ async function getAuditRecords(pool, filters = {}) {
     correlationId,
     loadType,
     fileRole,
+    search,
     limit = 100,
     offset = 0,
     userId,
@@ -443,6 +444,16 @@ async function getAuditRecords(pool, filters = {}) {
       paramIndex++;
     }
 
+    if (search) {
+      // Search in both mapping_name and file_name (case-insensitive)
+      conditions.push(`(
+        COALESCE(fad.mapping_name, tm.mapping_name) ILIKE $${paramIndex} OR
+        fad.file_name ILIKE $${paramIndex}
+      )`);
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
     const whereClause = conditions.length > 0 
       ? `WHERE ${conditions.join(' AND ')}` 
       : '';
@@ -452,6 +463,10 @@ async function getAuditRecords(pool, filters = {}) {
       SELECT COUNT(*) as total
       FROM file_audit_details fad
       LEFT JOIN files f ON fad.file_id = f.file_id
+      LEFT JOIN transformation_jobs tj 
+        ON fad.transformation_job_id = tj.id
+      LEFT JOIN transformation_mappings tm 
+        ON tj.mapping_id = CAST(tm.id AS VARCHAR)
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
