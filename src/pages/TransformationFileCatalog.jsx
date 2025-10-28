@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch } from 'react-icons/fi';
+import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch, FiSearch } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -21,10 +21,20 @@ const TransformationFileCatalog = () => {
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [showProfilingModal, setShowProfilingModal] = useState(false);
   const [selectedLineage, setSelectedLineage] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchTransformationFiles();
   }, []);
+
+  useEffect(() => {
+    // Debounce search: wait 300ms after user stops typing
+    const timeoutId = setTimeout(() => {
+      fetchTransformationFiles();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   useEffect(() => {
     // Group files by mapping_name when files change
@@ -56,12 +66,17 @@ const TransformationFileCatalog = () => {
     try {
       setLoading(true);
       // Fetch file audit records for transformation-generated files
-      const response = await axios.get('/api/file-audit', {
-        params: {
-          load_type: 'etl_transformation',
-          file_role: 'target'
-        }
-      });
+      const params = {
+        load_type: 'etl_transformation',
+        file_role: 'target'
+      };
+
+      // Add search parameter if present
+      if (searchTerm && searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      const response = await axios.get('/api/file-audit', { params });
       
       setFiles(response.data.audits || []);
       setError(null);
@@ -145,9 +160,21 @@ const TransformationFileCatalog = () => {
           title="Transformation File Catalog"
           subtitle="Files created by ETL transformations with profiling history"
           actions={
-            <div className="catalog-file-count">
-              <strong>{getTotalFiles()}</strong>
-              <span>Total Files</span>
+            <div className="catalog-header-actions">
+              <div className="search-input-container">
+                <FiSearch className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search by mapping or file name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              <div className="catalog-file-count">
+                <strong>{getTotalFiles()}</strong>
+                <span>Total Files</span>
+              </div>
             </div>
           }
         />
