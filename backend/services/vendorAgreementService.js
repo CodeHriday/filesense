@@ -89,12 +89,12 @@ class VendorAgreementService {
       // Validate vendor_connection_id (required)
       const connCheck = await client.query(
         `SELECT connection_id FROM storage_connections 
-         WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
+         WHERE connection_id = $1 AND type = 'vendor' AND connection_direction IN ('source', 'target', 'drop')`,
         [vendor_connection_id]
       );
       
       if (connCheck.rows.length === 0) {
-        throw new Error('Invalid vendor connection or connection not configured for file drop');
+        throw new Error('Invalid vendor connection or connection not configured for file operations');
       }
       
       // Validate target_connection_id (optional, but must be valid if provided)
@@ -319,12 +319,12 @@ class VendorAgreementService {
       if (vendor_connection_id !== undefined && vendor_connection_id) {
         const connCheck = await client.query(
           `SELECT connection_id FROM storage_connections 
-           WHERE connection_id = $1 AND type = 'vendor' AND connection_direction = 'drop'`,
+           WHERE connection_id = $1 AND type = 'vendor' AND connection_direction IN ('source', 'target', 'drop')`,
           [vendor_connection_id]
         );
         
         if (connCheck.rows.length === 0) {
-          throw new Error('Invalid vendor connection or connection not configured for file drop');
+          throw new Error('Invalid vendor connection or connection not configured for file operations');
         }
       }
       
