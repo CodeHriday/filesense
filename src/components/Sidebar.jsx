@@ -69,6 +69,22 @@ function Sidebar() {
       return hasPermission(parentPermission);
     }
     
+    // For parent features with children (like vendor_management), check if user has
+    // permission to view ANY child. This allows users with granular permissions
+    // (e.g., only vendor_agreements:read) to see the parent section
+    const feature = APP_FEATURES.find(f => f.id === featureId);
+    if (feature && feature.children && feature.children.length > 0) {
+      // Check if user has permission for any child
+      const hasAnyChildPermission = feature.children.some(child => {
+        const childPermission = `${child.id}:read`;
+        return hasPermission(childPermission);
+      });
+      
+      if (hasAnyChildPermission) {
+        return true;
+      }
+    }
+    
     return hasPermission(readPermission);
   };
   
