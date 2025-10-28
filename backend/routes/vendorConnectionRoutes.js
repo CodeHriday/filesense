@@ -165,6 +165,18 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Connection name is required' });
     }
     
+    // Check for duplicate connection name (case-insensitive) across all connection tables
+    const duplicateCheck = await pool.query(
+      'SELECT name FROM storage_connections WHERE LOWER(name) = LOWER($1)',
+      [name.trim()]
+    );
+    
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({ 
+        error: `A connection with the name "${name.trim()}" already exists (case-insensitive).` 
+      });
+    }
+    
     // project_id is now optional for global vendor connections
     
     // Validate provider-specific fields

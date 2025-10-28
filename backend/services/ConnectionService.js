@@ -279,6 +279,16 @@ class ConnectionService {
         throw new Error('Missing required connection fields');
       }
       
+      // Check for duplicate connection name (case-insensitive)
+      const duplicateCheck = await client.query(
+        'SELECT name FROM transform_connections WHERE LOWER(name) = LOWER($1)',
+        [name]
+      );
+      
+      if (duplicateCheck.rows.length > 0) {
+        throw new Error(`A connection with the name "${name}" already exists (case-insensitive).`);
+      }
+      
       // Encrypt sensitive credentials before saving
       const encryptedConfig = this.encryptSensitiveFields(type, config);
       
