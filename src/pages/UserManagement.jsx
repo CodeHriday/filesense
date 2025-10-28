@@ -45,6 +45,10 @@ const UserManagement = () => {
   const [actionNotes, setActionNotes] = useState('');
   const [tempPassword, setTempPassword] = useState('');
   
+  // Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  
   const { currentUser, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -341,10 +345,18 @@ const UserManagement = () => {
     }
   };
   
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) {
-      return;
-    }
+  const openDeleteModal = (user) => {
+    setUserToDelete(user);
+    setDeleteModalOpen(true);
+  };
+  
+  const closeDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setUserToDelete(null);
+  };
+  
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
     
     try {
       // Temporarily bypass permission checks
@@ -353,11 +365,13 @@ const UserManagement = () => {
       //   return;
       // }
       
-      await deleteUser(userId);
+      await deleteUser(userToDelete.id);
+      closeDeleteModal();
       fetchData();
     } catch (error) {
       console.error('Error deleting user:', error);
       setError('Failed to delete user: ' + (error.response?.data?.error || error.message));
+      closeDeleteModal();
     }
   };
   
@@ -456,7 +470,7 @@ const UserManagement = () => {
                       {user.id !== currentUser?.id && (
                         <button 
                           className="delete-user-btn" 
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => openDeleteModal(user)}
                         >
                           Delete
                         </button>
