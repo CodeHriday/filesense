@@ -208,13 +208,15 @@ router.post('/', requireAdmin, async (req, res) => {
     
     // Create connection
     const connectionId = uuidv4();
+    // Convert undefined to null for project_id (vendor connections are global by default)
+    const normalizedProjectId = project_id || null;
     const result = await pool.query(
       `INSERT INTO storage_connections (
         connection_id, type, name, config, status, 
         connection_direction, project_id, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING connection_id, name, type, status, connection_direction, project_id, created_at, updated_at`,
-      [connectionId, 'vendor', name.trim(), JSON.stringify(config), 'active', 'drop', project_id]
+      [connectionId, 'vendor', name.trim(), JSON.stringify(config), 'active', 'drop', normalizedProjectId]
     );
     
     systemLogger.info('Vendor connection created', { 
