@@ -496,6 +496,9 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
       }
       
       // Delete related records in the correct order (foreign key constraints)
+      // Note: user_job_groups uses UUID for user_id, so we skip it
+      // Note: audit_log, data_access_log, security_audit_log, user_dashboard_settings use VARCHAR for user_id
+      
       // Delete user role assignments
       await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
       
@@ -505,8 +508,16 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
       // Delete user groups
       await client.query('DELETE FROM user_groups WHERE user_id = $1', [userId]);
       
-      // Delete user job groups
-      await client.query('DELETE FROM user_job_groups WHERE user_id = $1', [userId]);
+      // Delete from other user-related tables that use integer user_id
+      await client.query('DELETE FROM user_attributes WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM user_sessions WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM user_uuid_mapping WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM project_members WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM access_group_members WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM file_audit_details WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM password_reset_requests WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM policy_evaluation_cache WHERE user_id = $1', [userId]);
       
       // Delete the user
       await client.query('DELETE FROM users WHERE id = $1', [userId]);
