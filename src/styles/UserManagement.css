@@ -243,7 +243,9 @@
 
 .form-group input[type="text"],
 .form-group input[type="password"],
-.form-group input[type="email"] {
+.form-group input[type="email"],
+.form-group input[type="tel"],
+.form-group select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #dadce0;
@@ -251,7 +253,8 @@
   font-size: 14px;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
   outline: none;
   border-color: #1a73e8;
   box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
