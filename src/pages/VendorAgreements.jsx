@@ -1548,7 +1548,7 @@ const VendorAgreements = () => {
                               type="button"
                               onClick={() => {
                                 setS3BrowserConnectionId(formData.target_connection_id);
-                                setS3BrowserCallback((path) => {
+                                setS3BrowserCallback(() => (path) => {
                                   setFormData(prev => ({ ...prev, target_file_path: path }));
                                   setS3BrowserOpen(false);
                                 });
