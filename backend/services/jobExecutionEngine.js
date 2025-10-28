@@ -486,7 +486,7 @@ async function getMappingConfig(pool, mappingId) {
   // If using vendor agreement, fetch the connection ID from the agreement
   if (mapping.vendor_agreement_id) {
     const agreementResult = await pool.query(
-      'SELECT connection_id FROM vendor_agreements WHERE agreement_id = $1',
+      'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1',
       [mapping.vendor_agreement_id]
     );
     
@@ -495,7 +495,7 @@ async function getMappingConfig(pool, mappingId) {
     }
     
     // Set the source_connection_id to the vendor's connection ID for job execution
-    mapping.source_connection_id = agreementResult.rows[0].connection_id;
+    mapping.source_connection_id = agreementResult.rows[0].vendor_connection_id;
   }
   
   return mapping;
