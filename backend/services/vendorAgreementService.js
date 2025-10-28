@@ -51,6 +51,7 @@ class VendorAgreementService {
         vendor_connection_id,
         target_connection_id,
         drop_location_path,
+        target_file_path,
         manager_contact,
         contains_pii,
         file_type,
@@ -202,11 +203,11 @@ class VendorAgreementService {
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata,
-          vendor_connection_id, target_connection_id, drop_location_path, project_id,
+          vendor_connection_id, target_connection_id, drop_location_path, target_file_path, project_id,
           manager_contact,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, 'draft', 1, $32, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 'draft', 1, $33, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -214,7 +215,7 @@ class VendorAgreementService {
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata ? JSON.stringify(metadata) : null,
-          vendor_connection_id, target_connection_id || null, drop_location_path || null, project_id,
+          vendor_connection_id, target_connection_id || null, drop_location_path || null, target_file_path || null, project_id,
           finalManagerContact,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           createdBy
@@ -299,6 +300,7 @@ class VendorAgreementService {
         vendor_connection_id,
         target_connection_id,
         drop_location_path,
+        target_file_path,
         manager_contact,
         contains_pii,
         file_type,
@@ -568,6 +570,13 @@ class VendorAgreementService {
         updates.push(`drop_location_path = $${paramIndex}`);
         params.push(drop_location_path || null);
         changes.drop_location_path = { from: current.drop_location_path, to: drop_location_path };
+        paramIndex++;
+      }
+      
+      if (target_file_path !== undefined && target_file_path !== current.target_file_path) {
+        updates.push(`target_file_path = $${paramIndex}`);
+        params.push(target_file_path || null);
+        changes.target_file_path = { from: current.target_file_path, to: target_file_path };
         paramIndex++;
       }
       

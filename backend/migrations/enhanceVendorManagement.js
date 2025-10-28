@@ -62,9 +62,10 @@ async function up() {
       ADD COLUMN IF NOT EXISTS domain VARCHAR(255),
       ADD COLUMN IF NOT EXISTS retention_days INTEGER,
       ADD COLUMN IF NOT EXISTS expected_arrival_time VARCHAR(50),
-      ADD COLUMN IF NOT EXISTS delivery_method VARCHAR(100);
+      ADD COLUMN IF NOT EXISTS delivery_method VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS target_file_path TEXT;
     `);
-    systemLogger.info('✓ Added data classification fields');
+    systemLogger.info('✓ Added data classification fields and target_file_path');
 
     await client.query('COMMIT');
     systemLogger.info('✅ Enhanced vendor management migration completed successfully');
@@ -119,7 +120,8 @@ async function down() {
       DROP COLUMN IF EXISTS domain,
       DROP COLUMN IF EXISTS retention_days,
       DROP COLUMN IF EXISTS expected_arrival_time,
-      DROP COLUMN IF EXISTS delivery_method;
+      DROP COLUMN IF EXISTS delivery_method,
+      DROP COLUMN IF EXISTS target_file_path;
     `);
 
     await client.query('COMMIT');

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
+import ConfirmationModal from '../components/ConfirmationModal';
+import S3FolderBrowser from '../components/S3FolderBrowser';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import '../styles/VendorAgreements.css';
@@ -26,6 +28,19 @@ const VendorAgreements = () => {
   const [detailModalError, setDetailModalError] = useState('');
   const [detailModalSuccess, setDetailModalSuccess] = useState('');
   
+  // Confirmation modal state
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: null
+  });
+  
+  // S3 Folder Browser state
+  const [s3BrowserOpen, setS3BrowserOpen] = useState(false);
+  const [s3BrowserConnectionId, setS3BrowserConnectionId] = useState(null);
+  const [s3BrowserCallback, setS3BrowserCallback] = useState(null);
+  
   // Vendor connections state
   const [vendorConnections, setVendorConnections] = useState([]);
   const [filteredConnections, setFilteredConnections] = useState([]);
@@ -37,17 +52,34 @@ const VendorAgreements = () => {
     schema: '',
     frequency: 'Daily',
     frequency_description: '',
-    file_creator: '',
+    vendor_department_team: '',
     file_owner_user_id: '',
-    vendor_contact: '',
+    primary_contact_name: '',
+    primary_contact_phone: '',
+    primary_contact_email: '',
+    primary_contact_designation: '',
+    secondary_contact_name: '',
+    secondary_contact_phone: '',
+    secondary_contact_email: '',
+    secondary_contact_designation: '',
     owner_contact: '',
     metadata: '',
     vendor_connection_id: '',
     target_connection_id: '',
     drop_location_path: '',
+    target_file_path: '',
     project_id: '',
     project_name: '',
-    manager_contact: ''
+    manager_contact: '',
+    vendor_type: '',
+    vendor_onboarding_date: '',
+    contains_pii: false,
+    file_type: '',
+    data_classification: '',
+    domain: '',
+    retention_days: '',
+    expected_arrival_time: '',
+    delivery_method: ''
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -240,17 +272,34 @@ const VendorAgreements = () => {
       schema: '',
       frequency: 'Daily',
       frequency_description: '',
-      file_creator: '',
+      vendor_department_team: '',
       file_owner_user_id: '',
-      vendor_contact: '',
+      primary_contact_name: '',
+      primary_contact_phone: '',
+      primary_contact_email: '',
+      primary_contact_designation: '',
+      secondary_contact_name: '',
+      secondary_contact_phone: '',
+      secondary_contact_email: '',
+      secondary_contact_designation: '',
       owner_contact: '',
       metadata: '',
       vendor_connection_id: '',
       target_connection_id: '',
       drop_location_path: '',
+      target_file_path: '',
       project_id: '',
       project_name: '',
-      manager_contact: ''
+      manager_contact: '',
+      vendor_type: '',
+      vendor_onboarding_date: '',
+      contains_pii: false,
+      file_type: '',
+      data_classification: '',
+      domain: '',
+      retention_days: '',
+      expected_arrival_time: '',
+      delivery_method: ''
     });
     setTemplateFile(null);
     setModalMode('create');
@@ -269,17 +318,34 @@ const VendorAgreements = () => {
       schema: agreement.schema ? JSON.stringify(agreement.schema, null, 2) : '',
       frequency: agreement.frequency || 'Daily',
       frequency_description: agreement.frequency_description || '',
-      file_creator: agreement.file_creator || '',
+      vendor_department_team: agreement.vendor_department_team || agreement.file_creator || '',
       file_owner_user_id: agreement.file_owner_user_id || '',
-      vendor_contact: agreement.vendor_contact || '',
+      primary_contact_name: agreement.primary_contact_name || agreement.vendor_contact || '',
+      primary_contact_phone: agreement.primary_contact_phone || '',
+      primary_contact_email: agreement.primary_contact_email || '',
+      primary_contact_designation: agreement.primary_contact_designation || '',
+      secondary_contact_name: agreement.secondary_contact_name || '',
+      secondary_contact_phone: agreement.secondary_contact_phone || '',
+      secondary_contact_email: agreement.secondary_contact_email || '',
+      secondary_contact_designation: agreement.secondary_contact_designation || '',
       owner_contact: agreement.owner_contact || '',
       metadata: agreement.metadata ? JSON.stringify(agreement.metadata, null, 2) : '',
       vendor_connection_id: agreement.vendor_connection_id || '',
       target_connection_id: agreement.target_connection_id || '',
       drop_location_path: agreement.drop_location_path || '',
+      target_file_path: agreement.target_file_path || '',
       project_id: agreement.project_id || '',
       project_name: agreement.project_name || '',
-      manager_contact: agreement.manager_contact || ''
+      manager_contact: agreement.manager_contact || '',
+      vendor_type: agreement.vendor_type || '',
+      vendor_onboarding_date: agreement.vendor_onboarding_date || '',
+      contains_pii: agreement.contains_pii || false,
+      file_type: agreement.file_type || '',
+      data_classification: agreement.data_classification || '',
+      domain: agreement.domain || '',
+      retention_days: agreement.retention_days || '',
+      expected_arrival_time: agreement.expected_arrival_time || '',
+      delivery_method: agreement.delivery_method || ''
     });
     setTemplateFile(null);
     setModalMode('edit');
@@ -374,8 +440,8 @@ const VendorAgreements = () => {
           ...prev,
           file_name: data.file_name || prev.file_name,
           file_description: data.file_description || prev.file_description,
-          file_creator: data.file_creator || prev.file_creator,
-          vendor_contact: data.vendor_contact || prev.vendor_contact,
+          vendor_department_team: data.vendor_department_team || data.file_creator || prev.vendor_department_team,
+          primary_contact_name: data.primary_contact_name || data.vendor_contact || prev.primary_contact_name,
           owner_contact: data.owner_contact || prev.owner_contact,
           frequency: data.frequency || prev.frequency,
           frequency_description: data.frequency_description || prev.frequency_description,
@@ -459,10 +525,36 @@ const VendorAgreements = () => {
         setSuccessMessage('Vendor agreement created successfully!');
       } else {
         if (selectedAgreement.is_locked && isAdmin) {
-          const confirmEdit = window.confirm(
-            'This agreement is locked (fully approved). Editing will require re-approval from both vendor and owner. Continue?'
-          );
-          if (!confirmEdit) return;
+          setConfirmModalConfig({
+            title: 'Edit Locked Agreement',
+            message: 'This agreement is locked (fully approved). Editing will require re-approval from both vendor and owner. Continue?',
+            onConfirm: async () => {
+              try {
+                const response = await axios.put(`/api/vendor-agreements/${selectedAgreement.id}`, submitData, {
+                  headers: {
+                    'Content-Type': 'multipart/form-data'
+                  }
+                });
+                setSuccessMessage('Vendor agreement updated successfully!');
+                closeModal();
+                fetchData();
+                setModalError('');
+                setTimeout(() => setSuccessMessage(''), 5000);
+              } catch (error) {
+                console.error('Error saving agreement:', error);
+                let errorMessage = 'Failed to save vendor agreement';
+                if (error.response?.data) {
+                  const { error: errorMsg, message } = error.response.data;
+                  errorMessage = errorMsg || message || errorMessage;
+                } else if (error.message) {
+                  errorMessage += ': ' + error.message;
+                }
+                setModalError(errorMessage);
+              }
+            }
+          });
+          setConfirmModalOpen(true);
+          return;
         }
         
         response = await axios.put(`/api/vendor-agreements/${selectedAgreement.id}`, submitData, {
@@ -543,21 +635,23 @@ const VendorAgreements = () => {
     }
   };
   
-  const handleDeleteAgreement = async (agreementId, fileName) => {
-    if (!window.confirm(`Are you sure you want to delete agreement "${fileName}"?`)) {
-      return;
-    }
-    
-    try {
-      await axios.delete(`/api/vendor-agreements/${agreementId}`);
-      setSuccessMessage('Vendor agreement deleted successfully!');
-      fetchData();
-      
-      setTimeout(() => setSuccessMessage(''), 5000);
-    } catch (error) {
-      console.error('Error deleting agreement:', error);
-      setError('Failed to delete agreement: ' + (error.response?.data?.error || error.message));
-    }
+  const handleDeleteAgreement = (agreementId, fileName) => {
+    setConfirmModalConfig({
+      title: 'Delete Agreement',
+      message: `Are you sure you want to delete agreement "${fileName}"?`,
+      onConfirm: async () => {
+        try {
+          await axios.delete(`/api/vendor-agreements/${agreementId}`);
+          setSuccessMessage('Vendor agreement deleted successfully!');
+          fetchData();
+          setTimeout(() => setSuccessMessage(''), 5000);
+        } catch (error) {
+          console.error('Error deleting agreement:', error);
+          setError('Failed to delete agreement: ' + (error.response?.data?.error || error.message));
+        }
+      }
+    });
+    setConfirmModalOpen(true);
   };
   
   const getApprovalStatusBadge = (agreement) => {
@@ -796,7 +890,7 @@ const VendorAgreements = () => {
                   <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="file_owner_user_id">
-                        Vendor Manager <span className="required-field">*</span>
+                        Vendor Manager/File Owner <span className="required-field">*</span>
                       </label>
                       <select
                         id="file_owner_user_id"
@@ -901,49 +995,85 @@ const VendorAgreements = () => {
                   </div>
                 )}
                 
-                {/* Section 2.5: Additional Contact Information */}
+                {/* Section 2: Vendor Information */}
+                {formData.vendor_id && (
+                  <div className="form-section">
+                    <h3 className="section-title">Vendor Information</h3>
+                    
+                    <div className="form-row-grid">
+                      <div className="form-group">
+                        <label htmlFor="vendor_code">Vendor ID</label>
+                        <input
+                          type="text"
+                          id="vendor_code"
+                          value={vendors.find(v => v.id === formData.vendor_id)?.vendor_code || ''}
+                          readOnly
+                          placeholder="Auto from vendor"
+                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Automatically assigned from vendor
+                        </small>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="vendor_type">Vendor Type</label>
+                        <input
+                          type="text"
+                          id="vendor_type"
+                          name="vendor_type"
+                          value={formData.vendor_type}
+                          onChange={handleInputChange}
+                          placeholder="e.g., Data Provider, Service Provider"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="vendor_onboarding_date">Vendor Onboarding Date</label>
+                      <input
+                        type="date"
+                        id="vendor_onboarding_date"
+                        name="vendor_onboarding_date"
+                        value={formData.vendor_onboarding_date}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Section 3: File Owner & Manager Details */}
                 <div className="form-section">
-                  <h3 className="section-title">Contact Information</h3>
+                  <h3 className="section-title">File Owner & Manager</h3>
                   
-                  {/* Row 3: File Creator and Vendor Contact */}
                   <div className="form-row-grid">
                     <div className="form-group">
-                      <label htmlFor="file_creator">File Creator</label>
+                      <label htmlFor="vendor_department_team">Vendor Department/Team</label>
                       <input
                         type="text"
-                        id="file_creator"
-                        name="file_creator"
-                        value={formData.file_creator}
+                        id="vendor_department_team"
+                        name="vendor_department_team"
+                        value={formData.vendor_department_team}
                         onChange={handleInputChange}
+                        placeholder="e.g., Data Operations, Finance Team"
                       />
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="vendor_contact">Vendor Contact</label>
+                      <label htmlFor="owner_contact">Owner Contact</label>
                       <input
                         type="text"
-                        id="vendor_contact"
-                        name="vendor_contact"
-                        value={formData.vendor_contact}
+                        id="owner_contact"
+                        name="owner_contact"
+                        value={formData.owner_contact}
                         onChange={handleInputChange}
+                        placeholder="Additional owner contact details"
                       />
                     </div>
                   </div>
-                  
-                  {/* Row 4: Owner Contact */}
-                  <div className="form-group">
-                    <label htmlFor="owner_contact">Owner Contact</label>
-                    <input
-                      type="text"
-                      id="owner_contact"
-                      name="owner_contact"
-                      value={formData.owner_contact}
-                      onChange={handleInputChange}
-                    />
-                  </div>
                 </div>
                 
-                {/* Section 3: File Details */}
+                {/* Section 4: File Details */}
                 <div className="form-section">
                   <h3 className="section-title">File Details</h3>
                   
@@ -976,27 +1106,253 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 4: Schema */}
+                {/* Section 5: Vendor Contact Information */}
                 <div className="form-section">
-                  <h3 className="section-title">File Schema</h3>
+                  <h3 className="section-title">Vendor Contact Information</h3>
                   
-                  <div className="form-group">
-                    <label htmlFor="schema">Schema (JSON)</label>
-                    <textarea
-                      id="schema"
-                      name="schema"
-                      value={formData.schema}
-                      onChange={handleInputChange}
-                      rows="6"
-                      placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
-                    />
-                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                      Optional: Define the file structure as a JSON array of column definitions
-                    </small>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                    {/* Primary Contact (Left Column) */}
+                    <div style={{ 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      padding: '1.5rem',
+                      backgroundColor: '#f9fafb'
+                    }}>
+                      <h4 style={{ 
+                        marginTop: 0, 
+                        marginBottom: '1rem', 
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: '#374151'
+                      }}>
+                        Primary Contact
+                      </h4>
+                      
+                      <div className="form-group">
+                        <label htmlFor="primary_contact_name">
+                          Name <span className="required-field">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id="primary_contact_name"
+                          name="primary_contact_name"
+                          value={formData.primary_contact_name}
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="primary_contact_phone">Phone</label>
+                        <input
+                          type="tel"
+                          id="primary_contact_phone"
+                          name="primary_contact_phone"
+                          value={formData.primary_contact_phone}
+                          onChange={handleInputChange}
+                          placeholder="+1-234-567-8900"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="primary_contact_email">Email</label>
+                        <input
+                          type="email"
+                          id="primary_contact_email"
+                          name="primary_contact_email"
+                          value={formData.primary_contact_email}
+                          onChange={handleInputChange}
+                          placeholder="contact@vendor.com"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="primary_contact_designation">Designation</label>
+                        <input
+                          type="text"
+                          id="primary_contact_designation"
+                          name="primary_contact_designation"
+                          value={formData.primary_contact_designation}
+                          onChange={handleInputChange}
+                          placeholder="e.g., Data Manager"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Secondary Contact (Right Column) */}
+                    <div style={{ 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      padding: '1.5rem',
+                      backgroundColor: '#f9fafb'
+                    }}>
+                      <h4 style={{ 
+                        marginTop: 0, 
+                        marginBottom: '1rem', 
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: '#374151'
+                      }}>
+                        Secondary Contact
+                      </h4>
+                      
+                      <div className="form-group">
+                        <label htmlFor="secondary_contact_name">Name</label>
+                        <input
+                          type="text"
+                          id="secondary_contact_name"
+                          name="secondary_contact_name"
+                          value={formData.secondary_contact_name}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="secondary_contact_phone">Phone</label>
+                        <input
+                          type="tel"
+                          id="secondary_contact_phone"
+                          name="secondary_contact_phone"
+                          value={formData.secondary_contact_phone}
+                          onChange={handleInputChange}
+                          placeholder="+1-234-567-8900"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="secondary_contact_email">Email</label>
+                        <input
+                          type="email"
+                          id="secondary_contact_email"
+                          name="secondary_contact_email"
+                          value={formData.secondary_contact_email}
+                          onChange={handleInputChange}
+                          placeholder="backup@vendor.com"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="secondary_contact_designation">Designation</label>
+                        <input
+                          type="text"
+                          id="secondary_contact_designation"
+                          name="secondary_contact_designation"
+                          value={formData.secondary_contact_designation}
+                          onChange={handleInputChange}
+                          placeholder="e.g., Backup Contact"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
-                {/* Section 5: Configuration */}
+                {/* Section 6: Data Classification */}
+                <div className="form-section">
+                  <h3 className="section-title">Data Classification</h3>
+                  
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="contains_pii" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <input
+                          type="checkbox"
+                          id="contains_pii"
+                          name="contains_pii"
+                          checked={formData.contains_pii}
+                          onChange={(e) => setFormData(prev => ({ ...prev, contains_pii: e.target.checked }))}
+                          style={{ width: 'auto', margin: 0 }}
+                        />
+                        Contains PII
+                      </label>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="file_type">File Type</label>
+                      <input
+                        type="text"
+                        id="file_type"
+                        name="file_type"
+                        value={formData.file_type}
+                        onChange={handleInputChange}
+                        placeholder="e.g., CSV, JSON, XML"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="data_classification">Data Classification</label>
+                      <select
+                        id="data_classification"
+                        name="data_classification"
+                        value={formData.data_classification}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">Select classification</option>
+                        <option value="Public">Public</option>
+                        <option value="Private">Private</option>
+                        <option value="Confidential">Confidential</option>
+                      </select>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="domain">Domain</label>
+                      <input
+                        type="text"
+                        id="domain"
+                        name="domain"
+                        value={formData.domain}
+                        onChange={handleInputChange}
+                        placeholder="e.g., Finance, Operations"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="retention_days">Retention (in Days)</label>
+                      <input
+                        type="number"
+                        id="retention_days"
+                        name="retention_days"
+                        value={formData.retention_days}
+                        onChange={handleInputChange}
+                        placeholder="e.g., 365"
+                        min="0"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="expected_arrival_time">Expected Arrival Time</label>
+                      <input
+                        type="text"
+                        id="expected_arrival_time"
+                        name="expected_arrival_time"
+                        value={formData.expected_arrival_time}
+                        onChange={handleInputChange}
+                        placeholder="e.g., 9:00 AM EST"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label htmlFor="delivery_method">Delivery Method</label>
+                    <select
+                      id="delivery_method"
+                      name="delivery_method"
+                      value={formData.delivery_method}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Select delivery method</option>
+                      <option value="SFTP">SFTP</option>
+                      <option value="S3">S3</option>
+                      <option value="API">API</option>
+                      <option value="Email">Email</option>
+                      <option value="Manual">Manual</option>
+                    </select>
+                  </div>
+                </div>
+                
+                {/* Section 7: Configuration */}
                 <div className="form-section">
                   <h3 className="section-title">Configuration</h3>
                   
@@ -1032,7 +1388,7 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 6: Connection Configuration */}
+                {/* Section 4: Connection Configuration */}
                 <div className="form-section">
                   <h3 className="section-title">Connection Configuration</h3>
                   
@@ -1111,7 +1467,7 @@ const VendorAgreements = () => {
                         Target Connection
                       </h4>
                       
-                      <div className="form-group" style={{ marginBottom: 0 }}>
+                      <div className="form-group" style={{ marginBottom: '1rem' }}>
                         <label htmlFor="target_connection_id">
                           Target File Connection
                         </label>
@@ -1132,7 +1488,62 @@ const VendorAgreements = () => {
                           Where processed files will be stored
                         </small>
                       </div>
+                      
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label htmlFor="target_file_path">Target File Path</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <input
+                            type="text"
+                            id="target_file_path"
+                            name="target_file_path"
+                            value={formData.target_file_path}
+                            onChange={handleInputChange}
+                            placeholder="/path/to/target/folder"
+                            style={{ flex: 1 }}
+                          />
+                          {formData.target_connection_id && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setS3BrowserConnectionId(formData.target_connection_id);
+                                setS3BrowserCallback((path) => {
+                                  setFormData(prev => ({ ...prev, target_file_path: path }));
+                                  setS3BrowserOpen(false);
+                                });
+                                setS3BrowserOpen(true);
+                              }}
+                              className="btn-secondary"
+                              style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}
+                            >
+                              Browse
+                            </button>
+                          )}
+                        </div>
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Specify the target path for processed files
+                        </small>
+                      </div>
                     </div>
+                  </div>
+                </div>
+                
+                {/* Section 8: Schema */}
+                <div className="form-section">
+                  <h3 className="section-title">Schema</h3>
+                  
+                  <div className="form-group">
+                    <label htmlFor="schema">Schema (JSON)</label>
+                    <textarea
+                      id="schema"
+                      name="schema"
+                      value={formData.schema}
+                      onChange={handleInputChange}
+                      rows="6"
+                      placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
+                    />
+                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                      Optional: Define the file structure as a JSON array of column definitions
+                    </small>
                   </div>
                 </div>
                 
@@ -1208,19 +1619,19 @@ const VendorAgreements = () => {
                           <span>{selectedAgreement.frequency || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>File Creator:</label>
-                          <span>{selectedAgreement.file_creator || '-'}</span>
+                          <label>Vendor Department/Team:</label>
+                          <span>{selectedAgreement.vendor_department_team || selectedAgreement.file_creator || '-'}</span>
                         </div>
                         <div className="detail-item">
-                          <label>File Owner:</label>
+                          <label>Vendor Manager/File Owner:</label>
                           <span>
                             {selectedAgreement.owner_username || selectedAgreement.owner_email || '-'}
                             {selectedAgreement.owner_username && selectedAgreement.owner_email ? ` (${selectedAgreement.owner_email})` : ''}
                           </span>
                         </div>
                         <div className="detail-item">
-                          <label>Vendor Contact:</label>
-                          <span>{selectedAgreement.vendor_contact || '-'}</span>
+                          <label>Primary Contact Name:</label>
+                          <span>{selectedAgreement.primary_contact_name || selectedAgreement.vendor_contact || '-'}</span>
                         </div>
                         <div className="detail-item">
                           <label>Owner Contact:</label>
@@ -1383,6 +1794,47 @@ const VendorAgreements = () => {
                   </div>
                 )}
               </div>
+            </ThreeSectionModal>
+          )}
+          
+          {/* Confirmation Modal */}
+          <ConfirmationModal
+            isOpen={confirmModalOpen}
+            onClose={() => setConfirmModalOpen(false)}
+            onConfirm={() => {
+              if (confirmModalConfig.onConfirm) {
+                confirmModalConfig.onConfirm();
+              }
+              setConfirmModalOpen(false);
+            }}
+            title={confirmModalConfig.title}
+            message={confirmModalConfig.message}
+          />
+          
+          {/* S3 Folder Browser Modal */}
+          {s3BrowserOpen && (
+            <ThreeSectionModal
+              isOpen={s3BrowserOpen}
+              onClose={() => setS3BrowserOpen(false)}
+              title="Browse S3 Folder"
+              size="large"
+              footer={
+                <>
+                  <button type="button" onClick={() => setS3BrowserOpen(false)}>
+                    Close
+                  </button>
+                </>
+              }
+            >
+              <S3FolderBrowser
+                connectionId={s3BrowserConnectionId}
+                onSelectPath={(path) => {
+                  if (s3BrowserCallback) {
+                    s3BrowserCallback(path);
+                  }
+                }}
+                initialPath="/"
+              />
             </ThreeSectionModal>
           )}
         </>
