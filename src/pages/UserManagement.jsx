@@ -518,6 +518,7 @@ const UserManagement = () => {
       {modalOpen && (
         <div className="modal-overlay">
           <div className="user-modal" role="dialog" aria-labelledby="user-modal-title">
+            {/* Static Header */}
             <div className="modal-header">
               <h2 id="user-modal-title">
                 {modalMode === 'create' ? 'Create New User' : 'Edit User'}
@@ -527,12 +528,14 @@ const UserManagement = () => {
               </button>
             </div>
             
-            {modalError && (
-              <div className="error-message modal-error-message" role="alert">
-                {modalError}
-              </div>
-            )}
-            
+            {/* Scrollable Content */}
+            <div className="modal-content-scrollable">
+              {modalError && (
+                <div className="error-message modal-error-message" role="alert">
+                  {modalError}
+                </div>
+              )}
+              
             <form onSubmit={handleSubmit} className="user-form">
               <div className="form-group">
                 <label htmlFor="username">Username</label>
@@ -686,16 +689,18 @@ const UserManagement = () => {
                     ))}
                 </div>
               </div>
-              
-              <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button type="submit" className="save-btn">
-                  {modalMode === 'create' ? 'Create User' : 'Update User'}
-                </button>
-              </div>
             </form>
+            </div>
+            
+            {/* Static Footer */}
+            <div className="modal-footer">
+              <button type="button" className="cancel-btn" onClick={closeModal}>
+                Cancel
+              </button>
+              <button type="submit" className="save-btn" onClick={handleSubmit}>
+                {modalMode === 'create' ? 'Create User' : 'Update User'}
+              </button>
+            </div>
           </div>
         </div>
       )}
