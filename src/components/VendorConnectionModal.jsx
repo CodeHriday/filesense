@@ -110,14 +110,22 @@ const VendorConnectionModal = ({
       'account_name', 'account_key', 'container_name', 'azure_endpoint'
     ];
     
-    if (connectionId && connectionDetailFields.includes(name)) {
-      setConnectionDetailsModified(true);
+    if (connectionDetailFields.includes(name)) {
+      if (connectionId) {
+        setConnectionDetailsModified(true);
+      }
+      // Clear file path when connection details change (bucket, container, etc.)
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value,
+        file_path: '' // Clear file path when connection details change
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
     }
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
   };
   
   const handleSubmit = async (e) => {
