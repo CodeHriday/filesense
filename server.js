@@ -2645,6 +2645,7 @@ const { createPolicyEngine } = require('./backend/migrations/createPolicyEngine'
 const { createABACAttributes } = require('./backend/migrations/createABACAttributes');
 const { createSCIMProvisioning } = require('./backend/migrations/createSCIMProvisioning');
 const createVendorUsersTable = require('./backend/migrations/createVendorUsers');
+const { addConnectionNameUniqueConstraint } = require('./backend/migrations/connectionNameUniqueConstraint');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2824,6 +2825,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Vendor users table migration completed');
+    
+    // Add unique constraint on connection names
+    return addConnectionNameUniqueConstraint();
+  })
+  .then(() => {
+    console.log('✅ Connection name unique constraint migration completed');
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

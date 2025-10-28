@@ -7,6 +7,7 @@ const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 
 class VendorService {
   /**
@@ -250,9 +251,62 @@ class VendorService {
         ]
       );
       
-      await client.query('COMMIT');
-      
       const vendor = vendorResult.rows[0];
+      
+      // Create two default connections for the vendor (source and target)
+      const sourceConnectionId = uuidv4();
+      const targetConnectionId = uuidv4();
+      const sourceConnectionName = `${vendorCode}_source`;
+      const targetConnectionName = `${vendorCode}_target`;
+      
+      systemLogger.info('Creating default vendor connections', {
+        vendorId: vendor.id,
+        vendorCode,
+        sourceConnectionName,
+        targetConnectionName,
+        projectId: finalProjectId
+      });
+      
+      // Create source connection
+      await client.query(
+        `INSERT INTO storage_connections (
+          connection_id, type, name, config, status, 
+          connection_direction, project_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          sourceConnectionId,
+          'vendor',
+          sourceConnectionName,
+          JSON.stringify({ vendor_id: vendor.id, placeholder: true }),
+          'pending',
+          'source',
+          finalProjectId
+        ]
+      );
+      
+      // Create target connection
+      await client.query(
+        `INSERT INTO storage_connections (
+          connection_id, type, name, config, status, 
+          connection_direction, project_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          targetConnectionId,
+          'vendor',
+          targetConnectionName,
+          JSON.stringify({ vendor_id: vendor.id, placeholder: true }),
+          'pending',
+          'target',
+          finalProjectId
+        ]
+      );
+      
+      systemLogger.info('Created default vendor connections successfully', {
+        sourceConnectionId,
+        targetConnectionId
+      });
+      
+      await client.query('COMMIT');
       
       // Fetch project name to include in response
       const projectResult = await client.query(
