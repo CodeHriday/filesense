@@ -50,13 +50,13 @@ const VendorManagement = () => {
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState(null);
   
-  const { currentUser } = useAuth();
+  const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
   
-  // Check if user has Admin role - memoized to prevent recalculation
-  const isAdmin = useMemo(() => {
-    return currentUser?.roles?.includes('Admin') || currentUser?.role_id === 1;
-  }, [currentUser?.roles, currentUser?.role_id]);
+  // Check if user has vendor_details:read permission - memoized to prevent recalculation
+  const canAccessVendorDetails = useMemo(() => {
+    return hasPermission && hasPermission('vendor_details:read');
+  }, [hasPermission]);
   
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -91,13 +91,13 @@ const VendorManagement = () => {
       return;
     }
     
-    if (!isAdmin) {
+    if (!canAccessVendorDetails) {
       navigate('/');
       return;
     }
     
     fetchData();
-  }, [currentUser, isAdmin, navigate, fetchData]);
+  }, [currentUser, canAccessVendorDetails, navigate, fetchData]);
   
   const openCreateModal = () => {
     setFormData({

@@ -12,11 +12,11 @@ const VendorRoleManagement = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   
-  const { currentUser } = useAuth();
+  const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
   
-  // Check if user has Admin role
-  const isAdmin = currentUser?.roles?.includes('Admin') || currentUser?.role_id === 1;
+  // Check if user has vendor_roles:read permission
+  const canAccessVendorRoles = hasPermission && hasPermission('vendor_roles:read');
   
   useEffect(() => {
     if (!currentUser) {
@@ -24,13 +24,13 @@ const VendorRoleManagement = () => {
       return;
     }
     
-    if (!isAdmin) {
+    if (!canAccessVendorRoles) {
       navigate('/');
       return;
     }
     
     fetchRoles();
-  }, [currentUser, isAdmin, navigate]);
+  }, [currentUser, canAccessVendorRoles, navigate]);
   
   const fetchRoles = async () => {
     setLoading(true);
