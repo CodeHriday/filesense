@@ -24,6 +24,10 @@ The application features a hybrid architecture designed for scalability, securit
     -   **Workflows**: Multi-step processes with dependency management, retry logic, and parallel/sequential execution.
     -   **Scheduler**: Cron-based and interval-based scheduling with overlap prevention and error handling.
 -   **File Insights Dashboard**: Includes time-series metric tracking, smart file pattern extraction, ID field detection, alert integration, and configurable granularity.
+-   **Vendor Onboarding Module**: Comprehensive vendor management system where admins manage vendor connections at the agreement level using UUID identifiers. Vendor agreements integrate into the ETL transformation mapping workflow, allowing users to select agreements as alternative sources to regular connections for automated file processing. Includes file browsing capabilities with folder/file selection and a transformation file catalog with search functionality.
+
+## Recent Changes
+-   **2025-10-28**: Made `storage_connections.project_id` nullable to support global vendor connections. Vendor connections are admin-managed and not tied to specific projects initially; vendor agreements link them to projects as needed. This change allows the POST /api/vendor-connections endpoint to create connections without a project_id.
 
 ## External Dependencies
 -   **Runtimes**: Python 3.11+, Node.js 20

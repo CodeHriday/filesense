@@ -443,12 +443,6 @@ const VendorConnectionModal = ({
         }
       >
         <form onSubmit={handleSubmit} className="vendor-connection-form">
-          {error && (
-            <div className="error-message" role="alert">
-              {error}
-            </div>
-          )}
-          
           <div className="form-group">
             <label>Connection Name *</label>
             <input
@@ -526,6 +520,12 @@ const VendorConnectionModal = ({
               }
             </small>
           </div>
+          
+          {error && (
+            <div className="error-message" role="alert" style={{ marginTop: '1rem' }}>
+              {error}
+            </div>
+          )}
         </form>
       </ThreeSectionModal>
 
