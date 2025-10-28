@@ -114,11 +114,18 @@ function decryptCredentials(connectionType, config) {
       case 'aws':
       case 's3':
         // Decrypt AWS credentials
+        // Support both field name variants (regular connections and vendor connections)
         if (config.access_key) {
           decryptedConfig.access_key = decrypt(config.access_key);
         }
+        if (config.access_key_id) {
+          decryptedConfig.access_key_id = decrypt(config.access_key_id);
+        }
         if (config.secret_key) {
           decryptedConfig.secret_key = decrypt(config.secret_key);
+        }
+        if (config.secret_access_key) {
+          decryptedConfig.secret_access_key = decrypt(config.secret_access_key);
         }
         break;
       

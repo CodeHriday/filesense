@@ -129,15 +129,32 @@ async function listFilesFromConnection(pool, connectionId) {
 
     const config = connection.config || {};
 
-    // Decrypt credentials if encrypted
-    const decryptedConfig = decryptCredentials(connection.type, config);
-
     // Determine the actual storage type
     let storageType = connection.type.toLowerCase();
     
     // For vendor connections, get the storage type from config
     if (storageType === 'vendor') {
       storageType = (config.storage_type || config.provider || '').toLowerCase();
+    }
+
+    // Decrypt credentials if encrypted
+    const decryptedConfig = decryptCredentials(storageType, config);
+
+    // Normalize field names for vendor connections
+    // Vendor connections use different field names than regular connections
+    if (connection.type.toLowerCase() === 'vendor') {
+      // Map vendor field names to expected field names
+      if (config.bucket && !decryptedConfig.bucket_name) {
+        decryptedConfig.bucket_name = config.bucket;
+      }
+      if (decryptedConfig.access_key_id && !decryptedConfig.access_key) {
+        decryptedConfig.access_key = decryptedConfig.access_key_id;
+      }
+      if (decryptedConfig.secret_access_key && !decryptedConfig.secret_key) {
+        decryptedConfig.secret_key = decryptedConfig.secret_access_key;
+      }
+      // Copy other fields
+      if (config.region) decryptedConfig.region = config.region;
     }
 
     // List files based on storage type
@@ -356,7 +373,6 @@ async function downloadFileFromConnection(pool, connectionId, filename) {
     }
 
     const config = connection.config || {};
-    const decryptedConfig = decryptCredentials(connection.type, config);
 
     // Determine the actual storage type
     let storageType = connection.type.toLowerCase();
@@ -364,6 +380,22 @@ async function downloadFileFromConnection(pool, connectionId, filename) {
     // For vendor connections, get the storage type from config
     if (storageType === 'vendor') {
       storageType = (config.storage_type || config.provider || '').toLowerCase();
+    }
+
+    const decryptedConfig = decryptCredentials(storageType, config);
+
+    // Normalize field names for vendor connections
+    if (connection.type.toLowerCase() === 'vendor') {
+      if (config.bucket && !decryptedConfig.bucket_name) {
+        decryptedConfig.bucket_name = config.bucket;
+      }
+      if (decryptedConfig.access_key_id && !decryptedConfig.access_key) {
+        decryptedConfig.access_key = decryptedConfig.access_key_id;
+      }
+      if (decryptedConfig.secret_access_key && !decryptedConfig.secret_key) {
+        decryptedConfig.secret_key = decryptedConfig.secret_access_key;
+      }
+      if (config.region) decryptedConfig.region = config.region;
     }
 
     switch (storageType) {
@@ -420,7 +452,6 @@ async function uploadFileToConnection(pool, connectionId, filename, buffer) {
     }
 
     const config = connection.config || {};
-    const decryptedConfig = decryptCredentials(connection.type, config);
 
     // Determine the actual storage type
     let storageType = connection.type.toLowerCase();
@@ -428,6 +459,22 @@ async function uploadFileToConnection(pool, connectionId, filename, buffer) {
     // For vendor connections, get the storage type from config
     if (storageType === 'vendor') {
       storageType = (config.storage_type || config.provider || '').toLowerCase();
+    }
+
+    const decryptedConfig = decryptCredentials(storageType, config);
+
+    // Normalize field names for vendor connections
+    if (connection.type.toLowerCase() === 'vendor') {
+      if (config.bucket && !decryptedConfig.bucket_name) {
+        decryptedConfig.bucket_name = config.bucket;
+      }
+      if (decryptedConfig.access_key_id && !decryptedConfig.access_key) {
+        decryptedConfig.access_key = decryptedConfig.access_key_id;
+      }
+      if (decryptedConfig.secret_access_key && !decryptedConfig.secret_key) {
+        decryptedConfig.secret_key = decryptedConfig.secret_access_key;
+      }
+      if (config.region) decryptedConfig.region = config.region;
     }
 
     switch (storageType) {
