@@ -1033,10 +1033,27 @@ class VendorAgreementService {
       }
       
       // Apply role-based filtering for non-admin users
-      if (!isAdmin) {
-        whereClauses.push(`(va.file_owner_user_id = $${paramCounter} OR v.vendor_user_id = $${paramCounter})`);
-        queryParams.push(userId);
-        paramCounter++;
+      if (!isAdmin && userId) {
+        // Get user's email for contact matching
+        const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+        const userEmail = userResult.rows[0]?.email;
+        
+        if (userEmail) {
+          // Allow access if user is: file owner, vendor user, primary contact, or secondary contact
+          whereClauses.push(`(
+            va.file_owner_user_id = $${paramCounter} 
+            OR v.vendor_user_id = $${paramCounter}
+            OR va.primary_contact_email = $${paramCounter + 1}
+            OR va.secondary_contact_email = $${paramCounter + 1}
+          )`);
+          queryParams.push(userId, userEmail);
+          paramCounter += 2;
+        } else {
+          // Fallback if email not found
+          whereClauses.push(`(va.file_owner_user_id = $${paramCounter} OR v.vendor_user_id = $${paramCounter})`);
+          queryParams.push(userId);
+          paramCounter++;
+        }
       }
       
       const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';

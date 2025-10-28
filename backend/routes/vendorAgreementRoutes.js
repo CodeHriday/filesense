@@ -95,6 +95,21 @@ const checkAgreementAccess = async (req, res, next) => {
       return next();
     }
     
+    // Check if user is the primary or secondary contact (by email)
+    if (req.user.email) {
+      if (agreement.primary_contact_email === req.user.email) {
+        req.agreement = agreement;
+        req.isVendor = true; // Treat primary contact as vendor role
+        return next();
+      }
+      
+      if (agreement.secondary_contact_email === req.user.email) {
+        req.agreement = agreement;
+        req.isVendor = true; // Treat secondary contact as vendor role
+        return next();
+      }
+    }
+    
     return res.status(403).json({ error: 'Access denied' });
     
   } catch (error) {
