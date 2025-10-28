@@ -115,13 +115,23 @@ const VendorAgreements = () => {
     setError('');
     
     try {
-      const [agreementsResponse, vendorsResponse, usersResponse, connectionsResponse] = await Promise.all([
+      // Fetch vendor connections separately with error handling (optional for non-admin roles)
+      let connectionsData = [];
+      try {
+        const connectionsResponse = await axios.get('/api/vendor-connections');
+        connectionsData = connectionsResponse.data.connections || [];
+      } catch (connError) {
+        // Vendor connections might not be accessible to all roles (403), this is okay
+        console.warn('Could not fetch vendor connections (this is normal for non-admin roles):', connError.response?.status);
+      }
+      
+      // Fetch required data
+      const [agreementsResponse, vendorsResponse, usersResponse] = await Promise.all([
         axios.get('/api/vendor-agreements', {
           params: { page: currentPage, pageSize }
         }),
         axios.get('/api/vendors'),
-        axios.get('/api/users'),
-        axios.get('/api/vendor-connections')
+        axios.get('/api/users')
       ]);
       
       setAgreements(agreementsResponse.data.agreements || agreementsResponse.data || []);
@@ -130,10 +140,10 @@ const VendorAgreements = () => {
       
       setVendors(vendorsResponse.data.vendors || vendorsResponse.data || []);
       setUsers(usersResponse.data.users || usersResponse.data || []);
-      setVendorConnections(connectionsResponse.data.connections || []);
+      setVendorConnections(connectionsData);
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Failed to load vendor agreements data');
+      setError('Failed to load vendor contracts data');
     } finally {
       setLoading(false);
     }
@@ -833,7 +843,7 @@ const VendorAgreements = () => {
               <tbody>
                 {agreements.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="no-agreements-message">No agreements found</td>
+                    <td colSpan="7" className="no-agreements-message">No contracts found</td>
                   </tr>
                 ) : (
                   agreements.map(agreement => (
