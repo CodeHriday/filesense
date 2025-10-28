@@ -8,16 +8,30 @@ const router = express.Router();
 const vendorService = require('../services/vendorService');
 const { systemLogger} = require('../utils/logger');
 const { isVendorUser: checkVendorUser } = require('../utils/userHelpers');
+const { hasPermission } = require('../middleware/vendorPermissions');
 
-// Middleware to check admin access
-const requireAdmin = (req, res, next) => {
-  if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
+// Helper function to check if user has vendor management write permission or is Admin
+const canManageVendors = (user) => {
+  // Check permission first
+  if (hasPermission(user, 'vendor_management:write')) {
+    return true;
+  }
+  // Fallback to Admin role check with defensive guard
+  if (user && user.roles && Array.isArray(user.roles) && user.roles.includes('Admin')) {
+    return true;
+  }
+  return false;
+};
+
+// Middleware to require vendor management write permission
+const requireVendorManagement = (req, res, next) => {
+  if (!canManageVendors(req.user)) {
     systemLogger.warn('Unauthorized vendor management access attempt', {
       userId: req.user?.id,
       roles: req.user?.roles,
       path: req.path
     });
-    return res.status(403).json({ error: 'Access denied. Admin role required.' });
+    return res.status(403).json({ error: 'Access denied. Vendor management permission required.' });
   }
   next();
 };
@@ -37,8 +51,8 @@ const isVendorUser = (req, res, next) => {
  */
 router.get('/', isVendorUser, async (req, res) => {
   try {
-    // If vendor user, return only their own profile
-    if (req.isVendor && !req.user.roles.includes('Admin')) {
+    // If vendor user (and not a vendor manager), return only their own profile
+    if (req.isVendor && !canManageVendors(req.user)) {
       const result = await vendorService.getVendorByUserId(req.user.id);
       
       if (!result.success) {
@@ -88,8 +102,8 @@ router.get('/:id', isVendorUser, async (req, res) => {
       return res.status(404).json({ error: result.error });
     }
     
-    // If vendor user, ensure they can only see their own profile
-    if (req.isVendor && !req.user.roles.includes('Admin')) {
+    // If vendor user (and not a vendor manager), ensure they can only see their own profile
+    if (req.isVendor && !canManageVendors(req.user)) {
       if (result.vendor.vendor_user_id !== req.user.id) {
         return res.status(403).json({ error: 'Access denied' });
       }
@@ -105,9 +119,9 @@ router.get('/:id', isVendorUser, async (req, res) => {
 
 /**
  * POST /api/vendors
- * Create new vendor (Admin only)
+ * Create new vendor (requires vendor_management:write permission)
  */
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', requireVendorManagement, async (req, res) => {
   try {
     const result = await vendorService.createVendor(req.body, req.user.id);
     res.status(201).json(result);
@@ -120,9 +134,9 @@ router.post('/', requireAdmin, async (req, res) => {
 
 /**
  * PUT /api/vendors/:id
- * Update vendor (Admin only)
+ * Update vendor (requires vendor_management:write permission)
  */
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/:id', requireVendorManagement, async (req, res) => {
   try {
     const vendorId = parseInt(req.params.id);
     
@@ -146,9 +160,9 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
 /**
  * DELETE /api/vendors/:id
- * Delete (deactivate) vendor (Admin only)
+ * Delete (deactivate) vendor (requires vendor_management:write permission)
  */
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireVendorManagement, async (req, res) => {
   try {
     const vendorId = parseInt(req.params.id);
     
@@ -172,9 +186,9 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
 /**
  * GET /api/vendors/project/:projectId
- * Get vendors by project (Admin only)
+ * Get vendors by project (requires vendor_management:write permission)
  */
-router.get('/project/:projectId', requireAdmin, async (req, res) => {
+router.get('/project/:projectId', requireVendorManagement, async (req, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     

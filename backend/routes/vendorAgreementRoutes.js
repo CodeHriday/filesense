@@ -50,13 +50,8 @@ const templateUpload = multer({
   }
 });
 
-// Middleware to check admin access
-const requireAdmin = (req, res, next) => {
-  if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
-    return res.status(403).json({ error: 'Access denied. Admin role required.' });
-  }
-  next();
-};
+// Note: Admin access is now managed through permissions (vendor_agreements:write, vendor_agreements:approve)
+// instead of hard-coded role checks. See vendorPermissions.js middleware for permission-based access control.
 
 // Middleware to check if user is vendor or owner
 // Also checks for vendor_agreements:approve permission
@@ -81,7 +76,7 @@ const checkAgreementAccess = async (req, res, next) => {
     if (hasPermission(req.user, 'vendor_agreements:approve')) {
       req.agreement = agreement;
       req.hasApprovePermission = true;
-      req.isAdmin = true; // Treat approve permission holders as admins for backwards compatibility
+      // Note: Do NOT set req.isAdmin here - permission holders are NOT admins
       return next();
     }
     
@@ -93,7 +88,8 @@ const checkAgreementAccess = async (req, res, next) => {
     }
     
     // Admin role has access to everything (backwards compatibility)
-    if (req.user.roles && req.user.roles.includes('Admin')) {
+    // Defensive check: ensure roles array exists before checking
+    if (req.user.roles && Array.isArray(req.user.roles) && req.user.roles.includes('Admin')) {
       req.agreement = agreement;
       req.isAdmin = true;
       return next();

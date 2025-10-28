@@ -95,7 +95,7 @@ const VendorAgreements = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   
-  const { currentUser, hasRole } = useAuth();
+  const { currentUser, hasRole, hasPermission } = useAuth();
   const navigate = useNavigate();
   
   const isAdmin = hasRole && hasRole('Admin');
