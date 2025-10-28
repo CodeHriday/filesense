@@ -101,7 +101,8 @@ const RoleManagement = () => {
       permissions[feature.id] = { 
         read: false, 
         write: false,
-        execute: feature.supportsExecute ? false : undefined
+        execute: feature.supportsExecute ? false : undefined,
+        approve: feature.supportsApprove ? false : undefined
       };
     });
     return permissions;
@@ -149,7 +150,7 @@ const RoleManagement = () => {
         // Handle regular permissions: "featureId:action"
         else if (parts.length === 2) {
           const [featureId, action] = parts;
-          if (permissionsObj[featureId] && (action === 'read' || action === 'write' || action === 'execute')) {
+          if (permissionsObj[featureId] && (action === 'read' || action === 'write' || action === 'execute' || action === 'approve')) {
             permissionsObj[featureId][action] = true;
           }
         }
@@ -297,6 +298,9 @@ const RoleManagement = () => {
       }
       if (actions.execute) {
         result.push(`${featureId}:execute`);
+      }
+      if (actions.approve) {
+        result.push(`${featureId}:approve`);
       }
     });
     
@@ -598,14 +602,26 @@ const RoleManagement = () => {
                   if (displayFeatures.length === 0) return null;
                   
                   const hasExecuteFeatures = displayFeatures.some(f => f.supportsExecute);
+                  const hasApproveFeatures = displayFeatures.some(f => f.supportsApprove);
+                  
+                  // Determine grid class based on special columns
+                  let gridClass = "permissions-grid";
+                  if (hasExecuteFeatures && hasApproveFeatures) {
+                    gridClass = "permissions-grid-with-execute-approve";
+                  } else if (hasExecuteFeatures) {
+                    gridClass = "permissions-grid-with-execute";
+                  } else if (hasApproveFeatures) {
+                    gridClass = "permissions-grid-with-approve";
+                  }
                   
                   return (
                     <div key={category} className="permission-category">
-                      <div className={hasExecuteFeatures ? "permissions-grid-with-execute" : "permissions-grid"}>
+                      <div className={gridClass}>
                         <div className="permission-header feature-name">{category}</div>
                         <div className="permission-header">View</div>
                         <div className="permission-header">Edit</div>
                         {hasExecuteFeatures && <div className="permission-header">Execute</div>}
+                        {hasApproveFeatures && <div className="permission-header">Approve</div>}
                         
                         <div className="section-divider"></div>
                         
@@ -643,6 +659,22 @@ const RoleManagement = () => {
                                     checked={formData.permissions[feature.id]?.execute || false}
                                     onChange={(e) => handlePermissionChange(feature.id, 'execute', e.target.checked)}
                                     aria-label={`Execute permission for ${feature.name}`}
+                                    disabled={!formData.permissions[feature.id]?.read}
+                                  />
+                                ) : (
+                                  <span className="permission-na">-</span>
+                                )}
+                              </div>
+                            )}
+                            {hasApproveFeatures && (
+                              <div className="permission-checkbox">
+                                {feature.supportsApprove ? (
+                                  <input
+                                    type="checkbox"
+                                    id={`${feature.id}-approve`}
+                                    checked={formData.permissions[feature.id]?.approve || false}
+                                    onChange={(e) => handlePermissionChange(feature.id, 'approve', e.target.checked)}
+                                    aria-label={`Approve permission for ${feature.name}`}
                                     disabled={!formData.permissions[feature.id]?.read}
                                   />
                                 ) : (

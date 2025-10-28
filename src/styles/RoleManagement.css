@@ -281,6 +281,20 @@
   align-items: center;
 }
 
+.permissions-grid-with-approve {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, auto);
+  gap: 12px;
+  align-items: center;
+}
+
+.permissions-grid-with-execute-approve {
+  display: grid;
+  grid-template-columns: 1fr repeat(4, auto);
+  gap: 12px;
+  align-items: center;
+}
+
 .feature-name {
   font-weight: 500;
 }

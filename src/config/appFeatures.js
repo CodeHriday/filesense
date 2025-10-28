@@ -334,7 +334,8 @@ export const APP_FEATURES = [
     icon: null,
     route: '/vendor-agreements',
     showInSidebar: false,
-    isVendorSubmodule: true
+    isVendorSubmodule: true,
+    supportsApprove: true
   },
   { 
     id: 'system_cleanup', 
