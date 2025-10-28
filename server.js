@@ -272,15 +272,19 @@ const authenticateToken = async (req, res, next) => {
     
     console.log('Authentication successful, proceeding to next middleware');
     
-    // Check if user must change password - block all routes except password change and logout
+    // Check if user must change password - block all routes except essential endpoints
     const isPasswordChangeEndpoint = req.path === '/api/auth/force-change-password';
     const isLogoutEndpoint = req.path === '/api/auth/logout';
     const isAuthMeEndpoint = req.path === '/api/auth/me';
+    const isHealthEndpoint = req.path === '/api/health';
+    const isRefreshEndpoint = req.path === '/api/auth/refresh';
     
     if (req.user.force_password_change && 
         !isPasswordChangeEndpoint && 
         !isLogoutEndpoint && 
-        !isAuthMeEndpoint) {
+        !isAuthMeEndpoint &&
+        !isHealthEndpoint &&
+        !isRefreshEndpoint) {
       console.log('User must change password, blocking API access');
       return res.status(403).json({ 
         error: 'Password change required. You must change your password before accessing the application.',
