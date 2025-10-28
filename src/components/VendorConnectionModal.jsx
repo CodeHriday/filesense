@@ -40,10 +40,12 @@ const VendorConnectionModal = ({
   const [testing, setTesting] = useState(false);
   const [savedConnectionId, setSavedConnectionId] = useState(null);
   const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [connectionDetailsModified, setConnectionDetailsModified] = useState(false);
   
   const isEditMode = !!connection;
   const connectionId = savedConnectionId || connection?.connection_id;
-  const canBrowse = !!connectionId; // Can browse if connection is saved (edit mode or after first save)
+  // Can browse if connection is saved AND connection details haven't been modified
+  const canBrowse = !!connectionId && !connectionDetailsModified;
   
   useEffect(() => {
     if (connection) {
@@ -95,10 +97,23 @@ const VendorConnectionModal = ({
     }
     setError('');
     setTestResult(null);
+    setConnectionDetailsModified(false);
   }, [connection, isOpen]);
   
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Track if connection details (not file_path) are modified in edit mode
+    const connectionDetailFields = [
+      'provider', 'region', 'bucket', 'access_key_id', 'secret_access_key', 'endpoint', 'use_ssl',
+      'gcp_project_id', 'service_account_json', 'gcp_bucket',
+      'account_name', 'account_key', 'container_name', 'azure_endpoint'
+    ];
+    
+    if (connectionId && connectionDetailFields.includes(name)) {
+      setConnectionDetailsModified(true);
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -147,6 +162,9 @@ const VendorConnectionModal = ({
       if (!connectionId && response.data.connection_id) {
         setSavedConnectionId(response.data.connection_id);
       }
+      
+      // Reset the modified flag to re-enable browsing after save
+      setConnectionDetailsModified(false);
       
       // Call onSuccess to refresh the list
       onSuccess();
