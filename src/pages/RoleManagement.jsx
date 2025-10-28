@@ -94,6 +94,10 @@ const RoleManagement = () => {
   const initializePermissions = () => {
     const permissions = {};
     APP_FEATURES.forEach(feature => {
+      // Skip parent-only features (like vendor_management container)
+      if (feature.isParentOnly) {
+        return;
+      }
       permissions[feature.id] = { 
         read: false, 
         write: false,
@@ -589,7 +593,11 @@ const RoleManagement = () => {
                 <p>Select which features this role can access and modify.</p>
                 
                 {Object.entries(FEATURE_CATEGORIES).map(([category, features]) => {
-                  const hasExecuteFeatures = features.some(f => f.supportsExecute);
+                  // Filter out parent-only features
+                  const displayFeatures = features.filter(f => !f.isParentOnly);
+                  if (displayFeatures.length === 0) return null;
+                  
+                  const hasExecuteFeatures = displayFeatures.some(f => f.supportsExecute);
                   
                   return (
                     <div key={category} className="permission-category">
@@ -601,10 +609,10 @@ const RoleManagement = () => {
                         
                         <div className="section-divider"></div>
                         
-                        {features.map(feature => (
+                        {displayFeatures.map(feature => (
                           <React.Fragment key={feature.id}>
-                            <div className={`feature-name ${feature.isNested ? 'nested-feature' : ''}`}>
-                              {feature.isNested && <span className="nested-indicator">↳ </span>}
+                            <div className={`feature-name ${feature.isNested || feature.isVendorSubmodule ? 'nested-feature' : ''}`}>
+                              {(feature.isNested || feature.isVendorSubmodule) && <span className="nested-indicator">↳ </span>}
                               {feature.name}
                             </div>
                             <div className="permission-checkbox">

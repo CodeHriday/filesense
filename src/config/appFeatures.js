@@ -237,6 +237,7 @@ export const APP_FEATURES = [
     route: null,
     showInSidebar: true,
     isCollapsible: true,
+    isParentOnly: true,
     children: [
       {
         id: 'vendor_users',
@@ -284,6 +285,56 @@ export const APP_FEATURES = [
         showInSidebar: true
       }
     ]
+  },
+  {
+    id: 'vendor_users',
+    name: 'Vendor User Management',
+    category: 'Vendor Management',
+    parentId: 'vendor_management',
+    icon: null,
+    route: '/vendor-users',
+    showInSidebar: false,
+    isVendorSubmodule: true
+  },
+  {
+    id: 'vendor_roles',
+    name: 'Vendor Role Management',
+    category: 'Vendor Management',
+    parentId: 'vendor_management',
+    icon: null,
+    route: '/vendor-roles',
+    showInSidebar: false,
+    isVendorSubmodule: true
+  },
+  {
+    id: 'vendor_connections',
+    name: 'Vendor Connections',
+    category: 'Vendor Management',
+    parentId: 'vendor_management',
+    icon: null,
+    route: '/connections?type=vendor',
+    showInSidebar: false,
+    isVendorSubmodule: true
+  },
+  {
+    id: 'vendor_details',
+    name: 'Vendor Details',
+    category: 'Vendor Management',
+    parentId: 'vendor_management',
+    icon: null,
+    route: '/vendor-management',
+    showInSidebar: false,
+    isVendorSubmodule: true
+  },
+  {
+    id: 'vendor_agreements',
+    name: 'Vendor Contracts',
+    category: 'Vendor Management',
+    parentId: 'vendor_management',
+    icon: null,
+    route: '/vendor-agreements',
+    showInSidebar: false,
+    isVendorSubmodule: true
   },
   { 
     id: 'system_cleanup', 
@@ -344,6 +395,7 @@ export const FEATURE_CATEGORIES_ORDER = [
   'Jobs and Monitoring',
   'Governance',
   'Administration',
+  'Vendor Management',
   'Insights'
 ];
 
@@ -364,6 +416,7 @@ export const getSidebarCategoryName = (category) => {
     'Jobs and Monitoring': 'Jobs and Monitoring',
     'Governance': 'Data Governance',
     'Administration': 'Administration',
+    'Vendor Management': 'Vendor Management',
     'Insights': 'Insights'
   };
   return mapping[category] || category;

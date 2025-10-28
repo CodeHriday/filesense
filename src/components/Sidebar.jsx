@@ -57,10 +57,16 @@ function Sidebar() {
     // Check for read permission in the format: featureId:read
     const readPermission = `${featureId}:read`;
     
-    // If this is a child feature with a parent, also check parent permission
+    // For child features, check individual permission first (granular access)
+    // This allows roles to have access to specific vendor modules without parent access
     if (parentId) {
+      // First check if user has direct permission to this child
+      if (hasPermission(readPermission)) {
+        return true;
+      }
+      // Fall back to parent permission for convenience
       const parentPermission = `${parentId}:read`;
-      return hasPermission(readPermission) || hasPermission(parentPermission);
+      return hasPermission(parentPermission);
     }
     
     return hasPermission(readPermission);
@@ -104,6 +110,16 @@ function Sidebar() {
           
           // Handle collapsible menu items
           if (feature.isCollapsible && feature.children) {
+            // Check if any children are visible to this user
+            const visibleChildren = feature.children.filter(child => 
+              child.showInSidebar && canViewFeature(child.id, feature.id)
+            );
+            
+            // Only show parent if it has visible children
+            if (visibleChildren.length === 0) {
+              return null;
+            }
+            
             return (
               <React.Fragment key={feature.id}>
                 <li>
@@ -116,18 +132,13 @@ function Sidebar() {
                     {isExpanded ? <FiChevronDown className="chevron" /> : <FiChevronRight className="chevron" />}
                   </div>
                 </li>
-                {isExpanded && feature.children.map(child => {
-                  if (child.showInSidebar && canViewFeature(child.id, feature.id)) {
-                    return (
-                      <li key={child.id} className="submenu-item">
-                        <NavLink to={child.route} className={({ isActive }) => isActive ? 'active' : ''}>
-                          <span>{child.name}</span>
-                        </NavLink>
-                      </li>
-                    );
-                  }
-                  return null;
-                })}
+                {isExpanded && visibleChildren.map(child => (
+                  <li key={child.id} className="submenu-item">
+                    <NavLink to={child.route} className={({ isActive }) => isActive ? 'active' : ''}>
+                      <span>{child.name}</span>
+                    </NavLink>
+                  </li>
+                ))}
               </React.Fragment>
             );
           }
