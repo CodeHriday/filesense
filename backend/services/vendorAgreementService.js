@@ -765,8 +765,27 @@ class VendorAgreementService {
       
       // Verify approver authorization (skip for admins)
       if (!isAdmin) {
-        if (approverType === 'vendor' && agreement.vendor_user_id !== approverUserId) {
-          throw new Error('Only the vendor user can provide vendor approval');
+        if (approverType === 'vendor') {
+          // Check if user is the vendor user OR their email matches contact fields
+          let isAuthorized = agreement.vendor_user_id === approverUserId;
+          
+          if (!isAuthorized) {
+            // Get user's email to check contact fields
+            const userResult = await client.query(
+              'SELECT email FROM users WHERE id = $1',
+              [approverUserId]
+            );
+            
+            if (userResult.rows.length > 0) {
+              const userEmail = userResult.rows[0].email;
+              isAuthorized = userEmail === agreement.primary_contact_email || 
+                            userEmail === agreement.secondary_contact_email;
+            }
+          }
+          
+          if (!isAuthorized) {
+            throw new Error('Only the vendor user can provide vendor approval');
+          }
         }
         
         if (approverType === 'owner' && agreement.file_owner_user_id !== approverUserId) {
@@ -905,8 +924,27 @@ class VendorAgreementService {
       
       // Verify approver authorization (skip for admins)
       if (!isAdmin) {
-        if (approverType === 'vendor' && agreement.vendor_user_id !== approverUserId) {
-          throw new Error('Only the vendor user can reject as vendor');
+        if (approverType === 'vendor') {
+          // Check if user is the vendor user OR their email matches contact fields
+          let isAuthorized = agreement.vendor_user_id === approverUserId;
+          
+          if (!isAuthorized) {
+            // Get user's email to check contact fields
+            const userResult = await client.query(
+              'SELECT email FROM users WHERE id = $1',
+              [approverUserId]
+            );
+            
+            if (userResult.rows.length > 0) {
+              const userEmail = userResult.rows[0].email;
+              isAuthorized = userEmail === agreement.primary_contact_email || 
+                            userEmail === agreement.secondary_contact_email;
+            }
+          }
+          
+          if (!isAuthorized) {
+            throw new Error('Only the vendor user can reject as vendor');
+          }
         }
         
         if (approverType === 'owner' && agreement.file_owner_user_id !== approverUserId) {
