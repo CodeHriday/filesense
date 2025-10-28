@@ -1186,17 +1186,16 @@ const VendorAgreements = () => {
                           Select Contact <span className="required-field">*</span>
                         </label>
                         <VendorUserSelect
-                          vendorId={formData.vendor_id}
                           value={formData.primary_contact_user_id || ''}
                           onChange={(e) => {
                             const user = e.target.vendorUser;
                             setFormData(prev => ({
                               ...prev,
                               primary_contact_user_id: e.target.value,
-                              primary_contact_name: user?.name || '',
-                              primary_contact_phone: user?.phone || '',
+                              primary_contact_name: user?.full_name || user?.username || '',
+                              primary_contact_phone: user?.phone_number || '',
                               primary_contact_email: user?.email || '',
-                              primary_contact_designation: user?.designation || ''
+                              primary_contact_designation: user?.username || ''
                             }));
                           }}
                           placeholder="Select primary contact"
@@ -1248,17 +1247,16 @@ const VendorAgreements = () => {
                       <div className="form-group">
                         <label htmlFor="secondary_contact_user_id">Select Contact</label>
                         <VendorUserSelect
-                          vendorId={formData.vendor_id}
                           value={formData.secondary_contact_user_id || ''}
                           onChange={(e) => {
                             const user = e.target.vendorUser;
                             setFormData(prev => ({
                               ...prev,
                               secondary_contact_user_id: e.target.value,
-                              secondary_contact_name: user?.name || '',
-                              secondary_contact_phone: user?.phone || '',
+                              secondary_contact_name: user?.full_name || user?.username || '',
+                              secondary_contact_phone: user?.phone_number || '',
                               secondary_contact_email: user?.email || '',
-                              secondary_contact_designation: user?.designation || ''
+                              secondary_contact_designation: user?.username || ''
                             }));
                           }}
                           placeholder="Select secondary contact (optional)"

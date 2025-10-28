@@ -3,7 +3,6 @@ import axios from 'axios';
 import './VendorUserSelect.css';
 
 const VendorUserSelect = ({ 
-  vendorId, 
   value, 
   onChange, 
   placeholder = 'Select contact',
@@ -19,12 +18,8 @@ const VendorUserSelect = ({
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    if (vendorId) {
-      fetchVendorUsers();
-    } else {
-      setVendorUsers([]);
-    }
-  }, [vendorId]);
+    fetchVendorUsers();
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -48,7 +43,7 @@ const VendorUserSelect = ({
     setError('');
     
     try {
-      const response = await axios.get(`/api/vendors/${vendorId}/users`);
+      const response = await axios.get('/api/users/by-role/vendor');
       setVendorUsers(response.data || []);
     } catch (err) {
       console.error('Error fetching vendor users:', err);
@@ -74,7 +69,8 @@ const VendorUserSelect = ({
   const getDisplayText = () => {
     const selectedUser = getSelectedUser();
     if (selectedUser) {
-      return `${selectedUser.name}${selectedUser.email ? ` (${selectedUser.email})` : ''}`;
+      const displayName = selectedUser.full_name || selectedUser.username;
+      return `${displayName}${selectedUser.email ? ` (${selectedUser.email})` : ''}`;
     }
     return value || '';
   };
@@ -84,10 +80,10 @@ const VendorUserSelect = ({
     
     const searchLower = searchTerm.toLowerCase();
     return (
-      user.name?.toLowerCase().includes(searchLower) ||
+      user.username?.toLowerCase().includes(searchLower) ||
+      user.full_name?.toLowerCase().includes(searchLower) ||
       user.email?.toLowerCase().includes(searchLower) ||
-      user.phone?.toLowerCase().includes(searchLower) ||
-      user.designation?.toLowerCase().includes(searchLower)
+      user.phone_number?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -113,19 +109,6 @@ const VendorUserSelect = ({
       }
     });
   };
-
-  if (!vendorId) {
-    return (
-      <div className="vendor-user-select disabled">
-        <input
-          type="text"
-          placeholder="Select a vendor first"
-          disabled
-          className="vendor-user-input"
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="vendor-user-select" ref={dropdownRef}>
@@ -182,13 +165,13 @@ const VendorUserSelect = ({
                   className={`vendor-user-item ${value === user.id ? 'selected' : ''}`}
                   onClick={() => handleSelect(user)}
                 >
-                  <div className="user-name">{user.name}</div>
+                  <div className="user-name">{user.full_name || user.username}</div>
                   <div className="user-details">
                     {user.email && <span className="user-email">{user.email}</span>}
-                    {user.phone && <span className="user-phone">{user.phone}</span>}
+                    {user.phone_number && <span className="user-phone">{user.phone_number}</span>}
                   </div>
-                  {user.designation && (
-                    <div className="user-designation">{user.designation}</div>
+                  {user.username && (
+                    <div className="user-designation">@{user.username}</div>
                   )}
                 </div>
               ))}
