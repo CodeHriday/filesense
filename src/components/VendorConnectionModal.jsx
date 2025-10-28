@@ -174,8 +174,9 @@ const VendorConnectionModal = ({
       const response = await axios[method](url, payload);
       
       // After first save, store the connection ID so user can browse
-      if (!connectionId && response.data.connection_id) {
-        setSavedConnectionId(response.data.connection_id);
+      // Backend returns { connection: { connection_id, ... } }
+      if (!connectionId && response.data.connection?.connection_id) {
+        setSavedConnectionId(response.data.connection.connection_id);
       }
       
       // Reset the modified flag to re-enable browsing after save
