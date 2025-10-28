@@ -290,7 +290,6 @@ class VendorAgreementService {
         vendor_department_team,
         vendor_department_email,
         vendor_type,
-        vendor_onboarding_date,
         file_owner_user_id,
         primary_contact_name,
         primary_contact_phone,
@@ -471,13 +470,6 @@ class VendorAgreementService {
         updates.push(`vendor_type = $${paramIndex}`);
         params.push(vendor_type);
         changes.vendor_type = { from: current.vendor_type, to: vendor_type };
-        paramIndex++;
-      }
-      
-      if (vendor_onboarding_date !== undefined && vendor_onboarding_date !== current.vendor_onboarding_date) {
-        updates.push(`vendor_onboarding_date = $${paramIndex}`);
-        params.push(vendor_onboarding_date || null);
-        changes.vendor_onboarding_date = { from: current.vendor_onboarding_date, to: vendor_onboarding_date };
         paramIndex++;
       }
       
