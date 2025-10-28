@@ -132,8 +132,16 @@ async function listFilesFromConnection(pool, connectionId) {
     // Decrypt credentials if encrypted
     const decryptedConfig = decryptCredentials(connection.type, config);
 
-    // List files based on connection type
-    switch (connection.type.toLowerCase()) {
+    // Determine the actual storage type
+    let storageType = connection.type.toLowerCase();
+    
+    // For vendor connections, get the storage type from config
+    if (storageType === 'vendor') {
+      storageType = (config.storage_type || config.provider || '').toLowerCase();
+    }
+
+    // List files based on storage type
+    switch (storageType) {
       case 'aws':
       case 's3':
         return await listS3Files(decryptedConfig);
@@ -147,7 +155,7 @@ async function listFilesFromConnection(pool, connectionId) {
         return await listAzureFiles(decryptedConfig);
       
       default:
-        throw new Error(`Unsupported connection type: ${connection.type}`);
+        throw new Error(`Unsupported storage type: ${storageType} (connection type: ${connection.type})`);
     }
   } catch (error) {
     console.error('Error listing files from connection:', error);
@@ -321,20 +329,44 @@ async function uploadAzureFile(config, filename, buffer) {
  */
 async function downloadFileFromConnection(pool, connectionId, filename) {
   try {
-    const result = await pool.query(
-      'SELECT * FROM transform_connections WHERE id = $1',
-      [connectionId]
+    let connection = null;
+    
+    // Try transform_connections first (regular connections with integer IDs)
+    const transformResult = await pool.query(
+      'SELECT * FROM transform_connections WHERE id::text = $1',
+      [String(connectionId)]
     );
 
-    if (result.rows.length === 0) {
+    if (transformResult.rows.length > 0) {
+      connection = transformResult.rows[0];
+    } else {
+      // Try storage_connections (vendor connections with UUID IDs)
+      const storageResult = await pool.query(
+        'SELECT * FROM storage_connections WHERE connection_id = $1',
+        [connectionId]
+      );
+      
+      if (storageResult.rows.length > 0) {
+        connection = storageResult.rows[0];
+      }
+    }
+
+    if (!connection) {
       throw new Error('Connection not found');
     }
 
-    const connection = result.rows[0];
     const config = connection.config || {};
     const decryptedConfig = decryptCredentials(connection.type, config);
 
-    switch (connection.type.toLowerCase()) {
+    // Determine the actual storage type
+    let storageType = connection.type.toLowerCase();
+    
+    // For vendor connections, get the storage type from config
+    if (storageType === 'vendor') {
+      storageType = (config.storage_type || config.provider || '').toLowerCase();
+    }
+
+    switch (storageType) {
       case 'aws':
       case 's3':
         return await downloadS3File(decryptedConfig, filename);
@@ -348,7 +380,7 @@ async function downloadFileFromConnection(pool, connectionId, filename) {
         return await downloadAzureFile(decryptedConfig, filename);
       
       default:
-        throw new Error(`Unsupported connection type: ${connection.type}`);
+        throw new Error(`Unsupported storage type: ${storageType} (connection type: ${connection.type})`);
     }
   } catch (error) {
     console.error('Error downloading file from connection:', error);
@@ -361,20 +393,44 @@ async function downloadFileFromConnection(pool, connectionId, filename) {
  */
 async function uploadFileToConnection(pool, connectionId, filename, buffer) {
   try {
-    const result = await pool.query(
-      'SELECT * FROM transform_connections WHERE id = $1',
-      [connectionId]
+    let connection = null;
+    
+    // Try transform_connections first (regular connections with integer IDs)
+    const transformResult = await pool.query(
+      'SELECT * FROM transform_connections WHERE id::text = $1',
+      [String(connectionId)]
     );
 
-    if (result.rows.length === 0) {
+    if (transformResult.rows.length > 0) {
+      connection = transformResult.rows[0];
+    } else {
+      // Try storage_connections (vendor connections with UUID IDs)
+      const storageResult = await pool.query(
+        'SELECT * FROM storage_connections WHERE connection_id = $1',
+        [connectionId]
+      );
+      
+      if (storageResult.rows.length > 0) {
+        connection = storageResult.rows[0];
+      }
+    }
+
+    if (!connection) {
       throw new Error('Connection not found');
     }
 
-    const connection = result.rows[0];
     const config = connection.config || {};
     const decryptedConfig = decryptCredentials(connection.type, config);
 
-    switch (connection.type.toLowerCase()) {
+    // Determine the actual storage type
+    let storageType = connection.type.toLowerCase();
+    
+    // For vendor connections, get the storage type from config
+    if (storageType === 'vendor') {
+      storageType = (config.storage_type || config.provider || '').toLowerCase();
+    }
+
+    switch (storageType) {
       case 'aws':
       case 's3':
         return await uploadS3File(decryptedConfig, filename, buffer);
@@ -388,7 +444,7 @@ async function uploadFileToConnection(pool, connectionId, filename, buffer) {
         return await uploadAzureFile(decryptedConfig, filename, buffer);
       
       default:
-        throw new Error(`Unsupported connection type: ${connection.type}`);
+        throw new Error(`Unsupported storage type: ${storageType} (connection type: ${connection.type})`);
     }
   } catch (error) {
     console.error('Error uploading file to connection:', error);

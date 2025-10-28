@@ -342,6 +342,9 @@ router.post('/',
     const mappingId = `MAP-${Date.now()}-${uuidv4().substring(0, 8)}`;
     const projectId = req.projectId; // Set by authorization middleware, no fallback allowed
     
+    // When vendor_agreement_id is provided, source_connection_id must be NULL to satisfy the exclusivity constraint
+    const sourceConnectionIdForDb = vendor_agreement_id ? null : actualSourceConnectionId;
+    
     const result = await pool.query(`
       INSERT INTO transformation_mappings (
         mapping_id, mapping_name, source_connection_id, vendor_agreement_id, source_type, file_path,
@@ -351,7 +354,7 @@ router.post('/',
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `, [
-      mappingId, mapping_name, actualSourceConnectionId, vendor_agreement_id, source_type, file_path,
+      mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, source_type, file_path,
       actualFilePattern, actualFilePattern, target_connection_id, target_table_name,
       req.body.target_file_path, target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null, projectId
@@ -513,9 +516,10 @@ router.put('/:id',
       values.push(mapping_name);
       paramIndex++;
     }
-    if (resolvedSourceConnectionId !== undefined) {
+    // When vendor_agreement_id is provided, source_connection_id must be NULL to satisfy the exclusivity constraint
+    if (resolvedSourceConnectionId !== undefined || vendor_agreement_id !== undefined) {
       updates.push(`source_connection_id = $${paramIndex}`);
-      values.push(resolvedSourceConnectionId);
+      values.push(vendor_agreement_id !== undefined ? null : resolvedSourceConnectionId);
       paramIndex++;
     }
     if (vendor_agreement_id !== undefined) {
