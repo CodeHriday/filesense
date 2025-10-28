@@ -296,6 +296,7 @@ function MappingWizard() {
 
   const handleNext = async () => {
     if (currentStep === 1) {
+      // Step 1 validation: Basic info
       if (!mappingName.trim()) {
         setError('Please enter a mapping name');
         return;
@@ -316,15 +317,41 @@ function MappingWizard() {
       setCurrentStep(2);
       setMaxCompletedStep(Math.max(maxCompletedStep, 2));
     } else if (currentStep === 2) {
+      // Step 2 validation: Source configuration - both filePath and fileNamePattern required
+      if (!filePath || !filePath.trim()) {
+        setError('Please enter a file path. Use "/" for root directory or specify a folder path (e.g., /data/input/)');
+        return;
+      }
       if (!fileNamePattern.trim()) {
         setError('Please enter a file name or pattern');
         return;
       }
+      
+      // Try to extract schema before moving to step 3
       setError(null);
+      const schemaExtracted = await extractSchema();
+      if (!schemaExtracted) {
+        // Error already set by extractSchema
+        return;
+      }
+      
       setCurrentStep(3);
       setMaxCompletedStep(Math.max(maxCompletedStep, 3));
-      await extractSchema();
     } else if (currentStep === 3) {
+      // Step 3 validation: Field mappings required
+      if (!fieldMappings || fieldMappings.length === 0) {
+        setError('Please configure at least one field mapping');
+        return;
+      }
+      
+      // Check if at least one field mapping has a source field
+      const hasValidMapping = fieldMappings.some(mapping => mapping.source_field && mapping.source_field.trim());
+      if (!hasValidMapping) {
+        setError('Please configure at least one valid field mapping with a source field');
+        return;
+      }
+      
+      setError(null);
       setCurrentStep(4);
       setMaxCompletedStep(Math.max(maxCompletedStep, 4));
     }
@@ -750,14 +777,14 @@ function MappingWizard() {
             <h2><FiFilter /> Source Configuration</h2>
             
             <div className="form-group">
-              <label>File Path</label>
+              <label>File Path *</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   className="form-control"
                   value={filePath}
                   onChange={(e) => setFilePath(e.target.value)}
-                  placeholder="e.g., /year/month/day/ or leave blank for root"
+                  placeholder="e.g., /year/month/day/ or use / for root"
                   style={{ flex: 1 }}
                 />
                 {(sourceConnectionId || selectedVendorAgreement) && (
@@ -772,7 +799,7 @@ function MappingWizard() {
                 )}
               </div>
               <small className="form-help">
-                Leave blank if file is in the main bucket. For files in subfolders, provide the path starting with /.<br/>
+                Required. Use "/" for root directory or specify a folder path (e.g., /data/input/).<br/>
                 Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
               </small>
             </div>
