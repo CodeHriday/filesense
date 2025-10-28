@@ -18,6 +18,12 @@ function Sidebar() {
     }));
   };
   
+  // Check if user is a vendor (and ONLY a vendor)
+  const isVendorOnly = currentUser && 
+    currentUser.roles && 
+    currentUser.roles.includes('Vendor') && 
+    currentUser.roles.length === 1;
+  
   // If user is not logged in, show minimal sidebar
   if (!currentUser) {
     return (
@@ -39,6 +45,12 @@ function Sidebar() {
   
   // Helper function to check if user has read permission for a feature
   const canViewFeature = (featureId, parentId = null) => {
+    // Special handling for vendor-only users
+    if (isVendorOnly) {
+      // Only allow file_drop and vendor_agreements for vendor-only users
+      return featureId === 'file_drop' || featureId === 'vendor_agreements';
+    }
+    
     // Check for read permission in the format: featureId:read
     const readPermission = `${featureId}:read`;
     
@@ -55,10 +67,15 @@ function Sidebar() {
   const categorizedFeatures = {};
   
   APP_FEATURES.forEach(feature => {
+    // For vendor-only users, override showInSidebar for file_drop
+    const shouldShowInSidebar = isVendorOnly && feature.id === 'file_drop' 
+      ? true 
+      : feature.showInSidebar;
+    
     // Only include features that:
     // 1. Should be shown in sidebar
     // 2. User has permission to view
-    if (feature.showInSidebar && canViewFeature(feature.id)) {
+    if (shouldShowInSidebar && canViewFeature(feature.id)) {
       if (!categorizedFeatures[feature.category]) {
         categorizedFeatures[feature.category] = [];
       }
