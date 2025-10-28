@@ -87,15 +87,6 @@ const VendorAgreements = () => {
   
   const [templateFile, setTemplateFile] = useState(null);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
-  const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
-  const [bulkUploadAgreements, setBulkUploadAgreements] = useState([]);
-  const [bulkUploadContext, setBulkUploadContext] = useState({
-    vendor_id: '',
-    project_id: '',
-    vendor_connection_id: '',
-    target_connection_id: '',
-    file_owner_user_id: ''
-  });
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -621,7 +612,7 @@ const VendorAgreements = () => {
     event.target.value = '';
     
     if (!isAdmin) {
-      setError('Only administrators can upload bulk agreement templates');
+      setError('Only administrators can upload agreement templates');
       return;
     }
     
@@ -640,18 +631,48 @@ const VendorAgreements = () => {
       
       setLoading(false);
       
-      if (response.data.success) {
-        setBulkUploadAgreements(response.data.agreements);
-        setBulkUploadContext({
+      if (response.data.success && response.data.agreements.length > 0) {
+        const agreement = response.data.agreements[0];
+        
+        setFormData({
           vendor_id: '',
           project_id: '',
           vendor_connection_id: '',
           target_connection_id: '',
-          file_owner_user_id: ''
+          file_owner_user_id: '',
+          file_name: agreement.file_name || '',
+          file_description: agreement.file_description || '',
+          vendor_department_team: agreement.vendor_department_team || '',
+          schema: agreement.schema || '',
+          frequency: agreement.frequency || '',
+          frequency_description: agreement.frequency_description || '',
+          contains_pii: agreement.contains_pii || false,
+          file_type: agreement.file_type || '',
+          data_classification: agreement.data_classification || '',
+          domain: agreement.domain || '',
+          retention_days: agreement.retention_days || '',
+          expected_arrival_time: agreement.expected_arrival_time || '',
+          delivery_method: agreement.delivery_method || '',
+          primary_contact_user_id: '',
+          primary_contact_name: '',
+          primary_contact_email: '',
+          primary_contact_phone: '',
+          primary_contact_designation: '',
+          secondary_contact_user_id: '',
+          secondary_contact_name: '',
+          secondary_contact_email: '',
+          secondary_contact_phone: '',
+          secondary_contact_designation: ''
         });
-        setBulkUploadModalOpen(true);
-        setSuccessMessage(`Template parsed successfully! ${response.data.agreements.length} agreement(s) found.`);
-        setTimeout(() => setSuccessMessage(''), 5000);
+        
+        setModalOpen(true);
+        
+        if (response.data.agreements.length > 1) {
+          setSuccessMessage(`Template loaded with first agreement. Note: ${response.data.agreements.length} agreements found in template, but only the first one was loaded.`);
+        } else {
+          setSuccessMessage('Template loaded successfully! Please review and fill in vendor, project, connections, and contacts before submitting.');
+        }
+        setTimeout(() => setSuccessMessage(''), 8000);
       }
     } catch (error) {
       console.error('Error uploading template:', error);
@@ -666,56 +687,6 @@ const VendorAgreements = () => {
       } else {
         setError('Failed to upload template: ' + (error.response?.data?.error || error.message));
       }
-    }
-  };
-  
-  const handleBulkUploadConfirm = async () => {
-    if (!bulkUploadContext.vendor_id || !bulkUploadContext.file_owner_user_id) {
-      setError('Vendor and File Owner are required for bulk upload');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setBulkUploadModalOpen(false);
-      
-      const agreementsToCreate = bulkUploadAgreements.map(agreement => ({
-        ...agreement,
-        ...bulkUploadContext
-      }));
-      
-      const results = await Promise.allSettled(
-        agreementsToCreate.map(agreement => 
-          axios.post('/api/vendor-agreements', agreement)
-        )
-      );
-      
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      
-      if (successful > 0) {
-        setSuccessMessage(`Successfully created ${successful} agreement(s)${failed > 0 ? `, ${failed} failed` : ''}`);
-        fetchData();
-      }
-      
-      if (failed > 0) {
-        const errors = results
-          .filter(r => r.status === 'rejected')
-          .map((r, idx) => `Agreement ${idx + 1}: ${r.reason?.response?.data?.error || r.reason?.message}`)
-          .join('; ');
-        setError(`Failed to create ${failed} agreement(s): ${errors}`);
-      }
-      
-      setTimeout(() => {
-        setSuccessMessage('');
-        setError('');
-      }, 10000);
-    } catch (error) {
-      console.error('Error creating bulk agreements:', error);
-      setError('Failed to create agreements from template');
-    } finally {
-      setLoading(false);
-      setBulkUploadAgreements([]);
     }
   };
   
@@ -1913,132 +1884,6 @@ const VendorAgreements = () => {
                 }}
                 initialPath="/"
               />
-            </ThreeSectionModal>
-          )}
-          
-          {/* Bulk Upload Context Modal */}
-          {bulkUploadModalOpen && (
-            <ThreeSectionModal
-              isOpen={bulkUploadModalOpen}
-              onClose={() => setBulkUploadModalOpen(false)}
-              title={`Bulk Upload - ${bulkUploadAgreements.length} Agreement(s)`}
-              size="medium"
-              footer={
-                <>
-                  <button type="button" onClick={() => setBulkUploadModalOpen(false)}>
-                    Cancel
-                  </button>
-                  <button 
-                    type="button" 
-                    className="submit-btn"
-                    onClick={handleBulkUploadConfirm}
-                  >
-                    Create All Agreements
-                  </button>
-                </>
-              }
-            >
-              <div style={{ padding: '1rem' }}>
-                <p style={{ marginBottom: '1rem', color: '#666' }}>
-                  Set admin context for all {bulkUploadAgreements.length} agreement(s). These fields will be applied to all agreements in the batch.
-                </p>
-                
-                <div className="form-group">
-                  <label>
-                    Vendor Name <span className="required-field">*</span>
-                  </label>
-                  <select
-                    value={bulkUploadContext.vendor_id}
-                    onChange={(e) => setBulkUploadContext(prev => ({ ...prev, vendor_id: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select vendor...</option>
-                    {vendors.map(vendor => (
-                      <option key={vendor.id} value={vendor.id}>
-                        {vendor.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>
-                    Vendor Manager <span className="required-field">*</span>
-                  </label>
-                  <select
-                    value={bulkUploadContext.file_owner_user_id}
-                    onChange={(e) => setBulkUploadContext(prev => ({ ...prev, file_owner_user_id: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select owner...</option>
-                    {users.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.username} ({user.email})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>Project (Optional)</label>
-                  <input
-                    type="text"
-                    value={bulkUploadContext.project_id}
-                    onChange={(e) => setBulkUploadContext(prev => ({ ...prev, project_id: e.target.value }))}
-                    placeholder="Enter project ID or leave blank"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Vendor Connection (Optional)</label>
-                  <select
-                    value={bulkUploadContext.vendor_connection_id}
-                    onChange={(e) => setBulkUploadContext(prev => ({ ...prev, vendor_connection_id: e.target.value }))}
-                  >
-                    <option value="">None</option>
-                    {filteredConnections.map(conn => (
-                      <option key={conn.id} value={conn.id}>
-                        {conn.connection_name} ({conn.connection_type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>Target Connection (Optional)</label>
-                  <select
-                    value={bulkUploadContext.target_connection_id}
-                    onChange={(e) => setBulkUploadContext(prev => ({ ...prev, target_connection_id: e.target.value }))}
-                  >
-                    <option value="">None</option>
-                    {vendorConnections.map(conn => (
-                      <option key={conn.id} value={conn.id}>
-                        {conn.connection_name} ({conn.connection_type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div style={{ 
-                  marginTop: '1.5rem', 
-                  padding: '1rem', 
-                  backgroundColor: '#f9fafb', 
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb'
-                }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>
-                    Agreements Preview:
-                  </h4>
-                  <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.875rem', color: '#666' }}>
-                    {bulkUploadAgreements.slice(0, 5).map((agreement, idx) => (
-                      <li key={idx}>{agreement.file_name || `Agreement ${idx + 1}`}</li>
-                    ))}
-                    {bulkUploadAgreements.length > 5 && (
-                      <li>... and {bulkUploadAgreements.length - 5} more</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
             </ThreeSectionModal>
           )}
         </>
