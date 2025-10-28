@@ -481,7 +481,24 @@ async function getMappingConfig(pool, mappingId) {
     throw new Error(`Mapping not found: ${mappingId}`);
   }
   
-  return result.rows[0];
+  const mapping = result.rows[0];
+  
+  // If using vendor agreement, fetch the connection ID from the agreement
+  if (mapping.vendor_agreement_id) {
+    const agreementResult = await pool.query(
+      'SELECT connection_id FROM vendor_agreements WHERE agreement_id = $1',
+      [mapping.vendor_agreement_id]
+    );
+    
+    if (agreementResult.rows.length === 0) {
+      throw new Error(`Vendor agreement not found: ${mapping.vendor_agreement_id}`);
+    }
+    
+    // Set the source_connection_id to the vendor's connection ID for job execution
+    mapping.source_connection_id = agreementResult.rows[0].connection_id;
+  }
+  
+  return mapping;
 }
 
 /**
