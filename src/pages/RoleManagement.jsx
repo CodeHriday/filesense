@@ -33,6 +33,10 @@ const RoleManagement = () => {
   
   // Expanded permissions state
   const [expandedRoles, setExpandedRoles] = useState({});
+  
+  // Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState(null);
 
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -382,16 +386,23 @@ const RoleManagement = () => {
     }
   };
 
-  const handleDeleteRole = async (roleId, roleName) => {
+  const openDeleteModal = (role) => {
     // Don't delete 'Admin' role
-    if (roleName.toLowerCase() === 'admin') {
+    if (role.name.toLowerCase() === 'admin') {
       setError("The Admin role cannot be deleted");
       return;
     }
-    
-    if (!window.confirm(`Are you sure you want to delete the role "${roleName}"?`)) {
-      return;
-    }
+    setRoleToDelete(role);
+    setDeleteModalOpen(true);
+  };
+  
+  const closeDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setRoleToDelete(null);
+  };
+  
+  const confirmDeleteRole = async () => {
+    if (!roleToDelete) return;
     
     try {
       // Temporarily bypass permission checks
@@ -400,7 +411,8 @@ const RoleManagement = () => {
       //   return;
       // }
       
-      await deleteRole(roleId);
+      await deleteRole(roleToDelete.id);
+      closeDeleteModal();
       fetchData();
     } catch (error) {
       console.error('Error deleting role:', error);
@@ -530,7 +542,7 @@ const RoleManagement = () => {
                         {role.name.toLowerCase() !== 'admin' && (
                           <button 
                             className="delete-role-btn" 
-                            onClick={() => handleDeleteRole(role.id, role.name)}
+                            onClick={() => openDeleteModal(role)}
                           >
                             Delete
                           </button>
@@ -758,6 +770,45 @@ const RoleManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Role Confirmation Modal */}
+      {deleteModalOpen && roleToDelete && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>Delete Role</h2>
+              <button className="close-modal-btn" onClick={closeDeleteModal} aria-label="Close">
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning-icon">⚠️</div>
+              <p className="delete-confirmation-text">
+                Are you sure you want to delete the role <strong>{roleToDelete.name}</strong>?
+              </p>
+              {roleToDelete.description && (
+                <p className="user-detail">Description: {roleToDelete.description}</p>
+              )}
+              {roleToDelete.user_count !== undefined && (
+                <p className="user-detail">Users with this role: {roleToDelete.user_count}</p>
+              )}
+              <p className="delete-warning-text">
+                This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button type="button" className="cancel-btn" onClick={closeDeleteModal}>
+                Cancel
+              </button>
+              <button type="button" className="delete-confirm-btn" onClick={confirmDeleteRole}>
+                Delete Role
+              </button>
+            </div>
           </div>
         </div>
       )}
