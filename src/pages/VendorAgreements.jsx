@@ -640,16 +640,18 @@ const VendorAgreements = () => {
         const agreement = response.data.agreements[0];
         console.log('First agreement data:', agreement);
         
-        setFormData({
-          vendor_id: '',
-          project_id: '',
-          vendor_connection_id: '',
-          target_connection_id: '',
-          file_owner_user_id: '',
+        setFormData(prev => ({
+          ...prev,
+          vendor_id: prev.vendor_id || '',
+          project_id: prev.project_id || '',
+          vendor_connection_id: prev.vendor_connection_id || '',
+          target_connection_id: prev.target_connection_id || '',
+          file_owner_user_id: prev.file_owner_user_id || '',
           file_name: agreement.file_name || '',
           file_description: agreement.file_description || '',
           vendor_department_team: agreement.vendor_department_team || '',
           vendor_department_email: agreement.vendor_department_email || '',
+          owner_contact: agreement.vendor_department_email || '',
           schema: agreement.schema || '',
           frequency: agreement.frequency || '',
           frequency_description: agreement.frequency_description || '',
@@ -670,7 +672,7 @@ const VendorAgreements = () => {
           secondary_contact_email: '',
           secondary_contact_phone: '',
           secondary_contact_designation: ''
-        });
+        }));
         
         setModalOpen(true);
         
@@ -762,7 +764,7 @@ const VendorAgreements = () => {
       ) : (
         <>
           <div className="vendor-agreements-header">
-            <h1>Vendor Agreements</h1>
+            <h1>Vendor Contracts</h1>
             {(isAdmin || isVendor) && (
               <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
                 <button 
@@ -789,7 +791,7 @@ const VendorAgreements = () => {
                   className="create-agreement-btn"
                   onClick={openCreateModal}
                 >
-                  Create New Agreement
+                  Create Vendor Contract
                 </button>
               </div>
             )}
@@ -883,7 +885,7 @@ const VendorAgreements = () => {
             <ThreeSectionModal
               isOpen={modalOpen}
               onClose={closeModal}
-              title={modalMode === 'create' ? 'Create New Agreement' : 'Edit Agreement'}
+              title={modalMode === 'create' ? 'Create Vendor Contract' : 'Edit Vendor Contract'}
               size="large"
               footer={
                 <>
@@ -891,13 +893,63 @@ const VendorAgreements = () => {
                     Cancel
                   </button>
                   <button type="submit" form="agreement-form">
-                    {modalMode === 'create' ? 'Create Agreement' : 'Update Agreement'}
+                    {modalMode === 'create' ? 'Create Contract' : 'Update Contract'}
                   </button>
                 </>
               }
             >
               <form id="agreement-form" onSubmit={handleSubmit} className="agreement-form">
-                {/* Section 1: Agreement Information */}
+                {/* Section 1: Quick Setup with Template (Optional - Auto-populate fields) */}
+                {modalMode === 'create' && (
+                  <div className="form-section" style={{ backgroundColor: '#f8f9fa', padding: '1.5rem', borderRadius: '8px', border: '2px solid #3b82f6' }}>
+                    <h3 className="section-title" style={{ marginBottom: '0.5rem', color: '#1e40af' }}>
+                      🚀 Quick Setup with Template
+                    </h3>
+                    <p style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '1rem' }}>
+                      Download a template, fill it with your contract details, and upload to auto-populate most fields below.
+                    </p>
+                    
+                    <div className="form-group">
+                      <label>Download Template</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTemplate('xlsx')}
+                          className="btn-secondary"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                        >
+                          Excel (.xlsx)
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="templateFile">Upload Filled Template</label>
+                      <input
+                        type="file"
+                        id="templateFile"
+                        accept=".xlsx,.xls"
+                        onChange={handleTemplateUpload}
+                        disabled={uploadingTemplate}
+                      />
+                      {templateFile && (
+                        <p className="file-selected" style={{ color: '#059669', marginTop: '0.5rem' }}>
+                          ✓ Template uploaded: {templateFile.name}
+                        </p>
+                      )}
+                      {uploadingTemplate && (
+                        <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>
+                          Processing template...
+                        </p>
+                      )}
+                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                        Upload Excel (.xlsx, .xls) file - Fields below will auto-populate
+                      </small>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Section 2: Agreement Information */}
                 <div className="form-section">
                   <h3 className="section-title">Agreement Information</h3>
                   
@@ -992,73 +1044,7 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 2: Template Upload (Optional - Auto-populate fields) */}
-                {formData.vendor_id && modalMode === 'create' && (
-                  <div className="form-section" style={{ backgroundColor: '#f8f9fa', padding: '1.5rem', borderRadius: '8px' }}>
-                    <h3 className="section-title" style={{ marginBottom: '0.5rem' }}>
-                      Quick Setup with Template
-                    </h3>
-                    <p style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '1rem' }}>
-                      Download a template, fill it with your agreement details, and upload to auto-populate all fields.
-                    </p>
-                    
-                    <div className="form-group">
-                      <label>Download Template</label>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadTemplate('xlsx')}
-                          className="btn-secondary"
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-                        >
-                          Excel (.xlsx)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadTemplate('csv')}
-                          className="btn-secondary"
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-                        >
-                          CSV (.csv)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadTemplate('json')}
-                          className="btn-secondary"
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-                        >
-                          JSON (.json)
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="templateFile">Upload Filled Template</label>
-                      <input
-                        type="file"
-                        id="templateFile"
-                        accept=".xlsx,.xls,.csv,.json"
-                        onChange={handleTemplateUpload}
-                        disabled={uploadingTemplate}
-                      />
-                      {templateFile && (
-                        <p className="file-selected" style={{ color: '#059669', marginTop: '0.5rem' }}>
-                          ✓ Template uploaded: {templateFile.name}
-                        </p>
-                      )}
-                      {uploadingTemplate && (
-                        <p style={{ color: '#6b7280', marginTop: '0.5rem' }}>
-                          Processing template...
-                        </p>
-                      )}
-                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                        Upload Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) file
-                      </small>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Section 2: Vendor Information */}
+                {/* Section 3: Vendor Information */}
                 {formData.vendor_id && (
                   <div className="form-section">
                     <h3 className="section-title">Vendor Information</h3>
@@ -1123,14 +1109,14 @@ const VendorAgreements = () => {
                     </div>
                     
                     <div className="form-group">
-                      <label htmlFor="owner_contact">Vendor Department Email</label>
+                      <label htmlFor="vendor_department_email">Vendor Department Email</label>
                       <input
-                        type="text"
-                        id="owner_contact"
-                        name="owner_contact"
-                        value={formData.owner_contact}
+                        type="email"
+                        id="vendor_department_email"
+                        name="vendor_department_email"
+                        value={formData.vendor_department_email}
                         onChange={handleInputChange}
-                        placeholder="Additional owner contact details"
+                        placeholder="department@vendor.com"
                       />
                     </div>
                   </div>
