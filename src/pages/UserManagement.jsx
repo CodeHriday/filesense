@@ -27,6 +27,8 @@ const UserManagement = () => {
     last_name: '',
     phone_number: '',
     auth_provider: 'local',
+    internal_user: false,
+    user_type: '',
     roles: []
   });
   
@@ -169,6 +171,8 @@ const UserManagement = () => {
       last_name: '',
       phone_number: '',
       auth_provider: 'local',
+      internal_user: false,
+      user_type: '',
       roles: []
     });
     setModalMode('create');
@@ -188,6 +192,8 @@ const UserManagement = () => {
       last_name: user.last_name || '',
       phone_number: user.phone_number || '',
       auth_provider: user.auth_provider || 'local',
+      internal_user: user.internal_user || false,
+      user_type: user.user_type || '',
       roles: user.roles || []
     });
     setModalMode('edit');
@@ -214,6 +220,8 @@ const UserManagement = () => {
         last_name: '',
         phone_number: '',
         auth_provider: 'local',
+        internal_user: false,
+        user_type: 'Vendor',
         roles: ['Vendor']
       });
       setModalMode('create');
@@ -616,6 +624,37 @@ const UserManagement = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                 />
+              </div>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="user_type">User Type</label>
+                  <select
+                    id="user_type"
+                    name="user_type"
+                    value={formData.user_type}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Type</option>
+                    <option value="FTE">FTE</option>
+                    <option value="Consultant">Consultant</option>
+                    <option value="Vendor">Vendor</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="internal_user" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      id="internal_user"
+                      name="internal_user"
+                      checked={formData.internal_user}
+                      onChange={(e) => setFormData(prev => ({ ...prev, internal_user: e.target.checked }))}
+                      style={{ width: 'auto', margin: 0 }}
+                    />
+                    Internal User
+                  </label>
+                </div>
               </div>
               
               <div className="form-group">
