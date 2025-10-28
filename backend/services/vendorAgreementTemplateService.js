@@ -8,6 +8,7 @@ class VendorAgreementTemplateService {
       { field: 'file_name', label: 'File Name *', type: 'text', required: true },
       { field: 'file_description', label: 'File Description *', type: 'text', required: true },
       { field: 'vendor_department_team', label: 'Vendor Department/Team *', type: 'text', required: true },
+      { field: 'vendor_department_email', label: 'Vendor Department Email *', type: 'text', required: true },
       { field: 'schema', label: 'Schema (JSON)', type: 'text', required: false },
       { field: 'frequency', label: 'Frequency *', type: 'dropdown', required: true, options: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual', 'Ad-hoc'] },
       { field: 'frequency_description', label: 'Frequency Description', type: 'text', required: false },
@@ -95,6 +96,8 @@ class VendorAgreementTemplateService {
       case 'frequency_description':
         return 'Delivered every day at 6 AM EST';
       case 'vendor_department_team':
+        return 'Data Engineering Team';
+      case 'vendor_department_email':
         return 'data-team@vendor.com';
       case 'contains_pii':
         return 'TRUE';
@@ -161,7 +164,8 @@ class VendorAgreementTemplateService {
       [''],
       ['File Name: The name of the data file (e.g., customer_export.csv)'],
       ['File Description: A description of what the file contains'],
-      ['Vendor Department/Team: Email or name of the vendor department/team responsible'],
+      ['Vendor Department/Team: Name of the vendor department/team responsible'],
+      ['Vendor Department Email: Contact email for the vendor department/team'],
       ['Schema: JSON representation of the file structure'],
       ['Frequency: How often the file is delivered (Daily, Weekly, etc.)'],
       ['Frequency Description: Details about delivery timing'],
