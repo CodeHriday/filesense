@@ -574,4 +574,32 @@ router.post('/parse-template', templateUpload.single('templateFile'), async (req
   }
 });
 
+// DELETE /api/vendor-agreements/:id - Delete a vendor agreement
+router.delete('/:id', requirePermission('vendor_agreements:write'), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    if (isNaN(agreementId)) {
+      return res.status(400).json({ error: 'Invalid agreement ID' });
+    }
+    
+    const result = await vendorAgreementService.deleteAgreement(agreementId, req.user.id);
+    
+    if (!result.success) {
+      return res.status(404).json({ error: result.error });
+    }
+    
+    res.json({
+      success: true,
+      message: result.message
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error deleting agreement', { error: error.message });
+    res.status(500).json({ 
+      error: error.message || 'Failed to delete agreement'
+    });
+  }
+});
+
 module.exports = router;

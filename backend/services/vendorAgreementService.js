@@ -1049,6 +1049,9 @@ class VendorAgreementService {
       const queryParams = [];
       let paramCounter = 1;
       
+      // Always exclude deleted agreements
+      whereClauses.push(`(va.status IS NULL OR va.status != 'deleted')`);
+      
       // Filter by project if specified
       if (projectId) {
         whereClauses.push(`v.project_id = $${paramCounter}`);
@@ -1290,6 +1293,61 @@ class VendorAgreementService {
     } catch (error) {
       systemLogger.error('Error fetching approved agreements', { error: error.message });
       throw error;
+    }
+  }
+
+  /**
+   * Delete vendor agreement (soft delete by setting status to 'deleted')
+   */
+  async deleteAgreement(agreementId, deletedBy) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Check if agreement exists
+      const checkResult = await client.query(
+        'SELECT id, agreement_code FROM vendor_agreements WHERE id = $1',
+        [agreementId]
+      );
+      
+      if (checkResult.rows.length === 0) {
+        throw new Error('Agreement not found');
+      }
+      
+      // Soft delete by updating status
+      const result = await client.query(
+        `UPDATE vendor_agreements 
+         SET status = 'deleted', 
+             updated_at = CURRENT_TIMESTAMP,
+             updated_by = $2
+         WHERE id = $1
+         RETURNING id, agreement_code`,
+        [agreementId, deletedBy]
+      );
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Agreement deleted', {
+        agreementId,
+        agreementCode: result.rows[0].agreement_code,
+        deletedBy
+      });
+      
+      return {
+        success: true,
+        message: 'Agreement deleted successfully'
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error deleting agreement', { agreementId, error: error.message });
+      return {
+        success: false,
+        error: error.message
+      };
+    } finally {
+      client.release();
     }
   }
 }
