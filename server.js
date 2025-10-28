@@ -5164,7 +5164,7 @@ app.get('/api/users', authenticateToken, async (req, res) => {
         u.first_name, u.middle_name, u.last_name, u.full_name,
         u.phone_number,
         u.address_line1, u.address_line2, u.city, u.state, u.postal_code, u.country,
-        u.auth_provider,
+        u.auth_provider, u.internal_user, u.user_type,
         u.created_at, u.updated_at, u.last_login,
         array_agg(r.name) as roles
       FROM users u
