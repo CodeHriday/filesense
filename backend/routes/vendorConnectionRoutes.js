@@ -342,15 +342,15 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Check if connection is being used by any vendors
+    // Check if connection is being used by any vendor agreements
     const usageCheck = await pool.query(
-      'SELECT COUNT(*) FROM vendors WHERE drop_location_path LIKE $1',
-      [`%${id}%`]
+      'SELECT COUNT(*) FROM vendor_agreements WHERE vendor_connection_id = $1',
+      [id]
     );
     
     if (parseInt(usageCheck.rows[0].count) > 0) {
       return res.status(400).json({ 
-        error: 'Cannot delete connection. It is currently being used by one or more vendors.' 
+        error: 'Cannot delete connection. It is currently being used by one or more vendor agreements.' 
       });
     }
     
