@@ -22,6 +22,7 @@ const generateAccessToken = (user) => {
   const payload = {
     id: user.id,
     username: user.username,
+    email: user.email,
     roles: user.roles
   };
   
