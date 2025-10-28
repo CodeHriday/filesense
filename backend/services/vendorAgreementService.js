@@ -36,15 +36,29 @@ class VendorAgreementService {
         schema,
         frequency,
         frequency_description,
-        file_creator,
+        vendor_department_team,
         file_owner_user_id,
-        vendor_contact,
+        primary_contact_name,
+        primary_contact_phone,
+        primary_contact_email,
+        primary_contact_designation,
+        secondary_contact_name,
+        secondary_contact_phone,
+        secondary_contact_email,
+        secondary_contact_designation,
         owner_contact,
         metadata,
         vendor_connection_id,
         target_connection_id,
         drop_location_path,
-        manager_contact
+        manager_contact,
+        contains_pii,
+        file_type,
+        data_classification,
+        domain,
+        retention_days,
+        expected_arrival_time,
+        delivery_method
       } = agreementData;
       
       // Validation
@@ -184,19 +198,25 @@ class VendorAgreementService {
       const result = await client.query(
         `INSERT INTO vendor_agreements (
           vendor_id, agreement_code, file_name, file_description, schema,
-          frequency, frequency_description, file_creator, file_owner_user_id,
-          vendor_contact, owner_contact, metadata,
+          frequency, frequency_description, vendor_department_team, file_owner_user_id,
+          primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
+          secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
+          owner_contact, metadata,
           vendor_connection_id, target_connection_id, drop_location_path, project_id,
           manager_contact,
+          contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft', 1, $18, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, 'draft', 1, $32, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
-          frequency, frequency_description, file_creator, file_owner_user_id,
-          vendor_contact, owner_contact, metadata ? JSON.stringify(metadata) : null,
+          frequency, frequency_description, vendor_department_team, file_owner_user_id,
+          primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
+          secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
+          owner_contact, metadata ? JSON.stringify(metadata) : null,
           vendor_connection_id, target_connection_id || null, drop_location_path || null, project_id,
           finalManagerContact,
+          contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           createdBy
         ]
       );
@@ -264,15 +284,29 @@ class VendorAgreementService {
         schema,
         frequency,
         frequency_description,
-        file_creator,
+        vendor_department_team,
         file_owner_user_id,
-        vendor_contact,
+        primary_contact_name,
+        primary_contact_phone,
+        primary_contact_email,
+        primary_contact_designation,
+        secondary_contact_name,
+        secondary_contact_phone,
+        secondary_contact_email,
+        secondary_contact_designation,
         owner_contact,
         metadata,
         vendor_connection_id,
         target_connection_id,
         drop_location_path,
-        manager_contact
+        manager_contact,
+        contains_pii,
+        file_type,
+        data_classification,
+        domain,
+        retention_days,
+        expected_arrival_time,
+        delivery_method
       } = updateData;
       
       // Validate vendor_connection_id if provided (optional in updates)
@@ -412,10 +446,10 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (file_creator !== undefined && file_creator !== current.file_creator) {
-        updates.push(`file_creator = $${paramIndex}`);
-        params.push(file_creator);
-        changes.file_creator = { from: current.file_creator, to: file_creator };
+      if (vendor_department_team !== undefined && vendor_department_team !== current.vendor_department_team) {
+        updates.push(`vendor_department_team = $${paramIndex}`);
+        params.push(vendor_department_team);
+        changes.vendor_department_team = { from: current.vendor_department_team, to: vendor_department_team };
         paramIndex++;
       }
       
@@ -443,10 +477,59 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (vendor_contact !== undefined && vendor_contact !== current.vendor_contact) {
-        updates.push(`vendor_contact = $${paramIndex}`);
-        params.push(vendor_contact);
-        changes.vendor_contact = { from: current.vendor_contact, to: vendor_contact };
+      if (primary_contact_name !== undefined && primary_contact_name !== current.primary_contact_name) {
+        updates.push(`primary_contact_name = $${paramIndex}`);
+        params.push(primary_contact_name);
+        changes.primary_contact_name = { from: current.primary_contact_name, to: primary_contact_name };
+        paramIndex++;
+      }
+      
+      if (primary_contact_phone !== undefined && primary_contact_phone !== current.primary_contact_phone) {
+        updates.push(`primary_contact_phone = $${paramIndex}`);
+        params.push(primary_contact_phone);
+        changes.primary_contact_phone = { from: current.primary_contact_phone, to: primary_contact_phone };
+        paramIndex++;
+      }
+      
+      if (primary_contact_email !== undefined && primary_contact_email !== current.primary_contact_email) {
+        updates.push(`primary_contact_email = $${paramIndex}`);
+        params.push(primary_contact_email);
+        changes.primary_contact_email = { from: current.primary_contact_email, to: primary_contact_email };
+        paramIndex++;
+      }
+      
+      if (primary_contact_designation !== undefined && primary_contact_designation !== current.primary_contact_designation) {
+        updates.push(`primary_contact_designation = $${paramIndex}`);
+        params.push(primary_contact_designation);
+        changes.primary_contact_designation = { from: current.primary_contact_designation, to: primary_contact_designation };
+        paramIndex++;
+      }
+      
+      if (secondary_contact_name !== undefined && secondary_contact_name !== current.secondary_contact_name) {
+        updates.push(`secondary_contact_name = $${paramIndex}`);
+        params.push(secondary_contact_name);
+        changes.secondary_contact_name = { from: current.secondary_contact_name, to: secondary_contact_name };
+        paramIndex++;
+      }
+      
+      if (secondary_contact_phone !== undefined && secondary_contact_phone !== current.secondary_contact_phone) {
+        updates.push(`secondary_contact_phone = $${paramIndex}`);
+        params.push(secondary_contact_phone);
+        changes.secondary_contact_phone = { from: current.secondary_contact_phone, to: secondary_contact_phone };
+        paramIndex++;
+      }
+      
+      if (secondary_contact_email !== undefined && secondary_contact_email !== current.secondary_contact_email) {
+        updates.push(`secondary_contact_email = $${paramIndex}`);
+        params.push(secondary_contact_email);
+        changes.secondary_contact_email = { from: current.secondary_contact_email, to: secondary_contact_email };
+        paramIndex++;
+      }
+      
+      if (secondary_contact_designation !== undefined && secondary_contact_designation !== current.secondary_contact_designation) {
+        updates.push(`secondary_contact_designation = $${paramIndex}`);
+        params.push(secondary_contact_designation);
+        changes.secondary_contact_designation = { from: current.secondary_contact_designation, to: secondary_contact_designation };
         paramIndex++;
       }
       
@@ -485,6 +568,55 @@ class VendorAgreementService {
         updates.push(`drop_location_path = $${paramIndex}`);
         params.push(drop_location_path || null);
         changes.drop_location_path = { from: current.drop_location_path, to: drop_location_path };
+        paramIndex++;
+      }
+      
+      if (contains_pii !== undefined && contains_pii !== current.contains_pii) {
+        updates.push(`contains_pii = $${paramIndex}`);
+        params.push(contains_pii);
+        changes.contains_pii = { from: current.contains_pii, to: contains_pii };
+        paramIndex++;
+      }
+      
+      if (file_type !== undefined && file_type !== current.file_type) {
+        updates.push(`file_type = $${paramIndex}`);
+        params.push(file_type);
+        changes.file_type = { from: current.file_type, to: file_type };
+        paramIndex++;
+      }
+      
+      if (data_classification !== undefined && data_classification !== current.data_classification) {
+        updates.push(`data_classification = $${paramIndex}`);
+        params.push(data_classification);
+        changes.data_classification = { from: current.data_classification, to: data_classification };
+        paramIndex++;
+      }
+      
+      if (domain !== undefined && domain !== current.domain) {
+        updates.push(`domain = $${paramIndex}`);
+        params.push(domain);
+        changes.domain = { from: current.domain, to: domain };
+        paramIndex++;
+      }
+      
+      if (retention_days !== undefined && retention_days !== current.retention_days) {
+        updates.push(`retention_days = $${paramIndex}`);
+        params.push(retention_days);
+        changes.retention_days = { from: current.retention_days, to: retention_days };
+        paramIndex++;
+      }
+      
+      if (expected_arrival_time !== undefined && expected_arrival_time !== current.expected_arrival_time) {
+        updates.push(`expected_arrival_time = $${paramIndex}`);
+        params.push(expected_arrival_time);
+        changes.expected_arrival_time = { from: current.expected_arrival_time, to: expected_arrival_time };
+        paramIndex++;
+      }
+      
+      if (delivery_method !== undefined && delivery_method !== current.delivery_method) {
+        updates.push(`delivery_method = $${paramIndex}`);
+        params.push(delivery_method);
+        changes.delivery_method = { from: current.delivery_method, to: delivery_method };
         paramIndex++;
       }
       

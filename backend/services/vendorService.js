@@ -40,7 +40,8 @@ class VendorService {
         backup_contact_name,
         backup_contact_phone,
         backup_contact_email,
-        project_id
+        project_id,
+        vendor_type
       } = vendorData;
       
       // Validation
@@ -239,13 +240,13 @@ class VendorService {
         `INSERT INTO vendors (
           vendor_code, vendor_name, description, contact_name, contact_email, contact_phone,
           address, backup_contact_name, backup_contact_phone, backup_contact_email,
-          vendor_user_id, project_id, status, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active', $13, CURRENT_TIMESTAMP)
+          vendor_user_id, project_id, vendor_onboarding_date, vendor_type, status, created_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, $13, 'active', $14, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendorCode, vendor_name, description, contact_name, contact_email, contact_phone,
           address, backup_contact_name, backup_contact_phone, backup_contact_email,
-          vendorUserId, finalProjectId, createdBy
+          vendorUserId, finalProjectId, vendor_type, createdBy
         ]
       );
       
@@ -454,7 +455,8 @@ class VendorService {
         backup_contact_phone,
         backup_contact_email,
         project_id,
-        status
+        status,
+        vendor_type
       } = updateData;
       
       // Fetch current vendor data for validation
@@ -581,6 +583,12 @@ class VendorService {
       if (status !== undefined) {
         updates.push(`status = $${paramIndex}`);
         params.push(status);
+        paramIndex++;
+      }
+      
+      if (vendor_type !== undefined) {
+        updates.push(`vendor_type = $${paramIndex}`);
+        params.push(vendor_type);
         paramIndex++;
       }
       
