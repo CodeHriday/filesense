@@ -58,6 +58,7 @@ import SchedulerForm from './pages/SchedulerForm';
 import PolicyManagement from './pages/PolicyManagement';
 import TagManagement from './pages/TagManagement';
 import ProjectManagement from './pages/ProjectManagement';
+import Projects from './pages/Projects';
 import GroupManagement from './pages/GroupManagement';
 import SystemCleanup from './pages/SystemCleanup';
 import WorkflowCanvas from './pages/WorkflowCanvas';
@@ -272,6 +273,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 {/* Data Governance & RBAC routes */}
                 <Route path="/policy-management" element={<ProtectedRoute><PolicyManagement /></ProtectedRoute>} />
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
+                <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
                 <Route path="/group-management" element={<ProtectedRoute><GroupManagement /></ProtectedRoute>} />
                 <Route path="/system-cleanup" element={<ProtectedRoute><SystemCleanup /></ProtectedRoute>} />
