@@ -260,8 +260,8 @@ const ConnectionModal = ({
       delete payload.file_path;
       
       const url = connectionId 
-        ? `/api/vendor-connections/${connectionId}`
-        : '/api/vendor-connections';
+        ? `/api/connections/${connectionId}`
+        : '/api/connections';
       
       const method = connectionId ? 'put' : 'post';
       
@@ -326,7 +326,7 @@ const ConnectionModal = ({
         };
         delete payload.file_path;
         
-        const response = await axios.post('/api/vendor-connections/test-new', payload);
+        const response = await axios.post('/api/connections/test', payload);
         
         // Store test credentials for browsing
         setTestSuccessful(true);
@@ -354,7 +354,7 @@ const ConnectionModal = ({
     setTestResult(null);
     
     try {
-      const response = await axios.post(`/api/vendor-connections/${connectionId}/test`);
+      const response = await axios.post(`/api/connections/${connectionId}/test`);
       setTestResult(response.data);
     } catch (err) {
       setTestResult({
