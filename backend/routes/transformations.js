@@ -204,6 +204,7 @@ router.post('/',
       field_mappings = [],
       variables = [],
       anomaly_rules = null,
+      schema_drift_handling = 'none',
       status = 'draft'
     } = req.body;
     
@@ -380,7 +381,7 @@ router.post('/',
       actualFilePattern, actualFilePattern, actualTargetConnectionId, target_table_name,
       req.body.target_file_path, target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), 
-      req.body.schema_drift_handling || 'none',
+      schema_drift_handling,
       status, req.user?.id || null, projectId
     ]);
     
@@ -421,6 +422,7 @@ router.put('/:id',
       field_mappings,
       variables,
       anomaly_rules,
+      schema_drift_handling,
       status
     } = req.body;
     
@@ -631,9 +633,9 @@ router.put('/:id',
       values.push(JSON.stringify(anomaly_rules));
       paramIndex++;
     }
-    if (req.body.schema_drift_handling !== undefined) {
+    if (schema_drift_handling !== undefined) {
       updates.push(`schema_drift_handling = $${paramIndex}`);
-      values.push(req.body.schema_drift_handling);
+      values.push(schema_drift_handling);
       paramIndex++;
     }
     if (status !== undefined) {

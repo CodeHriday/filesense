@@ -279,6 +279,83 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       row_count: 0 // Will be determined during processing
     }));
     
+    // Step 1.5: Vendor Agreement Schema Validation
+    if (mapping.vendor_agreement_id && mapping.schema_drift_handling && mapping.schema_drift_handling !== 'none') {
+      await logJobExecution(pool, jobId, 'info', 'Validating file schema against vendor agreement');
+      
+      try {
+        const { validateFileSchema } = require('./schemaValidationService');
+        
+        // Validate the first file (for single files or patterns, we validate against the agreement schema)
+        const fileToValidate = cloudFiles[0];
+        const fileName = fileToValidate.filename;
+        const filePathPart = fileName.substring(0, fileName.lastIndexOf('/'));
+        const fileNamePart = fileName.substring(fileName.lastIndexOf('/') + 1);
+        
+        const validationResult = await validateFileSchema(
+          mapping.vendor_agreement_id,
+          mapping.source_connection_id,
+          filePathPart,
+          fileNamePart
+        );
+        
+        await logJobExecution(pool, jobId, 'info', `Schema validation result: ${validationResult.message}`, {
+          schemaDrift: validationResult.schemaDrift,
+          valid: validationResult.valid
+        });
+        
+        // Update job with schema validation status
+        const schemaValidationStatus = validationResult.schemaDrift ? 'Fail' : 'Pass';
+        await updateJob(pool, jobId, { 
+          schema_validation: schemaValidationStatus
+        });
+        
+        // Handle schema drift based on policy
+        if (validationResult.schemaDrift) {
+          const driftMessage = `Schema drift detected: ${validationResult.message}`;
+          
+          if (mapping.schema_drift_handling === 'abort') {
+            // Abort job execution
+            await updateJob(pool, jobId, { 
+              status: 'failed', 
+              error_message: driftMessage,
+              end_time: new Date()
+            });
+            
+            await logJobExecution(pool, jobId, 'error', driftMessage, { 
+              differences: validationResult.differences,
+              actualSchema: validationResult.actualSchema,
+              expectedSchema: validationResult.expectedSchema
+            });
+            
+            return { 
+              jobId, 
+              status: 'failed', 
+              filesProcessed: 0,
+              message: driftMessage,
+              schemaDrift: true
+            };
+          } else if (mapping.schema_drift_handling === 'alert') {
+            // Log warning and continue processing
+            await logJobExecution(pool, jobId, 'warn', driftMessage, { 
+              differences: validationResult.differences,
+              actualSchema: validationResult.actualSchema,
+              expectedSchema: validationResult.expectedSchema
+            });
+          }
+        } else {
+          await logJobExecution(pool, jobId, 'info', 'Vendor agreement schema validation passed');
+        }
+        
+      } catch (schemaValidationError) {
+        await logJobExecution(pool, jobId, 'warn', `Schema validation error: ${schemaValidationError.message}. Continuing with file processing.`);
+        // Set validation status as N/A due to error
+        await updateJob(pool, jobId, { 
+          schema_validation: null
+        });
+      }
+    }
+    
     // Step 2: Schema validation for file patterns (multiple files)
     if (runSchemaValidation && !isSingleFile && cloudFiles.length > 1) {
       await logJobExecution(pool, jobId, 'info', 'Validating schema consistency across matched files');

@@ -257,6 +257,7 @@ const Jobs = () => {
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Workflow</th>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schedule</th>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Status</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Schema Validation</th>
                     <th style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>Files Processed</th>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Rows</th>
                     <th style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Start Time</th>
@@ -277,6 +278,28 @@ const Jobs = () => {
                       <td>{job.workflow_name || '-'}</td>
                       <td>{formatScheduleInfo(job)}</td>
                       <td>{getStatusBadge(job.status)}</td>
+                      <td>
+                        {job.schema_validation ? (
+                          <span 
+                            style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '0.35rem',
+                              padding: '0.25rem 0.75rem',
+                              borderRadius: '12px',
+                              fontSize: '0.8rem',
+                              fontWeight: '500',
+                              backgroundColor: job.schema_validation === 'Pass' ? '#d1fae5' : '#fee2e2',
+                              color: job.schema_validation === 'Pass' ? '#10b981' : '#ef4444'
+                            }}
+                          >
+                            {job.schema_validation === 'Pass' ? <FiCheckCircle /> : <FiXCircle />}
+                            {job.schema_validation}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>N/A</span>
+                        )}
+                      </td>
                       <td style={{ textAlign: 'center' }}>{job.files_processed || 0}</td>
                       <td>
                         {job.rows_read ? (
