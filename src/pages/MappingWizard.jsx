@@ -143,7 +143,7 @@ function MappingWizard() {
   const fetchProjects = async () => {
     try {
       setLoadingProjects(true);
-      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+      const response = await axios.get(`${API_BASE_URL}/api/projects?project_type=internal`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setProjects(response.data || []);
