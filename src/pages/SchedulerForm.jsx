@@ -180,100 +180,106 @@ const SchedulerForm = () => {
 
         <div className="form-container">
           <form onSubmit={handleSubmit} className="data-form">
-            <div className="form-group">
-              <label>Entity Type *</label>
-              <select
-                value={formData.entity_type}
-                onChange={e => setFormData({ ...formData, entity_type: e.target.value, entity_id: '' })}
-                className="form-select"
-              >
-                <option value="mapping">Transformation</option>
-                <option value="mapping_group">Mapping Group</option>
-                <option value="workflow">Workflow</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Select {formData.entity_type.replace('_', ' ')} *</label>
-              <select
-                value={formData.entity_id}
-                onChange={e => {
-                  const value = e.target.value;
-                  console.log('Entity selected:', { value, type: typeof value, entityOptions: getEntityOptions() });
-                  
-                  // Auto-populate project_id based on selected entity
-                  let projectId = '';
-                  if (value) {
-                    if (formData.entity_type === 'mapping') {
-                      const mapping = transformations.find(t => String(t.mapping_id) === String(value));
-                      projectId = mapping?.project_id || '';
-                    } else if (formData.entity_type === 'mapping_group') {
-                      const group = mappingGroups.find(g => String(g.id) === String(value));
-                      projectId = group?.project_id || '';
-                    } else if (formData.entity_type === 'workflow') {
-                      const workflow = workflows.find(w => String(w.id) === String(value));
-                      projectId = workflow?.project_id || '';
-                    }
-                  }
-                  
-                  setFormData({ ...formData, entity_id: value, project_id: projectId });
-                }}
-                required
-                className="form-select"
-              >
-                <option value="">Select...</option>
-                {getEntityOptions().map(option => (
-                  <option key={option.id} value={option.id}>{option.name}</option>
-                ))}
-              </select>
-              {formData.entity_id && (
-                <small className="form-text text-muted">
-                  Selected ID: {formData.entity_id}
+            {/* Row 1: Project and Entity Type */}
+            <div className="form-row">
+              <div className="form-group">
+                <label>Project *</label>
+                <select
+                  value={formData.project_id}
+                  onChange={e => setFormData({ ...formData, project_id: e.target.value })}
+                  required
+                  className="form-select"
+                >
+                  <option value="">Select project...</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="form-help">
+                  Project is auto-populated from the selected entity
                 </small>
-              )}
+              </div>
+
+              <div className="form-group">
+                <label>Entity Type *</label>
+                <select
+                  value={formData.entity_type}
+                  onChange={e => setFormData({ ...formData, entity_type: e.target.value, entity_id: '' })}
+                  className="form-select"
+                >
+                  <option value="mapping">Transformation</option>
+                  <option value="mapping_group">Mapping Group</option>
+                  <option value="workflow">Workflow</option>
+                </select>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label>Project *</label>
-              <select
-                value={formData.project_id}
-                onChange={e => setFormData({ ...formData, project_id: e.target.value })}
-                required
-                className="form-select"
-              >
-                <option value="">Select project...</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-              <small className="form-help">
-                Project is auto-populated from the selected entity
-              </small>
-            </div>
+            {/* Row 2: Select Entity and Schedule Type */}
+            <div className="form-row">
+              <div className="form-group">
+                <label>Select {formData.entity_type.replace('_', ' ')} *</label>
+                <select
+                  value={formData.entity_id}
+                  onChange={e => {
+                    const value = e.target.value;
+                    console.log('Entity selected:', { value, type: typeof value, entityOptions: getEntityOptions() });
+                    
+                    // Auto-populate project_id based on selected entity
+                    let projectId = '';
+                    if (value) {
+                      if (formData.entity_type === 'mapping') {
+                        const mapping = transformations.find(t => String(t.mapping_id) === String(value));
+                        projectId = mapping?.project_id || '';
+                      } else if (formData.entity_type === 'mapping_group') {
+                        const group = mappingGroups.find(g => String(g.id) === String(value));
+                        projectId = group?.project_id || '';
+                      } else if (formData.entity_type === 'workflow') {
+                        const workflow = workflows.find(w => String(w.id) === String(value));
+                        projectId = workflow?.project_id || '';
+                      }
+                    }
+                    
+                    setFormData({ ...formData, entity_id: value, project_id: projectId });
+                  }}
+                  required
+                  className="form-select"
+                >
+                  <option value="">Select...</option>
+                  {getEntityOptions().map(option => (
+                    <option key={option.id} value={option.id}>{option.name}</option>
+                  ))}
+                </select>
+                {formData.entity_id && (
+                  <small className="form-text text-muted">
+                    Selected ID: {formData.entity_id}
+                  </small>
+                )}
+              </div>
 
-            <div className="form-group">
-              <label>Schedule Type *</label>
-              <div className="radio-group">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    value="cron"
-                    checked={formData.schedule_type === 'cron'}
-                    onChange={e => setFormData({ ...formData, schedule_type: 'cron' })}
-                  />
-                  Cron Expression
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    value="interval"
-                    checked={formData.schedule_type === 'interval'}
-                    onChange={e => setFormData({ ...formData, schedule_type: 'interval' })}
-                  />
-                  Interval
-                </label>
+              <div className="form-group" style={{ border: '1px solid #ddd', padding: '1rem', borderRadius: '4px' }}>
+                <label>Schedule Type *</label>
+                <div className="radio-group">
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      value="cron"
+                      checked={formData.schedule_type === 'cron'}
+                      onChange={e => setFormData({ ...formData, schedule_type: 'cron' })}
+                    />
+                    Cron Expression
+                  </label>
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      value="interval"
+                      checked={formData.schedule_type === 'interval'}
+                      onChange={e => setFormData({ ...formData, schedule_type: 'interval' })}
+                    />
+                    Interval
+                  </label>
+                </div>
               </div>
             </div>
 

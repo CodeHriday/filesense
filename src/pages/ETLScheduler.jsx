@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
+import Modal from '../components/Modal';
 import axios from 'axios';
 
 const ETLScheduler = () => {
@@ -13,6 +14,8 @@ const ETLScheduler = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [deleteModal, setDeleteModal] = useState({ show: false, scheduleId: null });
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   useEffect(() => {
     fetchSchedules();
@@ -40,23 +43,44 @@ const ETLScheduler = () => {
       setSchedules(schedules.map(s =>
         s.schedule_id === scheduleId ? { ...s, enabled: !currentEnabled } : s
       ));
+      setNotification({
+        show: true,
+        message: `Schedule ${!currentEnabled ? 'enabled' : 'disabled'} successfully`,
+        type: 'success'
+      });
     } catch (err) {
       console.error('Error toggling schedule:', err);
-      alert('Failed to toggle schedule');
+      setNotification({
+        show: true,
+        message: 'Failed to toggle schedule',
+        type: 'error'
+      });
     }
   };
 
-  const handleDelete = async (scheduleId) => {
-    if (!window.confirm('Are you sure you want to delete this schedule?')) {
-      return;
-    }
+  const handleDeleteClick = (scheduleId) => {
+    setDeleteModal({ show: true, scheduleId });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const scheduleId = deleteModal.scheduleId;
+    setDeleteModal({ show: false, scheduleId: null });
 
     try {
       await axios.delete(`/api/schedules/${scheduleId}`);
       setSchedules(schedules.filter(s => s.schedule_id !== scheduleId));
+      setNotification({
+        show: true,
+        message: 'Schedule deleted successfully',
+        type: 'success'
+      });
     } catch (err) {
       console.error('Error deleting schedule:', err);
-      alert('Failed to delete schedule');
+      setNotification({
+        show: true,
+        message: 'Failed to delete schedule',
+        type: 'error'
+      });
     }
   };
 
@@ -152,7 +176,7 @@ const ETLScheduler = () => {
                             <FiEdit2 />
                           </Link>
                           <button 
-                            onClick={() => handleDelete(schedule.schedule_id)} 
+                            onClick={() => handleDeleteClick(schedule.schedule_id)} 
                             className="btn btn-danger btn-sm"
                             title="Delete"
                           >
@@ -175,6 +199,46 @@ const ETLScheduler = () => {
             />
           </>
         )}
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          isOpen={deleteModal.show}
+          onClose={() => setDeleteModal({ show: false, scheduleId: null })}
+          title="Confirm Delete"
+        >
+          <p>Are you sure you want to delete this schedule?</p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <button 
+              onClick={() => setDeleteModal({ show: false, scheduleId: null })} 
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleDeleteConfirm} 
+              className="btn btn-danger"
+            >
+              Delete
+            </button>
+          </div>
+        </Modal>
+
+        {/* Notification Modal */}
+        <Modal
+          isOpen={notification.show}
+          onClose={() => setNotification({ show: false, message: '', type: '' })}
+          title={notification.type === 'success' ? 'Success' : 'Error'}
+        >
+          <p>{notification.message}</p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <button 
+              onClick={() => setNotification({ show: false, message: '', type: '' })} 
+              className="btn btn-primary"
+            >
+              OK
+            </button>
+          </div>
+        </Modal>
       </div>
     </PageTransition>
   );
