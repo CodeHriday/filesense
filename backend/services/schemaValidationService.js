@@ -129,15 +129,25 @@ async function extractSchemaFromFile(connection, filePath, fileName) {
   const fileType = path.extname(fileName).toLowerCase().substring(1);
   let fileStream;
   
-  // Get file stream based on connection type
-  if (connection.type === 'aws' || connection.type === 's3') {
+  // Determine actual storage type (handle vendor connections)
+  let storageType = connection.type;
+  if (connection.type === 'vendor' && connection.config && connection.config.storage_type) {
+    storageType = connection.config.storage_type;
+    systemLogger.info('Resolved vendor connection storage type', { 
+      connectionType: connection.type, 
+      storageType 
+    });
+  }
+  
+  // Get file stream based on storage type
+  if (storageType === 'aws' || storageType === 's3') {
     fileStream = await getS3FileStream(connection, filePath);
-  } else if (connection.type === 'gcs' || connection.type === 'google') {
+  } else if (storageType === 'gcs' || storageType === 'google') {
     fileStream = await getGCSFileStream(connection, filePath);
-  } else if (connection.type === 'azure') {
+  } else if (storageType === 'azure') {
     fileStream = await getAzureFileStream(connection, filePath);
   } else {
-    throw new Error(`Unsupported connection type: ${connection.type}`);
+    throw new Error(`Unsupported storage type: ${storageType} (connection type: ${connection.type})`);
   }
   
   // Parse file and extract schema
@@ -157,16 +167,28 @@ async function extractSchemaFromFile(connection, filePath, fileName) {
  */
 async function getS3FileStream(connection, filePath) {
   const config = connection.config || {};
+  
+  // Handle both regular AWS connections and vendor connections
+  const accessKey = config.access_key_id || config.access_key;
+  const secretKey = config.secret_access_key || config.secret_key;
+  const bucketName = config.bucket || config.bucket_name;
+  
   const s3 = new AWS.S3({
-    accessKeyId: config.access_key,
-    secretAccessKey: config.secret_key,
+    accessKeyId: accessKey,
+    secretAccessKey: secretKey,
     region: config.region || 'us-east-1'
   });
   
   const params = {
-    Bucket: config.bucket_name,
+    Bucket: bucketName,
     Key: filePath.startsWith('/') ? filePath.substring(1) : filePath
   };
+  
+  systemLogger.info('Fetching S3 file for schema validation', { 
+    bucket: bucketName, 
+    key: params.Key,
+    region: config.region 
+  });
   
   return s3.getObject(params).createReadStream();
 }
