@@ -2411,6 +2411,15 @@ try {
   console.error('✗ Failed to register /api/file-audit:', error.message);
 }
 
+// Dashboard routes
+try {
+  const dashboardRoutes = require('./backend/routes/dashboard');
+  app.use('/api/dashboard', authenticateToken, dashboardRoutes);
+  console.log('✓ Registered /api/dashboard route');
+} catch (error) {
+  console.error('✗ Failed to register /api/dashboard:', error.message);
+}
+
 // File Insights routes
 try {
   const fileInsightsRoutes = require('./backend/routes/fileInsights');

@@ -12,6 +12,11 @@
   margin-bottom: var(--space-8);
 }
 
+/* Metrics cards grid for 5 cards */
+.stats-grid.metrics-cards {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 .stat-card {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -20,11 +25,38 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  transition: transform var(--transition-base);
+  transition: all var(--transition-base);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
+}
+
+/* Clickable metric cards */
+.stat-card.metric-card.clickable {
+  cursor: pointer;
+  position: relative;
+}
+
+.stat-card.metric-card.clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border: 2px solid var(--color-primary);
+}
+
+.stat-card.metric-card.clickable:active {
+  transform: translateY(-2px);
+}
+
+/* Non-clickable metric cards */
+.stat-card.metric-card.non-clickable {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.stat-card.metric-card.non-clickable:hover {
+  transform: none;
+  box-shadow: var(--shadow-md);
 }
 
 .stat-icon {
@@ -37,8 +69,24 @@
   font-size: var(--text-xl);
 }
 
-.stat-icon.files {
+.stat-icon.projects {
   color: var(--color-primary);
+}
+
+.stat-icon.files {
+  color: var(--color-success);
+}
+
+.stat-icon.schedules {
+  color: var(--color-purple);
+}
+
+.stat-icon.failed-jobs {
+  color: var(--color-warning);
+}
+
+.stat-icon.anomalies {
+  color: var(--color-danger);
 }
 
 .stat-icon.updated {

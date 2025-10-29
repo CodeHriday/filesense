@@ -1,19 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { FiBarChart2, FiCheckCircle, FiClock, FiAlertTriangle, FiTrendingUp, FiCalendar, FiExternalLink } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
+import { FiBarChart2, FiCheckCircle, FiClock, FiAlertTriangle, FiTrendingUp, FiCalendar, FiExternalLink, FiBriefcase, FiDatabase, FiActivity } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getFileCatalog } from '../api/fileService';
 import { getFileAlerts, getAlertHistory } from '../api/alertService';
 import { ChartAccessibleWrapper, DataTableAccessible, useAnnouncement } from '../components/accessibility';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import './Dashboard.css';
 
 const Dashboard = () => {
   // Get accessibility context and announcement hook
   const { screenReaderOptimized, highContrast } = useAccessibility();
   const { announce } = useAnnouncement();
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
+  const [dashboardMetrics, setDashboardMetrics] = useState({
+    projects: 0,
+    files: 0,
+    schedules: 0,
+    failedJobs: 0,
+    anomalies: 0
+  });
   const [fileStats, setFileStats] = useState({
     totalFiles: 0,
     recentlyUpdated: 0,
@@ -52,6 +64,19 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        
+        // Fetch dashboard metrics
+        try {
+          const token = localStorage.getItem('token');
+          const metricsResponse = await axios.get(`${API_BASE_URL}/api/dashboard/metrics`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (metricsResponse.data.success) {
+            setDashboardMetrics(metricsResponse.data.metrics);
+          }
+        } catch (error) {
+          console.error('Error fetching dashboard metrics:', error);
+        }
         
         // Get file data
         const files = await getFileCatalog();
@@ -345,6 +370,19 @@ const Dashboard = () => {
         </div>
       </div>
     );
+  };
+  
+  // Check if user has access to a specific feature
+  const hasFeatureAccess = (featureId) => {
+    if (!currentUser || !currentUser.features) return false;
+    return currentUser.features.some(f => f.id === featureId);
+  };
+  
+  // Handle metric card click
+  const handleMetricClick = (featureId, route) => {
+    if (hasFeatureAccess(featureId)) {
+      navigate(route);
+    }
   };
   
   const renderTrendChart = () => {
@@ -733,56 +771,82 @@ const Dashboard = () => {
       ) : (
         <>
           <div className="dashboard-overview">
-            <div className="stats-grid">
-              <div className="stat-card">
+            {/* New 5 Metric Cards */}
+            <div className="stats-grid metrics-cards">
+              <div 
+                className={`stat-card metric-card ${hasFeatureAccess('projects') ? 'clickable' : 'non-clickable'}`}
+                onClick={() => handleMetricClick('projects', '/project-management')}
+                style={{ cursor: hasFeatureAccess('projects') ? 'pointer' : 'default' }}
+              >
+                <div className="stat-icon projects">
+                  <FiBriefcase />
+                </div>
+                <div className="stat-content">
+                  <h3>Projects</h3>
+                  <div className="stat-value">{dashboardMetrics.projects}</div>
+                </div>
+              </div>
+              
+              <div 
+                className={`stat-card metric-card ${hasFeatureAccess('file_catalog') ? 'clickable' : 'non-clickable'}`}
+                onClick={() => handleMetricClick('file_catalog', '/file-catalog')}
+                style={{ cursor: hasFeatureAccess('file_catalog') ? 'pointer' : 'default' }}
+              >
                 <div className="stat-icon files">
-                  <FiBarChart2 />
+                  <FiDatabase />
                 </div>
                 <div className="stat-content">
-                  <h3>Total Files</h3>
-                  <div className="stat-value">{fileStats.totalFiles}</div>
+                  <h3>Files</h3>
+                  <div className="stat-value">{dashboardMetrics.files}</div>
                 </div>
               </div>
               
-              <div className="stat-card">
-                <div className="stat-icon updated">
-                  <FiClock />
+              <div 
+                className={`stat-card metric-card ${hasFeatureAccess('schedule') ? 'clickable' : 'non-clickable'}`}
+                onClick={() => handleMetricClick('schedule', '/etl-scheduler')}
+                style={{ cursor: hasFeatureAccess('schedule') ? 'pointer' : 'default' }}
+              >
+                <div className="stat-icon schedules">
+                  <FiCalendar />
                 </div>
                 <div className="stat-content">
-                  <h3>Recently Updated</h3>
-                  <div className="stat-value">{fileStats.recentlyUpdated}</div>
-                  <div className="stat-subtitle">Last 7 days</div>
+                  <h3>Schedules</h3>
+                  <div className="stat-value">{dashboardMetrics.schedules}</div>
                 </div>
               </div>
               
-              <div className="stat-card">
-                <div className="stat-icon issues">
+              <div 
+                className={`stat-card metric-card ${hasFeatureAccess('jobs') ? 'clickable' : 'non-clickable'}`}
+                onClick={() => handleMetricClick('jobs', '/jobs')}
+                style={{ cursor: hasFeatureAccess('jobs') ? 'pointer' : 'default' }}
+              >
+                <div className="stat-icon failed-jobs">
                   <FiAlertTriangle />
                 </div>
                 <div className="stat-content">
-                  <h3>Quality Issues</h3>
-                  <div className="stat-value">{fileStats.qualityIssues}</div>
-                  <Link to="/alerts" className="stat-action">View all &rarr;</Link>
+                  <h3>Failed Jobs</h3>
+                  <div className="stat-value">{dashboardMetrics.failedJobs}</div>
                 </div>
               </div>
               
-              <div className="stat-card">
-                <div className="stat-icon score">
-                  <FiCheckCircle />
+              <div 
+                className={`stat-card metric-card ${hasFeatureAccess('alerts') ? 'clickable' : 'non-clickable'}`}
+                onClick={() => handleMetricClick('alerts', '/alerts')}
+                style={{ cursor: hasFeatureAccess('alerts') ? 'pointer' : 'default' }}
+              >
+                <div className="stat-icon anomalies">
+                  <FiActivity />
                 </div>
                 <div className="stat-content">
-                  <h3>Overall Health</h3>
-                  <div 
-                    className="stat-value"
-                    style={{ color: getScoreColor(overallHealthScore) }}
-                  >
-                    {overallHealthScore}%
-                  </div>
-                  <div className="stat-subtitle">{getScoreLabel(overallHealthScore)}</div>
+                  <h3>Anomalies</h3>
+                  <div className="stat-value">{dashboardMetrics.anomalies}</div>
                 </div>
               </div>
             </div>
-
+          </div>
+          
+          {/* Health Metrics moved down */}
+          <div className="dashboard-overview">
             <div className="health-metrics">
               <h2>Data Health Metrics</h2>
               <div className="gauge-grid">
