@@ -13,6 +13,7 @@ function Monitor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [auditLogs, setAuditLogs] = useState({});
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -84,12 +85,31 @@ function Monitor() {
     setExpandedRows(new Set());
   };
   
-  const toggleRowExpansion = (auditId) => {
+  const toggleRowExpansion = async (auditId) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(auditId)) {
       newExpanded.delete(auditId);
     } else {
       newExpanded.add(auditId);
+      
+      if (!auditLogs[auditId]) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`/api/file-audit/${auditId}/logs`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setAuditLogs(prev => ({
+            ...prev,
+            [auditId]: response.data.logs || []
+          }));
+        } catch (err) {
+          console.error('Error fetching audit logs:', err);
+          setAuditLogs(prev => ({
+            ...prev,
+            [auditId]: []
+          }));
+        }
+      }
     }
     setExpandedRows(newExpanded);
   };
@@ -335,7 +355,7 @@ function Monitor() {
                         {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
                             <td colSpan="23">
-                              <div className="expanded-content">
+                              <div className="expanded-content-with-logs">
                                 <div className="expanded-section">
                                   <h3>Additional Details</h3>
                                   <div className="detail-grid">
@@ -432,6 +452,25 @@ function Monitor() {
                                 <div className="expanded-section">
                                   <h3>Schema Information</h3>
                                   {renderSchemaDetails(audit)}
+                                </div>
+                                
+                                <div className="expanded-section logs-section">
+                                  <h3>Execution Logs</h3>
+                                  <div className="logs-container">
+                                    {auditLogs[audit.id] && auditLogs[audit.id].length > 0 ? (
+                                      <pre className="logs-display">
+                                        {auditLogs[audit.id].map((log, idx) => (
+                                          <div key={idx} className={`log-entry log-${log.level?.toLowerCase() || 'info'}`}>
+                                            <span className="log-timestamp">{log.timestamp}</span>
+                                            <span className="log-level">[{log.level || 'INFO'}]</span>
+                                            <span className="log-message">{log.message}</span>
+                                          </div>
+                                        ))}
+                                      </pre>
+                                    ) : (
+                                      <div className="no-logs">No execution logs available</div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </td>

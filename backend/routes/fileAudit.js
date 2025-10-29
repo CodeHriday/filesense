@@ -76,6 +76,75 @@ router.post('/schema', async (req, res) => {
 });
 
 /**
+ * GET /api/file-audit/:auditId/logs
+ * Get execution logs for a specific audit record
+ */
+router.get('/:auditId/logs', async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  const { auditId } = req.params;
+  const { limit = 100 } = req.query;
+
+  try {
+    // First, get the audit record to find the related job_id or correlation_id
+    const auditResult = await pool.query(
+      'SELECT id, correlation_id, job_id FROM file_audit_details WHERE id = $1',
+      [auditId]
+    );
+
+    if (auditResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Audit record not found' });
+    }
+
+    const audit = auditResult.rows[0];
+    const jobId = audit.job_id;
+
+    // If no job_id, try to find it via correlation_id from transformation_jobs
+    let finalJobId = jobId;
+    if (!finalJobId && audit.correlation_id) {
+      const jobResult = await pool.query(
+        'SELECT id FROM transformation_jobs WHERE correlation_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [audit.correlation_id]
+      );
+      if (jobResult.rows.length > 0) {
+        finalJobId = jobResult.rows[0].id;
+      }
+    }
+
+    // Fetch logs if we have a job_id
+    let logs = [];
+    if (finalJobId) {
+      const logsResult = await pool.query(
+        `SELECT 
+          timestamp,
+          log_level as level,
+          message,
+          metadata
+        FROM transformation_logs 
+        WHERE job_id = $1 
+        ORDER BY timestamp ASC 
+        LIMIT $2`,
+        [finalJobId, limit]
+      );
+      logs = logsResult.rows;
+    }
+
+    res.json({
+      auditId: auditId,
+      jobId: finalJobId,
+      logs: logs,
+      total: logs.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    res.status(500).json({
+      error: 'Failed to fetch audit logs',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/file-audit/:fileId
  * Get audit history for a specific file
  */
