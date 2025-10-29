@@ -99,7 +99,7 @@ const MappingGroups = () => {
     <PageTransition>
       <div className="mapping-groups-page">
         <PageHeader
-          title="Mapping Groups"
+          title="Mapping Job Groups"
           subtitle="Batch execution of transformations with concurrency control"
         />
         
