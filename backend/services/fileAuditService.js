@@ -476,64 +476,67 @@ async function getAuditRecords(pool, filters = {}) {
     params.push(limit, offset);
 
     const query = `
-      SELECT DISTINCT ON (fad.id)
-        fad.*,
-        fsd.file_schema,
-        fsd.schema_hash,
-        fsd.schema_diff,
-        fsd.active_flag as schema_active,
-        s.schedule_name,
-        mg.name as mapping_group_name,
-        nw.name as workflow_name,
-        COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name,
-        p.name as project_name,
-        f.project_id,
-        f.quality_score,
-        f.column_count as number_of_columns,
-        f.row_count,
-        tj.job_id,
-        tj.schema_validation,
-        (
-          SELECT json_agg(
-            json_build_object(
-              'name', fc.column_name,
-              'column_name', fc.column_name,
-              'data_type', fc.column_type,
-              'type', fc.column_type,
-              'null_count', fc.null_count,
-              'missing', fc.null_count,
-              'unique_values', fc.unique_count,
-              'distinct_count', fc.unique_count,
-              'min_value', COALESCE(fc.min_value_decimal::text, fc.min_value),
-              'max_value', COALESCE(fc.max_value_decimal::text, fc.max_value)
+      SELECT * FROM (
+        SELECT DISTINCT ON (fad.id)
+          fad.*,
+          fsd.file_schema,
+          fsd.schema_hash,
+          fsd.schema_diff,
+          fsd.active_flag as schema_active,
+          s.schedule_name,
+          mg.name as mapping_group_name,
+          nw.name as workflow_name,
+          COALESCE(fad.mapping_name, tm.mapping_name) as mapping_name,
+          p.name as project_name,
+          f.project_id,
+          f.quality_score,
+          f.column_count as number_of_columns,
+          f.row_count,
+          tj.job_id,
+          tj.schema_validation,
+          (
+            SELECT json_agg(
+              json_build_object(
+                'name', fc.column_name,
+                'column_name', fc.column_name,
+                'data_type', fc.column_type,
+                'type', fc.column_type,
+                'null_count', fc.null_count,
+                'missing', fc.null_count,
+                'unique_values', fc.unique_count,
+                'distinct_count', fc.unique_count,
+                'min_value', COALESCE(fc.min_value_decimal::text, fc.min_value),
+                'max_value', COALESCE(fc.max_value_decimal::text, fc.max_value)
+              )
+              ORDER BY fc.column_index
             )
-            ORDER BY fc.column_index
-          )
-          FROM file_columns fc
-          WHERE fc.file_id = fad.file_id
-            AND (fc.file_role = fad.file_role OR (fc.file_role IS NULL AND fad.file_role IS NULL))
-        ) as column_stats
-      FROM file_audit_details fad
-      LEFT JOIN files f ON fad.file_id = f.file_id
-      LEFT JOIN projects p ON f.project_id = p.id
-      LEFT JOIN file_schema_details fsd 
-        ON fad.file_schema_id = fsd.file_schema_id
-      LEFT JOIN transformation_jobs tj 
-        ON fad.transformation_job_id = tj.id
-      LEFT JOIN schedules s 
-        ON tj.schedule_id = s.id
-      LEFT JOIN transformation_mappings tm 
-        ON tj.mapping_id = CAST(tm.id AS VARCHAR)
-      LEFT JOIN mapping_group_executions mge 
-        ON tj.mapping_group_execution_id = mge.id
-      LEFT JOIN mapping_groups mg 
-        ON mge.group_id = mg.id
-      LEFT JOIN n_step_workflow_runs nwr 
-        ON tj.workflow_execution_id = nwr.id
-      LEFT JOIN n_step_workflows nw 
-        ON nwr.workflow_id = nw.id
-      ${whereClause}
-      ORDER BY fad.id, fad.created_dt DESC
+            FROM file_columns fc
+            WHERE fc.file_id = fad.file_id
+              AND (fc.file_role = fad.file_role OR (fc.file_role IS NULL AND fad.file_role IS NULL))
+          ) as column_stats
+        FROM file_audit_details fad
+        LEFT JOIN files f ON fad.file_id = f.file_id
+        LEFT JOIN projects p ON f.project_id = p.id
+        LEFT JOIN file_schema_details fsd 
+          ON fad.file_schema_id = fsd.file_schema_id
+        LEFT JOIN transformation_jobs tj 
+          ON fad.transformation_job_id = tj.id
+        LEFT JOIN schedules s 
+          ON tj.schedule_id = s.id
+        LEFT JOIN transformation_mappings tm 
+          ON tj.mapping_id = CAST(tm.id AS VARCHAR)
+        LEFT JOIN mapping_group_executions mge 
+          ON tj.mapping_group_execution_id = mge.id
+        LEFT JOIN mapping_groups mg 
+          ON mge.group_id = mg.id
+        LEFT JOIN n_step_workflow_runs nwr 
+          ON tj.workflow_execution_id = nwr.id
+        LEFT JOIN n_step_workflows nw 
+          ON nwr.workflow_id = nw.id
+        ${whereClause}
+        ORDER BY fad.id, fad.created_dt DESC
+      ) AS distinct_audits
+      ORDER BY created_dt DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
