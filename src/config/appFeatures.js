@@ -41,7 +41,7 @@ export const APP_FEATURES = [
     name: 'Projects', 
     category: 'Project & File Management',
     icon: FiBriefcase,
-    route: '/project-management',
+    route: '/projects',
     showInSidebar: true
   },
   { 
@@ -77,6 +77,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'transformation_catalog', 
+    name: 'Transformation File Catalog', 
+    category: 'Project & File Management',
+    icon: FiFileText,
+    route: '/transformation-catalog',
+    showInSidebar: true
+  },
+  { 
     id: 'file_profile', 
     name: 'Data Profile', 
     category: 'Project & File Management', 
@@ -97,20 +105,11 @@ export const APP_FEATURES = [
     showInSidebar: false // Accessed via file catalog
   },
   
-  // Process Management
-  { 
-    id: 'connection', 
-    name: 'Connections', 
-    category: 'Process Management', 
-    supportsExecute: true,
-    icon: FiDatabase,
-    route: '/connections',
-    showInSidebar: true
-  },
+  // Job Design
   { 
     id: 'transformation', 
-    name: 'Transformations', 
-    category: 'Process Management', 
+    name: 'Mapping Jobs', 
+    category: 'Job Design', 
     supportsExecute: true,
     icon: FiLink,
     route: '/mappings',
@@ -118,17 +117,19 @@ export const APP_FEATURES = [
   },
   { 
     id: 'mapping_group', 
-    name: 'Batch Groups', 
-    category: 'Process Management', 
+    name: 'Mapping Job Groups', 
+    category: 'Job Design', 
     supportsExecute: true,
     icon: FiLayers,
     route: '/mapping-groups',
     showInSidebar: true
   },
+  
+  // Jobs and Monitoring
   { 
     id: 'workflow', 
     name: 'Workflows', 
-    category: 'Process Management', 
+    category: 'Jobs and Monitoring', 
     supportsExecute: true,
     icon: FiGitBranch,
     route: '/workflows',
@@ -137,14 +138,12 @@ export const APP_FEATURES = [
   { 
     id: 'schedule', 
     name: 'Job Schedules', 
-    category: 'Process Management', 
+    category: 'Jobs and Monitoring', 
     supportsExecute: true,
     icon: FiCalendar,
     route: '/etl-scheduler',
     showInSidebar: true
   },
-  
-  // Jobs and Monitoring
   { 
     id: 'jobs', 
     name: 'Jobs', 
@@ -159,14 +158,6 @@ export const APP_FEATURES = [
     category: 'Jobs and Monitoring',
     icon: FiMonitor,
     route: '/monitor',
-    showInSidebar: true
-  },
-  { 
-    id: 'transformation_catalog', 
-    name: 'Transformation File Catalog', 
-    category: 'Jobs and Monitoring',
-    icon: FiFileText,
-    route: '/transformation-catalog',
     showInSidebar: true
   },
   { 
@@ -213,6 +204,23 @@ export const APP_FEATURES = [
   },
   
   // Administration
+  { 
+    id: 'project_management', 
+    name: 'Project Management', 
+    category: 'Administration',
+    icon: FiBriefcase,
+    route: '/project-management',
+    showInSidebar: true
+  },
+  { 
+    id: 'connection', 
+    name: 'Connections', 
+    category: 'Administration', 
+    supportsExecute: true,
+    icon: FiDatabase,
+    route: '/connections',
+    showInSidebar: true
+  },
   { 
     id: 'users', 
     name: 'User Management', 
@@ -392,7 +400,7 @@ export const APP_FEATURES = [
 // Category display names and ordering
 export const FEATURE_CATEGORIES_ORDER = [
   'Project & File Management',
-  'Process Management',
+  'Job Design',
   'Jobs and Monitoring',
   'Governance',
   'Administration',
@@ -413,7 +421,7 @@ export const FEATURE_CATEGORIES = APP_FEATURES.reduce((acc, feature) => {
 export const getSidebarCategoryName = (category) => {
   const mapping = {
     'Project & File Management': 'Ad Hoc Process',
-    'Process Management': 'Process Management',
+    'Job Design': 'Job Design',
     'Jobs and Monitoring': 'Jobs and Monitoring',
     'Governance': 'Data Governance',
     'Administration': 'Administration',
