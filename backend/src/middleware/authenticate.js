@@ -57,6 +57,9 @@ const authenticateToken = async (req, res, next) => {
       // Add user permissions to request for permission checking
       req.user.permissions = await getUserPermissions(user);
       
+      // Map permissions to features for frontend UI
+      req.user.features = mapPermissionsToFeatures(req.user.permissions);
+      
       console.log('Authentication successful, proceeding to next middleware');
       next();
     } catch (error) {
@@ -75,6 +78,71 @@ const authenticateToken = async (req, res, next) => {
       message: 'Authentication failed due to server error'
     });
   }
+};
+
+/**
+ * Map permissions to features for frontend UI
+ * @param {Array} permissions - Array of permission strings or objects
+ * @returns {Array} Array of feature objects with id, name, route
+ */
+const mapPermissionsToFeatures = (permissions) => {
+  if (!permissions || !Array.isArray(permissions)) {
+    return [];
+  }
+  
+  // Feature mapping: permission prefix -> feature object
+  const featureMap = {
+    'projects': { id: 'projects', name: 'Projects', route: '/project-management' },
+    'file_catalog': { id: 'file_catalog', name: 'File Catalog', route: '/file-catalog' },
+    'schedule': { id: 'schedule', name: 'Job Schedules', route: '/etl-scheduler' },
+    'jobs': { id: 'jobs', name: 'Jobs', route: '/jobs' },
+    'alerts': { id: 'alerts', name: 'Alerts', route: '/alerts' },
+    'alert': { id: 'alerts', name: 'Alerts', route: '/alerts' }, // Also map 'alert' to alerts
+    'dashboard': { id: 'dashboard', name: 'Dashboard', route: '/' },
+    'access_groups': { id: 'access_groups', name: 'Access Groups', route: '/group-management' },
+    'file_upload': { id: 'file_upload', name: 'File Upload', route: '/upload' },
+    'file': { id: 'file_catalog', name: 'File Catalog', route: '/file-catalog' }, // Also map 'file' to file_catalog
+    'connection': { id: 'connection', name: 'Connections', route: '/connections' },
+    'transformation': { id: 'transformation', name: 'Transformations', route: '/mappings' },
+    'mapping_group': { id: 'mapping_group', name: 'Batch Groups', route: '/mapping-groups' },
+    'workflow': { id: 'workflow', name: 'Workflows', route: '/workflows' },
+    'monitor': { id: 'monitor', name: 'Monitor', route: '/monitor' },
+    'file_insights': { id: 'file_insights', name: 'File Insights', route: '/file-insights' },
+    'insight': { id: 'file_insights', name: 'File Insights', route: '/file-insights' }, // Also map 'insight' to file_insights
+    'lineage': { id: 'lineage', name: 'File Lineage', route: '/lineage' },
+    'policies': { id: 'policies', name: 'Policies', route: '/policy-management' },
+    'policy': { id: 'policies', name: 'Policies', route: '/policy-management' }, // Also map 'policy' to policies
+    'tags': { id: 'tags', name: 'Tags', route: '/tag-management' },
+    'tag': { id: 'tags', name: 'Tags', route: '/tag-management' }, // Also map 'tag' to tags
+    'users': { id: 'users', name: 'User Management', route: '/users' },
+    'user': { id: 'users', name: 'User Management', route: '/users' }, // Also map 'user' to users
+    'roles': { id: 'roles', name: 'Role Management', route: '/roles' },
+    'role': { id: 'roles', name: 'Role Management', route: '/roles' }, // Also map 'role' to roles
+    'audit_trail': { id: 'audit_trail', name: 'Audit Trail', route: '/audit-trail' },
+    'audit': { id: 'audit_trail', name: 'Audit Trail', route: '/audit-trail' }, // Also map 'audit' to audit_trail
+    'settings': { id: 'settings', name: 'Dashboard Settings', route: '/dashboard-settings' },
+  };
+  
+  const features = new Set();
+  
+  // Extract unique features from permissions
+  permissions.forEach(permission => {
+    let prefix = null;
+    
+    if (typeof permission === 'string') {
+      // String format: "dashboard:read"
+      prefix = permission.split(':')[0];
+    } else if (typeof permission === 'object' && permission !== null) {
+      // Object format: {resource: "dashboard", action: "read"}
+      prefix = permission.resource;
+    }
+    
+    if (prefix && featureMap[prefix]) {
+      features.add(JSON.stringify(featureMap[prefix]));
+    }
+  });
+  
+  return Array.from(features).map(f => JSON.parse(f));
 };
 
 /**
