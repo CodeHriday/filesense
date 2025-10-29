@@ -147,12 +147,6 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
   try {
     const agreementData = JSON.parse(req.body.agreementData || '{}');
     
-    // DEBUG: Log vendor_onboarding_date
-    systemLogger.info('DEBUG - POST /api/vendor-agreements - received agreementData', {
-      vendor_onboarding_date: agreementData.vendor_onboarding_date,
-      hasField: 'vendor_onboarding_date' in agreementData
-    });
-    
     // If schema file is uploaded, use it
     if (req.file) {
       schemaFilePath = req.file.path;
@@ -250,12 +244,6 @@ router.put('/:id', requirePermission('vendor_agreements:write'), upload.single('
     }
     
     const updateData = JSON.parse(req.body.updateData || '{}');
-    
-    // DEBUG: Log vendor_onboarding_date
-    systemLogger.info('DEBUG - PUT /api/vendor-agreements/:id - received updateData', {
-      vendor_onboarding_date: updateData.vendor_onboarding_date,
-      hasField: 'vendor_onboarding_date' in updateData
-    });
     
     // If schema file is uploaded, use it
     if (req.file) {

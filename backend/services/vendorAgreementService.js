@@ -65,13 +65,6 @@ class VendorAgreementService {
         delivery_method
       } = agreementData;
       
-      // DEBUG: Log vendor_onboarding_date
-      systemLogger.info('DEBUG - createAgreement - vendor_onboarding_date value', {
-        vendor_onboarding_date,
-        typeOf: typeof vendor_onboarding_date,
-        hasValue: !!vendor_onboarding_date
-      });
-      
       // Validation
       if (!vendor_id || !file_name || !file_owner_user_id || !vendor_connection_id) {
         throw new Error('vendor_id, file_name, file_owner_user_id, and vendor_connection_id are required');
@@ -323,14 +316,6 @@ class VendorAgreementService {
         expected_arrival_time,
         delivery_method
       } = updateData;
-      
-      // DEBUG: Log vendor_onboarding_date
-      systemLogger.info('DEBUG - updateAgreement - vendor_onboarding_date value', {
-        vendor_onboarding_date,
-        typeOf: typeof vendor_onboarding_date,
-        hasValue: !!vendor_onboarding_date,
-        isDefined: vendor_onboarding_date !== undefined
-      });
       
       // Validate vendor_connection_id if provided (optional in updates)
       if (vendor_connection_id !== undefined && vendor_connection_id) {

@@ -429,6 +429,14 @@ const VendorAgreements = () => {
   
   const openEditModal = (agreement) => {
     setSelectedAgreement(agreement);
+    
+    // Format date for HTML date input (YYYY-MM-DD)
+    let formattedDate = '';
+    if (agreement.vendor_onboarding_date) {
+      const dateStr = agreement.vendor_onboarding_date.split('T')[0]; // Handle ISO format
+      formattedDate = dateStr;
+    }
+    
     setFormData({
       vendor_id: agreement.vendor_id || '',
       file_name: agreement.file_name || '',
@@ -459,7 +467,7 @@ const VendorAgreements = () => {
       project_name: agreement.project_name || '',
       manager_contact: agreement.manager_contact || '',
       vendor_type: agreement.vendor_type || '',
-      vendor_onboarding_date: agreement.vendor_onboarding_date || '',
+      vendor_onboarding_date: formattedDate,
       contains_pii: agreement.contains_pii || false,
       file_type: agreement.file_type || '',
       data_classification: agreement.data_classification || '',
@@ -552,11 +560,6 @@ const VendorAgreements = () => {
           agreementData[key] = formData[key];
         }
       });
-      
-      // DEBUG: Log vendor_onboarding_date
-      console.log('DEBUG - formData.vendor_onboarding_date:', formData.vendor_onboarding_date);
-      console.log('DEBUG - agreementData.vendor_onboarding_date:', agreementData.vendor_onboarding_date);
-      console.log('DEBUG - modalMode:', modalMode);
       
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
