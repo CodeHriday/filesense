@@ -372,14 +372,16 @@ router.post('/',
         mapping_id, mapping_name, source_connection_id, vendor_agreement_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_path, target_file_name, target_file_format,
-        field_mappings, variables, anomaly_rules, status, created_by, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        field_mappings, variables, anomaly_rules, schema_drift_handling, status, created_by, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `, [
       mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, source_type, file_path,
       actualFilePattern, actualFilePattern, actualTargetConnectionId, target_table_name,
       req.body.target_file_path, target_file_name, target_file_format,
-      JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), status, req.user?.id || null, projectId
+      JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), 
+      req.body.schema_drift_handling || 'none',
+      status, req.user?.id || null, projectId
     ]);
     
     systemLogger.info('Transformation mapping created', { mappingId, mapping_name });
@@ -627,6 +629,11 @@ router.put('/:id',
     if (anomaly_rules !== undefined) {
       updates.push(`anomaly_rules = $${paramIndex}`);
       values.push(JSON.stringify(anomaly_rules));
+      paramIndex++;
+    }
+    if (req.body.schema_drift_handling !== undefined) {
+      updates.push(`schema_drift_handling = $${paramIndex}`);
+      values.push(req.body.schema_drift_handling);
       paramIndex++;
     }
     if (status !== undefined) {

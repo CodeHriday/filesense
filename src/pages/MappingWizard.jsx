@@ -93,6 +93,9 @@ function MappingWizard() {
   const [matchingFiles, setMatchingFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [validationStatus, setValidationStatus] = useState(null); // 'success', 'error', or null
+  const [schemaDriftHandling, setSchemaDriftHandling] = useState('none'); // 'abort', 'alert', 'none'
+  const [schemaDriftDetected, setSchemaDriftDetected] = useState(false);
+  const [schemaDriftMessage, setSchemaDriftMessage] = useState('');
 
   // Step 3: Schema & Field Mapping
   const [schema, setSchema] = useState([]);
@@ -190,6 +193,7 @@ function MappingWizard() {
       setTargetFileFormat(mapping.target_file_format || 'csv');
       setFieldMappings(mapping.field_mappings || []);
       setVariables(mapping.variables || []);
+      setSchemaDriftHandling(mapping.schema_drift_handling || 'none');
       
       // Convert anomaly rules from object format to array format
       if (mapping.anomaly_rules && typeof mapping.anomaly_rules === 'object' && !Array.isArray(mapping.anomaly_rules)) {
@@ -406,7 +410,8 @@ function MappingWizard() {
         target_file_format: targetFileFormat || 'csv',
         field_mappings: fieldMappings,
         variables: variables,
-        anomaly_rules: anomalyRulesObject
+        anomaly_rules: anomalyRulesObject,
+        schema_drift_handling: selectedVendorAgreement ? schemaDriftHandling : 'none'
       };
 
       let response;
@@ -684,9 +689,13 @@ function MappingWizard() {
                     setSelectedVendorAgreement(value);
                     if (value) {
                       setSourceConnectionId('');
-                      // Auto-populate file path and target connection from agreement
+                      // Auto-populate from agreement
                       const agreement = vendorAgreements.find(a => a.id === parseInt(value));
                       if (agreement) {
+                        // Auto-populate file name pattern from agreement (read-only)
+                        if (agreement.file_name) {
+                          setFileNamePattern(agreement.file_name);
+                        }
                         // Auto-populate file path (strip bucket name)
                         if (agreement.drop_location_path) {
                           let path = agreement.drop_location_path;
@@ -699,14 +708,29 @@ function MappingWizard() {
                           }
                           setFilePath(path);
                         }
-                        // Auto-populate target connection if available
+                        // Auto-populate target connection and path if available
                         if (agreement.target_connection_id) {
                           setTargetConnectionId(agreement.target_connection_id);
                         }
+                        if (agreement.target_file_path) {
+                          let targetPath = agreement.target_file_path;
+                          // Strip bucket name if present
+                          const slashIndex = targetPath.indexOf('/');
+                          if (slashIndex >= 0) {
+                            targetPath = targetPath.substring(slashIndex);
+                          } else if (!targetPath.startsWith('/')) {
+                            targetPath = '/' + targetPath;
+                          }
+                          setTargetFilePath(targetPath);
+                        }
+                        // Enable schema drift handling for vendor agreements
+                        setSchemaDriftHandling('alert');
                       }
                     } else {
-                      // Clear target connection when vendor contract is deselected
+                      // Clear auto-populated fields when vendor contract is deselected
                       setTargetConnectionId('');
+                      setTargetFilePath('');
+                      setSchemaDriftHandling('none');
                     }
                   }}
                   disabled={!!sourceConnectionId}
@@ -805,20 +829,70 @@ function MappingWizard() {
             </div>
 
             <div className="form-group">
-              <label>File Name/Pattern *</label>
+              <label>File Name/Pattern * {selectedVendorAgreement && <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span>}</label>
               <input
                 type="text"
                 className="form-control"
                 value={fileNamePattern}
                 onChange={(e) => setFileNamePattern(e.target.value)}
                 placeholder="e.g., sales_data.csv or sales_*.csv"
+                readOnly={!!selectedVendorAgreement}
+                style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed' } : {}}
               />
               <small className="form-help">
-                Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
-                Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
-                File existence will be validated during job execution.
+                {selectedVendorAgreement ? (
+                  <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
+                ) : (
+                  <>
+                    Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
+                    Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
+                    File existence will be validated during job execution.
+                  </>
+                )}
               </small>
             </div>
+
+            {/* Schema Drift Handling - Only show for vendor agreements */}
+            {selectedVendorAgreement && (
+              <div className="form-group" style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
+                  <FiAlertCircle style={{ color: '#d97706' }} />
+                  <strong>Schema Drift Handling *</strong>
+                </label>
+                <div style={{ marginLeft: '28px' }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="schemaDriftHandling"
+                        value="abort"
+                        checked={schemaDriftHandling === 'abort'}
+                        onChange={(e) => setSchemaDriftHandling(e.target.value)}
+                      />
+                      <strong>Abort Job</strong> - Stop processing if schema mismatch is detected
+                    </label>
+                    <small style={{ display: 'block', marginLeft: '28px', color: '#6b7280' }}>
+                      Recommended for critical data pipelines where schema consistency is mandatory
+                    </small>
+                  </div>
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="schemaDriftHandling"
+                        value="alert"
+                        checked={schemaDriftHandling === 'alert'}
+                        onChange={(e) => setSchemaDriftHandling(e.target.value)}
+                      />
+                      <strong>Alert & Process</strong> - Log warning and continue processing
+                    </label>
+                    <small style={{ display: 'block', marginLeft: '28px', color: '#6b7280' }}>
+                      Schema drift will be logged in the Monitor with "Fail" status, but the job will continue
+                    </small>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
