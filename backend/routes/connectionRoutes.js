@@ -33,7 +33,11 @@ router.get('/', async (req, res) => {
         // Include non-sensitive config fields
         connection_name: config.connection_name || config.name || conn.name,
         connection_type: config.connection_type || conn.type,
-        connection_direction: config.connection_direction || 'source',
+        // Use database columns for unified fields (not config)
+        connection_user: conn.connection_user,
+        connection_direction: conn.connection_direction,
+        description: conn.description,
+        authentication_method: conn.authentication_method,
         // Connection type specific fields (based on connection types)
         region: config.region,
         bucket_name: config.bucket_name,
@@ -85,9 +89,11 @@ router.get('/:id', async (req, res) => {
   try {
     const connection = await connectionService.getConnectionById(req.params.id);
     
-    // Check project access (admins bypass)
+    // Check project access (admins and global connections bypass)
     const isAdmin = req.user?.roles?.includes('Admin');
-    if (!isAdmin) {
+    const isGlobalConnection = connection.project_id === null;
+    
+    if (!isAdmin && !isGlobalConnection) {
       const userId = req.user?.id;
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(userId);
@@ -109,7 +115,11 @@ router.get('/:id', async (req, res) => {
       // Include non-sensitive config fields
       connection_name: config.connection_name || config.name || connection.name,
       connection_type: config.connection_type || connection.type,
-      connection_direction: config.connection_direction || 'source',
+      // Use database columns for unified fields (not config)
+      connection_user: connection.connection_user,
+      connection_direction: connection.connection_direction,
+      description: connection.description,
+      authentication_method: connection.authentication_method,
       // Connection type specific fields (similar to above)
       region: config.region,
       bucket_name: config.bucket_name,
@@ -211,7 +221,7 @@ router.post('/', async (req, res) => {
     
     // Validate project access
     const isAdmin = req.user?.roles?.includes('Admin');
-    let assignedProjectId = project_id;
+    let assignedProjectId = project_id || null; // Allow null for global connections
     
     if (!isAdmin) {
       const userId = req.user?.id;
@@ -235,14 +245,10 @@ router.post('/', async (req, res) => {
             message: 'You do not have access to the specified project' 
           });
         }
-      } else {
-        // Default to user's first accessible project
-        assignedProjectId = userProjectIds[0];
       }
-    } else if (!assignedProjectId) {
-      // Admin without project_id - default to Default Project (id: 1)
-      assignedProjectId = 1;
+      // Note: Non-admin users can create global connections (project_id = null) if desired
     }
+    // Note: Admins can create global connections (project_id = null) without restrictions
     
     // Build config object with provider-specific fields
     const provider = connection_type; // aws, gcp, azure, etc.

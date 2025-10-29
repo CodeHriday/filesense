@@ -182,10 +182,7 @@ class ConnectionService {
         const userProjects = await getUserProjects(userId);
         projectIds = userProjects.map(p => p.id);
         
-        if (projectIds.length === 0) {
-          // User has no project access, return empty list
-          return [];
-        }
+        // Note: Even if user has no projects, they can still see global connections (project_id IS NULL)
       }
       
       // Query storage_connections for unified connection management
@@ -213,9 +210,13 @@ class ConnectionService {
       const params = [];
       
       // Filter by project membership (unless admin)
+      // Include both: connections in user's projects AND global connections (project_id IS NULL)
       if (!isAdmin && projectIds.length > 0) {
-        query += ' AND sc.project_id = ANY($' + (params.length + 1) + ')';
+        query += ' AND (sc.project_id = ANY($' + (params.length + 1) + ') OR sc.project_id IS NULL)';
         params.push(projectIds);
+      } else if (!isAdmin) {
+        // User has no projects, but can still see global connections
+        query += ' AND sc.project_id IS NULL';
       }
       
       // Add source filter if specified (source_application not in storage_connections, skip for now)
@@ -521,16 +522,19 @@ class ConnectionService {
     try {
       const { type, config } = connectionData;
       
+      // For vendor connections, use the provider from config, otherwise use type
+      const providerType = config?.provider || type;
+      
       // Log the test attempt
-      console.log('Testing connection:', type);
+      console.log('Testing connection - type:', type, 'provider:', providerType);
       
       // Decrypt sensitive credentials if they're encrypted
       // (credentials from database are encrypted, but new credentials from form are not)
-      const decryptedConfig = this.decryptSensitiveFieldsIfNeeded(type, config);
+      const decryptedConfig = this.decryptSensitiveFieldsIfNeeded(providerType, config);
       
       let testResult = { success: false, message: 'Connection test not implemented' };
       
-      switch (type) {
+      switch (providerType) {
         case 'aws':
           testResult = await this.testAWSConnection(decryptedConfig);
           break;
@@ -596,17 +600,34 @@ class ConnectionService {
     
     switch (type) {
       case 'aws':
-        if (isEncrypted(config.access_key)) {
-          console.log('[DECRYPT] Decrypting access_key (encrypted)');
-          decryptedConfig.access_key = decrypt(config.access_key);
-        } else {
-          console.log('[DECRYPT] access_key is plaintext or missing');
+        // Handle both field name variations (access_key and access_key_id)
+        // Decrypt if encrypted, otherwise use as-is
+        if (config.access_key) {
+          if (isEncrypted(config.access_key)) {
+            console.log('[DECRYPT] Decrypting access_key (encrypted)');
+            decryptedConfig.access_key = decrypt(config.access_key);
+          }
+        } else if (config.access_key_id) {
+          if (isEncrypted(config.access_key_id)) {
+            console.log('[DECRYPT] Decrypting access_key_id (encrypted)');
+            decryptedConfig.access_key_id = decrypt(config.access_key_id);
+          }
+          // Always map access_key_id to access_key (for vendor connections)
+          decryptedConfig.access_key = decryptedConfig.access_key_id;
         }
-        if (isEncrypted(config.secret_key)) {
-          console.log('[DECRYPT] Decrypting secret_key (encrypted)');
-          decryptedConfig.secret_key = decrypt(config.secret_key);
-        } else {
-          console.log('[DECRYPT] secret_key is plaintext or missing');
+        
+        if (config.secret_key) {
+          if (isEncrypted(config.secret_key)) {
+            console.log('[DECRYPT] Decrypting secret_key (encrypted)');
+            decryptedConfig.secret_key = decrypt(config.secret_key);
+          }
+        } else if (config.secret_access_key) {
+          if (isEncrypted(config.secret_access_key)) {
+            console.log('[DECRYPT] Decrypting secret_access_key (encrypted)');
+            decryptedConfig.secret_access_key = decrypt(config.secret_access_key);
+          }
+          // Always map secret_access_key to secret_key (for vendor connections)
+          decryptedConfig.secret_key = decryptedConfig.secret_access_key;
         }
         break;
       
