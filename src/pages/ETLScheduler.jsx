@@ -105,7 +105,7 @@ const ETLScheduler = () => {
     <PageTransition>
       <div className="etl-scheduler-page">
         <PageHeader
-          title="Job Scheduler"
+          title="Job Schedules"
           subtitle="Schedule transformations, mapping groups, and workflows"
         />
 

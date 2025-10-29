@@ -109,7 +109,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'transformation', 
-    name: 'Transformation Jobs', 
+    name: 'Transformations', 
     category: 'Process Management', 
     supportsExecute: true,
     icon: FiLink,
@@ -136,7 +136,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'schedule', 
-    name: 'Job Scheduler', 
+    name: 'Job Schedules', 
     category: 'Process Management', 
     supportsExecute: true,
     icon: FiCalendar,
