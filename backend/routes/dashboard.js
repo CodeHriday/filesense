@@ -50,14 +50,14 @@ router.get('/metrics', async (req, res) => {
 
     if (isAdmin) {
       // Admin sees all files
-      filesQuery = 'SELECT COUNT(DISTINCT id) as count FROM file_catalog';
+      filesQuery = 'SELECT COUNT(DISTINCT id) as count FROM files';
       filesParams = [];
     } else {
       // Non-admin: get files from accessible projects
       filesQuery = `
-        SELECT COUNT(DISTINCT fc.id) as count
-        FROM file_catalog fc
-        INNER JOIN group_projects gp ON fc.project_id = gp.project_id
+        SELECT COUNT(DISTINCT f.id) as count
+        FROM files f
+        INNER JOIN group_projects gp ON f.project_id = gp.project_id
         INNER JOIN user_groups ug ON gp.group_id = ug.group_id
         WHERE ug.user_id = $1
       `;
@@ -75,18 +75,18 @@ router.get('/metrics', async (req, res) => {
       // Admin sees all schedules
       schedulesQuery = `
         SELECT COUNT(DISTINCT id) as count 
-        FROM cron_schedules 
-        WHERE deleted = false
+        FROM schedules 
+        WHERE is_active = true
       `;
       schedulesParams = [];
     } else {
       // Non-admin: get schedules from accessible projects
       schedulesQuery = `
-        SELECT COUNT(DISTINCT cs.id) as count
-        FROM cron_schedules cs
-        INNER JOIN group_projects gp ON cs.project_id = gp.project_id
+        SELECT COUNT(DISTINCT s.id) as count
+        FROM schedules s
+        INNER JOIN group_projects gp ON s.project_id = gp.project_id
         INNER JOIN user_groups ug ON gp.group_id = ug.group_id
-        WHERE ug.user_id = $1 AND cs.deleted = false
+        WHERE ug.user_id = $1 AND s.is_active = true
       `;
       schedulesParams = [userId];
     }
@@ -129,19 +129,19 @@ router.get('/metrics', async (req, res) => {
       // Admin sees all anomalies
       anomaliesQuery = `
         SELECT COUNT(DISTINCT id) as count 
-        FROM file_alerts 
+        FROM anomalies 
         WHERE status = 'active'
       `;
       anomaliesParams = [];
     } else {
       // Non-admin: get anomalies from accessible files
       anomaliesQuery = `
-        SELECT COUNT(DISTINCT fa.id) as count
-        FROM file_alerts fa
-        INNER JOIN file_catalog fc ON fa.file_id = fc.id
-        INNER JOIN group_projects gp ON fc.project_id = gp.project_id
+        SELECT COUNT(DISTINCT a.id) as count
+        FROM anomalies a
+        INNER JOIN files f ON a.file_id = f.file_id
+        INNER JOIN group_projects gp ON f.project_id = gp.project_id
         INNER JOIN user_groups ug ON gp.group_id = ug.group_id
-        WHERE ug.user_id = $1 AND fa.status = 'active'
+        WHERE ug.user_id = $1 AND a.status = 'active'
       `;
       anomaliesParams = [userId];
     }
