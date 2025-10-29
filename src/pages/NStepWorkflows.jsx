@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft, FiCalendar } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -953,8 +953,17 @@ const NStepWorkflows = () => {
                 <p className="text-muted">Your changes have been saved.</p>
               </div>
               <div className="modal-footer">
-                <button className="btn btn-primary" onClick={() => setSaveSuccessModalOpen(false)}>
+                <button className="btn btn-secondary" onClick={() => setSaveSuccessModalOpen(false)}>
                   OK
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    setSaveSuccessModalOpen(false);
+                    navigate(`/etl-scheduler/create?type=workflow&id=${selectedWorkflow}`);
+                  }}
+                >
+                  <FiCalendar /> Schedule Workflow
                 </button>
               </div>
             </div>
