@@ -9,6 +9,7 @@ class VendorAgreementTemplateService {
       { field: 'file_description', label: 'File Description *', type: 'text', required: true },
       { field: 'vendor_department_team', label: 'Vendor Department/Team *', type: 'text', required: true },
       { field: 'vendor_department_email', label: 'Vendor Department Email *', type: 'text', required: true },
+      { field: 'vendor_onboarding_date', label: 'Vendor Onboarding Date', type: 'date', required: false },
       { field: 'schema', label: 'Schema (JSON)', type: 'text', required: false },
       { field: 'frequency', label: 'Frequency *', type: 'dropdown', required: true, options: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual', 'Ad-hoc'] },
       { field: 'frequency_description', label: 'Frequency Description', type: 'text', required: false },
@@ -89,6 +90,8 @@ class VendorAgreementTemplateService {
         return 'customer_data_export.csv';
       case 'file_description':
         return 'Daily export of customer information';
+      case 'vendor_onboarding_date':
+        return '2025-01-15';
       case 'schema':
         return '[{"name":"ID","type":"integer","description":"Primary Key"},{"name":"Name","type":"string","description":"Customer name"},{"name":"Email","type":"string","description":"Email address"}]';
       case 'frequency':
@@ -126,6 +129,8 @@ class VendorAgreementTemplateService {
         return `${base}Enter TRUE or FALSE`;
       case 'number':
         return `${base}Enter a number`;
+      case 'date':
+        return `${base}Enter date in YYYY-MM-DD format (e.g., 2025-01-15)`;
       case 'text':
         if (field.field.includes('json')) {
           return `${base}Enter valid JSON format`;
@@ -312,6 +317,23 @@ class VendorAgreementTemplateService {
           };
         }
         return { valid: true, value: num };
+
+      case 'date':
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(strValue)) {
+          return {
+            valid: false,
+            error: 'Must be in YYYY-MM-DD format (e.g., 2025-01-15)'
+          };
+        }
+        const dateObj = new Date(strValue);
+        if (isNaN(dateObj.getTime())) {
+          return {
+            valid: false,
+            error: 'Must be a valid date'
+          };
+        }
+        return { valid: true, value: strValue };
 
       case 'text':
         if (fieldDef.field.includes('json') && strValue) {
