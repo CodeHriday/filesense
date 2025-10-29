@@ -188,28 +188,44 @@ class ConnectionService {
         }
       }
       
+      // Query storage_connections for unified connection management
       let query = `
-        SELECT tc.*, p.name as project_name 
-        FROM transform_connections tc
-        LEFT JOIN projects p ON tc.project_id = p.id
-        WHERE tc.is_active = TRUE
+        SELECT 
+          sc.connection_id as id,
+          sc.name,
+          sc.type,
+          sc.config,
+          sc.status,
+          sc.connection_user,
+          sc.connection_direction,
+          sc.description,
+          sc.authentication_method,
+          sc.auth_config,
+          sc.project_id,
+          sc.created_at,
+          sc.updated_at,
+          p.name as project_name,
+          TRUE as is_active
+        FROM storage_connections sc
+        LEFT JOIN projects p ON sc.project_id = p.id
+        WHERE sc.status = 'active'
       `;
       const params = [];
       
       // Filter by project membership (unless admin)
       if (!isAdmin && projectIds.length > 0) {
-        query += ' AND tc.project_id = ANY($' + (params.length + 1) + ')';
+        query += ' AND sc.project_id = ANY($' + (params.length + 1) + ')';
         params.push(projectIds);
       }
       
-      // Add source filter if specified
+      // Add source filter if specified (source_application not in storage_connections, skip for now)
       if (source) {
-        query += ' AND tc.source_application = $' + (params.length + 1);
-        params.push(source);
+        // Storage connections don't have source_application field
+        // Skip this filter for unified connections
       }
       
       // Add sorting and limit
-      query += ' ORDER BY tc.name ASC';
+      query += ' ORDER BY sc.name ASC';
       
       if (limit) {
         query += ` LIMIT ${parseInt(limit)}`;
@@ -261,27 +277,39 @@ class ConnectionService {
   }
   
   /**
-   * Create a new connection
+   * Create a new connection in storage_connections (unified connection management)
    * 
    * @param {Object} connectionData - Connection data
    * @returns {Promise<Object>} - Created connection
    */
   async createConnection(connectionData) {
     const client = await pool.connect();
+    const { v4: uuidv4 } = require('uuid');
     
     try {
       await client.query('BEGIN');
       
-      const { name, type, config, created_by, description, project_id } = connectionData;
+      const { 
+        name, 
+        type, 
+        config, 
+        created_by, 
+        description, 
+        project_id,
+        connection_user = 'Internal',
+        connection_direction = 'source',
+        authentication_method = 'key-based',
+        auth_config = {}
+      } = connectionData;
       
       // Validate required fields
       if (!name || !type || !config) {
         throw new Error('Missing required connection fields');
       }
       
-      // Check for duplicate connection name (case-insensitive)
+      // Check for duplicate connection name (case-insensitive) in storage_connections
       const duplicateCheck = await client.query(
-        'SELECT name FROM transform_connections WHERE LOWER(name) = LOWER($1)',
+        'SELECT name FROM storage_connections WHERE LOWER(name) = LOWER($1)',
         [name]
       );
       
@@ -289,33 +317,44 @@ class ConnectionService {
         throw new Error(`A connection with the name "${name}" already exists (case-insensitive).`);
       }
       
-      // Encrypt sensitive credentials before saving
-      const encryptedConfig = this.encryptSensitiveFields(type, config);
+      // Generate connection ID
+      const connectionId = uuidv4();
       
-      // Insert the connection
+      // Insert into storage_connections table with unified fields
       const result = await client.query(`
-        INSERT INTO transform_connections (
+        INSERT INTO storage_connections (
+          connection_id,
           name, 
           type, 
           config, 
-          created_by,
+          status,
           description,
-          source_application,
-          project_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
+          project_id,
+          connection_user,
+          connection_direction,
+          authentication_method,
+          auth_config,
+          created_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING connection_id, name, type, status, connection_user, connection_direction, 
+                  description, authentication_method, created_at, updated_at
       `, [
+        connectionId,
         name,
         type,
-        encryptedConfig,
-        created_by || null,
+        JSON.stringify(config),
+        'active',
         description || null,
-        'data_observatory',
-        project_id || 1  // Default to Default Project if not specified
+        project_id || null,
+        connection_user,
+        connection_direction,
+        authentication_method,
+        JSON.stringify(auth_config)
       ]);
       
       await client.query('COMMIT');
-      console.log('Connection created successfully:', result.rows[0].id);
+      console.log('Connection created successfully in storage_connections:', connectionId);
       
       return result.rows[0];
     } catch (error) {

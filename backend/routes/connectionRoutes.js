@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const connectionService = require('../services/ConnectionService');
+const { encrypt, decrypt } = require('../utils/encryption');
+const { pool } = require('../config/database');
 
 /**
  * @route   GET /api/connections
@@ -155,12 +157,57 @@ router.get('/:id', async (req, res) => {
 
 /**
  * @route   POST /api/connections
- * @desc    Create a new connection
+ * @desc    Create a new connection with unified connection management
  * @access  Protected (requires authentication and project membership)
  */
 router.post('/', async (req, res) => {
   try {
-    const { connection_name, connection_type, project_id, ...configDetails } = req.body;
+    const {
+      connection_name,
+      connection_type,
+      project_id,
+      connection_user = 'Internal', // Internal or External
+      description, // Connection description
+      authentication_method = 'key-based', // Auth method
+      connection_direction = 'source', // source or target
+      // AWS fields
+      region,
+      bucket,
+      access_key_id,
+      secret_access_key,
+      endpoint,
+      use_ssl = true,
+      // AWS IAM Role fields
+      iam_role_arn,
+      external_id,
+      // GCP fields
+      gcp_project_id,
+      service_account_json,
+      gcp_bucket,
+      // GCP OIDC fields
+      workload_identity_provider,
+      service_account_email,
+      // Azure fields
+      account_name,
+      account_key,
+      container_name,
+      azure_endpoint,
+      // Azure Managed Identity fields
+      azure_resource_id,
+      managed_identity_client_id,
+      // OAuth fields
+      oauth_client_id,
+      oauth_client_secret,
+      oauth_token_url,
+      oauth_scope,
+      // Kerberos fields
+      kerberos_principal,
+      kerberos_keytab_path,
+      kerberos_realm,
+      // Common
+      path_prefix = '',
+      ...otherConfigDetails
+    } = req.body;
     
     // Validate project access
     const isAdmin = req.user?.roles?.includes('Admin');
@@ -197,14 +244,93 @@ router.post('/', async (req, res) => {
       assignedProjectId = 1;
     }
     
-    // DEBUG: Log what we received
-    console.log('[CREATE CONNECTION] Received request body:', JSON.stringify(req.body, null, 2));
-    console.log('[CREATE CONNECTION] Connection type:', connection_type);
-    console.log('[CREATE CONNECTION] Assigned project_id:', assignedProjectId);
-    console.log('[CREATE CONNECTION] Config details keys:', Object.keys(configDetails));
-    if (connection_type === 'aws') {
-      console.log('[CREATE CONNECTION] AWS - has access_key:', !!configDetails.access_key);
-      console.log('[CREATE CONNECTION] AWS - has secret_key:', !!configDetails.secret_key);
+    // Build config object with provider-specific fields
+    const provider = connection_type; // aws, gcp, azure, etc.
+    const config = {
+      provider,
+      connection_name,
+      connection_type,
+      ...otherConfigDetails
+    };
+    
+    // Set storage_type for cloud storage providers
+    if (provider === 'aws') {
+      config.storage_type = 's3';
+    } else if (provider === 'gcp') {
+      config.storage_type = 'gcs';
+    } else if (provider === 'azure') {
+      config.storage_type = 'azure-blob';
+    }
+    
+    // Build auth_config based on authentication method
+    const auth_config = {};
+    
+    switch (authentication_method) {
+      case 'key-based':
+        // Encrypt and add provider-specific fields (legacy key-based auth)
+        if (provider === 'aws') {
+          config.region = region;
+          config.bucket = bucket;
+          config.endpoint = endpoint;
+          config.use_ssl = use_ssl;
+          config.path_prefix = path_prefix;
+          if (access_key_id) config.access_key_id = encrypt(access_key_id);
+          if (secret_access_key) config.secret_access_key = encrypt(secret_access_key);
+        } else if (provider === 'gcp') {
+          config.project_id = gcp_project_id;
+          config.gcp_bucket = gcp_bucket;
+          config.path_prefix = path_prefix;
+          if (service_account_json) config.service_account_json = encrypt(service_account_json);
+        } else if (provider === 'azure') {
+          config.account_name = account_name;
+          config.container_name = container_name;
+          config.azure_endpoint = azure_endpoint;
+          config.path_prefix = path_prefix;
+          if (account_key) config.account_key = encrypt(account_key);
+        }
+        break;
+      
+      case 'aws-iam-role':
+        config.region = region;
+        config.bucket = bucket;
+        config.path_prefix = path_prefix;
+        auth_config.iam_role_arn = iam_role_arn;
+        if (external_id) auth_config.external_id = external_id;
+        break;
+      
+      case 'gcp-sa-oidc':
+        config.project_id = gcp_project_id;
+        config.gcp_bucket = gcp_bucket;
+        config.path_prefix = path_prefix;
+        auth_config.workload_identity_provider = workload_identity_provider;
+        auth_config.service_account_email = service_account_email;
+        break;
+      
+      case 'azure-managed-identity':
+        config.account_name = account_name;
+        config.container_name = container_name;
+        config.path_prefix = path_prefix;
+        auth_config.azure_resource_id = azure_resource_id;
+        if (managed_identity_client_id) auth_config.managed_identity_client_id = managed_identity_client_id;
+        break;
+      
+      case 'oauth2':
+        auth_config.oauth_client_id = oauth_client_id;
+        if (oauth_client_secret) auth_config.oauth_client_secret = encrypt(oauth_client_secret);
+        auth_config.oauth_token_url = oauth_token_url;
+        if (oauth_scope) auth_config.oauth_scope = oauth_scope;
+        break;
+      
+      case 'kerberos':
+        auth_config.kerberos_principal = kerberos_principal;
+        auth_config.kerberos_keytab_path = kerberos_keytab_path;
+        auth_config.kerberos_realm = kerberos_realm;
+        break;
+      
+      case 'db-short-lived-token':
+        // Config will be populated when token is requested
+        auth_config.token_ttl = 3600; // Default 1 hour
+        break;
     }
     
     // Format data for the connection service
@@ -212,31 +338,32 @@ router.post('/', async (req, res) => {
       name: connection_name,
       type: connection_type,
       project_id: assignedProjectId,
-      config: {
-        connection_name,
-        connection_type,
-        ...configDetails
-      },
-      description: req.body.description
+      config,
+      description: description || null,
+      connection_user,
+      connection_direction,
+      authentication_method,
+      auth_config
     };
-    
-    console.log('[CREATE CONNECTION] Formatted connectionData config keys:', Object.keys(connectionData.config));
     
     const newConnection = await connectionService.createConnection(connectionData);
     
-    console.log('[CREATE CONNECTION] Connection created with ID:', newConnection.id);
-    
-    // Filter sensitive information in response
-    const { config, ...rest } = newConnection;
-    const sanitizedConnection = {
-      ...rest,
-      connection_name: config.connection_name || config.name || newConnection.name,
-      connection_type: config.connection_type || newConnection.type,
-      connection_direction: config.connection_direction || 'source',
-      // Other non-sensitive fields
-    };
-    
-    res.status(201).json(sanitizedConnection);
+    // Return sanitized response
+    res.status(201).json({
+      success: true,
+      message: 'Connection created successfully',
+      connection: {
+        connection_id: newConnection.connection_id,
+        name: newConnection.name,
+        type: newConnection.type,
+        connection_user: newConnection.connection_user,
+        connection_direction: newConnection.connection_direction,
+        description: newConnection.description,
+        authentication_method: newConnection.authentication_method,
+        status: newConnection.status,
+        created_at: newConnection.created_at
+      }
+    });
   } catch (error) {
     console.error('[CREATE CONNECTION] Error:', error);
     res.status(500).json({ error: error.message });
@@ -245,21 +372,76 @@ router.post('/', async (req, res) => {
 
 /**
  * @route   PUT /api/connections/:id
- * @desc    Update a connection
+ * @desc    Update a connection with unified connection management
  * @access  Protected (requires authentication and project membership)
  */
 router.put('/:id', async (req, res) => {
   try {
+    const { id } = req.params;
+    const {
+      connection_name,
+      connection_type,
+      connection_user,
+      description,
+      authentication_method,
+      connection_direction,
+      // AWS fields
+      region,
+      bucket,
+      access_key_id,
+      secret_access_key,
+      endpoint,
+      use_ssl,
+      // AWS IAM Role fields
+      iam_role_arn,
+      external_id,
+      // GCP fields
+      gcp_project_id,
+      service_account_json,
+      gcp_bucket,
+      // GCP OIDC fields
+      workload_identity_provider,
+      service_account_email,
+      // Azure fields
+      account_name,
+      account_key,
+      container_name,
+      azure_endpoint,
+      // Azure Managed Identity fields
+      azure_resource_id,
+      managed_identity_client_id,
+      // OAuth fields
+      oauth_client_id,
+      oauth_client_secret,
+      oauth_token_url,
+      oauth_scope,
+      // Kerberos fields
+      kerberos_principal,
+      kerberos_keytab_path,
+      kerberos_realm,
+      // Common
+      path_prefix,
+      status
+    } = req.body;
+    
     // Check project access before allowing update
     const isAdmin = req.user?.roles?.includes('Admin');
     if (!isAdmin) {
-      const existingConnection = await connectionService.getConnectionById(req.params.id);
+      const checkResult = await pool.query(
+        'SELECT project_id FROM storage_connections WHERE connection_id = $1',
+        [id]
+      );
+      
+      if (checkResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Connection not found' });
+      }
+      
       const userId = req.user?.id;
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(userId);
       const userProjectIds = userProjects.map(p => p.id);
       
-      if (!userProjectIds.includes(existingConnection.project_id)) {
+      if (!userProjectIds.includes(checkResult.rows[0].project_id)) {
         return res.status(403).json({ 
           error: 'Access denied',
           message: 'You do not have access to modify this connection' 
@@ -267,52 +449,156 @@ router.put('/:id', async (req, res) => {
       }
     }
     
-    const { connection_name, connection_type, ...configDetails } = req.body;
+    // Get existing connection
+    const existing = await pool.query(
+      'SELECT config, authentication_method FROM storage_connections WHERE connection_id = $1',
+      [id]
+    );
     
-    // DEBUG: Log what we received
-    console.log('[UPDATE CONNECTION] Connection ID:', req.params.id);
-    console.log('[UPDATE CONNECTION] Received request body:', JSON.stringify(req.body, null, 2));
-    console.log('[UPDATE CONNECTION] Connection type:', connection_type);
-    console.log('[UPDATE CONNECTION] Config details keys:', Object.keys(configDetails));
-    if (connection_type === 'aws') {
-      console.log('[UPDATE CONNECTION] AWS - access_key value:', configDetails.access_key || '(empty)');
-      console.log('[UPDATE CONNECTION] AWS - secret_key value:', configDetails.secret_key || '(empty)');
-      console.log('[UPDATE CONNECTION] AWS - has access_key:', !!configDetails.access_key);
-      console.log('[UPDATE CONNECTION] AWS - has secret_key:', !!configDetails.secret_key);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
     }
     
-    // Format data for the connection service
-    const connectionData = {
-      name: connection_name,
-      type: connection_type,
-      config: {
-        connection_name,
-        connection_type,
-        ...configDetails
-      },
-      description: req.body.description
-    };
+    const existingConfig = typeof existing.rows[0].config === 'string' 
+      ? JSON.parse(existing.rows[0].config) 
+      : existing.rows[0].config;
     
-    console.log('[UPDATE CONNECTION] Formatted connectionData config keys:', Object.keys(connectionData.config));
+    // Update config
+    const config = { ...existingConfig };
+    const provider = connection_type || existingConfig.provider || existingConfig.connection_type;
     
-    const updatedConnection = await connectionService.updateConnection(
-      req.params.id, 
-      connectionData
+    if (provider) config.provider = provider;
+    if (connection_name) config.connection_name = connection_name;
+    if (connection_type) config.connection_type = connection_type;
+    
+    // Build auth_config if authentication method is provided
+    const auth_config = {};
+    const effectiveAuthMethod = authentication_method || existing.rows[0].authentication_method || 'key-based';
+    
+    switch (effectiveAuthMethod) {
+      case 'key-based':
+        // Handle key-based authentication
+        if (provider === 'aws' || existingConfig.provider === 'aws') {
+          if (region !== undefined) config.region = region;
+          if (bucket !== undefined) config.bucket = bucket;
+          if (endpoint !== undefined) config.endpoint = endpoint;
+          if (use_ssl !== undefined) config.use_ssl = use_ssl;
+          if (path_prefix !== undefined) config.path_prefix = path_prefix;
+          if (access_key_id) config.access_key_id = encrypt(access_key_id);
+          if (secret_access_key) config.secret_access_key = encrypt(secret_access_key);
+        } else if (provider === 'gcp' || existingConfig.provider === 'gcp') {
+          if (gcp_project_id !== undefined) config.project_id = gcp_project_id;
+          if (gcp_bucket !== undefined) config.gcp_bucket = gcp_bucket;
+          if (path_prefix !== undefined) config.path_prefix = path_prefix;
+          if (service_account_json) config.service_account_json = encrypt(service_account_json);
+        } else if (provider === 'azure' || existingConfig.provider === 'azure') {
+          if (account_name !== undefined) config.account_name = account_name;
+          if (container_name !== undefined) config.container_name = container_name;
+          if (azure_endpoint !== undefined) config.azure_endpoint = azure_endpoint;
+          if (path_prefix !== undefined) config.path_prefix = path_prefix;
+          if (account_key) config.account_key = encrypt(account_key);
+        }
+        break;
+      
+      case 'aws-iam-role':
+        if (region !== undefined) config.region = region;
+        if (bucket !== undefined) config.bucket = bucket;
+        if (path_prefix !== undefined) config.path_prefix = path_prefix;
+        if (iam_role_arn) auth_config.iam_role_arn = iam_role_arn;
+        if (external_id) auth_config.external_id = external_id;
+        break;
+      
+      case 'gcp-sa-oidc':
+        if (gcp_project_id !== undefined) config.project_id = gcp_project_id;
+        if (gcp_bucket !== undefined) config.gcp_bucket = gcp_bucket;
+        if (path_prefix !== undefined) config.path_prefix = path_prefix;
+        if (workload_identity_provider) auth_config.workload_identity_provider = workload_identity_provider;
+        if (service_account_email) auth_config.service_account_email = service_account_email;
+        break;
+      
+      case 'azure-managed-identity':
+        if (account_name !== undefined) config.account_name = account_name;
+        if (container_name !== undefined) config.container_name = container_name;
+        if (path_prefix !== undefined) config.path_prefix = path_prefix;
+        if (azure_resource_id) auth_config.azure_resource_id = azure_resource_id;
+        if (managed_identity_client_id) auth_config.managed_identity_client_id = managed_identity_client_id;
+        break;
+      
+      case 'oauth2':
+        if (oauth_client_id) auth_config.oauth_client_id = oauth_client_id;
+        if (oauth_client_secret) auth_config.oauth_client_secret = encrypt(oauth_client_secret);
+        if (oauth_token_url) auth_config.oauth_token_url = oauth_token_url;
+        if (oauth_scope) auth_config.oauth_scope = oauth_scope;
+        break;
+      
+      case 'kerberos':
+        if (kerberos_principal) auth_config.kerberos_principal = kerberos_principal;
+        if (kerberos_keytab_path) auth_config.kerberos_keytab_path = kerberos_keytab_path;
+        if (kerberos_realm) auth_config.kerberos_realm = kerberos_realm;
+        break;
+    }
+    
+    // Build dynamic UPDATE query
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (connection_name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(connection_name);
+    }
+    if (connection_type !== undefined) {
+      updates.push(`type = $${paramIndex++}`);
+      values.push(connection_type);
+    }
+    updates.push(`config = $${paramIndex++}`);
+    values.push(JSON.stringify(config));
+    
+    if (status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      values.push(status);
+    }
+    if (connection_user !== undefined) {
+      updates.push(`connection_user = $${paramIndex++}`);
+      values.push(connection_user);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(description);
+    }
+    if (authentication_method !== undefined) {
+      updates.push(`authentication_method = $${paramIndex++}`);
+      values.push(authentication_method);
+    }
+    if (Object.keys(auth_config).length > 0) {
+      updates.push(`auth_config = $${paramIndex++}`);
+      values.push(JSON.stringify(auth_config));
+    }
+    if (connection_direction !== undefined) {
+      updates.push(`connection_direction = $${paramIndex++}`);
+      values.push(connection_direction);
+    }
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    
+    values.push(id);
+    
+    // Update connection
+    const result = await pool.query(
+      `UPDATE storage_connections 
+       SET ${updates.join(', ')}
+       WHERE connection_id = $${paramIndex}
+       RETURNING connection_id, name, type, status, connection_direction, project_id, 
+                 connection_user, description, authentication_method, created_at, updated_at`,
+      values
     );
     
     console.log('[UPDATE CONNECTION] Connection updated successfully');
     
-    // Filter sensitive information in response
-    const { config, ...rest } = updatedConnection;
-    const sanitizedConnection = {
-      ...rest,
-      connection_name: config.connection_name || config.name || updatedConnection.name,
-      connection_type: config.connection_type || updatedConnection.type,
-      connection_direction: config.connection_direction || 'source',
-      // Other non-sensitive fields
-    };
-    
-    res.json(sanitizedConnection);
+    res.json({
+      success: true,
+      message: 'Connection updated successfully',
+      connection: result.rows[0]
+    });
   } catch (error) {
     if (error.message.includes('not found')) {
       res.status(404).json({ error: error.message });
@@ -418,8 +704,8 @@ router.get('/:id/test', async (req, res) => {
 
 /**
  * @route   POST /api/connections/:id/test
- * @desc    Test a saved connection with form updates (merges form data with saved credentials)
- * @access  Public (authentication would be added in a real implementation)
+ * @desc    Test a saved connection from storage_connections (unified connection management)
+ * @access  Protected (requires connection:execute permission)
  */
 router.post('/:id/test', async (req, res) => {
   try {
@@ -431,54 +717,39 @@ router.post('/:id/test', async (req, res) => {
       });
     }
     
-    const { connection_type, ...formConfig } = req.body;
+    const { id } = req.params;
     
-    console.log('[TEST WITH UPDATES] Connection ID:', req.params.id);
-    console.log('[TEST WITH UPDATES] Form updates:', Object.keys(formConfig));
+    // Fetch connection from storage_connections
+    const result = await pool.query(
+      'SELECT config, type, authentication_method, auth_config FROM storage_connections WHERE connection_id = $1',
+      [id]
+    );
     
-    // Fetch the saved connection from database
-    const savedConnection = await connectionService.getConnectionById(req.params.id);
-    
-    // Merge form config with saved config (form values take precedence, except for empty credential fields)
-    const mergedConfig = { ...savedConnection.config };
-    
-    // Define credential fields that should be preserved if empty in form
-    const credentialFields = {
-      aws: ['access_key', 'secret_key'],
-      gcp: ['private_key'],
-      azure: ['account_key'],
-      snowflake: ['snowflake_password'],
-      databricks: ['databricks_token'],
-      sharepoint: ['sharepoint_client_secret'],
-      outlook: ['outlook_client_secret']
-    };
-    
-    const credsToPreserve = credentialFields[savedConnection.type] || [];
-    
-    // Update config with form values, but preserve saved credentials if form fields are empty
-    for (const [key, value] of Object.entries(formConfig)) {
-      if (credsToPreserve.includes(key) && !value) {
-        // Keep existing encrypted credential
-        console.log('[TEST WITH UPDATES] Preserving saved credential:', key);
-      } else {
-        // Use form value
-        mergedConfig[key] = value;
-      }
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
     }
     
-    console.log('[TEST WITH UPDATES] Testing with merged config');
+    const connection = result.rows[0];
+    const config = typeof connection.config === 'string' 
+      ? JSON.parse(connection.config) 
+      : connection.config;
     
-    // Test the merged configuration
+    const auth_config = connection.auth_config 
+      ? (typeof connection.auth_config === 'string' ? JSON.parse(connection.auth_config) : connection.auth_config)
+      : {};
+    
+    // Merge auth_config into config for testing
+    const testConfig = { ...config, auth_config };
+    
+    // Test the connection using connectionService
     const testResult = await connectionService.testConnection({
-      type: savedConnection.type,
-      config: mergedConfig
+      type: connection.type,
+      config: testConfig
     });
-    
-    console.log('[TEST WITH UPDATES] Test result:', testResult.success ? 'SUCCESS' : 'FAILED');
     
     res.json(testResult);
   } catch (error) {
-    console.error('[TEST WITH UPDATES] Error:', error);
+    console.error('[TEST SAVED CONNECTION] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: `Connection test failed: ${error.message}` 
@@ -488,8 +759,8 @@ router.post('/:id/test', async (req, res) => {
 
 /**
  * @route   POST /api/connections/test
- * @desc    Test a connection without saving it (for new connections)
- * @access  Public (authentication would be added in a real implementation)
+ * @desc    Test a connection without saving it (for new connections with unified management)
+ * @access  Protected (requires connection:execute permission)
  */
 router.post('/test', async (req, res) => {
   try {
@@ -501,25 +772,140 @@ router.post('/test', async (req, res) => {
       });
     }
     
-    const { connection_type, ...configDetails } = req.body;
+    const {
+      connection_type,
+      authentication_method = 'key-based',
+      // AWS fields
+      region,
+      bucket,
+      access_key_id,
+      secret_access_key,
+      endpoint,
+      use_ssl = true,
+      // AWS IAM Role fields (ephemeral auth)
+      iam_role_arn,
+      external_id,
+      // GCP fields
+      gcp_project_id,
+      service_account_json,
+      gcp_bucket,
+      // GCP OIDC fields (ephemeral auth)
+      workload_identity_provider,
+      service_account_email,
+      // Azure fields
+      account_name,
+      account_key,
+      container_name,
+      azure_endpoint,
+      // Azure Managed Identity fields (ephemeral auth)
+      azure_resource_id,
+      managed_identity_client_id,
+      // OAuth fields
+      oauth_client_id,
+      oauth_client_secret,
+      oauth_token_url,
+      oauth_scope,
+      // Kerberos fields
+      kerberos_principal,
+      kerberos_keytab_path,
+      kerberos_realm,
+      // Common
+      path_prefix = '',
+      ...otherConfigDetails
+    } = req.body;
     
-    // DEBUG: Log what we received for testing
-    console.log('[TEST CONNECTION] Received request body:', JSON.stringify(req.body, null, 2));
-    console.log('[TEST CONNECTION] Connection type:', connection_type);
-    console.log('[TEST CONNECTION] Config details keys:', Object.keys(configDetails));
-    if (connection_type === 'aws') {
-      console.log('[TEST CONNECTION] AWS - access_key present:', !!configDetails.access_key);
-      console.log('[TEST CONNECTION] AWS - secret_key present:', !!configDetails.secret_key);
-      console.log('[TEST CONNECTION] AWS - region:', configDetails.region);
-      console.log('[TEST CONNECTION] AWS - bucket:', configDetails.bucket_name);
+    // Build config based on provider and authentication method (no encryption for testing)
+    const provider = connection_type;
+    const config = {
+      provider,
+      connection_type,
+      ...otherConfigDetails
+    };
+    
+    // Set storage_type for cloud storage providers
+    if (provider === 'aws') {
+      config.storage_type = 's3';
+    } else if (provider === 'gcp') {
+      config.storage_type = 'gcs';
+    } else if (provider === 'azure') {
+      config.storage_type = 'azure-blob';
     }
+    
+    // Build config based on authentication method (no encryption needed for testing)
+    const auth_config = {};
+    
+    switch (authentication_method) {
+      case 'key-based':
+        if (provider === 'aws') {
+          config.region = region;
+          config.bucket = bucket;
+          config.endpoint = endpoint;
+          config.use_ssl = use_ssl;
+          config.path_prefix = path_prefix;
+          config.access_key_id = access_key_id; // No encryption for test
+          config.secret_access_key = secret_access_key;
+        } else if (provider === 'gcp') {
+          config.project_id = gcp_project_id;
+          config.gcp_bucket = gcp_bucket;
+          config.path_prefix = path_prefix;
+          config.service_account_json = service_account_json; // No encryption for test
+        } else if (provider === 'azure') {
+          config.account_name = account_name;
+          config.container_name = container_name;
+          config.azure_endpoint = azure_endpoint;
+          config.path_prefix = path_prefix;
+          config.account_key = account_key; // No encryption for test
+        }
+        break;
+      
+      case 'aws-iam-role':
+        config.region = region;
+        config.bucket = bucket;
+        config.path_prefix = path_prefix;
+        auth_config.iam_role_arn = iam_role_arn;
+        if (external_id) auth_config.external_id = external_id;
+        break;
+      
+      case 'gcp-sa-oidc':
+        config.project_id = gcp_project_id;
+        config.gcp_bucket = gcp_bucket;
+        config.path_prefix = path_prefix;
+        auth_config.workload_identity_provider = workload_identity_provider;
+        auth_config.service_account_email = service_account_email;
+        break;
+      
+      case 'azure-managed-identity':
+        config.account_name = account_name;
+        config.container_name = container_name;
+        config.path_prefix = path_prefix;
+        auth_config.azure_resource_id = azure_resource_id;
+        if (managed_identity_client_id) auth_config.managed_identity_client_id = managed_identity_client_id;
+        break;
+      
+      case 'oauth2':
+        auth_config.oauth_client_id = oauth_client_id;
+        auth_config.oauth_client_secret = oauth_client_secret; // No encryption for test
+        auth_config.oauth_token_url = oauth_token_url;
+        if (oauth_scope) auth_config.oauth_scope = oauth_scope;
+        break;
+      
+      case 'kerberos':
+        auth_config.kerberos_principal = kerberos_principal;
+        auth_config.kerberos_keytab_path = kerberos_keytab_path;
+        auth_config.kerberos_realm = kerberos_realm;
+        break;
+      
+      case 'db-short-lived-token':
+        auth_config.token_ttl = 3600; // Default 1 hour
+        break;
+    }
+    
+    // Merge auth_config into config for testing
+    config.auth_config = auth_config;
     
     const testResult = await connectionService.testConnection({
       type: connection_type,
-      config: {
-        connection_type,
-        ...configDetails
-      }
+      config
     });
     
     console.log('[TEST CONNECTION] Test result:', testResult.success ? 'SUCCESS' : 'FAILED');
