@@ -43,6 +43,9 @@ const Connections = () => {
     connection_name: '',
     connection_type: 'aws',
     connection_direction: 'source',
+    connection_user: 'Internal',
+    authentication_method: 'key-based',
+    description: '',
     region: '',
     bucket_name: '',
     access_key: '',
@@ -132,6 +135,9 @@ const Connections = () => {
       connection_name: '',
       connection_type: 'aws',
       connection_direction: activeTab,
+      connection_user: 'Internal',
+      authentication_method: 'key-based',
+      description: '',
       region: '',
       bucket_name: '',
       access_key: '',
@@ -150,13 +156,16 @@ const Connections = () => {
   };
   
   const handleEdit = (connection) => {
-    const { id, connection_name, connection_type, connection_direction } = connection;
+    const { id, connection_name, connection_type, connection_direction, connection_user, authentication_method, description } = connection;
     
     // Create a form data object with the correct fields based on connection type
     let newFormData = {
       connection_name,
       connection_type,
       connection_direction: connection_direction || 'source',
+      connection_user: connection_user || 'Internal',
+      authentication_method: authentication_method || 'key-based',
+      description: description || '',
     };
     
     // Add type-specific fields
@@ -514,6 +523,60 @@ const Connections = () => {
             <option value="source">Source (Read data from)</option>
             <option value="target">Target (Write data to)</option>
           </select>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="connection_user">Connection User</label>
+          <select
+            id="connection_user"
+            name="connection_user"
+            className="form-control"
+            value={formData.connection_user}
+            onChange={handleInputChange}
+            required
+          >
+            <option value="Internal">Internal</option>
+            <option value="External">External</option>
+          </select>
+          <small className="form-text text-muted">
+            Internal: Company-managed | External: Third-party/vendor
+          </small>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="authentication_method">Authentication Method</label>
+          <select
+            id="authentication_method"
+            name="authentication_method"
+            className="form-control"
+            value={formData.authentication_method}
+            onChange={handleInputChange}
+            required
+          >
+            <option value="key-based">Key-Based (Access Keys/Secrets)</option>
+            <option value="aws-iam-role">AWS IAM Role (Assume Role)</option>
+            <option value="gcp-sa-oidc">GCP Service Account OIDC</option>
+            <option value="azure-managed-identity">Azure Managed Identity</option>
+            <option value="db-short-lived-token">Database Short-Lived Token</option>
+            <option value="oauth2">OAuth 2.0</option>
+            <option value="kerberos">Kerberos</option>
+          </select>
+          <small className="form-text text-muted">
+            Choose the authentication method for this connection
+          </small>
+        </div>
+        
+        <div className="form-group form-group-full">
+          <label htmlFor="description">Description</label>
+          <textarea
+            id="description"
+            name="description"
+            className="form-control"
+            value={formData.description}
+            onChange={handleInputChange}
+            placeholder="Brief description of this connection"
+            rows="2"
+          />
         </div>
       </div>
     );
