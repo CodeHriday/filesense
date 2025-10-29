@@ -241,30 +241,18 @@ class ConnectionService {
   }
   
   /**
-   * Get a connection by ID
+   * Get a connection by ID from unified storage_connections table
    * 
-   * @param {number|string} id - Connection ID (integer for transform_connections, UUID for vendor connections)
+   * @param {string} id - Connection ID (UUID)
    * @returns {Promise<Object>} - Connection details
    */
   async getConnectionById(id) {
     try {
-      // Check if ID is a UUID (vendor connection) or integer (transform connection)
-      const isUUID = typeof id === 'string' && id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-      
-      let result;
-      if (isUUID) {
-        // Query storage_connections for vendor connections
-        result = await pool.query(
-          'SELECT * FROM storage_connections WHERE connection_id = $1',
-          [id]
-        );
-      } else {
-        // Query transform_connections for regular connections
-        result = await pool.query(
-          'SELECT * FROM transform_connections WHERE id = $1',
-          [id]
-        );
-      }
+      // All connections are now in storage_connections with UUID connection_id
+      const result = await pool.query(
+        'SELECT * FROM storage_connections WHERE connection_id = $1',
+        [id]
+      );
       
       if (result.rows.length === 0) {
         throw new Error(`Connection with ID ${id} not found`);

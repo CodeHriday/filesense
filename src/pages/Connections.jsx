@@ -156,85 +156,90 @@ const Connections = () => {
   };
   
   const handleEdit = (connection) => {
-    const { id, connection_name, connection_type, connection_direction, connection_user, authentication_method, description } = connection;
+    const { id, connection_name, connection_type, connection_direction, connection_user, authentication_method, description, config } = connection;
+    
+    // For vendor connections (type='vendor'), get the actual provider from config for rendering fields
+    const providerType = connection_type === 'vendor' && config?.provider ? config.provider : connection_type;
     
     // Create a form data object with the correct fields based on connection type
+    // IMPORTANT: Keep the original connection_type (don't change 'vendor' to provider)
     let newFormData = {
       connection_name,
-      connection_type,
+      connection_type, // Keep original type (vendor stays vendor)
+      _provider: providerType, // Store provider type separately for field rendering
       connection_direction: connection_direction || 'source',
       connection_user: connection_user || 'Internal',
       authentication_method: authentication_method || 'key-based',
       description: description || '',
     };
     
-    // Add type-specific fields
-    if (connection_type === 'aws') {
+    // Add type-specific fields (use providerType to handle vendor connections correctly)
+    if (providerType === 'aws') {
       newFormData = {
         ...newFormData,
-        region: connection.region || '',
-        bucket_name: connection.bucket_name || '',
+        region: connection.region || config?.region || '',
+        bucket_name: connection.bucket_name || config?.bucket || config?.bucket_name || '',
         access_key: '', // Don't prefill for security
         secret_key: '', // Don't prefill for security
         // Store flags to show credential status in UI
-        has_access_key: connection.has_access_key,
-        has_secret_key: connection.has_secret_key
+        has_access_key: connection.has_access_key || !!config?.access_key || !!config?.access_key_id,
+        has_secret_key: connection.has_secret_key || !!config?.secret_key || !!config?.secret_access_key
       };
-    } else if (connection_type === 'gcp') {
+    } else if (providerType === 'gcp') {
       newFormData = {
         ...newFormData,
-        project_id: connection.project_id || '',
-        bucket_name: connection.bucket_name || '',
-        client_email: connection.client_email || '',
+        project_id: connection.project_id || config?.project_id || '',
+        bucket_name: connection.bucket_name || config?.gcp_bucket || config?.bucket || '',
+        client_email: connection.client_email || config?.client_email || '',
         private_key: '', // Don't prefill for security
-        has_private_key: connection.has_private_key
+        has_private_key: connection.has_private_key || !!config?.private_key
       };
-    } else if (connection_type === 'azure') {
+    } else if (providerType === 'azure') {
       newFormData = {
         ...newFormData,
-        account_name: connection.account_name || '',
-        container_name: connection.container_name || '',
+        account_name: connection.account_name || config?.account_name || '',
+        container_name: connection.container_name || config?.container_name || '',
         account_key: '', // Don't prefill for security
-        has_account_key: connection.has_account_key
+        has_account_key: connection.has_account_key || !!config?.account_key
       };
-    } else if (connection_type === 'snowflake') {
+    } else if (providerType === 'snowflake') {
       newFormData = {
         ...newFormData,
-        snowflake_account: connection.snowflake_account || '',
-        snowflake_username: connection.snowflake_username || '',
+        snowflake_account: connection.snowflake_account || config?.snowflake_account || '',
+        snowflake_username: connection.snowflake_username || config?.snowflake_username || '',
         snowflake_password: '', // Don't prefill for security
-        snowflake_warehouse: connection.snowflake_warehouse || '',
-        snowflake_database: connection.snowflake_database || '',
-        snowflake_schema: connection.snowflake_schema || '',
-        snowflake_role: connection.snowflake_role || '',
-        has_snowflake_password: connection.has_snowflake_password
+        snowflake_warehouse: connection.snowflake_warehouse || config?.snowflake_warehouse || '',
+        snowflake_database: connection.snowflake_database || config?.snowflake_database || '',
+        snowflake_schema: connection.snowflake_schema || config?.snowflake_schema || '',
+        snowflake_role: connection.snowflake_role || config?.snowflake_role || '',
+        has_snowflake_password: connection.has_snowflake_password || !!config?.snowflake_password
       };
-    } else if (connection_type === 'databricks') {
+    } else if (providerType === 'databricks') {
       newFormData = {
         ...newFormData,
-        databricks_host: connection.databricks_host || '',
+        databricks_host: connection.databricks_host || config?.databricks_host || '',
         databricks_token: '', // Don't prefill for security
-        databricks_catalog: connection.databricks_catalog || '',
-        databricks_schema: connection.databricks_schema || '',
-        has_databricks_token: connection.has_databricks_token
+        databricks_catalog: connection.databricks_catalog || config?.databricks_catalog || '',
+        databricks_schema: connection.databricks_schema || config?.databricks_schema || '',
+        has_databricks_token: connection.has_databricks_token || !!config?.databricks_token
       };
-    } else if (connection_type === 'sharepoint') {
+    } else if (providerType === 'sharepoint') {
       newFormData = {
         ...newFormData,
-        sharepoint_tenant_id: connection.sharepoint_tenant_id || '',
-        sharepoint_client_id: connection.sharepoint_client_id || '',
+        sharepoint_tenant_id: connection.sharepoint_tenant_id || config?.sharepoint_tenant_id || '',
+        sharepoint_client_id: connection.sharepoint_client_id || config?.sharepoint_client_id || '',
         sharepoint_client_secret: '', // Don't prefill for security
-        sharepoint_site_url: connection.sharepoint_site_url || '',
-        sharepoint_document_library: connection.sharepoint_document_library || ''
+        sharepoint_site_url: connection.sharepoint_site_url || config?.sharepoint_site_url || '',
+        sharepoint_document_library: connection.sharepoint_document_library || config?.sharepoint_document_library || ''
       };
-    } else if (connection_type === 'outlook') {
+    } else if (providerType === 'outlook') {
       newFormData = {
         ...newFormData,
-        outlook_tenant_id: connection.outlook_tenant_id || '',
-        outlook_client_id: connection.outlook_client_id || '',
+        outlook_tenant_id: connection.outlook_tenant_id || config?.outlook_tenant_id || '',
+        outlook_client_id: connection.outlook_client_id || config?.outlook_client_id || '',
         outlook_client_secret: '', // Don't prefill secret for security
-        outlook_user_email: connection.outlook_user_email || '',
-        outlook_folder_path: connection.outlook_folder_path || ''
+        outlook_user_email: connection.outlook_user_email || config?.outlook_user_email || '',
+        outlook_folder_path: connection.outlook_folder_path || config?.outlook_folder_path || ''
       };
     }
     
@@ -472,7 +477,11 @@ const Connections = () => {
   };
   
   const renderFormFields = () => {
-    const { connection_type } = formData;
+    const { connection_type, _provider } = formData;
+    
+    // For vendor connections, use the _provider field to determine which credential fields to show
+    // Otherwise use connection_type
+    const providerType = _provider || connection_type;
     
     // Common fields for all connection types
     const commonFields = (
@@ -581,10 +590,10 @@ const Connections = () => {
       </div>
     );
     
-    // Type-specific fields
+    // Type-specific fields (use providerType to handle vendor connections)
     let specificFields;
     
-    if (connection_type === 'aws') {
+    if (providerType === 'aws') {
       specificFields = (
         <div className="form-grid">
           <div className="form-group">
@@ -652,7 +661,7 @@ const Connections = () => {
           </div>
         </div>
       );
-    } else if (connection_type === 'gcp') {
+    } else if (providerType === 'gcp') {
       specificFields = (
         <div className="form-grid">
           <div className="form-group">
@@ -714,7 +723,7 @@ const Connections = () => {
           </div>
         </div>
       );
-    } else if (connection_type === 'azure') {
+    } else if (providerType === 'azure') {
       specificFields = (
         <div className="form-grid">
           <div className="form-group">
@@ -763,7 +772,7 @@ const Connections = () => {
           </div>
         </div>
       );
-    } else if (connection_type === 'snowflake') {
+    } else if (providerType === 'snowflake') {
       specificFields = (
         <div className="form-grid">
           <div className="form-group form-group-full">
@@ -869,7 +878,7 @@ const Connections = () => {
           </div>
         </div>
       );
-    } else if (connection_type === 'databricks') {
+    } else if (providerType === 'databricks') {
       specificFields = (
         <div className="form-grid">
           <div className="form-group form-group-full">
@@ -934,7 +943,7 @@ const Connections = () => {
           </div>
         </div>
       );
-    } else if (connection_type === 'sharepoint') {
+    } else if (providerType === 'sharepoint') {
       specificFields = (
         <div className="form-grid">
           <div className="form-group">
@@ -1021,7 +1030,7 @@ const Connections = () => {
           </div>
         </div>
       );
-    } else if (connection_type === 'outlook') {
+    } else if (providerType === 'outlook') {
       specificFields = (
         <div className="form-grid">
           <div className="form-group">
@@ -1129,21 +1138,21 @@ const Connections = () => {
           <div><strong>Bucket:</strong> {connection.bucket_name}</div>
         </>
       );
-    } else if (connection_type === 'gcp') {
+    } else if (providerType === 'gcp') {
       return (
         <>
           <div><strong>Project:</strong> {connection.project_id}</div>
           <div><strong>Bucket:</strong> {connection.bucket_name}</div>
         </>
       );
-    } else if (connection_type === 'azure') {
+    } else if (providerType === 'azure') {
       return (
         <>
           <div><strong>Account:</strong> {connection.account_name}</div>
           <div><strong>Container:</strong> {connection.container_name}</div>
         </>
       );
-    } else if (connection_type === 'snowflake') {
+    } else if (providerType === 'snowflake') {
       return (
         <>
           <div><strong>Account:</strong> {connection.snowflake_account}</div>
@@ -1151,7 +1160,7 @@ const Connections = () => {
           <div><strong>Schema:</strong> {connection.snowflake_schema}</div>
         </>
       );
-    } else if (connection_type === 'databricks') {
+    } else if (providerType === 'databricks') {
       return (
         <>
           <div><strong>Host:</strong> {connection.databricks_host}</div>
@@ -1159,14 +1168,14 @@ const Connections = () => {
           <div><strong>Schema:</strong> {connection.databricks_schema}</div>
         </>
       );
-    } else if (connection_type === 'sharepoint') {
+    } else if (providerType === 'sharepoint') {
       return (
         <>
           <div><strong>Site URL:</strong> {connection.sharepoint_site_url}</div>
           <div><strong>Document Library:</strong> {connection.sharepoint_document_library}</div>
         </>
       );
-    } else if (connection_type === 'outlook') {
+    } else if (providerType === 'outlook') {
       return (
         <>
           <div><strong>Email:</strong> {connection.outlook_user_email}</div>
