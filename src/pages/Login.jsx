@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { THEME } from '../config';
 import axios from 'axios';
 import PasswordInput from '../components/PasswordInput';
+import { isVendorUser } from '../utils/userHelpers';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -24,7 +25,9 @@ const Login = () => {
   // Redirect if user is already logged in
   useEffect(() => {
     if (currentUser) {
-      const from = location.state?.from?.pathname || '/';
+      // Vendor users should go to drop page, others to their intended destination or dashboard
+      const defaultPath = isVendorUser(currentUser) ? '/drop' : '/';
+      const from = location.state?.from?.pathname || defaultPath;
       navigate(from, { replace: true });
     }
   }, [currentUser, navigate, location]);
