@@ -140,7 +140,7 @@ function Mappings() {
     <div className="page-container">
       <div className="page-header">
         <div className="header-content">
-          <h1 style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>ETL Mappings</h1>
+          <h1 style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Transformations</h1>
           <p style={{ color: 'white', fontSize: '0.875rem' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
         </div>
         <div className="header-actions">
@@ -149,7 +149,7 @@ function Mappings() {
             onClick={handleCreateMapping}
             disabled={!hasWritePermission('transformation')}
           >
-            <FiPlus /> Create Mapping
+            <FiPlus /> Create Transformations
           </button>
         </div>
       </div>
@@ -171,7 +171,7 @@ function Mappings() {
                 className="btn btn-primary"
                 onClick={handleCreateMapping}
               >
-                <FiPlus /> Create Mapping
+                <FiPlus /> Create Transformations
               </button>
             </div>
           ) : (

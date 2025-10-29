@@ -568,9 +568,9 @@ function MappingWizard() {
 
   const renderStepIndicator = () => {
     const steps = [
-      { num: 1, label: 'Source & Name' },
+      { num: 1, label: 'Mapping Configuration' },
       { num: 2, label: 'Source Configuration' },
-      { num: 3, label: 'Field Mapping' },
+      { num: 3, label: 'Expressions' },
       { num: 4, label: 'Target & Rules' }
     ];
 
@@ -975,7 +975,7 @@ function MappingWizard() {
         {/* Step 3: Schema & Field Mapping */}
         {currentStep === 3 && (
           <div className="wizard-step-content">
-            <h2><FiEdit /> Field Mapping</h2>
+            <h2><FiEdit /> Expressions</h2>
             
             {loadingSchema ? (
               <LoadingSpinner size="small" />
