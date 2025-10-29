@@ -105,7 +105,7 @@ const ETLScheduler = () => {
     <PageTransition>
       <div className="etl-scheduler-page">
         <PageHeader
-          title="ETL Scheduler"
+          title="Job Scheduler"
           subtitle="Schedule transformations, mapping groups, and workflows"
         />
 
@@ -205,9 +205,10 @@ const ETLScheduler = () => {
           isOpen={deleteModal.show}
           onClose={() => setDeleteModal({ show: false, scheduleId: null })}
           title="Confirm Delete"
+          size="small"
         >
-          <p>Are you sure you want to delete this schedule?</p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <p style={{ margin: '0 0 1rem 0' }}>Are you sure you want to delete this schedule?</p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
             <button 
               onClick={() => setDeleteModal({ show: false, scheduleId: null })} 
               className="btn btn-secondary"
@@ -228,9 +229,10 @@ const ETLScheduler = () => {
           isOpen={notification.show}
           onClose={() => setNotification({ show: false, message: '', type: '' })}
           title={notification.type === 'success' ? 'Success' : 'Error'}
+          size="small"
         >
-          <p>{notification.message}</p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <p style={{ margin: '0 0 1rem 0' }}>{notification.message}</p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button 
               onClick={() => setNotification({ show: false, message: '', type: '' })} 
               className="btn btn-primary"
