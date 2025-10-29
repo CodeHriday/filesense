@@ -53,11 +53,14 @@ router.post('/vendor-agreement-template/upload', authenticateToken, upload.singl
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    console.log('Processing template file:', req.file.path);
     const result = vendorAgreementTemplateService.parseTemplateUpload(req.file.path);
+    console.log('Template parse result:', { success: result.success, validRows: result.validRows, totalRows: result.totalRows });
     
     fs.unlinkSync(req.file.path);
     
     if (!result.success) {
+      console.log('Template validation failed:', result.errors);
       return res.status(400).json({
         error: 'Template validation failed',
         details: result.errors,
@@ -66,6 +69,7 @@ router.post('/vendor-agreement-template/upload', authenticateToken, upload.singl
       });
     }
     
+    console.log('Template parsed successfully, returning agreements:', result.agreements.length);
     res.json({
       success: true,
       message: `Successfully parsed ${result.validRows} vendor agreement(s)`,
@@ -80,9 +84,11 @@ router.post('/vendor-agreement-template/upload', authenticateToken, upload.singl
     }
     
     console.error('Error uploading template:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       error: 'Failed to process template', 
-      details: error.message 
+      message: error.message,
+      details: error.stack 
     });
   }
 });

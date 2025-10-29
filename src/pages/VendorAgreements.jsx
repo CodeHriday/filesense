@@ -814,14 +814,14 @@ const VendorAgreements = () => {
       setLoading(false);
       setUploadingTemplate(false);
       
-      if (error.response?.data?.details) {
+      if (error.response?.data?.details && Array.isArray(error.response.data.details)) {
         const details = error.response.data.details;
         const errorMsg = `Template validation failed:\n${details.map(e => 
           `Row ${e.row}: ${e.errors.join(', ')}`
         ).join('\n')}`;
         setError(errorMsg);
       } else {
-        setError('Failed to upload template: ' + (error.response?.data?.error || error.message));
+        setError('Failed to upload template: ' + (error.response?.data?.error || error.response?.data?.message || error.message));
       }
     }
   };
