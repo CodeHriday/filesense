@@ -22,7 +22,8 @@ function ProjectManagement() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    parent_id: null
+    parent_id: null,
+    project_type: 'internal'
   });
 
   const [memberFormData, setMemberFormData] = useState({
@@ -118,7 +119,7 @@ function ProjectManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowCreateModal(false);
-      setFormData({ name: '', description: '', parent_id: null });
+      setFormData({ name: '', description: '', parent_id: null, project_type: 'internal' });
       fetchProjects();
     } catch (err) {
       setError('Failed to create project');
@@ -134,7 +135,7 @@ function ProjectManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowEditModal(false);
-      setFormData({ name: '', description: '', parent_id: null });
+      setFormData({ name: '', description: '', parent_id: null, project_type: 'internal' });
       fetchProjects();
       if (selectedProject) {
         fetchProjectDetails(selectedProject.id);
@@ -237,7 +238,8 @@ function ProjectManagement() {
     setFormData({
       name: project.name,
       description: project.description || '',
-      parent_id: project.parent_id
+      parent_id: project.parent_id,
+      project_type: project.project_type || 'internal'
     });
     setShowEditModal(true);
   };
@@ -418,14 +420,27 @@ function ProjectManagement() {
             </div>
             <div className="modal-body">
               <form onSubmit={handleCreate} style={{ padding: '1.5rem' }}>
-                <div className="form-group">
-                  <label>Project Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Project Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Project Type *</label>
+                    <select
+                      value={formData.project_type}
+                      onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
+                      required
+                    >
+                      <option value="internal">Internal</option>
+                      <option value="external">External</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Description</label>
@@ -458,14 +473,27 @@ function ProjectManagement() {
               <div className="modal-content-sections">
                 <form onSubmit={handleUpdate}>
                   <h3>Project Details</h3>
-                  <div className="form-group">
-                    <label>Project Name *</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label>Project Name *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Project Type *</label>
+                      <select
+                        value={formData.project_type}
+                        onChange={(e) => setFormData({ ...formData, project_type: e.target.value })}
+                        required
+                      >
+                        <option value="internal">Internal</option>
+                        <option value="external">External</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label>Description</label>
