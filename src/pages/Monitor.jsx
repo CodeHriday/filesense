@@ -267,13 +267,14 @@ function Monitor() {
                     <th>Correlation ID</th>
                     <th>Load Step 1 Path</th>
                     <th>Load Step 1 Records</th>
+                    <th>Schema Validation</th>
                     <th>Error Message</th>
                   </tr>
                 </thead>
                 <tbody>
                   {audits.length === 0 ? (
                     <tr>
-                      <td colSpan="22" className="no-data">No audit records found</td>
+                      <td colSpan="23" className="no-data">No audit records found</td>
                     </tr>
                   ) : (
                     audits.map((audit) => (
@@ -314,13 +315,26 @@ function Monitor() {
                           </td>
                           <td title={audit.load_step_1_path}>{audit.load_step_1_path || '-'}</td>
                           <td className="number-col">{(audit.load_step_1_rec_cnt || 0).toLocaleString()}</td>
+                          <td>
+                            {audit.schema_validation ? (
+                              <span className={`status-badge ${
+                                audit.schema_validation === 'Pass' ? 'status-success' : 
+                                audit.schema_validation === 'Fail' ? 'status-error' : 
+                                'status-unknown'
+                              }`}>
+                                {audit.schema_validation}
+                              </span>
+                            ) : (
+                              <span className="status-badge status-unknown">N/A</span>
+                            )}
+                          </td>
                           <td className="error-col" title={audit.error_message}>
                             {audit.error_message ? audit.error_message.substring(0, 30) + '...' : '-'}
                           </td>
                         </tr>
                         {expandedRows.has(audit.id) && (
                           <tr className="expanded-row">
-                            <td colSpan="22">
+                            <td colSpan="23">
                               <div className="expanded-content">
                                 <div className="expanded-section">
                                   <h3>Additional Details</h3>

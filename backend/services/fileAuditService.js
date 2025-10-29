@@ -491,6 +491,7 @@ async function getAuditRecords(pool, filters = {}) {
         f.column_count as number_of_columns,
         f.row_count,
         tj.job_id,
+        tj.schema_validation,
         (
           SELECT json_agg(
             json_build_object(
