@@ -8,6 +8,7 @@ const xlsx = require('xlsx');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
+const { decryptCredentials } = require('../utils/encryption');
 
 /**
  * Validate file schema against vendor agreement schema
@@ -65,12 +66,43 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
     }
     
     const connection = connectionResult.rows[0];
+    const rawConfig = connection.config || {};
+    
+    // Determine the actual storage type
+    let storageType = connection.type.toLowerCase();
+    if (storageType === 'vendor') {
+      storageType = (rawConfig.storage_type || rawConfig.provider || '').toLowerCase();
+    }
+    
+    // Decrypt credentials from auth_config
+    const decryptedConfig = decryptCredentials(storageType, rawConfig);
+    
+    // Normalize field names for vendor connections
+    if (connection.type.toLowerCase() === 'vendor') {
+      if (rawConfig.bucket && !decryptedConfig.bucket_name) {
+        decryptedConfig.bucket_name = rawConfig.bucket;
+      }
+      if (decryptedConfig.access_key_id && !decryptedConfig.access_key) {
+        decryptedConfig.access_key = decryptedConfig.access_key_id;
+      }
+      if (decryptedConfig.secret_access_key && !decryptedConfig.secret_key) {
+        decryptedConfig.secret_key = decryptedConfig.secret_access_key;
+      }
+      if (rawConfig.region) decryptedConfig.region = rawConfig.region;
+    }
+    
+    // Create connection object with decrypted config
+    const connectionWithDecryptedConfig = {
+      ...connection,
+      config: decryptedConfig
+    };
+    
     const fullPath = path.join(filePath, fileName).replace(/\\/g, '/');
     
     // Extract schema from actual file
     let actualSchema;
     try {
-      actualSchema = await extractSchemaFromFile(connection, fullPath, fileName);
+      actualSchema = await extractSchemaFromFile(connectionWithDecryptedConfig, fullPath, fileName);
     } catch (error) {
       systemLogger.error('Failed to extract schema from file', { error: error.message, filePath: fullPath });
       // Treat file read failures as schema drift - file doesn't exist or can't be read
