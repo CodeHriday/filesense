@@ -475,7 +475,7 @@ async function getAuditRecords(pool, filters = {}) {
     params.push(limit, offset);
 
     const query = `
-      SELECT 
+      SELECT DISTINCT ON (fad.id)
         fad.*,
         fsd.file_schema,
         fsd.schema_hash,
@@ -532,7 +532,7 @@ async function getAuditRecords(pool, filters = {}) {
       LEFT JOIN n_step_workflows nw 
         ON nwr.workflow_id = nw.id
       ${whereClause}
-      ORDER BY fad.created_dt DESC
+      ORDER BY fad.id, fad.created_dt DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
