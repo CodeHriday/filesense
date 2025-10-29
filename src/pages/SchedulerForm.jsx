@@ -19,6 +19,7 @@ const SchedulerForm = () => {
   const [formData, setFormData] = useState({
     entity_type: preSelectedType || 'mapping',
     entity_id: preSelectedId || '',
+    project_id: '',
     schedule_type: 'cron',
     cron_expression: '0 0 * * *',
     interval_value: 1,
@@ -29,6 +30,7 @@ const SchedulerForm = () => {
   const [transformations, setTransformations] = useState([]);
   const [mappingGroups, setMappingGroups] = useState([]);
   const [workflows, setWorkflows] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -41,26 +43,30 @@ const SchedulerForm = () => {
 
   const fetchData = async () => {
     try {
-      const [transformationsData, groupsData, workflowsData] = await Promise.all([
+      const [transformationsData, groupsData, workflowsData, projectsData] = await Promise.all([
         axios.get('/api/transformations'),
         axios.get('/api/mapping-groups'),
-        axios.get('/api/n-step-workflows')
+        axios.get('/api/n-step-workflows'),
+        axios.get('/api/projects')
       ]);
       
       const mappings = transformationsData.data.mappings || [];
       const groups = groupsData.data.groups || [];
       const workflows = workflowsData.data.workflows || [];
+      const projects = projectsData.data || [];
       
       console.log('Scheduler Form - Data loaded:', {
         transformations: mappings.length,
         mappingGroups: groups.length,
         workflows: workflows.length,
+        projects: projects.length,
         workflowSample: workflows[0]
       });
       
       setTransformations(mappings);
       setMappingGroups(groups);
       setWorkflows(workflows);
+      setProjects(projects);
       
       if (mappings.length === 0 && groups.length === 0 && workflows.length === 0) {
         setError('No entities available. Please create a transformation, mapping group, or workflow first.');
@@ -77,6 +83,7 @@ const SchedulerForm = () => {
       setFormData({
         entity_type: response.data.entity_type,
         entity_id: response.data.entity_id,
+        project_id: response.data.project_id || '',
         schedule_type: response.data.schedule_type,
         cron_expression: response.data.cron_expression || '0 0 * * *',
         interval_value: response.data.interval_value || 1,
@@ -171,10 +178,6 @@ const SchedulerForm = () => {
           subtitle={isEdit ? 'Update schedule configuration' : 'Configure a new automated schedule'}
         />
 
-        {error && (
-          <div className="alert alert-danger">{error}</div>
-        )}
-
         <div className="form-container">
           <form onSubmit={handleSubmit} className="data-form">
             <div className="form-group">
@@ -197,7 +200,23 @@ const SchedulerForm = () => {
                 onChange={e => {
                   const value = e.target.value;
                   console.log('Entity selected:', { value, type: typeof value, entityOptions: getEntityOptions() });
-                  setFormData({ ...formData, entity_id: value });
+                  
+                  // Auto-populate project_id based on selected entity
+                  let projectId = '';
+                  if (value) {
+                    if (formData.entity_type === 'mapping') {
+                      const mapping = transformations.find(t => String(t.mapping_id) === String(value));
+                      projectId = mapping?.project_id || '';
+                    } else if (formData.entity_type === 'mapping_group') {
+                      const group = mappingGroups.find(g => String(g.id) === String(value));
+                      projectId = group?.project_id || '';
+                    } else if (formData.entity_type === 'workflow') {
+                      const workflow = workflows.find(w => String(w.id) === String(value));
+                      projectId = workflow?.project_id || '';
+                    }
+                  }
+                  
+                  setFormData({ ...formData, entity_id: value, project_id: projectId });
                 }}
                 required
                 className="form-select"
@@ -212,6 +231,26 @@ const SchedulerForm = () => {
                   Selected ID: {formData.entity_id}
                 </small>
               )}
+            </div>
+
+            <div className="form-group">
+              <label>Project *</label>
+              <select
+                value={formData.project_id}
+                onChange={e => setFormData({ ...formData, project_id: e.target.value })}
+                required
+                className="form-select"
+              >
+                <option value="">Select project...</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              <small className="form-help">
+                Project is auto-populated from the selected entity
+              </small>
             </div>
 
             <div className="form-group">
@@ -307,6 +346,10 @@ const SchedulerForm = () => {
                 Enabled
               </label>
             </div>
+
+            {error && (
+              <div className="alert alert-danger" style={{ marginTop: '1rem' }}>{error}</div>
+            )}
 
             <div className="form-actions">
               <button type="submit" disabled={loading} className="btn btn-primary">
