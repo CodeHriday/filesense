@@ -195,9 +195,9 @@ const VendorAgreements = () => {
     }
   };
   
-  // Filter vendor connections - show only vendor type connections
+  // Filter vendor connections - show only external connections
   useEffect(() => {
-    const filtered = vendorConnections.filter(conn => conn.type === 'vendor');
+    const filtered = vendorConnections.filter(conn => conn.connection_user === 'External');
     setFilteredConnections(filtered);
   }, [vendorConnections]);
   
