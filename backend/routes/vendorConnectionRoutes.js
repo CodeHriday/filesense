@@ -49,7 +49,7 @@ router.get('/', requireAdmin, async (req, res) => {
         p.name as project_name
       FROM storage_connections sc
       LEFT JOIN projects p ON sc.project_id = p.id
-      WHERE sc.connection_direction IN ('source', 'target', 'drop')
+      WHERE sc.type = 'vendor' AND sc.connection_direction IN ('source', 'target', 'drop')
     `;
     
     const params = [];
@@ -110,7 +110,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
         p.name as project_name
       FROM storage_connections sc
       LEFT JOIN projects p ON sc.project_id = p.id
-      WHERE sc.connection_id = $1 AND sc.connection_direction IN ('source', 'target', 'drop')`,
+      WHERE sc.type = 'vendor' AND sc.connection_id = $1 AND sc.connection_direction IN ('source', 'target', 'drop')`,
       [id]
     );
     
