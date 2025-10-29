@@ -7,6 +7,7 @@ const { executeTransformationJob, getJobStatus, cancelJob, createJob, updateJob,
 const { getMappingRules, saveMappingRules, validateRules } = require('../services/anomalyRulesEngine');
 const { findMatchingFiles, countMatchingFiles } = require('../utils/filePatternMatcher');
 const { validateSchemaConsistency } = require('../services/schemaService');
+const { validateFileSchema } = require('../services/schemaValidationService');
 const authorizeProjectResource = require('../middleware/authorizeProjectResource');
 
 /**
@@ -898,6 +899,51 @@ router.post('/extract-schema', async (req, res) => {
   } catch (error) {
     systemLogger.error('Error extracting schema:', error);
     res.status(500).json({ error: error.message || 'Failed to extract schema' });
+  }
+});
+
+/**
+ * POST /api/transformations/validate-vendor-schema
+ * Validate file schema against vendor agreement schema
+ */
+router.post('/validate-vendor-schema', async (req, res) => {
+  try {
+    const { vendor_agreement_id, source_connection_id, file_path = '', file_name_pattern } = req.body;
+    
+    if (!vendor_agreement_id) {
+      return res.status(400).json({ error: 'Vendor agreement ID is required' });
+    }
+    
+    if (!source_connection_id) {
+      return res.status(400).json({ error: 'Source connection ID is required' });
+    }
+    
+    if (!file_name_pattern) {
+      return res.status(400).json({ error: 'File name/pattern is required' });
+    }
+    
+    // Normalize file path
+    const normalizedPath = file_path.replace(/^\//, '').replace(/\/$/, '');
+    
+    // Validate schema
+    const validationResult = await validateFileSchema(
+      vendor_agreement_id,
+      source_connection_id,
+      normalizedPath || '/',
+      file_name_pattern
+    );
+    
+    res.json(validationResult);
+    
+  } catch (error) {
+    systemLogger.error('Error validating vendor schema:', error);
+    res.status(500).json({ 
+      valid: false,
+      schemaDrift: false,
+      message: error.message || 'Failed to validate schema',
+      actualSchema: [],
+      expectedSchema: []
+    });
   }
 });
 
