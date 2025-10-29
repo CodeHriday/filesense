@@ -71,6 +71,7 @@ import AuthProvider, { useAuth } from './context/AuthContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationsProvider, ModalProvider } from './hooks';
+import { isVendorUser } from './utils/userHelpers';
 import './App.css';
 import './styles/accessibility.css';
 import './styles/Login.css';
@@ -123,6 +124,19 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Component to redirect vendor users to drop page, others to dashboard
+const DashboardOrRedirect = () => {
+  const { currentUser } = useAuth();
+  
+  // Redirect vendor users to the drop file page
+  if (isVendorUser(currentUser)) {
+    return <Navigate to="/drop" replace />;
+  }
+  
+  // Show dashboard for all other users
+  return <Dashboard />;
+};
+
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   
@@ -172,7 +186,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
             <Sidebar />
             <main id="main-content" className="content" tabIndex="-1">
               <Routes>
-                <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
                 <Route path="/drop" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
                 <Route path="/file-catalog" element={<ProtectedRoute><FileCatalog /></ProtectedRoute>} />
