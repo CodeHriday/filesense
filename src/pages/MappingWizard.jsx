@@ -887,54 +887,53 @@ function MappingWizard() {
 
             {/* Schema Drift Handling - Only show for vendor agreements */}
             {selectedVendorAgreement && (
-              <div className="form-group" style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+              <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
                   <FiAlertCircle style={{ color: '#d97706' }} />
                   <strong>Schema Drift Handling *</strong>
-                </label>
+                </div>
                 
-                {/* Abort Job Option */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontWeight: 'normal', cursor: 'pointer', marginBottom: '0.25rem' }}>
+                {/* Radio Options */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {/* Abort Job Option */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }} onClick={() => setSchemaDriftHandling('abort')}>
                     <input
                       type="radio"
                       name="schemaDriftHandling"
                       value="abort"
                       checked={schemaDriftHandling === 'abort'}
                       onChange={(e) => setSchemaDriftHandling(e.target.value)}
-                      style={{ marginTop: '3px', flexShrink: 0 }}
+                      style={{ marginTop: '2px', cursor: 'pointer' }}
                     />
-                    <div>
-                      <div>
-                        <strong>Abort Job</strong> - Stop processing if schema mismatch is detected
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                        Abort Job - Stop processing if schema mismatch is detected
                       </div>
-                      <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
                         Recommended for critical data pipelines where schema consistency is mandatory
-                      </small>
+                      </div>
                     </div>
-                  </label>
-                </div>
+                  </div>
 
-                {/* Alert & Process Option */}
-                <div>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontWeight: 'normal', cursor: 'pointer', marginBottom: '0.25rem' }}>
+                  {/* Alert & Process Option */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }} onClick={() => setSchemaDriftHandling('alert')}>
                     <input
                       type="radio"
                       name="schemaDriftHandling"
                       value="alert"
                       checked={schemaDriftHandling === 'alert'}
                       onChange={(e) => setSchemaDriftHandling(e.target.value)}
-                      style={{ marginTop: '3px', flexShrink: 0 }}
+                      style={{ marginTop: '2px', cursor: 'pointer' }}
                     />
-                    <div>
-                      <div>
-                        <strong>Alert & Process</strong> - Log warning and continue processing
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                        Alert & Process - Log warning and continue processing
                       </div>
-                      <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
                         Schema drift will be logged in the Monitor with "Fail" status, but the job will continue
-                      </small>
+                      </div>
                     </div>
-                  </label>
+                  </div>
                 </div>
               </div>
             )}
