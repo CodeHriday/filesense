@@ -29,19 +29,14 @@ The application features a hybrid architecture designed for scalability, securit
 ## Recent Changes
 -   **2025-10-29**: 
     - Fixed vendor_onboarding_date persistence issue in vendor agreements edit flow by adding date formatting for HTML date input.
-    - Implemented Vendor Agreement Schema Validation System for ETL transformations:
-        - Added `schema_drift_handling` column to `transformation_mappings` table (values: 'abort', 'alert', 'none').
-        - Added `schema_validation` column to `transformation_jobs` table to track Pass/Fail status.
-        - Updated MappingWizard Step 1: Auto-populates source file name, target connection, and target file path from vendor agreement when selected.
-        - Source file name is read-only when vendor agreement is selected to ensure compliance.
-        - Target file name remains editable by users for flexibility.
-        - Added schema drift handling UI in MappingWizard Step 2 with two options:
-            - **Abort Job**: Stops processing if schema mismatch detected (recommended for critical pipelines).
-            - **Alert & Process**: Logs warning with "Fail" status in Monitor and continues processing.
-        - Created `schemaValidationService.js` to compare actual file schema against vendor agreement schema.
-        - Service supports AWS S3, Google Cloud Storage, and Azure Blob Storage.
-        - Detects missing columns, unexpected columns, and column order mismatches.
-        - Supports CSV, Excel (XLSX/XLS), and JSON file formats.
+    - **Completed Full-Stack Vendor Agreement Schema Validation System** for ETL transformations:
+        - **Database Schema**: Added `schema_drift_handling` column to `transformation_mappings` table (values: 'abort', 'alert', 'none') and `schema_validation` column to `transformation_jobs` table to track Pass/Fail status.
+        - **Backend Routes**: Updated POST/PUT endpoints in `transformations.js` to properly destructure and persist schema_drift_handling field.
+        - **Schema Validation Service**: Created `schemaValidationService.js` supporting AWS S3, Google Cloud Storage, and Azure Blob Storage for CSV, Excel (XLSX/XLS), and JSON file formats. Detects missing columns, unexpected columns, and column order mismatches.
+        - **Job Execution Integration**: Integrated validation into `jobExecutionEngine.js` to automatically validate files against vendor agreement schema during job execution. Implements policy-driven handling: 'abort' fails the job with detailed error message, 'alert' logs warning with Fail status but continues processing, 'none' skips validation.
+        - **Frontend MappingWizard**: Step 1 auto-populates source file name (read-only), target connection, and target file path from vendor agreement. Step 2 provides schema drift handling UI with Abort Job and Alert & Process options. Target file name remains editable for flexibility.
+        - **Frontend Monitor**: Added Schema Validation column to Jobs.jsx with color-coded Pass/Fail badges (green for Pass, red for Fail, gray for N/A).
+        - **End-to-End Flow**: User selects vendor agreement and drift policy → backend persists configuration → job execution validates schema → results displayed in Monitor with Pass/Fail status.
 -   **2025-10-28**: 
     - Enhanced vendor agreement system with template download/upload and vendor user management.
     - Updated labels: 'Owner Contact' → 'Vendor Department Email', 'Vendor' → 'Vendor Name'.
