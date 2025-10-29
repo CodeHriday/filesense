@@ -527,11 +527,13 @@ function ProjectManagement() {
                       required
                     >
                       <option value="">Select User</option>
-                      {availableUsers.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.username} ({user.email})
-                        </option>
-                      ))}
+                      {availableUsers
+                        .filter(user => !selectedProject.members?.some(member => member.user_id === user.id))
+                        .map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.username} ({user.email})
+                          </option>
+                        ))}
                     </select>
                     <button type="submit" className="btn-primary btn-small">Add Member</button>
                   </div>
