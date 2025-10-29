@@ -844,10 +844,10 @@ const VendorAgreements = () => {
   };
   
   const canApproveAsVendor = (agreement) => {
-    // Check if user has vendor_agreements:approve permission
-    const hasApprovePermission = hasPermission && hasPermission('vendor_agreements:approve');
+    // Only Admin OR vendor-side users/contacts can approve as vendor
+    // Vendor Manager role should NOT see this button (they only see internal approval)
     
-    // Allow if user has approve permission OR is a vendor user for this agreement
+    // Check if user is a vendor user for this agreement
     const isVendorUserForAgreement = isVendor && currentUser.vendor_id === agreement.vendor_id;
     
     // Also allow if user's email matches primary or secondary contact email
@@ -856,7 +856,8 @@ const VendorAgreements = () => {
       currentUser.email === agreement.secondary_contact_email
     );
     
-    return (hasApprovePermission || isAdmin || isVendorUserForAgreement || isContactUser) && !agreement.vendor_approved_at && !agreement.is_locked;
+    // Only show for Admin OR actual vendor-side people
+    return (isAdmin || isVendorUserForAgreement || isContactUser) && !agreement.vendor_approved_at && !agreement.is_locked;
   };
   
   const canApproveAsOwner = (agreement) => {
