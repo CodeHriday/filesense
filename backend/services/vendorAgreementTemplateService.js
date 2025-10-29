@@ -18,18 +18,16 @@ class VendorAgreementTemplateService {
       { field: 'domain', label: 'Domain', type: 'text', required: false },
       { field: 'retention_days', label: 'Retention Days', type: 'number', required: false },
       { field: 'expected_arrival_time', label: 'Expected Arrival Time', type: 'text', required: false },
-      { field: 'delivery_method', label: 'Delivery Method', type: 'dropdown', required: false, options: ['SFTP', 'API', 'Email', 'Manual Upload', 'Cloud Storage'] }
+      { field: 'delivery_method', label: 'Delivery Method', type: 'dropdown', required: false, options: ['SFTP', 'API', 'Email', 'Manual Upload'] }
     ];
   }
 
   generateTemplate() {
     const headers = this.templateFields.map(f => f.label);
     const exampleRow = this.templateFields.map(f => this._getExampleValue(f));
-    const instructionsRow = this.templateFields.map(f => this._getInstructions(f));
 
     const wsData = [
       headers,
-      instructionsRow,
       exampleRow,
       Array(this.templateFields.length).fill('')
     ];
@@ -43,7 +41,6 @@ class VendorAgreementTemplateService {
 
     ws['!rows'] = [
       { hpt: 25 },
-      { hpt: 40 },
       { hpt: 20 }
     ];
 
@@ -57,15 +54,7 @@ class VendorAgreementTemplateService {
         alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
       };
 
-      const instructionCell = XLSX.utils.encode_cell({ r: 1, c: C });
-      if (!ws[instructionCell]) continue;
-      ws[instructionCell].s = {
-        font: { italic: true, color: { rgb: '666666' } },
-        fill: { fgColor: { rgb: 'F2F2F2' } },
-        alignment: { horizontal: 'left', vertical: 'top', wrapText: true }
-      };
-
-      const exampleCell = XLSX.utils.encode_cell({ r: 2, c: C });
+      const exampleCell = XLSX.utils.encode_cell({ r: 1, c: C });
       if (!ws[exampleCell]) continue;
       ws[exampleCell].s = {
         font: { color: { rgb: '999999' } },
@@ -147,38 +136,37 @@ class VendorAgreementTemplateService {
       [''],
       ['How to Use:'],
       ['1. Go to the "Vendor Agreements" sheet'],
-      ['2. Row 1 contains the field names (do not modify)'],
-      ['3. Row 2 contains instructions for each field'],
-      ['4. Row 3 contains example values'],
-      ['5. Start entering your data from Row 4 onwards'],
-      ['6. Fields marked with * are required'],
-      ['7. For dropdown fields, use only the values listed in the instructions'],
-      ['8. For boolean fields (like Contains PII), use TRUE or FALSE'],
-      ['9. For Schema field, use JSON array format: [{"name":"Col","type":"datatype","description":"info"}]'],
+      ['2. Row 1 contains the field names (headers) - do not modify'],
+      ['3. Row 2 contains example values to guide you'],
+      ['4. Start entering your data from Row 3 onwards'],
+      ['5. Fields marked with * are required'],
+      ['6. For dropdown fields, use only the exact values listed below'],
+      ['7. For boolean fields (like Contains PII), use TRUE or FALSE'],
+      ['8. For Schema field, use JSON array format: [{"name":"Col","type":"datatype","description":"info"}]'],
       [''],
       ['Important Notes:'],
       ['- Admin-only fields (Vendor, Project, Connections, Contacts, File Owner) will be set in the creation form'],
       ['- Make sure all required fields are filled'],
-      ['- Invalid data will be flagged during upload'],
+      ['- Invalid data will be flagged during upload with specific error messages'],
       ['- Template upload auto-populates the agreement creation form for review before submission'],
       [''],
-      ['Field Descriptions:'],
+      ['Field Descriptions & Allowed Values:'],
       [''],
-      ['File Name: The name of the data file (e.g., customer_export.csv)'],
-      ['File Description: A description of what the file contains'],
-      ['Vendor Department/Team: Name of the vendor department/team responsible'],
-      ['Vendor Department Email: Contact email for the vendor department/team'],
+      ['File Name: The name of the data file (e.g., customer_export.csv) - REQUIRED'],
+      ['File Description: A description of what the file contains - REQUIRED'],
+      ['Vendor Department/Team: Name of the vendor department/team responsible - REQUIRED'],
+      ['Vendor Department Email: Contact email for the vendor department/team - REQUIRED'],
       ['Schema: JSON array of column definitions. Format: [{"name":"ColumnName","type":"datatype","description":"details"}]'],
       ['  Example: [{"name":"ID","type":"integer","description":"Primary Key"},{"name":"Sales","type":"integer","description":"Total sales"}]'],
-      ['Frequency: How often the file is delivered (Daily, Weekly, etc.)'],
-      ['Frequency Description: Details about delivery timing'],
-      ['Contains PII: Whether the file contains personally identifiable information'],
-      ['File Type: Type of file (CSV, JSON, XML, etc.)'],
-      ['Data Classification: Security classification level'],
-      ['Domain: Business domain or category'],
-      ['Retention Days: How long to keep the data'],
-      ['Expected Arrival Time: When the file typically arrives'],
-      ['Delivery Method: How the file is delivered (SFTP, API, etc.)']
+      ['Frequency: How often the file is delivered - REQUIRED. Allowed values: Daily, Weekly, Monthly, Quarterly, Annual, Ad-hoc'],
+      ['Frequency Description: Details about delivery timing (optional)'],
+      ['Contains PII: Whether the file contains personally identifiable information (optional). Enter TRUE or FALSE'],
+      ['File Type: Type of file - e.g., CSV, JSON, XML, XLSX, Parquet (optional)'],
+      ['Data Classification: Security classification level (optional). Allowed values: Public, Internal, Confidential, Restricted'],
+      ['Domain: Business domain or category (optional)'],
+      ['Retention Days: How long to keep the data in days - enter a number (optional)'],
+      ['Expected Arrival Time: When the file typically arrives - e.g., 06:00 EST (optional)'],
+      ['Delivery Method: How the file is delivered (optional). Allowed values: SFTP, API, Email, Manual Upload']
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(instructions);
@@ -210,12 +198,12 @@ class VendorAgreementTemplateService {
         raw: false
       });
 
-      if (data.length < 4) {
-        throw new Error('Template must have at least 4 rows (headers, instructions, example, and data)');
+      if (data.length < 3) {
+        throw new Error('Template must have at least 3 rows (headers, example, and data)');
       }
 
       const headers = data[0];
-      const dataRows = data.slice(3);
+      const dataRows = data.slice(2);
 
       const agreements = [];
       const errors = [];
@@ -250,7 +238,7 @@ class VendorAgreementTemplateService {
 
         if (rowErrors.length > 0) {
           errors.push({
-            row: i + 4,
+            row: i + 3,
             errors: rowErrors
           });
         } else {
