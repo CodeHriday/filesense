@@ -420,7 +420,7 @@ export const FEATURE_CATEGORIES = APP_FEATURES.reduce((acc, feature) => {
 // Get sidebar display name for category
 export const getSidebarCategoryName = (category) => {
   const mapping = {
-    'Project & File Management': 'Ad Hoc Process',
+    'Project & File Management': 'Projects and Files',
     'Job Design': 'Job Design',
     'Jobs and Monitoring': 'Jobs and Monitoring',
     'Governance': 'Data Governance',
