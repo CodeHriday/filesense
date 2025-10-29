@@ -73,12 +73,14 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
       actualSchema = await extractSchemaFromFile(connection, fullPath, fileName);
     } catch (error) {
       systemLogger.error('Failed to extract schema from file', { error: error.message, filePath: fullPath });
+      // Treat file read failures as schema drift - file doesn't exist or can't be read
       return {
         valid: false,
-        schemaDrift: false,
+        schemaDrift: true,
         message: `Failed to read file: ${error.message}`,
         actualSchema: [],
-        expectedSchema
+        expectedSchema,
+        differences: [`File could not be read or does not exist: ${error.message}`]
       };
     }
     
