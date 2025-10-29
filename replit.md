@@ -28,6 +28,14 @@ The application features a hybrid architecture designed for scalability, securit
 
 ## Recent Changes
 -   **2025-10-29**: 
+    - **Implemented Project Type Categorization System** to distinguish between internal and external projects:
+        - **Database Schema**: Added `project_type` column to `projects` table with values 'internal' (default) or 'external'.
+        - **Backend Routes**: Updated POST/PUT/GET endpoints in `projectRoutes.js` to handle project_type field creation, updates, and filtering via ?project_type query parameter.
+        - **Vendor Integration**: Modified `vendorService.js` to auto-create external projects when vendors are created. Vendor-created projects are always typed as 'external' and vendor associations are validated to ensure only external projects are used.
+        - **Frontend Project Management**: Added Project Type dropdown in ProjectManagement.jsx create/edit modals, positioned adjacent to Project Name in a side-by-side layout with Internal/External options.
+        - **Mapping Workflow**: Updated MappingWizard.jsx to filter projects by project_type=internal, ensuring transformation mappings only show internal projects for proper scoping.
+        - **Vendor Workflow**: VendorAgreements.jsx continues to auto-populate projects from vendor entities, now correctly using external projects created during vendor onboarding.
+        - **End-to-End Flow**: Internal projects appear in mapping workflows, external projects are vendor-specific and created automatically, providing clear separation of operational contexts.
     - Fixed vendor_onboarding_date persistence issue in vendor agreements edit flow by adding date formatting for HTML date input.
     - **Completed Full-Stack Vendor Agreement Schema Validation System** for ETL transformations:
         - **Database Schema**: Added `schema_drift_handling` column to `transformation_mappings` table (values: 'abort', 'alert', 'none') and `schema_validation` column to `transformation_jobs` table to track Pass/Fail status.
