@@ -724,7 +724,7 @@ function MappingWizard() {
                   className="form-control"
                   value={sourceConnectionId}
                   onChange={(e) => {
-                    const value = e.target.value ? parseInt(e.target.value) : '';
+                    const value = e.target.value;
                     setSourceConnectionId(value);
                     if (value) {
                       setSelectedVendorAgreement('');
@@ -981,7 +981,7 @@ function MappingWizard() {
               <select
                 className="form-control"
                 value={targetConnectionId}
-                onChange={(e) => setTargetConnectionId(e.target.value ? parseInt(e.target.value) : '')}
+                onChange={(e) => setTargetConnectionId(e.target.value)}
               >
                 <option value="">Select target connection</option>
                 {connections.filter(c => c.connection_direction === 'target').map(conn => (
