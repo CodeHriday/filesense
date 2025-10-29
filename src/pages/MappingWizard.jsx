@@ -803,7 +803,7 @@ function MappingWizard() {
                   <option value="">Select Vendor Contract</option>
                   {vendorAgreements.map(agreement => (
                     <option key={agreement.id} value={agreement.id}>
-                      {agreement.agreement_name} ({agreement.vendor_name})
+                      {agreement.vendor_name} ({agreement.agreement_code})
                     </option>
                   ))}
                 </select>
