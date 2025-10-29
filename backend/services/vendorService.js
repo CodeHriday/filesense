@@ -267,12 +267,13 @@ class VendorService {
         projectId: finalProjectId
       });
       
-      // Create source connection
+      // Create source connection with unified fields
       await client.query(
         `INSERT INTO storage_connections (
           connection_id, type, name, config, status, 
-          connection_direction, project_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          connection_direction, project_id, connection_user, description,
+          authentication_method, auth_config, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [
           sourceConnectionId,
           'vendor',
@@ -280,16 +281,21 @@ class VendorService {
           JSON.stringify({ vendor_id: vendor.id, placeholder: true }),
           'pending',
           'source',
-          finalProjectId
+          finalProjectId,
+          'External',  // connection_user
+          `Source connection for vendor ${vendor_name}`,  // description
+          'key-based',  // authentication_method
+          JSON.stringify({})  // auth_config
         ]
       );
       
-      // Create target connection
+      // Create target connection with unified fields
       await client.query(
         `INSERT INTO storage_connections (
           connection_id, type, name, config, status, 
-          connection_direction, project_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          connection_direction, project_id, connection_user, description,
+          authentication_method, auth_config, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [
           targetConnectionId,
           'vendor',
@@ -297,7 +303,11 @@ class VendorService {
           JSON.stringify({ vendor_id: vendor.id, placeholder: true }),
           'pending',
           'target',
-          finalProjectId
+          finalProjectId,
+          'External',  // connection_user
+          `Target connection for vendor ${vendor_name}`,  // description
+          'key-based',  // authentication_method
+          JSON.stringify({})  // auth_config
         ]
       );
       

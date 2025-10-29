@@ -2647,6 +2647,7 @@ const { createSCIMProvisioning } = require('./backend/migrations/createSCIMProvi
 const createVendorUsersTable = require('./backend/migrations/createVendorUsers');
 const { addConnectionNameUniqueConstraint } = require('./backend/migrations/connectionNameUniqueConstraint');
 const { migrateVendorConnectionDirection } = require('./backend/migrations/migrateVendorConnectionDirection');
+const { up: addUnifiedConnectionFields } = require('./backend/migrations/addUnifiedConnectionFields');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -2838,6 +2839,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Vendor connection direction migration completed');
+    
+    // Add unified connection fields (connection_user, description, authentication_method)
+    return addUnifiedConnectionFields(dbPool);
+  })
+  .then((result) => {
+    console.log(`✅ Unified connection fields migration completed. Migrated ${result.migratedCount} connections.`);
   })
   .catch(err => {
     console.error('Error during connection migration:', err);

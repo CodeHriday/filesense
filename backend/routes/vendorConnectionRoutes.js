@@ -40,12 +40,16 @@ router.get('/', requireAdmin, async (req, res) => {
         sc.status,
         sc.connection_direction,
         sc.project_id,
+        sc.connection_user,
+        sc.description,
+        sc.authentication_method,
+        sc.auth_config,
         sc.created_at,
         sc.updated_at,
         p.name as project_name
       FROM storage_connections sc
       LEFT JOIN projects p ON sc.project_id = p.id
-      WHERE sc.type = 'vendor' AND sc.connection_direction IN ('source', 'target', 'drop')
+      WHERE sc.connection_direction IN ('source', 'target', 'drop')
     `;
     
     const params = [];
@@ -97,12 +101,16 @@ router.get('/:id', requireAdmin, async (req, res) => {
         sc.status,
         sc.connection_direction,
         sc.project_id,
+        sc.connection_user,
+        sc.description,
+        sc.authentication_method,
+        sc.auth_config,
         sc.created_at,
         sc.updated_at,
         p.name as project_name
       FROM storage_connections sc
       LEFT JOIN projects p ON sc.project_id = p.id
-      WHERE sc.connection_id = $1 AND sc.type = 'vendor' AND sc.connection_direction IN ('source', 'target', 'drop')`,
+      WHERE sc.connection_id = $1 AND sc.connection_direction IN ('source', 'target', 'drop')`,
       [id]
     );
     
@@ -132,7 +140,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
 
 /**
  * POST /api/vendor-connections
- * Create a new vendor connection
+ * Create a new vendor connection (now supports unified connection management)
  */
 router.post('/', requireAdmin, async (req, res) => {
   try {
@@ -140,6 +148,10 @@ router.post('/', requireAdmin, async (req, res) => {
       name,
       project_id,
       provider = 'aws',
+      connection_user = 'External', // NEW: Internal or External
+      description, // NEW: Connection description
+      authentication_method = 'key-based', // NEW: Auth method
+      connection_direction = 'source', // NEW: source or target
       // AWS fields
       region,
       bucket,
@@ -147,15 +159,33 @@ router.post('/', requireAdmin, async (req, res) => {
       secret_access_key,
       endpoint,
       use_ssl = true,
+      // NEW: AWS IAM Role fields
+      iam_role_arn,
+      external_id,
       // GCP fields
       gcp_project_id,
       service_account_json,
       gcp_bucket,
+      // NEW: GCP OIDC fields
+      workload_identity_provider,
+      service_account_email,
       // Azure fields
       account_name,
       account_key,
       container_name,
       azure_endpoint,
+      // NEW: Azure Managed Identity fields
+      azure_resource_id,
+      managed_identity_client_id,
+      // NEW: OAuth fields
+      oauth_client_id,
+      oauth_client_secret,
+      oauth_token_url,
+      oauth_scope,
+      // NEW: Kerberos fields
+      kerberos_principal,
+      kerberos_keytab_path,
+      kerberos_realm,
       // Common
       path_prefix = ''
     } = req.body;
@@ -196,26 +226,75 @@ router.post('/', requireAdmin, async (req, res) => {
       storage_type: provider === 'aws' ? 's3' : provider === 'gcp' ? 'gcs' : 'azure-blob'
     };
     
-    // Encrypt and add provider-specific fields
-    if (provider === 'aws') {
-      config.region = region;
-      config.bucket = bucket;
-      config.endpoint = endpoint;
-      config.use_ssl = use_ssl;
-      config.path_prefix = path_prefix;
-      if (access_key_id) config.access_key_id = encrypt(access_key_id);
-      if (secret_access_key) config.secret_access_key = encrypt(secret_access_key);
-    } else if (provider === 'gcp') {
-      config.project_id = gcp_project_id;
-      config.gcp_bucket = gcp_bucket;
-      config.path_prefix = path_prefix;
-      if (service_account_json) config.service_account_json = encrypt(service_account_json);
-    } else if (provider === 'azure') {
-      config.account_name = account_name;
-      config.container_name = container_name;
-      config.azure_endpoint = azure_endpoint;
-      config.path_prefix = path_prefix;
-      if (account_key) config.account_key = encrypt(account_key);
+    // Build auth_config based on authentication method
+    const auth_config = {};
+    
+    switch (authentication_method) {
+      case 'key-based':
+        // Encrypt and add provider-specific fields (legacy key-based auth)
+        if (provider === 'aws') {
+          config.region = region;
+          config.bucket = bucket;
+          config.endpoint = endpoint;
+          config.use_ssl = use_ssl;
+          config.path_prefix = path_prefix;
+          if (access_key_id) config.access_key_id = encrypt(access_key_id);
+          if (secret_access_key) config.secret_access_key = encrypt(secret_access_key);
+        } else if (provider === 'gcp') {
+          config.project_id = gcp_project_id;
+          config.gcp_bucket = gcp_bucket;
+          config.path_prefix = path_prefix;
+          if (service_account_json) config.service_account_json = encrypt(service_account_json);
+        } else if (provider === 'azure') {
+          config.account_name = account_name;
+          config.container_name = container_name;
+          config.azure_endpoint = azure_endpoint;
+          config.path_prefix = path_prefix;
+          if (account_key) config.account_key = encrypt(account_key);
+        }
+        break;
+      
+      case 'aws-iam-role':
+        config.region = region;
+        config.bucket = bucket;
+        config.path_prefix = path_prefix;
+        auth_config.iam_role_arn = iam_role_arn;
+        if (external_id) auth_config.external_id = external_id;
+        break;
+      
+      case 'gcp-sa-oidc':
+        config.project_id = gcp_project_id;
+        config.gcp_bucket = gcp_bucket;
+        config.path_prefix = path_prefix;
+        auth_config.workload_identity_provider = workload_identity_provider;
+        auth_config.service_account_email = service_account_email;
+        break;
+      
+      case 'azure-managed-identity':
+        config.account_name = account_name;
+        config.container_name = container_name;
+        config.path_prefix = path_prefix;
+        auth_config.azure_resource_id = azure_resource_id;
+        if (managed_identity_client_id) auth_config.managed_identity_client_id = managed_identity_client_id;
+        break;
+      
+      case 'oauth2':
+        auth_config.oauth_client_id = oauth_client_id;
+        if (oauth_client_secret) auth_config.oauth_client_secret = encrypt(oauth_client_secret);
+        auth_config.oauth_token_url = oauth_token_url;
+        if (oauth_scope) auth_config.oauth_scope = oauth_scope;
+        break;
+      
+      case 'kerberos':
+        auth_config.kerberos_principal = kerberos_principal;
+        auth_config.kerberos_keytab_path = kerberos_keytab_path;
+        auth_config.kerberos_realm = kerberos_realm;
+        break;
+      
+      case 'db-short-lived-token':
+        // Config will be populated when token is requested
+        auth_config.token_ttl = 3600; // Default 1 hour
+        break;
     }
     
     // Create connection
@@ -225,10 +304,24 @@ router.post('/', requireAdmin, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO storage_connections (
         connection_id, type, name, config, status, 
-        connection_direction, project_id, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING connection_id, name, type, status, connection_direction, project_id, created_at, updated_at`,
-      [connectionId, 'vendor', name.trim(), JSON.stringify(config), 'active', 'drop', normalizedProjectId]
+        connection_direction, project_id, connection_user, description,
+        authentication_method, auth_config, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING connection_id, name, type, status, connection_direction, project_id, 
+                connection_user, description, authentication_method, created_at, updated_at`,
+      [
+        connectionId, 
+        'vendor', 
+        name.trim(), 
+        JSON.stringify(config), 
+        'active', 
+        connection_direction, 
+        normalizedProjectId,
+        connection_user,
+        description || null,
+        authentication_method,
+        JSON.stringify(auth_config)
+      ]
     );
     
     systemLogger.info('Vendor connection created', { 
@@ -252,7 +345,7 @@ router.post('/', requireAdmin, async (req, res) => {
 
 /**
  * PUT /api/vendor-connections/:id
- * Update an existing vendor connection
+ * Update an existing vendor connection (now supports unified connection management)
  */
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
@@ -260,6 +353,10 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const {
       name,
       provider,
+      connection_user, // NEW: Internal or External
+      description, // NEW: Connection description
+      authentication_method, // NEW: Auth method
+      connection_direction, // NEW: source or target
       // AWS fields
       region,
       bucket,
@@ -267,15 +364,33 @@ router.put('/:id', requireAdmin, async (req, res) => {
       secret_access_key,
       endpoint,
       use_ssl,
+      // NEW: AWS IAM Role fields
+      iam_role_arn,
+      external_id,
       // GCP fields
       gcp_project_id,
       service_account_json,
       gcp_bucket,
+      // NEW: GCP OIDC fields
+      workload_identity_provider,
+      service_account_email,
       // Azure fields
       account_name,
       account_key,
       container_name,
       azure_endpoint,
+      // NEW: Azure Managed Identity fields
+      azure_resource_id,
+      managed_identity_client_id,
+      // NEW: OAuth fields
+      oauth_client_id,
+      oauth_client_secret,
+      oauth_token_url,
+      oauth_scope,
+      // NEW: Kerberos fields
+      kerberos_principal,
+      kerberos_keytab_path,
+      kerberos_realm,
       // Common
       path_prefix,
       status
@@ -283,7 +398,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     
     // Get existing connection
     const existing = await pool.query(
-      'SELECT config FROM storage_connections WHERE connection_id = $1 AND type = \'vendor\'',
+      'SELECT config, authentication_method FROM storage_connections WHERE connection_id = $1',
       [id]
     );
     
@@ -300,37 +415,109 @@ router.put('/:id', requireAdmin, async (req, res) => {
     
     if (provider) config.provider = provider;
     
-    if (provider === 'aws' || existingConfig.provider === 'aws') {
+    // Build auth_config if authentication method is provided
+    const auth_config = {};
+    const effectiveAuthMethod = authentication_method || 'key-based';
+    
+    if (effectiveAuthMethod === 'key-based') {
+      // Handle key-based authentication
+      if (provider === 'aws' || existingConfig.provider === 'aws') {
+        if (region !== undefined) config.region = region;
+        if (bucket !== undefined) config.bucket = bucket;
+        if (endpoint !== undefined) config.endpoint = endpoint;
+        if (use_ssl !== undefined) config.use_ssl = use_ssl;
+        if (path_prefix !== undefined) config.path_prefix = path_prefix;
+        if (access_key_id) config.access_key_id = encrypt(access_key_id);
+        if (secret_access_key) config.secret_access_key = encrypt(secret_access_key);
+      } else if (provider === 'gcp' || existingConfig.provider === 'gcp') {
+        if (gcp_project_id !== undefined) config.project_id = gcp_project_id;
+        if (gcp_bucket !== undefined) config.gcp_bucket = gcp_bucket;
+        if (path_prefix !== undefined) config.path_prefix = path_prefix;
+        if (service_account_json) config.service_account_json = encrypt(service_account_json);
+      } else if (provider === 'azure' || existingConfig.provider === 'azure') {
+        if (account_name !== undefined) config.account_name = account_name;
+        if (container_name !== undefined) config.container_name = container_name;
+        if (azure_endpoint !== undefined) config.azure_endpoint = azure_endpoint;
+        if (path_prefix !== undefined) config.path_prefix = path_prefix;
+        if (account_key) config.account_key = encrypt(account_key);
+      }
+    } else if (effectiveAuthMethod === 'aws-iam-role') {
       if (region !== undefined) config.region = region;
       if (bucket !== undefined) config.bucket = bucket;
-      if (endpoint !== undefined) config.endpoint = endpoint;
-      if (use_ssl !== undefined) config.use_ssl = use_ssl;
       if (path_prefix !== undefined) config.path_prefix = path_prefix;
-      if (access_key_id) config.access_key_id = encrypt(access_key_id);
-      if (secret_access_key) config.secret_access_key = encrypt(secret_access_key);
-    } else if (provider === 'gcp' || existingConfig.provider === 'gcp') {
+      if (iam_role_arn) auth_config.iam_role_arn = iam_role_arn;
+      if (external_id) auth_config.external_id = external_id;
+    } else if (effectiveAuthMethod === 'gcp-sa-oidc') {
       if (gcp_project_id !== undefined) config.project_id = gcp_project_id;
       if (gcp_bucket !== undefined) config.gcp_bucket = gcp_bucket;
       if (path_prefix !== undefined) config.path_prefix = path_prefix;
-      if (service_account_json) config.service_account_json = encrypt(service_account_json);
-    } else if (provider === 'azure' || existingConfig.provider === 'azure') {
+      if (workload_identity_provider) auth_config.workload_identity_provider = workload_identity_provider;
+      if (service_account_email) auth_config.service_account_email = service_account_email;
+    } else if (effectiveAuthMethod === 'azure-managed-identity') {
       if (account_name !== undefined) config.account_name = account_name;
       if (container_name !== undefined) config.container_name = container_name;
-      if (azure_endpoint !== undefined) config.azure_endpoint = azure_endpoint;
       if (path_prefix !== undefined) config.path_prefix = path_prefix;
-      if (account_key) config.account_key = encrypt(account_key);
+      if (azure_resource_id) auth_config.azure_resource_id = azure_resource_id;
+      if (managed_identity_client_id) auth_config.managed_identity_client_id = managed_identity_client_id;
+    } else if (effectiveAuthMethod === 'oauth2') {
+      if (oauth_client_id) auth_config.oauth_client_id = oauth_client_id;
+      if (oauth_client_secret) auth_config.oauth_client_secret = encrypt(oauth_client_secret);
+      if (oauth_token_url) auth_config.oauth_token_url = oauth_token_url;
+      if (oauth_scope) auth_config.oauth_scope = oauth_scope;
+    } else if (effectiveAuthMethod === 'kerberos') {
+      if (kerberos_principal) auth_config.kerberos_principal = kerberos_principal;
+      if (kerberos_keytab_path) auth_config.kerberos_keytab_path = kerberos_keytab_path;
+      if (kerberos_realm) auth_config.kerberos_realm = kerberos_realm;
     }
+    
+    // Build dynamic UPDATE query
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(name);
+    }
+    updates.push(`config = $${paramIndex++}`);
+    values.push(JSON.stringify(config));
+    
+    if (status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      values.push(status);
+    }
+    if (connection_user !== undefined) {
+      updates.push(`connection_user = $${paramIndex++}`);
+      values.push(connection_user);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(description);
+    }
+    if (authentication_method !== undefined) {
+      updates.push(`authentication_method = $${paramIndex++}`);
+      values.push(authentication_method);
+    }
+    if (Object.keys(auth_config).length > 0) {
+      updates.push(`auth_config = $${paramIndex++}`);
+      values.push(JSON.stringify(auth_config));
+    }
+    if (connection_direction !== undefined) {
+      updates.push(`connection_direction = $${paramIndex++}`);
+      values.push(connection_direction);
+    }
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    
+    values.push(id);
     
     // Update connection
     const result = await pool.query(
       `UPDATE storage_connections 
-       SET name = COALESCE($1, name),
-           config = $2,
-           status = COALESCE($3, status),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE connection_id = $4 AND type = 'vendor'
-       RETURNING connection_id, name, type, status, connection_direction, project_id, created_at, updated_at`,
-      [name, JSON.stringify(config), status, id]
+       SET ${updates.join(', ')}
+       WHERE connection_id = $${paramIndex}
+       RETURNING connection_id, name, type, status, connection_direction, project_id, 
+                 connection_user, description, authentication_method, created_at, updated_at`,
+      values
     );
     
     systemLogger.info('Vendor connection updated', { connectionId: id, userId: req.user.id });
@@ -367,7 +554,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     }
     
     const result = await pool.query(
-      'DELETE FROM storage_connections WHERE connection_id = $1 AND type = \'vendor\' RETURNING connection_id',
+      'DELETE FROM storage_connections WHERE connection_id = $1 RETURNING connection_id',
       [id]
     );
     
