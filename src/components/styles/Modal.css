@@ -84,7 +84,7 @@
 .modal-content {
   padding: 12px 16px;
   overflow-y: auto;
-  flex: 0 1 auto;
+  flex: none;
   min-height: fit-content;
 }
 
