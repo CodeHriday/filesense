@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FiSave, FiX } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -9,11 +9,16 @@ import axios from 'axios';
 const SchedulerForm = () => {
   const navigate = useNavigate();
   const { scheduleId } = useParams();
+  const [searchParams] = useSearchParams();
   const isEdit = !!scheduleId;
 
+  // Get query params for pre-selection
+  const preSelectedType = searchParams.get('type');
+  const preSelectedId = searchParams.get('id');
+
   const [formData, setFormData] = useState({
-    entity_type: 'mapping',
-    entity_id: '',
+    entity_type: preSelectedType || 'mapping',
+    entity_id: preSelectedId || '',
     schedule_type: 'cron',
     cron_expression: '0 0 * * *',
     interval_value: 1,
