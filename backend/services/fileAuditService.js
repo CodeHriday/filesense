@@ -390,8 +390,9 @@ async function getAuditRecords(pool, filters = {}) {
     let paramIndex = 1;
 
     // Add project filtering (unless admin)
+    // Check both files table and transformation_mappings table for project association
     if (!isAdmin && projectIds.length > 0) {
-      conditions.push(`f.project_id = ANY($${paramIndex}::integer[])`);
+      conditions.push(`(f.project_id = ANY($${paramIndex}::integer[]) OR tm.project_id = ANY($${paramIndex}::integer[]))`);
       params.push(projectIds);
       paramIndex++;
     }
