@@ -160,22 +160,6 @@ export const APP_FEATURES = [
     route: '/monitor',
     showInSidebar: true
   },
-  { 
-    id: 'alerts', 
-    name: 'Alerts', 
-    category: 'Jobs and Monitoring',
-    icon: FiAlertTriangle,
-    route: '/alerts',
-    showInSidebar: true
-  },
-  { 
-    id: 'file_insights', 
-    name: 'File Insights', 
-    category: 'Jobs and Monitoring',
-    icon: FiTrendingUp,
-    route: '/file-insights',
-    showInSidebar: true
-  },
   
   // Governance
   { 
@@ -371,6 +355,22 @@ export const APP_FEATURES = [
   },
   
   // Insights
+  { 
+    id: 'alerts', 
+    name: 'Alerts', 
+    category: 'Insights',
+    icon: FiAlertTriangle,
+    route: '/alerts',
+    showInSidebar: true
+  },
+  { 
+    id: 'file_insights', 
+    name: 'File Insights', 
+    category: 'Insights',
+    icon: FiTrendingUp,
+    route: '/file-insights',
+    showInSidebar: true
+  },
   { 
     id: 'recommendations', 
     name: 'Recommendations', 
