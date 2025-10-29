@@ -155,33 +155,39 @@ class VendorService {
       let finalProjectId = project_id;
       
       if (!finalProjectId) {
-        // Auto-create a project for this vendor
+        // Auto-create a project for this vendor (always external type)
         const projectName = `${vendor_name} - Vendor Project`;
         const projectDescription = `Auto-created project for vendor: ${vendor_name}`;
         
         const newProjectResult = await client.query(
-          `INSERT INTO projects (name, description, created_at, updated_at)
-           VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `INSERT INTO projects (name, description, project_type, created_at, updated_at)
+           VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
            RETURNING id`,
-          [projectName, projectDescription]
+          [projectName, projectDescription, 'external']
         );
         
         finalProjectId = newProjectResult.rows[0].id;
         
-        systemLogger.info('Auto-created project for vendor', { 
+        systemLogger.info('Auto-created external project for vendor', { 
           projectId: finalProjectId, 
           projectName,
+          projectType: 'external',
           vendorName: vendor_name 
         });
       } else {
-        // Verify provided project exists
+        // Verify provided project exists and is external
         const projectResult = await client.query(
-          'SELECT id FROM projects WHERE id = $1',
+          'SELECT id, project_type FROM projects WHERE id = $1',
           [project_id]
         );
         
         if (projectResult.rows.length === 0) {
           throw new Error(`Project with ID ${project_id} not found`);
+        }
+        
+        // Verify that the project is external type
+        if (projectResult.rows[0].project_type !== 'external') {
+          throw new Error('Vendors can only be associated with external projects');
         }
       }
       

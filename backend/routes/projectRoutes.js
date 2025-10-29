@@ -13,7 +13,7 @@ function createProjectRoutes(dbPool) {
   // List all projects with member and group counts
   router.get('/', async (req, res) => {
     try {
-      const { archived, search } = req.query;
+      const { archived, search, project_type } = req.query;
       const userId = req.user?.id;
       
       // Check if user is admin
@@ -61,6 +61,12 @@ function createProjectRoutes(dbPool) {
       if (search) {
         query += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
         params.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      if (project_type) {
+        query += ` AND p.project_type = $${paramIndex}`;
+        params.push(project_type);
         paramIndex++;
       }
 
@@ -143,7 +149,7 @@ function createProjectRoutes(dbPool) {
   // Create new project
   router.post('/', async (req, res) => {
     try {
-      const { name, description, parent_id, is_default, metadata, settings } = req.body;
+      const { name, description, parent_id, is_default, project_type, metadata, settings } = req.body;
       const userId = req.user?.id;
 
       if (!name) {
@@ -151,10 +157,10 @@ function createProjectRoutes(dbPool) {
       }
 
       const result = await dbPool.query(`
-        INSERT INTO projects (name, description, parent_id, owner_id, is_default, metadata, settings)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO projects (name, description, parent_id, owner_id, is_default, project_type, metadata, settings)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
-      `, [name, description, parent_id || null, userId, is_default || false, metadata || {}, settings || {}]);
+      `, [name, description, parent_id || null, userId, is_default || false, project_type || 'internal', metadata || {}, settings || {}]);
 
       const newProject = result.rows[0];
 
@@ -181,7 +187,7 @@ function createProjectRoutes(dbPool) {
   router.put('/:projectId', async (req, res) => {
     try {
       const { projectId } = req.params;
-      const { name, description, parent_id, is_archived, metadata, settings } = req.body;
+      const { name, description, parent_id, is_archived, project_type, metadata, settings } = req.body;
 
       const updates = [];
       const params = [];
@@ -205,6 +211,11 @@ function createProjectRoutes(dbPool) {
       if (is_archived !== undefined) {
         updates.push(`is_archived = $${paramIndex}`);
         params.push(is_archived);
+        paramIndex++;
+      }
+      if (project_type !== undefined) {
+        updates.push(`project_type = $${paramIndex}`);
+        params.push(project_type);
         paramIndex++;
       }
       if (metadata !== undefined) {
