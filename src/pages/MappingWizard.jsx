@@ -120,6 +120,10 @@ function MappingWizard() {
   const [showSourceBrowse, setShowSourceBrowse] = useState(false);
   const [showTargetBrowse, setShowTargetBrowse] = useState(false);
 
+  // Schema validation modal
+  const [showSchemaValidationModal, setShowSchemaValidationModal] = useState(false);
+  const [schemaValidationResult, setSchemaValidationResult] = useState(null);
+
   useEffect(() => {
     fetchConnections();
     fetchProjects();
@@ -287,6 +291,35 @@ function MappingWizard() {
           transformation: 'none',
           transformation_params: {}
         })));
+      }
+
+      // If vendor agreement is selected, validate schema against contract
+      if (selectedVendorAgreement) {
+        try {
+          const validationResponse = await axios.post(
+            `${API_BASE_URL}/api/transformations/validate-vendor-schema`,
+            {
+              vendor_agreement_id: selectedVendorAgreement,
+              source_connection_id: connectionIdToUse,
+              file_path: filePath,
+              file_name_pattern: fileNamePattern
+            },
+            {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            }
+          );
+
+          const validationResult = validationResponse.data;
+
+          // Show validation modal if there's schema drift
+          if (validationResult.schemaDrift) {
+            setSchemaValidationResult(validationResult);
+            setShowSchemaValidationModal(true);
+          }
+        } catch (validationErr) {
+          console.error('Schema validation error:', validationErr);
+          // Don't fail the extraction if validation fails, just log it
+        }
       }
       
       return true;
@@ -1218,6 +1251,111 @@ function MappingWizard() {
                   setShowTargetBrowse(false);
                 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schema Validation Results Modal */}
+      {showSchemaValidationModal && schemaValidationResult && (
+        <div className="modal-overlay">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+            <div className="modal-header">
+              <h2><FiAlertCircle style={{ color: '#dc2626' }} /> Schema Validation Issues Detected</h2>
+              <button className="btn-icon" onClick={() => setShowSchemaValidationModal(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '2rem' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <p style={{ color: '#64748b', marginBottom: '1rem' }}>
+                  The file schema does not match the vendor contract schema. Please review the differences below:
+                </p>
+              </div>
+
+              {schemaValidationResult.differences && schemaValidationResult.differences.length > 0 && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#1e293b' }}>
+                    Issues Found:
+                  </h3>
+                  <ul style={{ paddingLeft: '1.5rem', margin: 0, color: '#dc2626' }}>
+                    {schemaValidationResult.differences.map((diff, idx) => (
+                      <li key={idx} style={{ marginBottom: '0.5rem' }}>{diff}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+                {/* Expected Schema */}
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FiCheckCircle style={{ color: '#10b981' }} />
+                    Contract Schema (Expected)
+                  </h3>
+                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '1rem', maxHeight: '300px', overflowY: 'auto' }}>
+                    {schemaValidationResult.expectedSchema && schemaValidationResult.expectedSchema.length > 0 ? (
+                      <table style={{ width: '100%', fontSize: '0.9rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Column</th>
+                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Type</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {schemaValidationResult.expectedSchema.map((field, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '0.5rem' }}>{field.name}</td>
+                              <td style={{ padding: '0.5rem', color: '#64748b' }}>{field.type}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p style={{ color: '#94a3b8', margin: 0 }}>No schema defined</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actual Schema */}
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FiAlertCircle style={{ color: '#dc2626' }} />
+                    Actual File Schema
+                  </h3>
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '1rem', maxHeight: '300px', overflowY: 'auto' }}>
+                    {schemaValidationResult.actualSchema && schemaValidationResult.actualSchema.length > 0 ? (
+                      <table style={{ width: '100%', fontSize: '0.9rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #fecaca' }}>
+                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Column</th>
+                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Type</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {schemaValidationResult.actualSchema.map((field, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #fee2e2' }}>
+                              <td style={{ padding: '0.5rem' }}>{field.name}</td>
+                              <td style={{ padding: '0.5rem', color: '#64748b' }}>{field.type}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p style={{ color: '#94a3b8', margin: 0 }}>No schema extracted</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fffbeb', border: '1px solid #fbbf24', borderRadius: '6px' }}>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#92400e' }}>
+                  <strong>Note:</strong> You can still proceed with creating the mapping, but this schema mismatch may cause issues during job execution based on your Schema Drift Handling policy.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setShowSchemaValidationModal(false)}>
+                Close
+              </button>
             </div>
           </div>
         </div>
