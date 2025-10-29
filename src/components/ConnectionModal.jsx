@@ -15,6 +15,7 @@ const ConnectionModal = ({
   const [formData, setFormData] = useState({
     name: '',
     connection_user: 'Internal',
+    connection_direction: 'source',
     description: '',
     authentication_method: 'key-based',
     provider: 'aws',
@@ -85,6 +86,7 @@ const ConnectionModal = ({
       setFormData({
         name: connection.name || '',
         connection_user: connection.connection_user || 'Internal',
+        connection_direction: connection.connection_direction || 'source',
         description: connection.description || '',
         authentication_method: connection.authentication_method || 'key-based',
         provider: config.provider || 'aws',
@@ -138,6 +140,7 @@ const ConnectionModal = ({
       setFormData({
         name: '',
         connection_user: connectionDirection === 'drop' ? 'External' : 'Internal',
+        connection_direction: connectionDirection || 'source',
         description: '',
         authentication_method: 'key-based',
         provider: 'aws',
@@ -190,7 +193,7 @@ const ConnectionModal = ({
     // Track if connection details (not file_path) are modified in edit mode
     const connectionDetailFields = [
       // Core fields
-      'connection_user', 'authentication_method',
+      'connection_user', 'connection_direction', 'authentication_method',
       // Provider fields
       'provider', 'region', 'bucket', 'access_key_id', 'secret_access_key', 'endpoint', 'use_ssl',
       'gcp_project_id', 'service_account_json', 'gcp_bucket',
@@ -861,6 +864,22 @@ const ConnectionModal = ({
             </select>
             <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
               Internal: Company-managed connections | External: Third-party/vendor connections
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label>Connection Direction *</label>
+            <select
+              name="connection_direction"
+              value={formData.connection_direction}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="source">Source (Read From)</option>
+              <option value="target">Target (Write To)</option>
+            </select>
+            <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+              Source: Read data from this connection | Target: Write data to this connection
             </small>
           </div>
           
