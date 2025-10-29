@@ -28,6 +28,7 @@ The application features a hybrid architecture designed for scalability, securit
 
 ## Recent Changes
 -   **2025-10-29**: 
+    - **Added Dashboard Metrics Cards**: Created new backend endpoint `/api/dashboard/metrics` that returns 5 key metrics (Projects, Files, Schedules, Failed Jobs, Anomalies) with permission-based access control. Updated Dashboard.jsx to display prominent metric cards at the top of the page with clickable navigation to respective pages. Cards visually indicate access status (clickable with hover effects for accessible features, dimmed for restricted access). Moved Data Health Metrics section below the new cards for improved information hierarchy. Fixed backend queries to use correct table names (`files` instead of `file_catalog`, `schedules` with `is_active` instead of `deleted`, `anomalies` instead of `file_alerts`).
     - **Implemented Project Type Categorization System** to distinguish between internal and external projects:
         - **Database Schema**: Added `project_type` column to `projects` table with values 'internal' (default) or 'external'.
         - **Backend Routes**: Updated POST/PUT/GET endpoints in `projectRoutes.js` to handle project_type field creation, updates, and filtering via ?project_type query parameter.
