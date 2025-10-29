@@ -295,6 +295,14 @@ function MappingWizard() {
 
       // If vendor agreement is selected, validate schema against contract
       if (selectedVendorAgreement) {
+        console.log('🔍 Starting vendor schema validation...', {
+          agreementId: selectedVendorAgreement,
+          connectionId: connectionIdToUse,
+          filePath,
+          fileNamePattern,
+          driftHandling: schemaDriftHandling
+        });
+        
         try {
           const validationResponse = await axios.post(
             `${API_BASE_URL}/api/transformations/validate-vendor-schema`,
@@ -310,14 +318,30 @@ function MappingWizard() {
           );
 
           const validationResult = validationResponse.data;
+          console.log('✅ Validation response received:', validationResult);
 
           // Show validation modal if there's schema drift
           if (validationResult.schemaDrift) {
+            console.log('⚠️ Schema drift detected!', {
+              differences: validationResult.differences,
+              driftHandling: schemaDriftHandling
+            });
+            
             setSchemaValidationResult(validationResult);
             setShowSchemaValidationModal(true);
+            
+            // If abort mode, block navigation
+            if (schemaDriftHandling === 'abort') {
+              console.log('🛑 Abort mode - blocking navigation');
+              setError('Schema validation failed: File schema does not match vendor contract. Fix the schema issues before proceeding.');
+              return false;
+            }
+          } else {
+            console.log('✅ No schema drift detected');
           }
         } catch (validationErr) {
-          console.error('Schema validation error:', validationErr);
+          console.error('❌ Schema validation error:', validationErr);
+          console.error('Error details:', validationErr.response?.data);
           // Don't fail the extraction if validation fails, just log it
         }
       }
