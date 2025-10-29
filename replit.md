@@ -27,6 +27,21 @@ The application features a hybrid architecture designed for scalability, securit
 -   **Vendor Onboarding Module**: Comprehensive vendor management system where admins manage vendor connections at the agreement level using UUID identifiers. Vendor agreements integrate into the ETL transformation mapping workflow, allowing users to select agreements as alternative sources to regular connections for automated file processing. Includes file browsing capabilities with folder/file selection and a transformation file catalog with search functionality.
 
 ## Recent Changes
+-   **2025-10-29**: 
+    - Fixed vendor_onboarding_date persistence issue in vendor agreements edit flow by adding date formatting for HTML date input.
+    - Implemented Vendor Agreement Schema Validation System for ETL transformations:
+        - Added `schema_drift_handling` column to `transformation_mappings` table (values: 'abort', 'alert', 'none').
+        - Added `schema_validation` column to `transformation_jobs` table to track Pass/Fail status.
+        - Updated MappingWizard Step 1: Auto-populates source file name, target connection, and target file path from vendor agreement when selected.
+        - Source file name is read-only when vendor agreement is selected to ensure compliance.
+        - Target file name remains editable by users for flexibility.
+        - Added schema drift handling UI in MappingWizard Step 2 with two options:
+            - **Abort Job**: Stops processing if schema mismatch detected (recommended for critical pipelines).
+            - **Alert & Process**: Logs warning with "Fail" status in Monitor and continues processing.
+        - Created `schemaValidationService.js` to compare actual file schema against vendor agreement schema.
+        - Service supports AWS S3, Google Cloud Storage, and Azure Blob Storage.
+        - Detects missing columns, unexpected columns, and column order mismatches.
+        - Supports CSV, Excel (XLSX/XLS), and JSON file formats.
 -   **2025-10-28**: 
     - Enhanced vendor agreement system with template download/upload and vendor user management.
     - Updated labels: 'Owner Contact' → 'Vendor Department Email', 'Vendor' → 'Vendor Name'.
