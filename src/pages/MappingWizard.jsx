@@ -855,41 +855,53 @@ function MappingWizard() {
             {/* Schema Drift Handling - Only show for vendor agreements */}
             {selectedVendorAgreement && (
               <div className="form-group" style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
                   <FiAlertCircle style={{ color: '#d97706' }} />
                   <strong>Schema Drift Handling *</strong>
                 </label>
-                <div style={{ marginLeft: '28px' }}>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="schemaDriftHandling"
-                        value="abort"
-                        checked={schemaDriftHandling === 'abort'}
-                        onChange={(e) => setSchemaDriftHandling(e.target.value)}
-                      />
-                      <strong>Abort Job</strong> - Stop processing if schema mismatch is detected
-                    </label>
-                    <small style={{ display: 'block', marginLeft: '28px', color: '#6b7280' }}>
-                      Recommended for critical data pipelines where schema consistency is mandatory
-                    </small>
-                  </div>
-                  <div style={{ marginTop: '0.75rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="schemaDriftHandling"
-                        value="alert"
-                        checked={schemaDriftHandling === 'alert'}
-                        onChange={(e) => setSchemaDriftHandling(e.target.value)}
-                      />
-                      <strong>Alert & Process</strong> - Log warning and continue processing
-                    </label>
-                    <small style={{ display: 'block', marginLeft: '28px', color: '#6b7280' }}>
-                      Schema drift will be logged in the Monitor with "Fail" status, but the job will continue
-                    </small>
-                  </div>
+                
+                {/* Abort Job Option */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontWeight: 'normal', cursor: 'pointer', marginBottom: '0.25rem' }}>
+                    <input
+                      type="radio"
+                      name="schemaDriftHandling"
+                      value="abort"
+                      checked={schemaDriftHandling === 'abort'}
+                      onChange={(e) => setSchemaDriftHandling(e.target.value)}
+                      style={{ marginTop: '3px', flexShrink: 0 }}
+                    />
+                    <div>
+                      <div>
+                        <strong>Abort Job</strong> - Stop processing if schema mismatch is detected
+                      </div>
+                      <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+                        Recommended for critical data pipelines where schema consistency is mandatory
+                      </small>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Alert & Process Option */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontWeight: 'normal', cursor: 'pointer', marginBottom: '0.25rem' }}>
+                    <input
+                      type="radio"
+                      name="schemaDriftHandling"
+                      value="alert"
+                      checked={schemaDriftHandling === 'alert'}
+                      onChange={(e) => setSchemaDriftHandling(e.target.value)}
+                      style={{ marginTop: '3px', flexShrink: 0 }}
+                    />
+                    <div>
+                      <div>
+                        <strong>Alert & Process</strong> - Log warning and continue processing
+                      </div>
+                      <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+                        Schema drift will be logged in the Monitor with "Fail" status, but the job will continue
+                      </small>
+                    </div>
+                  </label>
                 </div>
               </div>
             )}
