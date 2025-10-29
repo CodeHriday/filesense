@@ -47,7 +47,6 @@ const VendorAgreements = () => {
   const [vendorConnections, setVendorConnections] = useState([]);
   const [filteredConnections, setFilteredConnections] = useState([]);
   const [allConnections, setAllConnections] = useState([]);
-  const [targetConnections, setTargetConnections] = useState([]);
   
   const [formData, setFormData] = useState({
     vendor_id: '',
@@ -72,9 +71,7 @@ const VendorAgreements = () => {
     owner_contact: '',
     metadata: '',
     vendor_connection_id: '',
-    target_connection_id: '',
     drop_location_path: '',
-    target_file_path: '',
     project_id: '',
     project_name: '',
     manager_contact: '',
@@ -248,59 +245,6 @@ const VendorAgreements = () => {
     }
   }, [formData.vendor_connection_id, formData.drop_location_path, filteredConnections]);
   
-  // Filter target connections - show only target type connections
-  useEffect(() => {
-    const filtered = allConnections.filter(conn => conn.connection_direction === 'target');
-    setTargetConnections(filtered);
-  }, [allConnections]);
-  
-  // Auto-populate target_file_path from selected target connection
-  useEffect(() => {
-    if (formData.target_connection_id && targetConnections.length > 0) {
-      const selectedConnection = targetConnections.find(
-        conn => String(conn.id) === String(formData.target_connection_id)
-      );
-      
-      if (selectedConnection) {
-        const config = selectedConnection.config || {};
-        const bucket = config.bucket || config.bucket_name || '';
-        const filePath = config.path_prefix || '';
-        
-        // Combine bucket and file path with proper slash handling
-        let fullPath = bucket;
-        if (filePath) {
-          fullPath = filePath.startsWith('/') 
-            ? `${bucket}${filePath}` 
-            : `${bucket}/${filePath}`;
-        }
-        
-        // Only update if the value would actually change
-        if (formData.target_file_path !== fullPath) {
-          setFormData(prev => ({
-            ...prev,
-            target_file_path: fullPath
-          }));
-        }
-      } else {
-        // Connection not found, clear path
-        if (formData.target_file_path !== '') {
-          setFormData(prev => ({
-            ...prev,
-            target_file_path: ''
-          }));
-        }
-      }
-    } else {
-      // No connection selected, clear path
-      if (formData.target_file_path !== '') {
-        setFormData(prev => ({
-          ...prev,
-          target_file_path: ''
-        }));
-      }
-    }
-  }, [formData.target_connection_id, formData.target_file_path, targetConnections]);
-  
   // Auto-populate project fields from selected vendor
   useEffect(() => {
     if (formData.vendor_id && vendors.length > 0) {
@@ -403,9 +347,7 @@ const VendorAgreements = () => {
       owner_contact: '',
       metadata: '',
       vendor_connection_id: '',
-      target_connection_id: '',
       drop_location_path: '',
-      target_file_path: '',
       project_id: '',
       project_name: '',
       manager_contact: '',
@@ -460,9 +402,7 @@ const VendorAgreements = () => {
       owner_contact: agreement.owner_contact || '',
       metadata: agreement.metadata ? JSON.stringify(agreement.metadata, null, 2) : '',
       vendor_connection_id: agreement.vendor_connection_id || '',
-      target_connection_id: agreement.target_connection_id || '',
       drop_location_path: agreement.drop_location_path || '',
-      target_file_path: agreement.target_file_path || '',
       project_id: agreement.project_id || '',
       project_name: agreement.project_name || '',
       manager_contact: agreement.manager_contact || '',
@@ -771,7 +711,6 @@ const VendorAgreements = () => {
           vendor_id: prev.vendor_id || '',
           project_id: prev.project_id || '',
           vendor_connection_id: prev.vendor_connection_id || '',
-          target_connection_id: prev.target_connection_id || '',
           file_owner_user_id: prev.file_owner_user_id || '',
           file_name: agreement.file_name || '',
           file_description: agreement.file_description || '',
@@ -1639,64 +1578,6 @@ const VendorAgreements = () => {
                           readOnly
                           placeholder="Auto-populated"
                           style={{ backgroundColor: '#ffffff', cursor: 'not-allowed' }}
-                        />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Auto-populated from connection
-                        </small>
-                      </div>
-                    </div>
-                    
-                    {/* Target Connection Panel */}
-                    <div style={{ 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      padding: '1.5rem',
-                      backgroundColor: '#f9fafb'
-                    }}>
-                      <h4 style={{ 
-                        marginTop: 0, 
-                        marginBottom: '1rem', 
-                        fontSize: '1rem',
-                        fontWeight: 600,
-                        color: '#374151'
-                      }}>
-                        Target Connection
-                      </h4>
-                      
-                      <div className="form-group" style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="target_connection_id">
-                          Target File Connection <span className="required-field">*</span>
-                        </label>
-                        <select
-                          id="target_connection_id"
-                          name="target_connection_id"
-                          value={formData.target_connection_id}
-                          onChange={handleInputChange}
-                          required
-                        >
-                          <option value="">Select a target connection</option>
-                          {targetConnections.map(conn => (
-                            <option key={conn.id} value={conn.id}>
-                              {conn.name} ({conn.type?.toUpperCase() || 'AWS'})
-                            </option>
-                          ))}
-                        </select>
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Where processed files will be stored
-                        </small>
-                      </div>
-                      
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label htmlFor="target_file_path">Target File Path <span className="required-field">*</span></label>
-                        <input
-                          type="text"
-                          id="target_file_path"
-                          name="target_file_path"
-                          value={formData.target_file_path}
-                          readOnly
-                          placeholder="Auto-populated"
-                          style={{ backgroundColor: '#ffffff', cursor: 'not-allowed' }}
-                          required
                         />
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
                           Auto-populated from connection

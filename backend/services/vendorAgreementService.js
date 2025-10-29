@@ -52,9 +52,7 @@ class VendorAgreementService {
         owner_contact,
         metadata,
         vendor_connection_id,
-        target_connection_id,
         drop_location_path,
-        target_file_path,
         manager_contact,
         contains_pii,
         file_type,
@@ -96,37 +94,6 @@ class VendorAgreementService {
       
       if (connCheck.rows.length === 0) {
         throw new Error('Invalid vendor connection or connection not configured for file operations');
-      }
-      
-      // Validate target_connection_id (optional, but must be valid if provided)
-      if (target_connection_id) {
-        // Detect connection type: UUID (vendor connection) or integer (transform connection)
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const isUuidFormat = typeof target_connection_id === 'string' && uuidRegex.test(target_connection_id);
-        
-        if (isUuidFormat) {
-          // UUID format - check storage_connections (vendor connection)
-          const targetConnCheck = await client.query(
-            `SELECT connection_id FROM storage_connections 
-             WHERE connection_id = $1 AND connection_user = 'External'`,
-            [target_connection_id]
-          );
-          
-          if (targetConnCheck.rows.length === 0) {
-            throw new Error('Invalid vendor target connection');
-          }
-        } else {
-          // Integer format - check transform_connections (regular connection)
-          const targetConnCheck = await client.query(
-            `SELECT id FROM transform_connections 
-             WHERE id = $1 AND is_active = TRUE AND connection_direction = 'target'`,
-            [target_connection_id]
-          );
-          
-          if (targetConnCheck.rows.length === 0) {
-            throw new Error('Invalid transform target connection');
-          }
-        }
       }
       
       // Parse schema if file is provided (schema is optional)
@@ -206,11 +173,11 @@ class VendorAgreementService {
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata,
-          vendor_connection_id, target_connection_id, drop_location_path, target_file_path, project_id,
+          vendor_connection_id, drop_location_path, project_id,
           manager_contact,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 'draft', 1, $36, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, 'draft', 1, $34, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -218,7 +185,7 @@ class VendorAgreementService {
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata ? JSON.stringify(metadata) : null,
-          vendor_connection_id, target_connection_id || null, drop_location_path || null, target_file_path || null, project_id,
+          vendor_connection_id, drop_location_path || null, project_id,
           finalManagerContact,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           createdBy
@@ -304,9 +271,7 @@ class VendorAgreementService {
         owner_contact,
         metadata,
         vendor_connection_id,
-        target_connection_id,
         drop_location_path,
-        target_file_path,
         manager_contact,
         contains_pii,
         file_type,
@@ -327,37 +292,6 @@ class VendorAgreementService {
         
         if (connCheck.rows.length === 0) {
           throw new Error('Invalid vendor connection or connection not configured for file operations');
-        }
-      }
-      
-      // Validate target_connection_id if provided (optional in updates)
-      if (target_connection_id !== undefined && target_connection_id) {
-        // Detect connection type: UUID (vendor connection) or integer (transform connection)
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const isUuidFormat = typeof target_connection_id === 'string' && uuidRegex.test(target_connection_id);
-        
-        if (isUuidFormat) {
-          // UUID format - check storage_connections (vendor connection)
-          const targetConnCheck = await client.query(
-            `SELECT connection_id FROM storage_connections 
-             WHERE connection_id = $1 AND connection_user = 'External'`,
-            [target_connection_id]
-          );
-          
-          if (targetConnCheck.rows.length === 0) {
-            throw new Error('Invalid vendor target connection');
-          }
-        } else {
-          // Integer format - check transform_connections (regular connection)
-          const targetConnCheck = await client.query(
-            `SELECT id FROM transform_connections 
-             WHERE id = $1 AND is_active = TRUE AND connection_direction = 'target'`,
-            [target_connection_id]
-          );
-          
-          if (targetConnCheck.rows.length === 0) {
-            throw new Error('Invalid transform target connection');
-          }
         }
       }
       
@@ -586,24 +520,10 @@ class VendorAgreementService {
         paramIndex++;
       }
       
-      if (target_connection_id !== undefined && target_connection_id !== current.target_connection_id) {
-        updates.push(`target_connection_id = $${paramIndex}`);
-        params.push(target_connection_id || null);
-        changes.target_connection_id = { from: current.target_connection_id, to: target_connection_id };
-        paramIndex++;
-      }
-      
       if (drop_location_path !== undefined && drop_location_path !== current.drop_location_path) {
         updates.push(`drop_location_path = $${paramIndex}`);
         params.push(drop_location_path || null);
         changes.drop_location_path = { from: current.drop_location_path, to: drop_location_path };
-        paramIndex++;
-      }
-      
-      if (target_file_path !== undefined && target_file_path !== current.target_file_path) {
-        updates.push(`target_file_path = $${paramIndex}`);
-        params.push(target_file_path || null);
-        changes.target_file_path = { from: current.target_file_path, to: target_file_path };
         paramIndex++;
       }
       
@@ -1122,16 +1042,13 @@ class VendorAgreementService {
           owner.email as owner_email,
           vendor_approver.username as vendor_approver_username,
           owner_approver.username as owner_approver_username,
-          source_conn.name as vendor_connection_name,
-          COALESCE(target_storage_conn.name, target_transform_conn.name) as target_connection_name
+          source_conn.name as vendor_connection_name
         FROM vendor_agreements va
         JOIN vendors v ON va.vendor_id = v.id
         LEFT JOIN users owner ON va.file_owner_user_id = owner.id
         LEFT JOIN users vendor_approver ON va.vendor_approved_by = vendor_approver.id
         LEFT JOIN users owner_approver ON va.owner_approved_by = owner_approver.id
         LEFT JOIN storage_connections source_conn ON va.vendor_connection_id = source_conn.connection_id
-        LEFT JOIN storage_connections target_storage_conn ON va.target_connection_id = target_storage_conn.connection_id
-        LEFT JOIN transform_connections target_transform_conn ON va.target_connection_id::text = target_transform_conn.id::text
         ${whereClause}
         ORDER BY va.created_at DESC
         LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
