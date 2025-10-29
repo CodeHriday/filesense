@@ -192,7 +192,20 @@ async function getS3FileStream(connection, filePath) {
     region: config.region 
   });
   
-  return s3.getObject(params).createReadStream();
+  try {
+    // Use promise() to properly handle AWS SDK errors
+    const data = await s3.getObject(params).promise();
+    const { Readable } = require('stream');
+    return Readable.from(data.Body);
+  } catch (error) {
+    systemLogger.error('S3 file fetch failed', { 
+      bucket: bucketName, 
+      key: params.Key,
+      error: error.message,
+      code: error.code
+    });
+    throw new Error(`Failed to fetch file from S3: ${error.message}`);
+  }
 }
 
 /**
