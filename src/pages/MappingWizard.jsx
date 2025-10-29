@@ -504,11 +504,8 @@ function MappingWizard() {
       if (isDraft) {
         // Show success message for draft save
         setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        // For final save, stay on Step 4 and don't allow further navigation
-        setMaxCompletedStep(4);
-        setCurrentStep(4);
       }
+      // Don't change currentStep - let the wizard stay where it is
     } catch (err) {
       console.error('Save mapping error:', err);
       console.error('Error response:', err.response);
