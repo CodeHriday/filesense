@@ -551,20 +551,44 @@ function ProjectManagement() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedProject.members?.map((member) => (
-                        <tr key={member.user_id}>
-                          <td>{member.full_name || member.username}</td>
-                          <td><span className="role-badge">{member.role_name || member.role}</span></td>
-                          <td>
-                            <button
-                              className="btn-small btn-danger"
-                              onClick={() => openRemoveMemberConfirm(member.user_id, member.full_name || member.username)}
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        // Group members by user_id to consolidate multiple roles
+                        const groupedMembers = selectedProject.members?.reduce((acc, member) => {
+                          const existing = acc.find(m => m.user_id === member.user_id);
+                          if (existing) {
+                            existing.roles.push(member.role_name || member.role);
+                          } else {
+                            acc.push({
+                              user_id: member.user_id,
+                              username: member.username,
+                              full_name: member.full_name,
+                              roles: [member.role_name || member.role]
+                            });
+                          }
+                          return acc;
+                        }, []);
+
+                        return groupedMembers?.map((member) => (
+                          <tr key={member.user_id}>
+                            <td>{member.full_name || member.username}</td>
+                            <td>
+                              {member.roles.map((role, idx) => (
+                                <span key={idx} className="role-badge" style={{ marginRight: '0.25rem' }}>
+                                  {role}
+                                </span>
+                              ))}
+                            </td>
+                            <td>
+                              <button
+                                className="btn-small btn-danger"
+                                onClick={() => openRemoveMemberConfirm(member.user_id, member.full_name || member.username)}
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
                       {(!selectedProject.members || selectedProject.members.length === 0) && (
                         <tr><td colSpan="3" style={{ textAlign: 'center', color: '#999' }}>No members yet</td></tr>
                       )}
