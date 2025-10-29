@@ -553,6 +553,11 @@ const VendorAgreements = () => {
         }
       });
       
+      // DEBUG: Log vendor_onboarding_date
+      console.log('DEBUG - formData.vendor_onboarding_date:', formData.vendor_onboarding_date);
+      console.log('DEBUG - agreementData.vendor_onboarding_date:', agreementData.vendor_onboarding_date);
+      console.log('DEBUG - modalMode:', modalMode);
+      
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
       submitData.append(dataKey, JSON.stringify(agreementData));
