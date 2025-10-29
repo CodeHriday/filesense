@@ -27,12 +27,15 @@ router.get('/', async (req, res) => {
     
     // Filter out sensitive information
     const sanitizedConnections = connections.map(conn => {
-      const { config, ...rest } = conn;
+      const { config, name: dbName, type: dbType, project_name, ...rest } = conn;
       return {
         ...rest,
-        // Include non-sensitive config fields
-        connection_name: config.connection_name || config.name || conn.name,
-        connection_type: config.connection_type || conn.type,
+        // Use database fields for name and type (not from config, not from project join)
+        connection_name: dbName,
+        name: dbName,
+        connection_type: dbType,
+        type: dbType,
+        config: config,
         // Use database columns for unified fields (not config)
         connection_user: conn.connection_user,
         connection_direction: conn.connection_direction,
@@ -109,12 +112,15 @@ router.get('/:id', async (req, res) => {
     }
     
     // Filter sensitive information
-    const { config, ...rest } = connection;
+    const { config, name: dbName, type: dbType, project_name, ...rest } = connection;
     const sanitizedConnection = {
       ...rest,
-      // Include non-sensitive config fields
-      connection_name: config.connection_name || config.name || connection.name,
-      connection_type: config.connection_type || connection.type,
+      // Use database fields for name and type (not from config, not from project join)
+      connection_name: dbName,
+      name: dbName,
+      connection_type: dbType,
+      type: dbType,
+      config: config,
       // Use database columns for unified fields (not config)
       connection_user: connection.connection_user,
       connection_direction: connection.connection_direction,
