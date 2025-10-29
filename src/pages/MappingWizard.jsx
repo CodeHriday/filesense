@@ -227,8 +227,8 @@ function MappingWizard() {
       }
       setMaxCompletedStep(maxStep);
       
-      // Automatically navigate to the last completed step for easy editing
-      setCurrentStep(maxStep);
+      // Always start at Step 1 in edit mode for consistent user experience
+      setCurrentStep(1);
       
       // If we're jumping to step 3 (field mappings), extract schema automatically
       if (maxStep >= 3 && (!mapping.field_mappings || mapping.field_mappings.length === 0)) {
@@ -438,8 +438,14 @@ function MappingWizard() {
   };
 
   const handleSave = async (isDraft = false) => {
+    // Prevent duplicate saves
+    if (loading) {
+      return;
+    }
+    
     try {
       setLoading(true);
+      setError(null);
       
       // Convert anomaly rules array to object format expected by backend
       const anomalyRulesObject = {};
@@ -493,10 +499,15 @@ function MappingWizard() {
       }
 
       setSaveSuccess(true);
+      setError(null);
+      
       if (isDraft) {
-        setError(null);
         // Show success message for draft save
         setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        // For final save, stay on Step 4 and don't allow further navigation
+        setMaxCompletedStep(4);
+        setCurrentStep(4);
       }
     } catch (err) {
       console.error('Save mapping error:', err);
