@@ -329,6 +329,7 @@ function ProjectManagement() {
             <thead>
               <tr>
                 <th>Project Name</th>
+                <th>Project Type</th>
                 <th>Description</th>
                 <th>Members</th>
                 <th>Access Groups</th>
@@ -351,6 +352,11 @@ function ProjectManagement() {
                       </Link>
                       {project.is_default && <span className="badge badge-default">DEFAULT</span>}
                     </div>
+                  </td>
+                  <td>
+                    <span className={`badge ${project.project_type === 'external' ? 'badge-external' : 'badge-internal'}`}>
+                      {project.project_type === 'external' ? 'External' : 'Internal'}
+                    </span>
                   </td>
                   <td>{project.description || '-'}</td>
                   <td>
