@@ -1,4 +1,4 @@
-const { systemLogger } = require('../logger');
+const { systemLogger } = require('../utils/logger');
 const pool = require('../db');
 const AWS = require('aws-sdk');
 const { Storage } = require('@google-cloud/storage');
