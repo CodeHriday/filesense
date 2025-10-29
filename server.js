@@ -5291,16 +5291,19 @@ app.post('/api/roles', authenticateToken, async (req, res) => {
     //   return res.status(403).json({ error: 'You do not have permission to create roles' });
     // }
     
+    console.log('Create role endpoint called with body:', JSON.stringify(req.body, null, 2));
     const { name, description, permissions } = req.body;
     
     // Validate required fields
     if (!name) {
+      console.log('Validation failed: Role name is missing');
       return res.status(400).json({ error: 'Role name is required' });
     }
     
     // Check if role with the same name already exists
     const existingRole = await dbPool.query('SELECT * FROM roles WHERE name = $1', [name]);
     if (existingRole.rows.length > 0) {
+      console.log(`Validation failed: Role with name "${name}" already exists`);
       return res.status(400).json({ error: 'A role with this name already exists' });
     }
     
