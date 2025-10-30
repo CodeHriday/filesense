@@ -505,7 +505,8 @@ export const FileCatalog = ({ onFileSelect }) => {
               </div>
             </div>
             
-            <table className="file-catalog-table">
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table className="file-catalog-table">
               <thead>
                 <tr>
                   <th className="checkbox-cell">
@@ -798,6 +799,7 @@ export const FileCatalog = ({ onFileSelect }) => {
               </button>
             </div>
           )}
+            </div>
           </>
         )}
       </div>

@@ -45,6 +45,9 @@ function ProjectManagement() {
     data: null
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
+
   useEffect(() => {
     fetchProjects();
     fetchAvailableUsers();
@@ -294,6 +297,9 @@ function ProjectManagement() {
     setConfirmModal({ isOpen: false, action: null, title: '', message: '', data: null });
   };
 
+  const totalPages = Math.ceil(projects.length / pageSize);
+  const displayedProjects = projects.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="project-management">
       <div className="page-header">
@@ -326,7 +332,7 @@ function ProjectManagement() {
       {loading ? (
         <div className="loading">Loading projects...</div>
       ) : (
-        <div className="table-container">
+        <div style={{ overflowX: 'auto', width: '100%' }}>
           <table className="projects-table">
             <thead>
               <tr>
@@ -341,7 +347,7 @@ function ProjectManagement() {
               </tr>
             </thead>
             <tbody>
-              {projects.map((project) => (
+              {displayedProjects.map((project) => (
                 <tr key={project.id}>
                   <td>
                     <div className="project-name">
@@ -416,6 +422,51 @@ function ProjectManagement() {
               ))}
             </tbody>
           </table>
+
+          {projects.length > 0 && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginTop: '1rem',
+              padding: '1rem',
+              borderTop: '1px solid #ddd'
+            }}>
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: currentPage === 1 ? '#ddd' : '#4a90e2',
+                  color: currentPage === 1 ? '#999' : 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Previous
+              </button>
+              
+              <span style={{ fontSize: '0.95rem', color: '#666' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: currentPage === totalPages ? '#ddd' : '#4a90e2',
+                  color: currentPage === totalPages ? '#999' : 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
 

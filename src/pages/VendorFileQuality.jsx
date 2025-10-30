@@ -138,7 +138,8 @@ function VendorFileQuality() {
 
       {!loading && !error && filteredFiles.length > 0 && (
         <div className="file-table-container">
-          <table className="file-table">
+          <div style={{ overflowX: 'auto', width: '100%' }}>
+            <table className="file-table">
             <thead>
               <tr>
                 <th>File Name</th>
@@ -175,6 +176,7 @@ function VendorFileQuality() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

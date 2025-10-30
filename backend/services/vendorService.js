@@ -767,13 +767,102 @@ class VendorService {
         return { success: false, error: 'Vendor not found' };
       }
       
+      const updatedVendor = result.rows[0];
+      
+      // Add secondary contact to project if backup_contact_email was added/changed
+      if (backup_contact_email && normalizedBackupEmail && 
+          normalizedBackupEmail !== currentVendor.backup_contact_email) {
+        
+        systemLogger.info('Processing secondary contact update', { 
+          vendorId,
+          backupEmail: backup_contact_email 
+        });
+        
+        // Check if user with backup email already exists
+        const backupUserResult = await client.query(
+          'SELECT id FROM users WHERE email = $1',
+          [backup_contact_email]
+        );
+        
+        let backupUserId;
+        
+        if (backupUserResult.rows.length > 0) {
+          backupUserId = backupUserResult.rows[0].id;
+          systemLogger.info('Using existing user for secondary contact', { 
+            userId: backupUserId, 
+            email: backup_contact_email 
+          });
+        } else {
+          // Create new user account for secondary contact
+          const backupUsername = backup_contact_email;
+          const tempPassword = crypto.randomBytes(16).toString('hex');
+          const hashedPassword = await bcrypt.hash(tempPassword, 10);
+          
+          // Get Vendor role ID
+          const roleResult = await client.query(
+            'SELECT id FROM roles WHERE name = $1',
+            ['Vendor']
+          );
+          
+          if (roleResult.rows.length === 0) {
+            throw new Error('Vendor role not found');
+          }
+          
+          const vendorRoleId = roleResult.rows[0].id;
+          
+          // Create user
+          const newUserResult = await client.query(
+            `INSERT INTO users (username, email, password, first_name, last_name, auth_provider, created_at)
+             VALUES ($1, $2, $3, $4, $5, 'local', CURRENT_TIMESTAMP)
+             RETURNING id`,
+            [backupUsername, backup_contact_email, hashedPassword, backup_contact_name || 'Backup Contact', '']
+          );
+          
+          backupUserId = newUserResult.rows[0].id;
+          
+          // Assign Vendor role
+          await client.query(
+            `INSERT INTO user_roles (user_id, role_id, created_at)
+             VALUES ($1, $2, CURRENT_TIMESTAMP)`,
+            [backupUserId, vendorRoleId]
+          );
+          
+          systemLogger.info('Created new user for secondary contact', { 
+            userId: backupUserId, 
+            email: backup_contact_email
+          });
+        }
+        
+        // Add secondary contact to project
+        const projectIdToUse = project_id || updatedVendor.project_id;
+        
+        if (projectIdToUse && backupUserId) {
+          const backupMemberCheck = await client.query(
+            'SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2',
+            [projectIdToUse, backupUserId]
+          );
+          
+          if (backupMemberCheck.rows.length === 0) {
+            await client.query(
+              `INSERT INTO project_members (project_id, user_id, invited_by, can_invite, can_manage_members, created_at)
+               VALUES ($1, $2, $3, false, false, CURRENT_TIMESTAMP)`,
+              [projectIdToUse, backupUserId, updatedBy]
+            );
+            systemLogger.info('Added secondary contact to project', { 
+              projectId: projectIdToUse, 
+              userId: backupUserId 
+            });
+          }
+        }
+      }
+      
       await client.query('COMMIT');
       
       systemLogger.info('Vendor updated successfully', { vendorId });
       
       return {
         success: true,
-        vendor: result.rows[0]
+        vendor: updatedVendor
       };
       
     } catch (error) {

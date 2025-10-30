@@ -233,7 +233,8 @@ const TransformationFileCatalog = () => {
 
                   {isExpanded && (
                     <div className="mapping-group-body">
-                      <table className="files-table">
+                      <div style={{ overflowX: 'auto', width: '100%' }}>
+                        <table className="files-table">
                         <thead>
                           <tr>
                             <th>Target File</th>
@@ -281,6 +282,7 @@ const TransformationFileCatalog = () => {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
                 </div>
