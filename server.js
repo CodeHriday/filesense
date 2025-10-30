@@ -1018,7 +1018,7 @@ app.get('/api/vendor-file-profiling', authenticateToken, async (req, res) => {
     } else if (vendor_id) {
       // Admin users can filter by vendor
       conditions.push(`vfpr.vendor_id = $${paramCount}`);
-      params.push(vendor_id);
+      params.push(parseInt(vendor_id));
       paramCount++;
     }
     
