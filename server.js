@@ -2042,8 +2042,8 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     
     // Log to database (without profiling)
     await dbPool.query(
-      `INSERT INTO files (file_id, filename, file_type, file_size, metadata, project_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+      `INSERT INTO files (file_id, filename, file_type, file_size, metadata, project_id, is_vendor_file, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
       [
         fileId,
         file.originalname,
@@ -2054,9 +2054,11 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           uploaded_by: userId,
           provider: provider,
           storage_key: storageKey,
-          drop_file: true
+          drop_file: true,
+          connection_id: connectionId || null
         }),
-        projectId
+        projectId,
+        !!connectionId // true if connectionId exists (vendor upload), false otherwise
       ]
     );
     
