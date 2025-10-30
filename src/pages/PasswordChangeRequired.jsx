@@ -5,7 +5,7 @@ import axios from 'axios';
 import PasswordInput from '../components/PasswordInput';
 import '../styles/Login.css';
 
-const PasswordChangeRequired = ({ userId, username, onPasswordChanged }) => {
+const PasswordChangeRequired = ({ userId, username, passwordChangeToken, onPasswordChanged }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -80,7 +80,8 @@ const PasswordChangeRequired = ({ userId, username, onPasswordChanged }) => {
     try {
       const response = await axios.post('/api/users/change-password-required', {
         userId,
-        newPassword
+        newPassword,
+        passwordChangeToken
       });
 
       if (response.data.success) {

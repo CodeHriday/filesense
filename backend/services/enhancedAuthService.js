@@ -123,12 +123,27 @@ async function authenticateUserWithSecurity(username, password, userAgent) {
     
     // Check if user must change password (e.g., after admin unlock)
     if (user.must_change_password) {
+      // Generate a short-lived token specifically for password change
+      const jwt = require('jsonwebtoken');
+      const { SECURITY_CONFIG } = require('../src/config/environment');
+      
+      const passwordChangeToken = jwt.sign(
+        { 
+          userId: user.id, 
+          purpose: 'password_change_only',
+          username: user.username
+        },
+        SECURITY_CONFIG.JWT_SECRET,
+        { expiresIn: '10m' } // Short-lived token - 10 minutes only
+      );
+      
       return {
         success: true,
         requiresPasswordChange: true,
         message: 'You must change your password before continuing',
         userId: user.id,
-        username: user.username
+        username: user.username,
+        passwordChangeToken: passwordChangeToken
       };
     }
     

@@ -71,20 +71,58 @@ router.get('/password-requirements', (req, res) => {
 /**
  * POST /api/users/change-password-required
  * Change password when required (e.g., after admin unlock)
+ * Requires a short-lived passwordChangeToken from login response
  */
 router.post('/change-password-required', asyncHandler(async (req, res) => {
-  const { userId, newPassword } = req.body;
+  const { userId, newPassword, passwordChangeToken } = req.body;
   
-  if (!userId || !newPassword) {
+  if (!userId || !newPassword || !passwordChangeToken) {
     return res.status(400).json({
       error: 'Missing required fields',
-      message: 'User ID and new password are required'
+      message: 'User ID, new password, and password change token are required'
+    });
+  }
+  
+  // Verify the password change token
+  const jwt = require('jsonwebtoken');
+  const { SECURITY_CONFIG } = require('../src/config/environment');
+  
+  try {
+    const decoded = jwt.verify(passwordChangeToken, SECURITY_CONFIG.JWT_SECRET);
+    
+    // Verify token purpose
+    if (decoded.purpose !== 'password_change_only') {
+      return res.status(403).json({
+        error: 'Invalid token',
+        message: 'This token cannot be used for password changes'
+      });
+    }
+    
+    // Verify user ID matches
+    if (decoded.userId !== userId) {
+      return res.status(403).json({
+        error: 'Unauthorized',
+        message: 'You can only change your own password'
+      });
+    }
+  } catch (error) {
+    return res.status(401).json({
+      error: 'Invalid or expired token',
+      message: 'Your password change session has expired. Please log in again.'
+    });
+  }
+  
+  // Validate password strength using enhanced auth service
+  const validation = enhancedAuthService.validatePassword(newPassword);
+  if (!validation.isValid) {
+    return res.status(400).json({
+      error: 'Weak password',
+      message: 'Password does not meet security requirements',
+      errors: validation.errors
     });
   }
   
   const bcrypt = require('bcrypt');
-  const { SECURITY_CONFIG } = require('../src/config/environment');
-  
   const saltRounds = SECURITY_CONFIG.BCRYPT_SALT_ROUNDS;
   const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
   

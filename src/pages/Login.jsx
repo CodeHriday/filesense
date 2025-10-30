@@ -22,6 +22,7 @@ const Login = () => {
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [passwordChangeUserId, setPasswordChangeUserId] = useState(null);
   const [passwordChangeUsername, setPasswordChangeUsername] = useState('');
+  const [passwordChangeToken, setPasswordChangeToken] = useState('');
   const { login, currentUser, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,6 +67,7 @@ const Login = () => {
         setRequiresPasswordChange(true);
         setPasswordChangeUserId(response.data.userId);
         setPasswordChangeUsername(response.data.username);
+        setPasswordChangeToken(response.data.passwordChangeToken);
         setIsLoading(false);
         return;
       }
@@ -139,6 +141,7 @@ const Login = () => {
       <PasswordChangeRequired
         userId={passwordChangeUserId}
         username={passwordChangeUsername}
+        passwordChangeToken={passwordChangeToken}
         onPasswordChanged={handlePasswordChanged}
       />
     );
