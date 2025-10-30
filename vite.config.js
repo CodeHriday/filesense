@@ -15,6 +15,17 @@ export default defineConfig({
     // Allow all hosts
     allowedHosts: ['all', '.replit.dev', '.repl.co', '.replit.app'],
     origin: 'https://${host}',
+    watch: {
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/.cache/**',
+        '**/venv/**',
+        '**/__pycache__/**',
+        '**/uploads/**',
+        '**/temp/**'
+      ]
+    },
     fs: {
       strict: false
     },
