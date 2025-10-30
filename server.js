@@ -989,6 +989,161 @@ app.post('/api/files/bulk-delete',
   }
 });
 
+// Vendor File Profiling Results Endpoints
+
+// Get all vendor file profiling results with filtering
+app.get('/api/vendor-file-profiling', authenticateToken, async (req, res) => {
+  try {
+    const {
+      vendor_id,
+      connection_id,
+      min_quality_score,
+      max_quality_score,
+      has_issues,
+      limit = 100,
+      offset = 0
+    } = req.query;
+    
+    // Build query conditions
+    const conditions = [];
+    const params = [];
+    let paramCount = 1;
+    
+    // Check vendor access - vendors can only see their own profiling results
+    if (req.vendorProfile) {
+      conditions.push(`vfpr.vendor_id = $${paramCount}`);
+      params.push(req.vendorProfile.id);
+      paramCount++;
+    } else if (vendor_id) {
+      // Admin users can filter by vendor
+      conditions.push(`vfpr.vendor_id = $${paramCount}`);
+      params.push(vendor_id);
+      paramCount++;
+    }
+    
+    if (connection_id) {
+      conditions.push(`vfpr.connection_id = $${paramCount}`);
+      params.push(connection_id);
+      paramCount++;
+    }
+    
+    if (min_quality_score) {
+      conditions.push(`vfpr.quality_score >= $${paramCount}`);
+      params.push(parseFloat(min_quality_score));
+      paramCount++;
+    }
+    
+    if (max_quality_score) {
+      conditions.push(`vfpr.quality_score <= $${paramCount}`);
+      params.push(parseFloat(max_quality_score));
+      paramCount++;
+    }
+    
+    if (has_issues === 'true') {
+      conditions.push(`jsonb_array_length(vfpr.issues) > 0`);
+    }
+    
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*)
+      FROM vendor_file_profiling_results vfpr
+      ${whereClause}
+    `;
+    const countResult = await dbPool.query(countQuery, params);
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Get profiling results with file and connection details
+    params.push(parseInt(limit));
+    params.push(parseInt(offset));
+    
+    const query = `
+      SELECT 
+        vfpr.*,
+        f.filename,
+        f.file_type,
+        f.file_size,
+        f.created_at as file_uploaded_at,
+        c.connection_name,
+        c.connection_type,
+        v.vendor_name,
+        v.vendor_code,
+        u.username as uploaded_by_username
+      FROM vendor_file_profiling_results vfpr
+      LEFT JOIN files f ON vfpr.file_id = f.file_id
+      LEFT JOIN connections c ON vfpr.connection_id = c.id
+      LEFT JOIN vendors v ON vfpr.vendor_id = v.id
+      LEFT JOIN users u ON vfpr.uploaded_by_user_id = u.id
+      ${whereClause}
+      ORDER BY vfpr.profiled_at DESC
+      LIMIT $${paramCount} OFFSET $${paramCount + 1}
+    `;
+    
+    const result = await dbPool.query(query, params);
+    
+    res.json({
+      results: result.rows,
+      pagination: {
+        total: totalCount,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        returned: result.rows.length
+      }
+    });
+  } catch (err) {
+    logger.error('Error fetching vendor file profiling results', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch profiling results' });
+  }
+});
+
+// Get single vendor file profiling result by file_id
+app.get('/api/vendor-file-profiling/:fileId', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const query = `
+      SELECT 
+        vfpr.*,
+        f.filename,
+        f.file_type,
+        f.file_size,
+        f.created_at as file_uploaded_at,
+        f.metadata as file_metadata,
+        c.connection_name,
+        c.connection_type,
+        v.vendor_name,
+        v.vendor_code,
+        u.username as uploaded_by_username,
+        u.email as uploaded_by_email
+      FROM vendor_file_profiling_results vfpr
+      LEFT JOIN files f ON vfpr.file_id = f.file_id
+      LEFT JOIN connections c ON vfpr.connection_id = c.id
+      LEFT JOIN vendors v ON vfpr.vendor_id = v.id
+      LEFT JOIN users u ON vfpr.uploaded_by_user_id = u.id
+      WHERE vfpr.file_id = $1
+    `;
+    
+    const result = await dbPool.query(query, [fileId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Profiling results not found for this file' });
+    }
+    
+    const profilingData = result.rows[0];
+    
+    // Check vendor access
+    if (req.vendorProfile && profilingData.vendor_id !== req.vendorProfile.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    res.json(profilingData);
+  } catch (err) {
+    logger.error('Error fetching vendor file profiling result', { error: err.message, fileId: req.params.fileId });
+    res.status(500).json({ error: 'Failed to fetch profiling result' });
+  }
+});
+
 // File duplicate check endpoint
 app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.single('file'), async (req, res) => {
   try {
