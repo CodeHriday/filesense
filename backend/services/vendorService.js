@@ -242,6 +242,85 @@ class VendorService {
         }
       }
       
+      // Add secondary/backup contact to project if provided
+      if (backup_contact_email) {
+        systemLogger.info('Processing secondary contact', { backupEmail: backup_contact_email });
+        
+        // Check if user with backup email already exists
+        const backupUserResult = await client.query(
+          'SELECT id FROM users WHERE email = $1',
+          [backup_contact_email]
+        );
+        
+        let backupUserId;
+        
+        if (backupUserResult.rows.length > 0) {
+          // User exists - use existing user
+          backupUserId = backupUserResult.rows[0].id;
+          systemLogger.info('Using existing user account for secondary contact', { 
+            userId: backupUserId, 
+            email: backup_contact_email 
+          });
+        } else {
+          // Create new user account for secondary contact
+          const backupUsername = backup_contact_email;
+          const tempPassword = crypto.randomBytes(16).toString('hex');
+          const hashedPassword = await bcrypt.hash(tempPassword, 10);
+          
+          // Get Vendor role ID
+          const roleResult = await client.query(
+            'SELECT id FROM roles WHERE name = $1',
+            ['Vendor']
+          );
+          
+          if (roleResult.rows.length === 0) {
+            throw new Error('Vendor role not found');
+          }
+          
+          const vendorRoleId = roleResult.rows[0].id;
+          
+          // Create user
+          const newUserResult = await client.query(
+            `INSERT INTO users (username, email, password, first_name, last_name, auth_provider, created_at)
+             VALUES ($1, $2, $3, $4, $5, 'local', CURRENT_TIMESTAMP)
+             RETURNING id`,
+            [backupUsername, backup_contact_email, hashedPassword, backup_contact_name || 'Backup Contact', '']
+          );
+          
+          backupUserId = newUserResult.rows[0].id;
+          
+          // Assign Vendor role
+          await client.query(
+            `INSERT INTO user_roles (user_id, role_id, created_at)
+             VALUES ($1, $2, CURRENT_TIMESTAMP)`,
+            [backupUserId, vendorRoleId]
+          );
+          
+          systemLogger.info('Created new user account for secondary contact', { 
+            userId: backupUserId, 
+            email: backup_contact_email
+          });
+        }
+        
+        // Add secondary contact to project if not already a member
+        const backupMemberCheck = await client.query(
+          'SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2',
+          [finalProjectId, backupUserId]
+        );
+        
+        if (backupMemberCheck.rows.length === 0) {
+          await client.query(
+            `INSERT INTO project_members (project_id, user_id, invited_by, can_invite, can_manage_members, created_at)
+             VALUES ($1, $2, $3, false, false, CURRENT_TIMESTAMP)`,
+            [finalProjectId, backupUserId, validInvitedBy]
+          );
+          systemLogger.info('Successfully added secondary contact to project', { 
+            projectId: finalProjectId, 
+            userId: backupUserId 
+          });
+        }
+      }
+      
       // Create vendor record
       const vendorResult = await client.query(
         `INSERT INTO vendors (
@@ -707,32 +786,223 @@ class VendorService {
   }
 
   /**
-   * Delete vendor (soft delete by setting status to inactive)
+   * Check vendor dependencies before deletion
+   * Returns list of blocking dependencies
    */
-  async deleteVendor(vendorId, deletedBy) {
+  async checkVendorDependencies(vendorId) {
     try {
-      const result = await pool.query(
-        `UPDATE vendors 
-         SET status = 'inactive', updated_at = CURRENT_TIMESTAMP, updated_by = $1
-         WHERE id = $2
-         RETURNING *`,
-        [deletedBy, vendorId]
+      const dependencies = {
+        hasBlockingDependencies: false,
+        activeAgreements: [],
+        lockedAgreements: [],
+        fullyApprovedAgreements: [],
+        totalCount: 0
+      };
+      
+      // Check for any vendor agreements
+      const agreementResult = await pool.query(
+        `SELECT id, status, is_locked, approval_status, created_at
+         FROM vendor_agreements
+         WHERE vendor_id = $1
+         ORDER BY created_at DESC`,
+        [vendorId]
       );
       
-      if (result.rows.length === 0) {
-        return { success: false, error: 'Vendor not found' };
+      const agreements = agreementResult.rows;
+      
+      // Categorize agreements
+      for (const agreement of agreements) {
+        // Check for active agreements
+        if (agreement.status === 'active') {
+          dependencies.activeAgreements.push(agreement);
+        }
+        
+        // Check for locked agreements
+        if (agreement.is_locked === true) {
+          dependencies.lockedAgreements.push(agreement);
+        }
+        
+        // Check for fully approved agreements
+        if (agreement.approval_status === 'fully_approved') {
+          dependencies.fullyApprovedAgreements.push(agreement);
+        }
       }
       
-      systemLogger.info('Vendor deleted (deactivated)', { vendorId });
+      // Determine if there are blocking dependencies
+      const hasActive = dependencies.activeAgreements.length > 0;
+      const hasLocked = dependencies.lockedAgreements.length > 0;
+      const hasApproved = dependencies.fullyApprovedAgreements.length > 0;
+      
+      dependencies.hasBlockingDependencies = hasActive || hasLocked || hasApproved;
+      dependencies.totalCount = Math.max(
+        dependencies.activeAgreements.length,
+        dependencies.lockedAgreements.length,
+        dependencies.fullyApprovedAgreements.length
+      );
+      
+      systemLogger.info('Checked vendor dependencies', {
+        vendorId,
+        hasBlockingDependencies: dependencies.hasBlockingDependencies,
+        activeCount: dependencies.activeAgreements.length,
+        lockedCount: dependencies.lockedAgreements.length,
+        approvedCount: dependencies.fullyApprovedAgreements.length
+      });
+      
+      return dependencies;
+      
+    } catch (error) {
+      systemLogger.error('Error checking vendor dependencies', { vendorId, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete vendor (hard delete with dependency checks)
+   * Only allows deletion of orphan vendors without active/locked/approved agreements
+   */
+  async deleteVendor(vendorId, deletedBy) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // First, check if vendor exists
+      const vendorResult = await client.query(
+        'SELECT * FROM vendors WHERE id = $1',
+        [vendorId]
+      );
+      
+      if (vendorResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return { 
+          success: false, 
+          error: 'Vendor not found',
+          canDelete: false
+        };
+      }
+      
+      const vendor = vendorResult.rows[0];
+      
+      // Check for blocking dependencies
+      const dependencies = await this.checkVendorDependencies(vendorId);
+      
+      if (dependencies.hasBlockingDependencies) {
+        await client.query('ROLLBACK');
+        
+        // Build detailed error message
+        const messages = [];
+        if (dependencies.activeAgreements.length > 0) {
+          messages.push(`${dependencies.activeAgreements.length} active agreement(s)`);
+        }
+        if (dependencies.lockedAgreements.length > 0) {
+          messages.push(`${dependencies.lockedAgreements.length} locked agreement(s)`);
+        }
+        if (dependencies.fullyApprovedAgreements.length > 0) {
+          messages.push(`${dependencies.fullyApprovedAgreements.length} fully approved agreement(s)`);
+        }
+        
+        const errorMessage = `Cannot delete vendor - has ${messages.join(', ')}. Please deactivate or reassign agreements first.`;
+        
+        systemLogger.warn('Vendor deletion blocked due to dependencies', {
+          vendorId,
+          dependencies: {
+            active: dependencies.activeAgreements.length,
+            locked: dependencies.lockedAgreements.length,
+            approved: dependencies.fullyApprovedAgreements.length
+          }
+        });
+        
+        return {
+          success: false,
+          error: errorMessage,
+          canDelete: false,
+          dependencies: {
+            activeCount: dependencies.activeAgreements.length,
+            lockedCount: dependencies.lockedAgreements.length,
+            approvedCount: dependencies.fullyApprovedAgreements.length,
+            totalCount: dependencies.totalCount
+          }
+        };
+      }
+      
+      // No blocking dependencies - proceed with deletion
+      systemLogger.info('No blocking dependencies found, proceeding with vendor deletion', { vendorId });
+      
+      // 1. Delete vendor connections (safely handle both numeric and string vendor_id in JSON)
+      const deleteConnectionsResult = await client.query(
+        `DELETE FROM storage_connections 
+         WHERE (config->>'vendor_id') = $1::text 
+         OR (config->'vendor_id')::text = $2
+         RETURNING connection_id`,
+        [vendorId.toString(), `"${vendorId}"`]
+      );
+      
+      systemLogger.info('Deleted vendor connections', { 
+        vendorId, 
+        count: deleteConnectionsResult.rows.length 
+      });
+      
+      // 2. Remove vendor users from project
+      const projectId = vendor.project_id;
+      const vendorUserId = vendor.vendor_user_id;
+      
+      if (projectId && vendorUserId) {
+        await client.query(
+          'DELETE FROM project_members WHERE project_id = $1 AND user_id = $2',
+          [projectId, vendorUserId]
+        );
+        systemLogger.info('Removed primary vendor user from project', { projectId, vendorUserId });
+      }
+      
+      // 3. Remove secondary contact from project if exists
+      if (vendor.backup_contact_email) {
+        const backupUserResult = await client.query(
+          'SELECT id FROM users WHERE email = $1',
+          [vendor.backup_contact_email]
+        );
+        
+        if (backupUserResult.rows.length > 0 && projectId) {
+          const backupUserId = backupUserResult.rows[0].id;
+          await client.query(
+            'DELETE FROM project_members WHERE project_id = $1 AND user_id = $2',
+            [projectId, backupUserId]
+          );
+          systemLogger.info('Removed secondary vendor user from project', { projectId, backupUserId });
+        }
+      }
+      
+      // 4. Delete the vendor record (hard delete)
+      await client.query(
+        'DELETE FROM vendors WHERE id = $1',
+        [vendorId]
+      );
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Vendor hard deleted successfully', { 
+        vendorId,
+        vendorCode: vendor.vendor_code,
+        deletedBy 
+      });
       
       return {
         success: true,
-        vendor: result.rows[0]
+        message: 'Vendor deleted successfully',
+        vendor: vendor,
+        canDelete: true,
+        deletedConnections: deleteConnectionsResult.rows.length
       };
       
     } catch (error) {
-      systemLogger.error('Error deleting vendor', { vendorId, error: error.message });
+      await client.query('ROLLBACK');
+      systemLogger.error('Error deleting vendor', { 
+        vendorId, 
+        error: error.message,
+        stack: error.stack 
+      });
       throw error;
+    } finally {
+      client.release();
     }
   }
 
