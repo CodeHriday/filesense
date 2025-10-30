@@ -240,11 +240,12 @@ router.post('/', requireAdmin, async (req, res) => {
           config.endpoint = endpoint;
           config.use_ssl = use_ssl;
           config.path_prefix = path_prefix;
-          // Support both field name formats: access_key_id/secret_access_key AND access_key/secret_key
+          // Vendor connections use access_key_id/secret_access_key (stored as type='vendor')
+          // Support both field name formats from frontend
           const awsAccessKey = access_key_id || access_key;
           const awsSecretKey = secret_access_key || secret_key;
-          if (awsAccessKey) config.access_key = encrypt(awsAccessKey);
-          if (awsSecretKey) config.secret_key = encrypt(awsSecretKey);
+          if (awsAccessKey) config.access_key_id = encrypt(awsAccessKey);
+          if (awsSecretKey) config.secret_access_key = encrypt(awsSecretKey);
         } else if (provider === 'gcp') {
           config.project_id = gcp_project_id;
           config.gcp_bucket = gcp_bucket;
@@ -434,11 +435,12 @@ router.put('/:id', requireAdmin, async (req, res) => {
         if (endpoint !== undefined) config.endpoint = endpoint;
         if (use_ssl !== undefined) config.use_ssl = use_ssl;
         if (path_prefix !== undefined) config.path_prefix = path_prefix;
-        // Support both field name formats: access_key_id/secret_access_key AND access_key/secret_key
+        // Vendor connections use access_key_id/secret_access_key (stored as type='vendor')
+        // Support both field name formats from frontend
         const awsAccessKey = access_key_id || access_key;
         const awsSecretKey = secret_access_key || secret_key;
-        if (awsAccessKey) config.access_key = encrypt(awsAccessKey);
-        if (awsSecretKey) config.secret_key = encrypt(awsSecretKey);
+        if (awsAccessKey) config.access_key_id = encrypt(awsAccessKey);
+        if (awsSecretKey) config.secret_access_key = encrypt(awsSecretKey);
       } else if (provider === 'gcp' || existingConfig.provider === 'gcp') {
         if (gcp_project_id !== undefined) config.project_id = gcp_project_id;
         if (gcp_bucket !== undefined) config.gcp_bucket = gcp_bucket;
