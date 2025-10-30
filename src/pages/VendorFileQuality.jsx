@@ -101,7 +101,7 @@ function VendorFileQuality() {
   return (
     <div className="vendor-file-quality-container">
       <div className="vendor-file-quality-header">
-        <h1>Vendor File Quality</h1>
+        <h1>Vendor File Catalog</h1>
         <p className="subtitle">Quality profiling results for vendor-uploaded files</p>
       </div>
 

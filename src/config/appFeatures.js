@@ -86,7 +86,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'vendor_file_quality', 
-    name: 'Vendor File Quality', 
+    name: 'Vendor File Catalog', 
     category: 'Project & File Management',
     icon: FiCheckCircle,
     route: '/vendor-file-quality',
