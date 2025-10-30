@@ -165,15 +165,15 @@ def profile_vendor_file(file_path, filename):
     quality_score = quality_checks.calculate_quality_score(quality_results, file_metadata)
     
     # Run header validation
-    header_issues_list = header_validator.validate_headers_df(df, raw_headers=raw_headers)
+    header_validation_result = header_validator.validate_headers(file_path, file_ext.lstrip('.'))
     
     # Collect all issues
     issues = []
     header_issues = {}
     
     # Process header issues
-    if header_issues_list:
-        for issue in header_issues_list:
+    if header_validation_result.get('success') and header_validation_result.get('issues'):
+        for issue in header_validation_result['issues']:
             issues.append({
                 'type': 'header',
                 'severity': issue.get('severity', 'medium'),
