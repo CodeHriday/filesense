@@ -77,6 +77,20 @@ function VendorFileQuality() {
     return date.toLocaleString();
   };
 
+  const safeJSONParse = (value, defaultValue = {}) => {
+    if (!value) return defaultValue;
+    if (typeof value === 'object') return value;
+    if (typeof value !== 'string') return defaultValue;
+    if (value.trim() === '') return defaultValue;
+    
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      console.warn('Failed to parse JSON:', value, e);
+      return defaultValue;
+    }
+  };
+
   const exportIssues = (result) => {
     const issues = result.issues || [];
     const csvContent = [
