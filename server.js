@@ -1023,7 +1023,7 @@ app.get('/api/vendor-file-profiling', authenticateToken, async (req, res) => {
     }
     
     if (connection_id) {
-      conditions.push(`vfpr.connection_id = $${paramCount}`);
+      conditions.push(`vfpr.connection_id = $${paramCount}::uuid`);
       params.push(connection_id);
       paramCount++;
     }
