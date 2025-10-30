@@ -25,6 +25,10 @@ args = "react-dev-server"
 task = "workflow.run"
 args = "api-server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "profile-api-server"
+
 [[workflows.workflow]]
 name = "react-dev-server"
 author = "agent"
@@ -52,6 +56,18 @@ outputType = "console"
 task = "shell.exec"
 args = "NODE_ENV=development node server.js"
 
+[[workflows.workflow]]
+name = "profile-api-server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python profile_api.py"
+waitForPort = 8000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000
@@ -59,6 +75,10 @@ externalPort = 3000
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8099
 
 [[ports]]
 localPort = 33527
