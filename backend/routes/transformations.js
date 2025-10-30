@@ -250,7 +250,6 @@ router.post('/',
     // Resolve connections from vendor agreement if needed
     let actualSourceConnectionId = source_connection_id;
     let actualTargetConnectionId = target_connection_id;
-    let isVendorConnection = false;
     
     if (vendor_agreement_id) {
       const agreementResult = await pool.query(
@@ -265,7 +264,6 @@ router.post('/',
       }
       
       actualSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
-      isVendorConnection = true;
       
       if (!actualSourceConnectionId) {
         return res.status(400).json({ 
@@ -279,9 +277,13 @@ router.post('/',
       });
     }
     
-    // Validate source connection exists (check appropriate table based on connection type)
-    if (isVendorConnection) {
-      // Vendor connections are in storage_connections table with connection_id column
+    // Validate source connection exists (check appropriate table based on connection ID format)
+    // UUID format indicates storage_connections (vendor/S3/GCS/Azure), integer indicates transform_connections
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isSourceUuidFormat = typeof actualSourceConnectionId === 'string' && uuidRegex.test(actualSourceConnectionId);
+    
+    if (isSourceUuidFormat) {
+      // UUID format - check storage_connections table
       const sourceConnCheck = await pool.query(
         'SELECT connection_id FROM storage_connections WHERE connection_id = $1 AND status = $2',
         [actualSourceConnectionId, 'active']
@@ -289,11 +291,11 @@ router.post('/',
       
       if (sourceConnCheck.rows.length === 0) {
         return res.status(400).json({ 
-          error: 'Vendor connection not found or inactive. Please contact your administrator.' 
+          error: 'Source connection not found or inactive. Please select a valid source connection.' 
         });
       }
     } else {
-      // Regular transform connections are in transform_connections table with id column
+      // Integer format - check transform_connections table
       const sourceConnCheck = await pool.query(
         'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
         [actualSourceConnectionId]
@@ -461,7 +463,6 @@ router.put('/:id',
     // Resolve and validate vendor agreement if provided
     let resolvedSourceConnectionId = source_connection_id;
     let resolvedTargetConnectionId = target_connection_id;
-    let isVendorConnection = false;
     
     if (vendor_agreement_id !== undefined && vendor_agreement_id) {
       const agreementResult = await pool.query(
@@ -476,7 +477,6 @@ router.put('/:id',
       }
       
       resolvedSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
-      isVendorConnection = true;
       
       if (!resolvedSourceConnectionId) {
         return res.status(400).json({ 
@@ -491,9 +491,13 @@ router.put('/:id',
     }
     
     // Validate source connection exists (if being updated)
+    // UUID format indicates storage_connections (vendor/S3/GCS/Azure), integer indicates transform_connections
     if (resolvedSourceConnectionId !== undefined && resolvedSourceConnectionId) {
-      if (isVendorConnection) {
-        // Vendor connections are in storage_connections table with connection_id column
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isSourceUuidFormat = typeof resolvedSourceConnectionId === 'string' && uuidRegex.test(resolvedSourceConnectionId);
+      
+      if (isSourceUuidFormat) {
+        // UUID format - check storage_connections table
         const sourceConnCheck = await pool.query(
           'SELECT connection_id FROM storage_connections WHERE connection_id = $1 AND status = $2',
           [resolvedSourceConnectionId, 'active']
@@ -501,11 +505,11 @@ router.put('/:id',
         
         if (sourceConnCheck.rows.length === 0) {
           return res.status(400).json({ 
-            error: 'Vendor connection not found or inactive. Please contact your administrator.' 
+            error: 'Source connection not found or inactive. Please select a valid source connection.' 
           });
         }
       } else {
-        // Regular transform connections are in transform_connections table with id column
+        // Integer format - check transform_connections table
         const sourceConnCheck = await pool.query(
           'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
           [resolvedSourceConnectionId]
