@@ -7756,6 +7756,22 @@ async function startServer() {
     await initializeDatabase();
     logger.info('Database connection established successfully');
     
+    // Validate ENCRYPTION_KEY environment variable
+    const encryptionKey = process.env.ENCRYPTION_KEY;
+    if (encryptionKey) {
+      logger.info('ENCRYPTION_KEY is configured', {
+        keyLength: encryptionKey.length,
+        expectedLength: 64,
+        isValid: encryptionKey.length === 64 && /^[0-9a-f]{64}$/i.test(encryptionKey)
+      });
+      console.log(`✅ ENCRYPTION_KEY: Configured (${encryptionKey.length} chars, valid: ${encryptionKey.length === 64})`);
+    } else {
+      logger.warn('ENCRYPTION_KEY is NOT set - credentials encryption will fail');
+      console.warn('⚠️  WARNING: ENCRYPTION_KEY environment variable is not set!');
+      console.warn('   Cloud storage credentials cannot be encrypted/decrypted without this key.');
+      console.warn('   Please add ENCRYPTION_KEY to your Replit Secrets.');
+    }
+    
     // Start the HTTP server - bind to 0.0.0.0 for Replit
     app.listen(port, '0.0.0.0', () => {
       logger.info(`🚀 Server running on port ${port}`, {

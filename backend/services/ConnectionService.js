@@ -358,7 +358,7 @@ class ConnectionService {
   /**
    * Update an existing connection
    * 
-   * @param {number} id - Connection ID
+   * @param {string} id - Connection ID (UUID)
    * @param {Object} connectionData - Updated connection data
    * @returns {Promise<Object>} - Updated connection
    */
@@ -370,7 +370,7 @@ class ConnectionService {
       
       // Check if connection exists
       const checkResult = await client.query(
-        'SELECT * FROM transform_connections WHERE id = $1',
+        'SELECT * FROM storage_connections WHERE connection_id = $1',
         [id]
       );
       
@@ -385,7 +385,7 @@ class ConnectionService {
       const { name, type, config, is_active, description } = connectionData;
       
       // Build update query dynamically based on provided fields
-      let updateQuery = 'UPDATE transform_connections SET ';
+      let updateQuery = 'UPDATE storage_connections SET ';
       const updateValues = [];
       const updateFields = [];
       
@@ -400,41 +400,60 @@ class ConnectionService {
       }
       
       if (config !== undefined) {
-        // Merge new config with existing config
-        const mergedConfig = { ...existingConfig };
+        const connectionType = type || existingConnection.type;
         
-        // Define sensitive fields per connection type
-        const sensitiveFields = {
-          aws: ['access_key', 'secret_key'],
-          gcp: ['private_key'],
+        // Parse existing config if it's a string (from database)
+        const existingConfigParsed = typeof existingConfig === 'string' 
+          ? JSON.parse(existingConfig) 
+          : existingConfig;
+        
+        // Start with existing config (which has encrypted sensitive fields)
+        const mergedConfig = { ...existingConfigParsed };
+        
+        // Define sensitive fields that should not be overwritten with empty values
+        const sensitiveFieldsByType = {
+          aws: ['access_key', 'secret_key', 'access_key_id', 'secret_access_key'],
+          gcp: ['private_key', 'service_account_key'],
           azure: ['account_key'],
           snowflake: ['snowflake_password'],
           databricks: ['databricks_token'],
           sharepoint: ['sharepoint_client_secret'],
-          outlook: ['outlook_client_secret']
+          outlook: ['outlook_client_secret'],
+          vendor: ['access_key_id', 'secret_access_key', 'service_account_key', 'account_key']
         };
         
-        const connectionType = type || existingConnection.type;
-        const sensFields = sensitiveFields[connectionType] || [];
+        const sensitiveFields = sensitiveFieldsByType[connectionType] || [];
         
-        // Update non-sensitive fields first
+        // Separate new config into sensitive and non-sensitive fields
+        const fieldsToEncrypt = {};
+        
+        // Update with new config values
         for (const [key, value] of Object.entries(config)) {
-          if (!sensFields.includes(key)) {
+          // For sensitive fields: only update if value is non-empty
+          if (sensitiveFields.includes(key)) {
+            if (value && value !== '') {
+              // Add to fields that need encryption
+              fieldsToEncrypt[key] = value;
+            }
+            // If empty/undefined, preserve existing encrypted value (don't update)
+          } else {
+            // For non-sensitive fields: update normally
             mergedConfig[key] = value;
           }
         }
         
-        // Handle sensitive fields: preserve existing encrypted credentials if new ones are not provided or are empty
-        for (const field of sensFields) {
-          if (config[field] && config[field] !== '') {
-            // Encrypt and store the new value
-            mergedConfig[field] = encrypt(config[field]);
+        // Encrypt the newly provided sensitive fields
+        if (Object.keys(fieldsToEncrypt).length > 0) {
+          const encryptedNewFields = this.encryptSensitiveFields(connectionType, fieldsToEncrypt);
+          
+          // Merge encrypted new fields into config
+          for (const [key, value] of Object.entries(encryptedNewFields)) {
+            mergedConfig[key] = value;
           }
-          // If field is empty/missing in config, keep existing encrypted value (already in mergedConfig)
         }
         
         updateFields.push(`config = $${updateValues.length + 1}`);
-        updateValues.push(mergedConfig);
+        updateValues.push(JSON.stringify(mergedConfig));
       }
       
       if (is_active !== undefined) {
@@ -456,7 +475,7 @@ class ConnectionService {
       }
       
       updateQuery += updateFields.join(', ');
-      updateQuery += ` WHERE id = $${updateValues.length + 1} RETURNING *`;
+      updateQuery += ` WHERE connection_id = $${updateValues.length + 1} RETURNING *`;
       updateValues.push(id);
       
       // Execute update
@@ -478,13 +497,13 @@ class ConnectionService {
   /**
    * Delete a connection
    * 
-   * @param {number} id - Connection ID
+   * @param {string} id - Connection ID (UUID)
    * @returns {Promise<boolean>} - Success status
    */
   async deleteConnection(id) {
     try {
       const result = await pool.query(
-        'DELETE FROM transform_connections WHERE id = $1 RETURNING id',
+        'DELETE FROM storage_connections WHERE connection_id = $1 RETURNING connection_id',
         [id]
       );
       
