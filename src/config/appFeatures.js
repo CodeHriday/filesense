@@ -85,6 +85,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'vendor_file_upload', 
+    name: 'Vendor File Upload', 
+    category: 'Project & File Management',
+    icon: FiUpload,
+    route: '/vendor-file-upload',
+    showInSidebar: true
+  },
+  { 
     id: 'vendor_file_quality', 
     name: 'Vendor File Catalog', 
     category: 'Project & File Management',
