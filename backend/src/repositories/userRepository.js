@@ -20,7 +20,7 @@ const findAll = async (filters = {}) => {
       SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
              u.created_at, u.updated_at, u.last_login,
              u.internal_user, u.user_type,
-             u.failed_login_attempts, u.locked_until,
+             u.failed_login_attempts, u.locked_until, u.must_change_password,
              ARRAY_AGG(r.name) AS roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -60,7 +60,7 @@ const findAll = async (filters = {}) => {
     }
     
     // Complete the query with GROUP BY and ORDER BY
-    queryText += whereClause + ' GROUP BY u.id, u.internal_user, u.user_type, u.failed_login_attempts, u.locked_until ORDER BY u.created_at DESC';
+    queryText += whereClause + ' GROUP BY u.id, u.internal_user, u.user_type, u.failed_login_attempts, u.locked_until, u.must_change_password ORDER BY u.created_at DESC';
     
     // Add pagination if provided
     if (filters.limit) {
@@ -97,13 +97,13 @@ const findById = async (id) => {
       SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
              u.created_at, u.updated_at, u.last_login,
              u.internal_user, u.user_type,
-             u.failed_login_attempts, u.locked_until,
+             u.failed_login_attempts, u.locked_until, u.must_change_password,
              ARRAY_AGG(r.name) AS roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
       LEFT JOIN roles r ON ur.role_id = r.id
       WHERE u.id = $1
-      GROUP BY u.id, u.internal_user, u.user_type, u.failed_login_attempts, u.locked_until
+      GROUP BY u.id, u.internal_user, u.user_type, u.failed_login_attempts, u.locked_until, u.must_change_password
     `;
     
     const result = await db.query(query, [id]);
@@ -137,12 +137,13 @@ const findByUsername = async (username) => {
       SELECT u.id, u.username, u.email, u.password, u.full_name, 
              u.created_at, u.updated_at, u.last_login,
              u.internal_user, u.user_type,
+             u.failed_login_attempts, u.locked_until, u.must_change_password,
              ARRAY_AGG(r.name) AS roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
       LEFT JOIN roles r ON ur.role_id = r.id
       WHERE u.username = $1
-      GROUP BY u.id, u.internal_user, u.user_type
+      GROUP BY u.id, u.internal_user, u.user_type, u.failed_login_attempts, u.locked_until, u.must_change_password
     `;
     
     const result = await db.query(query, [username]);
@@ -567,6 +568,22 @@ const validateCredentials = async (username, password) => {
   }
 };
 
+/**
+ * Set must_change_password flag for a user
+ * @param {string} userId - User ID
+ * @param {boolean} mustChange - Whether user must change password
+ * @returns {Promise<void>}
+ */
+const setMustChangePassword = async (userId, mustChange = true) => {
+  try {
+    const query = 'UPDATE users SET must_change_password = $1 WHERE id = $2';
+    await db.query(query, [mustChange, userId]);
+  } catch (error) {
+    console.error(`Error in userRepository.setMustChangePassword:`, error);
+    throw error;
+  }
+};
+
 module.exports = {
   findAll,
   findById,
@@ -576,5 +593,6 @@ module.exports = {
   remove,
   updateLastLogin,
   count,
-  validateCredentials
+  validateCredentials,
+  setMustChangePassword
 };
