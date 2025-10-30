@@ -1,74 +1,51 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiEye, FiDownload, FiCheckCircle, FiAlertTriangle } from 'react-icons/fi';
 import axios from 'axios';
-import { FiCheckCircle, FiAlertTriangle, FiXCircle, FiEye, FiDownload } from 'react-icons/fi';
+import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/VendorFileQuality.css';
 
 function VendorFileQuality() {
-  const [profilingResults, setProfilingResults] = useState([]);
+  const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedResult, setSelectedResult] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState('all');
   
-  // Filters
-  const [filters, setFilters] = useState({
-    minQualityScore: '',
-    maxQualityScore: '',
-    hasIssues: false
-  });
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchProfilingResults();
-  }, [filters]);
+    fetchVendorFiles();
+  }, []);
 
-  const fetchProfilingResults = async () => {
+  const fetchVendorFiles = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      
-      if (filters.minQualityScore) params.append('min_quality_score', filters.minQualityScore);
-      if (filters.maxQualityScore) params.append('max_quality_score', filters.maxQualityScore);
-      if (filters.hasIssues) params.append('has_issues', 'true');
-      params.append('limit', '100');
-      
-      const response = await axios.get(`/api/vendor-file-profiling?${params.toString()}`);
-      setProfilingResults(response.data.results || []);
+      const response = await axios.get('/api/vendor-files');
+      setFiles(response.data || []);
       setError(null);
     } catch (err) {
-      console.error('Error fetching profiling results:', err);
-      setError('Failed to load profiling results');
+      console.error('Error fetching vendor files:', err);
+      setError('Failed to load vendor files');
     } finally {
       setLoading(false);
     }
   };
 
-  const viewDetails = async (fileId) => {
-    try {
-      const response = await axios.get(`/api/vendor-file-profiling/${fileId}`);
-      setSelectedResult(response.data);
-      setShowDetailModal(true);
-    } catch (err) {
-      console.error('Error fetching profiling details:', err);
-      alert('Failed to load profiling details');
-    }
+  const handleViewProfile = (fileId) => {
+    navigate(`/profile/${fileId}`);
   };
 
-  const getQualityColor = (score) => {
-    if (!score) return '#999';
-    if (score >= 80) return '#22c55e';
-    if (score >= 60) return '#eab308';
-    return '#ef4444';
-  };
-
-  const getSeverityIcon = (severity) => {
-    switch (severity) {
-      case 'high':
-        return <FiXCircle className="severity-icon severity-high" />;
-      case 'medium':
-        return <FiAlertTriangle className="severity-icon severity-medium" />;
-      default:
-        return <FiCheckCircle className="severity-icon severity-low" />;
-    }
+  const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
   const formatDate = (dateString) => {
@@ -77,329 +54,127 @@ function VendorFileQuality() {
     return date.toLocaleString();
   };
 
-  const safeJSONParse = (value, defaultValue = {}) => {
-    if (!value) return defaultValue;
-    if (typeof value === 'object') return value;
-    if (typeof value !== 'string') return defaultValue;
-    if (value.trim() === '') return defaultValue;
+  // Filter files based on search and type
+  const filteredFiles = files.filter(file => {
+    const matchesSearch = !searchTerm || 
+      file.filename?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      file.file_id?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    try {
-      return JSON.parse(value);
-    } catch (e) {
-      console.warn('Failed to parse JSON:', value, e);
-      return defaultValue;
-    }
-  };
+    const matchesType = selectedType === 'all' || file.file_type === selectedType;
+    
+    return matchesSearch && matchesType;
+  });
 
-  const safeNumber = (value, defaultValue = null) => {
-    if (value === null || value === undefined) return defaultValue;
-    if (typeof value === 'number') return value;
-    const num = parseFloat(value);
-    return isNaN(num) ? defaultValue : num;
-  };
+  // Get unique file types for filter
+  const fileTypes = [...new Set(files.map(f => f.file_type).filter(Boolean))];
 
-  const exportIssues = (result) => {
-    const issues = result.issues || [];
-    const csvContent = [
-      ['Type', 'Severity', 'Column', 'Message'].join(','),
-      ...issues.map(issue => [
-        issue.type || '',
-        issue.severity || '',
-        issue.column || '',
-        (issue.message || '').replace(/,/g, ';')
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `quality-issues-${result.file_id}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  if (loading) {
+    return (
+      <div className="vendor-file-catalog-container">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
-    <div className="vendor-file-quality-container">
-      <div className="vendor-file-quality-header">
-        <h1>Vendor File Catalog</h1>
-        <p className="subtitle">Quality profiling results for vendor-uploaded files</p>
-      </div>
-
-      <div className="filters-section">
-        <div className="filter-group">
-          <label>Min Quality Score</label>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            value={filters.minQualityScore}
-            onChange={(e) => setFilters({ ...filters, minQualityScore: e.target.value })}
-            placeholder="0-100"
-          />
-        </div>
-        <div className="filter-group">
-          <label>Max Quality Score</label>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            value={filters.maxQualityScore}
-            onChange={(e) => setFilters({ ...filters, maxQualityScore: e.target.value })}
-            placeholder="0-100"
-          />
-        </div>
-        <div className="filter-group checkbox-group">
-          <label>
-            <input
-              type="checkbox"
-              checked={filters.hasIssues}
-              onChange={(e) => setFilters({ ...filters, hasIssues: e.target.checked })}
-            />
-            <span>Show only files with issues</span>
-          </label>
+    <div className="vendor-file-catalog-container">
+      <div className="catalog-header">
+        <div className="header-content">
+          <h1>Vendor File Catalog</h1>
+          <p className="subtitle">View and analyze your uploaded vendor files with full profiling details</p>
         </div>
       </div>
 
-      {loading && <div className="loading-message">Loading profiling results...</div>}
       {error && <div className="error-message">{error}</div>}
 
-      {!loading && !error && profilingResults.length === 0 && (
+      {/* Filters */}
+      <div className="filters-container">
+        <div className="search-box">
+          <input
+            type="text"
+            placeholder="Search by filename or file ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
+        
+        <div className="filter-group">
+          <label htmlFor="file-type-filter">File Type:</label>
+          <select
+            id="file-type-filter"
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Types</option>
+            {fileTypes.map(type => (
+              <option key={type} value={type}>{type.toUpperCase()}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Results summary */}
+      <div className="results-summary">
+        <p>Showing {filteredFiles.length} of {files.length} vendor files</p>
+      </div>
+
+      {!loading && !error && files.length === 0 && (
         <div className="empty-state">
-          <p>No profiling results found matching your filters.</p>
+          <FiCheckCircle size={48} style={{ color: '#ccc', marginBottom: '1rem' }} />
+          <h3>No vendor files yet</h3>
+          <p>Upload files through the Vendor File Upload page to see them here</p>
         </div>
       )}
 
-      {!loading && !error && profilingResults.length > 0 && (
-        <div className="results-table-container">
-          <table className="results-table">
+      {!loading && !error && filteredFiles.length === 0 && files.length > 0 && (
+        <div className="empty-state">
+          <FiAlertTriangle size={48} style={{ color: '#f59e0b', marginBottom: '1rem' }} />
+          <h3>No matching files</h3>
+          <p>Try adjusting your search or filter criteria</p>
+        </div>
+      )}
+
+      {!loading && !error && filteredFiles.length > 0 && (
+        <div className="file-table-container">
+          <table className="file-table">
             <thead>
               <tr>
                 <th>File Name</th>
-                <th>Connection</th>
-                <th>Vendor</th>
-                <th>Quality Score</th>
-                <th>Issues</th>
+                <th>Type</th>
+                <th>Size</th>
                 <th>Uploaded</th>
-                <th>Profiled</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {profilingResults.map((result) => {
-                const issueCount = safeJSONParse(result.issues, []).length;
-                const qualityScore = safeNumber(result.quality_score);
-
-                return (
-                  <tr key={result.file_id}>
-                    <td className="filename-cell">
-                      <div className="filename">{result.filename}</div>
-                      <div className="file-meta">{result.file_type?.toUpperCase()} • {(result.file_size / 1024).toFixed(2)} KB</div>
-                    </td>
-                    <td>
-                      <div className="connection-badge">
-                        {result.connection_name || 'N/A'}
-                      </div>
-                    </td>
-                    <td>{result.vendor_name || 'N/A'}</td>
-                    <td>
-                      <div className="quality-score" style={{ color: getQualityColor(qualityScore) }}>
-                        {qualityScore !== null ? `${qualityScore.toFixed(1)}%` : 'N/A'}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="issues-count">
-                        {issueCount > 0 ? (
-                          <span className="has-issues">{issueCount} issues</span>
-                        ) : (
-                          <span className="no-issues">No issues</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{formatDate(result.file_uploaded_at)}</td>
-                    <td>{formatDate(result.profiled_at)}</td>
-                    <td>
-                      <button
-                        className="action-btn view-btn"
-                        onClick={() => viewDetails(result.file_id)}
-                        title="View Details"
-                      >
-                        <FiEye />
-                      </button>
-                      {issueCount > 0 && (
-                        <button
-                          className="action-btn export-btn"
-                          onClick={() => exportIssues(result)}
-                          title="Export Issues"
-                        >
-                          <FiDownload />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {filteredFiles.map((file) => (
+                <tr key={file.file_id} className="file-row">
+                  <td className="filename-cell">
+                    <div className="filename">{file.filename}</div>
+                    <div className="file-id">{file.file_id}</div>
+                  </td>
+                  <td>
+                    <span className="file-type-badge">
+                      {file.file_type?.toUpperCase() || 'Unknown'}
+                    </span>
+                  </td>
+                  <td>{formatBytes(file.file_size)}</td>
+                  <td>{formatDate(file.created_at)}</td>
+                  <td>
+                    <button
+                      className="action-btn view-btn"
+                      onClick={() => handleViewProfile(file.file_id)}
+                      title="View Full Profile"
+                    >
+                      <FiEye /> View Profile
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {showDetailModal && selectedResult && (
-        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Quality Details: {selectedResult.filename}</h2>
-              <button className="close-btn" onClick={() => setShowDetailModal(false)}>×</button>
-            </div>
-            
-            <div className="modal-body">
-              {/* Quality Score Overview */}
-              <div className="detail-section">
-                <h3>Quality Scores</h3>
-                <div className="scores-grid">
-                  <div className="score-card">
-                    <div className="score-label">Overall</div>
-                    <div className="score-value" style={{ color: getQualityColor(safeNumber(selectedResult.quality_score)) }}>
-                      {safeNumber(selectedResult.quality_score) !== null ? `${safeNumber(selectedResult.quality_score).toFixed(1)}%` : 'N/A'}
-                    </div>
-                  </div>
-                  <div className="score-card">
-                    <div className="score-label">Completeness</div>
-                    <div className="score-value">{safeNumber(selectedResult.completeness_score) !== null ? `${safeNumber(selectedResult.completeness_score).toFixed(1)}%` : 'N/A'}</div>
-                  </div>
-                  <div className="score-card">
-                    <div className="score-label">Consistency</div>
-                    <div className="score-value">{safeNumber(selectedResult.consistency_score) !== null ? `${safeNumber(selectedResult.consistency_score).toFixed(1)}%` : 'N/A'}</div>
-                  </div>
-                  <div className="score-card">
-                    <div className="score-label">Validity</div>
-                    <div className="score-value">{safeNumber(selectedResult.validity_score) !== null ? `${safeNumber(selectedResult.validity_score).toFixed(1)}%` : 'N/A'}</div>
-                  </div>
-                  <div className="score-card">
-                    <div className="score-label">Uniqueness</div>
-                    <div className="score-value">{safeNumber(selectedResult.uniqueness_score) !== null ? `${safeNumber(selectedResult.uniqueness_score).toFixed(1)}%` : 'N/A'}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Issues List */}
-              {selectedResult.issues && safeJSONParse(selectedResult.issues, []).length > 0 && (
-                <div className="detail-section">
-                  <h3>Issues Found ({safeJSONParse(selectedResult.issues, []).length})</h3>
-                  <div className="issues-list">
-                    {safeJSONParse(selectedResult.issues, []).map((issue, idx) => (
-                      <div key={idx} className="issue-item">
-                        <div className="issue-header">
-                          {getSeverityIcon(issue.severity)}
-                          <span className="issue-type">{issue.type}</span>
-                          {issue.column && <span className="issue-column">Column: {issue.column}</span>}
-                        </div>
-                        <div className="issue-message">{issue.message}</div>
-                        {issue.recommendation && (
-                          <div className="issue-recommendation">💡 {issue.recommendation}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Header Issues */}
-              {selectedResult.header_issues && Object.keys(safeJSONParse(selectedResult.header_issues, {})).length > 0 && (
-                <div className="detail-section">
-                  <h3>Header Issues</h3>
-                  <div className="header-issues">
-                    {Object.entries(safeJSONParse(selectedResult.header_issues, {})).map(([key, value]) => (
-                      <div key={key} className="header-issue-item">
-                        <strong>{key}:</strong> {JSON.stringify(value)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* NULL Value Summary */}
-              {selectedResult.null_value_summary && Object.keys(safeJSONParse(selectedResult.null_value_summary, {})).length > 0 && (
-                <div className="detail-section">
-                  <h3>NULL Values Summary</h3>
-                  <table className="null-values-table">
-                    <thead>
-                      <tr>
-                        <th>Column</th>
-                        <th>Missing Count</th>
-                        <th>Missing %</th>
-                        <th>Total Count</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(safeJSONParse(selectedResult.null_value_summary, {})).map(([col, data]) => (
-                        <tr key={col}>
-                          <td>{col}</td>
-                          <td>{data.missing_count}</td>
-                          <td>{safeNumber(data.missing_pct) !== null ? `${safeNumber(data.missing_pct).toFixed(2)}%` : 'N/A'}</td>
-                          <td>{data.total_count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Date Format Issues */}
-              {selectedResult.date_format_issues && Object.keys(safeJSONParse(selectedResult.date_format_issues, {})).length > 0 && (
-                <div className="detail-section">
-                  <h3>Date Format Inconsistencies</h3>
-                  <div className="date-format-issues">
-                    {Object.entries(safeJSONParse(selectedResult.date_format_issues, {})).map(([col, data]) => (
-                      <div key={col} className="date-issue-item">
-                        <strong>{col}:</strong> Found patterns: {data.patterns_found?.join(', ')}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Duplicate Data */}
-              {selectedResult.duplicate_data && Object.keys(safeJSONParse(selectedResult.duplicate_data, {})).length > 0 && (
-                <div className="detail-section">
-                  <h3>Duplicate Data</h3>
-                  <div className="duplicate-summary">
-                    {(() => {
-                      const dupData = safeJSONParse(selectedResult.duplicate_data, {});
-                      return (
-                        <>
-                          <p>Total Duplicates: {dupData.total_duplicates}</p>
-                          <p>Duplicate Percentage: {safeNumber(dupData.duplicate_percentage) !== null ? `${safeNumber(dupData.duplicate_percentage).toFixed(2)}%` : 'N/A'}</p>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* File Metadata */}
-              <div className="detail-section">
-                <h3>File Metadata</h3>
-                <div className="metadata-grid">
-                  <div><strong>File ID:</strong> {selectedResult.file_id}</div>
-                  <div><strong>File Type:</strong> {selectedResult.file_type?.toUpperCase()}</div>
-                  <div><strong>File Size:</strong> {(selectedResult.file_size / 1024).toFixed(2)} KB</div>
-                  <div><strong>Connection:</strong> {selectedResult.connection_name}</div>
-                  <div><strong>Vendor:</strong> {selectedResult.vendor_name}</div>
-                  <div><strong>Uploaded By:</strong> {selectedResult.uploaded_by_username}</div>
-                  <div><strong>Uploaded At:</strong> {formatDate(selectedResult.file_uploaded_at)}</div>
-                  <div><strong>Profiled At:</strong> {formatDate(selectedResult.profiled_at)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowDetailModal(false)}>Close</button>
-              <button className="btn-primary" onClick={() => exportIssues(selectedResult)}>
-                <FiDownload /> Export Issues
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

@@ -651,6 +651,73 @@ app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(30
   }
 });
 
+// Vendor Files API - returns only files marked as vendor files
+app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddleware(300), async (req, res) => {
+  try {
+    // Check if user has permission to view files
+    const userPermissions = req.user.permissions || [];
+    const hasFilePermission = userPermissions.some(p => {
+      if (typeof p === 'string') {
+        return p === 'file_view' || p === 'file:read' || p === 'file_upload:read' || p === 'vendor_file_quality:read';
+      }
+      return p.name === 'file_view' || p.name === 'file:read' || p.name === 'file_upload:read' || p.name === 'vendor_file_quality:read';
+    });
+    
+    if (!hasFilePermission) {
+      logger.warn('User attempted to access vendor files without permission', {
+        userId: req.user.id,
+        username: req.user.username
+      });
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to view vendor files'
+      });
+    }
+    
+    // Get user's accessible projects for filtering
+    const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
+    const isAdmin = req.user?.roles?.includes('Admin');
+    let projectIds = null;
+    
+    if (!isAdmin) {
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      // If user has no projects, return empty list
+      if (projectIds.length === 0) {
+        return res.json([]);
+      }
+    }
+    
+    // Query only vendor files (is_vendor_file = true)
+    let query = 'SELECT * FROM files WHERE is_vendor_file = true';
+    const params = [];
+    
+    // Filter by projects if not admin
+    if (projectIds && projectIds.length > 0) {
+      query += ' AND project_id = ANY($1)';
+      params.push(projectIds);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const result = await dbPool.query(query, params);
+    const files = result.rows;
+    
+    logger.info('Fetched vendor files', {
+      userId: req.user.id,
+      fileCount: files.length,
+      isAdmin,
+      projectCount: projectIds?.length || 'all'
+    });
+    
+    res.json(files);
+  } catch (err) {
+    logger.error('Error fetching vendor files', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch vendor files' });
+  }
+});
+
 app.get('/api/files/:fileId', 
   authenticateToken,
   attachVendorProfile,
