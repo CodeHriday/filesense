@@ -91,6 +91,13 @@ function VendorFileQuality() {
     }
   };
 
+  const safeNumber = (value, defaultValue = null) => {
+    if (value === null || value === undefined) return defaultValue;
+    if (typeof value === 'number') return value;
+    const num = parseFloat(value);
+    return isNaN(num) ? defaultValue : num;
+  };
+
   const exportIssues = (result) => {
     const issues = result.issues || [];
     const csvContent = [
@@ -181,7 +188,7 @@ function VendorFileQuality() {
             <tbody>
               {profilingResults.map((result) => {
                 const issueCount = safeJSONParse(result.issues, []).length;
-                const qualityScore = result.quality_score;
+                const qualityScore = safeNumber(result.quality_score);
 
                 return (
                   <tr key={result.file_id}>
@@ -197,7 +204,7 @@ function VendorFileQuality() {
                     <td>{result.vendor_name || 'N/A'}</td>
                     <td>
                       <div className="quality-score" style={{ color: getQualityColor(qualityScore) }}>
-                        {qualityScore ? `${qualityScore.toFixed(1)}%` : 'N/A'}
+                        {qualityScore !== null ? `${qualityScore.toFixed(1)}%` : 'N/A'}
                       </div>
                     </td>
                     <td>
@@ -252,25 +259,25 @@ function VendorFileQuality() {
                 <div className="scores-grid">
                   <div className="score-card">
                     <div className="score-label">Overall</div>
-                    <div className="score-value" style={{ color: getQualityColor(selectedResult.quality_score) }}>
-                      {selectedResult.quality_score ? `${selectedResult.quality_score.toFixed(1)}%` : 'N/A'}
+                    <div className="score-value" style={{ color: getQualityColor(safeNumber(selectedResult.quality_score)) }}>
+                      {safeNumber(selectedResult.quality_score) !== null ? `${safeNumber(selectedResult.quality_score).toFixed(1)}%` : 'N/A'}
                     </div>
                   </div>
                   <div className="score-card">
                     <div className="score-label">Completeness</div>
-                    <div className="score-value">{selectedResult.completeness_score ? `${selectedResult.completeness_score.toFixed(1)}%` : 'N/A'}</div>
+                    <div className="score-value">{safeNumber(selectedResult.completeness_score) !== null ? `${safeNumber(selectedResult.completeness_score).toFixed(1)}%` : 'N/A'}</div>
                   </div>
                   <div className="score-card">
                     <div className="score-label">Consistency</div>
-                    <div className="score-value">{selectedResult.consistency_score ? `${selectedResult.consistency_score.toFixed(1)}%` : 'N/A'}</div>
+                    <div className="score-value">{safeNumber(selectedResult.consistency_score) !== null ? `${safeNumber(selectedResult.consistency_score).toFixed(1)}%` : 'N/A'}</div>
                   </div>
                   <div className="score-card">
                     <div className="score-label">Validity</div>
-                    <div className="score-value">{selectedResult.validity_score ? `${selectedResult.validity_score.toFixed(1)}%` : 'N/A'}</div>
+                    <div className="score-value">{safeNumber(selectedResult.validity_score) !== null ? `${safeNumber(selectedResult.validity_score).toFixed(1)}%` : 'N/A'}</div>
                   </div>
                   <div className="score-card">
                     <div className="score-label">Uniqueness</div>
-                    <div className="score-value">{selectedResult.uniqueness_score ? `${selectedResult.uniqueness_score.toFixed(1)}%` : 'N/A'}</div>
+                    <div className="score-value">{safeNumber(selectedResult.uniqueness_score) !== null ? `${safeNumber(selectedResult.uniqueness_score).toFixed(1)}%` : 'N/A'}</div>
                   </div>
                 </div>
               </div>
@@ -329,7 +336,7 @@ function VendorFileQuality() {
                         <tr key={col}>
                           <td>{col}</td>
                           <td>{data.missing_count}</td>
-                          <td>{data.missing_pct?.toFixed(2)}%</td>
+                          <td>{safeNumber(data.missing_pct) !== null ? `${safeNumber(data.missing_pct).toFixed(2)}%` : 'N/A'}</td>
                           <td>{data.total_count}</td>
                         </tr>
                       ))}
@@ -362,7 +369,7 @@ function VendorFileQuality() {
                       return (
                         <>
                           <p>Total Duplicates: {dupData.total_duplicates}</p>
-                          <p>Duplicate Percentage: {dupData.duplicate_percentage?.toFixed(2)}%</p>
+                          <p>Duplicate Percentage: {safeNumber(dupData.duplicate_percentage) !== null ? `${safeNumber(dupData.duplicate_percentage).toFixed(2)}%` : 'N/A'}</p>
                         </>
                       );
                     })()}
