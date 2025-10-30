@@ -1705,6 +1705,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     let dropConfig;
     let provider;
     let uploadPath = '';
+    let profileData = null; // Will store profiling results if connection-based upload
     
     if (connectionId) {
       // Connection-based upload: either vendor or admin
@@ -1877,6 +1878,40 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         : file.originalname;
     }
     
+    // Profile file locally BEFORE uploading (for connection-based uploads only)
+    if (connectionId) {
+      try {
+        logger.info('Starting vendor file profiling on local file', { fileId, connectionId, userId, filePath: file.path });
+        
+        // Call Python profiling service with local file path
+        const profileResponse = await axios.post('http://localhost:8000/api/vendor-profile', {
+          file_id: fileId,
+          local_file_path: file.path,
+          filename: file.originalname
+        }, {
+          timeout: 120000 // 2 minute timeout for profiling
+        });
+        
+        profileData = profileResponse.data;
+        
+        logger.info('Vendor file profiling completed', { 
+          fileId, 
+          connectionId, 
+          issueCount: profileData.issues?.length || 0,
+          qualityScore: profileData.quality_score?.overall_score
+        });
+      } catch (profilingError) {
+        logger.error('Vendor file profiling failed', { 
+          fileId, 
+          connectionId, 
+          error: profilingError.message,
+          stack: profilingError.stack
+        });
+        // Continue with upload even if profiling fails
+        profileData = null;
+      }
+    }
+    
     // Decrypt credentials
     const { decrypt } = require('./backend/utils/encryption');
     
@@ -2025,95 +2060,58 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       ]
     );
     
-    // Trigger vendor file profiling for connection-based uploads (async, don't block response)
-    if (connectionId) {
-      // Run profiling in background
-      setImmediate(async () => {
-        try {
-          logger.info('Starting vendor file profiling', { fileId, connectionId, userId });
-          
-          // Determine vendor_id if this is a vendor upload
-          let vendorId = null;
-          if (!isAdmin) {
-            const vendorResult = await dbPool.query(
-              'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
-              [userId, 'active']
-            );
-            if (vendorResult.rows.length > 0) {
-              vendorId = vendorResult.rows[0].id;
-            }
-          }
-          
-          // Fetch connection credentials for profiling service
-          const connectionResult = await dbPool.query(
-            'SELECT config FROM storage_connections WHERE connection_id = $1',
-            [connectionId]
+    // Store profiling results if profiling was successful
+    if (connectionId && profileData) {
+      try {
+        // Determine vendor_id if this is a vendor upload
+        let vendorId = null;
+        if (!isAdmin) {
+          const vendorResult = await dbPool.query(
+            'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
+            [userId, 'active']
           );
-          
-          const connectionConfig = connectionResult.rows[0]?.config || {};
-          
-          // Decrypt credentials before sending to profiling service
-          const { decrypt } = require('./backend/utils/encryption');
-          const decryptedConfig = { ...connectionConfig };
-          if (decryptedConfig.access_key) {
-            decryptedConfig.access_key = decrypt(decryptedConfig.access_key);
+          if (vendorResult.rows.length > 0) {
+            vendorId = vendorResult.rows[0].id;
           }
-          if (decryptedConfig.secret_key) {
-            decryptedConfig.secret_key = decrypt(decryptedConfig.secret_key);
-          }
-          
-          // Call Python profiling service with decrypted credentials
-          const profileResponse = await axios.post('http://localhost:8000/api/vendor-profile', {
-            file_id: fileId,
-            storage_location: storageLocation,
-            provider: provider,
-            storage_key: storageKey,
-            credentials: decryptedConfig
-          }, {
-            timeout: 120000 // 2 minute timeout for profiling
-          });
-          
-          const profileData = profileResponse.data;
-          
-          // Store profiling results
-          await dbPool.query(`
-            INSERT INTO vendor_file_profiling_results (
-              file_id, uploaded_by_user_id, vendor_id, connection_id,
-              quality_score, completeness_score, consistency_score, 
-              validity_score, uniqueness_score, timeliness_score,
-              issues, header_issues, null_value_summary, 
-              date_format_issues, duplicate_data, profiling_metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-          `, [
-            fileId,
-            userId,
-            vendorId,
-            connectionId,
-            profileData.quality_score?.overall_score || null,
-            profileData.quality_score?.components?.completeness || null,
-            profileData.quality_score?.components?.consistency || null,
-            profileData.quality_score?.components?.validity || null,
-            profileData.quality_score?.components?.uniqueness || null,
-            profileData.quality_score?.components?.timeliness || null,
-            JSON.stringify(profileData.issues || []),
-            JSON.stringify(profileData.header_issues || {}),
-            JSON.stringify(profileData.null_value_summary || {}),
-            JSON.stringify(profileData.date_format_issues || {}),
-            JSON.stringify(profileData.duplicate_data || {}),
-            JSON.stringify(profileData.metadata || {})
-          ]);
-          
-          logger.info('Vendor file profiling completed successfully', { fileId, connectionId });
-        } catch (profilingError) {
-          logger.error('Vendor file profiling failed', { 
-            fileId, 
-            connectionId, 
-            error: profilingError.message,
-            stack: profilingError.stack
-          });
-          // Don't fail the upload if profiling fails
         }
-      });
+        
+        // Store profiling results
+        await dbPool.query(`
+          INSERT INTO vendor_file_profiling_results (
+            file_id, uploaded_by_user_id, vendor_id, connection_id,
+            quality_score, completeness_score, consistency_score, 
+            validity_score, uniqueness_score, timeliness_score,
+            issues, header_issues, null_value_summary, 
+            date_format_issues, duplicate_data, profiling_metadata
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        `, [
+          fileId,
+          userId,
+          vendorId,
+          connectionId,
+          profileData.quality_score?.overall_score || null,
+          profileData.quality_score?.components?.completeness || null,
+          profileData.quality_score?.components?.consistency || null,
+          profileData.quality_score?.components?.validity || null,
+          profileData.quality_score?.components?.uniqueness || null,
+          profileData.quality_score?.components?.timeliness || null,
+          JSON.stringify(profileData.issues || []),
+          JSON.stringify(profileData.header_issues || {}),
+          JSON.stringify(profileData.null_value_summary || {}),
+          JSON.stringify(profileData.date_format_issues || {}),
+          JSON.stringify(profileData.duplicate_data || {}),
+          JSON.stringify(profileData.metadata || {})
+        ]);
+        
+        logger.info('Vendor file profiling results stored successfully', { fileId, connectionId, vendorId });
+      } catch (dbError) {
+        logger.error('Failed to store profiling results', { 
+          fileId, 
+          connectionId, 
+          error: dbError.message 
+        });
+        // Don't fail the upload if database storage fails
+      }
     }
     
     res.json({
