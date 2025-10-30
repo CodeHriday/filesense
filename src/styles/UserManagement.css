@@ -114,13 +114,37 @@
   font-weight: 500;
 }
 
+.account-status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.account-status.active {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.account-status.warning {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.account-status.locked {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
 .user-actions {
   display: flex;
   gap: 8px;
 }
 
 .edit-user-btn,
-.delete-user-btn {
+.delete-user-btn,
+.unlock-user-btn {
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
@@ -145,6 +169,16 @@
 
 .delete-user-btn:hover {
   background-color: #fed7d7;
+}
+
+.unlock-user-btn {
+  background-color: #fff3e0;
+  color: #ef6c00;
+  font-weight: 500;
+}
+
+.unlock-user-btn:hover {
+  background-color: #ffe0b2;
 }
 
 .no-users-message {

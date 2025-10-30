@@ -177,6 +177,18 @@ const UserManagement = () => {
     }
   };
   
+  const handleUnlockUser = async (userId) => {
+    try {
+      await axios.post(`/api/users/${userId}/unlock`);
+      setError('');
+      // Refresh the user list to show updated status
+      fetchData();
+    } catch (error) {
+      console.error('Error unlocking user:', error);
+      setError(error.response?.data?.error || 'Failed to unlock user account');
+    }
+  };
+  
   const openCreateModal = () => {
     setFormData({
       username: '',
@@ -460,6 +472,7 @@ const UserManagement = () => {
               <th>Email</th>
               <th>Auth Provider</th>
               <th>Roles</th>
+              <th>Account Status</th>
               <th>Last Login</th>
               <th>Actions</th>
             </tr>
@@ -467,55 +480,80 @@ const UserManagement = () => {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan="7" className="no-users-message">No users found</td>
+                <td colSpan="8" className="no-users-message">No users found</td>
               </tr>
             ) : (
-              users.map(user => (
-                <tr key={user.id}>
-                  <td>{user.username}</td>
-                  <td>{user.full_name || '-'}</td>
-                  <td>{user.email || '-'}</td>
-                  <td>
-                    <span className={`auth-provider-badge ${user.auth_provider || 'local'}`}>
-                      {user.auth_provider === 'okta' ? 'Okta SSO' : 'Local'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="user-roles">
-                      {user.roles && user.roles.length > 0 ? 
-                        user.roles.map(role => (
-                          <span key={role} className="role-badge">
-                            {role}
-                          </span>
-                        )) : 
-                        '-'
-                      }
-                    </div>
-                  </td>
-                  <td>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
-                  <td>
-                    <div className="user-actions">
-                                      {/* Temporarily enable Edit button for all users */}
-                      <button 
-                        className="edit-user-btn" 
-                        onClick={() => openEditModal(user)}
-                      >
-                        Edit
-                      </button>
-                      
-                      {/* Temporarily enable Delete button for all users except current user */}
-                      {user.id !== currentUser?.id && (
-                        <button 
-                          className="delete-user-btn" 
-                          onClick={() => openDeleteModal(user)}
-                        >
-                          Delete
-                        </button>
+              users.map(user => {
+                const isLocked = user.locked_until && new Date(user.locked_until) > new Date();
+                const failedAttempts = user.failed_login_attempts || 0;
+                
+                return (
+                  <tr key={user.id}>
+                    <td>{user.username}</td>
+                    <td>{user.full_name || '-'}</td>
+                    <td>{user.email || '-'}</td>
+                    <td>
+                      <span className={`auth-provider-badge ${user.auth_provider || 'local'}`}>
+                        {user.auth_provider === 'okta' ? 'Okta SSO' : 'Local'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="user-roles">
+                        {user.roles && user.roles.length > 0 ? 
+                          user.roles.map(role => (
+                            <span key={role} className="role-badge">
+                              {role}
+                            </span>
+                          )) : 
+                          '-'
+                        }
+                      </div>
+                    </td>
+                    <td>
+                      {isLocked ? (
+                        <span className="account-status locked" title={`Locked until ${new Date(user.locked_until).toLocaleString()}`}>
+                          🔒 Locked ({failedAttempts} failed attempts)
+                        </span>
+                      ) : failedAttempts > 0 ? (
+                        <span className="account-status warning" title={`${failedAttempts} failed login attempts`}>
+                          ⚠️ {failedAttempts} failed attempt{failedAttempts !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="account-status active">✓ Active</span>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
+                    <td>
+                      <div className="user-actions">
+                        {isLocked && hasRole && hasRole('Admin') && (
+                          <button 
+                            className="unlock-user-btn" 
+                            onClick={() => handleUnlockUser(user.id)}
+                            title="Unlock this account"
+                          >
+                            Unlock
+                          </button>
+                        )}
+                        <button 
+                          className="edit-user-btn" 
+                          onClick={() => openEditModal(user)}
+                        >
+                          Edit
+                        </button>
+                        
+                        {user.id !== currentUser?.id && (
+                          <button 
+                            className="delete-user-btn" 
+                            onClick={() => openDeleteModal(user)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
