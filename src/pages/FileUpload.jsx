@@ -735,12 +735,8 @@ function FileUpload() {
       throw new Error('Connection selection required');
     }
     
-    // Check if drop location is configured
-    if (!dropLocationConfigured) {
-      setShowDropLocationModal(true);
-      setUploadStatus('error');
-      throw new Error('Drop location not configured');
-    }
+    // Note: When using connection-based upload, we don't need drop location configured
+    // The connection provides the upload destination
     
     try {
       // Append timestamp to filename (format: basename_YYYYMMDDTHHMMSS.ext)

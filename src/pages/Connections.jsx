@@ -80,7 +80,9 @@ const Connections = () => {
     outlook_client_id: '',
     outlook_client_secret: '',
     outlook_user_email: '',
-    outlook_folder_path: ''
+    outlook_folder_path: '',
+    // Common path field for all cloud storage
+    path: ''
   });
   
   // Fetch connections on component mount
@@ -147,7 +149,8 @@ const Connections = () => {
       private_key: '',
       account_name: '',
       account_key: '',
-      container_name: ''
+      container_name: '',
+      path: ''
     });
     setEditMode(false);
     setEditId(null);
@@ -181,6 +184,7 @@ const Connections = () => {
         bucket_name: connection.bucket_name || config?.bucket || config?.bucket_name || '',
         access_key: '', // Don't prefill for security
         secret_key: '', // Don't prefill for security
+        path: connection.path || config?.path_prefix || '',
         // Store flags to show credential status in UI
         has_access_key: connection.has_access_key || !!config?.access_key || !!config?.access_key_id,
         has_secret_key: connection.has_secret_key || !!config?.secret_key || !!config?.secret_access_key
@@ -192,6 +196,7 @@ const Connections = () => {
         bucket_name: connection.bucket_name || config?.gcp_bucket || config?.bucket || '',
         client_email: connection.client_email || config?.client_email || '',
         private_key: '', // Don't prefill for security
+        path: connection.path || config?.path_prefix || '',
         has_private_key: connection.has_private_key || !!config?.private_key
       };
     } else if (providerType === 'azure') {
@@ -200,6 +205,7 @@ const Connections = () => {
         account_name: connection.account_name || config?.account_name || '',
         container_name: connection.container_name || config?.container_name || '',
         account_key: '', // Don't prefill for security
+        path: connection.path || config?.path_prefix || '',
         has_account_key: connection.has_account_key || !!config?.account_key
       };
     } else if (providerType === 'snowflake') {
@@ -622,6 +628,22 @@ const Connections = () => {
             />
           </div>
           
+          <div className="form-group form-group-full">
+            <label htmlFor="path">Base Path (Optional)</label>
+            <input
+              type="text"
+              id="path"
+              name="path"
+              className="form-control"
+              value={formData.path}
+              onChange={handleInputChange}
+              placeholder="e.g., vendor-uploads/"
+            />
+            <small className="form-text text-muted">
+              Optional folder path within the bucket where files will be uploaded
+            </small>
+          </div>
+          
           <div className="form-group">
             <label htmlFor="access_key">Access Key ID</label>
             <input
@@ -691,6 +713,22 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full">
+            <label htmlFor="path">Base Path (Optional)</label>
+            <input
+              type="text"
+              id="path"
+              name="path"
+              className="form-control"
+              value={formData.path}
+              onChange={handleInputChange}
+              placeholder="e.g., vendor-uploads/"
+            />
+            <small className="form-text text-muted">
+              Optional folder path within the bucket where files will be uploaded
+            </small>
+          </div>
+          
+          <div className="form-group form-group-full">
             <label htmlFor="client_email">Service Account Email</label>
             <input
               type="text"
@@ -750,6 +788,22 @@ const Connections = () => {
               onChange={handleInputChange}
               required
             />
+          </div>
+          
+          <div className="form-group form-group-full">
+            <label htmlFor="path">Base Path (Optional)</label>
+            <input
+              type="text"
+              id="path"
+              name="path"
+              className="form-control"
+              value={formData.path}
+              onChange={handleInputChange}
+              placeholder="e.g., vendor-uploads/"
+            />
+            <small className="form-text text-muted">
+              Optional folder path within the container where files will be uploaded
+            </small>
           </div>
           
           <div className="form-group form-group-full">
