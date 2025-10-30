@@ -1551,80 +1551,106 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     let uploadPath = '';
     
     if (connectionId) {
-      // Vendor upload: use specified connection
-      logger.info('Vendor drop file upload', { connectionId, folder, userId });
+      // Connection-based upload: either vendor or admin
+      logger.info('Connection-based drop file upload', { connectionId, folder, userId, isAdmin });
       
-      // Validate vendor authorization for this connection
-      // Get vendor profile
-      const vendorResult = await dbPool.query(
-        'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
-        [userId, 'active']
-      );
+      let connection;
       
-      if (vendorResult.rows.length === 0) {
-        try { fs.unlinkSync(file.path); } catch (e) {}
-        logger.warn('Unauthorized vendor upload attempt - not a vendor', { userId, connectionId });
-        return res.status(403).json({ 
-          error: 'Access denied',
-          message: 'You are not registered as a vendor user'
-        });
+      // Admin users can use any connection
+      if (isAdmin) {
+        logger.info('Admin drop file upload using connection', { connectionId, userId });
+        
+        // Fetch connection directly for admins
+        const adminConnResult = await dbPool.query(
+          'SELECT * FROM storage_connections WHERE connection_id = $1 AND status = $2',
+          [connectionId, 'active']
+        );
+        
+        if (adminConnResult.rows.length === 0) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          return res.status(404).json({
+            error: 'Connection not found',
+            message: 'The specified connection does not exist or is inactive'
+          });
+        }
+        
+        connection = adminConnResult.rows[0];
+        
+      } else {
+        // Vendor upload: validate vendor authorization for this connection
+        // Get vendor profile
+        const vendorResult = await dbPool.query(
+          'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
+          [userId, 'active']
+        );
+        
+        if (vendorResult.rows.length === 0) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          logger.warn('Unauthorized vendor upload attempt - not a vendor', { userId, connectionId });
+          return res.status(403).json({ 
+            error: 'Access denied',
+            message: 'You are not registered as a vendor user'
+          });
+        }
+        
+        const vendorId = vendorResult.rows[0].id;
+        
+        // Get user email for contact validation
+        const userResult = await dbPool.query(
+          'SELECT email FROM users WHERE id = $1',
+          [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const userEmail = userResult.rows[0].email;
+        
+        // Verify connection belongs to an authorized vendor agreement
+        const authResult = await dbPool.query(`
+          SELECT 
+            sc.*,
+            va.id as agreement_id,
+            va.project_id,
+            va.drop_location_path
+          FROM storage_connections sc
+          JOIN vendor_agreements va ON va.vendor_connection_id = sc.connection_id
+          WHERE sc.connection_id = $1
+            AND sc.status = 'active'
+            AND va.vendor_id = $2
+            AND va.approval_status = 'fully_approved'
+            AND va.is_locked = true
+            AND va.status = 'active'
+            AND (
+              va.primary_contact_email = $3 
+              OR va.secondary_contact_email = $3
+            )
+          LIMIT 1
+        `, [connectionId, vendorId, userEmail]);
+        
+        if (authResult.rows.length === 0) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          logger.warn('Unauthorized vendor upload attempt - no access to connection', { 
+            userId, 
+            vendorId, 
+            connectionId 
+          });
+          return res.status(403).json({
+            error: 'Access denied',
+            message: 'You do not have permission to upload to this connection'
+          });
+        }
+        
+        connection = authResult.rows[0];
+        
+        // Override projectId with the agreement's project for vendors
+        projectId = connection.project_id;
       }
       
-      const vendorId = vendorResult.rows[0].id;
-      
-      // Get user email for contact validation
-      const userResult = await dbPool.query(
-        'SELECT email FROM users WHERE id = $1',
-        [userId]
-      );
-      
-      if (userResult.rows.length === 0) {
-        try { fs.unlinkSync(file.path); } catch (e) {}
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      const userEmail = userResult.rows[0].email;
-      
-      // Verify connection belongs to an authorized vendor agreement
-      const authResult = await dbPool.query(`
-        SELECT 
-          sc.*,
-          va.id as agreement_id,
-          va.project_id,
-          va.drop_location_path
-        FROM storage_connections sc
-        JOIN vendor_agreements va ON va.vendor_connection_id = sc.connection_id
-        WHERE sc.connection_id = $1
-          AND sc.status = 'active'
-          AND va.vendor_id = $2
-          AND va.approval_status = 'fully_approved'
-          AND va.is_locked = true
-          AND va.status = 'active'
-          AND (
-            va.primary_contact_email = $3 
-            OR va.secondary_contact_email = $3
-          )
-        LIMIT 1
-      `, [connectionId, vendorId, userEmail]);
-      
-      if (authResult.rows.length === 0) {
-        try { fs.unlinkSync(file.path); } catch (e) {}
-        logger.warn('Unauthorized vendor upload attempt - no access to connection', { 
-          userId, 
-          vendorId, 
-          connectionId 
-        });
-        return res.status(403).json({
-          error: 'Access denied',
-          message: 'You do not have permission to upload to this connection'
-        });
-      }
-      
-      const connection = authResult.rows[0];
+      // Continue with connection (works for both admin and vendor)
       provider = connection.type;
-      
-      // Override projectId with the agreement's project
-      projectId = connection.project_id;
       
       // Parse connection config
       const config = typeof connection.config === 'string' ? JSON.parse(connection.config) : connection.config;

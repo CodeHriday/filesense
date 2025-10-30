@@ -941,7 +941,7 @@ const ConnectionModal = ({
           )}
           
           <div className="form-group">
-            <label>File Path (Optional)</label>
+            <label>Path</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
                 type="text"
