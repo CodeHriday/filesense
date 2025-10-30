@@ -7700,6 +7700,11 @@ const vendorUserRoutes = require('./backend/routes/vendorUserRoutes');
 app.use('/api', authenticateToken, vendorUserRoutes);
 console.log('Added vendor user routes');
 
+// Vendor access routes (for vendor file upload)
+const vendorAccessRoutes = require('./backend/routes/vendorAccessRoutes');
+app.use('/api/vendor-access', authenticateToken, vendorAccessRoutes);
+console.log('Added vendor access routes');
+
 // Vendor agreement template routes
 const vendorAgreementTemplateRoutes = require('./backend/routes/vendorAgreementTemplateRoutes');
 app.use('/api', vendorAgreementTemplateRoutes);
