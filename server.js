@@ -2052,13 +2052,23 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           
           const connectionConfig = connectionResult.rows[0]?.config || {};
           
-          // Call Python profiling service with credentials
+          // Decrypt credentials before sending to profiling service
+          const { decrypt } = require('./backend/utils/encryption');
+          const decryptedConfig = { ...connectionConfig };
+          if (decryptedConfig.access_key) {
+            decryptedConfig.access_key = decrypt(decryptedConfig.access_key);
+          }
+          if (decryptedConfig.secret_key) {
+            decryptedConfig.secret_key = decrypt(decryptedConfig.secret_key);
+          }
+          
+          // Call Python profiling service with decrypted credentials
           const profileResponse = await axios.post('http://localhost:8000/api/vendor-profile', {
             file_id: fileId,
             storage_location: storageLocation,
             provider: provider,
             storage_key: storageKey,
-            credentials: connectionConfig
+            credentials: decryptedConfig
           }, {
             timeout: 120000 // 2 minute timeout for profiling
           });
