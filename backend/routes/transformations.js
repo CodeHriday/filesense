@@ -254,7 +254,7 @@ router.post('/',
     
     if (vendor_agreement_id) {
       const agreementResult = await pool.query(
-        'SELECT vendor_connection_id, target_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
+        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
         [vendor_agreement_id, 'fully_approved']
       );
       
@@ -265,7 +265,6 @@ router.post('/',
       }
       
       actualSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
-      actualTargetConnectionId = agreementResult.rows[0].target_connection_id;
       isVendorConnection = true;
       
       if (!actualSourceConnectionId) {
@@ -274,10 +273,9 @@ router.post('/',
         });
       }
       
-      systemLogger.info('Resolved connections from vendor agreement', { 
+      systemLogger.info('Resolved source connection from vendor agreement', { 
         vendor_agreement_id, 
-        vendor_connection_id: actualSourceConnectionId,
-        target_connection_id: actualTargetConnectionId
+        vendor_connection_id: actualSourceConnectionId
       });
     }
     
