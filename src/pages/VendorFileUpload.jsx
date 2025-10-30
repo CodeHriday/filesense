@@ -26,22 +26,26 @@ function VendorFileUpload() {
 
   const { hasWritePermission } = useAuth();
 
-  // Load vendor projects (or all projects for admins)
-  const loadVendorProjects = async () => {
-    setLoadingVendorProjects(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/vendor-projects`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setVendorProjects(response.data.projects || []);
-    } catch (error) {
-      console.error('Error loading vendor projects:', error);
-      setVendorProjects([]);
-    } finally {
-      setLoadingVendorProjects(false);
-    }
-  };
+  // Auto-load projects on mount
+  useEffect(() => {
+    const loadProjects = async () => {
+      setLoadingVendorProjects(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setVendorProjects(response.data || []);
+      } catch (error) {
+        console.error('Error loading projects:', error);
+        setVendorProjects([]);
+      } finally {
+        setLoadingVendorProjects(false);
+      }
+    };
+
+    loadProjects();
+  }, []);
 
   // Load connections for selected project
   const loadVendorConnections = async (projectId) => {
@@ -50,12 +54,12 @@ function VendorFileUpload() {
     setLoadingConnections(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/vendor-drop-connections?project_id=${projectId}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/connections?projectId=${projectId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setVendorConnections(response.data.connections || []);
+      setVendorConnections(response.data || []);
     } catch (error) {
-      console.error('Error loading vendor connections:', error);
+      console.error('Error loading connections:', error);
       setVendorConnections([]);
     } finally {
       setLoadingConnections(false);
@@ -202,19 +206,9 @@ function VendorFileUpload() {
             <div className="selection-row">
               {/* Project Selection */}
               <div className="form-group">
-                <div className="label-row">
-                  <label htmlFor="vendor-project-select">
-                    Project: <span className="required">*</span>
-                  </label>
-                  {!loadingVendorProjects && vendorProjects.length === 0 && (
-                    <button 
-                      className="btn-link"
-                      onClick={loadVendorProjects}
-                    >
-                      Load My Projects
-                    </button>
-                  )}
-                </div>
+                <label htmlFor="vendor-project-select">
+                  Project: <span className="required">*</span>
+                </label>
                 <select 
                   id="vendor-project-select"
                   value={selectedVendorProject || ''}
@@ -228,13 +222,11 @@ function VendorFileUpload() {
                       setSelectedConnection(null);
                     }
                   }}
-                  disabled={loadingVendorProjects || vendorProjects.length === 0}
+                  disabled={loadingVendorProjects}
                   className="form-select"
                 >
                   {loadingVendorProjects ? (
                     <option>Loading projects...</option>
-                  ) : vendorProjects.length === 0 ? (
-                    <option>Click "Load My Projects" to view your accessible projects</option>
                   ) : (
                     <>
                       <option value="">Select a project...</option>

@@ -2104,10 +2104,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       throw new Error(`Unsupported provider: ${provider}`);
     }
     
-    // Clean up local file
-    try { fs.unlinkSync(file.path); } catch (e) {}
-    
-    // Log to database (without profiling)
+    // Log to database
     await dbPool.query(
       `INSERT INTO files (file_id, filename, file_type, file_size, metadata, project_id, is_vendor_file, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
@@ -2129,7 +2126,31 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       ]
     );
     
-    // Store profiling results if profiling was successful
+    // Queue profiling job for async processing
+    const fileType = path.extname(file.originalname).substring(1).toLowerCase();
+    const jobId = await queue.addJob('file-processing', {
+      fileId,
+      filePath: file.path,
+      originalName: file.originalname,
+      fileSize: file.size,
+      fileType,
+      userId,
+      projectId,
+      storageLocation,
+      storageKey,
+      provider,
+      isVendorFile: !!connectionId
+    }, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      timeout: 1800000 // 30 minutes for large files
+    });
+    
+    logger.info('Drop file processing job queued', { fileId, jobId, isVendorFile: !!connectionId });
+    
+    // Note: Local file cleanup will be handled by the worker after profiling
+    
+    // Store profiling results if profiling was successful (legacy, now handled by worker)
     if (connectionId && profileData) {
       try {
         // Determine vendor_id if this is a vendor upload
