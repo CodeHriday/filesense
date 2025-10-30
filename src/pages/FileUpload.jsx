@@ -170,7 +170,7 @@ function FileUpload() {
     }
   };
   
-  // Load vendor projects
+  // Load vendor projects (or all projects for admins)
   const loadVendorProjects = async () => {
     setLoadingVendorProjects(true);
     try {
@@ -180,12 +180,19 @@ function FileUpload() {
         return;
       }
       
-      const response = await axios.get(`${API_BASE_URL}/api/vendor-access/projects`, {
+      // Admins get all projects, vendors get their authorized projects
+      const endpoint = isAdmin 
+        ? `${API_BASE_URL}/api/projects`
+        : `${API_BASE_URL}/api/vendor-access/projects`;
+      
+      const response = await axios.get(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      setVendorProjects(response.data.projects || []);
-      setDiagnosticInfo(prev => prev + `Loaded ${response.data.projects?.length || 0} vendor projects\n`);
+      // Handle different response structures
+      const projects = isAdmin ? response.data : (response.data.projects || []);
+      setVendorProjects(projects);
+      setDiagnosticInfo(prev => prev + `Loaded ${projects.length} project(s)\n`);
     } catch (error) {
       console.error('Error loading vendor projects:', error);
       setDiagnosticInfo(prev => prev + `Error loading projects: ${error.message}\n`);
@@ -195,7 +202,7 @@ function FileUpload() {
     }
   };
   
-  // Load connections for selected vendor project
+  // Load connections for selected project (vendor-specific or all for admins)
   const loadVendorConnections = async (projectId) => {
     setLoadingConnections(true);
     setSelectedConnection(null);
@@ -208,12 +215,19 @@ function FileUpload() {
         return;
       }
       
-      const response = await axios.get(`${API_BASE_URL}/api/vendor-access/connections?projectId=${projectId}`, {
+      // Admins get all connections for project, vendors get their authorized connections
+      const endpoint = isAdmin
+        ? `${API_BASE_URL}/api/connections?projectId=${projectId}`
+        : `${API_BASE_URL}/api/vendor-access/connections?projectId=${projectId}`;
+      
+      const response = await axios.get(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      setVendorConnections(response.data.connections || []);
-      setDiagnosticInfo(prev => prev + `Loaded ${response.data.connections?.length || 0} connections for project\n`);
+      // Handle different response structures
+      const connections = isAdmin ? response.data : (response.data.connections || []);
+      setVendorConnections(connections);
+      setDiagnosticInfo(prev => prev + `Loaded ${connections.length} connection(s) for project\n`);
     } catch (error) {
       console.error('Error loading vendor connections:', error);
       setDiagnosticInfo(prev => prev + `Error loading connections: ${error.message}\n`);
