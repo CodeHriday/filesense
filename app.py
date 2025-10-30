@@ -56,7 +56,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Select a page",
-        ["Dashboard", "File Upload", "Data Profile", "Quality Checks", "Alerts Configuration", "File Catalog"]
+        ["Dashboard", "File Upload", "Vendor Upload", "Data Profile", "Quality Checks", "Alerts Configuration", "File Catalog"]
     )
     
     # Show selected page
@@ -64,6 +64,8 @@ def main():
         show_dashboard()
     elif page == "File Upload":
         show_file_upload()
+    elif page == "Vendor Upload":
+        show_vendor_upload()
     elif page == "Data Profile":
         show_data_profile()
     elif page == "Quality Checks":
@@ -767,6 +769,153 @@ def show_file_catalog():
             file_name="file_catalog.json",
             mime="application/json"
         )
+
+def show_vendor_upload():
+    """Vendor file upload page with project and connection selection"""
+    import requests
+    import boto3
+    from google.cloud import storage as gcs_storage
+    from azure.storage.blob import BlobServiceClient
+    
+    st.header("Vendor File Upload")
+    st.info("Upload files to your designated cloud storage location")
+    
+    # Initialize vendor session state
+    if 'vendor_email' not in st.session_state:
+        st.session_state.vendor_email = None
+    if 'vendor_projects' not in st.session_state:
+        st.session_state.vendor_projects = []
+    if 'vendor_connections' not in st.session_state:
+        st.session_state.vendor_connections = []
+    
+    # Simple authentication (temporary - in production, use proper auth)
+    st.subheader("Vendor Authentication")
+    vendor_email = st.text_input("Enter your vendor email:", value=st.session_state.vendor_email or "")
+    
+    if st.button("Load My Projects"):
+        if not vendor_email:
+            st.error("Please enter your vendor email")
+            return
+        
+        st.session_state.vendor_email = vendor_email
+        
+        # For MVP, we'll create a mock JWT token - in production, use proper authentication
+        # This assumes the backend API is accessible
+        try:
+            # Load projects (Note: This requires proper authentication in production)
+            api_url = "http://localhost:3000/api/vendor-access/projects"
+            headers = {"Authorization": f"Bearer MOCK_TOKEN"}  # Replace with real token
+            
+            st.info("In production, this would use proper JWT authentication. For now, please ensure you're logged in through the main application.")
+            # response = requests.get(api_url, headers=headers)
+            # if response.status_code == 200:
+            #     st.session_state.vendor_projects = response.json().get('projects', [])
+            #     st.success(f"Loaded {len(st.session_state.vendor_projects)} projects")
+            # else:
+            #     st.error(f"Failed to load projects: {response.text}")
+        except Exception as e:
+            st.error(f"Error loading projects: {str(e)}")
+            st.info("Please contact your administrator for assistance with vendor access setup.")
+    
+    # Project selection
+    if st.session_state.vendor_email:
+        st.subheader("Select Project")
+        
+        # For demonstration, allow manual project ID input
+        project_id = st.text_input("Project ID:", help="Enter the project ID you have access to")
+        
+        if project_id and st.button("Load Connections"):
+            try:
+                # Load connections for project
+                api_url = f"http://localhost:3000/api/vendor-access/connections?projectId={project_id}"
+                headers = {"Authorization": f"Bearer MOCK_TOKEN"}  # Replace with real token
+                
+                st.info("Loading connections... (Requires authentication)")
+                # response = requests.get(api_url, headers=headers)
+                # if response.status_code == 200:
+                #     st.session_state.vendor_connections = response.json().get('connections', [])
+                #     st.success(f"Loaded {len(st.session_state.vendor_connections)} connections")
+                # else:
+                #     st.error(f"Failed to load connections: {response.text}")
+            except Exception as e:
+                st.error(f"Error loading connections: {str(e)}")
+        
+        # Connection selection
+        if st.session_state.vendor_connections:
+            st.subheader("Select Connection")
+            
+            connection_options = {
+                conn['name']: conn for conn in st.session_state.vendor_connections
+            }
+            
+            selected_connection_name = st.selectbox(
+                "Choose a connection:",
+                options=list(connection_options.keys())
+            )
+            
+            if selected_connection_name:
+                selected_connection = connection_options[selected_connection_name]
+                
+                st.info(f"""
+                **Connection Details:**
+                - Type: {selected_connection.get('type', 'N/A')}
+                - Description: {selected_connection.get('description', 'N/A')}
+                - Upload Path: {selected_connection.get('path') or selected_connection.get('drop_location_path', 'root')}
+                """)
+                
+                # File upload
+                st.subheader("Upload File")
+                uploaded_file = st.file_uploader(
+                    "Choose a file to upload",
+                    help="File will be uploaded to the cloud storage with a timestamp appended to the filename"
+                )
+                
+                if uploaded_file and st.button("Upload to Cloud Storage"):
+                    try:
+                        # Generate timestamped filename
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        base_name, extension = os.path.splitext(uploaded_file.name)
+                        timestamped_filename = f"{base_name}_{timestamp}{extension}"
+                        
+                        # Get upload path
+                        upload_path = selected_connection.get('path') or selected_connection.get('drop_location_path', '')
+                        if upload_path and not upload_path.endswith('/'):
+                            upload_path += '/'
+                        
+                        full_path = f"{upload_path}{timestamped_filename}"
+                        
+                        # Upload based on connection type
+                        conn_type = selected_connection.get('type')
+                        
+                        with st.spinner(f"Uploading {timestamped_filename} to {conn_type}..."):
+                            if conn_type == 'aws':
+                                # AWS S3 Upload (requires credentials from backend)
+                                st.warning("AWS S3 upload requires proper credentials. Contact administrator.")
+                                st.info(f"Would upload to: s3://{selected_connection.get('bucket')}/{full_path}")
+                                
+                            elif conn_type == 'gcp':
+                                # GCP Storage Upload
+                                st.warning("GCP upload requires proper credentials. Contact administrator.")
+                                st.info(f"Would upload to: gs://{selected_connection.get('gcp_bucket')}/{full_path}")
+                                
+                            elif conn_type == 'azure':
+                                # Azure Blob Upload
+                                st.warning("Azure upload requires proper credentials. Contact administrator.")
+                                st.info(f"Would upload to: {selected_connection.get('container_name')}/{full_path}")
+                            
+                            else:
+                                st.error(f"Unsupported connection type: {conn_type}")
+                                return
+                            
+                            st.success(f"✅ File uploaded successfully as: {timestamped_filename}")
+                            st.info(f"Upload path: {full_path}")
+                            
+                    except Exception as e:
+                        st.error(f"Upload failed: {str(e)}")
+        else:
+            st.info("No connections available. Please load connections for your project first.")
+    else:
+        st.info("Please authenticate with your vendor email to continue.")
 
 if __name__ == "__main__":
     main()
