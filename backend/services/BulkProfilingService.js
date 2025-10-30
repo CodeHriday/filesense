@@ -270,7 +270,33 @@ class BulkProfilingService {
       const jobId = uuidv4();
       let scheduleId = null;
       
-      // If scheduled execution, create a schedule record first
+      // Validate connection exists FIRST (UUID format = storage_connections, integer = transform_connections)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isUuidFormat = typeof jobData.connectionId === 'string' && uuidRegex.test(jobData.connectionId);
+      
+      if (isUuidFormat) {
+        // UUID format - check storage_connections table
+        const connCheck = await pool.query(
+          'SELECT connection_id FROM storage_connections WHERE connection_id = $1 AND status = $2',
+          [jobData.connectionId, 'active']
+        );
+        
+        if (connCheck.rows.length === 0) {
+          throw new Error('Connection not found or inactive. Please select a valid connection.');
+        }
+      } else {
+        // Integer format - check transform_connections table
+        const connCheck = await pool.query(
+          'SELECT id FROM transform_connections WHERE id = $1 AND is_active = TRUE',
+          [jobData.connectionId]
+        );
+        
+        if (connCheck.rows.length === 0) {
+          throw new Error('Connection not found or inactive. Please select a valid connection.');
+        }
+      }
+      
+      // If scheduled execution, create a schedule record AFTER validation
       if (jobData.executionType === 'scheduled') {
         const scheduleData = {
           entity_type: 'bulk_profiling_job',
