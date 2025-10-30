@@ -459,13 +459,14 @@ const VendorManagement = () => {
               <th>Contact Email</th>
               <th>Project</th>
               <th>Status</th>
+              <th>Created</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {vendors.length === 0 ? (
               <tr>
-                <td colSpan="6" className="no-vendors-message">No vendors found</td>
+                <td colSpan="7" className="no-vendors-message">No vendors found</td>
               </tr>
             ) : (
               vendors.map(vendor => (
@@ -479,6 +480,7 @@ const VendorManagement = () => {
                       {vendor.status}
                     </span>
                   </td>
+                  <td>{vendor.created_at ? new Date(vendor.created_at).toLocaleString() : '-'}</td>
                   <td>
                     <div className="vendor-actions">
                       <button 

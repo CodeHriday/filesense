@@ -763,6 +763,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                 })}
               </tbody>
           </table>
+            </div>
           
           {totalPages > 1 && (
             <div className="pagination-controls">
@@ -799,7 +800,6 @@ export const FileCatalog = ({ onFileSelect }) => {
               </button>
             </div>
           )}
-            </div>
           </>
         )}
       </div>

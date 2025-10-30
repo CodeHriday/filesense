@@ -160,11 +160,8 @@ function ProjectManagement() {
       fetchProjects();
       setSelectedProject(null);
     } catch (err) {
-      if (err.response?.data?.resourceCounts) {
-        alert(`Cannot delete project with existing resources:\n` +
-              `Files: ${err.response.data.resourceCounts.file_count}\n` +
-              `Workflows: ${err.response.data.resourceCounts.workflow_count}\n` +
-              `Mappings: ${err.response.data.resourceCounts.mapping_count}`);
+      if (err.response?.data?.error) {
+        alert(err.response.data.error);
       } else {
         setError('Failed to delete project');
       }
@@ -384,7 +381,7 @@ function ProjectManagement() {
                       <span className="badge badge-active">Active</span>
                     )}
                   </td>
-                  <td>{new Date(project.created_at).toLocaleDateString()}</td>
+                  <td>{new Date(project.created_at).toLocaleString()}</td>
                   <td>
                     <div className="action-buttons">
                       <button 

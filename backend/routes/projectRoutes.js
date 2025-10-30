@@ -269,17 +269,28 @@ function createProjectRoutes(dbPool) {
         SELECT 
           (SELECT COUNT(*) FROM files WHERE project_id = $1) as file_count,
           (SELECT COUNT(*) FROM workflow_steps WHERE project_id = $1) as workflow_count,
-          (SELECT COUNT(*) FROM transformation_mappings WHERE project_id = $1) as mapping_count
+          (SELECT COUNT(*) FROM transformation_mappings WHERE project_id = $1) as mapping_count,
+          (SELECT COUNT(*) FROM storage_connections WHERE project_id = $1) as connection_count,
+          (SELECT COUNT(*) FROM vendor_agreements WHERE project_id = $1) as agreement_count
       `, [projectId]);
 
       const counts = resourceCheck.rows[0];
       const totalResources = parseInt(counts.file_count) + 
                             parseInt(counts.workflow_count) + 
-                            parseInt(counts.mapping_count);
+                            parseInt(counts.mapping_count) +
+                            parseInt(counts.connection_count) +
+                            parseInt(counts.agreement_count);
 
       if (totalResources > 0) {
+        const dependencies = [];
+        if (parseInt(counts.file_count) > 0) dependencies.push(`${counts.file_count} file(s)`);
+        if (parseInt(counts.workflow_count) > 0) dependencies.push(`${counts.workflow_count} workflow(s)`);
+        if (parseInt(counts.mapping_count) > 0) dependencies.push(`${counts.mapping_count} transformation mapping(s)`);
+        if (parseInt(counts.connection_count) > 0) dependencies.push(`${counts.connection_count} storage connection(s)`);
+        if (parseInt(counts.agreement_count) > 0) dependencies.push(`${counts.agreement_count} vendor agreement(s)`);
+        
         return res.status(400).json({ 
-          error: 'Cannot delete project with associated resources',
+          error: `Cannot delete project - it has ${dependencies.join(', ')}. Please remove these dependencies first.`,
           resourceCounts: counts
         });
       }
