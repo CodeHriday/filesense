@@ -121,6 +121,17 @@ async function authenticateUserWithSecurity(username, password, userAgent) {
       [resetValues.attempts, resetValues.lockUntil, user.id]
     );
     
+    // Check if user must change password (e.g., after admin unlock)
+    if (user.must_change_password) {
+      return {
+        success: true,
+        requiresPasswordChange: true,
+        message: 'You must change your password before continuing',
+        userId: user.id,
+        username: user.username
+      };
+    }
+    
     // Call original auth service to generate tokens
     // Note: This requires modifying the original validateCredentials to accept user object
     return authService.authenticateUser(username, password, userAgent);
