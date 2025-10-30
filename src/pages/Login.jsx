@@ -5,6 +5,7 @@ import { THEME } from '../config';
 import axios from 'axios';
 import PasswordInput from '../components/PasswordInput';
 import { isVendorUser } from '../utils/userHelpers';
+import PasswordChangeRequired from './PasswordChangeRequired';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -18,6 +19,9 @@ const Login = () => {
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
   const [loginFailed, setLoginFailed] = useState(false);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [passwordChangeUserId, setPasswordChangeUserId] = useState(null);
+  const [passwordChangeUsername, setPasswordChangeUsername] = useState('');
   const { login, currentUser, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,6 +57,19 @@ const Login = () => {
     setLoginFailed(false);
     
     try {
+      const response = await axios.post('/api/auth/login', {
+        username,
+        password
+      });
+      
+      if (response.data.requiresPasswordChange) {
+        setRequiresPasswordChange(true);
+        setPasswordChangeUserId(response.data.userId);
+        setPasswordChangeUsername(response.data.username);
+        setIsLoading(false);
+        return;
+      }
+      
       const success = await login(username, password);
       
       if (success) {
@@ -62,7 +79,11 @@ const Login = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      setErrorMessage('Failed to login. Please check your credentials.');
+      if (error.response?.data?.message) {
+        setErrorMessage(error.response.data.message);
+      } else {
+        setErrorMessage('Failed to login. Please check your credentials.');
+      }
       setLoginFailed(true);
     } finally {
       setIsLoading(false);
@@ -107,6 +128,21 @@ const Login = () => {
       setResetLoading(false);
     }
   };
+
+  const handlePasswordChanged = () => {
+    // After password is changed successfully, redirect to dashboard
+    navigate('/', { replace: true });
+  };
+
+  if (requiresPasswordChange) {
+    return (
+      <PasswordChangeRequired
+        userId={passwordChangeUserId}
+        username={passwordChangeUsername}
+        onPasswordChanged={handlePasswordChanged}
+      />
+    );
+  }
   
   return (
     <div className="login-container">
