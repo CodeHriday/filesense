@@ -280,7 +280,14 @@ def vendor_profile():
     """
     Endpoint to profile a vendor-uploaded file
     
-    Expects JSON body:
+    Expects JSON body (local file):
+    {
+        "file_id": "uuid",
+        "local_file_path": "/path/to/file.csv",
+        "filename": "file.csv"
+    }
+    
+    OR (cloud storage file):
     {
         "file_id": "uuid",
         "storage_location": "s3://bucket/key or gs://bucket/key",
@@ -293,35 +300,61 @@ def vendor_profile():
         data = request.get_json()
         
         file_id = data.get('file_id')
-        storage_location = data.get('storage_location')
-        provider = data.get('provider')
-        storage_key = data.get('storage_key')
-        credentials = data.get('credentials', {})
+        local_file_path = data.get('local_file_path')
+        filename = data.get('filename')
         
-        if not all([file_id, storage_location, provider, storage_key]):
-            return jsonify({
-                'error': 'Missing required parameters',
-                'required': ['file_id', 'storage_location', 'provider', 'storage_key']
-            }), 400
-        
-        logger.info(f"Profiling vendor file: {file_id}, provider: {provider}")
-        
-        # Download file from storage with credentials
-        temp_path = download_file_from_storage(storage_location, provider, storage_key, credentials)
-        
-        try:
-            # Profile the file
-            filename = os.path.basename(storage_key)
-            profile_result = profile_vendor_file(temp_path, filename)
+        # Check if using local file path (preferred)
+        if local_file_path:
+            if not os.path.exists(local_file_path):
+                return jsonify({
+                    'error': 'Local file not found',
+                    'path': local_file_path
+                }), 404
+            
+            logger.info(f"Profiling local vendor file: {file_id}, path: {local_file_path}")
+            
+            # Use the filename provided or extract from path
+            if not filename:
+                filename = os.path.basename(local_file_path)
+            
+            # Profile the local file directly
+            profile_result = profile_vendor_file(local_file_path, filename)
             
             logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
             
             return jsonify(profile_result), 200
+        
+        # Fallback to cloud storage download (legacy)
+        else:
+            storage_location = data.get('storage_location')
+            provider = data.get('provider')
+            storage_key = data.get('storage_key')
+            credentials = data.get('credentials', {})
             
-        finally:
-            # Clean up temp file
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
+            if not all([file_id, storage_location, provider, storage_key]):
+                return jsonify({
+                    'error': 'Missing required parameters',
+                    'required': ['file_id and (local_file_path OR storage_location, provider, storage_key)']
+                }), 400
+            
+            logger.info(f"Profiling vendor file from cloud: {file_id}, provider: {provider}")
+            
+            # Download file from storage with credentials
+            temp_path = download_file_from_storage(storage_location, provider, storage_key, credentials)
+            
+            try:
+                # Profile the file
+                filename = os.path.basename(storage_key)
+                profile_result = profile_vendor_file(temp_path, filename)
+                
+                logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
+                
+                return jsonify(profile_result), 200
+                
+            finally:
+                # Clean up temp file
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
     
     except Exception as e:
         logger.error(f"Vendor profiling error: {str(e)}", exc_info=True)
