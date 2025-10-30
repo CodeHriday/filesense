@@ -9,6 +9,34 @@ const enhancedAuthService = require('../services/enhancedAuthService');
 const authenticateToken = require('../middleware/authenticate');
 const { asyncHandler } = require('../src/middleware/error-handler');
 const db = require('../config/database');
+const userRepository = require('../src/repositories/userRepository');
+
+/**
+ * GET /api/users
+ * Get all users with pagination
+ */
+router.get('/', authenticateToken, asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  
+  // Fetch users with lockout status
+  const users = await userRepository.findAll({ limit, offset });
+  
+  // Get total count for pagination
+  const totalCount = await userRepository.count();
+  const totalPages = Math.ceil(totalCount / limit);
+  
+  res.json({
+    users,
+    pagination: {
+      currentPage: page,
+      pageSize: limit,
+      totalCount,
+      totalPages
+    }
+  });
+}));
 
 /**
  * POST /api/users/register
