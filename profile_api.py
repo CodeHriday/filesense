@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-def download_file_from_storage(storage_location, provider, storage_key):
+def download_file_from_storage(storage_location, provider, storage_key, credentials=None):
     """
     Download file from cloud storage to temporary location
     
@@ -42,6 +42,7 @@ def download_file_from_storage(storage_location, provider, storage_key):
         storage_location: Full storage location URL
         provider: Storage provider (aws, gcp, azure)
         storage_key: File key/path in storage
+        credentials: Optional credentials dict from connection config
     
     Returns:
         Path to downloaded temporary file
@@ -50,18 +51,26 @@ def download_file_from_storage(storage_location, provider, storage_key):
     temp_path = temp_file.name
     temp_file.close()
     
+    credentials = credentials or {}
+    
     try:
         if provider == 'aws':
-            # Parse S3 location
-            # Format: s3://bucket-name/key or https://bucket.s3.region.amazonaws.com/key
-            if storage_location.startswith('s3://'):
-                bucket_name = storage_location.split('/')[2]
-                key = '/'.join(storage_location.split('/')[3:])
-            else:
-                bucket_name = storage_location.split('/')[3].split('.')[0]
-                key = storage_key
+            # Extract credentials and bucket from connection config
+            bucket_name = credentials.get('bucket_name', '')
+            region = credentials.get('region', 'us-east-1')
+            access_key = credentials.get('access_key', '')
+            secret_key = credentials.get('secret_key', '')
             
-            s3_client = boto3.client('s3')
+            # Parse storage key if needed
+            key = storage_key.lstrip('/')
+            
+            # Create S3 client with credentials
+            s3_client = boto3.client(
+                's3',
+                region_name=region,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key
+            )
             s3_client.download_file(bucket_name, key, temp_path)
             logger.info(f"Downloaded file from S3: {bucket_name}/{key}")
             
@@ -276,7 +285,8 @@ def vendor_profile():
         "file_id": "uuid",
         "storage_location": "s3://bucket/key or gs://bucket/key",
         "provider": "aws" | "gcp" | "azure",
-        "storage_key": "path/to/file.csv"
+        "storage_key": "path/to/file.csv",
+        "credentials": {...connection credentials...}
     }
     """
     try:
@@ -286,6 +296,7 @@ def vendor_profile():
         storage_location = data.get('storage_location')
         provider = data.get('provider')
         storage_key = data.get('storage_key')
+        credentials = data.get('credentials', {})
         
         if not all([file_id, storage_location, provider, storage_key]):
             return jsonify({
@@ -295,8 +306,8 @@ def vendor_profile():
         
         logger.info(f"Profiling vendor file: {file_id}, provider: {provider}")
         
-        # Download file from storage
-        temp_path = download_file_from_storage(storage_location, provider, storage_key)
+        # Download file from storage with credentials
+        temp_path = download_file_from_storage(storage_location, provider, storage_key, credentials)
         
         try:
             # Profile the file

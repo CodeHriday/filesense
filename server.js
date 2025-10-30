@@ -2044,12 +2044,21 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             }
           }
           
-          // Call Python profiling service
+          // Fetch connection credentials for profiling service
+          const connectionResult = await dbPool.query(
+            'SELECT config FROM connections WHERE id = $1',
+            [connectionId]
+          );
+          
+          const connectionConfig = connectionResult.rows[0]?.config || {};
+          
+          // Call Python profiling service with credentials
           const profileResponse = await axios.post('http://localhost:8000/api/vendor-profile', {
             file_id: fileId,
             storage_location: storageLocation,
             provider: provider,
-            storage_key: storageKey
+            storage_key: storageKey,
+            credentials: connectionConfig
           }, {
             timeout: 120000 // 2 minute timeout for profiling
           });
