@@ -465,7 +465,7 @@ router.put('/:id',
     
     if (vendor_agreement_id !== undefined && vendor_agreement_id) {
       const agreementResult = await pool.query(
-        'SELECT vendor_connection_id, target_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
+        'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1 AND approval_status = $2 AND is_locked = TRUE',
         [vendor_agreement_id, 'fully_approved']
       );
       
@@ -476,7 +476,6 @@ router.put('/:id',
       }
       
       resolvedSourceConnectionId = agreementResult.rows[0].vendor_connection_id;
-      resolvedTargetConnectionId = agreementResult.rows[0].target_connection_id;
       isVendorConnection = true;
       
       if (!resolvedSourceConnectionId) {
@@ -485,10 +484,9 @@ router.put('/:id',
         });
       }
       
-      systemLogger.info('Resolved connections from vendor agreement for update', { 
+      systemLogger.info('Resolved source connection from vendor agreement for update', { 
         vendor_agreement_id, 
-        vendor_connection_id: resolvedSourceConnectionId,
-        target_connection_id: resolvedTargetConnectionId
+        vendor_connection_id: resolvedSourceConnectionId
       });
     }
     
