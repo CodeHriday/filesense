@@ -904,13 +904,14 @@ const VendorAgreements = () => {
                   <th>Frequency</th>
                   <th>Status</th>
                   <th>Approvals</th>
+                  <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {agreements.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="no-agreements-message">No contracts found</td>
+                    <td colSpan="8" className="no-agreements-message">No contracts found</td>
                   </tr>
                 ) : (
                   agreements.map(agreement => (
@@ -925,6 +926,7 @@ const VendorAgreements = () => {
                         </span>
                       </td>
                       <td>{getApprovalStatusBadge(agreement)}</td>
+                      <td>{agreement.created_at ? new Date(agreement.created_at).toLocaleString() : '-'}</td>
                       <td>
                         <div className="agreement-actions">
                           <button 
@@ -1823,18 +1825,21 @@ const VendorAgreements = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {Array.isArray(changeHistory) && changeHistory.map((change, index) => (
-                              <tr key={index}>
-                                <td>{new Date(change.timestamp || change.created_at).toLocaleString()}</td>
-                                <td>{change.username || change.user_id}</td>
-                                <td>
-                                  <span className={`change-badge change-${change.change_type}`}>
-                                    {change.change_type}
-                                  </span>
-                                </td>
-                                <td>{change.summary || change.description || '-'}</td>
-                              </tr>
-                            ))}
+                            {Array.isArray(changeHistory) && changeHistory.map((change, index) => {
+                              const displayDate = change.changed_at || change.timestamp || change.created_at;
+                              return (
+                                <tr key={index}>
+                                  <td>{displayDate ? new Date(displayDate).toLocaleString() : '-'}</td>
+                                  <td>{change.username || change.user_id}</td>
+                                  <td>
+                                    <span className={`change-badge change-${change.change_type}`}>
+                                      {change.change_type}
+                                    </span>
+                                  </td>
+                                  <td>{change.changes_summary || change.summary || change.description || '-'}</td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       )}
