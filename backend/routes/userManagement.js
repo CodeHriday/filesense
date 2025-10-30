@@ -69,6 +69,50 @@ router.get('/password-requirements', (req, res) => {
 });
 
 /**
+ * POST /api/users/change-password-required
+ * Change password when required (e.g., after admin unlock)
+ */
+router.post('/change-password-required', asyncHandler(async (req, res) => {
+  const { userId, newPassword } = req.body;
+  
+  if (!userId || !newPassword) {
+    return res.status(400).json({
+      error: 'Missing required fields',
+      message: 'User ID and new password are required'
+    });
+  }
+  
+  const bcrypt = require('bcrypt');
+  const { SECURITY_CONFIG } = require('../src/config/environment');
+  
+  const saltRounds = SECURITY_CONFIG.BCRYPT_SALT_ROUNDS;
+  const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+  
+  const result = await db.query(
+    `UPDATE users 
+     SET password = $1,
+         must_change_password = FALSE,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2
+     RETURNING id, username, email`,
+    [hashedPassword, userId]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.status(404).json({
+      error: 'User not found',
+      message: `No user found with ID ${userId}`
+    });
+  }
+  
+  res.json({
+    success: true,
+    message: 'Password changed successfully',
+    user: result.rows[0]
+  });
+}));
+
+/**
  * GET /api/users/roles
  * Get all available roles for project/group assignment
  */
