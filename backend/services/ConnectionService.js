@@ -199,6 +199,7 @@ class ConnectionService {
           sc.authentication_method,
           sc.auth_config,
           sc.project_id,
+          sc.path,
           sc.created_at,
           sc.updated_at,
           p.name as project_name,
@@ -288,7 +289,8 @@ class ConnectionService {
         connection_user = 'Internal',
         connection_direction = 'source',
         authentication_method = 'key-based',
-        auth_config = {}
+        auth_config = {},
+        path = null
       } = connectionData;
       
       // Validate required fields
@@ -323,11 +325,12 @@ class ConnectionService {
           connection_direction,
           authentication_method,
           auth_config,
+          path,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING connection_id, name, type, status, connection_user, connection_direction, 
-                  description, authentication_method, created_at, updated_at
+                  description, authentication_method, path, created_at, updated_at
       `, [
         connectionId,
         name,
@@ -339,7 +342,8 @@ class ConnectionService {
         connection_user,
         connection_direction,
         authentication_method,
-        JSON.stringify(auth_config)
+        JSON.stringify(auth_config),
+        path
       ]);
       
       await client.query('COMMIT');

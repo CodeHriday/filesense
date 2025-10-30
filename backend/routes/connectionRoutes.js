@@ -224,6 +224,7 @@ router.post('/', async (req, res) => {
       kerberos_realm,
       // Common
       path_prefix = '',
+      path, // Optional folder path within the bucket
       ...otherConfigDetails
     } = req.body;
     
@@ -360,7 +361,8 @@ router.post('/', async (req, res) => {
       connection_user,
       connection_direction,
       authentication_method,
-      auth_config
+      auth_config,
+      path: path || null // Optional folder path within the bucket
     };
     
     const newConnection = await connectionService.createConnection(connectionData);
@@ -440,6 +442,7 @@ router.put('/:id', async (req, res) => {
       kerberos_realm,
       // Common
       path_prefix,
+      path, // Optional folder path within the bucket
       status
     } = req.body;
     
@@ -599,6 +602,10 @@ router.put('/:id', async (req, res) => {
     if (connection_direction !== undefined) {
       updates.push(`connection_direction = $${paramIndex++}`);
       values.push(connection_direction);
+    }
+    if (path !== undefined) {
+      updates.push(`path = $${paramIndex++}`);
+      values.push(path);
     }
     updates.push('updated_at = CURRENT_TIMESTAMP');
     
@@ -938,6 +945,174 @@ router.post('/test', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: `Connection test failed: ${error.message}` 
+    });
+  }
+});
+
+/**
+ * @route   POST /api/connections/:id/browse
+ * @desc    Browse folders/files in the connection's bucket
+ * @access  Protected (requires connection:execute permission)
+ */
+router.post('/:id/browse', async (req, res) => {
+  try {
+    // Check if user has connection:execute permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('connection:execute')) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'You do not have permission to browse connections. Contact your administrator.'
+      });
+    }
+    
+    const { id } = req.params;
+    const { prefix = '' } = req.body; // Optional prefix to browse from a specific folder
+    
+    // Fetch connection from database
+    const result = await pool.query(
+      'SELECT config, type, authentication_method, auth_config FROM storage_connections WHERE connection_id = $1 AND status = $2',
+      [id, 'active']
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found or inactive' });
+    }
+    
+    const connection = result.rows[0];
+    const config = typeof connection.config === 'string' 
+      ? JSON.parse(connection.config) 
+      : connection.config;
+    
+    const type = connection.type;
+    
+    // Decrypt credentials
+    const decryptedConfig = connectionService.decryptSensitiveFields(type, config);
+    
+    let folders = [];
+    
+    // Browse based on connection type
+    if (type === 'aws') {
+      const AWS = require('aws-sdk');
+      const s3 = new AWS.S3({
+        accessKeyId: decryptedConfig.access_key,
+        secretAccessKey: decryptedConfig.secret_key,
+        region: decryptedConfig.region || 'us-east-1',
+        endpoint: decryptedConfig.endpoint,
+        s3ForcePathStyle: true
+      });
+      
+      const params = {
+        Bucket: decryptedConfig.bucket,
+        Prefix: prefix,
+        Delimiter: '/'
+      };
+      
+      const data = await s3.listObjectsV2(params).promise();
+      
+      // Get folders (CommonPrefixes)
+      folders = (data.CommonPrefixes || []).map(item => ({
+        name: item.Prefix.replace(prefix, '').replace('/', ''),
+        path: item.Prefix,
+        type: 'folder'
+      }));
+      
+      // Get files at current level (optional, for file selection)
+      const files = (data.Contents || [])
+        .filter(item => item.Key !== prefix) // Exclude the prefix itself
+        .map(item => ({
+          name: item.Key.replace(prefix, ''),
+          path: item.Key,
+          type: 'file',
+          size: item.Size,
+          lastModified: item.LastModified
+        }));
+      
+      folders = [...folders, ...files];
+      
+    } else if (type === 'gcp') {
+      const { Storage } = require('@google-cloud/storage');
+      const storage = new Storage({
+        credentials: JSON.parse(decryptedConfig.service_account_json),
+        projectId: decryptedConfig.project_id
+      });
+      
+      const bucket = storage.bucket(decryptedConfig.gcp_bucket);
+      const [files] = await bucket.getFiles({
+        prefix: prefix,
+        delimiter: '/',
+        autoPaginate: false
+      });
+      
+      // GCS returns prefixes separately
+      const options = { prefix: prefix, delimiter: '/' };
+      const [, , apiResponse] = await bucket.getFiles(options);
+      
+      folders = (apiResponse.prefixes || []).map(folderPath => ({
+        name: folderPath.replace(prefix, '').replace('/', ''),
+        path: folderPath,
+        type: 'folder'
+      }));
+      
+      const fileList = files
+        .filter(file => file.name !== prefix)
+        .map(file => ({
+          name: file.name.replace(prefix, ''),
+          path: file.name,
+          type: 'file',
+          size: file.metadata.size,
+          lastModified: file.metadata.updated
+        }));
+      
+      folders = [...folders, ...fileList];
+      
+    } else if (type === 'azure') {
+      const { BlobServiceClient } = require('@azure/storage-blob');
+      const blobServiceClient = BlobServiceClient.fromConnectionString(
+        `DefaultEndpointsProtocol=https;AccountName=${decryptedConfig.account_name};AccountKey=${decryptedConfig.account_key};EndpointSuffix=core.windows.net`
+      );
+      
+      const containerClient = blobServiceClient.getContainerClient(decryptedConfig.container_name);
+      
+      const options = {
+        prefix: prefix
+      };
+      
+      const iter = containerClient.listBlobsByHierarchy('/', options);
+      
+      for await (const item of iter) {
+        if (item.kind === 'prefix') {
+          folders.push({
+            name: item.name.replace(prefix, '').replace('/', ''),
+            path: item.name,
+            type: 'folder'
+          });
+        } else {
+          folders.push({
+            name: item.name.replace(prefix, ''),
+            path: item.name,
+            type: 'file',
+            size: item.properties.contentLength,
+            lastModified: item.properties.lastModified
+          });
+        }
+      }
+    } else {
+      return res.status(400).json({ 
+        error: 'Unsupported connection type for browsing',
+        message: `Connection type '${type}' does not support folder browsing`
+      });
+    }
+    
+    res.json({
+      success: true,
+      prefix: prefix,
+      items: folders
+    });
+    
+  } catch (error) {
+    console.error('[BROWSE CONNECTION] Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Failed to browse connection: ${error.message}` 
     });
   }
 });
