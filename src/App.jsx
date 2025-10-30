@@ -41,6 +41,7 @@ import VendorManagement from './pages/VendorManagement';
 import VendorUserManagement from './pages/VendorUserManagement';
 import VendorRoleManagement from './pages/VendorRoleManagement';
 import VendorAgreements from './pages/VendorAgreements';
+import VendorFileQuality from './pages/VendorFileQuality';
 import DBTTransformations from './pages/DBTTransformations';
 import HooksDemo from './pages/HooksDemo';
 // Business Process Management imports
@@ -252,6 +253,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/vendor-users" element={<ProtectedRoute><VendorUserManagement /></ProtectedRoute>} />
                 <Route path="/vendor-roles" element={<ProtectedRoute><VendorRoleManagement /></ProtectedRoute>} />
                 <Route path="/vendor-agreements" element={<ProtectedRoute><VendorAgreements /></ProtectedRoute>} />
+                <Route path="/vendor-file-quality" element={<ProtectedRoute><VendorFileQuality /></ProtectedRoute>} />
                 <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} />
                 {/* Business Process Management routes */}
                 <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />

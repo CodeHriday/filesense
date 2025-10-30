@@ -85,6 +85,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'vendor_file_quality', 
+    name: 'Vendor File Quality', 
+    category: 'Project & File Management',
+    icon: FiCheckCircle,
+    route: '/vendor-file-quality',
+    showInSidebar: true
+  },
+  { 
     id: 'file_profile', 
     name: 'Data Profile', 
     category: 'Project & File Management', 
