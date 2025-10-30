@@ -180,7 +180,7 @@ function VendorFileQuality() {
             </thead>
             <tbody>
               {profilingResults.map((result) => {
-                const issueCount = result.issues ? JSON.parse(result.issues).length : 0;
+                const issueCount = safeJSONParse(result.issues, []).length;
                 const qualityScore = result.quality_score;
 
                 return (
@@ -276,11 +276,11 @@ function VendorFileQuality() {
               </div>
 
               {/* Issues List */}
-              {selectedResult.issues && JSON.parse(selectedResult.issues).length > 0 && (
+              {selectedResult.issues && safeJSONParse(selectedResult.issues, []).length > 0 && (
                 <div className="detail-section">
-                  <h3>Issues Found ({JSON.parse(selectedResult.issues).length})</h3>
+                  <h3>Issues Found ({safeJSONParse(selectedResult.issues, []).length})</h3>
                   <div className="issues-list">
-                    {JSON.parse(selectedResult.issues).map((issue, idx) => (
+                    {safeJSONParse(selectedResult.issues, []).map((issue, idx) => (
                       <div key={idx} className="issue-item">
                         <div className="issue-header">
                           {getSeverityIcon(issue.severity)}
@@ -298,11 +298,11 @@ function VendorFileQuality() {
               )}
 
               {/* Header Issues */}
-              {selectedResult.header_issues && Object.keys(JSON.parse(selectedResult.header_issues)).length > 0 && (
+              {selectedResult.header_issues && Object.keys(safeJSONParse(selectedResult.header_issues, {})).length > 0 && (
                 <div className="detail-section">
                   <h3>Header Issues</h3>
                   <div className="header-issues">
-                    {Object.entries(JSON.parse(selectedResult.header_issues)).map(([key, value]) => (
+                    {Object.entries(safeJSONParse(selectedResult.header_issues, {})).map(([key, value]) => (
                       <div key={key} className="header-issue-item">
                         <strong>{key}:</strong> {JSON.stringify(value)}
                       </div>
@@ -312,7 +312,7 @@ function VendorFileQuality() {
               )}
 
               {/* NULL Value Summary */}
-              {selectedResult.null_value_summary && Object.keys(JSON.parse(selectedResult.null_value_summary)).length > 0 && (
+              {selectedResult.null_value_summary && Object.keys(safeJSONParse(selectedResult.null_value_summary, {})).length > 0 && (
                 <div className="detail-section">
                   <h3>NULL Values Summary</h3>
                   <table className="null-values-table">
@@ -325,7 +325,7 @@ function VendorFileQuality() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(JSON.parse(selectedResult.null_value_summary)).map(([col, data]) => (
+                      {Object.entries(safeJSONParse(selectedResult.null_value_summary, {})).map(([col, data]) => (
                         <tr key={col}>
                           <td>{col}</td>
                           <td>{data.missing_count}</td>
@@ -339,11 +339,11 @@ function VendorFileQuality() {
               )}
 
               {/* Date Format Issues */}
-              {selectedResult.date_format_issues && Object.keys(JSON.parse(selectedResult.date_format_issues)).length > 0 && (
+              {selectedResult.date_format_issues && Object.keys(safeJSONParse(selectedResult.date_format_issues, {})).length > 0 && (
                 <div className="detail-section">
                   <h3>Date Format Inconsistencies</h3>
                   <div className="date-format-issues">
-                    {Object.entries(JSON.parse(selectedResult.date_format_issues)).map(([col, data]) => (
+                    {Object.entries(safeJSONParse(selectedResult.date_format_issues, {})).map(([col, data]) => (
                       <div key={col} className="date-issue-item">
                         <strong>{col}:</strong> Found patterns: {data.patterns_found?.join(', ')}
                       </div>
@@ -353,12 +353,12 @@ function VendorFileQuality() {
               )}
 
               {/* Duplicate Data */}
-              {selectedResult.duplicate_data && Object.keys(JSON.parse(selectedResult.duplicate_data)).length > 0 && (
+              {selectedResult.duplicate_data && Object.keys(safeJSONParse(selectedResult.duplicate_data, {})).length > 0 && (
                 <div className="detail-section">
                   <h3>Duplicate Data</h3>
                   <div className="duplicate-summary">
                     {(() => {
-                      const dupData = JSON.parse(selectedResult.duplicate_data);
+                      const dupData = safeJSONParse(selectedResult.duplicate_data, {});
                       return (
                         <>
                           <p>Total Duplicates: {dupData.total_duplicates}</p>
