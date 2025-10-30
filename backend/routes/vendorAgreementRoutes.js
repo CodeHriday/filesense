@@ -193,6 +193,9 @@ router.get('/', async (req, res) => {
     const vendorId = req.query.vendor_id ? parseInt(req.query.vendor_id) : null;
     const status = req.query.status || null;
     
+    // Check if user has view permission for all vendor agreements
+    const hasReadPermission = hasPermission(req.user, 'vendor_agreements:read');
+    
     const result = await vendorAgreementService.getAllAgreements({
       page,
       pageSize,
@@ -200,7 +203,8 @@ router.get('/', async (req, res) => {
       vendorId,
       status,
       userId: req.user.id,
-      userRoles: req.user.roles
+      userRoles: req.user.roles,
+      hasReadPermission
     });
     
     res.json(result);

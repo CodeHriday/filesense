@@ -958,7 +958,8 @@ class VendorAgreementService {
         vendorId = null,
         status = null,
         userId,
-        userRoles = []
+        userRoles = [],
+        hasReadPermission = false
       } = options;
       
       const offset = (page - 1) * pageSize;
@@ -993,8 +994,9 @@ class VendorAgreementService {
         paramCounter++;
       }
       
-      // Apply role-based filtering for non-admin users
-      if (!isAdmin && userId) {
+      // Apply role-based filtering for users without read permission or admin role
+      // Users with vendor_agreements:read permission can see all agreements (like admins)
+      if (!isAdmin && !hasReadPermission && userId) {
         // Get user's email for contact matching
         const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
         const userEmail = userResult.rows[0]?.email;
