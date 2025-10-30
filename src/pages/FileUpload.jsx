@@ -226,6 +226,10 @@ function FileUpload() {
       
       // Handle different response structures
       const connections = isAdmin ? response.data : (response.data.connections || []);
+      console.log('Loaded connections for FileUpload:', connections);
+      if (connections.length > 0) {
+        console.log('First connection structure:', connections[0]);
+      }
       setVendorConnections(connections);
       setDiagnosticInfo(prev => prev + `Loaded ${connections.length} connection(s) for project\n`);
     } catch (error) {
@@ -1186,11 +1190,14 @@ function FileUpload() {
                         ) : (
                           <>
                             <option value="">Select a connection...</option>
-                            {vendorConnections.map(conn => (
-                              <option key={conn.connection_id} value={conn.connection_id}>
-                                {conn.name} ({conn.type.toUpperCase()})
-                              </option>
-                            ))}
+                            {vendorConnections.map(conn => {
+                              const connId = conn.id || conn.connection_id;
+                              return (
+                                <option key={connId} value={connId}>
+                                  {conn.name} ({conn.type.toUpperCase()})
+                                </option>
+                              );
+                            })}
                           </>
                         )}
                       </select>
@@ -1201,7 +1208,7 @@ function FileUpload() {
                   {selectedConnection && (
                     <div style={{ background: 'white', padding: '0.75rem', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
                       {(() => {
-                        const conn = vendorConnections.find(c => c.connection_id === selectedConnection);
+                        const conn = vendorConnections.find(c => (c.id || c.connection_id) === selectedConnection);
                         if (!conn) return null;
                         return (
                           <>

@@ -4,6 +4,7 @@ import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import S3FolderBrowser from '../components/S3FolderBrowser';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
@@ -35,8 +36,18 @@ const Connections = () => {
   const [testingInModal, setTestingInModal] = useState(false);
   const [modalTestResult, setModalTestResult] = useState(null);
   
+  // Browse folder state
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [connectionDetailsModified, setConnectionDetailsModified] = useState(false);
+  const [testSuccessful, setTestSuccessful] = useState(false);
+  const [testCredentials, setTestCredentials] = useState(null);
+  
   const isAdmin = currentUser?.roles?.includes('Admin');
   const [projects, setProjects] = useState([]);
+  
+  // Compute whether user can browse folders
+  // Must have either saved connection or successful test, AND no modifications since
+  const canBrowse = ((editMode && editId) || testSuccessful) && !connectionDetailsModified;
   
   // Connection form state
   const [formData, setFormData] = useState({
@@ -155,6 +166,9 @@ const Connections = () => {
     setEditMode(false);
     setEditId(null);
     setModalTestResult(null);
+    setConnectionDetailsModified(false);
+    setTestSuccessful(false);
+    setTestCredentials(null);
     setShowForm(true);
   };
   
@@ -253,6 +267,9 @@ const Connections = () => {
     setEditMode(true);
     setEditId(id);
     setModalTestResult(null);
+    setConnectionDetailsModified(false);
+    setTestSuccessful(false);
+    setTestCredentials(null);
     setShowForm(true);
   };
   
@@ -287,7 +304,32 @@ const Connections = () => {
   
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    
+    // Track if connection details (not path) are modified
+    const connectionDetailFields = [
+      'region', 'bucket_name', 'access_key', 'secret_key',
+      'project_id', 'client_email', 'private_key',
+      'account_name', 'account_key', 'container_name'
+    ];
+    
+    if (connectionDetailFields.includes(name) && (editMode || testSuccessful)) {
+      setConnectionDetailsModified(true);
+      setTestSuccessful(false);
+      setTestCredentials(null);
+      // Clear path when connection details change
+      setFormData({ ...formData, [name]: value, path: '' });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+  
+  const handleBrowseClick = () => {
+    setShowBrowseModal(true);
+  };
+  
+  const handlePathSelect = (path) => {
+    setFormData({ ...formData, path });
+    setShowBrowseModal(false);
   };
   
   const handleTestConnection = async (connection) => {
@@ -363,12 +405,21 @@ const Connections = () => {
         success: result.success,
         message: result.message || (result.success ? 'Connection successful' : 'Connection failed')
       });
+      
+      // Enable browsing if test successful
+      if (result.success) {
+        setTestSuccessful(true);
+        setConnectionDetailsModified(false);
+        setTestCredentials(cleanFormData);
+      }
     } catch (err) {
       console.error('Error testing connection in modal:', err);
       setModalTestResult({
         success: false,
         message: err.response?.data?.message || 'Connection test failed. Please check your credentials.'
       });
+      setTestSuccessful(false);
+      setTestCredentials(null);
     } finally {
       setTestingInModal(false);
     }
@@ -629,18 +680,43 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full">
-            <label htmlFor="path">Base Path (Optional)</label>
-            <input
-              type="text"
-              id="path"
-              name="path"
-              className="form-control"
-              value={formData.path}
-              onChange={handleInputChange}
-              placeholder="e.g., vendor-uploads/"
-            />
+            <label htmlFor="path">Path</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                id="path"
+                name="path"
+                className="form-control"
+                value={formData.path}
+                onChange={handleInputChange}
+                placeholder="e.g., vendor-uploads/"
+                disabled={!canBrowse}
+                style={{ 
+                  flex: 1,
+                  backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
+                  cursor: !canBrowse ? 'not-allowed' : 'text'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleBrowseClick}
+                disabled={!canBrowse}
+                className="btn btn-secondary"
+                style={{
+                  padding: '0.5rem 1rem',
+                  cursor: canBrowse ? 'pointer' : 'not-allowed',
+                  opacity: canBrowse ? 1 : 0.6
+                }}
+                title={!canBrowse ? 'Test connection or save to enable browsing' : 'Browse folders'}
+              >
+                <FiFolder style={{ marginRight: '0.25rem' }} /> Browse
+              </button>
+            </div>
             <small className="form-text text-muted">
-              Optional folder path within the bucket where files will be uploaded
+              {!canBrowse 
+                ? 'Test connection or save to enable folder browsing'
+                : 'Folder path within the bucket where files will be uploaded. Click Browse to select from available folders.'
+              }
             </small>
           </div>
           
@@ -713,18 +789,43 @@ const Connections = () => {
           </div>
           
           <div className="form-group form-group-full">
-            <label htmlFor="path">Base Path (Optional)</label>
-            <input
-              type="text"
-              id="path"
-              name="path"
-              className="form-control"
-              value={formData.path}
-              onChange={handleInputChange}
-              placeholder="e.g., vendor-uploads/"
-            />
+            <label htmlFor="path">Path</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                id="path"
+                name="path"
+                className="form-control"
+                value={formData.path}
+                onChange={handleInputChange}
+                placeholder="e.g., vendor-uploads/"
+                disabled={!canBrowse}
+                style={{ 
+                  flex: 1,
+                  backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
+                  cursor: !canBrowse ? 'not-allowed' : 'text'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleBrowseClick}
+                disabled={!canBrowse}
+                className="btn btn-secondary"
+                style={{
+                  padding: '0.5rem 1rem',
+                  cursor: canBrowse ? 'pointer' : 'not-allowed',
+                  opacity: canBrowse ? 1 : 0.6
+                }}
+                title={!canBrowse ? 'Test connection or save to enable browsing' : 'Browse folders'}
+              >
+                <FiFolder style={{ marginRight: '0.25rem' }} /> Browse
+              </button>
+            </div>
             <small className="form-text text-muted">
-              Optional folder path within the bucket where files will be uploaded
+              {!canBrowse 
+                ? 'Test connection or save to enable folder browsing'
+                : 'Folder path within the bucket where files will be uploaded. Click Browse to select from available folders.'
+              }
             </small>
           </div>
           
@@ -1702,6 +1803,26 @@ const Connections = () => {
               )}
             </>
           )}
+        </div>
+      )}
+      
+      {/* Browse Folder Modal */}
+      {showBrowseModal && canBrowse && (
+        <div className="modal-overlay" onClick={() => setShowBrowseModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2><FiFolder /> Browse Path</h2>
+              <button className="btn-icon" onClick={() => setShowBrowseModal(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              <S3FolderBrowser
+                connectionId={editMode ? editId : null}
+                rawCredentials={testSuccessful ? testCredentials : null}
+                initialPath={formData.path || '/'}
+                onSelectPath={handlePathSelect}
+              />
+            </div>
+          </div>
         </div>
       )}
       
