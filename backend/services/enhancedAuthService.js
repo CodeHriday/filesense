@@ -55,6 +55,19 @@ async function authenticateUserWithSecurity(username, password, userAgent) {
       };
     }
     
+    // If lockout period has expired, reset the lockout
+    if (user.locked_until && !lockStatus.locked) {
+      const resetValues = passwordSecurity.resetFailedAttempts();
+      await db.query(
+        `UPDATE users 
+         SET failed_login_attempts = $1, 
+             locked_until = $2,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [resetValues.attempts, resetValues.lockUntil, user.id]
+      );
+    }
+    
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     
