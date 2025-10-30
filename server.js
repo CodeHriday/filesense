@@ -1542,26 +1542,161 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       });
     }
     
-    // Get drop location config
-    const dropConfigResult = await dbPool.query(
-      'SELECT * FROM drop_location_config WHERE is_active = true LIMIT 1'
-    );
+    // Check if vendor uploaded with specific connection
+    const connectionId = req.query.connectionId;
+    const folder = req.query.folder || '';
     
-    if (dropConfigResult.rows.length === 0) {
-      // Delete file
-      try { fs.unlinkSync(file.path); } catch (e) {}
+    let dropConfig;
+    let provider;
+    let uploadPath = '';
+    
+    if (connectionId) {
+      // Vendor upload: use specified connection
+      logger.info('Vendor drop file upload', { connectionId, folder, userId });
       
-      return res.status(400).json({
-        error: 'Drop location not configured',
-        message: 'No drop location has been configured. Please contact your administrator.'
-      });
+      // Validate vendor authorization for this connection
+      // Get vendor profile
+      const vendorResult = await dbPool.query(
+        'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
+        [userId, 'active']
+      );
+      
+      if (vendorResult.rows.length === 0) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        logger.warn('Unauthorized vendor upload attempt - not a vendor', { userId, connectionId });
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You are not registered as a vendor user'
+        });
+      }
+      
+      const vendorId = vendorResult.rows[0].id;
+      
+      // Get user email for contact validation
+      const userResult = await dbPool.query(
+        'SELECT email FROM users WHERE id = $1',
+        [userId]
+      );
+      
+      if (userResult.rows.length === 0) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const userEmail = userResult.rows[0].email;
+      
+      // Verify connection belongs to an authorized vendor agreement
+      const authResult = await dbPool.query(`
+        SELECT 
+          sc.*,
+          va.id as agreement_id,
+          va.project_id,
+          va.drop_location_path
+        FROM storage_connections sc
+        JOIN vendor_agreements va ON va.vendor_connection_id = sc.connection_id
+        WHERE sc.connection_id = $1
+          AND sc.status = 'active'
+          AND va.vendor_id = $2
+          AND va.approval_status = 'fully_approved'
+          AND va.is_locked = true
+          AND va.status = 'active'
+          AND (
+            va.primary_contact_email = $3 
+            OR va.secondary_contact_email = $3
+          )
+        LIMIT 1
+      `, [connectionId, vendorId, userEmail]);
+      
+      if (authResult.rows.length === 0) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        logger.warn('Unauthorized vendor upload attempt - no access to connection', { 
+          userId, 
+          vendorId, 
+          connectionId 
+        });
+        return res.status(403).json({
+          error: 'Access denied',
+          message: 'You do not have permission to upload to this connection'
+        });
+      }
+      
+      const connection = authResult.rows[0];
+      provider = connection.type;
+      
+      // Override projectId with the agreement's project
+      projectId = connection.project_id;
+      
+      // Parse connection config
+      const config = typeof connection.config === 'string' ? JSON.parse(connection.config) : connection.config;
+      
+      // Normalize and validate folder path to prevent directory traversal
+      let normalizedFolder = folder || '';
+      if (normalizedFolder) {
+        // Remove leading/trailing slashes
+        normalizedFolder = normalizedFolder.replace(/^\/+|\/+$/g, '');
+        // Reject path traversal attempts
+        if (normalizedFolder.includes('..') || normalizedFolder.includes('\\')) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          logger.warn('Path traversal attempt in vendor upload', { 
+            userId, 
+            connectionId, 
+            folder: normalizedFolder 
+          });
+          return res.status(400).json({
+            error: 'Invalid folder path',
+            message: 'Folder path contains invalid characters'
+          });
+        }
+      }
+      
+      // Build upload path: connection.path + folder + filename
+      const connPath = connection.path || '';
+      uploadPath = [connPath, normalizedFolder, file.originalname]
+        .filter(p => p) // Remove empty strings
+        .join('/').replace(/\/+/g, '/'); // Remove double slashes
+      
+      // Prepare dropConfig object from connection
+      dropConfig = {
+        provider: provider,
+        bucket: config.bucket || config.bucket_name,
+        gcp_bucket: config.gcp_bucket,
+        container_name: config.container_name,
+        region: config.region,
+        access_key_id: config.access_key,
+        secret_access_key: config.secret_key,
+        service_account_json: config.service_account_json,
+        account_name: config.account_name,
+        account_key: config.account_key,
+        project_id: config.project_id,
+        endpoint: config.endpoint,
+        use_ssl: config.use_ssl
+      };
+      
+    } else {
+      // Regular admin drop: use default drop location config
+      const dropConfigResult = await dbPool.query(
+        'SELECT * FROM drop_location_config WHERE is_active = true LIMIT 1'
+      );
+      
+      if (dropConfigResult.rows.length === 0) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        return res.status(400).json({
+          error: 'Drop location not configured',
+          message: 'No drop location has been configured. Please contact your administrator.'
+        });
+      }
+      
+      dropConfig = dropConfigResult.rows[0];
+      provider = dropConfig.provider || 'aws';
+      
+      // Use default path prefix
+      uploadPath = dropConfig.path_prefix 
+        ? `${dropConfig.path_prefix}/${file.originalname}`
+        : file.originalname;
     }
-    
-    const dropConfig = dropConfigResult.rows[0];
     
     // Decrypt credentials
     const { decrypt } = require('./backend/utils/encryption');
-    const provider = dropConfig.provider || 'aws';
     
     let uploadResult;
     let storageKey;
@@ -1579,9 +1714,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         ...(dropConfig.use_ssl !== null && { sslEnabled: dropConfig.use_ssl })
       });
       
-      storageKey = dropConfig.path_prefix 
-        ? `${dropConfig.path_prefix}/${file.originalname}`
-        : file.originalname;
+      storageKey = uploadPath;
       
       const fileStream = fs.createReadStream(file.path);
       const uploadParams = {
@@ -1618,9 +1751,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       });
       
       const bucket = storage.bucket(dropConfig.gcp_bucket);
-      storageKey = dropConfig.path_prefix 
-        ? `${dropConfig.path_prefix}/${file.originalname}`
-        : file.originalname;
+      storageKey = uploadPath;
       
       const blob = bucket.file(storageKey);
       const blobStream = blob.createWriteStream({
@@ -1661,9 +1792,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
       const containerClient = blobServiceClient.getContainerClient(dropConfig.container_name);
       
-      storageKey = dropConfig.path_prefix 
-        ? `${dropConfig.path_prefix}/${file.originalname}`
-        : file.originalname;
+      storageKey = uploadPath;
       
       const blockBlobClient = containerClient.getBlockBlobClient(storageKey);
       await blockBlobClient.uploadFile(file.path, {

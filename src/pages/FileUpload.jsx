@@ -45,6 +45,18 @@ function FileUpload() {
   
   const isAdmin = currentUser?.roles?.includes('Admin');
   
+  // Vendor upload states
+  const [vendorProjects, setVendorProjects] = useState([]);
+  const [selectedVendorProject, setSelectedVendorProject] = useState(null);
+  const [vendorConnections, setVendorConnections] = useState([]);
+  const [selectedConnection, setSelectedConnection] = useState(null);
+  const [loadingVendorProjects, setLoadingVendorProjects] = useState(false);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+  const [browseFolders, setBrowseFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState('');
+  const [browsePrefix, setBrowsePrefix] = useState('');
+  const [showFolderBrowser, setShowFolderBrowser] = useState(false);
+  
   // Set initial tab based on route
   useEffect(() => {
     if (location.pathname === '/drop') {
@@ -155,6 +167,84 @@ function FileUpload() {
       setDropLocationConfigured(false);
     } finally {
       setDropLocationChecking(false);
+    }
+  };
+  
+  // Load vendor projects
+  const loadVendorProjects = async () => {
+    setLoadingVendorProjects(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setDiagnosticInfo(prev => prev + 'No authentication token found\n');
+        return;
+      }
+      
+      const response = await axios.get(`${API_BASE_URL}/api/vendor-access/projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setVendorProjects(response.data.projects || []);
+      setDiagnosticInfo(prev => prev + `Loaded ${response.data.projects?.length || 0} vendor projects\n`);
+    } catch (error) {
+      console.error('Error loading vendor projects:', error);
+      setDiagnosticInfo(prev => prev + `Error loading projects: ${error.message}\n`);
+      setVendorProjects([]);
+    } finally {
+      setLoadingVendorProjects(false);
+    }
+  };
+  
+  // Load connections for selected vendor project
+  const loadVendorConnections = async (projectId) => {
+    setLoadingConnections(true);
+    setSelectedConnection(null);
+    setBrowseFolders([]);
+    setSelectedFolder('');
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setDiagnosticInfo(prev => prev + 'No authentication token found\n');
+        return;
+      }
+      
+      const response = await axios.get(`${API_BASE_URL}/api/vendor-access/connections?projectId=${projectId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setVendorConnections(response.data.connections || []);
+      setDiagnosticInfo(prev => prev + `Loaded ${response.data.connections?.length || 0} connections for project\n`);
+    } catch (error) {
+      console.error('Error loading vendor connections:', error);
+      setDiagnosticInfo(prev => prev + `Error loading connections: ${error.message}\n`);
+      setVendorConnections([]);
+    } finally {
+      setLoadingConnections(false);
+    }
+  };
+  
+  // Browse folders in connection
+  const browseFoldersInConnection = async (connectionId, prefix = '') => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setDiagnosticInfo(prev => prev + 'No authentication token found\n');
+        return;
+      }
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/api/connections/${connectionId}/browse`,
+        { prefix },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setBrowseFolders(response.data.items || []);
+      setBrowsePrefix(prefix);
+      setDiagnosticInfo(prev => prev + `Found ${response.data.items?.length || 0} items in ${prefix || 'root'}\n`);
+    } catch (error) {
+      console.error('Error browsing folders:', error);
+      setDiagnosticInfo(prev => prev + `Error browsing folders: ${error.message}\n`);
+      setBrowseFolders([]);
     }
   };
   
@@ -618,6 +708,19 @@ function FileUpload() {
   };
   
   const handleDropFile = async (file, progressHandler) => {
+    // Validate vendor selections for drop file tab
+    if (!selectedVendorProject) {
+      setUploadStatus('error');
+      setDiagnosticInfo('Please select a project before uploading\n');
+      throw new Error('Project selection required');
+    }
+    
+    if (!selectedConnection) {
+      setUploadStatus('error');
+      setDiagnosticInfo('Please select a connection before uploading\n');
+      throw new Error('Connection selection required');
+    }
+    
     // Check if drop location is configured
     if (!dropLocationConfigured) {
       setShowDropLocationModal(true);
@@ -626,14 +729,35 @@ function FileUpload() {
     }
     
     try {
-      setDiagnosticInfo(`Starting drop file upload for ${file.name}...\n`);
+      // Append timestamp to filename (format: basename_YYYYMMDDTHHMMSS.ext)
+      const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0]; // Keep the 'T'
+      
+      // Handle files with or without extensions
+      const lastDotIndex = file.name.lastIndexOf('.');
+      const hasExtension = lastDotIndex > 0; // Must be > 0 to avoid files like '.gitignore'
+      const baseName = hasExtension ? file.name.substring(0, lastDotIndex) : file.name;
+      const fileExtension = hasExtension ? file.name.substring(lastDotIndex) : '';
+      
+      const timestampedFilename = `${baseName}_${timestamp}${fileExtension}`;
+      
+      // Create a new File object with the timestamped name
+      const timestampedFile = new File([file], timestampedFilename, { type: file.type });
+      
+      setDiagnosticInfo(`Starting drop file upload for ${timestampedFilename} to connection ${selectedConnection}...\n`);
       setUploadStatus('uploading');
       
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', timestampedFile);
       
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_BASE_URL}/api/files/drop`, formData, {
+      
+      // Build URL with connection and folder parameters
+      let uploadUrl = `${API_BASE_URL}/api/files/drop?connectionId=${encodeURIComponent(selectedConnection)}`;
+      if (browsePrefix) {
+        uploadUrl += `&folder=${encodeURIComponent(browsePrefix)}`;
+      }
+      
+      const response = await axios.post(uploadUrl, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -649,7 +773,7 @@ function FileUpload() {
       
       const fileDetails = {
         fileId: response.data.fileId,
-        fileName: file.name,
+        fileName: timestampedFilename, // Use the timestamped filename
         fileType: file.type,
         fileSize: file.size,
         s3Location: response.data.file.storage_location || response.data.file.s3_location,
@@ -964,26 +1088,222 @@ function FileUpload() {
         {activeTab === 'drop-file' && (
           hasWritePermission('file_drop') ? (
             <>
-              <FileDropzone 
-                key={`drop-${dropzoneKey}`}
-                onFileDrop={handleDropFile}
-                onBatchFileDrop={handleBatchFileDrop}
-                acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
-                maxSizeMB={50}
-                multiple={true}
-                virusScan={uploadedFile?.virusScan}
-                externalStatus={uploadStatus}
-              />
-              
-              {/* Reset button for drop file tab */}
-              {(uploadStatus === 'success' || uploadStatus === 'error') && (
-                <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={handleUploadAnother}
-                  >
-                    Reset / Upload Another File
-                  </button>
+              {/* Vendor Project and Connection Selection */}
+              <div style={{ padding: '1rem', background: '#f8f9fa', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Project Selection */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <label htmlFor="vendor-project-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                        Project: <span style={{ color: '#e74c3c' }}>*</span>
+                      </label>
+                      {!loadingVendorProjects && vendorProjects.length === 0 && (
+                        <button 
+                          className="btn btn-sm btn-primary"
+                          onClick={loadVendorProjects}
+                          style={{ marginLeft: 'auto' }}
+                        >
+                          Load My Projects
+                        </button>
+                      )}
+                    </div>
+                    <select 
+                      id="vendor-project-select"
+                      value={selectedVendorProject || ''}
+                      onChange={(e) => {
+                        const projectId = Number(e.target.value);
+                        setSelectedVendorProject(projectId);
+                        if (projectId) {
+                          loadVendorConnections(projectId);
+                        } else {
+                          setVendorConnections([]);
+                          setSelectedConnection(null);
+                        }
+                      }}
+                      disabled={loadingVendorProjects || vendorProjects.length === 0}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {loadingVendorProjects ? (
+                        <option>Loading projects...</option>
+                      ) : vendorProjects.length === 0 ? (
+                        <option>Click "Load My Projects" to view your accessible projects</option>
+                      ) : (
+                        <>
+                          <option value="">Select a project...</option>
+                          {vendorProjects.map(project => (
+                            <option key={project.id} value={project.id}>
+                              {project.name}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Connection Selection */}
+                  {selectedVendorProject && (
+                    <div>
+                      <label htmlFor="vendor-connection-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                        Connection: <span style={{ color: '#e74c3c' }}>*</span>
+                      </label>
+                      <select 
+                        id="vendor-connection-select"
+                        value={selectedConnection || ''}
+                        onChange={(e) => {
+                          setSelectedConnection(e.target.value);
+                          setShowFolderBrowser(false);
+                          setBrowseFolders([]);
+                        }}
+                        disabled={loadingConnections || vendorConnections.length === 0}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {loadingConnections ? (
+                          <option>Loading connections...</option>
+                        ) : vendorConnections.length === 0 ? (
+                          <option>No connections available for this project</option>
+                        ) : (
+                          <>
+                            <option value="">Select a connection...</option>
+                            {vendorConnections.map(conn => (
+                              <option key={conn.connection_id} value={conn.connection_id}>
+                                {conn.name} ({conn.type.toUpperCase()})
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Connection Details and Folder Browser */}
+                  {selectedConnection && (
+                    <div style={{ background: 'white', padding: '0.75rem', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
+                      {(() => {
+                        const conn = vendorConnections.find(c => c.connection_id === selectedConnection);
+                        if (!conn) return null;
+                        return (
+                          <>
+                            <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                              <strong>Upload Path:</strong> {conn.path || conn.drop_location_path || 'root'}
+                            </div>
+                            <button 
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => {
+                                setShowFolderBrowser(!showFolderBrowser);
+                                if (!showFolderBrowser && browseFolders.length === 0) {
+                                  browseFoldersInConnection(selectedConnection, '');
+                                }
+                              }}
+                            >
+                              {showFolderBrowser ? 'Hide' : 'Browse'} Folders
+                            </button>
+                          </>
+                        );
+                      })()}
+
+                      {/* Folder Browser */}
+                      {showFolderBrowser && (
+                        <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '0.5rem' }}>
+                          {browsePrefix && (
+                            <div style={{ marginBottom: '0.5rem' }}>
+                              <button 
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => {
+                                  const parts = browsePrefix.split('/').filter(p => p);
+                                  parts.pop();
+                                  const newPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
+                                  browseFoldersInConnection(selectedConnection, newPrefix);
+                                }}
+                              >
+                                ← Back
+                              </button>
+                              <span style={{ marginLeft: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
+                                Current: /{browsePrefix}
+                              </span>
+                            </div>
+                          )}
+                          {browseFolders.length === 0 ? (
+                            <div style={{ padding: '1rem', textAlign: 'center', color: '#999' }}>
+                              No items found
+                            </div>
+                          ) : (
+                            <div>
+                              {browseFolders.filter(item => item.type === 'folder').map((folder, idx) => (
+                                <div 
+                                  key={idx}
+                                  style={{ 
+                                    padding: '0.5rem', 
+                                    cursor: 'pointer',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                  }}
+                                  onClick={() => browseFoldersInConnection(selectedConnection, folder.path)}
+                                >
+                                  <span style={{ fontSize: '1.2rem' }}>📁</span>
+                                  <span>{folder.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {selectedVendorProject && selectedConnection ? (
+                <>
+                  <FileDropzone 
+                    key={`drop-${dropzoneKey}`}
+                    onFileDrop={handleDropFile}
+                    onBatchFileDrop={handleBatchFileDrop}
+                    acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+                    maxSizeMB={50}
+                    multiple={true}
+                    virusScan={uploadedFile?.virusScan}
+                    externalStatus={uploadStatus}
+                  />
+                  
+                  {/* Reset button for drop file tab */}
+                  {(uploadStatus === 'success' || uploadStatus === 'error') && (
+                    <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={handleUploadAnother}
+                      >
+                        Reset / Upload Another File
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{
+                  padding: '3rem',
+                  border: '2px dashed #ccc',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  color: '#999',
+                  background: '#f9f9f9'
+                }}>
+                  <FiUpload size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                  <p style={{ fontSize: '1.1rem', margin: 0 }}>
+                    {!selectedVendorProject ? 'Please select a project above to continue' : 'Please select a connection to upload files'}
+                  </p>
                 </div>
               )}
             </>
