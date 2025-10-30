@@ -534,14 +534,15 @@ router.post('/:id/unlock', authenticateToken, asyncHandler(async (req, res) => {
     });
   }
   
-  // Reset failed login attempts and clear lockout
+  // Reset failed login attempts, clear lockout, and require password change
   const result = await db.query(
     `UPDATE users 
      SET failed_login_attempts = 0, 
          locked_until = NULL,
+         must_change_password = TRUE,
          updated_at = CURRENT_TIMESTAMP
      WHERE id = $1
-     RETURNING id, username, email, failed_login_attempts, locked_until`,
+     RETURNING id, username, email, failed_login_attempts, locked_until, must_change_password`,
     [userId]
   );
   
