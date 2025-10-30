@@ -491,6 +491,46 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 /**
+ * POST /api/users/:id/unlock
+ * Manually unlock a locked user account (admin only)
+ */
+router.post('/:id/unlock', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = parseInt(req.params.id);
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can unlock user accounts'
+    });
+  }
+  
+  // Reset failed login attempts and clear lockout
+  const result = await db.query(
+    `UPDATE users 
+     SET failed_login_attempts = 0, 
+         locked_until = NULL,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING id, username, email, failed_login_attempts, locked_until`,
+    [userId]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.status(404).json({ 
+      error: 'User not found',
+      message: `No user found with ID ${userId}`
+    });
+  }
+  
+  res.json({
+    message: 'User account unlocked successfully',
+    user: result.rows[0]
+  });
+}));
+
+/**
  * DELETE /api/users/:id
  * Delete a user (admin only)
  */
