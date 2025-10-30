@@ -1073,7 +1073,7 @@ app.get('/api/vendor-file-profiling', authenticateToken, async (req, res) => {
         u.username as uploaded_by_username
       FROM vendor_file_profiling_results vfpr
       LEFT JOIN files f ON vfpr.file_id = f.file_id
-      LEFT JOIN connections c ON vfpr.connection_id = c.id
+      LEFT JOIN storage_connections c ON vfpr.connection_id = c.connection_id
       LEFT JOIN vendors v ON vfpr.vendor_id = v.id
       LEFT JOIN users u ON vfpr.uploaded_by_user_id = u.id
       ${whereClause}
@@ -1119,7 +1119,7 @@ app.get('/api/vendor-file-profiling/:fileId', authenticateToken, async (req, res
         u.email as uploaded_by_email
       FROM vendor_file_profiling_results vfpr
       LEFT JOIN files f ON vfpr.file_id = f.file_id
-      LEFT JOIN connections c ON vfpr.connection_id = c.id
+      LEFT JOIN storage_connections c ON vfpr.connection_id = c.connection_id
       LEFT JOIN vendors v ON vfpr.vendor_id = v.id
       LEFT JOIN users u ON vfpr.uploaded_by_user_id = u.id
       WHERE vfpr.file_id = $1
@@ -2046,7 +2046,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           
           // Fetch connection credentials for profiling service
           const connectionResult = await dbPool.query(
-            'SELECT config FROM connections WHERE id = $1',
+            'SELECT config FROM storage_connections WHERE connection_id = $1',
             [connectionId]
           );
           
