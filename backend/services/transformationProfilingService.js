@@ -174,33 +174,18 @@ async function profileFileBuffer(options) {
       fileRole
     });
 
-    // Step 2: Call comprehensive profiling API (same as vendor uploads)
-    const PROFILE_API_PORT = process.env.PROFILE_API_PORT || 8000;
-    const profileResponse = await axios.post(`http://localhost:${PROFILE_API_PORT}/api/vendor-profile`, {
-      file_id: fileId,
-      local_file_path: tempFilePath,
-      filename: filename
-    });
-
-    const profileResult = profileResponse.data;
-    systemLogger.info('Comprehensive profiling completed', {
-      fileId,
-      fileRole,
-      qualityScore: profileResult.quality_score?.overall_score,
-      issuesCount: profileResult.issues?.length || 0
-    });
-
-    // Step 3: Get basic file info for schema
+    // Step 2: Get basic file info for row/column counts
     const fileInfo = await callPythonProcessor(tempFilePath, fileType);
     
-    // Step 4: Get detailed column profiling
+    // Step 3: Get detailed column profiling with patterns and frequencies
     const profilingData = await callProfilingScript(tempFilePath, fileType);
     
-    // Step 5: Merge comprehensive profiling data with schema
+    // Step 4: Merge all profiling data into schema
     if (fileInfo.schema && profilingData.columns) {
       fileInfo.schema = fileInfo.schema.map(col => {
         const profiling = profilingData.columns.find(p => p.name === col.name);
         if (profiling) {
+          // Merge all profiling fields including patterns, top_values, frequencies
           const { type, ...profilingFields } = profiling;
           return { ...col, ...profilingFields };
         }
@@ -208,11 +193,11 @@ async function profileFileBuffer(options) {
       });
     }
 
-    // Step 6: Calculate file hash
+    // Step 5: Calculate file hash
     const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
-    // Step 7: Use quality score from comprehensive profiling
-    const qualityScore = profileResult.quality_score?.overall_score || calculateQualityScore(fileInfo);
+    // Step 6: Calculate quality score from file info
+    const qualityScore = calculateQualityScore(fileInfo);
 
     // Step 8: Save to files table
     await pool.query(`
@@ -246,12 +231,23 @@ async function profileFileBuffer(options) {
 
     // Step 9: Save comprehensive column information including patterns
     if (fileInfo.schema && fileInfo.schema.length > 0) {
-      await saveColumnInfoComprehensive(pool, fileId, filename, fileInfo.schema, fileRole, profileResult);
+      await saveColumnInfoComprehensive(pool, fileId, filename, fileInfo.schema, fileRole, fileInfo.row_count);
       systemLogger.info('Comprehensive column statistics saved', {
         fileId,
         fileRole,
         columnCount: fileInfo.schema.length
       });
+      
+      // Step 10: Save value distributions to profiling_metrics for Distribution tab
+      const valueDistributions = buildValueDistributions(fileInfo.schema);
+      if (Object.keys(valueDistributions).length > 0) {
+        await saveValueDistributions(pool, fileId, filename, valueDistributions, mappingId, jobId, fileRole);
+        systemLogger.info('Value distributions saved to profiling_metrics', {
+          fileId,
+          fileRole,
+          columnsWithDistributions: Object.keys(valueDistributions).length
+        });
+      }
     }
 
     // Clean up temp file
@@ -264,8 +260,7 @@ async function profileFileBuffer(options) {
       rowCount: fileInfo.row_count,
       columnCount: fileInfo.column_count,
       qualityScore,
-      schema: fileInfo.schema,
-      profileResult: profileResult
+      schema: fileInfo.schema
     };
 
   } catch (error) {
@@ -450,29 +445,43 @@ async function saveColumnInfo(pool, fileId, filename, schema, fileRole) {
  * @param {Pool} pool - Database connection pool
  * @param {string} fileId - File ID
  * @param {string} filename - Filename
- * @param {Array} schema - Column schema with profiling data
+ * @param {Array} schema - Column schema with profiling data (already merged with patterns, frequencies, etc.)
  * @param {string} fileRole - 'source' or 'target'
- * @param {Object} profileResult - Comprehensive profiling result from vendor-profile API
+ * @param {number} totalRows - Total number of rows in the file for null percentage calculation
  */
-async function saveColumnInfoComprehensive(pool, fileId, filename, schema, fileRole, profileResult) {
+async function saveColumnInfoComprehensive(pool, fileId, filename, schema, fileRole, totalRows) {
   for (let i = 0; i < schema.length; i++) {
     const column = schema[i];
     
-    // Extract patterns if available (from profiling data)
+    // Extract patterns if available (already in schema from profile_columns.py)
     let patterns = null;
     if (column.patterns && Array.isArray(column.patterns) && column.patterns.length > 0) {
       patterns = JSON.stringify(column.patterns);
     }
     
-    // Extract frequency data if available
-    let mostFrequent = null;
-    let leastFrequent = null;
-    if (column.value_counts) {
-      const counts = column.value_counts;
-      if (counts.length > 0) {
-        mostFrequent = counts[0].value;
-        leastFrequent = counts[counts.length - 1].value;
-      }
+    // Extract frequency data (from profile_columns.py output)
+    const mostFrequent = column.most_frequent_value || null;
+    const leastFrequent = column.least_frequent_value || null;
+    const mostFrequentCount = column.most_frequent_count || null;
+    const leastFrequentCount = column.least_frequent_count || null;
+    
+    // Extract min/max frequency data for numeric columns
+    const minFrequency = column.min_frequency || null;
+    const maxFrequency = column.max_frequency || null;
+    const minIsFrequent = column.min_is_frequent || null;
+    const maxIsFrequent = column.max_is_frequent || null;
+    
+    // Calculate null percentage (always calculate if we have totalRows)
+    let nullPercentage = null;
+    if (totalRows && totalRows > 0) {
+      const nullCount = column.null_count || 0;
+      nullPercentage = (nullCount / totalRows) * 100;
+    }
+    
+    // Store top_values as JSON if available
+    let topValuesJson = null;
+    if (column.top_values && Array.isArray(column.top_values) && column.top_values.length > 0) {
+      topValuesJson = JSON.stringify(column.top_values);
     }
     
     await pool.query(`
@@ -482,9 +491,12 @@ async function saveColumnInfoComprehensive(pool, fileId, filename, schema, fileR
         min_value, max_value,
         min_value_decimal, max_value_decimal,
         most_frequent_value, least_frequent_value,
+        most_frequent_count, least_frequent_count,
+        min_frequency, max_frequency,
+        min_is_frequent, max_is_frequent,
         patterns,
         file_name, file_role, profile_timestamp, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW(), NOW())
       ON CONFLICT (file_id, column_name, file_role) 
       DO UPDATE SET
         column_type = EXCLUDED.column_type,
@@ -498,6 +510,12 @@ async function saveColumnInfoComprehensive(pool, fileId, filename, schema, fileR
         max_value_decimal = EXCLUDED.max_value_decimal,
         most_frequent_value = EXCLUDED.most_frequent_value,
         least_frequent_value = EXCLUDED.least_frequent_value,
+        most_frequent_count = EXCLUDED.most_frequent_count,
+        least_frequent_count = EXCLUDED.least_frequent_count,
+        min_frequency = EXCLUDED.min_frequency,
+        max_frequency = EXCLUDED.max_frequency,
+        min_is_frequent = EXCLUDED.min_is_frequent,
+        max_is_frequent = EXCLUDED.max_is_frequent,
         patterns = EXCLUDED.patterns,
         profile_timestamp = NOW()
     `, [
@@ -506,7 +524,7 @@ async function saveColumnInfoComprehensive(pool, fileId, filename, schema, fileR
       column.type || 'string',
       i,
       column.null_count || 0,
-      column.null_percentage || null,
+      nullPercentage,
       column.unique_count || null,
       column.min_value || null,
       column.max_value || null,
@@ -514,11 +532,69 @@ async function saveColumnInfoComprehensive(pool, fileId, filename, schema, fileR
       column.max_value_decimal || null,
       mostFrequent,
       leastFrequent,
+      mostFrequentCount,
+      leastFrequentCount,
+      minFrequency,
+      maxFrequency,
+      minIsFrequent,
+      maxIsFrequent,
       patterns,
       filename,
       fileRole
     ]);
   }
+}
+
+/**
+ * Build value distributions object from schema for profiling_metrics
+ * @param {Array} schema - Column schema with profiling data
+ * @returns {Object} - Value distributions keyed by column name
+ */
+function buildValueDistributions(schema) {
+  const distributions = {};
+  
+  for (const column of schema) {
+    if (column.top_values && Array.isArray(column.top_values) && column.top_values.length > 0) {
+      distributions[column.name] = column.top_values;
+    }
+  }
+  
+  return distributions;
+}
+
+/**
+ * Save value distributions to profiling_metrics table
+ * @param {Pool} pool - Database connection pool
+ * @param {string} fileId - File ID
+ * @param {string} filename - Filename
+ * @param {Object} valueDistributions - Value distributions by column
+ * @param {string} mappingId - Mapping ID
+ * @param {string} jobId - Job ID
+ * @param {string} fileRole - File role ('source' or 'target')
+ */
+async function saveValueDistributions(pool, fileId, filename, valueDistributions, mappingId, jobId, fileRole) {
+  await pool.query(`
+    INSERT INTO profiling_metrics (
+      file_id, file_name, mapping_id, job_id,
+      value_distributions,
+      file_role, profile_timestamp, profiled_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+    ON CONFLICT (file_id, file_role)
+    DO UPDATE SET
+      file_name = EXCLUDED.file_name,
+      mapping_id = EXCLUDED.mapping_id,
+      job_id = EXCLUDED.job_id,
+      value_distributions = EXCLUDED.value_distributions,
+      profile_timestamp = NOW(),
+      profiled_at = NOW()
+  `, [
+    fileId,
+    filename,
+    mappingId || null,
+    jobId || null,
+    JSON.stringify(valueDistributions),
+    fileRole
+  ]);
 }
 
 module.exports = {
