@@ -292,7 +292,7 @@ function FileUpload() {
         
         // Redirect to profile page after a short delay
         setTimeout(() => {
-          navigate(`/profile/${fileId}?t=${Date.now()}`);
+          navigate(`/profile/${encodeURIComponent(fileId)}?t=${Date.now()}`);
         }, 1500);
       }
     } catch (error) {
@@ -680,7 +680,7 @@ function FileUpload() {
     if (uploadedFile && uploadedFile.fileId) {
       console.log('Manually navigating to profile for file:', uploadedFile.fileId);
       // Add a timestamp parameter to force a fresh load
-      navigate(`/profile/${uploadedFile.fileId}?t=${Date.now()}`);
+      navigate(`/profile/${encodeURIComponent(uploadedFile.fileId)}?t=${Date.now()}`);
     }
   };
   

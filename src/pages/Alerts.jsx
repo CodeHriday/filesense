@@ -390,7 +390,7 @@ function Alerts() {
                       <td>{alert.filename}</td>
                       <td>{getTimeSince(alert.triggered_at)}</td>
                       <td>
-                        <Link to={`/profile/${alert.file_id}`} className="btn btn-sm btn-primary">
+                        <Link to={`/profile/${encodeURIComponent(alert.file_id)}`} className="btn btn-sm btn-primary">
                           View File
                         </Link>
                       </td>

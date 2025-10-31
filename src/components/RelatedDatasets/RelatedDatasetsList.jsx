@@ -115,7 +115,7 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
             <div className="dataset-header">
               <div className="dataset-title">
                 <FiFile className="file-icon" />
-                <Link to={`/profile/${dataset.file_id}`} className="dataset-name">
+                <Link to={`/profile/${encodeURIComponent(dataset.file_id)}`} className="dataset-name">
                   {dataset.filename}
                 </Link>
               </div>
@@ -144,7 +144,7 @@ const RelatedDatasetsList = ({ fileId, limit = 5, threshold = 0.5 }) => {
             <div className="dataset-actions">
               <button 
                 className="action-button view-button"
-                onClick={() => window.open(`/profile/${dataset.file_id}`, '_blank')}
+                onClick={() => window.open(`/profile/${encodeURIComponent(dataset.file_id)}`, '_blank')}
               >
                 <FiEye /> View Dataset
               </button>

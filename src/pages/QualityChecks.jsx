@@ -34,7 +34,8 @@ const getTypeDescription = (type) => {
 };
 
 function QualityChecks() {
-  const { fileId } = useParams();
+  const { fileId: encodedFileId } = useParams();
+  const fileId = decodeURIComponent(encodedFileId || '');
   const [file, setFile] = useState(null);
   const [quality, setQuality] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -123,7 +124,7 @@ function QualityChecks() {
                   Run Quality Check
                 </button>
               )}
-              <Link to={`/profile/${fileId}`} className="btn btn-secondary">
+              <Link to={`/profile/${encodeURIComponent(fileId)}`} className="btn btn-secondary">
                 <FiBarChart2 className="btn-icon" />
                 View Profile
               </Link>

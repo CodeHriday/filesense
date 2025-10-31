@@ -25,7 +25,8 @@ ChartJS.register(
 );
 
 const QualityReport = () => {
-  const { fileId } = useParams();
+  const { fileId: encodedFileId } = useParams();
+  const fileId = decodeURIComponent(encodedFileId || '');
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
   const [report, setReport] = useState(null);

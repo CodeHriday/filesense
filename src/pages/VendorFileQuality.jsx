@@ -33,7 +33,7 @@ function VendorFileQuality() {
   };
 
   const handleViewProfile = (fileId) => {
-    navigate(`/profile/${fileId}`);
+    navigate(`/profile/${encodeURIComponent(fileId)}`);
   };
 
   const formatBytes = (bytes, decimals = 2) => {

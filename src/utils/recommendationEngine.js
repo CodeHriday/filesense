@@ -28,7 +28,7 @@ export const generateQualityRecommendations = (fileData) => {
       actions: [
         {
           label: 'View Quality Report',
-          path: `/quality/${fileData.file_id}`
+          path: `/quality/${encodeURIComponent(fileData.file_id)}`
         }
       ]
     });
@@ -53,7 +53,7 @@ export const generateQualityRecommendations = (fileData) => {
         actions: [
           {
             label: 'View Profile',
-            path: `/profile/${fileData.file_id}`
+            path: `/profile/${encodeURIComponent(fileData.file_id)}`
           }
         ]
       });
@@ -76,7 +76,7 @@ export const generateQualityRecommendations = (fileData) => {
         actions: [
           {
             label: 'View Details',
-            path: `/profile/${fileData.file_id}`
+            path: `/profile/${encodeURIComponent(fileData.file_id)}`
           }
         ]
       });
@@ -94,7 +94,7 @@ export const generateQualityRecommendations = (fileData) => {
       actions: [
         {
           label: 'View Duplicates',
-          path: `/quality/${fileData.file_id}?tab=duplicates`
+          path: `/quality/${encodeURIComponent(fileData.file_id)}?tab=duplicates`
         }
       ]
     });
@@ -118,7 +118,7 @@ export const generateQualityRecommendations = (fileData) => {
         actions: [
           {
             label: 'View Outliers',
-            path: `/profile/${fileData.file_id}?tab=distributions`
+            path: `/profile/${encodeURIComponent(fileData.file_id)}?tab=distributions`
           }
         ]
       });
@@ -143,7 +143,7 @@ export const generateQualityRecommendations = (fileData) => {
         actions: [
           {
             label: 'View Date Columns',
-            path: `/profile/${fileData.file_id}`
+            path: `/profile/${encodeURIComponent(fileData.file_id)}`
           }
         ]
       });
@@ -369,7 +369,7 @@ export const getRecommendedActions = (fileData) => {
       id: 'profile-file',
       label: 'Profile File',
       description: 'Generate statistical profile for this file',
-      path: `/profile/${fileData.file_id}`,
+      path: `/profile/${encodeURIComponent(fileData.file_id)}`,
       primary: true
     });
   }
@@ -381,7 +381,7 @@ export const getRecommendedActions = (fileData) => {
       id: 'check-quality',
       label: 'Check Quality',
       description: 'Run quality checks on this file',
-      path: `/quality/${fileData.file_id}`,
+      path: `/quality/${encodeURIComponent(fileData.file_id)}`,
       primary: true
     });
   } else if (qualityScore < 70) {
@@ -389,7 +389,7 @@ export const getRecommendedActions = (fileData) => {
       id: 'improve-quality',
       label: 'Improve Quality',
       description: 'Address quality issues in this file',
-      path: `/quality/${fileData.file_id}`,
+      path: `/quality/${encodeURIComponent(fileData.file_id)}`,
       primary: false
     });
   }
