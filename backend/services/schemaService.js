@@ -146,9 +146,9 @@ function compareSchemas(schema1, schema2) {
       if (col1.type !== col2.type) {
         differences.isIdentical = false;
         differences.modifiedColumns.push({
-          column: col1.name,
-          oldType: col1.type,
-          newType: col2.type,
+          name: col1.name,
+          previousType: col1.type,
+          currentType: col2.type,
           changeType: 'type_change'
         });
       }
