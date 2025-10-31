@@ -66,29 +66,31 @@ function VendorFileQuality() {
     return matchesSearch && matchesType;
   });
 
-  // Group files by filename
+  // Group files by logical_file_id (canonical name grouping)
   const groupedFiles = filteredFiles.reduce((groups, file) => {
-    const filename = file.filename;
-    if (!groups[filename]) {
-      groups[filename] = [];
+    // Use logical_file_id if available, otherwise fall back to filename
+    const groupKey = file.logical_file_id || file.filename;
+    if (!groups[groupKey]) {
+      groups[groupKey] = [];
     }
-    groups[filename].push(file);
+    groups[groupKey].push(file);
     return groups;
   }, {});
 
   // Sort files within each group by date (newest first)
-  Object.keys(groupedFiles).forEach(filename => {
-    groupedFiles[filename].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  Object.keys(groupedFiles).forEach(groupKey => {
+    groupedFiles[groupKey].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   });
 
   // Convert to array of groups for easier handling
-  const fileGroups = Object.entries(groupedFiles).map(([filename, files]) => {
-    const groupId = `group_${files[0].file_id}`;
+  const fileGroups = Object.entries(groupedFiles).map(([groupKey, files]) => {
+    const groupId = `group_${files[0].logical_file_id || files[0].file_id}`;
     return {
-      filename,
+      filename: files[0].filename, // Use representative filename for display
       groupId,
       files,
       count: files.length,
+      logicalFileId: files[0].logical_file_id,
       // Use the most recent file for display data
       representativeFile: files[0]
     };
