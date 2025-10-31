@@ -425,6 +425,7 @@ router.get('/:id/changes', checkAgreementAccess, async (req, res) => {
 /**
  * GET /api/vendor-agreements/vendor/:vendorId
  * Get all agreements for a vendor
+ * For non-admin vendor users, only returns agreements where they are a contact
  */
 router.get('/vendor/:vendorId', async (req, res) => {
   try {
@@ -450,7 +451,14 @@ router.get('/vendor/:vendorId', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 20;
     
-    const result = await vendorAgreementService.getAgreementsByVendor(vendorId, page, pageSize);
+    // Pass user email and admin status to filter agreements by contact for non-admins
+    const result = await vendorAgreementService.getAgreementsByVendor(
+      vendorId, 
+      page, 
+      pageSize, 
+      req.user.email, 
+      isAdmin
+    );
     res.json(result);
     
   } catch (error) {
