@@ -207,7 +207,10 @@ function Monitor() {
   return (
     <div className="monitor-container">
       <div className="monitor-header">
-        <h1>Data Observatory Monitor</h1>
+        <div>
+          <h1>Data Observatory Monitor</h1>
+          <p style={{ color: '#037c6e', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>Monitor file audit logs and bulk profiling jobs</p>
+        </div>
         <div className="monitor-actions">
           <span className="total-records">{totalRecords} total records</span>
         </div>

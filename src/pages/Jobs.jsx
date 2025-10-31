@@ -216,7 +216,7 @@ const Jobs = () => {
       <div className="page-header">
         <div className="header-content">
           <h1>Jobs Log</h1>
-          <p style={{ color: 'white' }}>Monitor and manage ETL transformation job executions</p>
+          <p style={{ color: '#037c6e' }}>Monitor and manage ETL transformation job executions</p>
         </div>
         <div className="header-actions">
           <button 

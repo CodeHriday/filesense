@@ -140,8 +140,8 @@ function Mappings() {
     <div className="page-container">
       <div className="page-header">
         <div className="header-content">
-          <h1 style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Mapping Jobs</h1>
-          <p style={{ color: 'white', fontSize: '0.875rem' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
+          <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Mapping Jobs</h1>
+          <p style={{ color: '#037c6e', fontSize: '0.875rem' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
         </div>
         <div className="header-actions">
           <button 
