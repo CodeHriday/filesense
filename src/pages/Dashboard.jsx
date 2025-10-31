@@ -293,15 +293,13 @@ const Dashboard = () => {
               timeliness: dayData.timeliness
             };
           } else {
-            // No files for this day, use previous day's metrics with slight variation
-            const variation = Math.random() * 2 - 1; // -1 to +1
-            
-            dayData.overall = Math.min(100, Math.max(0, Math.round(prevMetrics.overall + variation)));
-            dayData.completeness = Math.min(100, Math.max(0, Math.round(prevMetrics.completeness + variation)));
-            dayData.consistency = Math.min(100, Math.max(0, Math.round(prevMetrics.consistency + variation)));
-            dayData.accuracy = Math.min(100, Math.max(0, Math.round(prevMetrics.accuracy + variation)));
-            dayData.validity = Math.min(100, Math.max(0, Math.round(prevMetrics.validity + variation)));
-            dayData.timeliness = Math.min(100, Math.max(0, Math.round(prevMetrics.timeliness + variation)));
+            // No files for this day, use previous day's metrics (no variation for stability)
+            dayData.overall = prevMetrics.overall;
+            dayData.completeness = prevMetrics.completeness;
+            dayData.consistency = prevMetrics.consistency;
+            dayData.accuracy = prevMetrics.accuracy;
+            dayData.validity = prevMetrics.validity;
+            dayData.timeliness = prevMetrics.timeliness;
           }
           
           trend.push(dayData);
@@ -372,17 +370,9 @@ const Dashboard = () => {
     );
   };
   
-  // Check if user has access to a specific feature
-  const hasFeatureAccess = (featureId) => {
-    if (!currentUser || !currentUser.features) return false;
-    return currentUser.features.some(f => f.id === featureId);
-  };
-  
   // Handle metric card click
-  const handleMetricClick = (featureId, route) => {
-    if (hasFeatureAccess(featureId)) {
-      navigate(route);
-    }
+  const handleMetricClick = (route) => {
+    navigate(route);
   };
   
   const renderTrendChart = () => {
@@ -774,9 +764,9 @@ const Dashboard = () => {
             {/* New 5 Metric Cards */}
             <div className="stats-grid metrics-cards">
               <div 
-                className={`stat-card metric-card ${hasFeatureAccess('projects') ? 'clickable' : 'non-clickable'}`}
-                onClick={() => handleMetricClick('projects', '/project-management')}
-                style={{ cursor: hasFeatureAccess('projects') ? 'pointer' : 'default' }}
+                className="stat-card metric-card clickable"
+                onClick={() => handleMetricClick('/project-management')}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="stat-icon projects">
                   <FiBriefcase />
@@ -788,9 +778,9 @@ const Dashboard = () => {
               </div>
               
               <div 
-                className={`stat-card metric-card ${hasFeatureAccess('file_catalog') ? 'clickable' : 'non-clickable'}`}
-                onClick={() => handleMetricClick('file_catalog', '/file-catalog')}
-                style={{ cursor: hasFeatureAccess('file_catalog') ? 'pointer' : 'default' }}
+                className="stat-card metric-card clickable"
+                onClick={() => handleMetricClick('/file-catalog')}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="stat-icon files">
                   <FiDatabase />
@@ -802,9 +792,9 @@ const Dashboard = () => {
               </div>
               
               <div 
-                className={`stat-card metric-card ${hasFeatureAccess('schedule') ? 'clickable' : 'non-clickable'}`}
-                onClick={() => handleMetricClick('schedule', '/etl-scheduler')}
-                style={{ cursor: hasFeatureAccess('schedule') ? 'pointer' : 'default' }}
+                className="stat-card metric-card clickable"
+                onClick={() => handleMetricClick('/etl-scheduler')}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="stat-icon schedules">
                   <FiCalendar />
@@ -816,9 +806,9 @@ const Dashboard = () => {
               </div>
               
               <div 
-                className={`stat-card metric-card ${hasFeatureAccess('jobs') ? 'clickable' : 'non-clickable'}`}
-                onClick={() => handleMetricClick('jobs', '/jobs')}
-                style={{ cursor: hasFeatureAccess('jobs') ? 'pointer' : 'default' }}
+                className="stat-card metric-card clickable"
+                onClick={() => handleMetricClick('/jobs')}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="stat-icon failed-jobs">
                   <FiAlertTriangle />
@@ -830,9 +820,9 @@ const Dashboard = () => {
               </div>
               
               <div 
-                className={`stat-card metric-card ${hasFeatureAccess('alerts') ? 'clickable' : 'non-clickable'}`}
-                onClick={() => handleMetricClick('alerts', '/alerts')}
-                style={{ cursor: hasFeatureAccess('alerts') ? 'pointer' : 'default' }}
+                className="stat-card metric-card clickable"
+                onClick={() => handleMetricClick('/alerts')}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="stat-icon anomalies">
                   <FiActivity />
