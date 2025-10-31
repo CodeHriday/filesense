@@ -1335,11 +1335,7 @@ const VendorAgreements = () => {
                           placeholder="Select primary contact"
                           required
                           name="primary_contact_user_id"
-                          filterByEmail={
-                            formData.vendor_id && Array.isArray(vendors)
-                              ? vendors.find(v => v.id === formData.vendor_id)?.contact_email
-                              : null
-                          }
+                          filterByVendorId={currentVendorId || formData.vendor_id}
                         />
                       </div>
                       
@@ -1401,11 +1397,7 @@ const VendorAgreements = () => {
                           placeholder="Select secondary contact"
                           required
                           name="secondary_contact_user_id"
-                          filterByEmail={
-                            formData.vendor_id && Array.isArray(vendors)
-                              ? vendors.find(v => v.id === formData.vendor_id)?.backup_contact_email
-                              : null
-                          }
+                          filterByVendorId={currentVendorId || formData.vendor_id}
                         />
                       </div>
                       

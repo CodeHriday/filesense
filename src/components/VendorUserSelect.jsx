@@ -9,8 +9,7 @@ const VendorUserSelect = ({
   disabled = false,
   required = false,
   name = 'vendor_user',
-  filterByVendorId = null,
-  filterByEmail = null
+  filterByVendorId = null
 }) => {
   const [vendorUsers, setVendorUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -80,11 +79,6 @@ const VendorUserSelect = ({
   const filteredUsers = vendorUsers.filter(user => {
     // Filter by vendor_id if provided
     if (filterByVendorId && user.vendor_id !== filterByVendorId) {
-      return false;
-    }
-    
-    // Filter by email if provided
-    if (filterByEmail && user.email !== filterByEmail) {
       return false;
     }
     
