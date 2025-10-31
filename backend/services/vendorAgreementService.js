@@ -1079,17 +1079,34 @@ class VendorAgreementService {
 
   /**
    * Get all agreements for a vendor
+   * For non-admin vendor users, filter to only show agreements where they are a contact
    */
-  async getAgreementsByVendor(vendorId, page = 1, pageSize = 20) {
+  async getAgreementsByVendor(vendorId, page = 1, pageSize = 20, userEmail = null, isAdmin = false) {
     try {
       const offset = (page - 1) * pageSize;
       
+      // Build the WHERE clause based on user role
+      let whereClause = 'WHERE va.vendor_id = $1';
+      let countParams = [vendorId];
+      let queryParams = [vendorId];
+      
+      // If not admin and userEmail provided, filter by contact emails
+      if (!isAdmin && userEmail) {
+        whereClause += ' AND (va.primary_contact_email = $2 OR va.secondary_contact_email = $2)';
+        countParams.push(userEmail);
+        queryParams.push(userEmail);
+      }
+      
       const countResult = await pool.query(
-        'SELECT COUNT(*) FROM vendor_agreements WHERE vendor_id = $1',
-        [vendorId]
+        `SELECT COUNT(*) FROM vendor_agreements va ${whereClause}`,
+        countParams
       );
       
       const totalCount = parseInt(countResult.rows[0].count);
+      
+      // Adjust parameter indices for LIMIT and OFFSET
+      const limitParam = `$${queryParams.length + 1}`;
+      const offsetParam = `$${queryParams.length + 2}`;
       
       const result = await pool.query(
         `SELECT 
@@ -1098,10 +1115,10 @@ class VendorAgreementService {
           owner.email as owner_email
         FROM vendor_agreements va
         LEFT JOIN users owner ON va.file_owner_user_id = owner.id
-        WHERE va.vendor_id = $1
+        ${whereClause}
         ORDER BY va.created_at DESC
-        LIMIT $2 OFFSET $3`,
-        [vendorId, pageSize, offset]
+        LIMIT ${limitParam} OFFSET ${offsetParam}`,
+        [...queryParams, pageSize, offset]
       );
       
       return {
