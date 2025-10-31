@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiChevronDown, FiChevronRight, FiMenu, FiX } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
@@ -198,8 +198,8 @@ function Sidebar() {
   return (
     <div>
       <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-toggle" onClick={toggleSidebar}>
-          {sidebarCollapsed ? <FiMenu /> : <FiX />}
+        <div className="sidebar-toggle" onClick={toggleSidebar} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          {sidebarCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
         </div>
         <nav className="sidebar-nav">
           <ul>
