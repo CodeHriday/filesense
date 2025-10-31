@@ -716,17 +716,22 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
       }
     }
     
-    // Query only vendor files (is_vendor_file = true)
-    let query = 'SELECT * FROM files WHERE is_vendor_file = true';
+    // Query only vendor files (is_vendor_file = true) with schema change info
+    let query = `
+      SELECT f.*, lfg.has_schema_changes
+      FROM files f
+      LEFT JOIN logical_file_groups lfg ON f.logical_file_id = lfg.logical_file_id
+      WHERE f.is_vendor_file = true
+    `;
     const params = [];
     
     // Filter by projects if not admin
     if (projectIds && projectIds.length > 0) {
-      query += ' AND project_id = ANY($1)';
+      query += ' AND f.project_id = ANY($1)';
       params.push(projectIds);
     }
     
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY f.created_at DESC';
     
     const result = await dbPool.query(query, params);
     const files = result.rows;

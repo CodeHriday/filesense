@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch, FiSearch } from 'react-icons/fi';
+import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch, FiSearch, FiEye } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -253,7 +253,29 @@ const TransformationFileCatalog = () => {
                           {filesInGroup.map((file) => (
                             <tr key={file.id}>
                               <td>
-                                <span className="file-name">{file.file_name}</span>
+                                <span className="file-name">
+                                  {file.file_name}
+                                  {file.has_schema_changes && (
+                                    <span 
+                                      className="schema-changed-badge" 
+                                      title="Schema has changed from previous upload"
+                                      style={{
+                                        marginLeft: '8px',
+                                        padding: '2px 8px',
+                                        backgroundColor: '#ff9800',
+                                        color: 'white',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '500',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      <FiGitBranch size={12} /> Schema Changed
+                                    </span>
+                                  )}
+                                </span>
                               </td>
                               <td className="source-file">{file.source_path || '-'}</td>
                               <td className="created-date">
@@ -262,6 +284,27 @@ const TransformationFileCatalog = () => {
                               <td className="project-name">{file.project_name || 'Default Project'}</td>
                               <td>
                                 <div className="action-buttons">
+                                  <button 
+                                    className="btn-view-profile"
+                                    onClick={() => navigate(`/profile/${encodeURIComponent(file.file_id)}`)}
+                                    disabled={!file.file_id}
+                                    title="View file profile and schema history"
+                                    style={{
+                                      padding: '6px 12px',
+                                      backgroundColor: '#3b82f6',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: file.file_id ? 'pointer' : 'not-allowed',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '0.875rem',
+                                      marginRight: '8px'
+                                    }}
+                                  >
+                                    <FiEye size={16} /> View Profile
+                                  </button>
                                   <button 
                                     className="btn-view-profiling"
                                     onClick={() => {

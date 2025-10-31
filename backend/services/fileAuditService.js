@@ -494,6 +494,7 @@ async function getAuditRecords(pool, filters = {}) {
           f.row_count,
           tj.job_id,
           tj.schema_validation,
+          lfg.has_schema_changes,
           (
             SELECT json_agg(
               json_build_object(
@@ -517,6 +518,7 @@ async function getAuditRecords(pool, filters = {}) {
         FROM file_audit_details fad
         LEFT JOIN files f ON fad.file_id = f.file_id
         LEFT JOIN projects p ON f.project_id = p.id
+        LEFT JOIN logical_file_groups lfg ON f.logical_file_id = lfg.logical_file_id
         LEFT JOIN file_schema_details fsd 
           ON fad.file_schema_id = fsd.file_schema_id
         LEFT JOIN transformation_jobs tj 

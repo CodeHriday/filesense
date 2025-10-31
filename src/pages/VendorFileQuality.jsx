@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEye, FiDownload, FiCheckCircle, FiAlertTriangle } from 'react-icons/fi';
+import { FiEye, FiDownload, FiCheckCircle, FiAlertTriangle, FiGitBranch } from 'react-icons/fi';
 import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/VendorFileQuality.css';
@@ -153,7 +153,29 @@ function VendorFileQuality() {
               {filteredFiles.map((file) => (
                 <tr key={file.file_id} className="file-row">
                   <td className="filename-cell">
-                    <div className="filename">{file.filename}</div>
+                    <div className="filename">
+                      {file.filename}
+                      {file.has_schema_changes && (
+                        <span 
+                          className="schema-changed-badge" 
+                          title="Schema has changed from previous upload"
+                          style={{
+                            marginLeft: '8px',
+                            padding: '2px 8px',
+                            backgroundColor: '#ff9800',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <FiGitBranch size={12} /> Schema Changed
+                        </span>
+                      )}
+                    </div>
                     <div className="file-id">{file.file_id}</div>
                   </td>
                   <td>
