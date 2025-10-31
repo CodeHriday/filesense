@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { getJobGroupById, updateJobGroup, addJobToGroup, removeJobFromGroup } from '../api/jobGroupsService';
 import { getJobs } from '../api/jobsService';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/JobGroups.css';
 
 const JobGroupDetail = () => {
@@ -24,6 +25,7 @@ const JobGroupDetail = () => {
   const [availableJobs, setAvailableJobs] = useState([]);
   const [selectedJobs, setSelectedJobs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
   
   const canEdit = hasPermission('job_group', 'write');
   
@@ -137,24 +139,29 @@ const JobGroupDetail = () => {
   };
   
   const handleRemoveJobFromGroup = async (jobId) => {
-    if (window.confirm('Are you sure you want to remove this job from the group?')) {
-      try {
-        const response = await removeJobFromGroup(id, jobId);
-        
-        if (response.success) {
-          setJobGroup({
-            ...jobGroup,
-            jobs: jobGroup.jobs.filter(job => job.id !== jobId)
-          });
-          addToast('success', 'Success', 'Job removed from group successfully');
-        } else {
-          addToast('error', 'Error', response.message || 'Failed to remove job from group');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to remove this job from the group?',
+      action: async () => {
+        try {
+          const response = await removeJobFromGroup(id, jobId);
+          
+          if (response.success) {
+            setJobGroup({
+              ...jobGroup,
+              jobs: jobGroup.jobs.filter(job => job.id !== jobId)
+            });
+            addToast('success', 'Success', 'Job removed from group successfully');
+          } else {
+            addToast('error', 'Error', response.message || 'Failed to remove job from group');
+          }
+        } catch (err) {
+          console.error('Error removing job from group:', err);
+          addToast('error', 'Error', 'An unexpected error occurred');
         }
-      } catch (err) {
-        console.error('Error removing job from group:', err);
-        addToast('error', 'Error', 'An unexpected error occurred');
       }
-    }
+    });
   };
   
   const getFilteredAvailableJobs = () => {
@@ -368,6 +375,18 @@ const JobGroupDetail = () => {
           </Button>
         </div>
       </Modal>
+      
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 };

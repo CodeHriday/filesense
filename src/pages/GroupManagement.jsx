@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import ConfirmModal from '../components/ConfirmModal';
 import './GroupManagement.css';
 
 const API_BASE_URL = '/api';
@@ -34,6 +35,7 @@ function GroupManagement() {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [availableProjects, setAvailableProjects] = useState([]);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     fetchGroups();
@@ -149,18 +151,24 @@ function GroupManagement() {
   };
 
   const handleDelete = async (groupId) => {
-    if (!window.confirm('Are you sure you want to delete this group?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/groups/${groupId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchGroups();
-      setSelectedGroup(null);
-    } catch (err) {
-      setError('Failed to delete group');
-      console.error(err);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this group?',
+      action: async () => {
+        try {
+          const token = localStorage.getItem('token');
+          await axios.delete(`${API_BASE_URL}/groups/${groupId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          fetchGroups();
+          setSelectedGroup(null);
+        } catch (err) {
+          setError('Failed to delete group');
+          console.error(err);
+        }
+      }
+    });
   };
 
   const handleAddMember = async (e) => {
@@ -181,18 +189,24 @@ function GroupManagement() {
   };
 
   const handleRemoveMember = async (userId) => {
-    if (!window.confirm('Remove this member from the group?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(
-        `${API_BASE_URL}/groups/${selectedGroup.id}/members/${userId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      fetchGroupDetails(selectedGroup.id);
-    } catch (err) {
-      setError('Failed to remove member');
-      console.error(err);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Remove this member from the group?',
+      action: async () => {
+        try {
+          const token = localStorage.getItem('token');
+          await axios.delete(
+            `${API_BASE_URL}/groups/${selectedGroup.id}/members/${userId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          fetchGroupDetails(selectedGroup.id);
+        } catch (err) {
+          setError('Failed to remove member');
+          console.error(err);
+        }
+      }
+    });
   };
 
   const handleAssignRole = async (e) => {
@@ -217,19 +231,25 @@ function GroupManagement() {
   };
 
   const handleRemoveRole = async (roleId, projectId) => {
-    if (!window.confirm('Remove this role from the group?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      const params = projectId ? `?project_id=${projectId}` : '';
-      await axios.delete(
-        `${API_BASE_URL}/groups/${selectedGroup.id}/roles/${roleId}${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      fetchGroupDetails(selectedGroup.id);
-    } catch (err) {
-      setError('Failed to remove role');
-      console.error(err);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Remove this role from the group?',
+      action: async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const params = projectId ? `?project_id=${projectId}` : '';
+          await axios.delete(
+            `${API_BASE_URL}/groups/${selectedGroup.id}/roles/${roleId}${params}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          fetchGroupDetails(selectedGroup.id);
+        } catch (err) {
+          setError('Failed to remove role');
+          console.error(err);
+        }
+      }
+    });
   };
 
   const openEditModal = async (group) => {
@@ -500,6 +520,18 @@ function GroupManagement() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/NStepWorkflows.css';
 
 const NStepWorkflows = () => {
@@ -45,6 +46,7 @@ const NStepWorkflows = () => {
   const [workflowToExecute, setWorkflowToExecute] = useState(null);
   const [duplicateErrorModalOpen, setDuplicateErrorModalOpen] = useState(false);
   const [duplicateErrorMessage, setDuplicateErrorMessage] = useState('');
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     fetchData();
@@ -317,9 +319,14 @@ const NStepWorkflows = () => {
   };
 
   const handleCancelChanges = () => {
-    if (window.confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
-      handleBackToWorkflows();
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Action',
+      message: 'Are you sure you want to cancel? Any unsaved changes will be lost.',
+      action: () => {
+        handleBackToWorkflows();
+      }
+    });
   };
 
   const handleAddStep = async () => {
@@ -1046,6 +1053,18 @@ const NStepWorkflows = () => {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          onConfirm={() => {
+            confirmModal.action?.();
+            setConfirmModal({ ...confirmModal, isOpen: false });
+          }}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant="warning"
+        />
       </div>
     </PageTransition>
   );

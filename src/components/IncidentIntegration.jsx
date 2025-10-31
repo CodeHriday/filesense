@@ -17,6 +17,7 @@ import {
 import { ContextualTooltip } from './ContextualTooltip';
 import { ToggleSwitch, CollapsiblePanel } from './MicroInteractions';
 import { LoadingSkeleton } from './LoadingSkeleton';
+import ConfirmModal from './ConfirmModal';
 import './IncidentIntegration.css';
 
 /**
@@ -113,6 +114,7 @@ const IncidentIntegration = ({
   const [filterBySeverity, setFilterBySeverity] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [selectedIncident, setSelectedIncident] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
   
   // Refs
   const addFormRef = useRef(null);
@@ -461,23 +463,28 @@ const IncidentIntegration = ({
   
   // Delete integration
   const handleDeleteIntegration = (index) => {
-    if (window.confirm('Are you sure you want to delete this integration?')) {
-      const integrationToDelete = integrations[index];
-      const updatedIntegrations = integrations.filter((_, i) => i !== index);
-      
-      setIntegrations(updatedIntegrations);
-      localStorage.setItem('dfo-incident-integrations', JSON.stringify(updatedIntegrations));
-      
-      // If we're editing this integration, close the form
-      if (editingIntegration === index) {
-        setEditingIntegration(null);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this integration?',
+      action: () => {
+        const integrationToDelete = integrations[index];
+        const updatedIntegrations = integrations.filter((_, i) => i !== index);
+        
+        setIntegrations(updatedIntegrations);
+        localStorage.setItem('dfo-incident-integrations', JSON.stringify(updatedIntegrations));
+        
+        // If we're editing this integration, close the form
+        if (editingIntegration === index) {
+          setEditingIntegration(null);
+        }
+        
+        // Call the onDeleteIntegration callback if provided
+        if (onDeleteIntegration) {
+          onDeleteIntegration(integrationToDelete);
+        }
       }
-      
-      // Call the onDeleteIntegration callback if provided
-      if (onDeleteIntegration) {
-        onDeleteIntegration(integrationToDelete);
-      }
-    }
+    });
   };
   
   // Test integration
@@ -1248,6 +1255,18 @@ const IncidentIntegration = ({
           </>
         )}
       </div>
+      
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 };

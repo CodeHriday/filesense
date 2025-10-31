@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { PageTransition } from '../components/MicroAnimations';
 import Pagination from '../components/Pagination';
+import ConfirmModal from '../components/ConfirmModal';
 import '../components/styles/PageActions.css';
 import axios from 'axios';
 
@@ -15,6 +16,7 @@ const Workflows = () => {
   const [executing, setExecuting] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     fetchWorkflows();
@@ -75,20 +77,23 @@ const Workflows = () => {
 
   const handleDelete = async (workflowId) => {
     const workflow = workflows.find(w => w.id === workflowId);
-    if (!window.confirm(`Are you sure you want to delete "${workflow?.name}" and all its steps?`)) {
-      return;
-    }
-
-    try {
-      const steps = workflow?.steps || [];
-      for (const step of steps) {
-        await axios.delete(`/api/workflow-steps/steps/${step.id}`);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: `Are you sure you want to delete "${workflow?.name}" and all its steps?`,
+      action: async () => {
+        try {
+          const steps = workflow?.steps || [];
+          for (const step of steps) {
+            await axios.delete(`/api/workflow-steps/steps/${step.id}`);
+          }
+          setWorkflows(workflows.filter(w => w.id !== workflowId));
+        } catch (err) {
+          console.error('Error deleting workflow:', err);
+          alert('Failed to delete workflow');
+        }
       }
-      setWorkflows(workflows.filter(w => w.id !== workflowId));
-    } catch (err) {
-      console.error('Error deleting workflow:', err);
-      alert('Failed to delete workflow');
-    }
+    });
   };
 
   if (loading) {
@@ -195,6 +200,18 @@ const Workflows = () => {
             totalItems={workflows.length}
           />
         )}
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          onConfirm={() => {
+            confirmModal.action?.();
+            setConfirmModal({ ...confirmModal, isOpen: false });
+          }}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant="danger"
+        />
       </div>
     </PageTransition>
   );

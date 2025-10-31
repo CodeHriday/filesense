@@ -4,6 +4,7 @@ import { FiPlus, FiEdit, FiTrash, FiUsers, FiArrowRight, FiList } from 'react-ic
 import { getGroups, createGroup, updateGroup, deleteGroup } from '../api/groupsService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PageHeader from '../components/PageHeader';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/Groups.css';
 
 // Simple inline modal component to avoid component issues
@@ -110,6 +111,7 @@ const Groups = () => {
     name: '',
     description: ''
   });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     fetchGroups();
@@ -197,20 +199,25 @@ const Groups = () => {
   };
 
   const handleDeleteGroup = async (groupId) => {
-    if (window.confirm('Are you sure you want to delete this group?')) {
-      try {
-        const response = await deleteGroup(groupId);
-        
-        if (response.success) {
-          fetchGroups();
-        } else {
-          setError(response.message || 'Failed to delete group');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this group?',
+      action: async () => {
+        try {
+          const response = await deleteGroup(groupId);
+          
+          if (response.success) {
+            fetchGroups();
+          } else {
+            setError(response.message || 'Failed to delete group');
+          }
+        } catch (err) {
+          setError('An error occurred while deleting the group');
+          console.error(err);
         }
-      } catch (err) {
-        setError('An error occurred while deleting the group');
-        console.error(err);
       }
-    }
+    });
   };
 
   return (
@@ -447,6 +454,18 @@ const Groups = () => {
           </div>
         </form>
       </SimpleModal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 };

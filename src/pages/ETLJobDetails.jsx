@@ -30,6 +30,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import ConfirmModal from '../components/ConfirmModal';
 import './ETLJobDetails.css';
 
 ChartJS.register(
@@ -55,6 +56,7 @@ function ETLJobDetails() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [cancelling, setCancelling] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     if (jobId) {
@@ -102,26 +104,29 @@ function ETLJobDetails() {
   };
 
   const handleCancelJob = async () => {
-    if (!window.confirm('Are you sure you want to cancel this job?')) {
-      return;
-    }
-
-    try {
-      setCancelling(true);
-      await axios.post(
-        `${API_BASE_URL}/api/jobs/${jobId}/cancel`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Action',
+      message: 'Are you sure you want to cancel this job?',
+      action: async () => {
+        try {
+          setCancelling(true);
+          await axios.post(
+            `${API_BASE_URL}/api/jobs/${jobId}/cancel`,
+            {},
+            {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            }
+          );
+          
+          await fetchJobDetails();
+        } catch (err) {
+          alert(err.response?.data?.error || 'Failed to cancel job');
+        } finally {
+          setCancelling(false);
         }
-      );
-      
-      await fetchJobDetails();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to cancel job');
-    } finally {
-      setCancelling(false);
-    }
+      }
+    });
   };
 
   const fetchProfileComparison = async () => {
@@ -619,6 +624,18 @@ function ETLJobDetails() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="warning"
+      />
     </div>
   );
 }

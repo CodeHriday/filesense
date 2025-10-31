@@ -9,6 +9,7 @@ import {
 } from '../api/jobsService';
 import { getBusinessProcessById } from '../api/businessProcessesService';
 import { useAuth } from '../context/AuthContext';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/JobDetail.css';
 
 const JobDetail = () => {
@@ -25,6 +26,7 @@ const JobDetail = () => {
   });
   const { hasFeaturePermission } = useAuth();
   const navigate = useNavigate();
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
   
   const fetchJob = async () => {
     setLoading(true);
@@ -79,19 +81,24 @@ const JobDetail = () => {
   };
   
   const handleDeleteJob = async () => {
-    if (window.confirm('Are you sure you want to delete this job? All job history will also be deleted.')) {
-      try {
-        const response = await deleteJob(id);
-        if (response.success) {
-          navigate('/jobs');
-        } else {
-          setError(response.error || 'Failed to delete job');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this job? All job history will also be deleted.',
+      action: async () => {
+        try {
+          const response = await deleteJob(id);
+          if (response.success) {
+            navigate('/jobs');
+          } else {
+            setError(response.error || 'Failed to delete job');
+          }
+        } catch (err) {
+          setError('An error occurred while deleting job');
+          console.error(err);
         }
-      } catch (err) {
-        setError('An error occurred while deleting job');
-        console.error(err);
       }
-    }
+    });
   };
   
   const handleRunJob = async () => {
@@ -392,6 +399,18 @@ const JobDetail = () => {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 };

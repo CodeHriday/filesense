@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { getJobGroups, createJobGroup, deleteJobGroup } from '../api/jobGroupsService';
 import { getJobs } from '../api/jobsService';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/JobGroups.css';
 
 const JobGroups = () => {
@@ -19,6 +20,7 @@ const JobGroups = () => {
   const { addToast } = useToast();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   const canCreate = hasPermission('job_group', 'write');
   
@@ -80,21 +82,26 @@ const JobGroups = () => {
   };
   
   const handleDeleteGroup = async (id) => {
-    if (window.confirm('Are you sure you want to delete this group?')) {
-      try {
-        const response = await deleteJobGroup(id);
-        
-        if (response.success) {
-          addToast('success', 'Success', 'Group deleted successfully');
-          setJobGroups(jobGroups.filter(group => group.id !== id));
-        } else {
-          addToast('error', 'Error', response.message || 'Failed to delete group');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this group?',
+      action: async () => {
+        try {
+          const response = await deleteJobGroup(id);
+          
+          if (response.success) {
+            addToast('success', 'Success', 'Group deleted successfully');
+            setJobGroups(jobGroups.filter(group => group.id !== id));
+          } else {
+            addToast('error', 'Error', response.message || 'Failed to delete group');
+          }
+        } catch (err) {
+          console.error('Error deleting group:', err);
+          addToast('error', 'Error', 'An unexpected error occurred');
         }
-      } catch (err) {
-        console.error('Error deleting group:', err);
-        addToast('error', 'Error', 'An unexpected error occurred');
       }
-    }
+    });
   };
   
   const handleInputChange = (e) => {
@@ -240,6 +247,18 @@ const JobGroups = () => {
           </div>
         </div>
       </Modal>
+      
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 };

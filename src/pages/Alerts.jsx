@@ -7,6 +7,7 @@ import Pagination from '../components/Pagination';
 import { getAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, getAlertHistory } from '../api/alertService';
 import { formatDate, getTimeSince } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import ConfirmModal from '../components/ConfirmModal';
 import './Alerts.css';
 
 function Alerts() {
@@ -28,6 +29,7 @@ function Alerts() {
   const [ruleCondition, setRuleCondition] = useState('less_than');
   const [ruleValue, setRuleValue] = useState('');
   const [ruleSeverity, setRuleSeverity] = useState('warning');
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,15 +75,20 @@ function Alerts() {
   };
 
   const handleDeleteRule = async (ruleId) => {
-    if (window.confirm('Are you sure you want to delete this alert rule?')) {
-      try {
-        await deleteAlertRule(ruleId);
-        setAlertRules(alertRules.filter(rule => rule.id !== ruleId));
-      } catch (err) {
-        console.error('Error deleting alert rule:', err);
-        alert('Failed to delete alert rule. Please try again.');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this alert rule?',
+      action: async () => {
+        try {
+          await deleteAlertRule(ruleId);
+          setAlertRules(alertRules.filter(rule => rule.id !== ruleId));
+        } catch (err) {
+          console.error('Error deleting alert rule:', err);
+          alert('Failed to delete alert rule. Please try again.');
+        }
       }
-    }
+    });
   };
 
   const handleSubmitRule = async (e) => {
@@ -442,6 +449,18 @@ function Alerts() {
           </div>
         </>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 }

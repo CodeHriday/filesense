@@ -8,6 +8,7 @@ import {
 import { getUserGroups } from '../api/groupsService';
 import { deleteJob } from '../api/jobsService';
 import { useAuth } from '../context/AuthContext';
+import ConfirmModal from '../components/ConfirmModal';
 import '../styles/BusinessProcessDetail.css';
 
 const BusinessProcessDetail = () => {
@@ -24,6 +25,7 @@ const BusinessProcessDetail = () => {
   });
   const { hasFeaturePermission } = useAuth();
   const navigate = useNavigate();
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
   
   const fetchProcess = async () => {
     setLoading(true);
@@ -79,35 +81,45 @@ const BusinessProcessDetail = () => {
   };
   
   const handleDeleteProcess = async () => {
-    if (window.confirm('Are you sure you want to delete this workflow? All associated jobs will also be deleted.')) {
-      try {
-        const response = await deleteBusinessProcess(id);
-        if (response.success) {
-          navigate('/business-processes');
-        } else {
-          setError(response.error || 'Failed to delete workflow');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this workflow? All associated jobs will also be deleted.',
+      action: async () => {
+        try {
+          const response = await deleteBusinessProcess(id);
+          if (response.success) {
+            navigate('/business-processes');
+          } else {
+            setError(response.error || 'Failed to delete workflow');
+          }
+        } catch (err) {
+          setError('An error occurred while deleting workflow');
+          console.error(err);
         }
-      } catch (err) {
-        setError('An error occurred while deleting workflow');
-        console.error(err);
       }
-    }
+    });
   };
   
   const handleDeleteJob = async (jobId) => {
-    if (window.confirm('Are you sure you want to delete this job? All job history will also be deleted.')) {
-      try {
-        const response = await deleteJob(jobId);
-        if (response.success) {
-          fetchProcess();
-        } else {
-          setError(response.error || 'Failed to delete job');
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: 'Are you sure you want to delete this job? All job history will also be deleted.',
+      action: async () => {
+        try {
+          const response = await deleteJob(jobId);
+          if (response.success) {
+            fetchProcess();
+          } else {
+            setError(response.error || 'Failed to delete job');
+          }
+        } catch (err) {
+          setError('An error occurred while deleting job');
+          console.error(err);
         }
-      } catch (err) {
-        setError('An error occurred while deleting job');
-        console.error(err);
       }
-    }
+    });
   };
   
   if (loading) {
@@ -348,6 +360,18 @@ const BusinessProcessDetail = () => {
           )}
         </div>
       )}
+      
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+      />
     </div>
   );
 };

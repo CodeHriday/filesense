@@ -9,6 +9,7 @@ import TransformationDetailsPanel from '../components/TransformationDetailsPanel
 import { PageTransition } from '../components/MicroAnimations';
 import { formatBytes, formatDate } from '../utils/formatters';
 import { getLineages } from '../api/lineageService';
+import ConfirmModal from '../components/ConfirmModal';
 import './TransformationFileCatalog.css';
 
 const TransformationFileCatalog = () => {
@@ -22,6 +23,7 @@ const TransformationFileCatalog = () => {
   const [showProfilingModal, setShowProfilingModal] = useState(false);
   const [selectedLineage, setSelectedLineage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     fetchTransformationFiles();
@@ -89,18 +91,21 @@ const TransformationFileCatalog = () => {
   };
 
   const handleDeleteProfiling = async (correlationId, fileName) => {
-    if (!window.confirm(`Are you sure you want to delete all profiling results for "${fileName}"? This will remove both source and target profiling data.`)) {
-      return;
-    }
-
-    try {
-      await axios.delete(`/api/file-audit/correlation/${correlationId}`);
-      // Refresh the file list after deletion
-      await fetchTransformationFiles();
-    } catch (err) {
-      console.error('Error deleting profiling results:', err);
-      alert('Failed to delete profiling results. Please try again.');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Deletion',
+      message: `Are you sure you want to delete all profiling results for "${fileName}"? This will remove both source and target profiling data.`,
+      action: async () => {
+        try {
+          await axios.delete(`/api/file-audit/correlation/${correlationId}`);
+          // Refresh the file list after deletion
+          await fetchTransformationFiles();
+        } catch (err) {
+          console.error('Error deleting profiling results:', err);
+          alert('Failed to delete profiling results. Please try again.');
+        }
+      }
+    });
   };
 
   const toggleMapping = (mappingName) => {
@@ -309,6 +314,18 @@ const TransformationFileCatalog = () => {
             onClose={() => setSelectedLineage(null)}
           />
         )}
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          onConfirm={() => {
+            confirmModal.action?.();
+            setConfirmModal({ ...confirmModal, isOpen: false });
+          }}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant="danger"
+        />
       </div>
     </PageTransition>
   );

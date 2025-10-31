@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaCog, FaSave, FaTrash, FaInfoCircle } from 'react-icons/fa';
+import ConfirmModal from './ConfirmModal';
 import './SystemSettings.css';
 
 const SystemSettings = () => {
@@ -11,6 +12,7 @@ const SystemSettings = () => {
   const [retentionCount, setRetentionCount] = useState(10);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   useEffect(() => {
     fetchSettings();
@@ -100,38 +102,41 @@ const SystemSettings = () => {
   };
 
   const handleCleanupProfiles = async () => {
-    if (!window.confirm(`Are you sure you want to clean up old profiles? This will keep only the last ${retentionCount} profiles per mapping and delete all older ones.`)) {
-      return;
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Confirm Action',
+      message: `Are you sure you want to clean up old profiles? This will keep only the last ${retentionCount} profiles per mapping and delete all older ones.`,
+      action: async () => {
+        try {
+          setCleaning(true);
+          setError(null);
+          setMessage(null);
 
-    try {
-      setCleaning(true);
-      setError(null);
-      setMessage(null);
+          const response = await fetch('/api/admin/cleanup-profiles', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ retentionCount })
+          });
 
-      const response = await fetch('/api/admin/cleanup-profiles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ retentionCount })
-      });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Cleanup failed');
+          }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Cleanup failed');
+          const data = await response.json();
+          setMessage(`Successfully deleted ${data.deletedCount} old profiles`);
+          await fetchProfileStats();
+        } catch (err) {
+          console.error('Error cleaning up profiles:', err);
+          setError(err.message);
+        } finally {
+          setCleaning(false);
+        }
       }
-
-      const data = await response.json();
-      setMessage(`Successfully deleted ${data.deletedCount} old profiles`);
-      await fetchProfileStats();
-    } catch (err) {
-      console.error('Error cleaning up profiles:', err);
-      setError(err.message);
-    } finally {
-      setCleaning(false);
-    }
+    });
   };
 
   if (loading) {
@@ -228,6 +233,18 @@ const SystemSettings = () => {
           </div>
         )}
       </div>
+      
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.action?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="warning"
+      />
     </div>
   );
 };
