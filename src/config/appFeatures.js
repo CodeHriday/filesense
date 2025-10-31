@@ -432,6 +432,7 @@ export const APP_FEATURES = [
 export const FEATURE_CATEGORIES_ORDER = [
   'Administration',
   'Project & File Management',
+  'Catalogs',
   'Job Design',
   'Jobs and Monitoring',
   'Governance',
@@ -452,6 +453,7 @@ export const FEATURE_CATEGORIES = APP_FEATURES.reduce((acc, feature) => {
 export const getSidebarCategoryName = (category) => {
   const mapping = {
     'Project & File Management': 'Projects and Files',
+    'Catalogs': 'Catalogs',
     'Job Design': 'Job Design',
     'Jobs and Monitoring': 'Jobs and Monitoring',
     'Governance': 'Data Governance',
