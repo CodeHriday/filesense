@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiEye, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
+import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -567,6 +567,14 @@ export const FileCatalog = ({ onFileSelect }) => {
                           <span className="file-name">{file.filename}</span>
                           {group.count > 1 && (
                             <span className="file-count-badge">×{group.count}</span>
+                          )}
+                          {file.has_schema_changed && (
+                            <span 
+                              className="schema-changed-indicator" 
+                              title="Schema has changed from previous upload"
+                            >
+                              <FiGitBranch /> Schema Changed
+                            </span>
                           )}
                           {file.processing_error && (
                             <span 

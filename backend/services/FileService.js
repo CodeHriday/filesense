@@ -287,10 +287,15 @@ class FileService extends ServiceBase {
       const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
       
       let query = `
-        SELECT DISTINCT files.*, projects.name as project_name 
+        SELECT DISTINCT 
+          files.*, 
+          projects.name as project_name,
+          lfg.has_schema_changed,
+          lfg.canonical_name as logical_file_name
         FROM files 
         LEFT JOIN projects ON files.project_id = projects.id
         LEFT JOIN file_audit_details fad ON files.file_id = fad.file_id
+        LEFT JOIN logical_file_groups lfg ON files.logical_file_id = lfg.logical_file_id
       `;
       const params = [];
       let whereClauses = [];
