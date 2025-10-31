@@ -181,8 +181,9 @@ async function migrateTransformConnections() {
           description,
           source_application,
           shared,
-          is_active
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          is_active,
+          project_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [
         connectionName,
         connectionType,
@@ -194,7 +195,8 @@ async function migrateTransformConnections() {
         connection.description,
         'transform',  // Mark as from Transform app
         true,         // Mark as shared
-        true          // Mark as active
+        true,         // Mark as active
+        1             // Default project ID
       ]);
 
       console.log(`Migrated connection: ${connectionName}`);
