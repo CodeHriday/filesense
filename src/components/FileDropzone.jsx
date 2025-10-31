@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
-import { FiUpload, FiFile, FiCheckCircle, FiAlertCircle, FiLoader } from 'react-icons/fi';
+import { FiUpload, FiFile, FiCheckSquare, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import './FileDropzone.css';
 
 function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv', '.json', '.parquet'], maxSizeMB = 500, multiple = false, virusScan = null, externalStatus = null }) {
@@ -494,7 +494,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
                       <span style={{ flex: 1 }}>{file.name}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
-                        {file.status === 'success' && <FiCheckCircle style={{ color: 'green' }} />}
+                        {file.status === 'success' && <FiCheckSquare style={{ color: 'green' }} />}
                         {file.status === 'error' && <FiAlertCircle style={{ color: 'red' }} />}
                       </div>
                     </div>
@@ -565,7 +565,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
                     <span style={{ flex: 1 }}>{file.name}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       {file.error && <span style={{ fontSize: '0.85rem', color: 'red' }}>{file.error}</span>}
-                      {file.status === 'success' && <FiCheckCircle style={{ color: 'green' }} />}
+                      {file.status === 'success' && <FiCheckSquare style={{ color: 'green' }} />}
                       {file.status === 'error' && <FiAlertCircle style={{ color: 'red' }} />}
                     </div>
                   </div>
@@ -606,7 +606,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
                         )}
                         {file.status === 'success' && (
                           <>
-                            <FiCheckCircle style={{ color: 'green' }} />
+                            <FiCheckSquare style={{ color: 'green' }} />
                             <span style={{ color: 'green', fontSize: '0.85rem' }}>Complete</span>
                           </>
                         )}
