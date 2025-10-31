@@ -197,6 +197,31 @@ export const APP_FEATURES = [
   
   // Administration
   { 
+    id: 'connection', 
+    name: 'Connections', 
+    category: 'Administration', 
+    supportsExecute: true,
+    icon: FiDatabase,
+    route: '/connections',
+    showInSidebar: true
+  },
+  { 
+    id: 'roles', 
+    name: 'Role Management', 
+    category: 'Administration',
+    icon: FiShield,
+    route: '/roles',
+    showInSidebar: true
+  },
+  { 
+    id: 'users', 
+    name: 'User Management', 
+    category: 'Administration',
+    icon: FiUsers,
+    route: '/users',
+    showInSidebar: true
+  },
+  { 
     id: 'project_management', 
     name: 'Project Management', 
     category: 'Administration',
@@ -210,31 +235,6 @@ export const APP_FEATURES = [
     category: 'Administration',
     icon: FiUsers,
     route: '/group-management',
-    showInSidebar: true
-  },
-  { 
-    id: 'connection', 
-    name: 'Connections', 
-    category: 'Administration', 
-    supportsExecute: true,
-    icon: FiDatabase,
-    route: '/connections',
-    showInSidebar: true
-  },
-  { 
-    id: 'users', 
-    name: 'User Management', 
-    category: 'Administration',
-    icon: FiUsers,
-    route: '/users',
-    showInSidebar: true
-  },
-  { 
-    id: 'roles', 
-    name: 'Role Management', 
-    category: 'Administration',
-    icon: FiShield,
-    route: '/roles',
     showInSidebar: true
   },
   { 
