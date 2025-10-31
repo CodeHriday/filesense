@@ -1,6 +1,7 @@
 // Import our transformation tables migrations
 const initTransformationTables = require('./backend/migrations/createTransformationTables');
 const initETLTransformationTables = require('./backend/migrations/createETLTransformationTables');
+const initLogicalFileGroupsTables = require('./backend/migrations/createLogicalFileGroupsTables');
 
 // Function to initialize business process-related tables
 const initBusinessProcessTables = async (pool) => {
@@ -131,6 +132,9 @@ const initBusinessProcessTables = async (pool) => {
     
     // Initialize ETL transformation system tables
     await initETLTransformationTables(pool);
+    
+    // Initialize logical file groups tables for cross-upload schema tracking
+    await initLogicalFileGroupsTables(pool);
   } catch (error) {
     console.error('Error initializing business process tables:', error);
   }
