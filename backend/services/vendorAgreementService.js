@@ -948,6 +948,7 @@ class VendorAgreementService {
 
   /**
    * Get all vendor agreements with filtering and pagination
+   * For non-admin vendor users without approve permission, filters by contact emails
    */
   async getAllAgreements(options = {}) {
     try {
@@ -959,7 +960,8 @@ class VendorAgreementService {
         status = null,
         userId,
         userRoles = [],
-        hasReadPermission = false
+        userEmail = null,
+        hasApprovePermission = false
       } = options;
       
       const offset = (page - 1) * pageSize;
@@ -994,13 +996,10 @@ class VendorAgreementService {
         paramCounter++;
       }
       
-      // Apply role-based filtering for users without read permission or admin role
-      // Users with vendor_agreements:read permission can see all agreements (like admins)
-      if (!isAdmin && !hasReadPermission && userId) {
-        // Get user's email for contact matching
-        const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
-        const userEmail = userResult.rows[0]?.email;
-        
+      // Apply role-based filtering for vendor users
+      // Only admin role or vendor_agreements:approve permission bypass contact filtering
+      // Regular vendor users with just vendor_agreements:read must be filtered by contact emails
+      if (!isAdmin && !hasApprovePermission && userId) {
         if (userEmail) {
           // Allow access if user is: file owner, vendor user, primary contact, or secondary contact
           whereClauses.push(`(
@@ -1012,7 +1011,7 @@ class VendorAgreementService {
           queryParams.push(userId, userEmail);
           paramCounter += 2;
         } else {
-          // Fallback if email not found
+          // Fallback if email not provided
           whereClauses.push(`(va.file_owner_user_id = $${paramCounter} OR v.vendor_user_id = $${paramCounter})`);
           queryParams.push(userId);
           paramCounter++;
