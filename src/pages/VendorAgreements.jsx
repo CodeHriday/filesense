@@ -465,17 +465,30 @@ const VendorAgreements = () => {
     }
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault();
     
-    if (!formData.file_name.trim()) {
-      setModalError('File name is required');
-      return;
-    }
-    
-    if (!formData.file_owner_user_id) {
-      setModalError('File owner is required');
-      return;
+    // Only validate if not saving as draft
+    if (!isDraft) {
+      if (!formData.file_name.trim()) {
+        setModalError('File name is required');
+        return;
+      }
+      
+      if (!formData.file_owner_user_id) {
+        setModalError('File owner is required');
+        return;
+      }
+      
+      if (!formData.vendor_id) {
+        setModalError('Vendor is required');
+        return;
+      }
+      
+      if (!formData.vendor_connection_id) {
+        setModalError('Vendor connection is required');
+        return;
+      }
     }
     
     if (formData.schema && !validateJSON(formData.schema)) {
@@ -501,6 +514,9 @@ const VendorAgreements = () => {
         }
       });
       
+      // Add status field based on isDraft
+      agreementData.status = isDraft ? 'draft' : 'active';
+      
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
       submitData.append(dataKey, JSON.stringify(agreementData));
@@ -512,7 +528,7 @@ const VendorAgreements = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
-        setSuccessMessage('Vendor agreement created successfully!');
+        setSuccessMessage(isDraft ? 'Draft saved successfully!' : 'Vendor agreement created successfully!');
       } else {
         if (selectedAgreement.is_locked && isAdmin) {
           setConfirmModalConfig({
@@ -977,6 +993,14 @@ const VendorAgreements = () => {
                 <>
                   <button type="button" onClick={closeModal}>
                     Cancel
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={(e) => handleSubmit(e, true)}
+                    className="btn-secondary"
+                    style={{ backgroundColor: '#6b7280' }}
+                  >
+                    Save Draft
                   </button>
                   <button type="submit" form="agreement-form">
                     {modalMode === 'create' ? 'Create Contract' : 'Update Contract'}

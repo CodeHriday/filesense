@@ -65,38 +65,53 @@ class VendorAgreementService {
         domain,
         retention_days,
         expected_arrival_time,
-        delivery_method
+        delivery_method,
+        status
       } = agreementData;
       
-      // Validation
-      if (!vendor_id || !file_name || !file_owner_user_id || !vendor_connection_id) {
-        throw new Error('vendor_id, file_name, file_owner_user_id, and vendor_connection_id are required');
-      }
+      // Determine if this is a draft
+      const isDraft = status === 'draft';
       
-      // Verify vendor exists and get project_id
-      const vendorCheck = await client.query('SELECT id, project_id, vendor_user_id FROM vendors WHERE id = $1', [vendor_id]);
-      if (vendorCheck.rows.length === 0) {
-        throw new Error('Vendor not found');
-      }
-      
-      const project_id = vendorCheck.rows[0].project_id;
-      const vendorUserId = vendorCheck.rows[0].vendor_user_id;
-      
-      // Vendor user validation: if creating user is a vendor user, they can only create contracts for their associated vendor
-      if (creatingUser && creatingUser.user_type === 'Vendor') {
-        if (vendorUserId !== createdBy) {
-          throw new Error('Vendor users can only create agreements for their associated vendor');
+      // Validation - skip for drafts, enforce for active agreements
+      if (!isDraft) {
+        if (!vendor_id || !file_name || !file_owner_user_id || !vendor_connection_id) {
+          throw new Error('vendor_id, file_name, file_owner_user_id, and vendor_connection_id are required');
         }
       }
       
-      // Verify file owner exists and get contact info
-      const ownerCheck = await client.query('SELECT id, email FROM users WHERE id = $1', [file_owner_user_id]);
-      if (ownerCheck.rows.length === 0) {
-        throw new Error('File owner user not found');
+      // Verify vendor exists and get project_id (skip if draft and no vendor_id)
+      let project_id = null;
+      let vendorUserId = null;
+      
+      if (vendor_id) {
+        const vendorCheck = await client.query('SELECT id, project_id, vendor_user_id FROM vendors WHERE id = $1', [vendor_id]);
+        if (vendorCheck.rows.length === 0) {
+          throw new Error('Vendor not found');
+        }
+        
+        project_id = vendorCheck.rows[0].project_id;
+        vendorUserId = vendorCheck.rows[0].vendor_user_id;
+        
+        // Vendor user validation: if creating user is a vendor user, they can only create contracts for their associated vendor
+        if (creatingUser && creatingUser.user_type === 'Vendor') {
+          if (vendorUserId !== createdBy) {
+            throw new Error('Vendor users can only create agreements for their associated vendor');
+          }
+        }
       }
       
-      // Auto-populate manager_contact from file owner's email if not provided
-      const finalManagerContact = manager_contact || ownerCheck.rows[0].email;
+      // Verify file owner exists and get contact info (skip if draft and no file_owner_user_id)
+      let finalManagerContact = manager_contact;
+      
+      if (file_owner_user_id) {
+        const ownerCheck = await client.query('SELECT id, email FROM users WHERE id = $1', [file_owner_user_id]);
+        if (ownerCheck.rows.length === 0) {
+          throw new Error('File owner user not found');
+        }
+        
+        // Auto-populate manager_contact from file owner's email if not provided
+        finalManagerContact = manager_contact || ownerCheck.rows[0].email;
+      }
       
       // Auto-populate primary_contact_email for vendor users if not provided
       let finalPrimaryContactEmail = primary_contact_email;
@@ -108,15 +123,17 @@ class VendorAgreementService {
         });
       }
       
-      // Validate vendor_connection_id (required)
-      const connCheck = await client.query(
-        `SELECT connection_id FROM storage_connections 
-         WHERE connection_id = $1 AND connection_user = 'External' AND connection_direction IN ('source', 'target', 'drop')`,
-        [vendor_connection_id]
-      );
-      
-      if (connCheck.rows.length === 0) {
-        throw new Error('Invalid vendor connection or connection not configured for file operations');
+      // Validate vendor_connection_id (skip if draft and no vendor_connection_id)
+      if (vendor_connection_id) {
+        const connCheck = await client.query(
+          `SELECT connection_id FROM storage_connections 
+           WHERE connection_id = $1 AND connection_user = 'External' AND connection_direction IN ('source', 'target', 'drop')`,
+          [vendor_connection_id]
+        );
+        
+        if (connCheck.rows.length === 0) {
+          throw new Error('Invalid vendor connection or connection not configured for file operations');
+        }
       }
       
       // Parse schema if file is provided (schema is optional)
@@ -171,22 +188,28 @@ class VendorAgreementService {
         parsedSchema = null;
       }
       
-      // Generate agreement code
-      let agreementCode = await this.generateAgreementCode(vendor_id, file_name);
-      
-      // Ensure agreement code is unique
-      let codeExists = await client.query(
-        'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
-        [agreementCode]
-      );
-      
-      while (codeExists.rows.length > 0) {
-        agreementCode = await this.generateAgreementCode(vendor_id, file_name);
-        codeExists = await client.query(
+      // Generate agreement code (only if file_name is provided)
+      let agreementCode = null;
+      if (file_name) {
+        agreementCode = await this.generateAgreementCode(vendor_id || 0, file_name);
+        
+        // Ensure agreement code is unique
+        let codeExists = await client.query(
           'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
           [agreementCode]
         );
+        
+        while (codeExists.rows.length > 0) {
+          agreementCode = await this.generateAgreementCode(vendor_id || 0, file_name);
+          codeExists = await client.query(
+            'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
+            [agreementCode]
+          );
+        }
       }
+      
+      // Set status - default to 'active' if not specified
+      const finalStatus = status || 'active';
       
       // Create agreement
       const result = await client.query(
@@ -199,8 +222,8 @@ class VendorAgreementService {
           vendor_connection_id, drop_location_path, project_id,
           manager_contact,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
-          approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, 'draft', 1, $34, CURRENT_TIMESTAMP)
+          status, version, created_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, 1, $35, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -211,6 +234,7 @@ class VendorAgreementService {
           vendor_connection_id, drop_location_path || null, project_id,
           finalManagerContact,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
+          finalStatus,
           createdBy
         ]
       );
