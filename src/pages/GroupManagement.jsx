@@ -69,9 +69,10 @@ function GroupManagement() {
       const response = await axios.get(`${API_BASE_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setAvailableUsers(response.data);
+      setAvailableUsers(response.data.users || []);
     } catch (err) {
       console.error('Failed to fetch users:', err);
+      setAvailableUsers([]);
     }
   };
 
