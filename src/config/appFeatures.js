@@ -45,11 +45,11 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'access_groups', 
-    name: 'Access Groups', 
+    id: 'vendor_file_upload', 
+    name: 'Vendor File Upload', 
     category: 'Project & File Management',
-    icon: FiUsers,
-    route: '/group-management',
+    icon: FiUpload,
+    route: '/vendor-file-upload',
     showInSidebar: true
   },
   { 
@@ -69,36 +69,43 @@ export const APP_FEATURES = [
     showInSidebar: false // Not shown in sidebar
   },
   { 
-    id: 'file_catalog', 
-    name: 'File Catalog', 
-    category: 'Project & File Management',
-    icon: FiDatabase,
-    route: '/file-catalog',
-    showInSidebar: true
-  },
-  { 
-    id: 'transformation_catalog', 
-    name: 'Transformation File Catalog', 
-    category: 'Project & File Management',
-    icon: FiFileText,
-    route: '/transformation-catalog',
-    showInSidebar: true
-  },
-  { 
-    id: 'vendor_file_upload', 
-    name: 'Vendor File Upload', 
-    category: 'Project & File Management',
-    icon: FiUpload,
-    route: '/vendor-file-upload',
-    showInSidebar: true
-  },
-  { 
-    id: 'vendor_file_quality', 
-    name: 'Vendor File Catalog', 
-    category: 'Project & File Management',
-    icon: FiCheckCircle,
-    route: '/vendor-file-quality',
-    showInSidebar: true
+    id: 'catalogs', 
+    name: 'Catalogs', 
+    category: 'Catalogs',
+    icon: FiGrid,
+    route: null,
+    showInSidebar: true,
+    isCollapsible: true,
+    isParentOnly: true,
+    children: [
+      {
+        id: 'file_catalog',
+        name: 'File Catalog',
+        parentId: 'catalogs',
+        category: 'Catalogs',
+        icon: null,
+        route: '/file-catalog',
+        showInSidebar: true
+      },
+      {
+        id: 'transformation_catalog',
+        name: 'Transformation File Catalog',
+        parentId: 'catalogs',
+        category: 'Catalogs',
+        icon: null,
+        route: '/transformation-catalog',
+        showInSidebar: true
+      },
+      {
+        id: 'vendor_file_quality',
+        name: 'Vendor File Catalog',
+        parentId: 'catalogs',
+        category: 'Catalogs',
+        icon: null,
+        route: '/vendor-file-quality',
+        showInSidebar: true
+      }
+    ]
   },
   { 
     id: 'file_profile', 
@@ -210,6 +217,14 @@ export const APP_FEATURES = [
     category: 'Administration',
     icon: FiBriefcase,
     route: '/project-management',
+    showInSidebar: true
+  },
+  { 
+    id: 'access_groups', 
+    name: 'Access Groups', 
+    category: 'Administration',
+    icon: FiUsers,
+    route: '/group-management',
     showInSidebar: true
   },
   { 
