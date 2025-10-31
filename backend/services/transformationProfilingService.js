@@ -243,7 +243,7 @@ async function profileFileBuffer(options) {
         columnCount: fileInfo.schema.length
       });
       
-      // Step 9.5: Save schema snapshot for schema history tracking
+      // Step 9.5: Save schema snapshot for schema history tracking with logical file grouping
       try {
         const schemaDefinition = {
           columns: fileInfo.schema.map(col => ({
@@ -253,10 +253,12 @@ async function profileFileBuffer(options) {
             index: col.column_index
           }))
         };
-        await saveSchemaSnapshot(pool, fileId, filename, schemaDefinition, null, fileInfo.row_count);
+        const snapshotResult = await saveSchemaSnapshot(pool, fileId, filename, schemaDefinition, null, fileInfo.row_count, projectId);
         systemLogger.info('Schema snapshot saved for history tracking', {
           fileId,
           fileRole,
+          logicalFileId: snapshotResult.logical_file_id,
+          hasSchemaChange: snapshotResult.has_schema_change,
           columnCount: schemaDefinition.columns.length
         });
       } catch (schemaError) {

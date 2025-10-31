@@ -242,7 +242,7 @@ class FileProcessingWorker {
         correlationId
       });
 
-      // Save schema snapshot for schema history tracking
+      // Save schema snapshot for schema history tracking with logical file grouping
       try {
         const schemaDefinition = {
           columns: (fileInfo.schema || []).map((col, index) => ({
@@ -252,10 +252,12 @@ class FileProcessingWorker {
             index: index
           }))
         };
-        await saveSchemaSnapshot(this.dbPool, fileId, originalName, schemaDefinition, null, fileInfo.row_count);
+        const snapshotResult = await saveSchemaSnapshot(this.dbPool, fileId, originalName, schemaDefinition, null, fileInfo.row_count, projectId);
         this.logger.info('Schema snapshot saved for history tracking', {
           fileId,
-          columnCount: schemaDefinition.columns.length
+          columnCount: schemaDefinition.columns.length,
+          logicalFileId: snapshotResult.logical_file_id,
+          hasSchemaChange: snapshotResult.has_schema_change
         });
       } catch (schemaSnapshotError) {
         this.logger.error('Error saving schema snapshot', {
