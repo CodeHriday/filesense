@@ -71,8 +71,14 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
         hasHistory: true,
         hasPrevious: false,
         current: {
-          ...currentSchema,
-          schema: currentSchema.schema_definition
+          id: currentSchema.id,
+          fileName: currentSchema.file_name,
+          filePattern: currentSchema.file_pattern,
+          schema: currentSchema.schema_definition,
+          schemaHash: currentSchema.schema_hash,
+          rowCount: currentSchema.row_count,
+          columnCount: currentSchema.column_count,
+          capturedAt: currentSchema.captured_at
         },
         previous: null,
         comparison: null,
