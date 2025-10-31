@@ -393,4 +393,93 @@ router.get('/:id/metrics', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/jobs/:id/profiling
+ * Get comprehensive profiling data for transformation job (source + target files with columns)
+ */
+router.get('/:id/profiling', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate user has access to this job's project
+    const { validateJobAccess } = require('../utils/jobAccessHelpers');
+    await validateJobAccess(id, req.user);
+    
+    // Get job to find correlation_id
+    const jobResult = await pool.query(
+      'SELECT correlation_id FROM transformation_jobs WHERE job_id = $1',
+      [id]
+    );
+    
+    if (jobResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    const correlationId = jobResult.rows[0].correlation_id;
+    
+    if (!correlationId) {
+      return res.status(404).json({ error: 'No profiling data available for this job' });
+    }
+    
+    // Get files for this correlation_id (source and target)
+    const filesResult = await pool.query(`
+      SELECT 
+        f.*,
+        pm.value_distributions
+      FROM files f
+      LEFT JOIN profiling_metrics pm ON f.file_id = pm.file_id AND f.file_role = pm.file_role
+      WHERE f.correlation_id = $1
+      ORDER BY f.file_role DESC
+    `, [correlationId]);
+    
+    // Get column stats for each file
+    const source = filesResult.rows.find(f => f.file_role === 'source');
+    const target = filesResult.rows.find(f => f.file_role === 'target');
+    
+    // Fetch column stats for source
+    let sourceColumns = [];
+    if (source) {
+      const sourceColumnsResult = await pool.query(`
+        SELECT * FROM file_columns 
+        WHERE file_id = $1 AND file_role = 'source'
+        ORDER BY column_index
+      `, [source.file_id]);
+      sourceColumns = sourceColumnsResult.rows;
+    }
+    
+    // Fetch column stats for target
+    let targetColumns = [];
+    if (target) {
+      const targetColumnsResult = await pool.query(`
+        SELECT * FROM file_columns 
+        WHERE file_id = $1 AND file_role = 'target'
+        ORDER BY column_index
+      `, [target.file_id]);
+      targetColumns = targetColumnsResult.rows;
+    }
+    
+    res.json({
+      jobId: id,
+      correlationId,
+      source: source ? {
+        ...source,
+        column_stats: sourceColumns
+      } : null,
+      target: target ? {
+        ...target,
+        column_stats: targetColumns
+      } : null
+    });
+    
+  } catch (error) {
+    // Handle access control errors
+    if (error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    
+    systemLogger.error('Error getting job profiling data:', error);
+    res.status(500).json({ error: 'Failed to get job profiling data' });
+  }
+});
+
 module.exports = router;

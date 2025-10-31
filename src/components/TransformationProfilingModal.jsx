@@ -22,40 +22,17 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // First, get the job details to find the correlation_id
-      const jobResponse = await axios.get(`/api/jobs/${jobId}`, {
+      // Fetch profiling data directly from the new endpoint
+      const response = await axios.get(`/api/jobs/${jobId}/profiling`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const correlationId = jobResponse.data.job.correlation_id;
-      
-      if (!correlationId) {
-        setError('No correlation ID found for this job');
-        setLoading(false);
-        return;
-      }
-      
-      // Fetch all audit records with this correlation_id
-      const auditResponse = await axios.get(`/api/file-audit`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          correlationId: correlationId,
-          limit: 100
-        }
-      });
-
-      const audits = auditResponse.data.audits || [];
-      
-      // Separate source and target files by file_role
-      const source = audits.find(a => a.file_role === 'source');
-      const target = audits.find(a => a.file_role === 'target');
-      
-      setSourceData(source);
-      setTargetData(target);
+      setSourceData(response.data.source);
+      setTargetData(response.data.target);
       setError(null);
     } catch (err) {
       console.error('Error fetching profiling data:', err);
-      setError(err.response?.data?.message || 'Failed to load profiling data');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to load profiling data');
     } finally {
       setLoading(false);
     }
@@ -69,7 +46,7 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
         <div className="attr-grid">
           <div className="attr-item">
             <label>File Name</label>
-            <div>{data.file_name || '-'}</div>
+            <div>{data.filename || '-'}</div>
           </div>
           <div className="attr-item">
             <label>File Type</label>
@@ -77,27 +54,27 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
           </div>
           <div className="attr-item">
             <label>File Size</label>
-            <div>{formatBytes(parseInt(data.file_size_bytes) || 0)}</div>
+            <div>{formatBytes(parseInt(data.file_size) || 0)}</div>
           </div>
           <div className="attr-item">
             <label>Row Count</label>
-            <div>{formatNumber(data.load_step_1_rec_cnt || 0)}</div>
+            <div>{formatNumber(data.row_count || 0)}</div>
           </div>
           <div className="attr-item">
             <label>Column Count</label>
-            <div>{data.number_of_columns || '-'}</div>
+            <div>{data.column_count || '-'}</div>
           </div>
           <div className="attr-item">
             <label>Quality Score</label>
-            <div>{data.quality_score ? `${data.quality_score}%` : '-'}</div>
+            <div>{data.quality_score ? `${parseFloat(data.quality_score).toFixed(2)}%` : '-'}</div>
           </div>
           <div className="attr-item">
             <label>Created Date</label>
-            <div>{formatDate(data.created_dt)}</div>
+            <div>{formatDate(data.created_at)}</div>
           </div>
           <div className="attr-item">
-            <label>File Path</label>
-            <div style={{ wordBreak: 'break-all' }}>{data.load_step1_path || data.source_path || '-'}</div>
+            <label>File ID</label>
+            <div style={{ wordBreak: 'break-all', fontSize: '12px' }}>{data.file_id || '-'}</div>
           </div>
         </div>
       </div>
@@ -122,20 +99,20 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
               <th>Column Name</th>
               <th>Data Type</th>
               <th>Unique Values</th>
-              <th>Null Count</th>
+              <th>Null %</th>
               <th>Min/Max</th>
             </tr>
           </thead>
           <tbody>
             {columns.map((col, idx) => (
               <tr key={idx}>
-                <td>{col.name || col.column_name || '-'}</td>
-                <td>{col.data_type || col.type || '-'}</td>
-                <td>{col.unique_values || col.distinct_count || '-'}</td>
-                <td>{col.null_count || col.missing || 0}</td>
+                <td>{col.column_name || '-'}</td>
+                <td>{col.column_type || '-'}</td>
+                <td>{col.unique_count || '-'}</td>
+                <td>{col.null_percentage ? `${parseFloat(col.null_percentage).toFixed(1)}%` : '0%'}</td>
                 <td>
-                  {col.min_value !== undefined && col.max_value !== undefined
-                    ? `${col.min_value} / ${col.max_value}`
+                  {col.min_value || col.max_value
+                    ? `${col.min_value || col.min_value_decimal || '-'} / ${col.max_value || col.max_value_decimal || '-'}`
                     : '-'}
                 </td>
               </tr>
