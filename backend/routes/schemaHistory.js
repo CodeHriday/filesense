@@ -92,18 +92,22 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
     const logicalFileResult = await pool.query(`
       SELECT 
         canonical_name,
-        has_schema_changed,
-        file_count,
-        created_at as first_upload_date
+        has_schema_changes,
+        upload_count,
+        first_upload_at,
+        last_upload_at,
+        last_schema_change_at
       FROM logical_file_groups
       WHERE logical_file_id = $1
     `, [logicalFileId]);
 
     const logicalFileInfo = logicalFileResult.rows[0] || {
       canonical_name: currentFilename,
-      has_schema_changed: false,
-      file_count: schemas.length,
-      first_upload_date: null
+      has_schema_changes: false,
+      upload_count: schemas.length,
+      first_upload_at: null,
+      last_upload_at: null,
+      last_schema_change_at: null
     };
 
     // If only one schema, return it without comparison
@@ -131,8 +135,11 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
         totalSnapshots: 1,
         logicalFileId,
         canonicalName: logicalFileInfo.canonical_name,
-        hasSchemaChanged: logicalFileInfo.has_schema_changed,
-        totalUploads: logicalFileInfo.file_count
+        hasSchemaChanged: logicalFileInfo.has_schema_changes,
+        totalUploads: logicalFileInfo.upload_count,
+        firstUploadAt: logicalFileInfo.first_upload_at,
+        lastUploadAt: logicalFileInfo.last_upload_at,
+        lastSchemaChangeAt: logicalFileInfo.last_schema_change_at
       });
     }
 
@@ -187,8 +194,11 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
       totalSnapshots: schemas.length,
       logicalFileId,
       canonicalName: logicalFileInfo.canonical_name,
-      hasSchemaChanged: logicalFileInfo.has_schema_changed,
-      totalUploads: logicalFileInfo.file_count,
+      hasSchemaChanged: logicalFileInfo.has_schema_changes,
+      totalUploads: logicalFileInfo.upload_count,
+      firstUploadAt: logicalFileInfo.first_upload_at,
+      lastUploadAt: logicalFileInfo.last_upload_at,
+      lastSchemaChangeAt: logicalFileInfo.last_schema_change_at,
       allSnapshots: schemas.map(s => ({
         id: s.id,
         fileId: s.file_id,

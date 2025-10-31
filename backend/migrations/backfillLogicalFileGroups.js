@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const { v4: uuidv4 } = require('uuid');
 const { normalizeFilename } = require('../utils/filenameNormalizer');
 const { systemLogger } = require('../utils/logger');
 
@@ -71,30 +72,34 @@ async function backfillLogicalFileGroups() {
     // Step 3: Process each group
     for (const [groupKey, group] of fileGroups) {
       // Create or get logical_file_group
+      const logicalFileId = uuidv4();
+      
       const groupResult = await client.query(`
         INSERT INTO logical_file_groups (
+          logical_file_id,
           project_id,
           canonical_name,
-          has_schema_changed,
-          latest_schema_hash,
-          file_count,
-          created_at,
-          updated_at
-        ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+          has_schema_changes,
+          upload_count,
+          first_upload_at,
+          last_upload_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (project_id, canonical_name) 
         DO UPDATE SET
-          file_count = logical_file_groups.file_count + $5,
-          updated_at = NOW()
+          upload_count = logical_file_groups.upload_count + $5,
+          last_upload_at = $7
         RETURNING logical_file_id
       `, [
+        logicalFileId,
         group.projectId,
         group.canonicalName,
         false, // Will be updated when we detect schema changes
-        null,  // Will be updated when we process schemas
-        group.files.length
+        group.files.length,
+        group.files[0].created_at, // First upload (oldest - first element since ORDER BY created_at ASC)
+        group.files[group.files.length - 1].created_at // Last upload (newest - last element)
       ]);
 
-      const logicalFileId = groupResult.rows[0].logical_file_id;
+      const returnedLogicalFileId = groupResult.rows[0].logical_file_id;
 
       // Step 4: Update all files in this group
       for (const file of group.files) {
@@ -102,7 +107,7 @@ async function backfillLogicalFileGroups() {
           UPDATE files 
           SET logical_file_id = $1, updated_at = NOW()
           WHERE file_id = $2
-        `, [logicalFileId, file.file_id]);
+        `, [returnedLogicalFileId, file.file_id]);
         
         updatedFiles++;
       }
@@ -112,7 +117,7 @@ async function backfillLogicalFileGroups() {
         UPDATE file_schemas
         SET logical_file_id = $1
         WHERE file_id = ANY($2)
-      `, [logicalFileId, group.files.map(f => f.file_id)]);
+      `, [returnedLogicalFileId, group.files.map(f => f.file_id)]);
 
       updatedSchemas += schemaUpdateResult.rowCount;
 
@@ -130,21 +135,26 @@ async function backfillLogicalFileGroups() {
       WITH schema_comparison AS (
         SELECT 
           logical_file_id,
-          COUNT(DISTINCT schema_hash) as unique_schemas
+          COUNT(DISTINCT schema_hash) as unique_schemas,
+          MAX(captured_at) as latest_change
         FROM file_schemas
         WHERE logical_file_id IS NOT NULL
         GROUP BY logical_file_id
       )
       UPDATE logical_file_groups lfg
       SET 
-        has_schema_changed = (sc.unique_schemas > 1),
+        has_schema_changes = (sc.unique_schemas > 1),
+        last_schema_change_at = CASE 
+          WHEN sc.unique_schemas > 1 THEN sc.latest_change 
+          ELSE NULL 
+        END,
         updated_at = NOW()
       FROM schema_comparison sc
       WHERE lfg.logical_file_id = sc.logical_file_id
-      RETURNING lfg.logical_file_id, lfg.has_schema_changed
+      RETURNING lfg.logical_file_id, lfg.has_schema_changes
     `);
 
-    const groupsWithChanges = schemaChangeResult.rows.filter(r => r.has_schema_changed).length;
+    const groupsWithChanges = schemaChangeResult.rows.filter(r => r.has_schema_changes).length;
     console.log(`Found ${groupsWithChanges} logical file groups with schema changes`);
 
     // Commit transaction

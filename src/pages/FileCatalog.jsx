@@ -568,7 +568,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                           {group.count > 1 && (
                             <span className="file-count-badge">×{group.count}</span>
                           )}
-                          {file.has_schema_changed && (
+                          {file.has_schema_changes && (
                             <span 
                               className="schema-changed-indicator" 
                               title="Schema has changed from previous upload"

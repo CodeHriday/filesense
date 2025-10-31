@@ -290,7 +290,7 @@ class FileService extends ServiceBase {
         SELECT DISTINCT 
           files.*, 
           projects.name as project_name,
-          lfg.has_schema_changed,
+          lfg.has_schema_changes,
           lfg.canonical_name as logical_file_name
         FROM files 
         LEFT JOIN projects ON files.project_id = projects.id
