@@ -50,7 +50,7 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
     let transformationJobId = null;
     
     const jobResult = await pool.query(`
-      SELECT tj.job_id, tm.drift_action, tj.created_at
+      SELECT tj.job_id, tm.schema_drift_handling, tj.created_at
       FROM transformation_jobs tj
       JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
       WHERE tj.correlation_id = (
@@ -61,7 +61,7 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
     `, [fileId]);
     
     if (jobResult.rows.length > 0) {
-      driftAction = jobResult.rows[0].drift_action;
+      driftAction = jobResult.rows[0].schema_drift_handling;
       transformationJobId = jobResult.rows[0].job_id;
     }
 
