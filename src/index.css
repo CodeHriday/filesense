@@ -79,17 +79,20 @@ a:hover {
 }
 
 .page-header {
-  background-color: var(--bg-header);
-  color: var(--text-on-primary);
-  padding: var(--space-6);
-  margin: calc(var(--space-6) * -1) calc(var(--space-6) * -1) var(--space-8) calc(var(--space-6) * -1);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-6) 0;
+  margin-bottom: var(--space-6);
 }
 
-.page-header h1,
+.page-header h1 {
+  color: #ff6b35;
+  font-size: 2rem;
+  margin-bottom: 0;
+  font-weight: var(--font-semibold);
+}
+
 .page-header h2,
 .page-header h3 {
-  color: var(--text-on-primary);
+  color: var(--text-primary);
   margin-bottom: 0;
 }
 

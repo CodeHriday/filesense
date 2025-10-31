@@ -16,9 +16,9 @@
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-2);
-  font-size: var(--text-3xl);
+  font-size: 2rem;
   font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  color: #ff6b35;
 }
 
 .page-header .header-icon {

@@ -14,9 +14,9 @@
 }
 
 .page-header h1 {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: var(--font-medium);
-  color: var(--text-primary);
+  color: #ff6b35;
   margin: 0;
   display: flex;
   align-items: center;
