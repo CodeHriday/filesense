@@ -1762,9 +1762,43 @@ const VendorAgreements = () => {
                             {selectedAgreement.owner_username && selectedAgreement.owner_email ? ` (${selectedAgreement.owner_email})` : ''}
                           </span>
                         </div>
+                        <div className="detail-item full-width" style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
+                          <label style={{ fontSize: '1.1rem', fontWeight: '600', color: '#025043' }}>Primary Contact</label>
+                        </div>
                         <div className="detail-item">
-                          <label>Primary Contact Name:</label>
+                          <label>Name:</label>
                           <span>{selectedAgreement.primary_contact_name || selectedAgreement.vendor_contact || '-'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Email:</label>
+                          <span>{selectedAgreement.primary_contact_email || '-'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Phone:</label>
+                          <span>{selectedAgreement.primary_contact_phone || '-'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Designation:</label>
+                          <span>{selectedAgreement.primary_contact_designation || '-'}</span>
+                        </div>
+                        <div className="detail-item full-width" style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
+                          <label style={{ fontSize: '1.1rem', fontWeight: '600', color: '#025043' }}>Secondary Contact</label>
+                        </div>
+                        <div className="detail-item">
+                          <label>Name:</label>
+                          <span>{selectedAgreement.secondary_contact_name || '-'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Email:</label>
+                          <span>{selectedAgreement.secondary_contact_email || '-'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Phone:</label>
+                          <span>{selectedAgreement.secondary_contact_phone || '-'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Designation:</label>
+                          <span>{selectedAgreement.secondary_contact_designation || '-'}</span>
                         </div>
                         <div className="detail-item">
                           <label>Vendor Department Email:</label>
