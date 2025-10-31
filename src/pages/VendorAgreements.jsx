@@ -527,6 +527,12 @@ const VendorAgreements = () => {
       // Wrap form data in agreementData/updateData as expected by backend
       const agreementData = {};
       Object.keys(formData).forEach(key => {
+        // Exclude user_id fields - they're frontend-only for tracking contact selection
+        // The actual contact info is stored in name/email/phone/designation fields
+        if (key === 'primary_contact_user_id' || key === 'secondary_contact_user_id') {
+          return;
+        }
+        
         // For UPDATE, include all fields (even empty ones) so backend can detect changes
         // For CREATE, only include non-empty fields to avoid sending unnecessary data
         if (modalMode === 'edit' || formData[key] !== '') {
