@@ -11,7 +11,8 @@
 .stories-header h1 {
   display: flex;
   align-items: center;
-  color: #333;
+  color: #14b8a6;
+  font-size: 2rem;
   margin-bottom: 0.5rem;
 }
 
