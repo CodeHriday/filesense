@@ -8,6 +8,7 @@ const AWS = require('aws-sdk');
 const { Storage } = require('@google-cloud/storage');
 const { BlobServiceClient } = require('@azure/storage-blob');
 const { decryptCredentials } = require('../utils/encryption');
+const { normalizeFilename, createLogicalFileId, extractFilePattern } = require('../utils/filenameNormalizer');
 
 /**
  * Schema Extraction and Validation Service
@@ -298,40 +299,155 @@ async function getFileSchema(pool, fileId) {
 }
 
 /**
- * Save schema snapshot to file_schemas table
+ * Resolve or create a logical file group for cross-upload schema tracking
+ * @param {Pool} pool - Database connection pool
+ * @param {string} filename - Filename
+ * @param {number} projectId - Project ID
+ * @param {string} filePattern - Optional file pattern
+ * @returns {Promise<string>} - Logical file ID
+ */
+async function resolveLogicalFileGroup(pool, filename, projectId, filePattern = null) {
+  try {
+    // Normalize filename to create canonical name
+    const canonicalName = normalizeFilename(filename, filePattern);
+    const logicalFileId = createLogicalFileId(projectId || 0, canonicalName);
+    
+    // Auto-detect file pattern if not provided
+    const detectedPattern = filePattern || extractFilePattern(filename);
+    
+    // Try to find existing logical file group
+    const existingResult = await pool.query(`
+      SELECT logical_file_id FROM logical_file_groups
+      WHERE project_id = $1 AND canonical_name = $2
+    `, [projectId, canonicalName]);
+    
+    if (existingResult.rows.length > 0) {
+      // Update existing group
+      await pool.query(`
+        UPDATE logical_file_groups
+        SET last_upload_at = CURRENT_TIMESTAMP,
+            upload_count = upload_count + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE logical_file_id = $1
+      `, [existingResult.rows[0].logical_file_id]);
+      
+      return existingResult.rows[0].logical_file_id;
+    }
+    
+    // Create new logical file group
+    await pool.query(`
+      INSERT INTO logical_file_groups (
+        logical_file_id, project_id, canonical_name, file_pattern,
+        upload_count
+      ) VALUES ($1, $2, $3, $4, 1)
+      ON CONFLICT (project_id, canonical_name) DO UPDATE
+      SET last_upload_at = CURRENT_TIMESTAMP,
+          upload_count = logical_file_groups.upload_count + 1,
+          updated_at = CURRENT_TIMESTAMP
+    `, [logicalFileId, projectId, canonicalName, detectedPattern]);
+    
+    systemLogger.info('Logical file group resolved', { logicalFileId, canonicalName, projectId });
+    
+    return logicalFileId;
+    
+  } catch (error) {
+    systemLogger.error('Error resolving logical file group:', error);
+    throw error;
+  }
+}
+
+/**
+ * Save schema snapshot to file_schemas table with logical file grouping
  * @param {Pool} pool - Database connection pool
  * @param {string} fileId - File ID
  * @param {string} filename - Filename
  * @param {Object} schema - Schema definition
  * @param {string} filePattern - Optional file pattern
  * @param {number} rowCount - Row count
- * @returns {Promise<Object>} - Saved schema record
+ * @param {number} projectId - Project ID for logical grouping
+ * @returns {Promise<Object>} - Saved schema record with drift detection
  */
-async function saveSchemaSnapshot(pool, fileId, filename, schema, filePattern = null, rowCount = null) {
+async function saveSchemaSnapshot(pool, fileId, filename, schema, filePattern = null, rowCount = null, projectId = null) {
   try {
     const schemaHash = generateSchemaHash(schema);
     const columnCount = schema.columns.length;
     
+    // Resolve logical file group
+    const logicalFileId = await resolveLogicalFileGroup(pool, filename, projectId, filePattern);
+    
+    // Check for schema changes in this logical file group
+    const previousSchemaResult = await pool.query(`
+      SELECT schema_definition, schema_hash, captured_at
+      FROM file_schemas
+      WHERE logical_file_id = $1
+      ORDER BY captured_at DESC
+      LIMIT 1
+    `, [logicalFileId]);
+    
+    let hasSchemaChange = false;
+    let schemaDifferences = null;
+    
+    if (previousSchemaResult.rows.length > 0) {
+      const previousHash = previousSchemaResult.rows[0].schema_hash;
+      if (previousHash !== schemaHash) {
+        hasSchemaChange = true;
+        // Compare schemas to get detailed differences
+        schemaDifferences = compareSchemas(
+          previousSchemaResult.rows[0].schema_definition,
+          schema
+        );
+      }
+    }
+    
+    // Save schema snapshot with logical file group linkage
     const result = await pool.query(`
       INSERT INTO file_schemas (
         file_id, file_name, file_pattern, schema_definition, 
-        schema_hash, row_count, column_count
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        schema_hash, row_count, column_count, logical_file_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (file_id, schema_hash) DO UPDATE
-      SET captured_at = CURRENT_TIMESTAMP
+      SET captured_at = CURRENT_TIMESTAMP,
+          logical_file_id = EXCLUDED.logical_file_id
       RETURNING *
-    `, [fileId, filename, filePattern, JSON.stringify(schema), schemaHash, rowCount, columnCount]);
+    `, [fileId, filename, filePattern, JSON.stringify(schema), schemaHash, rowCount, columnCount, logicalFileId]);
     
-    // Also update the files table with schema
+    // Update logical file group if schema has changed
+    if (hasSchemaChange) {
+      await pool.query(`
+        UPDATE logical_file_groups
+        SET has_schema_changes = true,
+            last_schema_change_at = CURRENT_TIMESTAMP
+        WHERE logical_file_id = $1
+      `, [logicalFileId]);
+      
+      systemLogger.info('Schema change detected in logical file group', {
+        logicalFileId,
+        fileId,
+        differences: schemaDifferences
+      });
+    }
+    
+    // Update files table with logical file ID and schema
     await pool.query(`
       UPDATE files 
-      SET schema_definition = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE file_id = $2
-    `, [JSON.stringify(schema), fileId]);
+      SET schema_definition = $1,
+          logical_file_id = $2,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE file_id = $3
+    `, [JSON.stringify(schema), logicalFileId, fileId]);
     
-    systemLogger.info('Schema snapshot saved', { fileId, schemaHash });
+    systemLogger.info('Schema snapshot saved', { 
+      fileId, 
+      schemaHash, 
+      logicalFileId,
+      hasSchemaChange 
+    });
     
-    return result.rows[0];
+    return {
+      ...result.rows[0],
+      has_schema_change: hasSchemaChange,
+      schema_differences: schemaDifferences
+    };
     
   } catch (error) {
     systemLogger.error('Error saving schema snapshot:', error);
