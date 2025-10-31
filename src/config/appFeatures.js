@@ -276,7 +276,7 @@ export const APP_FEATURES = [
       },
       {
         id: 'vendor_details',
-        name: 'Vendor Details',
+        name: 'Create/Edit Vendors',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
@@ -285,7 +285,7 @@ export const APP_FEATURES = [
       },
       {
         id: 'vendor_agreements',
-        name: 'Vendor Contracts',
+        name: 'Vendor Data Contracts',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
@@ -326,7 +326,7 @@ export const APP_FEATURES = [
   },
   {
     id: 'vendor_details',
-    name: 'Vendor Details',
+    name: 'Create/Edit Vendors',
     category: 'Vendor Management',
     parentId: 'vendor_management',
     icon: null,
@@ -336,7 +336,7 @@ export const APP_FEATURES = [
   },
   {
     id: 'vendor_agreements',
-    name: 'Vendor Contracts',
+    name: 'Vendor Data Contracts',
     category: 'Vendor Management',
     parentId: 'vendor_management',
     icon: null,
