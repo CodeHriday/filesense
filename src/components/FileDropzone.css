@@ -39,7 +39,7 @@
   margin-bottom: var(--space-4);
 }
 
-.success-icon {
+.dropzone-success-icon {
   width: 80px;
   height: 80px;
   color: var(--color-success);

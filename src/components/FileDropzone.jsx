@@ -456,7 +456,7 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
         ) : currentStatus === 'success' ? (
           <div className="upload-success">
             <div className="success-icon-wrapper">
-              <FiCheckSquare className="success-icon" />
+              <FiCheckSquare className="dropzone-success-icon" />
             </div>
             {multiple && uploadingFiles.length > 0 ? (
               <div>
