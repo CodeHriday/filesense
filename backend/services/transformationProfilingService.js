@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const { systemLogger } = require('../utils/logger');
 const crypto = require('crypto');
 const os = require('os');
+const axios = require('axios');
 const { downloadFileFromConnection } = require('../utils/cloudStorageFileList');
 
 /**
@@ -133,8 +134,8 @@ async function callProfilingScript(filePath, fileType) {
 }
 
 /**
- * Profile a file buffer by writing to temp file and using Python profilers
- * This matches the file upload profiling flow exactly
+ * Profile a file buffer using comprehensive vendor profiling API
+ * This ensures transformation outputs get the same detailed metrics as vendor uploads
  * @param {Object} options - Profiling options
  * @param {Buffer} options.fileBuffer - File data buffer
  * @param {string} options.filename - Original filename
@@ -173,13 +174,29 @@ async function profileFileBuffer(options) {
       fileRole
     });
 
-    // Step 2: Call Python processor (same as file upload)
+    // Step 2: Call comprehensive profiling API (same as vendor uploads)
+    const PROFILE_API_PORT = process.env.PROFILE_API_PORT || 8000;
+    const profileResponse = await axios.post(`http://localhost:${PROFILE_API_PORT}/api/vendor-profile`, {
+      file_id: fileId,
+      local_file_path: tempFilePath,
+      filename: filename
+    });
+
+    const profileResult = profileResponse.data;
+    systemLogger.info('Comprehensive profiling completed', {
+      fileId,
+      fileRole,
+      qualityScore: profileResult.quality_score?.overall_score,
+      issuesCount: profileResult.issues?.length || 0
+    });
+
+    // Step 3: Get basic file info for schema
     const fileInfo = await callPythonProcessor(tempFilePath, fileType);
     
-    // Step 3: Call Python profiling script (same as file upload)
+    // Step 4: Get detailed column profiling
     const profilingData = await callProfilingScript(tempFilePath, fileType);
     
-    // Step 4: Merge profiling data with schema
+    // Step 5: Merge comprehensive profiling data with schema
     if (fileInfo.schema && profilingData.columns) {
       fileInfo.schema = fileInfo.schema.map(col => {
         const profiling = profilingData.columns.find(p => p.name === col.name);
@@ -191,13 +208,13 @@ async function profileFileBuffer(options) {
       });
     }
 
-    // Step 5: Calculate file hash
+    // Step 6: Calculate file hash
     const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
-    // Step 6: Calculate quality score
-    const qualityScore = calculateQualityScore(fileInfo);
+    // Step 7: Use quality score from comprehensive profiling
+    const qualityScore = profileResult.quality_score?.overall_score || calculateQualityScore(fileInfo);
 
-    // Step 7: Save to files table
+    // Step 8: Save to files table
     await pool.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
@@ -227,10 +244,10 @@ async function profileFileBuffer(options) {
 
     systemLogger.info('File registered in files table', { fileId, fileRole, qualityScore });
 
-    // Step 8: Save column information
+    // Step 9: Save comprehensive column information including patterns
     if (fileInfo.schema && fileInfo.schema.length > 0) {
-      await saveColumnInfo(pool, fileId, filename, fileInfo.schema, fileRole);
-      systemLogger.info('Column statistics saved', {
+      await saveColumnInfoComprehensive(pool, fileId, filename, fileInfo.schema, fileRole, profileResult);
+      systemLogger.info('Comprehensive column statistics saved', {
         fileId,
         fileRole,
         columnCount: fileInfo.schema.length
@@ -247,7 +264,8 @@ async function profileFileBuffer(options) {
       rowCount: fileInfo.row_count,
       columnCount: fileInfo.column_count,
       qualityScore,
-      schema: fileInfo.schema
+      schema: fileInfo.schema,
+      profileResult: profileResult
     };
 
   } catch (error) {
@@ -391,7 +409,7 @@ function calculateQualityScore(fileInfo) {
 }
 
 /**
- * Save column information to database
+ * Save column information to database (legacy - simple version)
  * @param {Pool} pool - Database connection pool
  * @param {string} fileId - File ID
  * @param {string} filename - Filename
@@ -423,6 +441,82 @@ async function saveColumnInfo(pool, fileId, filename, schema, fileRole) {
       column.max_value_decimal || null,
       filename,
       fileRole,
+    ]);
+  }
+}
+
+/**
+ * Save comprehensive column information including patterns and frequencies
+ * @param {Pool} pool - Database connection pool
+ * @param {string} fileId - File ID
+ * @param {string} filename - Filename
+ * @param {Array} schema - Column schema with profiling data
+ * @param {string} fileRole - 'source' or 'target'
+ * @param {Object} profileResult - Comprehensive profiling result from vendor-profile API
+ */
+async function saveColumnInfoComprehensive(pool, fileId, filename, schema, fileRole, profileResult) {
+  for (let i = 0; i < schema.length; i++) {
+    const column = schema[i];
+    
+    // Extract patterns if available (from profiling data)
+    let patterns = null;
+    if (column.patterns && Array.isArray(column.patterns) && column.patterns.length > 0) {
+      patterns = JSON.stringify(column.patterns);
+    }
+    
+    // Extract frequency data if available
+    let mostFrequent = null;
+    let leastFrequent = null;
+    if (column.value_counts) {
+      const counts = column.value_counts;
+      if (counts.length > 0) {
+        mostFrequent = counts[0].value;
+        leastFrequent = counts[counts.length - 1].value;
+      }
+    }
+    
+    await pool.query(`
+      INSERT INTO file_columns (
+        file_id, column_name, column_type, column_index,
+        null_count, null_percentage, unique_count,
+        min_value, max_value,
+        min_value_decimal, max_value_decimal,
+        most_frequent_value, least_frequent_value,
+        patterns,
+        file_name, file_role, profile_timestamp, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+      ON CONFLICT (file_id, column_name, file_role) 
+      DO UPDATE SET
+        column_type = EXCLUDED.column_type,
+        column_index = EXCLUDED.column_index,
+        null_count = EXCLUDED.null_count,
+        null_percentage = EXCLUDED.null_percentage,
+        unique_count = EXCLUDED.unique_count,
+        min_value = EXCLUDED.min_value,
+        max_value = EXCLUDED.max_value,
+        min_value_decimal = EXCLUDED.min_value_decimal,
+        max_value_decimal = EXCLUDED.max_value_decimal,
+        most_frequent_value = EXCLUDED.most_frequent_value,
+        least_frequent_value = EXCLUDED.least_frequent_value,
+        patterns = EXCLUDED.patterns,
+        profile_timestamp = NOW()
+    `, [
+      fileId,
+      column.name,
+      column.type || 'string',
+      i,
+      column.null_count || 0,
+      column.null_percentage || null,
+      column.unique_count || null,
+      column.min_value || null,
+      column.max_value || null,
+      column.min_value_decimal || null,
+      column.max_value_decimal || null,
+      mostFrequent,
+      leastFrequent,
+      patterns,
+      filename,
+      fileRole
     ]);
   }
 }
