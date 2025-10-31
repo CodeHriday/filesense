@@ -678,11 +678,6 @@ const VendorAgreements = () => {
     setTemplateFile(file);
     event.target.value = '';
     
-    if (!isAdmin) {
-      setError('Only administrators can upload agreement templates');
-      return;
-    }
-    
     try {
       setError('');
       setUploadingTemplate(true);

@@ -199,7 +199,7 @@ function VendorFileUpload() {
         </div>
       )}
 
-      {hasWritePermission('file_drop') ? (
+      {hasWritePermission('vendor_file_quality') || hasWritePermission('file_drop') ? (
         <>
           {/* Project and Connection Selection */}
           <div className="selection-panel">
