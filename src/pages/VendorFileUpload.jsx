@@ -193,7 +193,7 @@ function VendorFileUpload() {
               <p>Your file has been uploaded and is being profiled.</p>
             </div>
           </div>
-          <Link to="/vendor-file-catalog" className="notification-link">
+          <Link to="/vendor-file-quality" className="notification-link">
             View in Vendor File Catalog →
           </Link>
         </div>
