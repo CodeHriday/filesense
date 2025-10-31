@@ -15,6 +15,7 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { captureFileAudit, captureFileSchema } = require('../services/fileAuditService');
+const { saveSchemaSnapshot } = require('../services/schemaService');
 
 class FileProcessingWorker {
   constructor(queue, dbPool, logger, auditService = null) {
@@ -240,6 +241,29 @@ class FileProcessingWorker {
         fileId,
         correlationId
       });
+
+      // Save schema snapshot for schema history tracking
+      try {
+        const schemaDefinition = {
+          columns: (fileInfo.schema || []).map((col, index) => ({
+            name: col.name,
+            type: col.type || col.data_type || 'string',
+            nullable: col.nullable !== false,
+            index: index
+          }))
+        };
+        await saveSchemaSnapshot(this.dbPool, fileId, originalName, schemaDefinition, null, fileInfo.row_count);
+        this.logger.info('Schema snapshot saved for history tracking', {
+          fileId,
+          columnCount: schemaDefinition.columns.length
+        });
+      } catch (schemaSnapshotError) {
+        this.logger.error('Error saving schema snapshot', {
+          fileId,
+          error: schemaSnapshotError.message
+        });
+        // Don't fail the whole processing if schema snapshot fails
+      }
 
       await this.queue.updateProgress(jobId, 100);
 

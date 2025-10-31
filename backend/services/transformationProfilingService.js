@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const os = require('os');
 const axios = require('axios');
 const { downloadFileFromConnection } = require('../utils/cloudStorageFileList');
+const { saveSchemaSnapshot } = require('./schemaService');
 
 /**
  * Transformation Profiling Service
@@ -241,6 +242,31 @@ async function profileFileBuffer(options) {
         fileRole,
         columnCount: fileInfo.schema.length
       });
+      
+      // Step 9.5: Save schema snapshot for schema history tracking
+      try {
+        const schemaDefinition = {
+          columns: fileInfo.schema.map(col => ({
+            name: col.name,
+            type: col.type || col.data_type || 'string',
+            nullable: col.nullable !== false,
+            index: col.column_index
+          }))
+        };
+        await saveSchemaSnapshot(pool, fileId, filename, schemaDefinition, null, fileInfo.row_count);
+        systemLogger.info('Schema snapshot saved for history tracking', {
+          fileId,
+          fileRole,
+          columnCount: schemaDefinition.columns.length
+        });
+      } catch (schemaError) {
+        systemLogger.error('Error saving schema snapshot', {
+          fileId,
+          fileRole,
+          error: schemaError.message
+        });
+        // Don't fail the whole profiling if schema snapshot fails
+      }
       
       // Step 10: Save value distributions to profiling_metrics for Distribution tab
       const valueDistributions = buildValueDistributions(fileInfo.schema);
