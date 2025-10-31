@@ -7,6 +7,10 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**October 31, 2025** - Fixed Schema History Change Summary to display modified column details:
+- Corrected backend property names in schemaService.js (column→name, oldType→previousType, newType→currentType)
+- Change Summary panel now properly displays modified column names and type changes (e.g., "Purc_Qty: string → float")
+
 **October 31, 2025** - Renamed "Transformation File Catalog" to "Processed File Catalog":
 - Updated component name from TransformationFileCatalog to ProcessedFileCatalog
 - Changed navigation label and route from /transformation-catalog to /processed-catalog (with backward compatibility)
