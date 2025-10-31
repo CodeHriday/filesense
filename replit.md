@@ -7,6 +7,18 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**October 31, 2025** - Renamed "Transformation File Catalog" to "Processed File Catalog":
+- Updated component name from TransformationFileCatalog to ProcessedFileCatalog
+- Changed navigation label and route from /transformation-catalog to /processed-catalog (with backward compatibility)
+- Updated all UI references to use "Processed" terminology for better clarity
+- Schema History tab already displays 3-panel layout (Current | Previous | Change Summary) when previous schema versions exist
+
+**October 31, 2025** - Enhanced Vendor File Catalog with logical file grouping:
+- Implemented canonical name-based file grouping using logical_file_id
+- Files with timestamps (e.g., monthly_purch_data_20251031T131702.xlsx) now consolidate into single logical groups
+- Updated header and badge colors to dark teal (#025043) for visual distinction
+- Added expandable file groups with count badges showing number of uploads
+
 **October 31, 2025** - Implemented cross-upload schema tracking with logical file grouping:
 - Created `logical_file_groups` table to track schema changes across multiple uploads of the same file
 - Added filename normalization utility to create canonical names (strips timestamps, handles vendor patterns)
@@ -39,7 +51,7 @@ The application features a hybrid architecture designed for scalability, securit
 -   **ETL Transformation System**: Comprehensive ETL with file pattern matching, schema validation, 25+ field transformations, schema drift detection, profiling with anomaly detection, job execution tracking, and full format conversion between CSV, JSON, XLSX, XML, and Parquet, including a Variables feature for ETL field mapping.
 -   **Workflow Orchestration**: Complete system for managing data pipelines, including Mapping Groups (batch execution), Workflows (multi-step processes with dependency management), and a Scheduler (Cron-based and interval-based).
 -   **File Insights Dashboard**: Includes time-series metric tracking, smart file pattern extraction, ID field detection, alert integration, and configurable granularity.
--   **Vendor Onboarding Module**: Comprehensive vendor management system where admins manage vendor connections at the agreement level using UUID identifiers. Vendor agreements integrate into the ETL transformation mapping workflow, allowing users to select agreements as alternative sources to regular connections for automated file processing. Includes file browsing capabilities with folder/file selection and a transformation file catalog with search functionality. Vendor contract security ensures vendor users only see agreements where they're listed as primary or secondary contact (email-based filtering for non-admins).
+-   **Vendor Onboarding Module**: Comprehensive vendor management system where admins manage vendor connections at the agreement level using UUID identifiers. Vendor agreements integrate into the ETL transformation mapping workflow, allowing users to select agreements as alternative sources to regular connections for automated file processing. Includes file browsing capabilities with folder/file selection and a processed file catalog with search functionality. Vendor contract security ensures vendor users only see agreements where they're listed as primary or secondary contact (email-based filtering for non-admins).
 -   **Project Type Categorization**: Distinguishes between internal and external projects, automatically creating external projects for vendors and ensuring clear separation in workflows.
 -   **Vendor Agreement Schema Validation**: Full-stack system for ETL transformations with schema drift handling policies (abort, alert, none) integrated into job execution and monitored via the UI.
 
