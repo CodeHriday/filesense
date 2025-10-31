@@ -1374,8 +1374,13 @@ const Connections = () => {
 
   return (
     <div className="connections-container">
-      <div className="connections-header">
+      <div className="connections-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Cloud Storage Connections</h1>
+        {!showForm && hasWritePermission('connections') && (
+          <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
+            <FiPlus /> Add Connection
+          </button>
+        )}
       </div>
       
       {/* All connections now unified - no separate vendor/drop sections */}
@@ -1405,14 +1410,6 @@ const Connections = () => {
         </div>
       ) : (
         <div className="connections-content">
-          {/* Add Connection button inside tab */}
-          {!showForm && hasWritePermission('connections') && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-              <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
-                <FiPlus /> Add Connection
-              </button>
-            </div>
-          )}
           
           {showForm ? (
             <Card className="connection-form-container">
