@@ -179,8 +179,25 @@ const VendorAgreements = () => {
         axios.get(`/api/vendor-agreements/${agreementId}/changes`)
       ]);
       
+      // Debug: Log the full agreement data to inspect contact fields
+      const agreementData = agreementResponse.data.agreement || agreementResponse.data;
+      console.log('=== VENDOR AGREEMENT API RESPONSE ===');
+      console.log('Full agreement data:', agreementData);
+      console.log('Primary Contact Fields:', {
+        name: agreementData.primary_contact_name,
+        email: agreementData.primary_contact_email,
+        phone: agreementData.primary_contact_phone,
+        designation: agreementData.primary_contact_designation
+      });
+      console.log('Secondary Contact Fields:', {
+        name: agreementData.secondary_contact_name,
+        email: agreementData.secondary_contact_email,
+        phone: agreementData.secondary_contact_phone,
+        designation: agreementData.secondary_contact_designation
+      });
+      
       // Update selected agreement with fresh data from API
-      setSelectedAgreement(agreementResponse.data.agreement || agreementResponse.data);
+      setSelectedAgreement(agreementData);
       
       // Handle approval history - API might return {approvals: [...]} or just [...]
       const approvals = approvalsResponse.data?.approvals || approvalsResponse.data || [];
