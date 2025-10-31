@@ -22,8 +22,13 @@ class VendorAgreementService {
 
   /**
    * Create vendor agreement
+   * @param {Object} agreementData - Agreement data
+   * @param {number} createdBy - User ID creating the agreement
+   * @param {string} schemaFilePath - Optional schema file path
+   * @param {string} schemaFileType - Optional schema file type
+   * @param {Object} creatingUser - Full user object with email and user_type
    */
-  async createAgreement(agreementData, createdBy, schemaFilePath = null, schemaFileType = null) {
+  async createAgreement(agreementData, createdBy, schemaFilePath = null, schemaFileType = null, creatingUser = null) {
     const client = await pool.connect();
     
     try {
@@ -69,12 +74,20 @@ class VendorAgreementService {
       }
       
       // Verify vendor exists and get project_id
-      const vendorCheck = await client.query('SELECT id, project_id FROM vendors WHERE id = $1', [vendor_id]);
+      const vendorCheck = await client.query('SELECT id, project_id, vendor_user_id FROM vendors WHERE id = $1', [vendor_id]);
       if (vendorCheck.rows.length === 0) {
         throw new Error('Vendor not found');
       }
       
       const project_id = vendorCheck.rows[0].project_id;
+      const vendorUserId = vendorCheck.rows[0].vendor_user_id;
+      
+      // Vendor user validation: if creating user is a vendor user, they can only create contracts for their associated vendor
+      if (creatingUser && creatingUser.user_type === 'Vendor') {
+        if (vendorUserId !== createdBy) {
+          throw new Error('Vendor users can only create agreements for their associated vendor');
+        }
+      }
       
       // Verify file owner exists and get contact info
       const ownerCheck = await client.query('SELECT id, email FROM users WHERE id = $1', [file_owner_user_id]);
@@ -84,6 +97,16 @@ class VendorAgreementService {
       
       // Auto-populate manager_contact from file owner's email if not provided
       const finalManagerContact = manager_contact || ownerCheck.rows[0].email;
+      
+      // Auto-populate primary_contact_email for vendor users if not provided
+      let finalPrimaryContactEmail = primary_contact_email;
+      if (creatingUser && creatingUser.user_type === 'Vendor' && !primary_contact_email && creatingUser.email) {
+        finalPrimaryContactEmail = creatingUser.email;
+        systemLogger.info('Auto-populated primary_contact_email for vendor user', { 
+          userId: createdBy, 
+          email: creatingUser.email 
+        });
+      }
       
       // Validate vendor_connection_id (required)
       const connCheck = await client.query(
@@ -182,7 +205,7 @@ class VendorAgreementService {
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
           frequency, frequency_description, vendor_department_team, vendor_department_email, vendor_type, vendor_onboarding_date || null, file_owner_user_id,
-          primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
+          primary_contact_name, primary_contact_phone, finalPrimaryContactEmail, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata ? JSON.stringify(metadata) : null,
           vendor_connection_id, drop_location_path || null, project_id,

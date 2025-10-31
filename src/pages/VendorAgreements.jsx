@@ -850,28 +850,32 @@ const VendorAgreements = () => {
         <>
           <div className="vendor-agreements-header">
             <h1>Vendor Contracts</h1>
-            {isAdmin && (
+            {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && (
               <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
-                <button 
-                  className="btn-secondary"
-                  onClick={handleDownloadTemplate}
-                  title="Download Excel template for bulk agreement creation"
-                >
-                  Download Template
-                </button>
-                <label 
-                  className="btn-secondary" 
-                  style={{ cursor: 'pointer', display: 'inline-block' }}
-                  title="Upload filled Excel template to create multiple agreements"
-                >
-                  Upload Template
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleTemplateUpload}
-                    style={{ display: 'none' }}
-                  />
-                </label>
+                {isAdmin && (
+                  <>
+                    <button 
+                      className="btn-secondary"
+                      onClick={handleDownloadTemplate}
+                      title="Download Excel template for bulk agreement creation"
+                    >
+                      Download Template
+                    </button>
+                    <label 
+                      className="btn-secondary" 
+                      style={{ cursor: 'pointer', display: 'inline-block' }}
+                      title="Upload filled Excel template to create multiple agreements"
+                    >
+                      Upload Template
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleTemplateUpload}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </>
+                )}
                 <button 
                   className="create-agreement-btn"
                   onClick={openCreateModal}

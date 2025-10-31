@@ -156,7 +156,8 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
         agreementData,
         req.user.id,
         schemaFilePath,
-        fileType
+        fileType,
+        req.user // Pass full user object for validation and auto-population
       );
       
       res.status(201).json(result);
@@ -164,7 +165,10 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
       // Use schema from body
       const result = await vendorAgreementService.createAgreement(
         agreementData,
-        req.user.id
+        req.user.id,
+        null,
+        null,
+        req.user // Pass full user object for validation and auto-population
       );
       
       res.status(201).json(result);
