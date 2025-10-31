@@ -184,6 +184,7 @@ router.post('/', requirePermission('vendor_agreements:write'), upload.single('sc
 /**
  * GET /api/vendor-agreements
  * List all vendor agreements with optional filtering and pagination
+ * For vendor users, only shows agreements where they are a contact (unless they have approve permission)
  */
 router.get('/', async (req, res) => {
   try {
@@ -193,8 +194,9 @@ router.get('/', async (req, res) => {
     const vendorId = req.query.vendor_id ? parseInt(req.query.vendor_id) : null;
     const status = req.query.status || null;
     
-    // Check if user has view permission for all vendor agreements
-    const hasReadPermission = hasPermission(req.user, 'vendor_agreements:read');
+    // Only users with approve permission can see ALL agreements (bypassing contact filtering)
+    // Regular vendor users with just read permission still get filtered by their contact emails
+    const hasApprovePermission = hasPermission(req.user, 'vendor_agreements:approve');
     
     const result = await vendorAgreementService.getAllAgreements({
       page,
@@ -204,7 +206,8 @@ router.get('/', async (req, res) => {
       status,
       userId: req.user.id,
       userRoles: req.user.roles,
-      hasReadPermission
+      userEmail: req.user.email,
+      hasApprovePermission
     });
     
     res.json(result);
