@@ -94,6 +94,9 @@ const VendorAgreements = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   
+  // Store the vendor ID for the current vendor user
+  const [currentVendorId, setCurrentVendorId] = useState(null);
+  
   const { currentUser, hasRole, hasPermission } = useAuth();
   const navigate = useNavigate();
   
@@ -191,6 +194,17 @@ const VendorAgreements = () => {
       setError('Failed to load agreement details');
     }
   };
+  
+  // Auto-populate currentVendorId for vendor users
+  useEffect(() => {
+    if (isVendor && currentUser && Array.isArray(vendors) && vendors.length > 0) {
+      // Find the vendor where vendor_user_id matches the current user's ID
+      const userVendor = vendors.find(v => v.vendor_user_id === currentUser.id);
+      if (userVendor) {
+        setCurrentVendorId(userVendor.id);
+      }
+    }
+  }, [isVendor, currentUser, vendors]);
   
   // Filter vendor connections - show only external connections
   useEffect(() => {
@@ -325,7 +339,7 @@ const VendorAgreements = () => {
   
   const openCreateModal = () => {
     setFormData({
-      vendor_id: isVendor && currentUser.vendor_id ? currentUser.vendor_id : '',
+      vendor_id: isVendor && currentVendorId ? currentVendorId : '',
       file_name: '',
       file_description: '',
       schema: '',
@@ -467,6 +481,12 @@ const VendorAgreements = () => {
   
   const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault();
+    
+    // Critical validation: ensure vendor_id is present for vendor users
+    if (isVendor && !formData.vendor_id) {
+      setModalError('Unable to determine your vendor. Please refresh the page and try again.');
+      return;
+    }
     
     // Only validate if not saving as draft
     if (!isDraft) {
@@ -1088,9 +1108,9 @@ const VendorAgreements = () => {
                         <input
                           type="text"
                           value={
-                            formData.vendor_id && Array.isArray(vendors) 
-                              ? (vendors.find(v => v.id === formData.vendor_id)?.vendor_name || (currentUser.vendor_name || 'Your Vendor'))
-                              : (currentUser.vendor_name || 'Your Vendor')
+                            currentVendorId && Array.isArray(vendors) 
+                              ? (vendors.find(v => v.id === currentVendorId)?.vendor_name || 'Loading...')
+                              : 'Loading...'
                           }
                           disabled
                         />
