@@ -10,9 +10,9 @@ import { PageTransition } from '../components/MicroAnimations';
 import { formatBytes, formatDate } from '../utils/formatters';
 import { getLineages } from '../api/lineageService';
 import ConfirmModal from '../components/ConfirmModal';
-import './TransformationFileCatalog.css';
+import './ProcessedFileCatalog.css';
 
-const TransformationFileCatalog = () => {
+const ProcessedFileCatalog = () => {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [groupedFiles, setGroupedFiles] = useState({});
@@ -145,9 +145,9 @@ const TransformationFileCatalog = () => {
   if (loading) {
     return (
       <PageTransition>
-        <div className="transformation-catalog-page">
+        <div className="processed-catalog-page">
           <PageHeader
-            title="Transformation File Catalog"
+            title="Processed File Catalog"
             subtitle="Files created by ETL transformations"
           />
           <LoadingSpinner />
@@ -160,9 +160,9 @@ const TransformationFileCatalog = () => {
 
   return (
     <PageTransition>
-      <div className="transformation-catalog-page">
+      <div className="processed-catalog-page">
         <PageHeader
-          title="Transformation File Catalog"
+          title="Processed File Catalog"
           subtitle="Files created by ETL transformations with profiling history"
           actions={
             <div className="catalog-file-count">
@@ -374,4 +374,4 @@ const TransformationFileCatalog = () => {
   );
 };
 
-export default TransformationFileCatalog;
+export default ProcessedFileCatalog;

@@ -49,7 +49,7 @@ import HooksDemo from './pages/HooksDemo';
 import Groups from './pages/Groups';
 import BusinessProcesses from './pages/BusinessProcesses';
 import Jobs from './pages/Jobs';
-import TransformationFileCatalog from './pages/TransformationFileCatalog';
+import ProcessedFileCatalog from './pages/ProcessedFileCatalog';
 // ProcessManagementWizard removed
 // ETL Orchestration imports
 import MappingGroups from './pages/MappingGroups';
@@ -277,7 +277,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/jobs/:jobId" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
                 <Route path="/etl-jobs/:jobId" element={<ProtectedRoute><ETLJobDetails /></ProtectedRoute>} />
-                <Route path="/transformation-catalog" element={<ProtectedRoute><TransformationFileCatalog /></ProtectedRoute>} />
+                <Route path="/transformation-catalog" element={<ProtectedRoute><ProcessedFileCatalog /></ProtectedRoute>} />
+                <Route path="/processed-catalog" element={<ProtectedRoute><ProcessedFileCatalog /></ProtectedRoute>} />
                 {/* ProcessManagementWizard route removed */}
                 {/* ETL Orchestration routes */}
                 <Route path="/mapping-groups" element={<ProtectedRoute><MappingGroups /></ProtectedRoute>} />

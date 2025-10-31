@@ -77,11 +77,11 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
-    id: 'transformation_catalog', 
-    name: 'Transformation File Catalog', 
+    id: 'processed_catalog', 
+    name: 'Processed File Catalog', 
     category: 'Catalogs',
     icon: FiFileText,
-    route: '/transformation-catalog',
+    route: '/processed-catalog',
     showInSidebar: true
   },
   { 
