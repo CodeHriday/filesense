@@ -6,6 +6,13 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+**October 31, 2025** - Fixed transformation profiling correlation_id mismatch:
+- Updated `jobExecutionEngine.js` to use `jobId` as `correlation_id` instead of UUID
+- Synced 7,861 existing jobs in database to match the correct format
+- Profiling endpoint now correctly retrieves file and column statistics for all transformation jobs
+- Both source and target files now display complete profiling data in the UI
+
 ## System Architecture
 The application features a hybrid architecture designed for scalability, security, and performance.
 
