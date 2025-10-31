@@ -7,6 +7,17 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**October 31, 2025** - Implemented cross-upload schema tracking with logical file grouping:
+- Created `logical_file_groups` table to track schema changes across multiple uploads of the same file
+- Added filename normalization utility to create canonical names (strips timestamps, handles vendor patterns)
+- Updated schema service to auto-create logical file groups and detect schema drift across uploads
+- Redesigned Schema History UI with three-panel layout: Current Schema | Previous Schema | Change Summary
+- Added orange schema change badges to File Catalog for files with detected drift
+- Fixed critical timestamp bug: corrected first_upload_at/last_upload_at ordering in backfill migration
+- Fixed API metadata bug: now returns correct upload timeline (firstUploadAt, lastUploadAt, lastSchemaChangeAt)
+- Migration backfilled 53 logical file groups from 437 existing files, detected 1 schema change
+- All components use consistent `has_schema_changes` naming convention
+
 **October 31, 2025** - Fixed transformation profiling correlation_id mismatch:
 - Updated `jobExecutionEngine.js` to use `jobId` as `correlation_id` instead of UUID
 - Synced 7,861 existing jobs in database to match the correct format
