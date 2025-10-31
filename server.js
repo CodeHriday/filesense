@@ -4154,7 +4154,7 @@ app.put('/api/files/:fileId/sensitivity', authenticateToken, invalidateCache('ca
 // ============================================
 
 // Get governance tags assigned to a specific column
-app.get('/api/files/:fileId/columns/:columnName/governance-tags', cacheMiddleware(300), async (req, res) => {
+app.get('/api/files/:fileId/columns/:columnName/tags', cacheMiddleware(300), async (req, res) => {
   try {
     const { fileId, columnName } = req.params;
     
@@ -4620,7 +4620,7 @@ app.get('/api/files/:fileId/quality', cacheMiddleware(600), async (req, res) => 
 });
 
 // Recalculate quality score for a file
-app.post('/api/files/:fileId/recalculate-quality', async (req, res) => {
+app.post('/api/files/:fileId/quality/recalculate', authenticateToken, async (req, res) => {
   try {
     const { fileId } = req.params;
     
@@ -5859,7 +5859,7 @@ app.get('/api/files/:fileId/insights', authenticateToken, cacheMiddleware(600), 
 });
 
 // Run quality check on a file endpoint
-app.post('/api/files/:fileId/quality-check', async (req, res) => {
+app.post('/api/files/:fileId/quality/check', authenticateToken, async (req, res) => {
   try {
     const { fileId } = req.params;
     const { rules = [], anomalyDetection = true, calculateReliabilityScore = true } = req.body;

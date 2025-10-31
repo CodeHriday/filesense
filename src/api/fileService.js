@@ -48,7 +48,8 @@ export const getFileDetails = async (fileId) => {
   }
   
   try {
-    const response = await axios.get(`${API_URL}/files/${fileId}`);
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching file details for ${fileId}:`, error);
@@ -67,7 +68,8 @@ export const getFileProfile = async (fileId) => {
   }
   
   try {
-    const response = await axios.get(`${API_URL}/files/${fileId}/profile`);
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/profile`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching file profile for ${fileId}:`, error);
@@ -86,7 +88,8 @@ export const getFileQuality = async (fileId) => {
   }
   
   try {
-    const response = await axios.get(`${API_URL}/files/${fileId}/quality`);
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/quality`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching file quality for ${fileId}:`, error);
@@ -123,7 +126,8 @@ export const checkDuplicateFile = async (file, projectId = null) => {
  */
 export const deleteFile = async (fileId) => {
   try {
-    const response = await axios.delete(`${API_URL}/files/${fileId}`);
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.delete(`${API_URL}/files/${encodedFileId}`);
     return response.data;
   } catch (error) {
     console.error(`Error deleting file ${fileId}:`, error);
@@ -221,7 +225,8 @@ export const uploadFilesBatch = async (files, progressCallback, owner = null, pr
  */
 export const runQualityCheck = async (fileId, rules = null) => {
   try {
-    const response = await axios.post(`${API_URL}/files/${fileId}/quality/run`, { rules });
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.post(`${API_URL}/files/${encodedFileId}/quality/check`, { rules });
     return response.data;
   } catch (error) {
     console.error(`Error running quality checks for ${fileId}:`, error);
@@ -240,7 +245,8 @@ export const getFilePreview = async (fileId, limit = 100) => {
   }
   
   try {
-    const response = await axios.get(`${API_URL}/files/${fileId}/preview?limit=${limit}`);
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/preview?limit=${limit}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching file preview for ${fileId}:`, error);
