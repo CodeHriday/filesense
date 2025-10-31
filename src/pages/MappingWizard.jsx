@@ -164,13 +164,10 @@ function MappingWizard() {
       const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      console.log('Vendor agreements API response:', response.data);
-      console.log('Agreements array:', response.data.agreements || response.data);
       // Filter for approved and locked agreements only
       const approvedAgreements = (response.data.agreements || response.data || []).filter(
         agreement => agreement.approval_status === 'fully_approved' && agreement.is_locked
       );
-      console.log('Approved and locked agreements:', approvedAgreements);
       setVendorAgreements(approvedAgreements);
     } catch (err) {
       console.error('Error fetching vendor agreements:', err);
