@@ -1087,7 +1087,11 @@ const VendorAgreements = () => {
                       ) : (
                         <input
                           type="text"
-                          value={Array.isArray(vendors) ? (vendors.find(v => v.id === formData.vendor_id)?.vendor_name || 'Your Vendor') : 'Your Vendor'}
+                          value={
+                            formData.vendor_id && Array.isArray(vendors) 
+                              ? (vendors.find(v => v.id === formData.vendor_id)?.vendor_name || (currentUser.vendor_name || 'Your Vendor'))
+                              : (currentUser.vendor_name || 'Your Vendor')
+                          }
                           disabled
                         />
                       )}
@@ -1311,6 +1315,11 @@ const VendorAgreements = () => {
                           placeholder="Select primary contact"
                           required
                           name="primary_contact_user_id"
+                          filterByEmail={
+                            formData.vendor_id && Array.isArray(vendors)
+                              ? vendors.find(v => v.id === formData.vendor_id)?.contact_email
+                              : null
+                          }
                         />
                       </div>
                       
@@ -1372,6 +1381,11 @@ const VendorAgreements = () => {
                           placeholder="Select secondary contact"
                           required
                           name="secondary_contact_user_id"
+                          filterByEmail={
+                            formData.vendor_id && Array.isArray(vendors)
+                              ? vendors.find(v => v.id === formData.vendor_id)?.backup_contact_email
+                              : null
+                          }
                         />
                       </div>
                       

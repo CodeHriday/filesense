@@ -8,7 +8,9 @@ const VendorUserSelect = ({
   placeholder = 'Select contact',
   disabled = false,
   required = false,
-  name = 'vendor_user'
+  name = 'vendor_user',
+  filterByVendorId = null,
+  filterByEmail = null
 }) => {
   const [vendorUsers, setVendorUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -76,6 +78,17 @@ const VendorUserSelect = ({
   };
 
   const filteredUsers = vendorUsers.filter(user => {
+    // Filter by vendor_id if provided
+    if (filterByVendorId && user.vendor_id !== filterByVendorId) {
+      return false;
+    }
+    
+    // Filter by email if provided
+    if (filterByEmail && user.email !== filterByEmail) {
+      return false;
+    }
+    
+    // Filter by search term
     if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
