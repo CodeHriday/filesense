@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiBarChart2, FiDownload, FiTable, FiCopy, FiEdit2, FiUser, FiClock, FiCheckCircle, FiAlertTriangle, FiXCircle, FiGitBranch } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import FilePreview from '../components/FilePreview';
 import ErrorModal from '../components/ErrorModal';
+import SchemaHistoryTab from '../components/SchemaHistoryTab';
 import { getFileDetails, getFileProfile, getFilePreview } from '../api/fileService';
 import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -1716,6 +1717,12 @@ function DataProfile() {
               Distribution
             </button>
             <button 
+              className={`tab-button ${activeTab === 'schema-history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('schema-history')}
+            >
+              <FiGitBranch className="tab-icon" /> Schema History
+            </button>
+            <button 
               className={`tab-button ${activeTab === 'preview' ? 'active' : ''}`}
               onClick={() => setActiveTab('preview')}
             >
@@ -1727,6 +1734,7 @@ function DataProfile() {
             {activeTab === 'attributes' && renderOverviewTab()}
             {activeTab === 'profile' && renderColumnsTab()}
             {activeTab === 'distribution' && renderDistributionTab()}
+            {activeTab === 'schema-history' && <SchemaHistoryTab fileId={fileId} />}
             {activeTab === 'preview' && renderPreviewTab()}
           </div>
         </>

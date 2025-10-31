@@ -122,6 +122,26 @@ export const checkDuplicateFile = async (file, projectId = null) => {
 };
 
 /**
+ * Get schema history for a file
+ */
+export const getFileSchemaHistory = async (fileId) => {
+  // Validate fileId before making the request
+  if (!fileId) {
+    console.error('Error fetching schema history: No file ID provided');
+    return Promise.reject(new Error('No file ID provided'));
+  }
+  
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.get(`${API_URL}/files/${encodedFileId}/schema-history`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching schema history for ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch schema history');
+  }
+};
+
+/**
  * Delete a file by ID
  */
 export const deleteFile = async (fileId) => {
