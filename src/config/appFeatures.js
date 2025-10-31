@@ -69,43 +69,28 @@ export const APP_FEATURES = [
     showInSidebar: false // Not shown in sidebar
   },
   { 
-    id: 'catalogs', 
-    name: 'Catalogs', 
-    category: 'Project & File Management',
-    icon: FiGrid,
-    route: null,
-    showInSidebar: true,
-    isCollapsible: true,
-    isParentOnly: true,
-    children: [
-      {
-        id: 'file_catalog',
-        name: 'File Catalog',
-        parentId: 'catalogs',
-        category: 'Project & File Management',
-        icon: null,
-        route: '/file-catalog',
-        showInSidebar: true
-      },
-      {
-        id: 'transformation_catalog',
-        name: 'Transformation File Catalog',
-        parentId: 'catalogs',
-        category: 'Project & File Management',
-        icon: null,
-        route: '/transformation-catalog',
-        showInSidebar: true
-      },
-      {
-        id: 'vendor_file_quality',
-        name: 'Vendor File Catalog',
-        parentId: 'catalogs',
-        category: 'Project & File Management',
-        icon: null,
-        route: '/vendor-file-quality',
-        showInSidebar: true
-      }
-    ]
+    id: 'file_catalog', 
+    name: 'File Catalog', 
+    category: 'Catalogs',
+    icon: FiDatabase,
+    route: '/file-catalog',
+    showInSidebar: true
+  },
+  { 
+    id: 'transformation_catalog', 
+    name: 'Transformation File Catalog', 
+    category: 'Catalogs',
+    icon: FiFileText,
+    route: '/transformation-catalog',
+    showInSidebar: true
+  },
+  { 
+    id: 'vendor_file_quality', 
+    name: 'Vendor File Catalog', 
+    category: 'Catalogs',
+    icon: FiCheckCircle,
+    route: '/vendor-file-quality',
+    showInSidebar: true
   },
   { 
     id: 'file_profile', 
@@ -432,6 +417,7 @@ export const APP_FEATURES = [
 export const FEATURE_CATEGORIES_ORDER = [
   'Administration',
   'Project & File Management',
+  'Catalogs',
   'Job Design',
   'Jobs and Monitoring',
   'Governance',
@@ -452,6 +438,7 @@ export const FEATURE_CATEGORIES = APP_FEATURES.reduce((acc, feature) => {
 export const getSidebarCategoryName = (category) => {
   const mapping = {
     'Project & File Management': 'Projects and Files',
+    'Catalogs': 'Catalogs',
     'Job Design': 'Job Design',
     'Jobs and Monitoring': 'Jobs and Monitoring',
     'Governance': 'Data Governance',
