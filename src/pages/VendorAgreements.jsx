@@ -197,11 +197,22 @@ const VendorAgreements = () => {
   
   // Auto-populate currentVendorId for vendor users
   useEffect(() => {
+    console.log('Checking vendor user link:', {
+      isVendor,
+      currentUserId: currentUser?.id,
+      vendorsCount: vendors.length,
+      vendors: vendors.map(v => ({ id: v.id, name: v.vendor_name, vendor_user_id: v.vendor_user_id }))
+    });
+    
     if (isVendor && currentUser && Array.isArray(vendors) && vendors.length > 0) {
       // Find the vendor where vendor_user_id matches the current user's ID
       const userVendor = vendors.find(v => v.vendor_user_id === currentUser.id);
+      console.log('Found vendor for user:', userVendor);
       if (userVendor) {
         setCurrentVendorId(userVendor.id);
+        console.log('Set currentVendorId to:', userVendor.id);
+      } else {
+        console.warn('No vendor found with vendor_user_id matching current user ID:', currentUser.id);
       }
     }
   }, [isVendor, currentUser, vendors]);
