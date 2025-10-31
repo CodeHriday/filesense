@@ -39,7 +39,7 @@ const TransformationProfilingModal = ({ jobId, onClose }) => {
       const auditResponse = await axios.get(`/api/file-audit`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
-          correlation_id: correlationId,
+          correlationId: correlationId,
           limit: 100
         }
       });
