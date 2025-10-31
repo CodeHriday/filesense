@@ -21,19 +21,25 @@ This directory contains the original Streamlit-based frontend for the Data File 
 - `async_file_processor.py` - Chunked file processing for large files
 - `enhanced_profiling.py` - Profiling with logging capabilities
 - `integration.py` - Async/sync wrapper for enhanced utilities
-- `logger.py` - Custom logging configuration
+- ~~`logger.py`~~ - **RESTORED to active codebase** (needed by file processor)
 
 **Configuration**:
 - `.streamlit/config.toml` - Streamlit server configuration
 
 ### What Was NOT Archived (Still Active)
 
-The following Python modules remain active because they are used by `profile_api.py`, which provides vendor file profiling services to the React backend:
+The following Python modules remain active because they are used by the React backend's file processing system:
 
 - `profile_api.py` - Flask API service (port 8000) for vendor file quality profiling
 - `quality_checks.py` - Quality check engine used by profile_api.py
 - `data_profiling.py` - Data profiling utilities used by profile_api.py
 - `utils/header_validator.py` - Header validation used by profile_api.py
+- `utils/logger.py` - Custom logging configuration (used by file processor, memory monitor, and streaming processors)
+- `utils/process_file.py` - Main file processor called by Node.js backend
+- `utils/profile_columns.py` - Column profiling script
+- `utils/streaming_processors.py` - Streaming file readers for large files
+- `utils/memory_monitor.py` - Memory management for file processing
+- `utils/dtype_converter.py` - Data type conversion utilities
 
 **Integration Point**: The React backend (server.js) calls `profile_api.py` at line 1954 for automated vendor file profiling during upload.
 
