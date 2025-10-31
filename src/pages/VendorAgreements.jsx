@@ -200,8 +200,9 @@ const VendorAgreements = () => {
     console.log('Checking vendor user link:', {
       isVendor,
       currentUserId: currentUser?.id,
-      vendorsCount: vendors.length,
-      vendors: vendors.map(v => ({ id: v.id, name: v.vendor_name, vendor_user_id: v.vendor_user_id }))
+      vendorsIsArray: Array.isArray(vendors),
+      vendorsCount: Array.isArray(vendors) ? vendors.length : 'not an array',
+      vendors: Array.isArray(vendors) ? vendors.map(v => ({ id: v.id, name: v.vendor_name, vendor_user_id: v.vendor_user_id })) : vendors
     });
     
     if (isVendor && currentUser && Array.isArray(vendors) && vendors.length > 0) {
