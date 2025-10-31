@@ -127,17 +127,30 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Component to redirect vendor users to drop page, others to dashboard
+// Component to redirect vendor users to vendor file upload page, others to dashboard
 const DashboardOrRedirect = () => {
   const { currentUser } = useAuth();
   
-  // Redirect vendor users to the drop file page
+  // Redirect vendor users to the vendor file upload page
   if (isVendorUser(currentUser)) {
-    return <Navigate to="/drop" replace />;
+    return <Navigate to="/vendor-file-upload" replace />;
   }
   
   // Show dashboard for all other users
   return <Dashboard />;
+};
+
+// Component to block vendor users from accessing regular file upload
+const FileUploadOrRedirect = () => {
+  const { currentUser } = useAuth();
+  
+  // Redirect vendor users away from regular file upload
+  if (isVendorUser(currentUser)) {
+    return <Navigate to="/vendor-file-upload" replace />;
+  }
+  
+  // Show regular file upload for non-vendor users
+  return <FileUpload />;
 };
 
 function App() {
@@ -190,8 +203,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
             <main id="main-content" className="content" tabIndex="-1">
               <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
-                <Route path="/upload" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
-                <Route path="/drop" element={<ProtectedRoute><FileUpload /></ProtectedRoute>} />
+                <Route path="/upload" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
+                <Route path="/drop" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
                 <Route path="/file-catalog" element={<ProtectedRoute><FileCatalog /></ProtectedRoute>} />
                 <Route path="/profile/:fileId" element={<ProtectedRoute>
                   {({ fileId }) => {

@@ -247,7 +247,7 @@ const VendorAgreements = () => {
   
   // Auto-populate project fields from selected vendor
   useEffect(() => {
-    if (formData.vendor_id && vendors.length > 0) {
+    if (formData.vendor_id && Array.isArray(vendors) && vendors.length > 0) {
       const selectedVendor = vendors.find(
         vendor => String(vendor.id) === String(formData.vendor_id)
       );
@@ -1059,7 +1059,7 @@ const VendorAgreements = () => {
                           required
                         >
                           <option value="">Select a vendor</option>
-                          {vendors.map(vendor => (
+                          {Array.isArray(vendors) && vendors.map(vendor => (
                             <option key={vendor.id} value={vendor.id}>
                               {vendor.vendor_name} ({vendor.vendor_code})
                             </option>
@@ -1068,7 +1068,7 @@ const VendorAgreements = () => {
                       ) : (
                         <input
                           type="text"
-                          value={vendors.find(v => v.id === formData.vendor_id)?.vendor_name || 'Your Vendor'}
+                          value={Array.isArray(vendors) ? (vendors.find(v => v.id === formData.vendor_id)?.vendor_name || 'Your Vendor') : 'Your Vendor'}
                           disabled
                         />
                       )}
@@ -1146,7 +1146,7 @@ const VendorAgreements = () => {
                         <input
                           type="text"
                           id="vendor_code"
-                          value={vendors.find(v => v.id === formData.vendor_id)?.vendor_code || ''}
+                          value={Array.isArray(vendors) ? (vendors.find(v => v.id === formData.vendor_id)?.vendor_code || '') : ''}
                           readOnly
                           placeholder="Auto from vendor"
                           style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}

@@ -47,9 +47,10 @@ function Sidebar() {
   const canViewFeature = (featureId, parentId = null) => {
     // Special handling for vendor-only users
     if (isVendorOnly) {
-      // Allow file_drop, vendor_agreements, and vendor_management (parent)
+      // Allow vendor-specific features and vendor_management (parent)
       // vendor_management needs to be allowed so its children can render
-      return featureId === 'file_drop' || 
+      return featureId === 'vendor_file_upload' || 
+             featureId === 'vendor_file_quality' || 
              featureId === 'vendor_agreements' || 
              featureId === 'vendor_management';
     }
