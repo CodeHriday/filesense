@@ -100,7 +100,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   const files = fileData || [];
 
   const handleViewDetails = (file) => {
-    navigate(`/profile/${file.file_id}`);
+    navigate(`/profile/${encodeURIComponent(file.file_id)}`);
   };
 
   const handleSearchChange = (e) => {

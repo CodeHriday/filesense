@@ -359,7 +359,8 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
 }
 
 function DataProfile() {
-  const { fileId } = useParams();
+  const { fileId: encodedFileId } = useParams();
+  const fileId = decodeURIComponent(encodedFileId || '');
   const { currentUser, hasPermission } = useAuth();
   const [file, setFile] = useState(null);
   const [profile, setProfile] = useState(null);
