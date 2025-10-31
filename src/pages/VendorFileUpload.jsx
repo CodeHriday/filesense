@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUpload, FiCheckSquare } from 'react-icons/fi';
+import { FiUpload, FiCheckCircle } from 'react-icons/fi';
 import FileDropzone from '../components/FileDropzone';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
@@ -187,7 +187,7 @@ function VendorFileUpload() {
       {showSuccessNotification && uploadedFile && (
         <div className="success-notification">
           <div className="notification-content">
-            <FiCheckSquare className="notification-icon" />
+            <FiCheckCircle className="notification-icon" />
             <div className="notification-text">
               <strong>File uploaded successfully!</strong>
               <p>Your file has been uploaded and is being profiled.</p>
