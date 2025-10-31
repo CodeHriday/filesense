@@ -169,6 +169,40 @@
   font-weight: 500;
   color: #1f2937;
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-count-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  margin-left: 0.5rem;
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.75em;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.child-row {
+  background-color: #f9fafb;
+}
+
+.child-cell {
+  padding-left: 2rem;
+}
+
+.child-filename {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.child-indicator {
+  color: #9ca3af;
+  font-size: 1.2rem;
+  font-weight: normal;
 }
 
 .file-id {

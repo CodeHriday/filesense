@@ -11,6 +11,7 @@ function VendorFileQuality() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
+  const [expandedGroups, setExpandedGroups] = useState({});
   
   const navigate = useNavigate();
 
@@ -65,8 +66,43 @@ function VendorFileQuality() {
     return matchesSearch && matchesType;
   });
 
+  // Group files by filename
+  const groupedFiles = filteredFiles.reduce((groups, file) => {
+    const filename = file.filename;
+    if (!groups[filename]) {
+      groups[filename] = [];
+    }
+    groups[filename].push(file);
+    return groups;
+  }, {});
+
+  // Sort files within each group by date (newest first)
+  Object.keys(groupedFiles).forEach(filename => {
+    groupedFiles[filename].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  });
+
+  // Convert to array of groups for easier handling
+  const fileGroups = Object.entries(groupedFiles).map(([filename, files]) => {
+    const groupId = `group_${files[0].file_id}`;
+    return {
+      filename,
+      groupId,
+      files,
+      count: files.length,
+      // Use the most recent file for display data
+      representativeFile: files[0]
+    };
+  });
+
   // Get unique file types for filter
   const fileTypes = [...new Set(files.map(f => f.file_type).filter(Boolean))];
+
+  const toggleGroup = (groupId) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId]
+    }));
+  };
 
   if (loading) {
     return (
@@ -117,7 +153,7 @@ function VendorFileQuality() {
 
       {/* Results summary */}
       <div className="results-summary">
-        <p>Showing {filteredFiles.length} of {files.length} vendor files</p>
+        <p>Showing {fileGroups.length} file groups ({filteredFiles.length} total files) of {files.length} vendor files</p>
       </div>
 
       {!loading && !error && files.length === 0 && (
@@ -136,7 +172,7 @@ function VendorFileQuality() {
         </div>
       )}
 
-      {!loading && !error && filteredFiles.length > 0 && (
+      {!loading && !error && fileGroups.length > 0 && (
         <div className="file-table-container">
           <div style={{ overflowX: 'auto', width: '100%' }}>
             <table className="file-table">
@@ -150,52 +186,116 @@ function VendorFileQuality() {
               </tr>
             </thead>
             <tbody>
-              {filteredFiles.map((file) => (
-                <tr key={file.file_id} className="file-row">
-                  <td className="filename-cell">
-                    <div className="filename">
-                      {file.filename}
-                      {file.has_schema_changes && (
-                        <span 
-                          className="schema-changed-badge" 
-                          title="Schema has changed from previous upload"
-                          style={{
-                            marginLeft: '8px',
-                            padding: '2px 8px',
-                            backgroundColor: '#ff9800',
-                            color: 'white',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: '500',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <FiGitBranch size={12} /> Schema Changed
+              {fileGroups.map(group => {
+                const isExpanded = expandedGroups[group.groupId];
+                const file = group.representativeFile;
+                
+                return (
+                  <React.Fragment key={group.groupId}>
+                    {/* Group Header Row */}
+                    <tr className={`file-row ${isExpanded ? 'expanded' : ''}`}>
+                      <td 
+                        className="filename-cell" 
+                        onClick={() => group.count > 1 && toggleGroup(group.groupId)} 
+                        style={{cursor: group.count > 1 ? 'pointer' : 'default'}}
+                      >
+                        <div className="filename">
+                          {file.filename}
+                          {group.count > 1 && (
+                            <span className="file-count-badge">×{group.count}</span>
+                          )}
+                          {file.has_schema_changes && (
+                            <span 
+                              className="schema-changed-badge" 
+                              title="Schema has changed from previous upload"
+                              style={{
+                                marginLeft: '8px',
+                                padding: '2px 8px',
+                                backgroundColor: '#ff9800',
+                                color: 'white',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: '500',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <FiGitBranch size={12} /> Schema Changed
+                            </span>
+                          )}
+                        </div>
+                        <div className="file-id">{file.file_id}</div>
+                      </td>
+                      <td>
+                        <span className="file-type-badge">
+                          {file.file_type?.toUpperCase() || 'Unknown'}
                         </span>
-                      )}
-                    </div>
-                    <div className="file-id">{file.file_id}</div>
-                  </td>
-                  <td>
-                    <span className="file-type-badge">
-                      {file.file_type?.toUpperCase() || 'Unknown'}
-                    </span>
-                  </td>
-                  <td>{formatBytes(file.file_size)}</td>
-                  <td>{formatDate(file.created_at)}</td>
-                  <td>
-                    <button
-                      className="action-btn view-btn"
-                      onClick={() => handleViewProfile(file.file_id)}
-                      title="View Full Profile"
-                    >
-                      <FiEye /> View Profile
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                      <td>{formatBytes(file.file_size)}</td>
+                      <td>{formatDate(file.created_at)}</td>
+                      <td>
+                        <button
+                          className="action-btn view-btn"
+                          onClick={() => handleViewProfile(file.file_id)}
+                          title="View Full Profile"
+                        >
+                          <FiEye /> View Profile
+                        </button>
+                      </td>
+                    </tr>
+                    
+                    {/* Child Rows (when expanded) */}
+                    {isExpanded && group.files.length > 1 && group.files.slice(1).map((childFile, index) => (
+                      <tr key={childFile.file_id} className="file-row child-row">
+                        <td className="filename-cell child-cell">
+                          <div className="filename child-filename">
+                            <span className="child-indicator">↳</span>
+                            {childFile.filename}
+                            {childFile.has_schema_changes && (
+                              <span 
+                                className="schema-changed-badge" 
+                                title="Schema has changed from previous upload"
+                                style={{
+                                  marginLeft: '8px',
+                                  padding: '2px 8px',
+                                  backgroundColor: '#ff9800',
+                                  color: 'white',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '500',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <FiGitBranch size={12} /> Schema Changed
+                              </span>
+                            )}
+                          </div>
+                          <div className="file-id">{childFile.file_id}</div>
+                        </td>
+                        <td>
+                          <span className="file-type-badge">
+                            {childFile.file_type?.toUpperCase() || 'Unknown'}
+                          </span>
+                        </td>
+                        <td>{formatBytes(childFile.file_size)}</td>
+                        <td>{formatDate(childFile.created_at)}</td>
+                        <td>
+                          <button
+                            className="action-btn view-btn"
+                            onClick={() => handleViewProfile(childFile.file_id)}
+                            title="View Full Profile"
+                          >
+                            <FiEye /> View Profile
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
           </div>
