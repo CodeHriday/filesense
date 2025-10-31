@@ -24,8 +24,6 @@ dependencies = [
     "psutil>=7.1.0",
     "pyarrow>=19.0.1",
     "sift-stack-py>=0.9.1",
-    "streamlit>=1.44.1",
-    "tornado>=6.5.2",
     "trafilatura>=2.0.0",
     "uuid>=1.30",
 ]
