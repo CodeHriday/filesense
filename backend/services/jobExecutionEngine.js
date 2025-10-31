@@ -64,7 +64,7 @@ async function createJob(pool, mappingId, userId, options = {}) {
     
     const mapping = mappingResult.rows[0];
     const jobId = `JOB-${Date.now()}-${uuidv4().substring(0, 8)}`;
-    const correlationId = uuidv4(); // Generate correlation ID for source/target file linking
+    const correlationId = jobId; // Use jobId as correlation ID for source/target file linking
     
     const result = await pool.query(`
       INSERT INTO transformation_jobs (
