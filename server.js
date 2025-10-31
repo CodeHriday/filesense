@@ -2719,6 +2719,9 @@ try {
 try {
   const fileAuditRoutes = require('./backend/routes/fileAudit');
   app.use('/api/file-audit', authenticateToken, fileAuditRoutes);
+  
+  const schemaHistoryRoutes = require('./backend/routes/schemaHistory');
+  app.use('/api/files', authenticateToken, schemaHistoryRoutes);
   console.log('✓ Registered /api/file-audit route');
 } catch (error) {
   console.error('✗ Failed to register /api/file-audit:', error.message);
