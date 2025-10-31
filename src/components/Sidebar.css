@@ -274,17 +274,16 @@
 /* Sidebar toggle button */
 .sidebar-toggle {
   position: absolute;
-  top: 50%;
+  top: var(--space-4);
   right: -12px;
-  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 48px;
-  background-color: var(--bg-sidebar);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-light);
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #90caf9;
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -294,9 +293,9 @@
 }
 
 .sidebar-toggle:hover {
-  background-color: var(--color-gray-100);
-  color: var(--text-primary);
-  border-color: var(--border-medium);
+  background-color: #bbdefb;
+  color: #1565c0;
+  border-color: #64b5f6;
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
 }
 
