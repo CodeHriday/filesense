@@ -248,21 +248,21 @@ export const APP_FEATURES = [
     isParentOnly: true,
     children: [
       {
-        id: 'vendor_users',
-        name: 'Vendor User Management',
-        parentId: 'vendor_management',
-        category: 'Administration',
-        icon: null,
-        route: '/vendor-users',
-        showInSidebar: true
-      },
-      {
         id: 'vendor_roles',
         name: 'Vendor Role Management',
         parentId: 'vendor_management',
         category: 'Administration',
         icon: null,
         route: '/vendor-roles',
+        showInSidebar: true
+      },
+      {
+        id: 'vendor_users',
+        name: 'Vendor User Management',
+        parentId: 'vendor_management',
+        category: 'Administration',
+        icon: null,
+        route: '/vendor-users',
         showInSidebar: true
       },
       {
