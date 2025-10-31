@@ -25,7 +25,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
       setError(null);
       
       console.log('Fetching preview data for fileId:', fileId);
-      const response = await axios.get(`/api/files/${fileId}/preview?limit=${maxRows}`, {
+      const response = await axios.get(`/api/files/${encodeURIComponent(fileId)}/preview?limit=${maxRows}`, {
         timeout: 60000 // 60 second timeout for preview loading
       });
       console.log('Preview data received:', response.data);
@@ -47,7 +47,7 @@ const FilePreview = ({ fileId, maxRows = 100, columnQualityData = [] }) => {
     try {
       setDeleting(true);
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/files/${fileId}/preview-data`, {
+      await axios.delete(`/api/files/${encodeURIComponent(fileId)}/preview-data`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       
