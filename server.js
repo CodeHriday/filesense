@@ -106,9 +106,23 @@ const { authenticateToken } = require('./backend/src/middleware/authenticate');
 // Middleware to extract fileId from URLs that may contain slashes
 // This must come BEFORE the route definitions
 const extractFileId = (req, res, next) => {
-  const match = req.path.match(/^\/api\/files\/([^?]+?)\/(preview|profile|profile-history|quality|ownership|policies|tags|schedules|insights|columns|job-status)(?:\/|$|\?)/);
-  if (match) {
-    req.params.fileId = decodeURIComponent(match[1]);
+  // List of known endpoints after fileId
+  const endpoints = ['preview', 'profile', 'profile-history', 'quality', 'ownership', 'policies', 'tags', 'schedules', 'insights', 'columns', 'job-status', 'preview-data'];
+  
+  // Check if this is a /api/files/ route
+  if (req.path.startsWith('/api/files/')) {
+    const pathAfterFiles = req.path.substring('/api/files/'.length);
+    
+    // Try to find which endpoint is being called
+    for (const endpoint of endpoints) {
+      const endpointIndex = pathAfterFiles.indexOf(`/${endpoint}`);
+      if (endpointIndex > 0) {
+        // Extract fileId (everything before the endpoint)
+        const fileId = pathAfterFiles.substring(0, endpointIndex);
+        req.params.fileId = fileId;
+        break;
+      }
+    }
   }
   next();
 };
