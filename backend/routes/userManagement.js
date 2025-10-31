@@ -226,7 +226,8 @@ router.get('/by-role/:roleName', authenticateToken, asyncHandler(async (req, res
         u.city,
         u.state,
         u.postal_code,
-        u.country
+        u.country,
+        u.vendor_id
       FROM users u
       WHERE u.internal_user = false AND u.user_type = 'Vendor'
       ORDER BY u.full_name, u.username`
