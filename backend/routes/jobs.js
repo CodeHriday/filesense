@@ -203,7 +203,7 @@ router.get('/:id', async (req, res) => {
     
     const jobData = await getJobStatus(pool, id);
     
-    res.json(jobData);
+    res.json(jobData.job);
     
   } catch (error) {
     // Handle access control errors
