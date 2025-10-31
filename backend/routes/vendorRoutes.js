@@ -61,7 +61,7 @@ router.get('/', isVendorUser, async (req, res) => {
       
       return res.json({
         success: true,
-        vendor: result.vendor,
+        vendors: [result.vendor],
         isOwnProfile: true
       });
     }
