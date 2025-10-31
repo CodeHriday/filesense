@@ -237,7 +237,7 @@ function GroupManagement() {
       name: group.name,
       description: group.description || '',
       group_type: group.group_type,
-      sync_enabled: group.sync_enabled || false
+      idp_sync_enabled: group.sync_enabled || false
     });
     setShowEditModal(true);
   };
@@ -424,8 +424,8 @@ function GroupManagement() {
                     <label className="checkbox-label">
                       <input
                         type="checkbox"
-                        checked={formData.sync_enabled}
-                        onChange={(e) => setFormData({ ...formData, sync_enabled: e.target.checked })}
+                        checked={formData.idp_sync_enabled}
+                        onChange={(e) => setFormData({ ...formData, idp_sync_enabled: e.target.checked })}
                       />
                       Enable IdP Sync
                     </label>
