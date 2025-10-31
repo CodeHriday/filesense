@@ -524,6 +524,15 @@ const VendorAgreements = () => {
     try {
       const submitData = new FormData();
       
+      // List of integer fields that should be null instead of empty string
+      const integerFields = [
+        'vendor_id', 
+        'file_owner_user_id', 
+        'vendor_connection_id',
+        'retention_days',
+        'project_id'
+      ];
+      
       // Wrap form data in agreementData/updateData as expected by backend
       const agreementData = {};
       Object.keys(formData).forEach(key => {
@@ -533,10 +542,17 @@ const VendorAgreements = () => {
           return;
         }
         
+        let value = formData[key];
+        
+        // Convert empty strings to null for integer fields to avoid DB errors
+        if (integerFields.includes(key) && value === '') {
+          value = null;
+        }
+        
         // For UPDATE, include all fields (even empty ones) so backend can detect changes
         // For CREATE, only include non-empty fields to avoid sending unnecessary data
-        if (modalMode === 'edit' || formData[key] !== '') {
-          agreementData[key] = formData[key];
+        if (modalMode === 'edit' || value !== '') {
+          agreementData[key] = value;
         }
       });
       

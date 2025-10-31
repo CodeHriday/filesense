@@ -69,6 +69,18 @@ class VendorAgreementService {
         status
       } = agreementData;
       
+      // Check for duplicate file_name
+      if (file_name) {
+        const duplicateCheck = await client.query(
+          'SELECT id FROM vendor_agreements WHERE LOWER(TRIM(file_name)) = LOWER(TRIM($1))',
+          [file_name]
+        );
+        
+        if (duplicateCheck.rows.length > 0) {
+          throw new Error(`An agreement with the file name "${file_name}" already exists. Please use a different file name.`);
+        }
+      }
+      
       // Determine if this is a draft
       const isDraft = status === 'draft';
       
@@ -328,6 +340,18 @@ class VendorAgreementService {
         expected_arrival_time,
         delivery_method
       } = updateData;
+      
+      // Check for duplicate file_name (excluding current agreement)
+      if (file_name !== undefined && file_name !== current.file_name) {
+        const duplicateCheck = await client.query(
+          'SELECT id FROM vendor_agreements WHERE LOWER(TRIM(file_name)) = LOWER(TRIM($1)) AND id != $2',
+          [file_name, agreementId]
+        );
+        
+        if (duplicateCheck.rows.length > 0) {
+          throw new Error(`An agreement with the file name "${file_name}" already exists. Please use a different file name.`);
+        }
+      }
       
       // Validate vendor_connection_id if provided (optional in updates)
       if (vendor_connection_id !== undefined && vendor_connection_id) {
