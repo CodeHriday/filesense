@@ -415,11 +415,11 @@ export const APP_FEATURES = [
 
 // Category display names and ordering
 export const FEATURE_CATEGORIES_ORDER = [
+  'Administration',
   'Project & File Management',
   'Job Design',
   'Jobs and Monitoring',
   'Governance',
-  'Administration',
   'Vendor Management',
   'Insights'
 ];

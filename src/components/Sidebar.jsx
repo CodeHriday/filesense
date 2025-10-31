@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiMenu, FiX } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
@@ -10,6 +10,8 @@ import './Sidebar.css';
 function Sidebar() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState({});
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { currentUser, hasPermission } = useAuth();
   
   const toggleMenu = (featureId) => {
@@ -17,6 +19,17 @@ function Sidebar() {
       ...prev,
       [featureId]: !prev[featureId]
     }));
+  };
+  
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+  
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => !prev);
   };
   
   // Check if user is a vendor using user attributes (not roles)
@@ -116,12 +129,20 @@ function Sidebar() {
       return null;
     }
     
+    const isCategoryExpanded = expandedCategories[category];
+    const shouldShowItems = sidebarCollapsed || isCategoryExpanded;
+    
     return (
       <React.Fragment key={category}>
-        <li className="nav-divider">
+        <li className="nav-divider" onClick={() => toggleCategory(category)}>
           <span>{getSidebarCategoryName(category)}</span>
+          {!sidebarCollapsed && (
+            isCategoryExpanded ? 
+              <FiChevronDown className="category-chevron" /> : 
+              <FiChevronRight className="category-chevron" />
+          )}
         </li>
-        {features.map(feature => {
+        {shouldShowItems && features.map(feature => {
           const IconComponent = feature.icon;
           const isExpanded = expandedMenus[feature.id];
           
@@ -176,7 +197,10 @@ function Sidebar() {
 
   return (
     <div>
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-toggle" onClick={toggleSidebar}>
+          {sidebarCollapsed ? <FiMenu /> : <FiX />}
+        </div>
         <nav className="sidebar-nav">
           <ul>
             {/* Render categories in the defined order */}
