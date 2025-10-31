@@ -103,6 +103,16 @@ const sanitizeError = (error, genericMessage = 'An error occurred') => {
 // Import authentication middleware from backend/src
 const { authenticateToken } = require('./backend/src/middleware/authenticate');
 
+// Middleware to extract fileId from URLs that may contain slashes
+// This must come BEFORE the route definitions
+const extractFileId = (req, res, next) => {
+  const match = req.path.match(/^\/api\/files\/([^?]+?)\/(preview|profile|profile-history|quality|ownership|policies|tags|schedules|insights|columns|job-status)(?:\/|$|\?)/);
+  if (match) {
+    req.params.fileId = decodeURIComponent(match[1]);
+  }
+  next();
+};
+
 // Middleware
 // Helmet security headers (must be early in the middleware chain)
 app.use(helmet({
@@ -195,6 +205,9 @@ app.use(session({
 // Audit middleware - logs all API requests and responses
 const auditService = diContainer.get('auditService');
 app.use(createAuditMiddleware(auditService));
+
+// Apply fileId extraction middleware for routes with file IDs that may contain slashes
+app.use(extractFileId);
 
 // Request timeout configuration to prevent slowloris attacks and resource exhaustion
 app.use((req, res, next) => {
