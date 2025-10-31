@@ -199,12 +199,12 @@ async function profileFileBuffer(options) {
     // Step 6: Calculate quality score from file info
     const qualityScore = calculateQualityScore(fileInfo);
 
-    // Step 8: Save to files table
+    // Step 8: Save to files table with correlation_id for job linking
     await pool.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
-        quality_score, checksum, created_at, updated_at, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9)
+        quality_score, checksum, correlation_id, created_at, updated_at, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         filename = EXCLUDED.filename,
@@ -214,6 +214,7 @@ async function profileFileBuffer(options) {
         column_count = EXCLUDED.column_count,
         quality_score = EXCLUDED.quality_score,
         checksum = EXCLUDED.checksum,
+        correlation_id = EXCLUDED.correlation_id,
         updated_at = NOW()
     `, [
       fileId,
@@ -224,6 +225,7 @@ async function profileFileBuffer(options) {
       fileInfo.column_count || 0,
       qualityScore,
       fileHash,
+      jobId, // correlation_id to link all files from same job
       projectId || null
     ]);
 
