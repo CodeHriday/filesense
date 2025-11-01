@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaEye, FaPencilAlt, FaTrash } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
@@ -1017,25 +1018,28 @@ const VendorAgreements = () => {
                       <td>
                         <div className="agreement-actions">
                           <button 
-                            className="view-agreement-btn" 
+                            className="action-icon-btn view-btn" 
                             onClick={() => openDetailModal(agreement)}
+                            title="View details"
                           >
-                            View
+                            <FaEye />
                           </button>
                           {(isAdmin || (isVendor && currentUser.vendor_id === agreement.vendor_id)) && (
                             <button 
-                              className="edit-agreement-btn" 
+                              className="action-icon-btn edit-btn" 
                               onClick={() => openEditModal(agreement)}
+                              title="Edit contract"
                             >
-                              Edit
+                              <FaPencilAlt />
                             </button>
                           )}
                           {isAdmin && (
                             <button 
-                              className="delete-agreement-btn" 
+                              className="action-icon-btn delete-btn" 
                               onClick={() => handleDeleteAgreement(agreement.id, agreement.file_name)}
+                              title="Delete contract"
                             >
-                              Delete
+                              <FaTrash />
                             </button>
                           )}
                         </div>

@@ -122,6 +122,54 @@
   background-color: #fed7d7;
 }
 
+/* Icon-based action buttons */
+.action-icon-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.action-icon-btn.view-btn {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+}
+
+.action-icon-btn.view-btn:hover {
+  background-color: #d2e3fc;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(26, 115, 232, 0.2);
+}
+
+.action-icon-btn.edit-btn {
+  background-color: #fef7e0;
+  color: #ea8600;
+}
+
+.action-icon-btn.edit-btn:hover {
+  background-color: #fce8b2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(234, 134, 0, 0.2);
+}
+
+.action-icon-btn.delete-btn {
+  background-color: #feeceb;
+  color: #d93025;
+}
+
+.action-icon-btn.delete-btn:hover {
+  background-color: #fed7d7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(217, 48, 37, 0.2);
+}
+
 .no-agreements-message {
   text-align: center;
   padding: 30px;
