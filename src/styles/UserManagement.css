@@ -589,3 +589,38 @@ body.high-contrast .delete-confirm-btn {
   background-color: #ff6b6b;
   color: #000;
 }
+
+/* Vendor User Management icon button styles */
+.icon-button {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.icon-button:hover {
+  transform: translateY(-2px);
+}
+
+.edit-button {
+  color: #1a73e8;
+}
+
+.edit-button:hover {
+  background-color: #e8f0fe;
+}
+
+/* High contrast mode for icon buttons */
+body.high-contrast .icon-button {
+  border: 1px solid #fff;
+}
+
+body.high-contrast .edit-button {
+  color: #64b5f6;
+}
