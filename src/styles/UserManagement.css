@@ -159,20 +159,20 @@
 }
 
 .edit-user-icon-btn {
-  color: #1a73e8;
+  color: #64b5f6;
 }
 
 .edit-user-icon-btn:hover {
-  color: #0d62cb;
+  color: #42a5f5;
   transform: scale(1.15);
 }
 
 .delete-user-icon-btn {
-  color: #d93025;
+  color: #ff6b6b;
 }
 
 .delete-user-icon-btn:hover {
-  color: #a82419;
+  color: #ff5252;
   transform: scale(1.15);
 }
 
