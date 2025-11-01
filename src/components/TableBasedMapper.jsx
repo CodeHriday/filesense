@@ -87,7 +87,8 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const [addingVariable, setAddingVariable] = useState(false);
   const [newVariable, setNewVariable] = useState({
     name: '',
-    expression: ''
+    expression: '',
+    data_type: ''
   });
   const expressionTextareaRef = useRef(null);
   const editExpressionTextareaRef = useRef(null);
@@ -888,13 +889,28 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
               {TRANSFORMATION_OPTIONS.find(t => t.value === editingExpression.transformation)?.params.map(param => (
                 <div key={param.name} className="form-group">
                   <label>{param.name}</label>
-                  <input
-                    type={param.type}
-                    className="form-control"
-                    value={editingExpression.params[param.name] || ''}
-                    onChange={(e) => handleParamChange(param.name, e.target.value)}
-                    placeholder={param.placeholder}
-                  />
+                  {param.type === 'select' ? (
+                    <select
+                      className="form-control"
+                      value={editingExpression.params[param.name] || ''}
+                      onChange={(e) => handleParamChange(param.name, e.target.value)}
+                    >
+                      <option value="">{param.placeholder || 'Select...'}</option>
+                      {param.options?.map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={param.type}
+                      className="form-control"
+                      value={editingExpression.params[param.name] || ''}
+                      onChange={(e) => handleParamChange(param.name, e.target.value)}
+                      placeholder={param.placeholder}
+                    />
+                  )}
                 </div>
               ))}
 
@@ -1141,6 +1157,23 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         <small className="form-text">Can be referenced as $variable_name</small>
                       </div>
 
+                      <div className="variable-name-input">
+                        <label>Data Type</label>
+                        <select
+                          className="form-control"
+                          value={newVariable.data_type || ''}
+                          onChange={(e) => setNewVariable({ ...newVariable, data_type: e.target.value })}
+                        >
+                          <option value="">Auto-detect</option>
+                          <option value="string">String</option>
+                          <option value="integer">Integer</option>
+                          <option value="float">Float</option>
+                          <option value="date">Date</option>
+                          <option value="boolean">Boolean</option>
+                        </select>
+                        <small className="form-text">Output will be converted to this type</small>
+                      </div>
+
                       <div className="expression-builder-header">
                         <label>Expression *</label>
                       </div>
@@ -1300,6 +1333,23 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                           disabled
                         />
                         <small className="form-text">Variable name cannot be changed</small>
+                      </div>
+
+                      <div className="variable-name-input">
+                        <label>Data Type</label>
+                        <select
+                          className="form-control"
+                          value={editingVariable.data_type || ''}
+                          onChange={(e) => setEditingVariable({ ...editingVariable, data_type: e.target.value })}
+                        >
+                          <option value="">Auto-detect</option>
+                          <option value="string">String</option>
+                          <option value="integer">Integer</option>
+                          <option value="float">Float</option>
+                          <option value="date">Date</option>
+                          <option value="boolean">Boolean</option>
+                        </select>
+                        <small className="form-text">Output will be converted to this type</small>
                       </div>
 
                       <div className="expression-builder-header">

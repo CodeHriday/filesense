@@ -311,21 +311,27 @@ function caseWhen(value, params) {
     
     switch (operator) {
       case 'equals':
+      case '=':
         matches = value == compareValue;
         break;
       case 'not_equals':
+      case '!=':
         matches = value != compareValue;
         break;
       case 'greater_than':
+      case '>':
         matches = parseFloat(value) > parseFloat(compareValue);
         break;
       case 'less_than':
+      case '<':
         matches = parseFloat(value) < parseFloat(compareValue);
         break;
       case 'greater_than_or_equal':
+      case '>=':
         matches = parseFloat(value) >= parseFloat(compareValue);
         break;
       case 'less_than_or_equal':
+      case '<=':
         matches = parseFloat(value) <= parseFloat(compareValue);
         break;
       case 'contains':
@@ -371,21 +377,27 @@ function ifCondition(value, params) {
   
   switch (operator) {
     case 'equals':
+    case '=':
       condition = value == compareValue;
       break;
     case 'not_equals':
+    case '!=':
       condition = value != compareValue;
       break;
     case 'greater_than':
+    case '>':
       condition = parseFloat(value) > parseFloat(compareValue);
       break;
     case 'less_than':
+    case '<':
       condition = parseFloat(value) < parseFloat(compareValue);
       break;
     case 'greater_than_or_equal':
+    case '>=':
       condition = parseFloat(value) >= parseFloat(compareValue);
       break;
     case 'less_than_or_equal':
+    case '<=':
       condition = parseFloat(value) <= parseFloat(compareValue);
       break;
     case 'contains':
@@ -732,7 +744,7 @@ function transformRow(row, fieldMappings, variables = []) {
   
   if (variables && variables.length > 0) {
     for (const variable of variables) {
-      const { name, sourceFields = [], transformations = [] } = variable;
+      const { name, sourceFields = [], transformations = [], data_type } = variable;
       
       let value;
       
@@ -767,6 +779,11 @@ function transformRow(row, fieldMappings, variables = []) {
       } else {
         // System-generated or static value
         value = applyTransformationChain(null, transformations);
+      }
+      
+      // Apply data type conversion if specified
+      if (data_type && data_type !== '') {
+        value = cast(value, { targetType: data_type });
       }
       
       // Store variable value
