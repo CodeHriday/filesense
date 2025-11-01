@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { FaEdit, FaUserPlus } from 'react-icons/fa';
+import { FiEdit2 } from 'react-icons/fi';
+import { FaUserPlus } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/UserManagement.css';
 
@@ -117,7 +118,7 @@ const VendorUserManagement = () => {
                       onClick={() => handleEditUser(user.id)}
                       title="Edit user"
                     >
-                      <FaEdit />
+                      <FiEdit2 />
                     </button>
                   </td>
                 </tr>
