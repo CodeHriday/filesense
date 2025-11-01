@@ -39,12 +39,12 @@ const TRANSFORMATION_OPTIONS = [
     group: 'Conditional', 
     params: [
       { name: 'operator', type: 'select', placeholder: 'Comparison', options: [
-        { value: 'equals', label: 'Equals (=)' },
-        { value: 'not_equals', label: 'Not Equals (!=)' },
-        { value: 'greater_than', label: 'Greater Than (>)' },
-        { value: 'less_than', label: 'Less Than (<)' },
-        { value: 'greater_than_or_equal', label: 'Greater Than or Equal (>=)' },
-        { value: 'less_than_or_equal', label: 'Less Than or Equal (<=)' },
+        { value: 'equals', label: '=' },
+        { value: 'not_equals', label: '!=' },
+        { value: 'greater_than', label: '>' },
+        { value: 'less_than', label: '<' },
+        { value: 'greater_than_or_equal', label: '>=' },
+        { value: 'less_than_or_equal', label: '<=' },
         { value: 'contains', label: 'Contains' },
         { value: 'is_null', label: 'Is Null' },
         { value: 'is_not_null', label: 'Is Not Null' }
