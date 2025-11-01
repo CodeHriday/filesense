@@ -268,6 +268,7 @@ function astToTransformationChain(ast, context = {}) {
       'cast': 'cast',
       'date_format': 'date_format',
       'null_to_value': 'null_to_value',
+      'if': 'if',
       'case_when': 'case_when',
       'math_add': 'math_add',
       'math_subtract': 'math_subtract',
@@ -441,6 +442,104 @@ function buildTransformation(transformationType, args) {
       // system_date(format)
       if (args.length > 0 && args[0].type === 'LITERAL') {
         config.params.format = args[0].value;
+      }
+      break;
+      
+    case 'if':
+      // if(field, operator, compareValue, thenValue, elseValue)
+      // Supports both mathematical symbols (>, <, >=, <=, =, !=) and English names
+      if (args.length > 0) {
+        config.nestedArgs = [args[0]];
+      }
+      if (args.length > 1 && args[1].type === 'LITERAL') {
+        config.params.operator = args[1].value;
+      }
+      if (args.length > 2) {
+        // compareValue can be literal, column, or variable
+        if (args[2].type === 'LITERAL') {
+          config.params.compareValue = args[2].value;
+        } else if (args[2].type === 'COLUMN') {
+          config.params.compareValue = args[2].name;
+        } else if (args[2].type === 'VARIABLE') {
+          config.params.compareValue = args[2].name;
+        }
+      }
+      if (args.length > 3) {
+        // thenValue can be literal, column, or variable
+        if (args[3].type === 'LITERAL') {
+          config.params.thenValue = args[3].value;
+        } else if (args[3].type === 'COLUMN') {
+          config.params.thenValue = args[3].name;
+        } else if (args[3].type === 'VARIABLE') {
+          config.params.thenValue = args[3].name;
+        }
+      }
+      if (args.length > 4) {
+        // elseValue can be literal, column, or variable
+        if (args[4].type === 'LITERAL') {
+          config.params.elseValue = args[4].value;
+        } else if (args[4].type === 'COLUMN') {
+          config.params.elseValue = args[4].name;
+        } else if (args[4].type === 'VARIABLE') {
+          config.params.elseValue = args[4].name;
+        }
+      }
+      break;
+      
+    case 'case_when':
+      // case_when(field, operator1, compareValue1, result1, operator2, compareValue2, result2, ..., defaultValue)
+      // Supports mathematical symbols in operators
+      // Arguments come in groups of 3 (operator, compareValue, result), followed by defaultValue
+      if (args.length > 0) {
+        config.nestedArgs = [args[0]];
+      }
+      
+      // Parse conditions - skip first arg (field), then parse in groups of 3
+      const conditions = [];
+      for (let i = 1; i < args.length - 1; i += 3) {
+        if (i + 2 < args.length) {
+          const condition = {};
+          
+          // Operator (arg i)
+          if (args[i].type === 'LITERAL') {
+            condition.operator = args[i].value;
+          }
+          
+          // Compare value (arg i+1)
+          if (args[i + 1].type === 'LITERAL') {
+            condition.compareValue = args[i + 1].value;
+          } else if (args[i + 1].type === 'COLUMN') {
+            condition.compareValue = args[i + 1].name;
+          } else if (args[i + 1].type === 'VARIABLE') {
+            condition.compareValue = args[i + 1].name;
+          }
+          
+          // Result (arg i+2)
+          if (args[i + 2].type === 'LITERAL') {
+            condition.result = args[i + 2].value;
+          } else if (args[i + 2].type === 'COLUMN') {
+            condition.result = args[i + 2].name;
+          } else if (args[i + 2].type === 'VARIABLE') {
+            condition.result = args[i + 2].name;
+          }
+          
+          conditions.push(condition);
+        }
+      }
+      
+      config.params.conditions = conditions;
+      
+      // Last argument is defaultValue
+      const lastArgIndex = args.length - 1;
+      if (lastArgIndex > 0 && (lastArgIndex - 1) % 3 === 0) {
+        const lastArg = args[lastArgIndex];
+        if (lastArg.type === 'LITERAL') {
+          config.params.defaultValue = lastArg.value;
+        } else if (lastArg.type === 'COLUMN') {
+          config.params.defaultValue = lastArg.name;
+        } else if (lastArg.type === 'VARIABLE') {
+          config.params.defaultValue = lastArg.name;
+        }
       }
       break;
       
