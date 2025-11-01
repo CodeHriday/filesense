@@ -7,6 +7,13 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**November 1, 2025** - Extended schema drift handling to all source types:
+- Removed UI restriction limiting schema drift options to vendor agreements only
+- Schema drift handling (abort/alert policies) now available for regular connections and all source types
+- Backend validates regular connections against stored mapping schema (`transformation_mappings.source_schema`)
+- Vendor agreements continue to validate against vendor contract schema (`vendor_agreements.schema`)
+- Both source types enforce drift policies consistently with full execution logging
+
 **October 31, 2025** - Fixed Schema History Change Summary to display modified column details:
 - Corrected backend property names in schemaService.js (column→name, oldType→previousType, newType→currentType)
 - Change Summary panel now properly displays modified column names and type changes (e.g., "Purc_Qty: string → float")
