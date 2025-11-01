@@ -279,72 +279,119 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       row_count: 0 // Will be determined during processing
     }));
     
-    // Step 1.5: Vendor Agreement Schema Validation
-    if (mapping.vendor_agreement_id && mapping.schema_drift_handling && mapping.schema_drift_handling !== 'none') {
-      await logJobExecution(pool, jobId, 'info', 'Validating file schema against vendor agreement');
+    // Step 1.5: Schema Drift Validation (for all source types)
+    if (mapping.schema_drift_handling && mapping.schema_drift_handling !== 'none') {
+      const sourceType = mapping.vendor_agreement_id ? 'vendor agreement' : 'connection';
+      await logJobExecution(pool, jobId, 'info', `Validating file schema against ${sourceType}`);
       
       try {
-        const { validateFileSchema } = require('./schemaValidationService');
+        let validationResult;
         
-        // Validate the first file (for single files or patterns, we validate against the agreement schema)
-        const fileToValidate = cloudFiles[0];
-        const fileName = fileToValidate.filename;
-        const filePathPart = fileName.substring(0, fileName.lastIndexOf('/'));
-        const fileNamePart = fileName.substring(fileName.lastIndexOf('/') + 1);
-        
-        const validationResult = await validateFileSchema(
-          mapping.vendor_agreement_id,
-          mapping.source_connection_id,
-          filePathPart,
-          fileNamePart
-        );
-        
-        await logJobExecution(pool, jobId, 'info', `Schema validation result: ${validationResult.message}`, {
-          schemaDrift: validationResult.schemaDrift,
-          valid: validationResult.valid
-        });
-        
-        // Update job with schema validation status
-        const schemaValidationStatus = validationResult.schemaDrift ? 'Fail' : 'Pass';
-        await updateJob(pool, jobId, { 
-          schema_validation: schemaValidationStatus
-        });
-        
-        // Handle schema drift based on policy
-        if (validationResult.schemaDrift) {
-          const driftMessage = `Schema drift detected: ${validationResult.message}`;
+        if (mapping.vendor_agreement_id) {
+          // Vendor agreement validation
+          const { validateFileSchema } = require('./schemaValidationService');
           
-          if (mapping.schema_drift_handling === 'abort') {
-            // Abort job execution
-            await updateJob(pool, jobId, { 
-              status: 'failed', 
-              error_message: driftMessage,
-              end_time: new Date()
-            });
+          const fileToValidate = cloudFiles[0];
+          const fileName = fileToValidate.filename;
+          const filePathPart = fileName.substring(0, fileName.lastIndexOf('/'));
+          const fileNamePart = fileName.substring(fileName.lastIndexOf('/') + 1);
+          
+          validationResult = await validateFileSchema(
+            mapping.vendor_agreement_id,
+            mapping.source_connection_id,
+            filePathPart,
+            fileNamePart
+          );
+        } else if (mapping.source_schema && mapping.source_schema.length > 0) {
+          // Regular connection validation - compare against stored mapping schema
+          const { extractSchemaFromBuffer } = require('./schemaService');
+          const fileToValidate = cloudFiles[0];
+          const fileBuffer = await downloadFileFromConnection(pool, mapping.source_connection_id, fileToValidate.filename, { partial: true, maxBytes: 1024 * 1024 });
+          const actualSchema = await extractSchemaFromBuffer(fileBuffer, fileToValidate.filename);
+          
+          // Compare schemas
+          const expectedSchema = mapping.source_schema;
+          const expectedFields = expectedSchema.map(f => f.name).sort();
+          const actualFields = actualSchema.map(f => f.name).sort();
+          
+          const schemaDrift = expectedFields.join(',') !== actualFields.join(',');
+          
+          if (schemaDrift) {
+            const missingFields = expectedFields.filter(f => !actualFields.includes(f));
+            const newFields = actualFields.filter(f => !expectedFields.includes(f));
             
-            await logJobExecution(pool, jobId, 'error', driftMessage, { 
-              differences: validationResult.differences,
-              actualSchema: validationResult.actualSchema,
-              expectedSchema: validationResult.expectedSchema
-            });
-            
-            return { 
-              jobId, 
-              status: 'failed', 
-              filesProcessed: 0,
-              message: driftMessage,
-              schemaDrift: true
+            validationResult = {
+              valid: false,
+              schemaDrift: true,
+              message: `Schema mismatch detected. Missing fields: [${missingFields.join(', ')}]. New fields: [${newFields.join(', ')}]`,
+              actualSchema,
+              expectedSchema,
+              differences: { missingFields, newFields }
             };
-          } else if (mapping.schema_drift_handling === 'alert') {
-            // Log warning and continue processing
-            await logJobExecution(pool, jobId, 'warn', driftMessage, { 
-              differences: validationResult.differences,
-              actualSchema: validationResult.actualSchema,
-              expectedSchema: validationResult.expectedSchema
-            });
+          } else {
+            validationResult = {
+              valid: true,
+              schemaDrift: false,
+              message: 'Schema validation passed',
+              actualSchema,
+              expectedSchema,
+              differences: null
+            };
           }
         } else {
-          await logJobExecution(pool, jobId, 'info', 'Vendor agreement schema validation passed');
+          // No schema defined, skip validation
+          await logJobExecution(pool, jobId, 'info', 'No schema validation required (schema not defined in mapping)');
+          validationResult = null;
+        }
+        
+        if (validationResult) {
+          await logJobExecution(pool, jobId, 'info', `Schema validation result: ${validationResult.message}`, {
+            schemaDrift: validationResult.schemaDrift,
+            valid: validationResult.valid
+          });
+          
+          // Update job with schema validation status
+          const schemaValidationStatus = validationResult.schemaDrift ? 'Fail' : 'Pass';
+          await updateJob(pool, jobId, { 
+            schema_validation: schemaValidationStatus
+          });
+          
+          // Handle schema drift based on policy
+          if (validationResult.schemaDrift) {
+            const driftMessage = `Schema drift detected: ${validationResult.message}`;
+            
+            if (mapping.schema_drift_handling === 'abort') {
+              // Abort job execution
+              await updateJob(pool, jobId, { 
+                status: 'failed', 
+                error_message: driftMessage,
+                end_time: new Date()
+              });
+              
+              await logJobExecution(pool, jobId, 'error', driftMessage, { 
+                differences: validationResult.differences,
+                actualSchema: validationResult.actualSchema,
+                expectedSchema: validationResult.expectedSchema
+              });
+              
+              return { 
+                jobId, 
+                status: 'failed', 
+                filesProcessed: 0,
+                message: driftMessage,
+                schemaDrift: true
+              };
+            } else if (mapping.schema_drift_handling === 'alert') {
+              // Log warning and continue processing
+              await logJobExecution(pool, jobId, 'warn', driftMessage, { 
+                differences: validationResult.differences,
+                actualSchema: validationResult.actualSchema,
+                expectedSchema: validationResult.expectedSchema
+              });
+            }
+          } else {
+            await logJobExecution(pool, jobId, 'info', `Schema validation passed for ${sourceType}`);
+          }
         }
         
       } catch (schemaValidationError) {
