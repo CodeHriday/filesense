@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { THEME } from '../config';
 import { FaUser, FaCog, FaSignOutAlt, FaChartBar, FaLightbulb, FaUsers } from 'react-icons/fa';
+import NotificationBell from './NotificationBell';
 import './Header.css';
 
 function Header({ showAIInsights }) {
@@ -51,6 +52,7 @@ function Header({ showAIInsights }) {
         </Link>
       </div>
       <div className="header-actions">
+        {currentUser && <NotificationBell />}
         
         {currentUser && (
           <div className="user-menu" ref={dropdownRef}>
