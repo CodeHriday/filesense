@@ -7,6 +7,13 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**November 1, 2025** - Enhanced vendor project lifecycle management:
+- Vendor deletion now automatically removes associated projects (with safety checks)
+- Project deletion only occurs when: (1) no other vendors use the project, and (2) no other members exist
+- Changed vendor project naming from "{vendor_name} - Vendor Project" to unique codes (e.g., "VENDOR-ABC12345")
+- Project code generation uses 8-character hex suffix with uniqueness validation to prevent duplicate key conflicts
+- All project lifecycle operations logged for monitoring and audit
+
 **November 1, 2025** - Extended schema drift handling to all source types:
 - Removed UI restriction limiting schema drift options to vendor agreements only
 - Schema drift handling (abort/alert policies) now available for regular connections and all source types
