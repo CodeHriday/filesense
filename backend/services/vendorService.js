@@ -151,6 +151,8 @@ class VendorService {
         });
       }
       
+      // Note: vendor_id will be set after vendor record is created (see below)
+      
       // Auto-create or assign project
       let finalProjectId = project_id;
       
@@ -337,6 +339,30 @@ class VendorService {
       );
       
       const vendor = vendorResult.rows[0];
+      
+      // Update vendor_id for primary contact user
+      await client.query(
+        'UPDATE users SET vendor_id = $1 WHERE id = $2',
+        [vendor.id, vendorUserId]
+      );
+      systemLogger.info('Set vendor_id for primary contact', { vendorId: vendor.id, userId: vendorUserId });
+      
+      // Update vendor_id for secondary contact user if exists
+      if (backup_contact_email) {
+        const backupUserResult = await client.query(
+          'SELECT id FROM users WHERE email = $1',
+          [backup_contact_email]
+        );
+        
+        if (backupUserResult.rows.length > 0) {
+          const backupUserId = backupUserResult.rows[0].id;
+          await client.query(
+            'UPDATE users SET vendor_id = $1 WHERE id = $2',
+            [vendor.id, backupUserId]
+          );
+          systemLogger.info('Set vendor_id for secondary contact', { vendorId: vendor.id, userId: backupUserId });
+        }
+      }
       
       // Create two default connections for the vendor (source and target)
       const sourceConnectionId = uuidv4();
@@ -608,9 +634,9 @@ class VendorService {
         vendor_type
       } = updateData;
       
-      // Fetch current vendor data for validation
+      // Fetch current vendor data for validation and tracking contact changes
       const currentVendorResult = await client.query(
-        'SELECT contact_email, backup_contact_email FROM vendors WHERE id = $1',
+        'SELECT contact_email, backup_contact_email, vendor_user_id FROM vendors WHERE id = $1',
         [vendorId]
       );
       
@@ -619,6 +645,11 @@ class VendorService {
       }
       
       const currentVendor = currentVendorResult.rows[0];
+      
+      // Track whether contacts are being changed (for vendor_id management)
+      // Primary changed if: explicitly provided AND different from current (including null/empty)
+      const primaryContactChanged = contact_email !== undefined && contact_email !== currentVendor.contact_email;
+      const backupContactChanged = backup_contact_email !== undefined && backup_contact_email !== currentVendor.backup_contact_email;
       
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -769,6 +800,110 @@ class VendorService {
       
       const updatedVendor = result.rows[0];
       
+      // Handle vendor_id updates for primary contact change
+      if (primaryContactChanged) {
+        // Clear vendor_id from old primary contact if they're not the backup contact
+        if (currentVendor.contact_email) {
+          const oldPrimaryResult = await client.query(
+            'SELECT id FROM users WHERE email = $1',
+            [currentVendor.contact_email]
+          );
+          
+          if (oldPrimaryResult.rows.length > 0) {
+            const oldPrimaryUserId = oldPrimaryResult.rows[0].id;
+            
+            // Only clear vendor_id if this user is not the backup contact for this vendor
+            const isBackupContact = currentVendor.backup_contact_email && 
+                                   currentVendor.backup_contact_email.toLowerCase() === currentVendor.contact_email.toLowerCase();
+            
+            if (!isBackupContact) {
+              // Check if user is associated with any other vendors as primary or backup
+              const otherVendorCheck = await client.query(
+                `SELECT id FROM vendors 
+                 WHERE id != $1 AND (
+                   contact_email = $2 OR backup_contact_email = $2
+                 )`,
+                [vendorId, currentVendor.contact_email]
+              );
+              
+              // Only clear if not associated with other vendors
+              if (otherVendorCheck.rows.length === 0) {
+                await client.query(
+                  'UPDATE users SET vendor_id = NULL WHERE id = $1',
+                  [oldPrimaryUserId]
+                );
+                systemLogger.info('Cleared vendor_id from old primary contact', { 
+                  vendorId, 
+                  userId: oldPrimaryUserId 
+                });
+              }
+            }
+          }
+        }
+        
+        // Set vendor_id for new primary contact (only if not null/empty)
+        if (contact_email && contact_email.trim()) {
+          const newPrimaryResult = await client.query(
+            'SELECT id FROM users WHERE email = $1',
+            [contact_email]
+          );
+          
+          if (newPrimaryResult.rows.length > 0) {
+            const newPrimaryUserId = newPrimaryResult.rows[0].id;
+            await client.query(
+              'UPDATE users SET vendor_id = $1 WHERE id = $2',
+              [vendorId, newPrimaryUserId]
+            );
+            systemLogger.info('Set vendor_id for new primary contact', { 
+              vendorId, 
+              userId: newPrimaryUserId 
+            });
+          }
+        }
+      }
+      
+      // Handle vendor_id updates for backup contact change
+      if (backupContactChanged) {
+        // Clear vendor_id from old backup contact
+        if (currentVendor.backup_contact_email) {
+          const oldBackupResult = await client.query(
+            'SELECT id FROM users WHERE email = $1',
+            [currentVendor.backup_contact_email]
+          );
+          
+          if (oldBackupResult.rows.length > 0) {
+            const oldBackupUserId = oldBackupResult.rows[0].id;
+            
+            // Only clear vendor_id if this user is not the primary contact for this vendor
+            const isPrimaryContact = currentVendor.contact_email && 
+                                     currentVendor.contact_email.toLowerCase() === currentVendor.backup_contact_email.toLowerCase();
+            
+            if (!isPrimaryContact) {
+              // Check if user is associated with any other vendors
+              const otherVendorCheck = await client.query(
+                `SELECT id FROM vendors 
+                 WHERE id != $1 AND (
+                   contact_email = $2 OR backup_contact_email = $2
+                 )`,
+                [vendorId, currentVendor.backup_contact_email]
+              );
+              
+              // Only clear if not associated with other vendors
+              if (otherVendorCheck.rows.length === 0) {
+                await client.query(
+                  'UPDATE users SET vendor_id = NULL WHERE id = $1',
+                  [oldBackupUserId]
+                );
+                systemLogger.info('Cleared vendor_id from old backup contact', { 
+                  vendorId, 
+                  userId: oldBackupUserId 
+                });
+              }
+            }
+          }
+        }
+      }
+      
       // Add secondary contact to project if backup_contact_email was added/changed
       if (backup_contact_email && normalizedBackupEmail && 
           normalizedBackupEmail !== currentVendor.backup_contact_email) {
@@ -830,6 +965,18 @@ class VendorService {
           systemLogger.info('Created new user for secondary contact', { 
             userId: backupUserId, 
             email: backup_contact_email
+          });
+        }
+        
+        // Set vendor_id for the backup contact user (new or existing)
+        if (backupUserId) {
+          await client.query(
+            'UPDATE users SET vendor_id = $1 WHERE id = $2',
+            [vendorId, backupUserId]
+          );
+          systemLogger.info('Set vendor_id for backup contact', { 
+            vendorId, 
+            userId: backupUserId 
           });
         }
         
@@ -1031,7 +1178,49 @@ class VendorService {
         count: deleteConnectionsResult.rows.length 
       });
       
-      // 2. Remove vendor users from project
+      // 2. Clear vendor_id from all users associated with this vendor
+      // (primary and secondary contacts)
+      const contactEmails = [vendor.contact_email];
+      if (vendor.backup_contact_email) {
+        contactEmails.push(vendor.backup_contact_email);
+      }
+      
+      for (const email of contactEmails) {
+        if (!email) continue;
+        
+        const userResult = await client.query(
+          'SELECT id FROM users WHERE email = $1',
+          [email]
+        );
+        
+        if (userResult.rows.length > 0) {
+          const userId = userResult.rows[0].id;
+          
+          // Check if user is associated with other vendors
+          const otherVendorCheck = await client.query(
+            `SELECT id FROM vendors 
+             WHERE id != $1 AND (
+               contact_email = $2 OR backup_contact_email = $2
+             )`,
+            [vendorId, email]
+          );
+          
+          // Only clear vendor_id if not associated with other vendors
+          if (otherVendorCheck.rows.length === 0) {
+            await client.query(
+              'UPDATE users SET vendor_id = NULL WHERE id = $1',
+              [userId]
+            );
+            systemLogger.info('Cleared vendor_id from user (vendor deletion)', { 
+              vendorId, 
+              userId,
+              email
+            });
+          }
+        }
+      }
+      
+      // 3. Remove vendor users from project
       const projectId = vendor.project_id;
       const vendorUserId = vendor.vendor_user_id;
       
@@ -1043,7 +1232,7 @@ class VendorService {
         systemLogger.info('Removed primary vendor user from project', { projectId, vendorUserId });
       }
       
-      // 3. Remove secondary contact from project if exists
+      // 4. Remove secondary contact from project if exists
       if (vendor.backup_contact_email) {
         const backupUserResult = await client.query(
           'SELECT id FROM users WHERE email = $1',
@@ -1060,7 +1249,7 @@ class VendorService {
         }
       }
       
-      // 4. Delete the vendor record (hard delete)
+      // 5. Delete the vendor record (hard delete)
       await client.query(
         'DELETE FROM vendors WHERE id = $1',
         [vendorId]
