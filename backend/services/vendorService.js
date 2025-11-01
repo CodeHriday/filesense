@@ -20,6 +20,14 @@ class VendorService {
   }
 
   /**
+   * Generate unique project code for vendor
+   */
+  async generateProjectCode() {
+    const randomSuffix = crypto.randomBytes(4).toString('hex').toUpperCase();
+    return `VENDOR-${randomSuffix}`;
+  }
+
+  /**
    * Create vendor with associated user account
    * @param {Object} vendorData - Vendor information
    * @param {number} createdBy - User ID creating the vendor
@@ -158,21 +166,37 @@ class VendorService {
       
       if (!finalProjectId) {
         // Auto-create a project for this vendor (always external type)
-        const projectName = `${vendor_name} - Vendor Project`;
+        // Generate unique project code
+        let projectCode = await this.generateProjectCode();
+        
+        // Ensure project code is unique
+        let codeExists = await client.query(
+          'SELECT id FROM projects WHERE name = $1',
+          [projectCode]
+        );
+        
+        while (codeExists.rows.length > 0) {
+          projectCode = await this.generateProjectCode();
+          codeExists = await client.query(
+            'SELECT id FROM projects WHERE name = $1',
+            [projectCode]
+          );
+        }
+        
         const projectDescription = `Auto-created project for vendor: ${vendor_name}`;
         
         const newProjectResult = await client.query(
           `INSERT INTO projects (name, description, project_type, created_at, updated_at)
            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
            RETURNING id`,
-          [projectName, projectDescription, 'external']
+          [projectCode, projectDescription, 'external']
         );
         
         finalProjectId = newProjectResult.rows[0].id;
         
         systemLogger.info('Auto-created external project for vendor', { 
           projectId: finalProjectId, 
-          projectName,
+          projectCode,
           projectType: 'external',
           vendorName: vendor_name 
         });
@@ -1249,7 +1273,42 @@ class VendorService {
         }
       }
       
-      // 5. Delete the vendor record (hard delete)
+      // 5. Delete the associated project if it's only used by this vendor
+      if (projectId) {
+        // Check if any other vendors use this project
+        const otherVendorsCheck = await client.query(
+          'SELECT id FROM vendors WHERE project_id = $1 AND id != $2',
+          [projectId, vendorId]
+        );
+        
+        // Check if project has any other members besides the vendor contacts
+        const otherMembersCheck = await client.query(
+          `SELECT COUNT(*) as count FROM project_members WHERE project_id = $1`,
+          [projectId]
+        );
+        
+        const hasOtherMembers = parseInt(otherMembersCheck.rows[0].count) > 0;
+        
+        // Only delete project if no other vendors use it and no other members exist
+        if (otherVendorsCheck.rows.length === 0 && !hasOtherMembers) {
+          await client.query(
+            'DELETE FROM projects WHERE id = $1',
+            [projectId]
+          );
+          systemLogger.info('Deleted vendor project', { 
+            projectId,
+            vendorId 
+          });
+        } else {
+          systemLogger.info('Project not deleted - still in use', { 
+            projectId,
+            otherVendors: otherVendorsCheck.rows.length,
+            hasOtherMembers
+          });
+        }
+      }
+      
+      // 6. Delete the vendor record (hard delete)
       await client.query(
         'DELETE FROM vendors WHERE id = $1',
         [vendorId]
