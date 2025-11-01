@@ -426,6 +426,7 @@ router.put('/:id',
       variables,
       anomaly_rules,
       schema_drift_handling,
+      source_schema,
       status
     } = req.body;
     
@@ -670,6 +671,11 @@ router.put('/:id',
     if (schema_drift_handling !== undefined) {
       updates.push(`schema_drift_handling = $${paramIndex}`);
       values.push(schema_drift_handling);
+      paramIndex++;
+    }
+    if (source_schema !== undefined) {
+      updates.push(`source_schema = $${paramIndex}`);
+      values.push(source_schema ? JSON.stringify(source_schema) : null);
       paramIndex++;
     }
     if (status !== undefined) {
