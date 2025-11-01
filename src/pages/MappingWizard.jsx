@@ -1209,7 +1209,8 @@ function MappingWizard() {
                     setFilePath(path);
                     setShowSourceBrowse(false);
                   }}
-                  onSelectFile={(filename) => {
+                  onSelectFile={(filename, path) => {
+                    setFilePath(path);
                     setFileNamePattern(filename);
                     setShowSourceBrowse(false);
                   }}
@@ -1234,6 +1235,11 @@ function MappingWizard() {
                 initialPath={targetFilePath || '/'}
                 onSelectPath={(path) => {
                   setTargetFilePath(path);
+                  setShowTargetBrowse(false);
+                }}
+                onSelectFile={(filename, path) => {
+                  setTargetFilePath(path);
+                  setTargetFileName(filename);
                   setShowTargetBrowse(false);
                 }}
               />

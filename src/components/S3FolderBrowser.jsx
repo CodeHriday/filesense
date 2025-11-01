@@ -52,7 +52,7 @@ const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectF
 
   const handleFileClick = (file) => {
     if (onSelectFile) {
-      onSelectFile(file.name);
+      onSelectFile(file.name, currentPath);
     }
   };
 
