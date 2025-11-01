@@ -206,6 +206,7 @@ router.post('/',
       variables = [],
       anomaly_rules = null,
       schema_drift_handling = 'none',
+      source_schema = null,
       status = 'draft'
     } = req.body;
     
@@ -374,8 +375,8 @@ router.post('/',
         mapping_id, mapping_name, source_connection_id, vendor_agreement_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_path, target_file_name, target_file_format,
-        field_mappings, variables, anomaly_rules, schema_drift_handling, status, created_by, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        field_mappings, variables, anomaly_rules, schema_drift_handling, source_schema, status, created_by, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
     `, [
       mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, source_type, file_path,
@@ -383,6 +384,7 @@ router.post('/',
       req.body.target_file_path, target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), 
       schema_drift_handling,
+      source_schema ? JSON.stringify(source_schema) : null,
       status, req.user?.id || null, projectId
     ]);
     
