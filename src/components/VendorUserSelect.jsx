@@ -78,8 +78,13 @@ const VendorUserSelect = ({
 
   const filteredUsers = vendorUsers.filter(user => {
     // Filter by vendor_id if provided
-    if (filterByVendorId && user.vendor_id !== filterByVendorId) {
-      return false;
+    if (filterByVendorId) {
+      const filterVendorId = parseInt(filterByVendorId, 10);
+      const userVendorId = parseInt(user.vendor_id, 10);
+      
+      if (userVendorId !== filterVendorId) {
+        return false;
+      }
     }
     
     // Filter by search term
