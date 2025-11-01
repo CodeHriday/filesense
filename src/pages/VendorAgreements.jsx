@@ -155,7 +155,9 @@ const VendorAgreements = () => {
         axios.get('/api/vendor-agreements', {
           params: { page: currentPage, pageSize }
         }),
-        axios.get('/api/users')
+        axios.get('/api/users', {
+          params: { limit: 1000 } // Fetch all users for dropdown population
+        })
       ]);
       
       setAgreements(agreementsResponse.data.agreements || agreementsResponse.data || []);
