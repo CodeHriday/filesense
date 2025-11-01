@@ -285,10 +285,21 @@ const ProcessedFileCatalog = () => {
                               <td>
                                 <div className="action-buttons">
                                   <button 
+                                    className="btn-view-profiling"
+                                    onClick={() => {
+                                      setSelectedJobId(file.job_id);
+                                      setShowProfilingModal(true);
+                                    }}
+                                    disabled={!file.job_id}
+                                    title="View source file profiling results"
+                                  >
+                                    Source File Profile
+                                  </button>
+                                  <button 
                                     className="btn-view-profile"
                                     onClick={() => navigate(`/profile/${encodeURIComponent(file.file_id)}`)}
                                     disabled={!file.file_id}
-                                    title="View file profile and schema history"
+                                    title="View target file profile and schema history"
                                     style={{
                                       padding: '6px 12px',
                                       backgroundColor: '#3b82f6',
@@ -300,21 +311,10 @@ const ProcessedFileCatalog = () => {
                                       alignItems: 'center',
                                       gap: '4px',
                                       fontSize: '0.875rem',
-                                      marginRight: '8px'
+                                      marginLeft: '8px'
                                     }}
                                   >
-                                    <FiEye size={16} /> View Profile
-                                  </button>
-                                  <button 
-                                    className="btn-view-profiling"
-                                    onClick={() => {
-                                      setSelectedJobId(file.job_id);
-                                      setShowProfilingModal(true);
-                                    }}
-                                    disabled={!file.job_id}
-                                    title="View profiling results"
-                                  >
-                                    View Profiling Results
+                                    <FiEye size={16} /> Target File Profile
                                   </button>
                                   <button 
                                     className="btn-delete-profiling"
