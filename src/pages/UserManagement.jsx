@@ -710,6 +710,7 @@ const UserManagement = () => {
                       name="internal_user"
                       checked={formData.internal_user}
                       onChange={(e) => setFormData(prev => ({ ...prev, internal_user: e.target.checked }))}
+                      disabled={formData.user_type === 'Vendor'}
                       style={{ width: 'auto', margin: 0 }}
                     />
                     Internal User

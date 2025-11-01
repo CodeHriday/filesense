@@ -159,11 +159,11 @@
 }
 
 .edit-user-icon-btn {
-  color: #ea8600;
+  color: #1a73e8;
 }
 
 .edit-user-icon-btn:hover {
-  color: #b56800;
+  color: #0d62cb;
   transform: scale(1.15);
 }
 
@@ -413,7 +413,7 @@ body.high-contrast .users-table .role-badge {
 }
 
 body.high-contrast .edit-user-icon-btn {
-  color: #ffeb3b;
+  color: #64b5f6;
 }
 
 body.high-contrast .delete-user-icon-btn {
