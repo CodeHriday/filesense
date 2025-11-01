@@ -6,6 +6,7 @@ import ThreeSectionModal from '../components/ThreeSectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
+import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import axios from 'axios';
@@ -849,15 +850,18 @@ const VendorAgreements = () => {
       return <span className="approval-badge approval-locked">🔒 Locked</span>;
     }
     
-    const vendorApproved = !!agreement.vendor_approved_at;
-    const ownerApproved = !!agreement.owner_approved_at;
+    const vendorAccepted = !!agreement.vendor_accepted_at;
+    const managerApproved = !!agreement.manager_approved_at;
+    const governanceApproved = !!agreement.governance_approved_at;
     
-    if (vendorApproved && ownerApproved) {
+    if (governanceApproved) {
       return <span className="approval-badge approval-approved">Fully Approved</span>;
-    } else if (vendorApproved || ownerApproved) {
-      return <span className="approval-badge approval-partial">Partially Approved</span>;
+    } else if (managerApproved) {
+      return <span className="approval-badge approval-partial">Stage 2/3 Complete</span>;
+    } else if (vendorAccepted) {
+      return <span className="approval-badge approval-partial">Stage 1/3 Complete</span>;
     } else {
-      return <span className="approval-badge approval-pending">Pending Approval</span>;
+      return <span className="approval-badge approval-pending">Pending Vendor</span>;
     }
   };
   
@@ -1871,64 +1875,17 @@ const VendorAgreements = () => {
                         {renderSchemaTable(selectedAgreement.schema)}
                       </div>
                       
-                      <div className="approval-section">
-                        <h3>Approval Status</h3>
-                        <div className="approval-status-grid">
-                          <div className="approval-status-item">
-                            <label>Vendor Approval:</label>
-                            <span className={selectedAgreement.vendor_approved_at ? 'approved' : 'pending'}>
-                              {selectedAgreement.vendor_approved_at 
-                                ? `✓ Approved on ${new Date(selectedAgreement.vendor_approved_at).toLocaleString()}`
-                                : '⏳ Pending'
-                              }
-                            </span>
-                          </div>
-                          <div className="approval-status-item">
-                            <label>Owner Approval:</label>
-                            <span className={selectedAgreement.owner_approved_at ? 'approved' : 'pending'}>
-                              {selectedAgreement.owner_approved_at 
-                                ? `✓ Approved on ${new Date(selectedAgreement.owner_approved_at).toLocaleString()}`
-                                : '⏳ Pending'
-                              }
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="approval-actions">
-                          {canApproveAsVendor(selectedAgreement) && (
-                            <button className="approve-btn vendor-approve" onClick={() => handleApprove('vendor')}>
-                              Approve (Vendor - External)
-                            </button>
-                          )}
-                          
-                          {canApproveAsOwner(selectedAgreement) && (
-                            <button className="approve-btn owner-approve" onClick={() => handleApprove('owner')}>
-                              Approve (Manager - Internal)
-                            </button>
-                          )}
-                          
-                          {(canApproveAsVendor(selectedAgreement) || canApproveAsOwner(selectedAgreement)) && (
-                            <div className="reject-section">
-                              <textarea
-                                placeholder="Enter rejection comments (required)"
-                                value={rejectComments}
-                                onChange={(e) => setRejectComments(e.target.value)}
-                                rows="3"
-                              />
-                              {canApproveAsVendor(selectedAgreement) && (
-                                <button className="reject-btn" onClick={() => handleReject('vendor')} style={{ marginRight: '8px' }}>
-                                  Reject (Vendor - External)
-                                </button>
-                              )}
-                              {canApproveAsOwner(selectedAgreement) && (
-                                <button className="reject-btn" onClick={() => handleReject('owner')}>
-                                  Reject (Manager - Internal)
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <ThreeStageApprovalPanel
+                        agreement={selectedAgreement}
+                        currentUser={currentUser}
+                        onUpdate={() => fetchAgreementDetails(selectedAgreement.id)}
+                        onError={(msg) => setDetailModalError(msg)}
+                        onSuccess={(msg) => {
+                          setDetailModalSuccess(msg);
+                          setTimeout(() => setDetailModalSuccess(''), 5000);
+                          fetchData();
+                        }}
+                      />
                     </div>
                   )}
                   
