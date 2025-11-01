@@ -52,7 +52,8 @@ const TRANSFORMATION_OPTIONS = [
       { name: 'compareValue', type: 'text', placeholder: 'Compare to value' },
       { name: 'thenValue', type: 'text', placeholder: 'Value if TRUE' },
       { name: 'elseValue', type: 'text', placeholder: 'Value if FALSE' }
-    ]
+    ],
+    description: 'Supports mathematical symbols: >, <, >=, <=, =, != or English names'
   },
   { 
     value: 'case_when', 
@@ -62,7 +63,7 @@ const TRANSFORMATION_OPTIONS = [
       { name: 'conditions', type: 'json', placeholder: 'Conditions array (JSON format)' },
       { name: 'defaultValue', type: 'text', placeholder: 'Default value (else)' }
     ],
-    description: 'Multiple conditions: [{"operator": "equals", "compareValue": "A", "result": "X"}]'
+    description: 'Use operators: =, !=, >, <, >=, <= in expressions (e.g., case_when(qty, \'>\', 100, \'High\', \'Default\'))'
   },
 ];
 
@@ -437,11 +438,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const getFunctionSyntax = (transformOption) => {
     // Special syntax for conditional functions
     if (transformOption.value === 'if') {
-      return `if(column, 'equals', 'value', 'then_result', 'else_result')`;
+      return `if(column, '>', 100, 'High', 'Low')`;
     }
     
     if (transformOption.value === 'case_when') {
-      return `case_when(column, [{"operator":"equals","compareValue":"A","result":"X"}], 'default')`;
+      return `case_when(column, '=', 'A', 'Result A', '>', 50, 'High', 'Default')`;
     }
     
     if (transformOption.params.length === 0) {
