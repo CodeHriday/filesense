@@ -58,6 +58,7 @@ const VendorAgreements = () => {
     vendor_department_team: '',
     vendor_department_email: '',
     file_owner_user_id: '',
+    governance_manager_user_id: '',
     primary_contact_user_id: '',
     primary_contact_name: '',
     primary_contact_phone: '',
@@ -365,6 +366,7 @@ const VendorAgreements = () => {
       vendor_department_team: '',
       vendor_department_email: '',
       file_owner_user_id: '',
+      governance_manager_user_id: '',
       primary_contact_user_id: '',
       primary_contact_name: '',
       primary_contact_phone: '',
@@ -420,6 +422,7 @@ const VendorAgreements = () => {
       vendor_department_team: agreement.vendor_department_team || agreement.file_creator || '',
       vendor_department_email: agreement.vendor_department_email || '',
       file_owner_user_id: agreement.file_owner_user_id || '',
+      governance_manager_user_id: agreement.governance_manager_user_id || '',
       primary_contact_user_id: agreement.primary_contact_user_id || '',
       primary_contact_name: agreement.primary_contact_name || agreement.vendor_contact || '',
       primary_contact_phone: agreement.primary_contact_phone || '',
@@ -517,6 +520,11 @@ const VendorAgreements = () => {
         return;
       }
       
+      if (!formData.governance_manager_user_id) {
+        setModalError('Governance manager is required');
+        return;
+      }
+      
       if (!formData.vendor_id) {
         setModalError('Vendor is required');
         return;
@@ -544,7 +552,8 @@ const VendorAgreements = () => {
       // List of integer fields that should be null instead of empty string
       const integerFields = [
         'vendor_id', 
-        'file_owner_user_id', 
+        'file_owner_user_id',
+        'governance_manager_user_id',
         'vendor_connection_id',
         'retention_days',
         'project_id'
@@ -920,7 +929,7 @@ const VendorAgreements = () => {
         <>
           <div className="vendor-agreements-header">
             <h1>Vendor Contracts</h1>
-            {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && (
+            {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && !isVendor && (
               <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
                 {isAdmin && (
                   <>
@@ -1214,6 +1223,32 @@ const VendorAgreements = () => {
                         </small>
                       </div>
                     )}
+                  </div>
+                  
+                  {/* Row 3: Governance Manager */}
+                  <div className="form-row-grid">
+                    <div className="form-group">
+                      <label htmlFor="governance_manager_user_id">
+                        Governance Manager <span className="required-field">*</span>
+                      </label>
+                      <select
+                        id="governance_manager_user_id"
+                        name="governance_manager_user_id"
+                        value={formData.governance_manager_user_id}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select a governance manager</option>
+                        {users.map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.username} - {user.email}
+                          </option>
+                        ))}
+                      </select>
+                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                        Responsible for final approval of the vendor contract
+                      </small>
+                    </div>
                   </div>
                 </div>
                 
