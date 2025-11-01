@@ -8235,6 +8235,11 @@ const vendorAgreementTemplateRoutes = require('./backend/routes/vendorAgreementT
 app.use('/api', vendorAgreementTemplateRoutes);
 console.log('Added vendor agreement template routes');
 
+// Notifications routes
+const notificationRoutes = require('./backend/routes/notifications');
+app.use('/api/notifications', notificationRoutes);
+console.log('Added notifications routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 

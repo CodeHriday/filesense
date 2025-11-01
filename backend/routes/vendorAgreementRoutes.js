@@ -621,4 +621,198 @@ router.delete('/:id', requirePermission('vendor_agreements:write'), async (req, 
   }
 });
 
+// ========================================
+// Document Upload/Download Routes for Approvals
+// ========================================
+
+// Configure multer for approval documents
+const documentUpload = multer({
+  dest: 'uploads/agreement_documents/',
+  limits: {
+    fileSize: 20 * 1024 * 1024 // 20MB limit for approval documents
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.xlsx', '.xls', '.txt', '.jpg', '.jpeg', '.png'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Allowed: PDF, DOC, DOCX, XLSX, XLS, TXT, JPG, PNG'));
+    }
+  }
+});
+
+// POST /api/vendor-agreements/:id/documents - Upload document for approval
+router.post('/:id/documents', checkAgreementAccess, documentUpload.single('document'), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { approval_id, document_type, description, approval_stage } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No document file provided' });
+    }
+    
+    // Create document record
+    const { pool } = require('../config/database');
+    const result = await pool.query(
+      `INSERT INTO vendor_agreement_documents (
+        agreement_id, approval_id, document_name, document_type, 
+        file_path, file_size, mime_type, uploaded_by, description, approval_stage
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`,
+      [
+        agreementId,
+        approval_id || null,
+        req.file.originalname,
+        document_type || 'supporting_evidence',
+        req.file.path,
+        req.file.size,
+        req.file.mimetype,
+        req.user.id,
+        description || null,
+        approval_stage || null
+      ]
+    );
+    
+    systemLogger.info('Document uploaded for agreement', { 
+      agreementId, 
+      documentId: result.rows[0].id,
+      userId: req.user.id 
+    });
+    
+    res.json({
+      success: true,
+      document: result.rows[0]
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error uploading agreement document', { error: error.message });
+    res.status(500).json({ 
+      error: error.message || 'Failed to upload document'
+    });
+  }
+});
+
+// GET /api/vendor-agreements/:id/documents - Get all documents for an agreement
+router.get('/:id/documents', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    const { pool } = require('../config/database');
+    const result = await pool.query(
+      `SELECT 
+        d.*,
+        u.username as uploaded_by_name,
+        u.email as uploaded_by_email
+       FROM vendor_agreement_documents d
+       LEFT JOIN users u ON d.uploaded_by = u.id
+       WHERE d.agreement_id = $1
+       ORDER BY d.uploaded_at DESC`,
+      [agreementId]
+    );
+    
+    res.json({
+      success: true,
+      documents: result.rows
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error fetching agreement documents', { error: error.message });
+    res.status(500).json({ 
+      error: error.message || 'Failed to fetch documents'
+    });
+  }
+});
+
+// GET /api/vendor-agreements/:id/documents/:docId/download - Download a document
+router.get('/:id/documents/:docId/download', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const docId = parseInt(req.params.docId);
+    
+    const { pool } = require('../config/database');
+    const result = await pool.query(
+      `SELECT * FROM vendor_agreement_documents 
+       WHERE id = $1 AND agreement_id = $2`,
+      [docId, agreementId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    const document = result.rows[0];
+    
+    // Check if file exists
+    if (!fs.existsSync(document.file_path)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+    
+    // Set headers and send file
+    res.setHeader('Content-Type', document.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${document.document_name}"`);
+    
+    const fileStream = fs.createReadStream(document.file_path);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    systemLogger.error('Error downloading agreement document', { error: error.message });
+    res.status(500).json({ 
+      error: error.message || 'Failed to download document'
+    });
+  }
+});
+
+// DELETE /api/vendor-agreements/:id/documents/:docId - Delete a document
+router.delete('/:id/documents/:docId', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const docId = parseInt(req.params.docId);
+    
+    // Only allow document owner or admin to delete
+    const { pool } = require('../config/database');
+    const docResult = await pool.query(
+      `SELECT * FROM vendor_agreement_documents 
+       WHERE id = $1 AND agreement_id = $2`,
+      [docId, agreementId]
+    );
+    
+    if (docResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    const document = docResult.rows[0];
+    
+    // Check permissions
+    if (document.uploaded_by !== req.user.id && !req.isAdmin && !req.hasApprovePermission) {
+      return res.status(403).json({ error: 'Not authorized to delete this document' });
+    }
+    
+    // Delete file from disk
+    if (fs.existsSync(document.file_path)) {
+      fs.unlinkSync(document.file_path);
+    }
+    
+    // Delete from database
+    await pool.query(
+      `DELETE FROM vendor_agreement_documents WHERE id = $1`,
+      [docId]
+    );
+    
+    systemLogger.info('Document deleted', { agreementId, docId, userId: req.user.id });
+    
+    res.json({
+      success: true,
+      message: 'Document deleted successfully'
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error deleting agreement document', { error: error.message });
+    res.status(500).json({ 
+      error: error.message || 'Failed to delete document'
+    });
+  }
+});
+
 module.exports = router;
