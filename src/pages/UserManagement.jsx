@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { FaPencilAlt, FaTrash } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import PasswordInput from '../components/PasswordInput';
@@ -535,18 +536,20 @@ const UserManagement = () => {
                           </button>
                         )}
                         <button 
-                          className="edit-user-btn" 
+                          className="edit-user-icon-btn" 
                           onClick={() => openEditModal(user)}
+                          title="Edit user"
                         >
-                          Edit
+                          <FaPencilAlt />
                         </button>
                         
                         {user.id !== currentUser?.id && (
                           <button 
-                            className="delete-user-btn" 
+                            className="delete-user-icon-btn" 
                             onClick={() => openDeleteModal(user)}
+                            title="Delete user"
                           >
-                            Delete
+                            <FaTrash />
                           </button>
                         )}
                       </div>

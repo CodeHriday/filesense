@@ -140,42 +140,52 @@
 
 .user-actions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+  align-items: center;
 }
 
-.edit-user-btn,
-.delete-user-btn,
-.unlock-user-btn {
+.edit-user-icon-btn,
+.delete-user-icon-btn {
+  background: none;
   border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 4px;
+  font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
 }
 
-.edit-user-btn {
-  background-color: #e8f0fe;
-  color: #1a73e8;
+.edit-user-icon-btn {
+  color: #ea8600;
 }
 
-.edit-user-btn:hover {
-  background-color: #d2e3fc;
+.edit-user-icon-btn:hover {
+  color: #b56800;
+  transform: scale(1.15);
 }
 
-.delete-user-btn {
-  background-color: #feeceb;
+.delete-user-icon-btn {
   color: #d93025;
 }
 
-.delete-user-btn:hover {
-  background-color: #fed7d7;
+.delete-user-icon-btn:hover {
+  color: #a82419;
+  transform: scale(1.15);
 }
 
 .unlock-user-btn {
   background-color: #fff3e0;
   color: #ef6c00;
   font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .unlock-user-btn:hover {
@@ -402,14 +412,12 @@ body.high-contrast .users-table .role-badge {
   color: #000;
 }
 
-body.high-contrast .edit-user-btn {
-  background-color: #fff;
-  color: #000;
+body.high-contrast .edit-user-icon-btn {
+  color: #ffeb3b;
 }
 
-body.high-contrast .delete-user-btn {
-  background-color: #ff6b6b;
-  color: #000;
+body.high-contrast .delete-user-icon-btn {
+  color: #ff6b6b;
 }
 
 body.high-contrast .user-modal {

@@ -17,7 +17,9 @@ const findAll = async (filters = {}) => {
   try {
     // Start building the query
     let queryText = `
-      SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
+      SELECT u.id, u.username, u.email, u.first_name, u.middle_name, u.last_name,
+             u.auth_provider, u.phone_number,
+             TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS full_name,
              u.created_at, u.updated_at, u.last_login,
              u.internal_user, u.user_type,
              u.failed_login_attempts, u.locked_until, u.must_change_password,
@@ -94,7 +96,9 @@ const findAll = async (filters = {}) => {
 const findById = async (id) => {
   try {
     const query = `
-      SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
+      SELECT u.id, u.username, u.email, u.first_name, u.middle_name, u.last_name,
+             u.auth_provider, u.phone_number,
+             TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS full_name,
              u.created_at, u.updated_at, u.last_login,
              u.internal_user, u.user_type,
              u.failed_login_attempts, u.locked_until, u.must_change_password,
