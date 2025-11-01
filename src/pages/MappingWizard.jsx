@@ -474,7 +474,7 @@ function MappingWizard() {
         field_mappings: fieldMappings,
         variables: variables,
         anomaly_rules: anomalyRulesObject,
-        schema_drift_handling: selectedVendorAgreement ? schemaDriftHandling : 'none'
+        schema_drift_handling: schemaDriftHandling
       };
 
       let response;
