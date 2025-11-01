@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { FaPencilAlt, FaTrash } from 'react-icons/fa';
+import { FaPen, FaTrashAlt } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import PasswordInput from '../components/PasswordInput';
@@ -540,7 +540,7 @@ const UserManagement = () => {
                           onClick={() => openEditModal(user)}
                           title="Edit user"
                         >
-                          <FaPencilAlt />
+                          <FaPen />
                         </button>
                         
                         {user.id !== currentUser?.id && (
@@ -549,7 +549,7 @@ const UserManagement = () => {
                             onClick={() => openDeleteModal(user)}
                             title="Delete user"
                           >
-                            <FaTrash />
+                            <FaTrashAlt />
                           </button>
                         )}
                       </div>
