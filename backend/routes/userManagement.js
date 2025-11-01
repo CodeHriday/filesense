@@ -227,9 +227,8 @@ router.get('/by-role/:roleName', authenticateToken, asyncHandler(async (req, res
         u.state,
         u.postal_code,
         u.country,
-        v.id as vendor_id
+        u.vendor_id
       FROM users u
-      LEFT JOIN vendors v ON u.id = v.vendor_user_id
       WHERE u.internal_user = false AND u.user_type = 'Vendor'
       ORDER BY u.full_name, u.username`
     );

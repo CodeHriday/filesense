@@ -2978,6 +2978,7 @@ const createVendorUsersTable = require('./backend/migrations/createVendorUsers')
 const { addConnectionNameUniqueConstraint } = require('./backend/migrations/connectionNameUniqueConstraint');
 const { migrateVendorConnectionDirection } = require('./backend/migrations/migrateVendorConnectionDirection');
 const { up: addUnifiedConnectionFields } = require('./backend/migrations/addUnifiedConnectionFields');
+const addVendorIdToUsers = require('./backend/migrations/addVendorIdToUsers');
 
 // Run schema migration asynchronously
 migrateConnectionsSchema()
@@ -3157,6 +3158,12 @@ migrateConnectionsSchema()
   })
   .then(() => {
     console.log('✅ Vendor users table migration completed');
+    
+    // Add vendor_id column to users table
+    return addVendorIdToUsers();
+  })
+  .then((result) => {
+    console.log(`✅ Vendor_id column migration completed. Backfilled ${result.backfilledUsers} users.`);
     
     // Add unique constraint on connection names
     return addConnectionNameUniqueConstraint();
