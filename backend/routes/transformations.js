@@ -565,16 +565,47 @@ router.put('/:id',
       values.push(mapping_name);
       paramIndex++;
     }
-    // When vendor_agreement_id is provided, source_connection_id must be NULL to satisfy the exclusivity constraint
-    if (resolvedSourceConnectionId !== undefined || vendor_agreement_id !== undefined) {
-      updates.push(`source_connection_id = $${paramIndex}`);
-      values.push(vendor_agreement_id !== undefined ? null : resolvedSourceConnectionId);
-      paramIndex++;
-    }
-    if (vendor_agreement_id !== undefined) {
+    
+    // Handle source/vendor agreement mutual exclusivity
+    // If vendor_agreement_id is in request and truthy, source_connection_id must be NULL
+    // If source_connection_id is in request and truthy, vendor_agreement_id must be NULL  
+    // If neither is in request, don't update them (preserves existing values)
+    
+    const hasVendorInRequest = req.body.hasOwnProperty('vendor_agreement_id');
+    const hasSourceInRequest = req.body.hasOwnProperty('source_connection_id');
+    
+    if (hasVendorInRequest) {
+      // Always update vendor_agreement_id when in request
       updates.push(`vendor_agreement_id = $${paramIndex}`);
       values.push(vendor_agreement_id);
       paramIndex++;
+      
+      // Update source_connection_id only when necessary to maintain exclusivity
+      if (vendor_agreement_id) {
+        // Vendor is truthy, source must be NULL
+        updates.push(`source_connection_id = $${paramIndex}`);
+        values.push(null);
+        paramIndex++;
+      } else if (hasSourceInRequest) {
+        // Vendor is null/false and source is explicitly in request, use source value
+        updates.push(`source_connection_id = $${paramIndex}`);
+        values.push(resolvedSourceConnectionId);
+        paramIndex++;
+      }
+      // If vendor is null and source is NOT in request, don't update source (preserve existing)
+    } else if (hasSourceInRequest) {
+      // Only source_connection_id in request (vendor not in request)
+      updates.push(`source_connection_id = $${paramIndex}`);
+      values.push(resolvedSourceConnectionId);
+      paramIndex++;
+      
+      // If source is truthy, vendor must be NULL
+      if (source_connection_id) {
+        updates.push(`vendor_agreement_id = $${paramIndex}`);
+        values.push(null);
+        paramIndex++;
+      }
+      // If source is null/false, don't update vendor (preserve existing)
     }
     if (source_type !== undefined) {
       updates.push(`source_type = $${paramIndex}`);
