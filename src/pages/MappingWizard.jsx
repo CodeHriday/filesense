@@ -474,7 +474,8 @@ function MappingWizard() {
         field_mappings: fieldMappings,
         variables: variables,
         anomaly_rules: anomalyRulesObject,
-        schema_drift_handling: schemaDriftHandling
+        schema_drift_handling: schemaDriftHandling,
+        source_schema: schema || null
       };
 
       let response;
