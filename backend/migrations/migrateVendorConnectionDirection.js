@@ -40,26 +40,40 @@ async function migrateVendorConnectionDirection() {
       console.log(`INFO: Set connection "${row.name}" (${row.connection_id}) to 'source'`);
     }
     
-    // Find connections used as target connections in vendor_agreements
-    const targetConnectionsResult = await client.query(`
-      SELECT DISTINCT sc.connection_id, sc.name
-      FROM storage_connections sc
-      INNER JOIN vendor_agreements va ON va.target_connection_id = sc.connection_id
-      WHERE sc.type = 'vendor' 
-      AND (sc.connection_direction IS NULL OR sc.connection_direction = '')
+    // Check if target_connection_id column exists in vendor_agreements
+    const columnCheckResult = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'vendor_agreements' 
+      AND column_name = 'target_connection_id'
     `);
     
-    console.log(`INFO: Found ${targetConnectionsResult.rows.length} connections used as target connections`);
+    let targetConnectionsResult = { rows: [] };
     
-    // Update target connections
-    for (const row of targetConnectionsResult.rows) {
-      await client.query(`
-        UPDATE storage_connections 
-        SET connection_direction = 'target', updated_at = CURRENT_TIMESTAMP
-        WHERE connection_id = $1
-      `, [row.connection_id]);
+    if (columnCheckResult.rows.length > 0) {
+      // Find connections used as target connections in vendor_agreements
+      targetConnectionsResult = await client.query(`
+        SELECT DISTINCT sc.connection_id, sc.name
+        FROM storage_connections sc
+        INNER JOIN vendor_agreements va ON va.target_connection_id = sc.connection_id
+        WHERE sc.type = 'vendor' 
+        AND (sc.connection_direction IS NULL OR sc.connection_direction = '')
+      `);
       
-      console.log(`INFO: Set connection "${row.name}" (${row.connection_id}) to 'target'`);
+      console.log(`INFO: Found ${targetConnectionsResult.rows.length} connections used as target connections`);
+      
+      // Update target connections
+      for (const row of targetConnectionsResult.rows) {
+        await client.query(`
+          UPDATE storage_connections 
+          SET connection_direction = 'target', updated_at = CURRENT_TIMESTAMP
+          WHERE connection_id = $1
+        `, [row.connection_id]);
+        
+        console.log(`INFO: Set connection "${row.name}" (${row.connection_id}) to 'target'`);
+      }
+    } else {
+      console.log(`INFO: target_connection_id column doesn't exist in vendor_agreements, skipping target connection migration`);
     }
     
     // Find any remaining vendor connections without direction and set them to 'source' by default
