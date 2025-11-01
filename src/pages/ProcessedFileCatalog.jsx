@@ -242,8 +242,8 @@ const ProcessedFileCatalog = () => {
                         <table className="files-table">
                         <thead>
                           <tr>
-                            <th>Target File</th>
                             <th>Source File</th>
+                            <th>Target File</th>
                             <th>Created</th>
                             <th>Project</th>
                             <th>Actions</th>
@@ -252,9 +252,9 @@ const ProcessedFileCatalog = () => {
                         <tbody>
                           {filesInGroup.map((file) => (
                             <tr key={file.id}>
-                              <td>
+                              <td className="source-file">
                                 <span className="file-name">
-                                  {file.file_name}
+                                  {file.source_path || '-'}
                                   {file.has_schema_changes && (
                                     <span 
                                       className="schema-changed-badge" 
@@ -277,7 +277,7 @@ const ProcessedFileCatalog = () => {
                                   )}
                                 </span>
                               </td>
-                              <td className="source-file">{file.source_path || '-'}</td>
+                              <td>{file.file_name}</td>
                               <td className="created-date">
                                 {formatDate(file.created_dt)}
                               </td>
