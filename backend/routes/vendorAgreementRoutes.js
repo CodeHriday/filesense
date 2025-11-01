@@ -396,6 +396,111 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
 });
 
 /**
+ * Three-Stage Approval Workflow Routes
+ */
+
+/**
+ * POST /api/vendor-agreements/:id/vendor-action
+ * Vendor User accepts or rejects agreement (Stage 1)
+ */
+router.post('/:id/vendor-action', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { action, comments, documents } = req.body;
+    
+    // Check if user is vendor or admin
+    if (!req.isVendor && !req.isAdmin && !req.hasApprovePermission) {
+      return res.status(403).json({ error: 'Only vendor contacts can accept/reject agreements' });
+    }
+    
+    const result = await vendorAgreementService.vendorAcceptReject(
+      agreementId,
+      req.user.id,
+      action,
+      comments,
+      documents || [],
+      req.ip,
+      req.get('User-Agent'),
+      req.isAdmin || req.hasApprovePermission || false
+    );
+    
+    res.json(result);
+    
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/vendor-action', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/:id/manager-action
+ * Vendor Manager approves or rejects agreement (Stage 2)
+ */
+router.post('/:id/manager-action', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { action, comments, documents } = req.body;
+    
+    // Check if user is owner (manager) or admin
+    if (!req.isOwner && !req.isAdmin && !req.hasApprovePermission) {
+      return res.status(403).json({ error: 'Only vendor manager can approve/reject at this stage' });
+    }
+    
+    const result = await vendorAgreementService.managerApproveReject(
+      agreementId,
+      req.user.id,
+      action,
+      comments,
+      documents || [],
+      req.ip,
+      req.get('User-Agent'),
+      req.isAdmin || req.hasApprovePermission || false
+    );
+    
+    res.json(result);
+    
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/manager-action', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/:id/governance-action
+ * Governance Manager approves or rejects agreement (Stage 3 - Final)
+ */
+router.post('/:id/governance-action', checkAgreementAccess, async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { action, comments, documents } = req.body;
+    
+    const agreement = req.agreement;
+    
+    // Check if user is governance manager or admin
+    if (!req.isAdmin && !req.hasApprovePermission && agreement.governance_manager_user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only governance manager can approve/reject at this stage' });
+    }
+    
+    const result = await vendorAgreementService.governanceApproveReject(
+      agreementId,
+      req.user.id,
+      action,
+      comments,
+      documents || [],
+      req.ip,
+      req.get('User-Agent'),
+      req.isAdmin || req.hasApprovePermission || false
+    );
+    
+    res.json(result);
+    
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/governance-action', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/vendor-agreements/:id/approvals
  * Get approval history for an agreement
  */

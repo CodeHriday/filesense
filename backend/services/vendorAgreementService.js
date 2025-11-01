@@ -979,6 +979,424 @@ class VendorAgreementService {
   }
 
   /**
+   * Three-Stage Approval Workflow Methods
+   */
+  
+  /**
+   * Accept or reject agreement as Vendor User (Stage 1)
+   */
+  async vendorAcceptReject(agreementId, approverUserId, action, comments = null, documents = [], ipAddress = null, userAgent = null, isAdmin = false) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      if (!['accept', 'reject'].includes(action)) {
+        throw new Error('Invalid action. Must be "accept" or "reject"');
+      }
+      
+      // Get agreement
+      const agreementResult = await client.query(
+        `SELECT va.*, v.vendor_user_id 
+         FROM vendor_agreements va
+         JOIN vendors v ON va.vendor_id = v.id
+         WHERE va.id = $1`,
+        [agreementId]
+      );
+      
+      if (agreementResult.rows.length === 0) {
+        throw new Error('Agreement not found');
+      }
+      
+      const agreement = agreementResult.rows[0];
+      
+      // Check if in correct state for vendor action
+      if (!['draft', 'pending_vendor_acceptance', 'manager_rejected'].includes(agreement.approval_status)) {
+        throw new Error(`Cannot perform vendor action in current status: ${agreement.approval_status}`);
+      }
+      
+      // Verify authorization
+      if (!isAdmin) {
+        let isAuthorized = agreement.vendor_user_id === approverUserId;
+        
+        if (!isAuthorized) {
+          const userResult = await client.query(
+            'SELECT email FROM users WHERE id = $1',
+            [approverUserId]
+          );
+          
+          if (userResult.rows.length > 0) {
+            const userEmail = userResult.rows[0].email;
+            isAuthorized = userEmail === agreement.primary_contact_email || 
+                          userEmail === agreement.secondary_contact_email;
+          }
+        }
+        
+        if (!isAuthorized) {
+          throw new Error('Only the vendor contact can accept/reject the agreement');
+        }
+      }
+      
+      if (action === 'reject' && !comments) {
+        throw new Error('Comments are required for rejection');
+      }
+      
+      // Record approval/rejection
+      const approvalResult = await client.query(
+        `INSERT INTO vendor_agreement_approvals (
+          agreement_id, approver_type, approver_user_id, action, comments,
+          agreement_version, approval_timestamp, ip_address, user_agent, approval_stage
+        ) VALUES ($1, 'vendor', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, 'vendor_acceptance')
+        RETURNING id`,
+        [agreementId, approverUserId, action === 'accept' ? 'approved' : 'rejected', 
+         comments, agreement.version, ipAddress, userAgent]
+      );
+      
+      const approvalId = approvalResult.rows[0].id;
+      
+      // Handle documents if any
+      if (documents && documents.length > 0) {
+        for (const doc of documents) {
+          await client.query(
+            `INSERT INTO vendor_agreement_documents (
+              agreement_id, approval_id, document_name, document_type,
+              file_path, file_size, mime_type, uploaded_by, approval_stage, description
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'vendor_acceptance', $9)`,
+            [agreementId, approvalId, doc.name, doc.type, doc.path, 
+             doc.size, doc.mimeType, approverUserId, doc.description]
+          );
+        }
+      }
+      
+      // Update agreement status
+      const newStatus = action === 'accept' ? 'vendor_accepted' : 'vendor_rejected';
+      await client.query(
+        `UPDATE vendor_agreements 
+         SET approval_status = $1,
+             vendor_approved_at = ${action === 'accept' ? 'CURRENT_TIMESTAMP' : 'NULL'},
+             vendor_approved_by = ${action === 'accept' ? '$2' : 'NULL'},
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [newStatus, approverUserId, agreementId]
+      );
+      
+      // Create notification for Vendor Manager
+      if (action === 'accept' && agreement.file_owner_user_id) {
+        await client.query(
+          `INSERT INTO notifications (
+            user_id, notification_type, title, message, entity_type, entity_id,
+            action_url, metadata
+          ) VALUES ($1, 'vendor_contract_pending_manager', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+          [
+            agreement.file_owner_user_id,
+            'Vendor Contract Ready for Manager Approval',
+            `Contract "${agreement.agreement_name}" has been accepted by the vendor and is pending your approval.`,
+            agreementId,
+            `/vendor-agreements/${agreementId}`,
+            JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name })
+          ]
+        );
+      }
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Vendor action completed', { agreementId, action, approverUserId, newStatus });
+      
+      return {
+        success: true,
+        approvalStatus: newStatus,
+        approvalId
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error in vendor accept/reject', { agreementId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  
+  /**
+   * Approve or reject agreement as Vendor Manager (Stage 2)
+   */
+  async managerApproveReject(agreementId, approverUserId, action, comments = null, documents = [], ipAddress = null, userAgent = null, isAdmin = false) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      if (!['approve', 'reject'].includes(action)) {
+        throw new Error('Invalid action. Must be "approve" or "reject"');
+      }
+      
+      // Get agreement
+      const agreementResult = await client.query(
+        `SELECT va.* FROM vendor_agreements va WHERE va.id = $1`,
+        [agreementId]
+      );
+      
+      if (agreementResult.rows.length === 0) {
+        throw new Error('Agreement not found');
+      }
+      
+      const agreement = agreementResult.rows[0];
+      
+      // Check if in correct state for manager action
+      if (!['vendor_accepted', 'governance_rejected'].includes(agreement.approval_status)) {
+        throw new Error(`Cannot perform manager action in current status: ${agreement.approval_status}`);
+      }
+      
+      // Verify authorization
+      if (!isAdmin && agreement.file_owner_user_id !== approverUserId) {
+        throw new Error('Only the vendor manager can approve/reject at this stage');
+      }
+      
+      if (action === 'reject' && !comments) {
+        throw new Error('Comments are required for rejection');
+      }
+      
+      // Record approval/rejection
+      const approvalResult = await client.query(
+        `INSERT INTO vendor_agreement_approvals (
+          agreement_id, approver_type, approver_user_id, action, comments,
+          agreement_version, approval_timestamp, ip_address, user_agent, approval_stage
+        ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, 'manager_approval')
+        RETURNING id`,
+        [agreementId, approverUserId, action === 'approve' ? 'approved' : 'rejected',
+         comments, agreement.version, ipAddress, userAgent]
+      );
+      
+      const approvalId = approvalResult.rows[0].id;
+      
+      // Handle documents
+      if (documents && documents.length > 0) {
+        for (const doc of documents) {
+          await client.query(
+            `INSERT INTO vendor_agreement_documents (
+              agreement_id, approval_id, document_name, document_type,
+              file_path, file_size, mime_type, uploaded_by, approval_stage, description
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'manager_approval', $9)`,
+            [agreementId, approvalId, doc.name, doc.type, doc.path,
+             doc.size, doc.mimeType, approverUserId, doc.description]
+          );
+        }
+      }
+      
+      // Update agreement status
+      const newStatus = action === 'approve' ? 'manager_approved' : 'manager_rejected';
+      await client.query(
+        `UPDATE vendor_agreements 
+         SET approval_status = $1,
+             owner_approved_at = ${action === 'approve' ? 'CURRENT_TIMESTAMP' : 'NULL'},
+             owner_approved_by = ${action === 'approve' ? '$2' : 'NULL'},
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [newStatus, approverUserId, agreementId]
+      );
+      
+      // Create notifications
+      if (action === 'approve' && agreement.governance_manager_user_id) {
+        // Notify Governance Manager
+        await client.query(
+          `INSERT INTO notifications (
+            user_id, notification_type, title, message, entity_type, entity_id,
+            action_url, metadata
+          ) VALUES ($1, 'vendor_contract_pending_governance', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+          [
+            agreement.governance_manager_user_id,
+            'Vendor Contract Ready for Governance Approval',
+            `Contract "${agreement.agreement_name}" has been approved by the manager and is pending your final approval.`,
+            agreementId,
+            `/vendor-agreements/${agreementId}`,
+            JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name })
+          ]
+        );
+      } else if (action === 'reject') {
+        // Notify Vendor User of manager rejection - needs to go back to vendor for review
+        if (agreement.vendor_approved_by) {
+          await client.query(
+            `INSERT INTO notifications (
+              user_id, notification_type, title, message, entity_type, entity_id,
+              action_url, metadata
+            ) VALUES ($1, 'vendor_contract_rejected_manager', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              agreement.vendor_approved_by,
+              'Vendor Contract Rejected by Manager',
+              `Contract "${agreement.agreement_name}" has been rejected by the manager. Reason: ${comments || 'No reason provided'}`,
+              agreementId,
+              `/vendor-agreements/${agreementId}`,
+              JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, rejection_reason: comments })
+            ]
+          );
+        }
+      }
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Manager action completed', { agreementId, action, approverUserId, newStatus });
+      
+      return {
+        success: true,
+        approvalStatus: newStatus,
+        approvalId
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error in manager approve/reject', { agreementId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  
+  /**
+   * Approve or reject agreement as Governance Manager (Stage 3)
+   */
+  async governanceApproveReject(agreementId, approverUserId, action, comments = null, documents = [], ipAddress = null, userAgent = null, isAdmin = false) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      if (!['approve', 'reject'].includes(action)) {
+        throw new Error('Invalid action. Must be "approve" or "reject"');
+      }
+      
+      // Get agreement
+      const agreementResult = await client.query(
+        `SELECT va.* FROM vendor_agreements va WHERE va.id = $1`,
+        [agreementId]
+      );
+      
+      if (agreementResult.rows.length === 0) {
+        throw new Error('Agreement not found');
+      }
+      
+      const agreement = agreementResult.rows[0];
+      
+      // Check if in correct state for governance action
+      if (agreement.approval_status !== 'manager_approved') {
+        throw new Error(`Cannot perform governance action in current status: ${agreement.approval_status}`);
+      }
+      
+      // Verify authorization
+      if (!isAdmin && agreement.governance_manager_user_id !== approverUserId) {
+        throw new Error('Only the governance manager can approve/reject at this stage');
+      }
+      
+      if (action === 'reject' && !comments) {
+        throw new Error('Comments are required for rejection');
+      }
+      
+      // Record approval/rejection
+      const approvalResult = await client.query(
+        `INSERT INTO vendor_agreement_approvals (
+          agreement_id, approver_type, approver_user_id, action, comments,
+          agreement_version, approval_timestamp, ip_address, user_agent, approval_stage
+        ) VALUES ($1, 'governance_manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, 'governance_approval')
+        RETURNING id`,
+        [agreementId, approverUserId, action === 'approve' ? 'approved' : 'rejected',
+         comments, agreement.version, ipAddress, userAgent]
+      );
+      
+      const approvalId = approvalResult.rows[0].id;
+      
+      // Handle documents
+      if (documents && documents.length > 0) {
+        for (const doc of documents) {
+          await client.query(
+            `INSERT INTO vendor_agreement_documents (
+              agreement_id, approval_id, document_name, document_type,
+              file_path, file_size, mime_type, uploaded_by, approval_stage, description
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'governance_approval', $9)`,
+            [agreementId, approvalId, doc.name, doc.type, doc.path,
+             doc.size, doc.mimeType, approverUserId, doc.description]
+          );
+        }
+      }
+      
+      // Update agreement status
+      const newStatus = action === 'approve' ? 'governance_approved' : 'governance_rejected';
+      const isLocked = action === 'approve';
+      
+      await client.query(
+        `UPDATE vendor_agreements 
+         SET approval_status = $1,
+             governance_approved_at = ${action === 'approve' ? 'CURRENT_TIMESTAMP' : 'NULL'},
+             governance_approved_by = ${action === 'approve' ? '$2' : 'NULL'},
+             is_locked = $3,
+             locked_at = ${isLocked ? 'CURRENT_TIMESTAMP' : 'NULL'},
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4`,
+        [newStatus, approverUserId, isLocked, agreementId]
+      );
+      
+      // Log the lock if approved
+      if (action === 'approve') {
+        await client.query(
+          `INSERT INTO vendor_agreement_changes (
+            agreement_id, change_type, changes_summary, to_version, changed_by, changed_at
+          ) VALUES ($1, 'locked', 'Agreement locked after governance approval', $2, $3, CURRENT_TIMESTAMP)`,
+          [agreementId, agreement.version, approverUserId]
+        );
+      }
+      
+      // Create notifications
+      // Notify all parties of final decision
+      const notifyUserIds = [
+        agreement.vendor_approved_by,
+        agreement.owner_approved_by,
+        agreement.file_owner_user_id
+      ].filter(id => id !== null && id !== undefined);
+      
+      for (const userId of notifyUserIds) {
+        await client.query(
+          `INSERT INTO notifications (
+            user_id, notification_type, title, message, entity_type, entity_id,
+            action_url, metadata
+          ) VALUES ($1, $2, $3, $4, 'vendor_agreement', $5, $6, $7)`,
+          [
+            userId,
+            action === 'approve' ? 'vendor_contract_approved_final' : 'vendor_contract_rejected_governance',
+            action === 'approve' ? 'Vendor Contract Fully Approved' : 'Vendor Contract Rejected by Governance',
+            action === 'approve' 
+              ? `Contract "${agreement.agreement_name}" has been fully approved and is now locked.`
+              : `Contract "${agreement.agreement_name}" has been rejected by governance. Reason: ${comments || 'No reason provided'}`,
+            agreementId,
+            `/vendor-agreements/${agreementId}`,
+            JSON.stringify({ 
+              agreement_id: agreementId, 
+              agreement_name: agreement.agreement_name,
+              rejection_reason: action === 'reject' ? comments : null
+            })
+          ]
+        );
+      }
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Governance action completed', { agreementId, action, approverUserId, newStatus, isLocked });
+      
+      return {
+        success: true,
+        approvalStatus: newStatus,
+        approvalId,
+        isLocked,
+        fullyApproved: action === 'approve'
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error in governance approve/reject', { agreementId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Get agreement by ID with full details
    */
   async getAgreementById(agreementId) {
