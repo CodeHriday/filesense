@@ -487,52 +487,59 @@ function buildTransformation(transformationType, args) {
       break;
       
     case 'case_when':
-      // case_when(field, operator1, compareValue1, result1, operator2, compareValue2, result2, ..., defaultValue)
+      // case_when(field, operator1, compareValue1, result1, operator2, compareValue2, result2, ..., defaultValue?)
       // Supports mathematical symbols in operators
-      // Arguments come in groups of 3 (operator, compareValue, result), followed by defaultValue
+      // Arguments come in groups of 3 (operator, compareValue, result), optionally followed by defaultValue
       if (args.length > 0) {
         config.nestedArgs = [args[0]];
       }
       
+      // Calculate condition arguments (excluding field)
+      const conditionArgsCount = args.length - 1;
+      const hasDefault = conditionArgsCount % 3 !== 0;
+      
+      // Calculate how many complete condition sets we have
+      const conditionCount = hasDefault 
+        ? Math.floor(conditionArgsCount / 3)
+        : conditionArgsCount / 3;
+      
       // Parse conditions - skip first arg (field), then parse in groups of 3
       const conditions = [];
-      for (let i = 1; i < args.length - 1; i += 3) {
-        if (i + 2 < args.length) {
-          const condition = {};
-          
-          // Operator (arg i)
-          if (args[i].type === 'LITERAL') {
-            condition.operator = args[i].value;
-          }
-          
-          // Compare value (arg i+1)
-          if (args[i + 1].type === 'LITERAL') {
-            condition.compareValue = args[i + 1].value;
-          } else if (args[i + 1].type === 'COLUMN') {
-            condition.compareValue = args[i + 1].name;
-          } else if (args[i + 1].type === 'VARIABLE') {
-            condition.compareValue = args[i + 1].name;
-          }
-          
-          // Result (arg i+2)
-          if (args[i + 2].type === 'LITERAL') {
-            condition.result = args[i + 2].value;
-          } else if (args[i + 2].type === 'COLUMN') {
-            condition.result = args[i + 2].name;
-          } else if (args[i + 2].type === 'VARIABLE') {
-            condition.result = args[i + 2].name;
-          }
-          
-          conditions.push(condition);
+      for (let i = 0; i < conditionCount; i++) {
+        const baseIndex = 1 + (i * 3); // Start after field arg, then jump by 3
+        const condition = {};
+        
+        // Operator (arg baseIndex)
+        if (args[baseIndex].type === 'LITERAL') {
+          condition.operator = args[baseIndex].value;
         }
+        
+        // Compare value (arg baseIndex+1)
+        if (args[baseIndex + 1].type === 'LITERAL') {
+          condition.compareValue = args[baseIndex + 1].value;
+        } else if (args[baseIndex + 1].type === 'COLUMN') {
+          condition.compareValue = args[baseIndex + 1].name;
+        } else if (args[baseIndex + 1].type === 'VARIABLE') {
+          condition.compareValue = args[baseIndex + 1].name;
+        }
+        
+        // Result (arg baseIndex+2)
+        if (args[baseIndex + 2].type === 'LITERAL') {
+          condition.result = args[baseIndex + 2].value;
+        } else if (args[baseIndex + 2].type === 'COLUMN') {
+          condition.result = args[baseIndex + 2].name;
+        } else if (args[baseIndex + 2].type === 'VARIABLE') {
+          condition.result = args[baseIndex + 2].name;
+        }
+        
+        conditions.push(condition);
       }
       
       config.params.conditions = conditions;
       
-      // Last argument is defaultValue
-      const lastArgIndex = args.length - 1;
-      if (lastArgIndex > 0 && (lastArgIndex - 1) % 3 === 0) {
-        const lastArg = args[lastArgIndex];
+      // If there's a default value (remainder after dividing by 3), grab it
+      if (hasDefault) {
+        const lastArg = args[args.length - 1];
         if (lastArg.type === 'LITERAL') {
           config.params.defaultValue = lastArg.value;
         } else if (lastArg.type === 'COLUMN') {
