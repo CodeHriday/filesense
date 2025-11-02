@@ -1241,11 +1241,13 @@ const VendorAgreements = () => {
                         required
                       >
                         <option value="">Select a user</option>
-                        {users.map(user => (
-                          <option key={user.id} value={user.id}>
-                            {user.username} - {user.email}
-                          </option>
-                        ))}
+                        {users
+                          .filter(user => user.roles && user.roles.includes('Vendor Manager'))
+                          .map(user => (
+                            <option key={user.id} value={user.id}>
+                              {user.username} - {user.email}
+                            </option>
+                          ))}
                       </select>
                     </div>
                     
