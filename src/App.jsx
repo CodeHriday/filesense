@@ -72,6 +72,7 @@ import OnboardingWizard from './components/OnboardingWizard';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import { AccessibilityProvider } from './context/AccessibilityContext';
 import AuthProvider, { useAuth } from './context/AuthContext';
+import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationsProvider, ModalProvider } from './hooks';
@@ -162,17 +163,19 @@ function App() {
   return (
     <AccessibilityProvider>
       <AuthProvider>
-        <AnnouncementProvider>
-          <ToastProvider>
-            <NotificationsProvider>
-              <ModalProvider>
-                <Router>
-                  <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
-                </Router>
-              </ModalProvider>
-            </NotificationsProvider>
-          </ToastProvider>
-        </AnnouncementProvider>
+        <SidebarProvider>
+          <AnnouncementProvider>
+            <ToastProvider>
+              <NotificationsProvider>
+                <ModalProvider>
+                  <Router>
+                    <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
+                  </Router>
+                </ModalProvider>
+              </NotificationsProvider>
+            </ToastProvider>
+          </AnnouncementProvider>
+        </SidebarProvider>
       </AuthProvider>
     </AccessibilityProvider>
   );
@@ -181,6 +184,7 @@ function App() {
 // Separate component to use useAuth() hook inside Router context
 function AppContent({ showOnboarding, setShowOnboarding }) {
   const { currentUser } = useAuth();
+  const { isCollapsed } = useSidebar();
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState(null);
   
@@ -201,7 +205,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
           <Header showAIInsights={toggleAIInsights} />
           <div className="main-container">
             <Sidebar />
-            <main id="main-content" className="content" tabIndex="-1">
+            <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''}`} tabIndex="-1">
               <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
