@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaEdit, FaTrash } from 'react-icons/fa';
-import { FiFilePlus } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolderPlus } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
 import './ProjectManagement.css';
 
@@ -391,7 +390,7 @@ function ProjectManagement() {
                         aria-label={`Add file to project ${project.name}`}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#28a745' }}
                       >
-                        <FiFilePlus size={16} aria-hidden="true" />
+                        <FiFolderPlus size={16} aria-hidden="true" />
                       </button>
                       <button 
                         className="btn-icon" 
@@ -400,7 +399,7 @@ function ProjectManagement() {
                         aria-label={`Edit project ${project.name}`}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#4a90e2' }}
                       >
-                        <FaEdit size={18} aria-hidden="true" />
+                        <FiEdit2 size={18} aria-hidden="true" />
                       </button>
                       {!project.is_default && (
                         <button 
@@ -410,7 +409,7 @@ function ProjectManagement() {
                           aria-label={`Delete project ${project.name}`}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#dc3545' }}
                         >
-                          <FaTrash size={18} aria-hidden="true" />
+                          <FiTrash2 size={18} aria-hidden="true" />
                         </button>
                       )}
                     </div>
