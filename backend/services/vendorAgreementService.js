@@ -1466,6 +1466,34 @@ class VendorAgreementService {
       let newStatus, notificationTitle, notificationMessage, notificationType;
       
       if (action === 'send-to-vendor') {
+        // Find vendor user to notify - check vendor_approved_by or find last vendor approver
+        let vendorUserToNotify = agreement.vendor_approved_by;
+        
+        if (!vendorUserToNotify) {
+          // Find the most recent vendor approver from approvals history
+          const lastVendorApproval = await client.query(
+            `SELECT approver_user_id 
+             FROM vendor_agreement_approvals 
+             WHERE agreement_id = $1 AND approver_type = 'vendor'
+             ORDER BY approval_timestamp DESC 
+             LIMIT 1`,
+            [agreementId]
+          );
+          
+          if (lastVendorApproval.rows.length > 0) {
+            vendorUserToNotify = lastVendorApproval.rows[0].approver_user_id;
+          } else {
+            // Fallback to primary contact email
+            const contactUser = await client.query(
+              `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+              [agreement.primary_contact_email]
+            );
+            if (contactUser.rows.length > 0) {
+              vendorUserToNotify = contactUser.rows[0].id;
+            }
+          }
+        }
+        
         // Reset to vendor stage - clear vendor approval
         newStatus = 'pending_vendor_acceptance';
         await client.query(
@@ -1482,15 +1510,15 @@ class VendorAgreementService {
         notificationMessage = `Contract "${agreement.agreement_code}" has been sent back to you for review. Manager feedback: ${comments}`;
         notificationType = 'vendor_contract_pending_vendor';
         
-        // Notify vendor contacts
-        if (agreement.vendor_approved_by) {
+        // Notify vendor user
+        if (vendorUserToNotify) {
           await client.query(
             `INSERT INTO notifications (
               user_id, notification_type, title, message, entity_type, entity_id,
               action_url, metadata
             ) VALUES ($1, $2, $3, $4, 'vendor_agreement', $5, $6, $7)`,
             [
-              agreement.vendor_approved_by,
+              vendorUserToNotify,
               notificationType,
               notificationTitle,
               notificationMessage,
