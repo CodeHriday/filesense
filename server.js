@@ -1876,7 +1876,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           WHERE sc.connection_id = $1
             AND sc.status = 'active'
             AND va.vendor_id = $2
-            AND va.approval_status = 'fully_approved'
+            AND va.approval_status = 'governance_approved'
             AND va.is_locked = true
             AND va.status = 'active'
             AND (
