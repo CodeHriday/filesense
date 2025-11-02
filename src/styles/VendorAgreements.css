@@ -124,6 +124,7 @@
 
 /* Icon-based action buttons */
 .action-icon-btn {
+  background: none;
   border: none;
   border-radius: 6px;
   padding: 8px;
@@ -135,39 +136,38 @@
   justify-content: center;
   width: 32px;
   height: 32px;
+  color: var(--text-secondary, #6c757d);
+}
+
+.action-icon-btn:hover {
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 .action-icon-btn.view-btn {
-  background-color: #e8f0fe;
-  color: #1a73e8;
+  color: var(--color-info, #1a73e8);
 }
 
 .action-icon-btn.view-btn:hover {
-  background-color: #d2e3fc;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(26, 115, 232, 0.2);
+  background-color: var(--color-info-light, rgba(26, 115, 232, 0.1));
+  color: var(--color-info-dark, #1557b0);
 }
 
 .action-icon-btn.edit-btn {
-  background-color: #fef7e0;
-  color: #ea8600;
+  color: var(--color-warning, #ea8600);
 }
 
 .action-icon-btn.edit-btn:hover {
-  background-color: #fce8b2;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(234, 134, 0, 0.2);
+  background-color: var(--color-warning-light, rgba(234, 134, 0, 0.1));
+  color: var(--color-warning-dark, #b56a00);
 }
 
 .action-icon-btn.delete-btn {
-  background-color: #feeceb;
-  color: #d93025;
+  color: var(--color-error, #d93025);
 }
 
 .action-icon-btn.delete-btn:hover {
-  background-color: #fed7d7;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(217, 48, 37, 0.2);
+  background-color: var(--color-error-light, rgba(217, 48, 37, 0.1));
+  color: var(--color-error-dark, #a82419);
 }
 
 .no-agreements-message {
