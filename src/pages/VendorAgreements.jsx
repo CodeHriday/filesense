@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FaEye, FaPencilAlt, FaTrash } from 'react-icons/fa';
+import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
@@ -1060,7 +1060,7 @@ const VendorAgreements = () => {
                             onClick={() => openDetailModal(agreement)}
                             title="View details"
                           >
-                            <FaEye />
+                            <FiEye />
                           </button>
                           {(isAdmin || (isVendor && currentUser.vendor_id === agreement.vendor_id)) && (
                             <button 
@@ -1068,7 +1068,7 @@ const VendorAgreements = () => {
                               onClick={() => openEditModal(agreement)}
                               title="Edit contract"
                             >
-                              <FaPencilAlt />
+                              <FiEdit2 />
                             </button>
                           )}
                           {isAdmin && (
@@ -1077,7 +1077,7 @@ const VendorAgreements = () => {
                               onClick={() => handleDeleteAgreement(agreement.id, agreement.file_name)}
                               title="Delete contract"
                             >
-                              <FaTrash />
+                              <FiTrash2 />
                             </button>
                           )}
                         </div>
