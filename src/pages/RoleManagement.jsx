@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -532,19 +533,21 @@ const RoleManagement = () => {
                     <td>
                       <div className="role-actions">
                         <button 
-                          className="edit-role-btn" 
+                          className="action-icon-btn edit-btn" 
                           onClick={() => openEditModal(role)}
+                          title="Edit role"
                         >
-                          Edit
+                          <FiEdit2 />
                         </button>
                         
                         {/* Don't allow deleting the Admin role */}
                         {role.name.toLowerCase() !== 'admin' && (
                           <button 
-                            className="delete-role-btn" 
+                            className="action-icon-btn delete-btn" 
                             onClick={() => openDeleteModal(role)}
+                            title="Delete role"
                           >
-                            Delete
+                            <FiTrash2 />
                           </button>
                         )}
                       </div>
