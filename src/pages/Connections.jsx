@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiAlertCircle, FiSearch } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -26,6 +26,7 @@ const Connections = () => {
   const [activeTab, setActiveTab] = useState('source');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Delete confirmation modal state
   const [showDeleteConnectionModal, setShowDeleteConnectionModal] = useState(false);
@@ -1356,8 +1357,21 @@ const Connections = () => {
     }
   };
   
-  // Filter connections based on active tab
-  const filteredConnections = connections.filter(conn => 
+  // Filter connections based on search term first
+  const searchedConnections = connections.filter(conn => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      ((conn.connection_name || conn.name) || '').toLowerCase().includes(term) ||
+      (conn.description || '').toLowerCase().includes(term) ||
+      (conn.connection_type || conn.type || '').toLowerCase().includes(term) ||
+      (conn.bucket_name || conn.config?.bucket || conn.config?.gcp_bucket || conn.config?.container_name || '').toLowerCase().includes(term) ||
+      (conn.region || conn.config?.region || '').toLowerCase().includes(term)
+    );
+  });
+
+  // Then filter by active tab
+  const filteredConnections = searchedConnections.filter(conn => 
     conn.connection_direction === activeTab || (!conn.connection_direction && activeTab === 'source')
   );
 
@@ -1367,10 +1381,10 @@ const Connections = () => {
   const currentConnections = filteredConnections.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredConnections.length / itemsPerPage);
 
-  // Reset to page 1 when changing tabs
+  // Reset to page 1 when changing tabs or search term
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab]);
+  }, [activeTab, searchTerm]);
 
   return (
     <div className="connections-container">
@@ -1384,6 +1398,28 @@ const Connections = () => {
       </div>
       
       {/* All connections now unified - no separate vendor/drop sections */}
+      
+      {/* Search Bar */}
+      {!showForm && (
+        <div className="search-bar" style={{ marginBottom: '1rem' }}>
+          <div style={{ position: 'relative', maxWidth: '400px' }}>
+            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+            <input
+              type="text"
+              placeholder="Search connections..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
+                border: '1px solid #ddd', 
+                borderRadius: '4px',
+                fontSize: '0.875rem'
+              }}
+            />
+          </div>
+        </div>
+      )}
       
       {/* Connection Tabs - Source and Target */}
       <div className="connections-tabs">

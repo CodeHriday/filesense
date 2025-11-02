@@ -4,6 +4,7 @@ import { PageTransition } from '../components/MicroAnimations';
 import PageHeader from '../components/PageHeader';
 import Modal from '../components/Modal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import { AnimatedButton } from '../components/MicroAnimations';
 import { getSchedules, createSchedule, updateSchedule, deleteSchedule, runScheduleNow } from '../api/schedulerService';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +33,10 @@ const Scheduler = () => {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertType, setAlertType] = useState('info'); // 'success', 'error', 'warning', 'info'
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
 
   // Load schedules on component mount
   useEffect(() => {
@@ -53,6 +58,25 @@ const Scheduler = () => {
       setFilteredSchedules(filtered);
     }
   }, [searchTerm, schedules]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Apply pagination to filtered schedules
+  const totalItems = filteredSchedules.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedSchedules = filteredSchedules.slice(startIndex, endIndex);
+
+  // Clamp currentPage when filtered results change
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   // Fetch all schedules
   const fetchSchedules = async () => {
@@ -457,7 +481,7 @@ const Scheduler = () => {
               <div className="error-message">{error}</div>
               <AnimatedButton onClick={fetchSchedules}>Retry</AnimatedButton>
             </div>
-          ) : filteredSchedules.length === 0 ? (
+          ) : paginatedSchedules.length === 0 ? (
             <div className="empty-state">
               <FiClock className="empty-state-icon" />
               <h3 className="empty-state-title">No schedules found</h3>
@@ -484,7 +508,7 @@ const Scheduler = () => {
                 <div className="schedule-cell">Actions</div>
               </div>
               <div className="schedules-body">
-                {filteredSchedules.map(schedule => (
+                {paginatedSchedules.map(schedule => (
                   <div className="schedule-row" key={schedule.id}>
                     <div className="schedule-cell">{schedule.file_id}</div>
                     <div className="schedule-cell">{renderFrequency(schedule)}</div>
@@ -535,6 +559,16 @@ const Scheduler = () => {
                 ))}
               </div>
             </div>
+          )}
+          
+          {!loading && !error && totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={pageSize}
+              totalItems={totalItems}
+            />
           )}
         </div>
         

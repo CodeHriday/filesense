@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2, FiFolderPlus } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolderPlus, FiSearch } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
@@ -39,6 +39,9 @@ const VendorManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  
   // Vendor users state
   const [vendorUsers, setVendorUsers] = useState([]);
   
@@ -60,16 +63,12 @@ const VendorManagement = () => {
     
     try {
       const [vendorsResponse, projectsResponse, vendorUsersResponse] = await Promise.all([
-        axios.get('/api/vendors', {
-          params: { page: currentPage, pageSize }
-        }),
+        axios.get('/api/vendors'),
         axios.get('/api/projects'),
         axios.get('/api/users/by-role/vendor')
       ]);
       
-      setVendors(vendorsResponse.data.vendors || []);
-      setTotalPages(vendorsResponse.data.pagination?.totalPages || 1);
-      setTotalCount(vendorsResponse.data.pagination?.totalCount || 0);
+      setVendors(vendorsResponse.data.vendors || vendorsResponse.data || []);
       
       setProjects(projectsResponse.data || []);
       setVendorUsers(vendorUsersResponse.data || []);
@@ -79,7 +78,7 @@ const VendorManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize]);
+  }, []);
   
   useEffect(() => {
     if (!currentUser) {
@@ -349,6 +348,37 @@ const VendorManagement = () => {
         return 'status-badge';
     }
   };
+
+  // Filter vendors based on search term
+  const filteredVendors = vendors.filter(vendor => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (vendor.vendor_name || '').toLowerCase().includes(term) ||
+      (vendor.description || '').toLowerCase().includes(term) ||
+      (vendor.contact_name || '').toLowerCase().includes(term) ||
+      (vendor.contact_email || '').toLowerCase().includes(term)
+    );
+  });
+
+  // Apply pagination to filtered vendors
+  const totalItems = filteredVendors.length;
+  const totalPagesFiltered = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedVendors = filteredVendors.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Clamp currentPage when filtered results change
+  useEffect(() => {
+    if (currentPage > totalPagesFiltered && totalPagesFiltered > 0) {
+      setCurrentPage(totalPagesFiltered);
+    }
+  }, [totalPagesFiltered, currentPage]);
   
   return (
     <div className="vendor-management-container">
@@ -359,6 +389,22 @@ const VendorManagement = () => {
           <div className="vendor-management-header">
             <h1>Vendor Management</h1>
             <div className="header-actions">
+              <div style={{ position: 'relative', marginRight: '1rem' }}>
+                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                <input
+                  type="text"
+                  placeholder="Search vendors..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ 
+                    padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '4px',
+                    fontSize: '0.875rem',
+                    width: '300px'
+                  }}
+                />
+              </div>
               <button 
                 className="create-vendor-btn"
                 onClick={openCreateModal}
@@ -394,12 +440,12 @@ const VendorManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {vendors.length === 0 ? (
+            {paginatedVendors.length === 0 ? (
               <tr>
                 <td colSpan="7" className="no-vendors-message">No vendors found</td>
               </tr>
             ) : (
-              vendors.map(vendor => (
+              paginatedVendors.map(vendor => (
                 <tr key={vendor.id}>
                   <td>{vendor.vendor_code}</td>
                   <td>{vendor.vendor_name}</td>
@@ -444,13 +490,15 @@ const VendorManagement = () => {
       </div>
       
       {/* Pagination Controls */}
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        itemsPerPage={pageSize}
-        totalItems={totalCount}
-      />
+      {totalPagesFiltered > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPagesFiltered}
+          onPageChange={setCurrentPage}
+          itemsPerPage={pageSize}
+          totalItems={totalItems}
+        />
+      )}
       
       {/* Create/Edit Modal using ThreeSectionModal */}
       <ThreeSectionModal

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft, FiCalendar } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft, FiCalendar, FiSearch } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import ConfirmModal from '../components/ConfirmModal';
 import '../styles/NStepWorkflows.css';
@@ -47,6 +48,11 @@ const NStepWorkflows = () => {
   const [duplicateErrorModalOpen, setDuplicateErrorModalOpen] = useState(false);
   const [duplicateErrorMessage, setDuplicateErrorMessage] = useState('');
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
+
+  // Search and pagination state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
 
   useEffect(() => {
     fetchData();
@@ -484,6 +490,35 @@ const NStepWorkflows = () => {
 
   const activeStep = workflowData?.steps?.find(s => s.is_active);
   const isFirstStep = activeStep?.step_index === 1;
+
+  // Filter workflows based on search term
+  const filteredWorkflows = workflows.filter(workflow => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (workflow.name || '').toLowerCase().includes(term) ||
+      (workflow.description || '').toLowerCase().includes(term)
+    );
+  });
+
+  // Apply pagination to filtered workflows
+  const totalItems = filteredWorkflows.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedWorkflows = filteredWorkflows.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Clamp currentPage when filtered results change
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
   
   // Check if adding the selected asset would exceed the 10-mapping limit
   const canAddAsset = (assetType) => {
@@ -522,9 +557,27 @@ const NStepWorkflows = () => {
           <div className="workflow-table-section">
             <div className="section-header">
               <h2>Available Workflows</h2>
-              <button className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>
-                <FiPlus /> New Workflow
-              </button>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ position: 'relative' }}>
+                  <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                  <input
+                    type="text"
+                    placeholder="Search workflows..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ 
+                      padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
+                      border: '1px solid #ddd', 
+                      borderRadius: '4px',
+                      fontSize: '0.875rem',
+                      width: '300px'
+                    }}
+                  />
+                </div>
+                <button className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>
+                  <FiPlus /> New Workflow
+                </button>
+              </div>
             </div>
           
           <div className="workflow-table-container">
@@ -540,14 +593,14 @@ const NStepWorkflows = () => {
                 </tr>
               </thead>
               <tbody>
-                {workflows.length === 0 ? (
+                {paginatedWorkflows.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="empty-message">
-                      No workflows found. Create one to get started.
+                      {searchTerm ? 'No workflows match your search.' : 'No workflows found. Create one to get started.'}
                     </td>
                   </tr>
                 ) : (
-                  workflows.map(w => (
+                  paginatedWorkflows.map(w => (
                     <tr 
                       key={w.id}
                       className={selectedWorkflow === w.id ? 'selected-row' : ''}
@@ -605,6 +658,16 @@ const NStepWorkflows = () => {
               </tbody>
             </table>
           </div>
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={pageSize}
+              totalItems={totalItems}
+            />
+          )}
         </div>
         )}
 

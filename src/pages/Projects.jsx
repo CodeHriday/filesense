@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiFilePlus } from 'react-icons/fi';
+import { FiFilePlus, FiSearch } from 'react-icons/fi';
+import Pagination from '../components/Pagination';
 import './ProjectManagement.css';
 
 const API_BASE_URL = '/api';
@@ -13,9 +14,15 @@ function Projects() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
 
   useEffect(() => {
     fetchProjects();
+  }, [searchTerm, showArchived]);
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [searchTerm, showArchived]);
 
   const fetchProjects = async () => {
@@ -39,10 +46,26 @@ function Projects() {
     }
   };
 
-  const filteredProjects = projects.filter(project => 
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredProjects = projects.filter(project => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (project.name || '').toLowerCase().includes(term) ||
+      (project.description || '').toLowerCase().includes(term)
+    );
+  });
+
+  const totalItems = filteredProjects.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedProjects = filteredProjects.slice(startIndex, endIndex);
 
   return (
     <div className="project-management-container">
@@ -56,13 +79,14 @@ function Projects() {
       )}
 
       <div className="filters-section" style={{ marginBottom: '1.5rem' }}>
-        <div className="search-bar">
+        <div className="search-bar" style={{ position: 'relative', width: '300px' }}>
+          <FiSearch style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }} />
           <input
             type="text"
             placeholder="Search projects..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: '300px', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+            style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
           />
         </div>
         <div className="filter-options">
@@ -94,14 +118,14 @@ function Projects() {
               </tr>
             </thead>
             <tbody>
-              {filteredProjects.length === 0 ? (
+              {paginatedProjects.length === 0 ? (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
                     No projects found
                   </td>
                 </tr>
               ) : (
-                filteredProjects.map((project) => (
+                paginatedProjects.map((project) => (
                   <tr key={project.id}>
                     <td>{project.id}</td>
                     <td>{project.name}</td>
@@ -138,6 +162,16 @@ function Projects() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {!loading && totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={pageSize}
+          totalItems={totalItems}
+        />
       )}
     </div>
   );

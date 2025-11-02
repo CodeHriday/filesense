@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEye, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
@@ -97,6 +97,9 @@ const VendorAgreements = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  
   // Store the vendor ID for the current vendor user
   const [currentVendorId, setCurrentVendorId] = useState(null);
   
@@ -115,7 +118,7 @@ const VendorAgreements = () => {
     }
     
     fetchData();
-  }, [currentUser, navigate, currentPage, pageSize]);
+  }, [currentUser, navigate]);
   
   // Handle opening agreement from notification
   useEffect(() => {
@@ -184,19 +187,15 @@ const VendorAgreements = () => {
         console.warn('Could not fetch vendors (this is normal for vendor contact users):', vendorsError.response?.status);
       }
       
-      // Fetch required data
+      // Fetch required data - fetch ALL agreements, not paginated
       const [agreementsResponse, usersResponse] = await Promise.all([
-        axios.get('/api/vendor-agreements', {
-          params: { page: currentPage, pageSize }
-        }),
+        axios.get('/api/vendor-agreements'),
         axios.get('/api/users', {
           params: { limit: 1000 } // Fetch all users for dropdown population
         })
       ]);
       
       setAgreements(agreementsResponse.data.agreements || agreementsResponse.data || []);
-      setTotalPages(agreementsResponse.data.pagination?.totalPages || 1);
-      setTotalCount(agreementsResponse.data.pagination?.totalCount || 0);
       
       setVendors(vendorsData);
       setUsers(usersResponse.data.users || usersResponse.data || []);
@@ -984,6 +983,37 @@ const VendorAgreements = () => {
   };
   
   const frequencyOptions = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annually', 'On-Demand'];
+
+  // Filter agreements based on search term
+  const filteredAgreements = agreements.filter(agreement => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (agreement.file_name || '').toLowerCase().includes(term) ||
+      (agreement.vendor_name || '').toLowerCase().includes(term) ||
+      (agreement.agreement_code || '').toLowerCase().includes(term) ||
+      (agreement.file_description || '').toLowerCase().includes(term)
+    );
+  });
+
+  // Apply pagination to filtered agreements
+  const totalItems = filteredAgreements.length;
+  const totalPagesFiltered = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedAgreements = filteredAgreements.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Clamp currentPage when filtered results change
+  useEffect(() => {
+    if (currentPage > totalPagesFiltered && totalPagesFiltered > 0) {
+      setCurrentPage(totalPagesFiltered);
+    }
+  }, [totalPagesFiltered, currentPage]);
   
   return (
     <div className="vendor-agreements-container">
@@ -992,7 +1022,25 @@ const VendorAgreements = () => {
       ) : (
         <>
           <div className="vendor-agreements-header">
-            <h1>Vendor Contracts</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <h1>Vendor Contracts</h1>
+              <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                <input
+                  type="text"
+                  placeholder="Search contracts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ 
+                    width: '100%',
+                    padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '4px',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+            </div>
             {(isAdmin || (hasPermission && hasPermission('vendor_agreements:write'))) && !isVendor && (
               <div className="header-actions" style={{ display: 'flex', gap: '1rem' }}>
                 {isAdmin && (
@@ -1056,12 +1104,12 @@ const VendorAgreements = () => {
                 </tr>
               </thead>
               <tbody>
-                {agreements.length === 0 ? (
+                {paginatedAgreements.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="no-agreements-message">No contracts found</td>
                   </tr>
                 ) : (
-                  agreements.map(agreement => (
+                  paginatedAgreements.map(agreement => (
                     <tr key={agreement.id}>
                       <td>{agreement.agreement_code}</td>
                       <td>{agreement.file_name}</td>
@@ -1110,13 +1158,15 @@ const VendorAgreements = () => {
             </table>
           </div>
           
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            itemsPerPage={pageSize}
-            totalItems={totalCount}
-          />
+          {totalPagesFiltered > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPagesFiltered}
+              onPageChange={setCurrentPage}
+              itemsPerPage={pageSize}
+              totalItems={totalItems}
+            />
+          )}
           
           {modalOpen && (
             <ThreeSectionModal
