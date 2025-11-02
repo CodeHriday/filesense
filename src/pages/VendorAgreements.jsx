@@ -262,9 +262,11 @@ const VendorAgreements = () => {
     }
   }, [isVendor, currentUser, vendors]);
   
-  // Filter vendor connections - show only external connections
+  // Filter vendor connections - show only external drop connections
   useEffect(() => {
-    const filtered = vendorConnections.filter(conn => conn.connection_user === 'External');
+    const filtered = vendorConnections.filter(conn => 
+      conn.connection_user === 'External' && conn.connection_direction === 'drop'
+    );
     setFilteredConnections(filtered);
   }, [vendorConnections]);
   
