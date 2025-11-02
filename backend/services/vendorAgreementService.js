@@ -21,6 +21,51 @@ class VendorAgreementService {
   }
 
   /**
+   * Enrich agreement with rejection/acceptance timestamps from approvals table
+   * Adds vendor_rejected_at, vendor_accepted_at, manager_rejected_at, manager_approved_at, 
+   * governance_rejected_at, governance_approved_at to the agreement object
+   */
+  async enrichAgreementWithTimestamps(agreement) {
+    try {
+      const result = await pool.query(
+        `SELECT approval_stage, action, approval_timestamp 
+         FROM vendor_agreement_approvals 
+         WHERE agreement_id = $1 
+         ORDER BY approval_timestamp DESC`,
+        [agreement.id]
+      );
+      
+      // Add timestamp fields based on approvals
+      for (const approval of result.rows) {
+        if (approval.approval_stage === 'vendor_acceptance') {
+          if (approval.action === 'rejected') {
+            agreement.vendor_rejected_at = approval.approval_timestamp;
+          } else if (approval.action === 'accepted') {
+            agreement.vendor_accepted_at = approval.approval_timestamp;
+          }
+        } else if (approval.approval_stage === 'manager_approval') {
+          if (approval.action === 'rejected') {
+            agreement.manager_rejected_at = approval.approval_timestamp;
+          } else if (approval.action === 'approved') {
+            agreement.manager_approved_at = approval.approval_timestamp;
+          }
+        } else if (approval.approval_stage === 'governance_approval') {
+          if (approval.action === 'rejected') {
+            agreement.governance_rejected_at = approval.approval_timestamp;
+          } else if (approval.action === 'approved') {
+            agreement.governance_approved_at = approval.approval_timestamp;
+          }
+        }
+      }
+      
+      return agreement;
+    } catch (error) {
+      systemLogger.error('Error enriching agreement with timestamps', { agreementId: agreement.id, error: error.message });
+      return agreement; // Return original if enrichment fails
+    }
+  }
+
+  /**
    * Create vendor agreement
    * @param {Object} agreementData - Agreement data
    * @param {number} createdBy - User ID creating the agreement
@@ -1511,9 +1556,12 @@ class VendorAgreementService {
         return { success: false, error: 'Agreement not found' };
       }
       
+      // Enrich with rejection/acceptance timestamps
+      const enrichedAgreement = await this.enrichAgreementWithTimestamps(result.rows[0]);
+      
       return {
         success: true,
-        agreement: result.rows[0]
+        agreement: enrichedAgreement
       };
       
     } catch (error) {
@@ -1635,9 +1683,14 @@ class VendorAgreementService {
       
       const result = await pool.query(dataQuery, queryParams);
       
+      // Enrich agreements with rejection/acceptance timestamps
+      const enrichedAgreements = await Promise.all(
+        result.rows.map(agreement => this.enrichAgreementWithTimestamps(agreement))
+      );
+      
       return {
         success: true,
-        agreements: result.rows,
+        agreements: enrichedAgreements,
         pagination: {
           page,
           pageSize,
@@ -1696,9 +1749,14 @@ class VendorAgreementService {
         [...queryParams, pageSize, offset]
       );
       
+      // Enrich agreements with rejection/acceptance timestamps
+      const enrichedAgreements = await Promise.all(
+        result.rows.map(agreement => this.enrichAgreementWithTimestamps(agreement))
+      );
+      
       return {
         success: true,
-        agreements: result.rows,
+        agreements: enrichedAgreements,
         pagination: {
           page,
           pageSize,

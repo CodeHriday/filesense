@@ -11,12 +11,9 @@ function VendorFileUpload() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [dropzoneKey, setDropzoneKey] = useState(0);
-  const [vendorProjects, setVendorProjects] = useState([]);
-  const [selectedVendorProject, setSelectedVendorProject] = useState(null);
-  const [vendorConnections, setVendorConnections] = useState([]);
-  const [selectedConnection, setSelectedConnection] = useState(null);
-  const [loadingVendorProjects, setLoadingVendorProjects] = useState(false);
-  const [loadingConnections, setLoadingConnections] = useState(false);
+  const [vendorAgreements, setVendorAgreements] = useState([]);
+  const [selectedAgreement, setSelectedAgreement] = useState(null);
+  const [loadingAgreements, setLoadingAgreements] = useState(false);
   const [browseFolders, setBrowseFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState('');
   const [browsePrefix, setBrowsePrefix] = useState('');
@@ -26,52 +23,41 @@ function VendorFileUpload() {
 
   const { hasWritePermission } = useAuth();
 
-  // Auto-load projects on mount
+  // Auto-load vendor agreements on mount
   useEffect(() => {
-    const loadProjects = async () => {
-      setLoadingVendorProjects(true);
+    const loadAgreements = async () => {
+      setLoadingAgreements(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+        const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements?pageSize=1000`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setVendorProjects(response.data || []);
+        const agreements = response.data.agreements || [];
+        // Only show approved agreements for file upload
+        const approvedAgreements = agreements.filter(a => a.approval_status === 'fully_approved');
+        setVendorAgreements(approvedAgreements);
       } catch (error) {
-        console.error('Error loading projects:', error);
-        setVendorProjects([]);
+        console.error('Error loading vendor agreements:', error);
+        setVendorAgreements([]);
       } finally {
-        setLoadingVendorProjects(false);
+        setLoadingAgreements(false);
       }
     };
 
-    loadProjects();
+    loadAgreements();
   }, []);
 
-  // Load connections for selected project
-  const loadVendorConnections = async (projectId) => {
-    if (!projectId) return;
+  // Browse folders in agreement's connection
+  const browseFoldersInAgreement = async (prefix = '') => {
+    if (!selectedAgreement) return;
     
-    setLoadingConnections(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/connections?projectId=${projectId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setVendorConnections(response.data || []);
-    } catch (error) {
-      console.error('Error loading connections:', error);
-      setVendorConnections([]);
-    } finally {
-      setLoadingConnections(false);
-    }
-  };
-
-  // Browse folders in connection
-  const browseFoldersInConnection = async (connectionId, prefix = '') => {
+    const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+    if (!agreement || !agreement.vendor_connection_id) return;
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_BASE_URL}/api/vendor-browse-folders?connectionId=${connectionId}&prefix=${encodeURIComponent(prefix)}`,
+        `${API_BASE_URL}/api/vendor-browse-folders?connectionId=${agreement.vendor_connection_id}&prefix=${encodeURIComponent(prefix)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setBrowseFolders(response.data.items || []);
@@ -85,16 +71,17 @@ function VendorFileUpload() {
 
   const handleDropFile = async (file, progressHandler) => {
     // Validate selections
-    if (!selectedVendorProject) {
+    if (!selectedAgreement) {
       setUploadStatus('error');
-      setDiagnosticInfo('Please select a project before uploading\n');
-      throw new Error('Project selection required');
+      setDiagnosticInfo('Please select a vendor agreement before uploading\n');
+      throw new Error('Agreement selection required');
     }
     
-    if (!selectedConnection) {
+    const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+    if (!agreement || !agreement.vendor_connection_id) {
       setUploadStatus('error');
-      setDiagnosticInfo('Please select a connection before uploading\n');
-      throw new Error('Connection selection required');
+      setDiagnosticInfo('Selected agreement does not have a configured connection\n');
+      throw new Error('Agreement connection not configured');
     }
     
     try {
@@ -111,7 +98,7 @@ function VendorFileUpload() {
       // Create a new File object with the timestamped name
       const timestampedFile = new File([file], timestampedFilename, { type: file.type });
       
-      setDiagnosticInfo(`Starting upload for ${timestampedFilename} to connection ${selectedConnection}...\n`);
+      setDiagnosticInfo(`Starting upload for ${timestampedFilename} to agreement ${agreement.agreement_code}...\n`);
       setUploadStatus('uploading');
       
       const formData = new FormData();
@@ -120,9 +107,11 @@ function VendorFileUpload() {
       const token = localStorage.getItem('token');
       
       // Build URL with connection and folder parameters
-      let uploadUrl = `${API_BASE_URL}/api/files/drop?connectionId=${encodeURIComponent(selectedConnection)}`;
+      let uploadUrl = `${API_BASE_URL}/api/files/drop?connectionId=${encodeURIComponent(agreement.vendor_connection_id)}`;
       if (browsePrefix) {
         uploadUrl += `&folder=${encodeURIComponent(browsePrefix)}`;
+      } else if (agreement.drop_location_path) {
+        uploadUrl += `&folder=${encodeURIComponent(agreement.drop_location_path)}`;
       }
       
       const response = await axios.post(uploadUrl, formData, {
@@ -201,106 +190,67 @@ function VendorFileUpload() {
 
       {hasWritePermission('vendor_file_quality') || hasWritePermission('file_drop') ? (
         <>
-          {/* Project and Connection Selection */}
+          {/* Vendor Agreement Selection */}
           <div className="selection-panel">
             <div className="selection-row">
-              {/* Project Selection */}
               <div className="form-group">
-                <label htmlFor="vendor-project-select">
-                  Project: <span className="required">*</span>
+                <label htmlFor="vendor-agreement-select">
+                  Vendor Agreement: <span className="required">*</span>
                 </label>
                 <select 
-                  id="vendor-project-select"
-                  value={selectedVendorProject || ''}
+                  id="vendor-agreement-select"
+                  value={selectedAgreement || ''}
                   onChange={(e) => {
-                    const projectId = Number(e.target.value);
-                    setSelectedVendorProject(projectId);
-                    if (projectId) {
-                      loadVendorConnections(projectId);
-                    } else {
-                      setVendorConnections([]);
-                      setSelectedConnection(null);
-                    }
+                    const agreementId = Number(e.target.value);
+                    setSelectedAgreement(agreementId);
+                    setShowFolderBrowser(false);
+                    setBrowseFolders([]);
                   }}
-                  disabled={loadingVendorProjects}
+                  disabled={loadingAgreements}
                   className="form-select"
                 >
-                  {loadingVendorProjects ? (
-                    <option>Loading projects...</option>
+                  {loadingAgreements ? (
+                    <option>Loading agreements...</option>
+                  ) : vendorAgreements.length === 0 ? (
+                    <option>No approved agreements available</option>
                   ) : (
                     <>
-                      <option value="">Select a project...</option>
-                      {vendorProjects.map(project => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
+                      <option value="">Select an agreement...</option>
+                      {vendorAgreements.map(agreement => (
+                        <option key={agreement.id} value={agreement.id}>
+                          {agreement.agreement_code} - {agreement.file_description || agreement.file_name}
                         </option>
                       ))}
                     </>
                   )}
                 </select>
               </div>
-
-              {/* Connection Selection */}
-              {selectedVendorProject && (
-                <div className="form-group">
-                  <label htmlFor="vendor-connection-select">
-                    Connection: <span className="required">*</span>
-                  </label>
-                  <select 
-                    id="vendor-connection-select"
-                    value={selectedConnection || ''}
-                    onChange={(e) => {
-                      setSelectedConnection(e.target.value);
-                      setShowFolderBrowser(false);
-                      setBrowseFolders([]);
-                    }}
-                    disabled={loadingConnections || vendorConnections.length === 0}
-                    className="form-select"
-                  >
-                    {loadingConnections ? (
-                      <option>Loading connections...</option>
-                    ) : vendorConnections.length === 0 ? (
-                      <option>No connections available for this project</option>
-                    ) : (
-                      <>
-                        <option value="">Select a connection...</option>
-                        {vendorConnections.map(conn => {
-                          const connId = conn.id || conn.connection_id;
-                          return (
-                            <option key={connId} value={connId}>
-                              {conn.name} ({conn.type.toUpperCase()})
-                            </option>
-                          );
-                        })}
-                      </>
-                    )}
-                  </select>
-                </div>
-              )}
             </div>
 
-            {/* Connection Details and Folder Browser */}
-            {selectedConnection && (
+            {/* Agreement Details and Folder Browser */}
+            {selectedAgreement && (
               <div className="connection-details">
                 {(() => {
-                  const conn = vendorConnections.find(c => (c.id || c.connection_id) === selectedConnection);
-                  if (!conn) return null;
+                  const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+                  if (!agreement) return null;
                   return (
                     <>
                       <div className="upload-path">
-                        <strong>Upload Path:</strong> {conn.path || conn.drop_location_path || 'root'}
+                        <strong>Upload Path:</strong> {agreement.drop_location_path || 'root'}
                       </div>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          setShowFolderBrowser(!showFolderBrowser);
-                          if (!showFolderBrowser && browseFolders.length === 0) {
-                            browseFoldersInConnection(selectedConnection, '');
-                          }
-                        }}
-                      >
-                        {showFolderBrowser ? 'Hide' : 'Browse'} Folders
-                      </button>
+                      {agreement.vendor_connection_id && (
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setShowFolderBrowser(!showFolderBrowser);
+                            if (!showFolderBrowser && browseFolders.length === 0) {
+                              browseFoldersInAgreement('');
+                            }
+                          }}
+                        >
+                          {showFolderBrowser ? 'Hide' : 'Browse'} Folders
+                        </button>
+                      )}
                     </>
                   );
                 })()}
@@ -316,7 +266,7 @@ function VendorFileUpload() {
                             const parts = browsePrefix.split('/').filter(p => p);
                             parts.pop();
                             const newPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
-                            browseFoldersInConnection(selectedConnection, newPrefix);
+                            browseFoldersInAgreement(newPrefix);
                           }}
                         >
                           ← Back
@@ -336,7 +286,7 @@ function VendorFileUpload() {
                           <div 
                             key={idx}
                             className="folder-item"
-                            onClick={() => browseFoldersInConnection(selectedConnection, folder.path)}
+                            onClick={() => browseFoldersInAgreement(folder.path)}
                           >
                             <span className="folder-icon">📁</span>
                             <span className="folder-name">{folder.name}</span>
@@ -351,7 +301,7 @@ function VendorFileUpload() {
           </div>
 
           {/* File Drop Zone */}
-          {selectedVendorProject && selectedConnection ? (
+          {selectedAgreement ? (
             <>
               <FileDropzone 
                 key={`drop-${dropzoneKey}`}
@@ -379,7 +329,7 @@ function VendorFileUpload() {
             <div className="placeholder-dropzone">
               <FiUpload size={48} />
               <p>
-                {!selectedVendorProject ? 'Please select a project above to continue' : 'Please select a connection to upload files'}
+                Please select a vendor agreement above to upload files
               </p>
             </div>
           )}
