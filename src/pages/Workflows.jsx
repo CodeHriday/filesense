@@ -163,21 +163,21 @@ const Workflows = () => {
                         <button
                           onClick={() => handleExecute(workflow.id)}
                           disabled={executing === workflow.id}
-                          className="icon-btn icon-btn-success"
+                          className="action-icon-btn execute-btn"
                           title="Execute"
                         >
                           <FiPlayCircle />
                         </button>
                         <Link 
                           to={`/workflows/${workflow.id}/edit`} 
-                          className="icon-btn icon-btn-primary"
+                          className="action-icon-btn edit-btn"
                           title="Edit"
                         >
                           <FiEdit2 />
                         </Link>
                         <button
                           onClick={() => handleDelete(workflow.id)}
-                          className="icon-btn icon-btn-danger"
+                          className="action-icon-btn delete-btn"
                           title="Delete"
                         >
                           <FiTrash2 />
