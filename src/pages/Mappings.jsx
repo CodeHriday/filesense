@@ -150,15 +150,6 @@ function Mappings() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentMappings = filteredMappings.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredMappings.length / itemsPerPage);
-  
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    if (totalPages > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    } else if (filteredMappings.length === 0 && currentPage > 1) {
-      setCurrentPage(1);
-    }
-  }, [filteredMappings.length, currentPage, totalPages]);
 
   return (
     <div className="page-container">

@@ -106,15 +106,6 @@ const MappingGroups = () => {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentGroups = filteredGroups.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredGroups.length / itemsPerPage);
-  
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    if (totalPages > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    } else if (filteredGroups.length === 0 && currentPage > 1) {
-      setCurrentPage(1);
-    }
-  }, [filteredGroups.length, currentPage, totalPages]);
 
   return (
     <PageTransition>
