@@ -1927,7 +1927,44 @@ const VendorAgreements = () => {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                       {approval.documents.map((doc, docIndex) => (
                                         <div key={docIndex} style={{ fontSize: '0.85rem' }}>
-                                          📎 {doc.document_name} ({(doc.file_size / 1024).toFixed(1)} KB)
+                                          📎 <a 
+                                            href={`${API_BASE_URL}/api/vendor-agreements/${selectedAgreement.id}/documents/${doc.id}/download`}
+                                            download={doc.document_name}
+                                            style={{ color: '#0066cc', textDecoration: 'underline', cursor: 'pointer' }}
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              const token = localStorage.getItem('token');
+                                              if (!token) {
+                                                setError('Session expired. Please log in again.');
+                                                return;
+                                              }
+                                              fetch(`${API_BASE_URL}/api/vendor-agreements/${selectedAgreement.id}/documents/${doc.id}/download`, {
+                                                headers: { 'Authorization': `Bearer ${token}` }
+                                              })
+                                              .then(res => {
+                                                if (!res.ok) {
+                                                  throw new Error(res.status === 401 ? 'Session expired. Please log in again.' : 'Failed to download document');
+                                                }
+                                                return res.blob();
+                                              })
+                                              .then(blob => {
+                                                const url = window.URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = doc.document_name;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                window.URL.revokeObjectURL(url);
+                                                document.body.removeChild(a);
+                                              })
+                                              .catch(err => {
+                                                console.error('Download error:', err);
+                                                setError(err.message || 'Failed to download document');
+                                              });
+                                            }}
+                                          >
+                                            {doc.document_name}
+                                          </a> ({(doc.file_size / 1024).toFixed(1)} KB)
                                         </div>
                                       ))}
                                     </div>
