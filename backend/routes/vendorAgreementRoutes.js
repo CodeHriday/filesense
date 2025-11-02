@@ -446,7 +446,7 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
  * POST /api/vendor-agreements/:id/vendor-action
  * Vendor User accepts or rejects agreement (Stage 1)
  */
-router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), handleMulterError, async (req, res) => {
+router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
@@ -458,10 +458,12 @@ router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array(
     
     // Process uploaded documents
     const documents = (req.files || []).map(file => ({
-      filename: file.originalname,
-      data: file.buffer.toString('base64'),
+      name: file.originalname,
+      path: file.buffer.toString('base64'),
+      type: 'approval_document',
       mimeType: file.mimetype,
-      size: file.size
+      size: file.size,
+      description: null
     }));
     
     const result = await vendorAgreementService.vendorAcceptReject(
@@ -487,7 +489,7 @@ router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array(
  * POST /api/vendor-agreements/:id/manager-action
  * Vendor Manager approves or rejects agreement (Stage 2)
  */
-router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), handleMulterError, async (req, res) => {
+router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
@@ -499,10 +501,12 @@ router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array
     
     // Process uploaded documents
     const documents = (req.files || []).map(file => ({
-      filename: file.originalname,
-      data: file.buffer.toString('base64'),
+      name: file.originalname,
+      path: file.buffer.toString('base64'),
+      type: 'approval_document',
       mimeType: file.mimetype,
-      size: file.size
+      size: file.size,
+      description: null
     }));
     
     const result = await vendorAgreementService.managerApproveReject(
@@ -528,7 +532,7 @@ router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array
  * POST /api/vendor-agreements/:id/governance-action
  * Governance Manager approves or rejects agreement (Stage 3 - Final)
  */
-router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), handleMulterError, async (req, res) => {
+router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
@@ -542,10 +546,12 @@ router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.ar
     
     // Process uploaded documents
     const documents = (req.files || []).map(file => ({
-      filename: file.originalname,
-      data: file.buffer.toString('base64'),
+      name: file.originalname,
+      path: file.buffer.toString('base64'),
+      type: 'approval_document',
       mimeType: file.mimetype,
-      size: file.size
+      size: file.size,
+      description: null
     }));
     
     const result = await vendorAgreementService.governanceApproveReject(
@@ -986,5 +992,8 @@ router.delete('/:id/documents/:docId', checkAgreementAccess, async (req, res) =>
     });
   }
 });
+
+// Register Multer error handling middleware
+router.use(handleMulterError);
 
 module.exports = router;
