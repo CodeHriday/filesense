@@ -12,6 +12,7 @@ Preferred communication style: Simple, everyday language.
 - Fixed field mapping between route handlers and service layer (filename→name, data→path)
 - Added proper document type and description fields to all approval routes
 - Implemented centralized Multer error handling middleware with clear error messages
+- Changed file_path column from VARCHAR(1000) to TEXT to accommodate base64-encoded files
 - All three approval stages (vendor-action, manager-action, governance-action) now correctly handle document attachments
 - 10 KB file size limit enforced with 413 responses for oversized files
 
