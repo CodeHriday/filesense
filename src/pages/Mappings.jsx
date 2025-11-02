@@ -229,7 +229,7 @@ function Mappings() {
                             <div className="table-actions">
                               {hasExecutePermission('transformation') && (
                                 <button
-                                  className="icon-btn"
+                                  className="action-icon-btn execute-btn"
                                   onClick={() => handleExecuteMapping(mapping.mapping_id)}
                                   title="Execute mapping"
                                 >
@@ -239,14 +239,14 @@ function Mappings() {
                               {hasWritePermission('transformation') && (
                                 <>
                                   <button
-                                    className="icon-btn"
+                                    className="action-icon-btn edit-btn"
                                     onClick={() => handleEditMapping(mapping.mapping_id)}
                                     title="Edit mapping"
                                   >
                                     <FiEdit2 />
                                   </button>
                                   <button
-                                    className="icon-btn danger"
+                                    className="action-icon-btn delete-btn"
                                     onClick={() => handleDeleteMapping(mapping.mapping_id, mapping.mapping_name)}
                                     title="Delete mapping"
                                   >
