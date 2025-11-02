@@ -8,12 +8,31 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
 
-  // Determine current stage and user permissions
+  // Determine current stage based on approval_status (source of truth)
   const getCurrentStage = () => {
-    if (!agreement.vendor_approved_at) return 'vendor';
-    if (!agreement.manager_approved_at) return 'manager';
-    if (!agreement.governance_approved_at) return 'governance';
-    return 'completed';
+    const status = agreement.approval_status;
+    
+    // Vendor stage
+    if (['draft', 'pending_vendor_acceptance', 'vendor_rejected'].includes(status)) {
+      return 'vendor';
+    }
+    
+    // Manager stage
+    if (['vendor_accepted', 'manager_rejected', 'governance_rejected'].includes(status)) {
+      return 'manager';
+    }
+    
+    // Governance stage
+    if (status === 'manager_approved') {
+      return 'governance';
+    }
+    
+    // Completed
+    if (['governance_approved', 'rejected'].includes(status)) {
+      return 'completed';
+    }
+    
+    return 'vendor'; // Default to vendor stage
   };
 
   const currentStage = getCurrentStage();
