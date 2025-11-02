@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
 import './GroupManagement.css';
 
@@ -337,11 +338,19 @@ function GroupManagement() {
                   <td>{new Date(group.created_at).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
-                      <button className="btn-small" onClick={() => openEditModal(group)}>
-                        Edit
+                      <button 
+                        className="action-icon-btn edit-btn" 
+                        onClick={() => openEditModal(group)}
+                        title="Edit group"
+                      >
+                        <FiEdit2 />
                       </button>
-                      <button className="btn-small btn-danger" onClick={() => handleDelete(group.id)}>
-                        Delete
+                      <button 
+                        className="action-icon-btn delete-btn" 
+                        onClick={() => handleDelete(group.id)}
+                        title="Delete group"
+                      >
+                        <FiTrash2 />
                       </button>
                     </div>
                   </td>
