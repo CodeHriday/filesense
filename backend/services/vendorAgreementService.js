@@ -104,6 +104,7 @@ class VendorAgreementService {
         vendor_connection_id,
         drop_location_path,
         manager_contact,
+        governance_manager_user_id,
         contains_pii,
         file_type,
         data_classification,
