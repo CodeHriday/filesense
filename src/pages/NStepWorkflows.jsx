@@ -566,7 +566,7 @@ const NStepWorkflows = () => {
                       <td>
                         <div className="action-buttons">
                           <button
-                            className="btn-icon btn-success"
+                            className="action-icon-btn execute-btn"
                             onClick={() => handleQuickExecute(w.id)}
                             title="Execute workflow"
                             disabled={executing}
@@ -574,21 +574,21 @@ const NStepWorkflows = () => {
                             <FiPlay />
                           </button>
                           <button
-                            className="btn-icon btn-info"
+                            className="action-icon-btn view-btn"
                             onClick={() => handleViewWorkflow(w.id)}
                             title="View workflow (read-only)"
                           >
                             <FiEye />
                           </button>
                           <button
-                            className="btn-icon btn-primary"
+                            className="action-icon-btn edit-btn"
                             onClick={() => handleEditWorkflow(w.id)}
                             title="Edit workflow"
                           >
                             <FiEdit />
                           </button>
                           <button
-                            className="btn-icon btn-danger"
+                            className="action-icon-btn delete-btn"
                             onClick={() => {
                               setWorkflowToDelete(w.id);
                               setDeleteWorkflowModalOpen(true);

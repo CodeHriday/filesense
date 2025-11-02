@@ -163,21 +163,21 @@ const ETLScheduler = () => {
                         <div className="table-actions">
                           <button
                             onClick={() => handleToggle(schedule.schedule_id, schedule.enabled)}
-                            className={`btn btn-sm ${schedule.enabled ? 'btn-warning' : 'btn-success'}`}
+                            className={`action-icon-btn ${schedule.enabled ? 'toggle-btn-warning' : 'toggle-btn-success'}`}
                             title={schedule.enabled ? 'Disable' : 'Enable'}
                           >
                             <FiPower />
                           </button>
                           <Link 
                             to={`/etl-scheduler/${schedule.schedule_id}/edit`} 
-                            className="btn btn-primary btn-sm"
+                            className="action-icon-btn edit-btn"
                             title="Edit"
                           >
                             <FiEdit2 />
                           </Link>
                           <button 
                             onClick={() => handleDeleteClick(schedule.schedule_id)} 
-                            className="btn btn-danger btn-sm"
+                            className="action-icon-btn delete-btn"
                             title="Delete"
                           >
                             <FiTrash2 />
