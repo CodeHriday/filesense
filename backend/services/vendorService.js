@@ -388,69 +388,6 @@ class VendorService {
         }
       }
       
-      // Create two default connections for the vendor (source and target)
-      const sourceConnectionId = uuidv4();
-      const targetConnectionId = uuidv4();
-      const sourceConnectionName = `${vendorCode}_source`;
-      const targetConnectionName = `${vendorCode}_target`;
-      
-      systemLogger.info('Creating default vendor connections', {
-        vendorId: vendor.id,
-        vendorCode,
-        sourceConnectionName,
-        targetConnectionName,
-        projectId: finalProjectId
-      });
-      
-      // Create source connection with unified fields
-      await client.query(
-        `INSERT INTO storage_connections (
-          connection_id, type, name, config, status, 
-          connection_direction, project_id, connection_user, description,
-          authentication_method, auth_config, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [
-          sourceConnectionId,
-          'vendor',
-          sourceConnectionName,
-          JSON.stringify({ vendor_id: vendor.id, placeholder: true }),
-          'pending',
-          'source',
-          finalProjectId,
-          'External',  // connection_user
-          `Source connection for vendor ${vendor_name}`,  // description
-          'key-based',  // authentication_method
-          JSON.stringify({})  // auth_config
-        ]
-      );
-      
-      // Create target connection with unified fields
-      await client.query(
-        `INSERT INTO storage_connections (
-          connection_id, type, name, config, status, 
-          connection_direction, project_id, connection_user, description,
-          authentication_method, auth_config, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [
-          targetConnectionId,
-          'vendor',
-          targetConnectionName,
-          JSON.stringify({ vendor_id: vendor.id, placeholder: true }),
-          'pending',
-          'target',
-          finalProjectId,
-          'External',  // connection_user
-          `Target connection for vendor ${vendor_name}`,  // description
-          'key-based',  // authentication_method
-          JSON.stringify({})  // auth_config
-        ]
-      );
-      
-      systemLogger.info('Created default vendor connections successfully', {
-        sourceConnectionId,
-        targetConnectionId
-      });
-      
       await client.query('COMMIT');
       
       // Fetch project name to include in response
