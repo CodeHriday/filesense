@@ -164,10 +164,16 @@ function MappingWizard() {
       const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      // Filter for approved and locked agreements only
+      
+      // Extract hasApprovePermission flag from response (indicates user can see all agreements)
+      const hasApprovePermission = response.data.hasApprovePermission || false;
+      
+      // Filter for approved and locked agreements only (ready for ETL use)
       const approvedAgreements = (response.data.agreements || response.data || []).filter(
         agreement => agreement.approval_status === 'fully_approved' && agreement.is_locked
       );
+      
+      console.log(`Fetched ${approvedAgreements.length} approved vendor agreements (hasApprovePermission: ${hasApprovePermission})`);
       setVendorAgreements(approvedAgreements);
     } catch (err) {
       console.error('Error fetching vendor agreements:', err);

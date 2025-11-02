@@ -267,7 +267,11 @@ router.get('/', async (req, res) => {
       hasApprovePermission
     });
     
-    res.json(result);
+    // Include hasApprovePermission flag in response so frontend can filter agreements for mapping wizard
+    res.json({
+      ...result,
+      hasApprovePermission
+    });
     
   } catch (error) {
     systemLogger.error('Error in GET /api/vendor-agreements', { error: error.message });
