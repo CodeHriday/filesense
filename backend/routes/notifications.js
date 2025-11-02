@@ -109,6 +109,46 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
+// PUT /api/notifications/:id/unread - Mark notification as unread
+router.put('/:id/unread', async (req, res) => {
+  try {
+    const notificationId = parseInt(req.params.id);
+    
+    if (isNaN(notificationId)) {
+      return res.status(400).json({ error: 'Invalid notification ID' });
+    }
+    
+    // Verify notification belongs to current user
+    const checkResult = await pool.query(
+      `SELECT id FROM notifications WHERE id = $1 AND user_id = $2`,
+      [notificationId, req.user.id]
+    );
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    
+    // Mark as unread
+    await pool.query(
+      `UPDATE notifications 
+       SET is_read = FALSE, read_at = NULL
+       WHERE id = $1`,
+      [notificationId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Notification marked as unread'
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error marking notification as unread', { error: error.message });
+    res.status(500).json({ 
+      error: error.message || 'Failed to mark notification as unread'
+    });
+  }
+});
+
 // PUT /api/notifications/read-all - Mark all notifications as read
 router.put('/read-all', async (req, res) => {
   try {
