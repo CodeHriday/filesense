@@ -90,42 +90,70 @@
   gap: 0.5rem;
 }
 
-.btn-icon {
-  padding: 0.5rem;
+/* Icon-based action buttons */
+.action-icon-btn {
+  background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  padding: 6px;
   cursor: pointer;
-  display: flex;
+  transition: all 0.2s ease;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  color: var(--text-secondary, #6c757d);
 }
 
-.btn-icon.btn-primary {
-  background: #3b82f6;
-  color: white;
+.action-icon-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
-.btn-icon.btn-primary:hover {
-  background: #2563eb;
+.action-icon-btn:hover {
+  transform: translateY(-2px);
 }
 
-.btn-icon.btn-danger {
-  background: #ef4444;
-  color: white;
+.action-icon-btn.view-btn {
+  color: #6c757d;
 }
 
-.btn-icon.btn-danger:hover {
-  background: #dc2626;
+.action-icon-btn.view-btn:hover {
+  background-color: #e9ecef;
 }
 
-.btn-icon.btn-info {
-  background: #0ea5e9;
-  color: white;
+.action-icon-btn.edit-btn {
+  color: #1a73e8;
 }
 
-.btn-icon.btn-info:hover {
-  background: #0284c7;
+.action-icon-btn.edit-btn:hover {
+  background-color: #e8f0fe;
+}
+
+.action-icon-btn.delete-btn {
+  color: #d93025;
+}
+
+.action-icon-btn.delete-btn:hover {
+  background-color: #fce8e6;
+}
+
+.action-icon-btn.execute-btn {
+  color: #137333;
+}
+
+.action-icon-btn.execute-btn:hover {
+  background-color: #e6f4ea;
+}
+
+.action-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-disabled, #9ca3af) !important;
+}
+
+.action-icon-btn:disabled:hover {
+  background-color: transparent !important;
+  transform: none !important;
 }
 
 .workflow-editor-header {
