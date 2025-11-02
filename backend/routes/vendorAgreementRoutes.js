@@ -922,17 +922,19 @@ router.get('/:id/documents/:docId/download', checkAgreementAccess, async (req, r
     
     const document = result.rows[0];
     
-    // Check if file exists
-    if (!fs.existsSync(document.file_path)) {
-      return res.status(404).json({ error: 'File not found on disk' });
+    // Decode base64 data
+    if (!document.file_path) {
+      return res.status(404).json({ error: 'File data not found' });
     }
+    
+    const fileBuffer = Buffer.from(document.file_path, 'base64');
     
     // Set headers and send file
     res.setHeader('Content-Type', document.mime_type || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${document.document_name}"`);
+    res.setHeader('Content-Length', fileBuffer.length);
     
-    const fileStream = fs.createReadStream(document.file_path);
-    fileStream.pipe(res);
+    res.send(fileBuffer);
     
   } catch (error) {
     systemLogger.error('Error downloading agreement document', { error: error.message });
