@@ -237,40 +237,42 @@ const Jobs = () => {
   return (
     <div className="page-container">
       <div className="page-header">
-        <div className="header-content">
-          <h1>Jobs Log</h1>
-          <p style={{ color: '#037c6e' }}>Monitor and manage ETL transformation job executions</p>
-        </div>
-        <div className="page-header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ position: 'relative', minWidth: '300px' }}>
-            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Search jobs..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '0.5rem 0.75rem 0.5rem 2.5rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                outline: 'none'
-              }}
-            />
+        <div className="page-header-content">
+          <div className="page-header-titles">
+            <h1 className="page-title">Jobs Log</h1>
+            <p className="page-subtitle">Monitor and manage ETL transformation job executions</p>
           </div>
-          <button 
-            className="btn btn-secondary"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            title="Refresh jobs"
-          >
-            <FiRefreshCw className={refreshing ? 'spinning' : ''} /> 
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="page-header-actions">
+            <div style={{ position: 'relative', minWidth: '300px' }}>
+              <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Search jobs..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem 0.75rem 0.5rem 2.5rem',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '0.9rem',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            <button 
+              className="btn btn-secondary"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Refresh jobs"
+            >
+              <FiRefreshCw className={refreshing ? 'spinning' : ''} /> 
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </div>
 
