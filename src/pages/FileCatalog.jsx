@@ -644,14 +644,14 @@ export const FileCatalog = ({ onFileSelect }) => {
                         </td>
                         <td className="actions-cell">
                           <button
-                            className="icon-button view-button"
+                            className="action-icon-btn view-btn"
                             onClick={() => handleViewDetails(file)}
                             title="View Details"
                           >
                             <FiEye />
                           </button>
                           <button
-                            className="icon-button delete-button"
+                            className="action-icon-btn delete-btn"
                             onClick={() => handleDelete(file)}
                             disabled={deletingFileId === file.file_id}
                             title="Delete"
@@ -749,14 +749,14 @@ export const FileCatalog = ({ onFileSelect }) => {
                           </td>
                           <td className="actions-cell">
                             <button
-                              className="icon-button view-button"
+                              className="action-icon-btn view-btn"
                               onClick={() => handleViewDetails(childFile)}
                               title="View Details"
                             >
                               <FiEye />
                             </button>
                             <button
-                              className="icon-button delete-button"
+                              className="action-icon-btn delete-btn"
                               onClick={() => handleDelete(childFile)}
                               disabled={deletingFileId === childFile.file_id}
                               title="Delete"

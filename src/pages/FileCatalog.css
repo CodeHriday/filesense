@@ -347,38 +347,71 @@
   align-items: center;
 }
 
-.icon-button {
+/* Icon-based action buttons */
+.action-icon-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background-color: transparent;
-  cursor: pointer;
-  transition: all var(--transition-base);
-  font-size: var(--text-base);
-  color: var(--text-tertiary);
+  color: var(--text-secondary, #6c757d);
 }
 
-.icon-button:hover:not(:disabled) {
-  background-color: var(--color-gray-200);
+.action-icon-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
-.icon-button.view-button:hover:not(:disabled) {
-  color: var(--color-primary);
-  background-color: var(--color-primary-100);
+.action-icon-btn:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
 }
 
-.icon-button.delete-button:hover:not(:disabled) {
-  color: var(--color-error);
-  background-color: var(--color-error-light);
+.action-icon-btn.view-btn {
+  color: #6c757d;
 }
 
-.icon-button:disabled {
+.action-icon-btn.view-btn:hover {
+  background-color: #e9ecef;
+}
+
+.action-icon-btn.edit-btn {
+  color: #1a73e8;
+}
+
+.action-icon-btn.edit-btn:hover {
+  background-color: #e8f0fe;
+}
+
+.action-icon-btn.delete-btn {
+  color: #d93025;
+}
+
+.action-icon-btn.delete-btn:hover {
+  background-color: #fce8e6;
+}
+
+.action-icon-btn.project-btn {
+  color: #137333;
+}
+
+.action-icon-btn.project-btn:hover {
+  background-color: #e6f4ea;
+}
+
+.action-icon-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  color: var(--text-disabled, #9ca3af) !important;
+}
+
+.action-icon-btn:disabled:hover {
+  background-color: transparent !important;
+  transform: none !important;
 }
 
 .no-results {
