@@ -176,26 +176,26 @@ const JobGroups = () => {
                     <td>
                       <div className="table-actions">
                         <Tooltip content="Edit">
-                          <Button 
-                            variant="icon" 
+                          <button 
+                            className="action-icon-btn edit-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/job-groups/${group.id}/edit`);
                             }}
                           >
                             <FiEdit2 />
-                          </Button>
+                          </button>
                         </Tooltip>
                         <Tooltip content="Delete">
-                          <Button 
-                            variant="icon" 
+                          <button 
+                            className="action-icon-btn delete-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteGroup(group.id);
                             }}
                           >
                             <FiTrash2 />
-                          </Button>
+                          </button>
                         </Tooltip>
                       </div>
                     </td>
