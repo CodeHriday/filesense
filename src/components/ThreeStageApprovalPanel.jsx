@@ -36,11 +36,12 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
   // Determine what actions this user can take
   const canVendorAccept = (isVendorUserForAgreement || isAdmin) && currentStage === 'vendor' && !agreement.is_locked && agreement.approval_status !== 'vendor_rejected';
-  const canManagerHandleRejection = (isFileOwner || isAdmin) && agreement.approval_status === 'vendor_rejected' && !agreement.is_locked;
+  const canManagerHandleVendorRejection = (isFileOwner || isAdmin) && agreement.approval_status === 'vendor_rejected' && !agreement.is_locked;
+  const canManagerHandleGovernanceRejection = (isFileOwner || isAdmin) && agreement.approval_status === 'governance_rejected' && !agreement.is_locked;
   const canManagerApprove = (isFileOwner || isAdmin) && currentStage === 'manager' && !agreement.is_locked;
   const canGovernanceApprove = (isGovernanceManager || isAdmin) && currentStage === 'governance' && !agreement.is_locked;
 
-  const canTakeAction = canVendorAccept || canManagerHandleRejection || canManagerApprove || canGovernanceApprove;
+  const canTakeAction = canVendorAccept || canManagerHandleVendorRejection || canManagerHandleGovernanceRejection || canManagerApprove || canGovernanceApprove;
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
@@ -72,8 +73,10 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       let endpoint = '';
       if (canVendorAccept) {
         endpoint = `/api/vendor-agreements/${agreement.id}/vendor-action`;
-      } else if (canManagerHandleRejection) {
+      } else if (canManagerHandleVendorRejection) {
         endpoint = `/api/vendor-agreements/${agreement.id}/manager-handle-rejection`;
+      } else if (canManagerHandleGovernanceRejection) {
+        endpoint = `/api/vendor-agreements/${agreement.id}/manager-handle-governance-rejection`;
       } else if (canManagerApprove) {
         endpoint = `/api/vendor-agreements/${agreement.id}/manager-action`;
       } else if (canGovernanceApprove) {
@@ -110,13 +113,13 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       if (currentStage === 'vendor') return <FaClock className="stage-icon pending-active" />;
       return <FaClock className="stage-icon pending" />;
     } else if (stage === 'manager') {
-      if (agreement.manager_rejected_at) return <FaTimesCircle className="stage-icon rejected" />;
+      if (agreement.approval_status === 'manager_rejected') return <FaTimesCircle className="stage-icon rejected" />;
       if (agreement.manager_approved_at) return <FaCheckCircle className="stage-icon approved" />;
       if (currentStage === 'manager') return <FaClock className="stage-icon pending-active" />;
       if (!agreement.vendor_approved_at) return <FaClock className="stage-icon disabled" />;
       return <FaClock className="stage-icon pending" />;
     } else if (stage === 'governance') {
-      if (agreement.governance_rejected_at) return <FaTimesCircle className="stage-icon rejected" />;
+      if (agreement.approval_status === 'governance_rejected') return <FaTimesCircle className="stage-icon rejected" />;
       if (agreement.governance_approved_at) return <FaCheckCircle className="stage-icon approved" />;
       if (currentStage === 'governance') return <FaClock className="stage-icon pending-active" />;
       if (!agreement.manager_approved_at) return <FaClock className="stage-icon disabled" />;
@@ -130,12 +133,12 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       if (agreement.vendor_approved_at) return `Accepted ${new Date(agreement.vendor_approved_at).toLocaleDateString()}`;
       return 'Pending Vendor Acceptance';
     } else if (stage === 'manager') {
-      if (agreement.manager_rejected_at) return 'Rejected';
+      if (agreement.approval_status === 'manager_rejected') return 'Rejected';
       if (agreement.manager_approved_at) return `Approved ${new Date(agreement.manager_approved_at).toLocaleDateString()}`;
       if (!agreement.vendor_approved_at) return 'Awaiting Vendor';
       return 'Pending Manager Approval';
     } else if (stage === 'governance') {
-      if (agreement.governance_rejected_at) return 'Rejected';
+      if (agreement.approval_status === 'governance_rejected') return 'Rejected';
       if (agreement.governance_approved_at) return `Approved ${new Date(agreement.governance_approved_at).toLocaleDateString()}`;
       if (!agreement.manager_approved_at) return 'Awaiting Manager';
       return 'Pending Governance Approval';
@@ -236,7 +239,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
           {/* Action Buttons */}
           <div className="action-buttons">
-            {canManagerHandleRejection ? (
+            {canManagerHandleVendorRejection ? (
               <>
                 <button
                   className="approve-btn-stage"
@@ -251,6 +254,23 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
                   disabled={uploading}
                 >
                   {uploading ? 'Processing...' : 'Send Back to Vendor'}
+                </button>
+              </>
+            ) : canManagerHandleGovernanceRejection ? (
+              <>
+                <button
+                  className="approve-btn-stage"
+                  onClick={() => handleAction('resubmit')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Revise & Resubmit to Governance'}
+                </button>
+                <button
+                  className="reject-btn-stage"
+                  onClick={() => handleAction('close')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Close Agreement'}
                 </button>
               </>
             ) : canVendorAccept ? (

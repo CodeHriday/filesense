@@ -572,6 +572,47 @@ router.post('/:id/manager-handle-rejection', checkAgreementAccess, approvalDocUp
 });
 
 /**
+ * POST /api/vendor-agreements/:id/manager-handle-governance-rejection
+ * Vendor Manager handles governance rejection (revise & resubmit or close)
+ */
+router.post('/:id/manager-handle-governance-rejection', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { action, comments } = req.body;
+    
+    // Check if user is owner (manager) or admin
+    if (!req.isOwner && !req.isAdmin && !req.hasApprovePermission) {
+      return res.status(403).json({ error: 'Only vendor manager can handle governance rejection' });
+    }
+    
+    // Process uploaded documents
+    const documents = (req.files || []).map(file => ({
+      name: file.originalname,
+      path: file.buffer.toString('base64'),
+      type: 'approval_document',
+      mimeType: file.mimetype,
+      size: file.size,
+      description: null
+    }));
+    
+    const result = await vendorAgreementService.managerHandleGovernanceRejection(
+      agreementId,
+      req.user.id,
+      action,
+      comments,
+      documents,
+      req.agreement
+    );
+    
+    res.json(result);
+    
+  } catch (error) {
+    systemLogger.error('Error in POST /api/vendor-agreements/:id/manager-handle-governance-rejection', { error: error.message });
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/vendor-agreements/:id/governance-action
  * Governance Manager approves or rejects agreement (Stage 3 - Final)
  */

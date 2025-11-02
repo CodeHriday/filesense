@@ -1549,6 +1549,132 @@ class VendorAgreementService {
   }
   
   /**
+   * Manager handles governance rejection - resubmit or close agreement
+   */
+  async managerHandleGovernanceRejection(agreementId, approverUserId, action, comments = null, documents = [], agreement) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      if (!['resubmit', 'close'].includes(action)) {
+        throw new Error('Invalid action. Must be "resubmit" or "close"');
+      }
+      
+      // Verify agreement has governance rejection
+      if (agreement.approval_status !== 'governance_rejected') {
+        throw new Error('Agreement has not been rejected by governance');
+      }
+      
+      // Verify authorization
+      if (agreement.file_owner_user_id !== approverUserId) {
+        throw new Error('Only the vendor manager can handle governance rejection');
+      }
+      
+      if (!comments) {
+        throw new Error('Comments are required for this action');
+      }
+      
+      // Record action
+      const actionValue = action === 'close' ? 'revoked' : 'approved';
+      const approvalResult = await client.query(
+        `INSERT INTO vendor_agreement_approvals (
+          agreement_id, approver_type, approver_user_id, action, comments,
+          agreement_version, approval_timestamp, approval_stage
+        ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
+        RETURNING id`,
+        [agreementId, approverUserId, actionValue, comments, agreement.version,
+         action === 'close' ? 'close_agreement' : 'resubmit_to_governance']
+      );
+      
+      const approvalId = approvalResult.rows[0].id;
+      
+      // Handle documents
+      if (documents && documents.length > 0) {
+        for (const doc of documents) {
+          await client.query(
+            `INSERT INTO vendor_agreement_documents (
+              agreement_id, approval_id, document_name, document_type,
+              file_path, file_size, mime_type, uploaded_by, approval_stage, description
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [agreementId, approvalId, doc.name, doc.type, doc.path,
+             doc.size, doc.mimeType, approverUserId,
+             action === 'close' ? 'close_agreement' : 'resubmit_to_governance', doc.description]
+          );
+        }
+      }
+      
+      let newStatus, message;
+      
+      if (action === 'resubmit') {
+        // Reset to governance stage - keep all previous approvals but clear governance rejection
+        newStatus = 'manager_approved';
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               governance_approved_at = NULL,
+               governance_approved_by = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [newStatus, agreementId]
+        );
+        
+        // Notify governance manager
+        if (agreement.governance_manager_user_id) {
+          await client.query(
+            `INSERT INTO notifications (
+              user_id, notification_type, title, message, entity_type, entity_id,
+              action_url, metadata
+            ) VALUES ($1, 'vendor_contract_pending_governance', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              agreement.governance_manager_user_id,
+              'Vendor Contract Resubmitted for Governance',
+              `Contract "${agreement.agreement_code}" has been revised and resubmitted for your approval. Manager notes: ${comments}`,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code, resubmit_comments: comments })
+            ]
+          );
+        }
+        
+        message = 'Agreement revised and resubmitted to governance';
+      } else if (action === 'close') {
+        // Close the agreement
+        newStatus = 'rejected';
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               is_locked = true,
+               locked_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [newStatus, agreementId]
+        );
+        
+        message = 'Agreement closed due to governance rejection';
+      }
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Manager handled governance rejection', { agreementId, action, approverUserId, newStatus });
+      
+      return {
+        success: true,
+        message,
+        approvalStatus: newStatus,
+        approvalId
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error handling governance rejection', { agreementId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  
+  /**
    * Approve or reject agreement as Governance Manager (Stage 3)
    */
   async governanceApproveReject(agreementId, approverUserId, action, comments = null, documents = [], ipAddress = null, userAgent = null, isAdmin = false) {
