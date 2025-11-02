@@ -14,6 +14,30 @@ const AgreementTemplateUtils = require('../utils/agreementTemplateUtils');
 const { systemLogger } = require('../utils/logger');
 const { requirePermission, checkPermission, hasPermission } = require('../middleware/vendorPermissions');
 
+// Multer error handling middleware
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ 
+        error: 'File too large. Maximum file size is 10 KB for approval documents.' 
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ 
+        error: 'Too many files. Maximum 5 documents allowed per submission.' 
+      });
+    }
+    return res.status(400).json({ error: err.message });
+  }
+  
+  if (err && err.message) {
+    // Custom file filter errors
+    return res.status(400).json({ error: err.message });
+  }
+  
+  next(err);
+};
+
 // Configure multer for schema file uploads
 const upload = multer({
   dest: 'uploads/schemas/',
@@ -422,7 +446,7 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
  * POST /api/vendor-agreements/:id/vendor-action
  * Vendor User accepts or rejects agreement (Stage 1)
  */
-router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
+router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), handleMulterError, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
@@ -463,7 +487,7 @@ router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array(
  * POST /api/vendor-agreements/:id/manager-action
  * Vendor Manager approves or rejects agreement (Stage 2)
  */
-router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
+router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), handleMulterError, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
@@ -504,7 +528,7 @@ router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array
  * POST /api/vendor-agreements/:id/governance-action
  * Governance Manager approves or rejects agreement (Stage 3 - Final)
  */
-router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
+router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), handleMulterError, async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
     const { action, comments } = req.body;
