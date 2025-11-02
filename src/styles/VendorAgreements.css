@@ -170,6 +170,17 @@
   color: var(--color-error-dark, #a82419);
 }
 
+.action-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-disabled, #9ca3af) !important;
+}
+
+.action-icon-btn:disabled:hover {
+  background-color: transparent !important;
+  transform: none !important;
+}
+
 .no-agreements-message {
   text-align: center;
   padding: 30px;
