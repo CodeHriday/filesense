@@ -170,7 +170,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       
       {/* Progress Tracker */}
       <div className="approval-stages">
-        <div className={`approval-stage ${currentStage === 'vendor' ? 'active' : ''} ${agreement.vendor_approved_at ? 'completed' : ''} ${agreement.approval_status === 'vendor_rejected' ? 'rejected' : ''}`}>
+        <div className={`approval-stage ${currentStage === 'vendor' ? 'active' : ''} ${['vendor_accepted', 'manager_approved', 'manager_rejected', 'governance_approved', 'governance_rejected'].includes(agreement.approval_status) ? 'completed' : ''} ${agreement.approval_status === 'vendor_rejected' ? 'rejected' : ''}`}>
           <div className="stage-header">
             {getStageIcon('vendor')}
             <div className="stage-info">
@@ -182,7 +182,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
         <div className="stage-connector"></div>
 
-        <div className={`approval-stage ${currentStage === 'manager' ? 'active' : ''} ${agreement.manager_approved_at ? 'completed' : ''} ${agreement.manager_rejected_at ? 'rejected' : ''}`}>
+        <div className={`approval-stage ${currentStage === 'manager' ? 'active' : ''} ${['manager_approved', 'governance_approved', 'governance_rejected'].includes(agreement.approval_status) ? 'completed' : ''} ${agreement.approval_status === 'manager_rejected' ? 'rejected' : ''}`}>
           <div className="stage-header">
             {getStageIcon('manager')}
             <div className="stage-info">
@@ -194,7 +194,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
         <div className="stage-connector"></div>
 
-        <div className={`approval-stage ${currentStage === 'governance' ? 'active' : ''} ${agreement.governance_approved_at ? 'completed' : ''} ${agreement.governance_rejected_at ? 'rejected' : ''}`}>
+        <div className={`approval-stage ${currentStage === 'governance' ? 'active' : ''} ${agreement.approval_status === 'governance_approved' ? 'completed' : ''} ${agreement.approval_status === 'governance_rejected' ? 'rejected' : ''}`}>
           <div className="stage-header">
             {getStageIcon('governance')}
             <div className="stage-info">
