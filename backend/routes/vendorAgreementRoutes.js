@@ -50,6 +50,25 @@ const templateUpload = multer({
   }
 });
 
+// Configure multer for approval document uploads (compressed formats preferred, 10 KB limit)
+const approvalDocUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 // 10 KB limit for efficient storage
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept compressed formats and PDFs
+    const allowedExtensions = ['.zip', '.gz', '.7z', '.pdf', '.txt'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only compressed formats (.zip, .gz, .7z) and small documents (.pdf, .txt) under 10 KB are allowed'));
+    }
+  }
+});
+
 // Note: Admin access is now managed through permissions (vendor_agreements:write, vendor_agreements:approve)
 // instead of hard-coded role checks. See vendorPermissions.js middleware for permission-based access control.
 
@@ -403,22 +422,30 @@ router.post('/:id/reject', checkAgreementAccess, async (req, res) => {
  * POST /api/vendor-agreements/:id/vendor-action
  * Vendor User accepts or rejects agreement (Stage 1)
  */
-router.post('/:id/vendor-action', checkAgreementAccess, async (req, res) => {
+router.post('/:id/vendor-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
-    const { action, comments, documents } = req.body;
+    const { action, comments } = req.body;
     
     // Check if user is vendor or admin
     if (!req.isVendor && !req.isAdmin && !req.hasApprovePermission) {
       return res.status(403).json({ error: 'Only vendor contacts can accept/reject agreements' });
     }
     
+    // Process uploaded documents
+    const documents = (req.files || []).map(file => ({
+      filename: file.originalname,
+      data: file.buffer.toString('base64'),
+      mimeType: file.mimetype,
+      size: file.size
+    }));
+    
     const result = await vendorAgreementService.vendorAcceptReject(
       agreementId,
       req.user.id,
       action,
       comments,
-      documents || [],
+      documents,
       req.ip,
       req.get('User-Agent'),
       req.isAdmin || req.hasApprovePermission || false
@@ -436,22 +463,30 @@ router.post('/:id/vendor-action', checkAgreementAccess, async (req, res) => {
  * POST /api/vendor-agreements/:id/manager-action
  * Vendor Manager approves or rejects agreement (Stage 2)
  */
-router.post('/:id/manager-action', checkAgreementAccess, async (req, res) => {
+router.post('/:id/manager-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
-    const { action, comments, documents } = req.body;
+    const { action, comments } = req.body;
     
     // Check if user is owner (manager) or admin
     if (!req.isOwner && !req.isAdmin && !req.hasApprovePermission) {
       return res.status(403).json({ error: 'Only vendor manager can approve/reject at this stage' });
     }
     
+    // Process uploaded documents
+    const documents = (req.files || []).map(file => ({
+      filename: file.originalname,
+      data: file.buffer.toString('base64'),
+      mimeType: file.mimetype,
+      size: file.size
+    }));
+    
     const result = await vendorAgreementService.managerApproveReject(
       agreementId,
       req.user.id,
       action,
       comments,
-      documents || [],
+      documents,
       req.ip,
       req.get('User-Agent'),
       req.isAdmin || req.hasApprovePermission || false
@@ -469,10 +504,10 @@ router.post('/:id/manager-action', checkAgreementAccess, async (req, res) => {
  * POST /api/vendor-agreements/:id/governance-action
  * Governance Manager approves or rejects agreement (Stage 3 - Final)
  */
-router.post('/:id/governance-action', checkAgreementAccess, async (req, res) => {
+router.post('/:id/governance-action', checkAgreementAccess, approvalDocUpload.array('documents', 5), async (req, res) => {
   try {
     const agreementId = parseInt(req.params.id);
-    const { action, comments, documents } = req.body;
+    const { action, comments } = req.body;
     
     const agreement = req.agreement;
     
@@ -481,12 +516,20 @@ router.post('/:id/governance-action', checkAgreementAccess, async (req, res) => 
       return res.status(403).json({ error: 'Only governance manager can approve/reject at this stage' });
     }
     
+    // Process uploaded documents
+    const documents = (req.files || []).map(file => ({
+      filename: file.originalname,
+      data: file.buffer.toString('base64'),
+      mimeType: file.mimetype,
+      size: file.size
+    }));
+    
     const result = await vendorAgreementService.governanceApproveReject(
       agreementId,
       req.user.id,
       action,
       comments,
-      documents || [],
+      documents,
       req.ip,
       req.get('User-Agent'),
       req.isAdmin || req.hasApprovePermission || false

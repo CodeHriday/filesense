@@ -261,6 +261,55 @@ class VendorAgreementService {
         [agreement.id, JSON.stringify(agreement), createdBy]
       );
       
+      // Create notifications for vendor users (primary and secondary contacts)
+      // Skip notification if this is a draft or if no contacts are specified
+      if (finalStatus !== 'draft') {
+        const notifyEmails = [];
+        
+        if (finalPrimaryContactEmail) {
+          notifyEmails.push(finalPrimaryContactEmail);
+        }
+        
+        if (secondary_contact_email && secondary_contact_email !== finalPrimaryContactEmail) {
+          notifyEmails.push(secondary_contact_email);
+        }
+        
+        // Get user IDs for these emails
+        if (notifyEmails.length > 0) {
+          const usersResult = await client.query(
+            'SELECT id, email FROM users WHERE email = ANY($1)',
+            [notifyEmails]
+          );
+          
+          for (const user of usersResult.rows) {
+            await client.query(
+              `INSERT INTO notifications (
+                user_id, notification_type, title, message, entity_type, entity_id,
+                action_url, metadata
+              ) VALUES ($1, 'vendor_contract_pending_vendor', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+              [
+                user.id,
+                'New Vendor Contract Awaiting Your Review',
+                `A new contract "${file_name || 'Untitled'}" has been created and requires your acceptance to proceed.`,
+                agreement.id,
+                `/vendor-agreements/${agreement.id}`,
+                JSON.stringify({ 
+                  agreement_id: agreement.id, 
+                  agreement_code: agreementCode,
+                  file_name: file_name 
+                })
+              ]
+            );
+            
+            systemLogger.info('Created notification for vendor contact', {
+              userId: user.id,
+              email: user.email,
+              agreementId: agreement.id
+            });
+          }
+        }
+      }
+      
       await client.query('COMMIT');
       
       systemLogger.info('Vendor agreement created', { 
