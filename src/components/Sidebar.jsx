@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FiChevronDown, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { useSidebar } from '../context/SidebarContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
 import OnboardingWizard from './OnboardingWizard';
 import { isVendorUser } from '../utils/userHelpers';
@@ -11,7 +12,7 @@ function Sidebar() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isCollapsed, toggleSidebar } = useSidebar();
   const { currentUser, hasPermission } = useAuth();
   
   const toggleMenu = (featureId) => {
@@ -26,10 +27,6 @@ function Sidebar() {
       ...prev,
       [category]: !prev[category]
     }));
-  };
-  
-  const toggleSidebar = () => {
-    setSidebarCollapsed(prev => !prev);
   };
   
   // Check if user is a vendor using user attributes (not roles)
@@ -130,13 +127,13 @@ function Sidebar() {
     }
     
     const isCategoryExpanded = expandedCategories[category];
-    const shouldShowItems = sidebarCollapsed || isCategoryExpanded;
+    const shouldShowItems = isCollapsed || isCategoryExpanded;
     
     return (
       <React.Fragment key={category}>
         <li className="nav-divider" onClick={() => toggleCategory(category)}>
           <span>{getSidebarCategoryName(category)}</span>
-          {!sidebarCollapsed && (
+          {!isCollapsed && (
             isCategoryExpanded ? 
               <FiChevronDown className="category-chevron" /> : 
               <FiChevronRight className="category-chevron" />
@@ -197,9 +194,9 @@ function Sidebar() {
 
   return (
     <div>
-      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-toggle" onClick={toggleSidebar} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          {sidebarCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-toggle" onClick={toggleSidebar} title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          {isCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
         </div>
         <nav className="sidebar-nav">
           <ul>
