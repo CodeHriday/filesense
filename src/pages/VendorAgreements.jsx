@@ -1285,11 +1285,13 @@ const VendorAgreements = () => {
                         required
                       >
                         <option value="">Select a governance manager</option>
-                        {users.map(user => (
-                          <option key={user.id} value={user.id}>
-                            {user.username} - {user.email}
-                          </option>
-                        ))}
+                        {users
+                          .filter(user => user.roles && user.roles.includes('Governance Manager'))
+                          .map(user => (
+                            <option key={user.id} value={user.id}>
+                              {user.username} - {user.email}
+                            </option>
+                          ))}
                       </select>
                       <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
                         Responsible for final approval of the vendor contract
