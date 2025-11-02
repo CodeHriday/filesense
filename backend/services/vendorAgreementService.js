@@ -1458,7 +1458,7 @@ class VendorAgreementService {
       
       if (action === 'send-to-vendor') {
         // Reset to vendor stage - clear vendor approval
-        newStatus = 'pending_vendor';
+        newStatus = 'pending_vendor_acceptance';
         await client.query(
           `UPDATE vendor_agreements 
            SET approval_status = $1,
