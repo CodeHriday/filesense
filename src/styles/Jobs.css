@@ -1,5 +1,5 @@
 .jobs-container {
-  padding: 20px;
+  /* No padding - content div already has padding */
 }
 
 .jobs-header {
