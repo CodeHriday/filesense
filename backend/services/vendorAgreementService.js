@@ -1387,6 +1387,169 @@ class VendorAgreementService {
   }
   
   /**
+   * Manager handles vendor rejection (send back to vendor or override)
+   */
+  async managerHandleVendorRejection(agreementId, approverUserId, action, comments = null, documents = [], ipAddress = null, userAgent = null, isAdmin = false) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      if (!['send-to-vendor', 'override-and-approve'].includes(action)) {
+        throw new Error('Invalid action. Must be "send-to-vendor" or "override-and-approve"');
+      }
+      
+      // Get agreement
+      const agreementResult = await client.query(
+        `SELECT va.* FROM vendor_agreements va WHERE va.id = $1`,
+        [agreementId]
+      );
+      
+      if (agreementResult.rows.length === 0) {
+        throw new Error('Agreement not found');
+      }
+      
+      const agreement = agreementResult.rows[0];
+      
+      // Check if agreement has vendor rejection
+      if (!agreement.vendor_rejected_at) {
+        throw new Error('Agreement has not been rejected by vendor');
+      }
+      
+      // Verify authorization
+      if (!isAdmin && agreement.file_owner_user_id !== approverUserId) {
+        throw new Error('Only the vendor manager can handle vendor rejection');
+      }
+      
+      if (!comments) {
+        throw new Error('Comments are required for this action');
+      }
+      
+      // Record action
+      const approvalResult = await client.query(
+        `INSERT INTO vendor_agreement_approvals (
+          agreement_id, approver_type, approver_user_id, action, comments,
+          agreement_version, approval_timestamp, ip_address, user_agent, approval_stage
+        ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8)
+        RETURNING id`,
+        [agreementId, approverUserId, action, comments, agreement.version, ipAddress, userAgent,
+         action === 'send-to-vendor' ? 'send_to_vendor' : 'manager_override']
+      );
+      
+      const approvalId = approvalResult.rows[0].id;
+      
+      // Handle documents
+      if (documents && documents.length > 0) {
+        for (const doc of documents) {
+          await client.query(
+            `INSERT INTO vendor_agreement_documents (
+              agreement_id, approval_id, document_name, document_type,
+              file_path, file_size, mime_type, uploaded_by, approval_stage, description
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [agreementId, approvalId, doc.name, doc.type, doc.path,
+             doc.size, doc.mimeType, approverUserId,
+             action === 'send-to-vendor' ? 'send_to_vendor' : 'manager_override', doc.description]
+          );
+        }
+      }
+      
+      let newStatus, notificationTitle, notificationMessage, notificationType;
+      
+      if (action === 'send-to-vendor') {
+        // Reset to vendor stage - clear vendor rejected timestamp
+        newStatus = 'pending_vendor';
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               vendor_accepted_at = NULL,
+               vendor_approved_by = NULL,
+               vendor_rejected_at = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [newStatus, agreementId]
+        );
+        
+        notificationTitle = 'Vendor Contract Sent Back for Review';
+        notificationMessage = `Contract "${agreement.agreement_name}" has been sent back to you for review. Manager feedback: ${comments}`;
+        notificationType = 'vendor_contract_pending_vendor';
+        
+        // Notify vendor contacts
+        if (agreement.vendor_approved_by) {
+          await client.query(
+            `INSERT INTO notifications (
+              user_id, notification_type, title, message, entity_type, entity_id,
+              action_url, metadata
+            ) VALUES ($1, $2, $3, $4, 'vendor_agreement', $5, $6, $7)`,
+            [
+              agreement.vendor_approved_by,
+              notificationType,
+              notificationTitle,
+              notificationMessage,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, manager_comments: comments })
+            ]
+          );
+        }
+        
+      } else if (action === 'override-and-approve') {
+        // Override vendor rejection and move to governance
+        newStatus = 'manager_approved';
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               vendor_accepted_at = CURRENT_TIMESTAMP,
+               vendor_approved_by = $2,
+               vendor_rejected_at = NULL,
+               manager_approved_at = CURRENT_TIMESTAMP,
+               manager_approved_by = $3,
+               owner_approved_at = CURRENT_TIMESTAMP,
+               owner_approved_by = $4,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $5`,
+          [newStatus, approverUserId, approverUserId, approverUserId, agreementId]
+        );
+        
+        // Notify governance manager
+        if (agreement.governance_manager_user_id) {
+          await client.query(
+            `INSERT INTO notifications (
+              user_id, notification_type, title, message, entity_type, entity_id,
+              action_url, metadata
+            ) VALUES ($1, 'vendor_contract_pending_governance', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              agreement.governance_manager_user_id,
+              'Vendor Contract Ready for Governance Approval',
+              `Contract "${agreement.agreement_name}" has been approved (vendor rejection overridden) and is pending your final approval. Manager notes: ${comments}`,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, override_comments: comments })
+            ]
+          );
+        }
+      }
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Manager handled vendor rejection', { agreementId, action, approverUserId, newStatus });
+      
+      return {
+        success: true,
+        message: action === 'send-to-vendor' ? 'Agreement sent back to vendor for review' : 'Vendor rejection overridden and sent to governance',
+        approvalStatus: newStatus,
+        approvalId
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error handling vendor rejection', { agreementId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  
+  /**
    * Approve or reject agreement as Governance Manager (Stage 3)
    */
   async governanceApproveReject(agreementId, approverUserId, action, comments = null, documents = [], ipAddress = null, userAgent = null, isAdmin = false) {
