@@ -10,7 +10,8 @@ import {
   FiLayers,
   FiCheckCircle,
   FiXCircle,
-  FiAlertCircle
+  FiAlertCircle,
+  FiSearch
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -33,6 +34,7 @@ function Mappings() {
   const [executionResult, setExecutionResult] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -130,11 +132,33 @@ function Mappings() {
     );
   }
 
+  // Filter mappings based on search term
+  const filteredMappings = mappings.filter(mapping => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (mapping.mapping_name || '').toLowerCase().includes(searchLower) ||
+      (mapping.project_name || '').toLowerCase().includes(searchLower) ||
+      (mapping.source_connection_name || '').toLowerCase().includes(searchLower) ||
+      (mapping.target_connection_name || '').toLowerCase().includes(searchLower) ||
+      (mapping.file_name_pattern || '').toLowerCase().includes(searchLower) ||
+      (mapping.source_file_pattern || '').toLowerCase().includes(searchLower)
+    );
+  });
+
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentMappings = mappings.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(mappings.length / itemsPerPage);
+  const currentMappings = filteredMappings.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredMappings.length / itemsPerPage);
+  
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else if (filteredMappings.length === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [filteredMappings.length, currentPage, totalPages]);
 
   return (
     <div className="page-container">
@@ -143,7 +167,27 @@ function Mappings() {
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Mapping Jobs</h1>
           <p style={{ color: '#037c6e', fontSize: '0.875rem' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative', minWidth: '300px' }}>
+            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search mappings..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.5rem 0.5rem 2.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                outline: 'none'
+              }}
+            />
+          </div>
           <button 
             className="btn btn-primary"
             onClick={handleCreateMapping}
