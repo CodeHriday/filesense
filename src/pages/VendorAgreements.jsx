@@ -1299,6 +1299,23 @@ const VendorAgreements = () => {
                         Responsible for final approval of the vendor contract
                       </small>
                     </div>
+                    
+                    {formData.governance_manager_user_id && (
+                      <div className="form-group">
+                        <label htmlFor="governance_manager_email">Governance Manager Email</label>
+                        <input
+                          type="text"
+                          id="governance_manager_email"
+                          value={users.find(u => u.id === parseInt(formData.governance_manager_user_id))?.email || ''}
+                          readOnly
+                          placeholder="Governance manager email"
+                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Email address of the selected governance manager
+                        </small>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
