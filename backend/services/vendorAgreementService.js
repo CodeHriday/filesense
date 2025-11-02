@@ -1425,14 +1425,15 @@ class VendorAgreementService {
         throw new Error('Comments are required for this action');
       }
       
-      // Record action
+      // Record action - map to valid action values for check constraint
+      const actionValue = action === 'send-to-vendor' ? 'revoked' : 'approved';
       const approvalResult = await client.query(
         `INSERT INTO vendor_agreement_approvals (
           agreement_id, approver_type, approver_user_id, action, comments,
           agreement_version, approval_timestamp, ip_address, user_agent, approval_stage
         ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8)
         RETURNING id`,
-        [agreementId, approverUserId, action, comments, agreement.version, ipAddress, userAgent,
+        [agreementId, approverUserId, actionValue, comments, agreement.version, ipAddress, userAgent,
          action === 'send-to-vendor' ? 'send_to_vendor' : 'manager_override']
       );
       
