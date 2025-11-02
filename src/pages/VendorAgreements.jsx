@@ -1928,8 +1928,7 @@ const VendorAgreements = () => {
                                       {approval.documents.map((doc, docIndex) => (
                                         <div key={docIndex} style={{ fontSize: '0.85rem' }}>
                                           📎 <a 
-                                            href={`${API_BASE_URL}/api/vendor-agreements/${selectedAgreement.id}/documents/${doc.id}/download`}
-                                            download={doc.document_name}
+                                            href="#"
                                             style={{ color: '#0066cc', textDecoration: 'underline', cursor: 'pointer' }}
                                             onClick={(e) => {
                                               e.preventDefault();
@@ -1938,7 +1937,7 @@ const VendorAgreements = () => {
                                                 setError('Session expired. Please log in again.');
                                                 return;
                                               }
-                                              fetch(`${API_BASE_URL}/api/vendor-agreements/${selectedAgreement.id}/documents/${doc.id}/download`, {
+                                              fetch(`/api/vendor-agreements/${selectedAgreement.id}/documents/${doc.id}/download`, {
                                                 headers: { 'Authorization': `Bearer ${token}` }
                                               })
                                               .then(res => {
