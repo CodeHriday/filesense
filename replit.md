@@ -7,6 +7,14 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**November 2, 2025** - Fixed vendor agreement approval document upload:
+- Resolved "null value in column 'document_name'" database constraint violation
+- Fixed field mapping between route handlers and service layer (filename→name, data→path)
+- Added proper document type and description fields to all approval routes
+- Implemented centralized Multer error handling middleware with clear error messages
+- All three approval stages (vendor-action, manager-action, governance-action) now correctly handle document attachments
+- 10 KB file size limit enforced with 413 responses for oversized files
+
 **November 1, 2025** - Enhanced vendor project lifecycle management:
 - Vendor deletion now automatically removes associated projects (with safety checks)
 - Project deletion only occurs when: (1) no other vendors use the project, and (2) no other members exist
