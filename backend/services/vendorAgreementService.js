@@ -1119,15 +1119,27 @@ class VendorAgreementService {
       
       // Update agreement status
       const newStatus = action === 'accept' ? 'vendor_accepted' : 'vendor_rejected';
-      await client.query(
-        `UPDATE vendor_agreements 
-         SET approval_status = $1,
-             vendor_approved_at = ${action === 'accept' ? 'CURRENT_TIMESTAMP' : 'NULL'},
-             vendor_approved_by = ${action === 'accept' ? '$2' : 'NULL'},
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3`,
-        [newStatus, approverUserId, agreementId]
-      );
+      if (action === 'accept') {
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               vendor_approved_at = CURRENT_TIMESTAMP,
+               vendor_approved_by = $2,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [newStatus, approverUserId, agreementId]
+        );
+      } else {
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               vendor_approved_at = NULL,
+               vendor_approved_by = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [newStatus, agreementId]
+        );
+      }
       
       // Create notification for Vendor Manager
       if (action === 'accept' && agreement.file_owner_user_id) {
@@ -1234,15 +1246,27 @@ class VendorAgreementService {
       
       // Update agreement status
       const newStatus = action === 'approve' ? 'manager_approved' : 'manager_rejected';
-      await client.query(
-        `UPDATE vendor_agreements 
-         SET approval_status = $1,
-             owner_approved_at = ${action === 'approve' ? 'CURRENT_TIMESTAMP' : 'NULL'},
-             owner_approved_by = ${action === 'approve' ? '$2' : 'NULL'},
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3`,
-        [newStatus, approverUserId, agreementId]
-      );
+      if (action === 'approve') {
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               owner_approved_at = CURRENT_TIMESTAMP,
+               owner_approved_by = $2,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [newStatus, approverUserId, agreementId]
+        );
+      } else {
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               owner_approved_at = NULL,
+               owner_approved_by = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [newStatus, agreementId]
+        );
+      }
       
       // Create notifications
       if (action === 'approve' && agreement.governance_manager_user_id) {
@@ -1370,17 +1394,31 @@ class VendorAgreementService {
       const newStatus = action === 'approve' ? 'governance_approved' : 'governance_rejected';
       const isLocked = action === 'approve';
       
-      await client.query(
-        `UPDATE vendor_agreements 
-         SET approval_status = $1,
-             governance_approved_at = ${action === 'approve' ? 'CURRENT_TIMESTAMP' : 'NULL'},
-             governance_approved_by = ${action === 'approve' ? '$2' : 'NULL'},
-             is_locked = $3,
-             locked_at = ${isLocked ? 'CURRENT_TIMESTAMP' : 'NULL'},
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4`,
-        [newStatus, approverUserId, isLocked, agreementId]
-      );
+      if (action === 'approve') {
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               governance_approved_at = CURRENT_TIMESTAMP,
+               governance_approved_by = $2,
+               is_locked = $3,
+               locked_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $4`,
+          [newStatus, approverUserId, isLocked, agreementId]
+        );
+      } else {
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               governance_approved_at = NULL,
+               governance_approved_by = NULL,
+               is_locked = $2,
+               locked_at = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [newStatus, isLocked, agreementId]
+        );
+      }
       
       // Log the lock if approved
       if (action === 'approve') {
