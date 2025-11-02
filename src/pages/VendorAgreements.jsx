@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaEye, FaPencilAlt, FaTrash } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -102,6 +102,7 @@ const VendorAgreements = () => {
   
   const { currentUser, hasRole, hasPermission } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const isAdmin = hasRole && hasRole('Admin');
   const isVendor = isVendorUser(currentUser);
@@ -115,6 +116,35 @@ const VendorAgreements = () => {
     
     fetchData();
   }, [currentUser, navigate, currentPage, pageSize]);
+  
+  // Handle opening agreement from notification
+  useEffect(() => {
+    const viewAgreementId = searchParams.get('view');
+    if (viewAgreementId) {
+      const agreementId = parseInt(viewAgreementId);
+      
+      // First check if the agreement is in the current page
+      const agreement = agreements.find(a => a.id === agreementId);
+      if (agreement) {
+        handleViewDetails(agreement);
+        setSearchParams({});
+      } else if (agreements.length > 0) {
+        // Agreement not on current page, fetch it directly
+        axios.get(`/api/vendor-agreements/${agreementId}`)
+          .then(response => {
+            if (response.data) {
+              handleViewDetails(response.data);
+              setSearchParams({});
+            }
+          })
+          .catch(error => {
+            console.error('Error loading agreement from notification:', error);
+            setError('Could not load the requested agreement');
+            setSearchParams({});
+          });
+      }
+    }
+  }, [searchParams, agreements]);
   
   const fetchData = async () => {
     setLoading(true);

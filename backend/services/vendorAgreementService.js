@@ -1186,8 +1186,9 @@ class VendorAgreementService {
         );
       }
       
-      // Create notification for Vendor Manager
+      // Create notifications
       if (action === 'accept' && agreement.file_owner_user_id) {
+        // Notify Vendor Manager that vendor has accepted
         await client.query(
           `INSERT INTO notifications (
             user_id, notification_type, title, message, entity_type, entity_id,
@@ -1198,8 +1199,24 @@ class VendorAgreementService {
             'Vendor Contract Ready for Manager Approval',
             `Contract "${agreement.agreement_name}" has been accepted by the vendor and is pending your approval.`,
             agreementId,
-            `/vendor-agreements/${agreementId}`,
+            `/vendor-agreements?view=${agreementId}`,
             JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name })
+          ]
+        );
+      } else if (action === 'reject' && agreement.file_owner_user_id) {
+        // Notify Vendor Manager that vendor has rejected
+        await client.query(
+          `INSERT INTO notifications (
+            user_id, notification_type, title, message, entity_type, entity_id,
+            action_url, metadata
+          ) VALUES ($1, 'vendor_contract_rejected_vendor', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+          [
+            agreement.file_owner_user_id,
+            'Vendor Contract Rejected by Vendor',
+            `Contract "${agreement.agreement_name}" has been rejected by the vendor. Reason: ${comments || 'No reason provided'}`,
+            agreementId,
+            `/vendor-agreements?view=${agreementId}`,
+            JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, rejection_reason: comments })
           ]
         );
       }
@@ -1326,7 +1343,7 @@ class VendorAgreementService {
             'Vendor Contract Ready for Governance Approval',
             `Contract "${agreement.agreement_name}" has been approved by the manager and is pending your final approval.`,
             agreementId,
-            `/vendor-agreements/${agreementId}`,
+            `/vendor-agreements?view=${agreementId}`,
             JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name })
           ]
         );
@@ -1343,7 +1360,7 @@ class VendorAgreementService {
               'Vendor Contract Rejected by Manager',
               `Contract "${agreement.agreement_name}" has been rejected by the manager. Reason: ${comments || 'No reason provided'}`,
               agreementId,
-              `/vendor-agreements/${agreementId}`,
+              `/vendor-agreements?view=${agreementId}`,
               JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, rejection_reason: comments })
             ]
           );
@@ -1497,7 +1514,7 @@ class VendorAgreementService {
               ? `Contract "${agreement.agreement_name}" has been fully approved and is now locked.`
               : `Contract "${agreement.agreement_name}" has been rejected by governance. Reason: ${comments || 'No reason provided'}`,
             agreementId,
-            `/vendor-agreements/${agreementId}`,
+            `/vendor-agreements?view=${agreementId}`,
             JSON.stringify({ 
               agreement_id: agreementId, 
               agreement_name: agreement.agreement_name,

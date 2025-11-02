@@ -30,7 +30,9 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
   const isGovernanceManager = agreement.governance_manager_user_id === currentUser.id;
 
   // Check if user is admin
-  const isAdmin = currentUser.role?.toLowerCase() === 'admin';
+  const isAdmin = Array.isArray(currentUser.roles) 
+    ? currentUser.roles.some(r => r.toLowerCase() === 'admin')
+    : currentUser.role?.toLowerCase() === 'admin';
 
   // Determine what actions this user can take
   const canVendorAccept = (isVendorUserForAgreement || isAdmin) && currentStage === 'vendor' && !agreement.is_locked;
