@@ -33,8 +33,10 @@ function VendorFileUpload() {
           headers: { Authorization: `Bearer ${token}` }
         });
         const agreements = response.data.agreements || [];
-        // Only show approved agreements for file upload
-        const approvedAgreements = agreements.filter(a => a.approval_status === 'fully_approved');
+        // Only show approved and locked agreements for file upload
+        const approvedAgreements = agreements.filter(a => 
+          a.approval_status === 'governance_approved' && a.is_locked === true
+        );
         setVendorAgreements(approvedAgreements);
       } catch (error) {
         console.error('Error loading vendor agreements:', error);
