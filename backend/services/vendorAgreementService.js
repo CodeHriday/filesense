@@ -1718,7 +1718,7 @@ class VendorAgreementService {
    */
   async getApprovalHistory(agreementId) {
     try {
-      const result = await pool.query(
+      const approvalResult = await pool.query(
         `SELECT 
           vaa.*,
           u.username,
@@ -1730,9 +1730,34 @@ class VendorAgreementService {
         [agreementId]
       );
       
+      // Fetch documents for each approval
+      const approvalsWithDocuments = await Promise.all(
+        approvalResult.rows.map(async (approval) => {
+          const documentsResult = await pool.query(
+            `SELECT 
+              id,
+              document_name,
+              document_type,
+              file_size,
+              mime_type,
+              uploaded_at,
+              description
+            FROM vendor_agreement_documents
+            WHERE approval_id = $1
+            ORDER BY uploaded_at DESC`,
+            [approval.id]
+          );
+          
+          return {
+            ...approval,
+            documents: documentsResult.rows
+          };
+        })
+      );
+      
       return {
         success: true,
-        approvals: result.rows
+        approvals: approvalsWithDocuments
       };
       
     } catch (error) {

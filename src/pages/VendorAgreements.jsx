@@ -1908,12 +1908,13 @@ const VendorAgreements = () => {
                               <th>User</th>
                               <th>Action</th>
                               <th>Comments</th>
+                              <th>Documents</th>
                             </tr>
                           </thead>
                           <tbody>
                             {Array.isArray(approvalHistory) && approvalHistory.map((approval, index) => (
                               <tr key={index}>
-                                <td>{new Date(approval.timestamp || approval.created_at).toLocaleString()}</td>
+                                <td>{new Date(approval.approval_timestamp || approval.timestamp || approval.created_at).toLocaleString()}</td>
                                 <td>{approval.username || approval.user_id}</td>
                                 <td>
                                   <span className={`action-badge action-${approval.action}`}>
@@ -1921,6 +1922,17 @@ const VendorAgreements = () => {
                                   </span>
                                 </td>
                                 <td>{approval.comments || '-'}</td>
+                                <td>
+                                  {approval.documents && approval.documents.length > 0 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      {approval.documents.map((doc, docIndex) => (
+                                        <div key={docIndex} style={{ fontSize: '0.85rem' }}>
+                                          📎 {doc.document_name} ({(doc.file_size / 1024).toFixed(1)} KB)
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : '-'}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
