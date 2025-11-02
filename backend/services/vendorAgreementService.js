@@ -427,6 +427,7 @@ class VendorAgreementService {
         vendor_connection_id,
         drop_location_path,
         manager_contact,
+        governance_manager_user_id,
         contains_pii,
         file_type,
         data_classification,
@@ -603,6 +604,13 @@ class VendorAgreementService {
         updates.push(`manager_contact = $${paramIndex}`);
         params.push(manager_contact);
         changes.manager_contact = { from: current.manager_contact, to: manager_contact };
+        paramIndex++;
+      }
+      
+      if (governance_manager_user_id !== undefined && governance_manager_user_id !== current.governance_manager_user_id) {
+        updates.push(`governance_manager_user_id = $${paramIndex}`);
+        params.push(governance_manager_user_id || null);
+        changes.governance_manager_user_id = { from: current.governance_manager_user_id, to: governance_manager_user_id };
         paramIndex++;
       }
       
