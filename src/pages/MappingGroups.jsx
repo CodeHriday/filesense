@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
+import { FiPlayCircle, FiEdit2, FiTrash2, FiPlusCircle, FiSearch } from 'react-icons/fi';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
@@ -21,6 +21,7 @@ const MappingGroups = () => {
   const [executeResult, setExecuteResult] = useState({ success: false, message: '', groupName: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchMappingGroups();
@@ -89,11 +90,31 @@ const MappingGroups = () => {
     return <LoadingSpinner message="Loading mapping groups..." />;
   }
 
+  // Filter groups based on search term
+  const filteredGroups = groups.filter(group => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (group.name || '').toLowerCase().includes(searchLower) ||
+      (group.description || '').toLowerCase().includes(searchLower) ||
+      (group.project_name || '').toLowerCase().includes(searchLower) ||
+      (group.created_by_name || '').toLowerCase().includes(searchLower)
+    );
+  });
+
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentGroups = groups.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(groups.length / itemsPerPage);
+  const currentGroups = filteredGroups.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredGroups.length / itemsPerPage);
+  
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else if (filteredGroups.length === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [filteredGroups.length, currentPage, totalPages]);
 
   return (
     <PageTransition>
@@ -103,7 +124,27 @@ const MappingGroups = () => {
           subtitle="Batch execution of transformations with concurrency control"
         />
         
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ position: 'relative', minWidth: '300px' }}>
+            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search groups..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.5rem 0.5rem 2.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                outline: 'none'
+              }}
+            />
+          </div>
           <Link to="/mapping-groups/create" className="btn btn-primary">
             <FiPlusCircle /> Create Mapping Group
           </Link>
