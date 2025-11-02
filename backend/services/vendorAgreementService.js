@@ -278,10 +278,10 @@ class VendorAgreementService {
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata,
           vendor_connection_id, drop_location_path, project_id,
-          manager_contact,
+          manager_contact, governance_manager_user_id,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, 1, $35, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 1, $36, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -290,7 +290,7 @@ class VendorAgreementService {
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata ? JSON.stringify(metadata) : null,
           vendor_connection_id, drop_location_path || null, project_id,
-          finalManagerContact,
+          finalManagerContact, governance_manager_user_id || null,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           finalStatus,
           createdBy
