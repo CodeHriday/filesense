@@ -6,6 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import Modal from '../components/Modal';
+import './ETLScheduler.css';
 import axios from 'axios';
 
 const ETLScheduler = () => {
