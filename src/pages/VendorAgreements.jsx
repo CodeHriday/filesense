@@ -889,18 +889,39 @@ const VendorAgreements = () => {
       return <span className="approval-badge approval-locked">🔒 Locked</span>;
     }
     
-    const vendorAccepted = !!agreement.vendor_accepted_at;
-    const managerApproved = !!agreement.manager_approved_at;
-    const governanceApproved = !!agreement.governance_approved_at;
+    // Check approval_status field for accurate workflow state
+    const status = agreement.approval_status;
     
-    if (governanceApproved) {
-      return <span className="approval-badge approval-approved">Fully Approved</span>;
-    } else if (managerApproved) {
-      return <span className="approval-badge approval-partial">Stage 2/3 Complete</span>;
-    } else if (vendorAccepted) {
-      return <span className="approval-badge approval-partial">Stage 1/3 Complete</span>;
-    } else {
-      return <span className="approval-badge approval-pending">Pending Vendor</span>;
+    switch (status) {
+      case 'draft':
+        return <span className="approval-badge approval-draft">Draft</span>;
+      
+      case 'changes_pending':
+        return <span className="approval-badge approval-pending">Pending Vendor</span>;
+      
+      case 'vendor_accepted':
+        return <span className="approval-badge approval-partial">Pending Vendor Manager</span>;
+      
+      case 'vendor_rejected':
+        return <span className="approval-badge approval-pending">Pending Vendor Manager</span>;
+      
+      case 'manager_approved':
+        return <span className="approval-badge approval-partial">Pending Governance Manager</span>;
+      
+      case 'manager_rejected':
+        return <span className="approval-badge approval-pending">Pending Vendor Manager</span>;
+      
+      case 'governance_approved':
+        return <span className="approval-badge approval-approved">Fully Approved ✓</span>;
+      
+      case 'governance_rejected':
+        return <span className="approval-badge approval-pending">Pending Vendor Manager</span>;
+      
+      case 'closed':
+        return <span className="approval-badge approval-locked">Closed</span>;
+      
+      default:
+        return <span className="approval-badge approval-pending">Pending Vendor</span>;
     }
   };
   
