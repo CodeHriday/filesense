@@ -26,8 +26,9 @@ const requireAdmin = (req, res, next) => {
 /**
  * GET /api/vendor-connections
  * Get all vendor connections with optional project filter
+ * Accessible to all authenticated users
  */
-router.get('/', requireAdmin, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { project_id } = req.query;
     
