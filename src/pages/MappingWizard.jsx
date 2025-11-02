@@ -170,8 +170,9 @@ function MappingWizard() {
       const hasApprovePermission = response.data.hasApprovePermission || false;
       
       // Filter for approved and locked agreements only (ready for ETL use)
+      // Accept both 'fully_approved' (legacy) and 'governance_approved' (new status after governance approval)
       const approvedAgreements = (response.data.agreements || response.data || []).filter(
-        agreement => agreement.approval_status === 'fully_approved' && agreement.is_locked
+        agreement => (agreement.approval_status === 'fully_approved' || agreement.approval_status === 'governance_approved') && agreement.is_locked
       );
       
       console.log(`Fetched ${approvedAgreements.length} approved vendor agreements (hasApprovePermission: ${hasApprovePermission})`);

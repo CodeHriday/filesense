@@ -2264,7 +2264,9 @@ class VendorAgreementService {
           v.drop_location_path
         FROM vendor_agreements va
         JOIN vendors v ON va.vendor_id = v.id
-        WHERE va.approval_status = 'fully_approved' AND va.is_locked = true AND va.status = 'active'
+        WHERE (va.approval_status = 'fully_approved' OR va.approval_status = 'governance_approved') 
+          AND va.is_locked = true 
+          AND va.status = 'active'
       `;
       
       const params = [];
