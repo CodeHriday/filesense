@@ -10,7 +10,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
   // Determine current stage and user permissions
   const getCurrentStage = () => {
-    if (!agreement.vendor_accepted_at) return 'vendor';
+    if (!agreement.vendor_approved_at) return 'vendor';
     if (!agreement.manager_approved_at) return 'manager';
     if (!agreement.governance_approved_at) return 'governance';
     return 'completed';
@@ -35,8 +35,8 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
     : currentUser.role?.toLowerCase() === 'admin';
 
   // Determine what actions this user can take
-  const canVendorAccept = (isVendorUserForAgreement || isAdmin) && currentStage === 'vendor' && !agreement.is_locked && !agreement.vendor_rejected_at;
-  const canManagerHandleRejection = (isFileOwner || isAdmin) && agreement.vendor_rejected_at && !agreement.vendor_accepted_at && !agreement.is_locked;
+  const canVendorAccept = (isVendorUserForAgreement || isAdmin) && currentStage === 'vendor' && !agreement.is_locked && agreement.approval_status !== 'vendor_rejected';
+  const canManagerHandleRejection = (isFileOwner || isAdmin) && agreement.approval_status === 'vendor_rejected' && !agreement.is_locked;
   const canManagerApprove = (isFileOwner || isAdmin) && currentStage === 'manager' && !agreement.is_locked;
   const canGovernanceApprove = (isGovernanceManager || isAdmin) && currentStage === 'governance' && !agreement.is_locked;
 
@@ -105,15 +105,15 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
   const getStageIcon = (stage) => {
     if (stage === 'vendor') {
-      if (agreement.vendor_rejected_at) return <FaTimesCircle className="stage-icon rejected" />;
-      if (agreement.vendor_accepted_at) return <FaCheckCircle className="stage-icon approved" />;
+      if (agreement.approval_status === 'vendor_rejected') return <FaTimesCircle className="stage-icon rejected" />;
+      if (agreement.vendor_approved_at) return <FaCheckCircle className="stage-icon approved" />;
       if (currentStage === 'vendor') return <FaClock className="stage-icon pending-active" />;
       return <FaClock className="stage-icon pending" />;
     } else if (stage === 'manager') {
       if (agreement.manager_rejected_at) return <FaTimesCircle className="stage-icon rejected" />;
       if (agreement.manager_approved_at) return <FaCheckCircle className="stage-icon approved" />;
       if (currentStage === 'manager') return <FaClock className="stage-icon pending-active" />;
-      if (!agreement.vendor_accepted_at) return <FaClock className="stage-icon disabled" />;
+      if (!agreement.vendor_approved_at) return <FaClock className="stage-icon disabled" />;
       return <FaClock className="stage-icon pending" />;
     } else if (stage === 'governance') {
       if (agreement.governance_rejected_at) return <FaTimesCircle className="stage-icon rejected" />;
@@ -126,13 +126,13 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
   const getStageLabel = (stage) => {
     if (stage === 'vendor') {
-      if (agreement.vendor_rejected_at) return 'Rejected';
-      if (agreement.vendor_accepted_at) return `Accepted ${new Date(agreement.vendor_accepted_at).toLocaleDateString()}`;
+      if (agreement.approval_status === 'vendor_rejected') return 'Rejected';
+      if (agreement.vendor_approved_at) return `Accepted ${new Date(agreement.vendor_approved_at).toLocaleDateString()}`;
       return 'Pending Vendor Acceptance';
     } else if (stage === 'manager') {
       if (agreement.manager_rejected_at) return 'Rejected';
       if (agreement.manager_approved_at) return `Approved ${new Date(agreement.manager_approved_at).toLocaleDateString()}`;
-      if (!agreement.vendor_accepted_at) return 'Awaiting Vendor';
+      if (!agreement.vendor_approved_at) return 'Awaiting Vendor';
       return 'Pending Manager Approval';
     } else if (stage === 'governance') {
       if (agreement.governance_rejected_at) return 'Rejected';
@@ -148,7 +148,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       
       {/* Progress Tracker */}
       <div className="approval-stages">
-        <div className={`approval-stage ${currentStage === 'vendor' ? 'active' : ''} ${agreement.vendor_accepted_at ? 'completed' : ''} ${agreement.vendor_rejected_at ? 'rejected' : ''}`}>
+        <div className={`approval-stage ${currentStage === 'vendor' ? 'active' : ''} ${agreement.vendor_approved_at ? 'completed' : ''} ${agreement.approval_status === 'vendor_rejected' ? 'rejected' : ''}`}>
           <div className="stage-header">
             {getStageIcon('vendor')}
             <div className="stage-info">

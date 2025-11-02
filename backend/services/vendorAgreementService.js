@@ -1412,7 +1412,7 @@ class VendorAgreementService {
       const agreement = agreementResult.rows[0];
       
       // Check if agreement has vendor rejection
-      if (!agreement.vendor_rejected_at) {
+      if (agreement.approval_status !== 'vendor_rejected') {
         throw new Error('Agreement has not been rejected by vendor');
       }
       
@@ -1456,14 +1456,13 @@ class VendorAgreementService {
       let newStatus, notificationTitle, notificationMessage, notificationType;
       
       if (action === 'send-to-vendor') {
-        // Reset to vendor stage - clear vendor rejected timestamp
+        // Reset to vendor stage - clear vendor approval
         newStatus = 'pending_vendor';
         await client.query(
           `UPDATE vendor_agreements 
            SET approval_status = $1,
-               vendor_accepted_at = NULL,
+               vendor_approved_at = NULL,
                vendor_approved_by = NULL,
-               vendor_rejected_at = NULL,
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $2`,
           [newStatus, agreementId]
@@ -1498,9 +1497,8 @@ class VendorAgreementService {
         await client.query(
           `UPDATE vendor_agreements 
            SET approval_status = $1,
-               vendor_accepted_at = CURRENT_TIMESTAMP,
+               vendor_approved_at = CURRENT_TIMESTAMP,
                vendor_approved_by = $2,
-               vendor_rejected_at = NULL,
                manager_approved_at = CURRENT_TIMESTAMP,
                manager_approved_by = $3,
                owner_approved_at = CURRENT_TIMESTAMP,
