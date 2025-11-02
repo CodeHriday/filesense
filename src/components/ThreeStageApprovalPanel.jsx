@@ -35,11 +35,12 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
     : currentUser.role?.toLowerCase() === 'admin';
 
   // Determine what actions this user can take
-  const canVendorAccept = (isVendorUserForAgreement || isAdmin) && currentStage === 'vendor' && !agreement.is_locked;
+  const canVendorAccept = (isVendorUserForAgreement || isAdmin) && currentStage === 'vendor' && !agreement.is_locked && !agreement.vendor_rejected_at;
+  const canManagerHandleRejection = (isFileOwner || isAdmin) && agreement.vendor_rejected_at && !agreement.vendor_accepted_at && !agreement.is_locked;
   const canManagerApprove = (isFileOwner || isAdmin) && currentStage === 'manager' && !agreement.is_locked;
   const canGovernanceApprove = (isGovernanceManager || isAdmin) && currentStage === 'governance' && !agreement.is_locked;
 
-  const canTakeAction = canVendorAccept || canManagerApprove || canGovernanceApprove;
+  const canTakeAction = canVendorAccept || canManagerHandleRejection || canManagerApprove || canGovernanceApprove;
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
@@ -51,8 +52,8 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
   };
 
   const handleAction = async (action) => {
-    if (action === 'reject' && !comments.trim()) {
-      onError('Comments are required for rejection');
+    if ((action === 'reject' || action === 'send-to-vendor') && !comments.trim()) {
+      onError('Comments are required for this action');
       return;
     }
 
@@ -71,6 +72,8 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       let endpoint = '';
       if (canVendorAccept) {
         endpoint = `/api/vendor-agreements/${agreement.id}/vendor-action`;
+      } else if (canManagerHandleRejection) {
+        endpoint = `/api/vendor-agreements/${agreement.id}/manager-handle-rejection`;
       } else if (canManagerApprove) {
         endpoint = `/api/vendor-agreements/${agreement.id}/manager-action`;
       } else if (canGovernanceApprove) {
@@ -83,7 +86,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
         }
       });
 
-      onSuccess(response.data.message || `Agreement ${action}ed successfully!`);
+      onSuccess(response.data.message || `Action completed successfully!`);
       setComments('');
       setAttachments([]);
       
@@ -93,8 +96,8 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
       }
       
     } catch (error) {
-      console.error(`Error ${action}ing agreement:`, error);
-      onError(error.response?.data?.error || `Failed to ${action} agreement`);
+      console.error(`Error performing action:`, error);
+      onError(error.response?.data?.error || `Failed to perform action`);
     } finally {
       setUploading(false);
     }
@@ -233,20 +236,75 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
 
           {/* Action Buttons */}
           <div className="action-buttons">
-            <button
-              className="approve-btn-stage"
-              onClick={() => handleAction('accept')}
-              disabled={uploading}
-            >
-              {uploading ? 'Processing...' : `${currentStage === 'vendor' ? 'Accept' : 'Approve'} Agreement`}
-            </button>
-            <button
-              className="reject-btn-stage"
-              onClick={() => handleAction('reject')}
-              disabled={uploading}
-            >
-              {uploading ? 'Processing...' : 'Reject Agreement'}
-            </button>
+            {canManagerHandleRejection ? (
+              <>
+                <button
+                  className="approve-btn-stage"
+                  onClick={() => handleAction('override-and-approve')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Override & Send to Governance'}
+                </button>
+                <button
+                  className="reject-btn-stage"
+                  onClick={() => handleAction('send-to-vendor')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Send Back to Vendor'}
+                </button>
+              </>
+            ) : canVendorAccept ? (
+              <>
+                <button
+                  className="approve-btn-stage"
+                  onClick={() => handleAction('accept')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Accept Agreement'}
+                </button>
+                <button
+                  className="reject-btn-stage"
+                  onClick={() => handleAction('reject')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Reject Agreement'}
+                </button>
+              </>
+            ) : canManagerApprove ? (
+              <>
+                <button
+                  className="approve-btn-stage"
+                  onClick={() => handleAction('accept')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Approve & Send to Governance'}
+                </button>
+                <button
+                  className="reject-btn-stage"
+                  onClick={() => handleAction('reject')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Reject Agreement'}
+                </button>
+              </>
+            ) : canGovernanceApprove ? (
+              <>
+                <button
+                  className="approve-btn-stage"
+                  onClick={() => handleAction('accept')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Approve'}
+                </button>
+                <button
+                  className="reject-btn-stage"
+                  onClick={() => handleAction('reject')}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Processing...' : 'Reject'}
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       )}
