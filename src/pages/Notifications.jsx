@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiBell, FiCheck, FiX, FiTrash2, FiMail, FiMailOpen } from 'react-icons/fi';
+import { FiBell, FiCheck, FiX, FiTrash2, FiMail } from 'react-icons/fi';
 import './Notifications.css';
 
 function Notifications() {
@@ -221,7 +221,7 @@ function Notifications() {
                     }}
                     title="Mark as read"
                   >
-                    <FiMailOpen />
+                    <FiCheck />
                   </button>
                 ) : (
                   <button
