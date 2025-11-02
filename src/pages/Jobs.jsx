@@ -241,7 +241,7 @@ const Jobs = () => {
           <h1>Jobs Log</h1>
           <p style={{ color: '#037c6e' }}>Monitor and manage ETL transformation job executions</p>
         </div>
-        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div className="page-header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <div style={{ position: 'relative', minWidth: '300px' }}>
             <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
             <input
