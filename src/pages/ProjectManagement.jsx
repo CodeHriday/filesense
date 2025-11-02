@@ -384,32 +384,29 @@ function ProjectManagement() {
                   <td>
                     <div className="action-buttons">
                       <button 
-                        className="btn-icon" 
+                        className="action-icon-btn project-btn" 
                         onClick={() => navigate(`/upload?project_id=${project.id}`)}
                         title="Add File to Project"
                         aria-label={`Add file to project ${project.name}`}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#28a745' }}
                       >
-                        <FiFolderPlus size={16} aria-hidden="true" />
+                        <FiFolderPlus aria-hidden="true" />
                       </button>
                       <button 
-                        className="btn-icon" 
+                        className="action-icon-btn edit-btn" 
                         onClick={() => openEditModal(project)}
                         title="Edit Project"
                         aria-label={`Edit project ${project.name}`}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#4a90e2' }}
                       >
-                        <FiEdit2 size={18} aria-hidden="true" />
+                        <FiEdit2 aria-hidden="true" />
                       </button>
                       {!project.is_default && (
                         <button 
-                          className="btn-icon btn-danger" 
+                          className="action-icon-btn delete-btn" 
                           onClick={() => openDeleteProjectConfirm(project)}
                           title="Delete Project"
                           aria-label={`Delete project ${project.name}`}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#dc3545' }}
                         >
-                          <FiTrash2 size={18} aria-hidden="true" />
+                          <FiTrash2 aria-hidden="true" />
                         </button>
                       )}
                     </div>
