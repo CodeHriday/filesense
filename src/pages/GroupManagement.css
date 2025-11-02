@@ -453,3 +453,70 @@
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+
+/* Icon-based action buttons */
+.action-icon-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #6c757d);
+}
+
+.action-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action-icon-btn:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.action-icon-btn.view-btn {
+  color: #6c757d;
+}
+
+.action-icon-btn.view-btn:hover {
+  background-color: rgba(108, 117, 125, 0.15);
+}
+
+.action-icon-btn.edit-btn {
+  color: #1a73e8;
+}
+
+.action-icon-btn.edit-btn:hover {
+  background-color: rgba(26, 115, 232, 0.15);
+}
+
+.action-icon-btn.delete-btn {
+  color: #d93025;
+}
+
+.action-icon-btn.delete-btn:hover {
+  background-color: rgba(217, 48, 37, 0.15);
+}
+
+.action-icon-btn.project-btn {
+  color: #137333;
+}
+
+.action-icon-btn.project-btn:hover {
+  background-color: rgba(19, 115, 51, 0.15);
+}
+
+.action-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-disabled, #9ca3af) !important;
+}
+
+.action-icon-btn:disabled:hover {
+  background-color: transparent !important;
+  transform: none !important;
+}
