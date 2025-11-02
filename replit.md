@@ -7,6 +7,18 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**November 2, 2025** - Enhanced role-based approval workflow with vendor rejection handling:
+- Vendor Managers now see action buttons at manager approval stage (file_owner_user_id check)
+- Governance Managers now see approve/reject buttons at governance stage (governance_manager_user_id check)
+- Added special workflow for vendor rejection scenario with two manager options:
+  - "Send Back to Vendor" - Resets agreement to vendor stage with notification to vendor
+  - "Override & Send to Governance" - Bypasses vendor rejection and advances to governance
+- Updated button labels based on stage: "Accept Agreement" (vendor), "Approve & Send to Governance" (manager), "Approve"/"Reject" (governance)
+- Created new backend endpoint `/manager-handle-rejection` with service method to handle both rejection actions
+- Fixed admin role check to properly detect Admin role from roles array
+- Notifications now include deep-linking with query parameters (?view={agreementId}) that auto-open specific agreement modals
+- Agreement fetching from notifications works across paginated results using direct API call when agreement not in current page
+
 **November 2, 2025** - Fixed vendor agreement approval document upload and SQL parameter errors:
 - Resolved "null value in column 'document_name'" database constraint violation
 - Fixed field mapping between route handlers and service layer (filename→name, data→path)
