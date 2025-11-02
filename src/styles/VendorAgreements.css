@@ -151,7 +151,7 @@
 }
 
 .action-icon-btn.view-btn:hover {
-  background-color: rgba(108, 117, 125, 0.15);
+  background-color: #e9ecef;
 }
 
 .action-icon-btn.edit-btn {
@@ -159,7 +159,7 @@
 }
 
 .action-icon-btn.edit-btn:hover {
-  background-color: rgba(26, 115, 232, 0.15);
+  background-color: #e8f0fe;
 }
 
 .action-icon-btn.delete-btn {
@@ -167,7 +167,7 @@
 }
 
 .action-icon-btn.delete-btn:hover {
-  background-color: rgba(217, 48, 37, 0.15);
+  background-color: #fce8e6;
 }
 
 .action-icon-btn.project-btn {
@@ -175,7 +175,7 @@
 }
 
 .action-icon-btn.project-btn:hover {
-  background-color: rgba(19, 115, 51, 0.15);
+  background-color: #e6f4ea;
 }
 
 .action-icon-btn:disabled {
