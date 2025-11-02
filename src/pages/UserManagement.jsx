@@ -536,7 +536,7 @@ const UserManagement = () => {
                           </button>
                         )}
                         <button 
-                          className="edit-user-icon-btn" 
+                          className="action-icon-btn edit-btn" 
                           onClick={() => openEditModal(user)}
                           title="Edit user"
                         >
@@ -545,7 +545,7 @@ const UserManagement = () => {
                         
                         {user.id !== currentUser?.id && (
                           <button 
-                            className="delete-user-icon-btn" 
+                            className="action-icon-btn delete-btn" 
                             onClick={() => openDeleteModal(user)}
                             title="Delete user"
                           >
