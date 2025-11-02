@@ -1996,21 +1996,46 @@ class VendorAgreementService {
       
       // Apply role-based filtering for vendor users
       // Only admin role or vendor_agreements:approve permission bypass contact filtering
-      // Regular vendor users with just vendor_agreements:read must be filtered by contact emails
+      // Regular vendor users with just vendor_agreements:read must be filtered by contact emails OR project membership
       if (!isAdmin && !hasApprovePermission && userId) {
         if (userEmail) {
-          // Allow access if user is: file owner, vendor user, primary contact, or secondary contact
+          // Allow access if user is:
+          // 1. File owner
+          // 2. Vendor user
+          // 3. Primary or secondary contact
+          // 4. Member of the vendor's project (direct or via access group)
           whereClauses.push(`(
             va.file_owner_user_id = $${paramCounter} 
             OR v.vendor_user_id = $${paramCounter}
             OR va.primary_contact_email = $${paramCounter + 1}
             OR va.secondary_contact_email = $${paramCounter + 1}
+            OR EXISTS (
+              SELECT 1 FROM project_members pm 
+              WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
+            )
+            OR EXISTS (
+              SELECT 1 FROM access_group_members agm
+              JOIN project_access_groups pag ON agm.group_id = pag.group_id
+              WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
+            )
           )`);
           queryParams.push(userId, userEmail);
           paramCounter += 2;
         } else {
-          // Fallback if email not provided
-          whereClauses.push(`(va.file_owner_user_id = $${paramCounter} OR v.vendor_user_id = $${paramCounter})`);
+          // Fallback if email not provided - check file owner, vendor user, and project membership
+          whereClauses.push(`(
+            va.file_owner_user_id = $${paramCounter} 
+            OR v.vendor_user_id = $${paramCounter}
+            OR EXISTS (
+              SELECT 1 FROM project_members pm 
+              WHERE pm.project_id = v.project_id AND pm.user_id = $${paramCounter}
+            )
+            OR EXISTS (
+              SELECT 1 FROM access_group_members agm
+              JOIN project_access_groups pag ON agm.group_id = pag.group_id
+              WHERE pag.project_id = v.project_id AND agm.user_id = $${paramCounter}
+            )
+          )`);
           queryParams.push(userId);
           paramCounter++;
         }
