@@ -9,13 +9,14 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 **November 2, 2025** - Added governance rejection handling for vendor managers:
 - Vendor Managers now see action buttons when governance rejects an agreement
-- Two options available after governance rejection:
+- Three options available after governance rejection:
   - "Revise & Resubmit to Governance" - Resets to governance stage with notification sent to governance manager
+  - "Send Back to Vendor" - Resets to vendor stage, clears all approvals, notifies vendor user
   - "Close Agreement" - Permanently closes the agreement with locked status
 - Created new backend endpoint `/manager-handle-governance-rejection` with complete service method
 - Frontend approval panel updated with canManagerHandleGovernanceRejection logic
-- Full document attachment support for both actions with 10 KB limit
-- Notifications created with deep-linking for governance manager when agreement resubmitted
+- Full document attachment support for all three actions with 10 KB limit
+- Notifications created with deep-linking for governance manager (resubmit) or vendor user (send back)
 
 **November 2, 2025** - Enhanced role-based approval workflow with vendor rejection handling:
 - Vendor Managers now see action buttons at manager approval stage (file_owner_user_id check)

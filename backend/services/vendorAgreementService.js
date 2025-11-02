@@ -1557,8 +1557,8 @@ class VendorAgreementService {
     try {
       await client.query('BEGIN');
       
-      if (!['resubmit', 'close'].includes(action)) {
-        throw new Error('Invalid action. Must be "resubmit" or "close"');
+      if (!['resubmit', 'close', 'send-to-vendor'].includes(action)) {
+        throw new Error('Invalid action. Must be "resubmit", "send-to-vendor", or "close"');
       }
       
       // Verify agreement has governance rejection
@@ -1577,14 +1577,16 @@ class VendorAgreementService {
       
       // Record action
       const actionValue = action === 'close' ? 'revoked' : 'approved';
+      const approvalStage = action === 'close' ? 'close_agreement' : 
+                           action === 'send-to-vendor' ? 'send_to_vendor' : 
+                           'resubmit_to_governance';
       const approvalResult = await client.query(
         `INSERT INTO vendor_agreement_approvals (
           agreement_id, approver_type, approver_user_id, action, comments,
           agreement_version, approval_timestamp, approval_stage
         ) VALUES ($1, 'manager', $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
         RETURNING id`,
-        [agreementId, approverUserId, actionValue, comments, agreement.version,
-         action === 'close' ? 'close_agreement' : 'resubmit_to_governance']
+        [agreementId, approverUserId, actionValue, comments, agreement.version, approvalStage]
       );
       
       const approvalId = approvalResult.rows[0].id;
@@ -1592,14 +1594,16 @@ class VendorAgreementService {
       // Handle documents
       if (documents && documents.length > 0) {
         for (const doc of documents) {
+          const docStage = action === 'close' ? 'close_agreement' : 
+                          action === 'send-to-vendor' ? 'send_to_vendor' : 
+                          'resubmit_to_governance';
           await client.query(
             `INSERT INTO vendor_agreement_documents (
               agreement_id, approval_id, document_name, document_type,
               file_path, file_size, mime_type, uploaded_by, approval_stage, description
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [agreementId, approvalId, doc.name, doc.type, doc.path,
-             doc.size, doc.mimeType, approverUserId,
-             action === 'close' ? 'close_agreement' : 'resubmit_to_governance', doc.description]
+             doc.size, doc.mimeType, approverUserId, docStage, doc.description]
           );
         }
       }
@@ -1638,6 +1642,42 @@ class VendorAgreementService {
         }
         
         message = 'Agreement revised and resubmitted to governance';
+      } else if (action === 'send-to-vendor') {
+        // Send back to vendor stage - clear all approvals
+        newStatus = 'pending_vendor_acceptance';
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET approval_status = $1,
+               vendor_approved_at = NULL,
+               vendor_approved_by = NULL,
+               manager_approved_at = NULL,
+               manager_approved_by = NULL,
+               governance_approved_at = NULL,
+               governance_approved_by = NULL,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [newStatus, agreementId]
+        );
+        
+        // Notify vendor user
+        if (agreement.vendor_approved_by) {
+          await client.query(
+            `INSERT INTO notifications (
+              user_id, notification_type, title, message, entity_type, entity_id,
+              action_url, metadata
+            ) VALUES ($1, 'vendor_contract_sent_back', $2, $3, 'vendor_agreement', $4, $5, $6)`,
+            [
+              agreement.vendor_approved_by,
+              'Vendor Contract Sent Back for Review',
+              `Contract "${agreement.agreement_code}" has been sent back to you for review after governance rejection. Manager notes: ${comments}`,
+              agreementId,
+              `/vendor-agreements?view=${agreementId}`,
+              JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code, manager_comments: comments })
+            ]
+          );
+        }
+        
+        message = 'Agreement sent back to vendor for review';
       } else if (action === 'close') {
         // Close the agreement
         newStatus = 'rejected';
