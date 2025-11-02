@@ -274,7 +274,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
               <>
                 <button
                   className="approve-btn-stage"
-                  onClick={() => handleAction('accept')}
+                  onClick={() => handleAction('approve')}
                   disabled={uploading}
                 >
                   {uploading ? 'Processing...' : 'Approve & Send to Governance'}
@@ -291,7 +291,7 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
               <>
                 <button
                   className="approve-btn-stage"
-                  onClick={() => handleAction('accept')}
+                  onClick={() => handleAction('approve')}
                   disabled={uploading}
                 >
                   {uploading ? 'Processing...' : 'Approve'}
