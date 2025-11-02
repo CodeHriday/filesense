@@ -1574,7 +1574,9 @@ class VendorAgreementService {
       }
       
       // Record action
-      const actionValue = action === 'close' ? 'revoked' : 'approved';
+      const actionValue = action === 'close' ? 'revoked' : 
+                         action === 'send-to-vendor' ? 'rejected' : 
+                         'approved';
       const approvalStage = action === 'close' ? 'close_agreement' : 
                            action === 'send-to-vendor' ? 'send_to_vendor' : 
                            'resubmit_to_governance';
