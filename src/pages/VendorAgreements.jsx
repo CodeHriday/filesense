@@ -126,14 +126,18 @@ const VendorAgreements = () => {
       // First check if the agreement is in the current page
       const agreement = agreements.find(a => a.id === agreementId);
       if (agreement) {
-        handleViewDetails(agreement);
+        openDetailModal(agreement);
         setSearchParams({});
       } else if (agreements.length > 0) {
         // Agreement not on current page, fetch it directly
         axios.get(`/api/vendor-agreements/${agreementId}`)
           .then(response => {
-            if (response.data) {
-              handleViewDetails(response.data);
+            const agreementData = response.data.agreement || response.data;
+            if (agreementData && agreementData.id) {
+              openDetailModal(agreementData);
+              setSearchParams({});
+            } else {
+              setError('Could not load the requested agreement');
               setSearchParams({});
             }
           })
@@ -144,7 +148,7 @@ const VendorAgreements = () => {
           });
       }
     }
-  }, [searchParams, agreements]);
+  }, [searchParams, agreements, setSearchParams]);
   
   const fetchData = async () => {
     setLoading(true);
