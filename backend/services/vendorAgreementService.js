@@ -1197,10 +1197,10 @@ class VendorAgreementService {
           [
             agreement.file_owner_user_id,
             'Vendor Contract Ready for Manager Approval',
-            `Contract "${agreement.agreement_name}" has been accepted by the vendor and is pending your approval.`,
+            `Contract "${agreement.agreement_code}" has been accepted by the vendor and is pending your approval.`,
             agreementId,
             `/vendor-agreements?view=${agreementId}`,
-            JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name })
+            JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code })
           ]
         );
       } else if (action === 'reject' && agreement.file_owner_user_id) {
@@ -1213,10 +1213,10 @@ class VendorAgreementService {
           [
             agreement.file_owner_user_id,
             'Vendor Contract Rejected by Vendor',
-            `Contract "${agreement.agreement_name}" has been rejected by the vendor. Reason: ${comments || 'No reason provided'}`,
+            `Contract "${agreement.agreement_code}" has been rejected by the vendor. Reason: ${comments || 'No reason provided'}`,
             agreementId,
             `/vendor-agreements?view=${agreementId}`,
-            JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, rejection_reason: comments })
+            JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code, rejection_reason: comments })
           ]
         );
       }
@@ -1341,10 +1341,10 @@ class VendorAgreementService {
           [
             agreement.governance_manager_user_id,
             'Vendor Contract Ready for Governance Approval',
-            `Contract "${agreement.agreement_name}" has been approved by the manager and is pending your final approval.`,
+            `Contract "${agreement.agreement_code}" has been approved by the manager and is pending your final approval.`,
             agreementId,
             `/vendor-agreements?view=${agreementId}`,
-            JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name })
+            JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code })
           ]
         );
       } else if (action === 'reject') {
@@ -1358,10 +1358,10 @@ class VendorAgreementService {
             [
               agreement.vendor_approved_by,
               'Vendor Contract Rejected by Manager',
-              `Contract "${agreement.agreement_name}" has been rejected by the manager. Reason: ${comments || 'No reason provided'}`,
+              `Contract "${agreement.agreement_code}" has been rejected by the manager. Reason: ${comments || 'No reason provided'}`,
               agreementId,
               `/vendor-agreements?view=${agreementId}`,
-              JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, rejection_reason: comments })
+              JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code, rejection_reason: comments })
             ]
           );
         }
@@ -1470,7 +1470,7 @@ class VendorAgreementService {
         );
         
         notificationTitle = 'Vendor Contract Sent Back for Review';
-        notificationMessage = `Contract "${agreement.agreement_name}" has been sent back to you for review. Manager feedback: ${comments}`;
+        notificationMessage = `Contract "${agreement.agreement_code}" has been sent back to you for review. Manager feedback: ${comments}`;
         notificationType = 'vendor_contract_pending_vendor';
         
         // Notify vendor contacts
@@ -1487,7 +1487,7 @@ class VendorAgreementService {
               notificationMessage,
               agreementId,
               `/vendor-agreements?view=${agreementId}`,
-              JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, manager_comments: comments })
+              JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code, manager_comments: comments })
             ]
           );
         }
@@ -1519,10 +1519,10 @@ class VendorAgreementService {
             [
               agreement.governance_manager_user_id,
               'Vendor Contract Ready for Governance Approval',
-              `Contract "${agreement.agreement_name}" has been approved (vendor rejection overridden) and is pending your final approval. Manager notes: ${comments}`,
+              `Contract "${agreement.agreement_code}" has been approved (vendor rejection overridden) and is pending your final approval. Manager notes: ${comments}`,
               agreementId,
               `/vendor-agreements?view=${agreementId}`,
-              JSON.stringify({ agreement_id: agreementId, agreement_name: agreement.agreement_name, override_comments: comments })
+              JSON.stringify({ agreement_id: agreementId, agreement_code: agreement.agreement_code, override_comments: comments })
             ]
           );
         }
@@ -1673,13 +1673,13 @@ class VendorAgreementService {
             action === 'approve' ? 'vendor_contract_approved_final' : 'vendor_contract_rejected_governance',
             action === 'approve' ? 'Vendor Contract Fully Approved' : 'Vendor Contract Rejected by Governance',
             action === 'approve' 
-              ? `Contract "${agreement.agreement_name}" has been fully approved and is now locked.`
-              : `Contract "${agreement.agreement_name}" has been rejected by governance. Reason: ${comments || 'No reason provided'}`,
+              ? `Contract "${agreement.agreement_code}" has been fully approved and is now locked.`
+              : `Contract "${agreement.agreement_code}" has been rejected by governance. Reason: ${comments || 'No reason provided'}`,
             agreementId,
             `/vendor-agreements?view=${agreementId}`,
             JSON.stringify({ 
               agreement_id: agreementId, 
-              agreement_name: agreement.agreement_name,
+              agreement_code: agreement.agreement_code,
               rejection_reason: action === 'reject' ? comments : null
             })
           ]
