@@ -61,12 +61,12 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-.notification-header h3 {
+.notification-dropdown .notification-header h3 {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
   color: #1f2937;
-  text-align: left;
+  text-align: left !important;
 }
 
 .mark-all-read-btn {
