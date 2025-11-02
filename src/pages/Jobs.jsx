@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiEye, FiX, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiEye, FiX, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiChevronLeft, FiChevronRight, FiSearch } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -21,6 +21,7 @@ const Jobs = () => {
   const [cancelResultModalOpen, setCancelResultModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [searchTerm, setSearchTerm] = useState('');
   const isFetching = useRef(false);
 
   useEffect(() => {
@@ -186,11 +187,33 @@ const Jobs = () => {
     );
   };
 
+  // Filter jobs based on search term
+  const filteredJobs = jobs.filter(job => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (job.job_id?.toString() || '').toLowerCase().includes(searchLower) ||
+      (job.mapping_name || '').toLowerCase().includes(searchLower) ||
+      (job.project_name || '').toLowerCase().includes(searchLower) ||
+      (job.status || '').toLowerCase().includes(searchLower) ||
+      (job.mapping_group_name || '').toLowerCase().includes(searchLower) ||
+      (job.workflow_name || '').toLowerCase().includes(searchLower)
+    );
+  });
+
   // Pagination calculations
-  const totalPages = Math.ceil(jobs.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentJobs = jobs.slice(startIndex, endIndex);
+  const currentJobs = filteredJobs.slice(startIndex, endIndex);
+
+  // Clamp currentPage when filtered results shrink
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else if (filteredJobs.length === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [filteredJobs.length, currentPage, totalPages]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -218,7 +241,27 @@ const Jobs = () => {
           <h1>Jobs Log</h1>
           <p style={{ color: '#037c6e' }}>Monitor and manage ETL transformation job executions</p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative', minWidth: '300px' }}>
+            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem 0.5rem 2.5rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                outline: 'none'
+              }}
+            />
+          </div>
           <button 
             className="btn btn-secondary"
             onClick={handleRefresh}
@@ -238,11 +281,11 @@ const Jobs = () => {
       )}
 
       <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-        {jobs.length === 0 ? (
+        {filteredJobs.length === 0 ? (
           <div className="empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
             <FiClock size={48} style={{ color: '#94a3b8', marginBottom: '1rem' }} />
-            <h3>No jobs yet</h3>
-            <p>Job executions will appear here when mappings are executed</p>
+            <h3>{searchTerm ? 'No jobs found' : 'No jobs yet'}</h3>
+            <p>{searchTerm ? 'Try adjusting your search criteria' : 'Job executions will appear here when mappings are executed'}</p>
           </div>
         ) : (
           <>
@@ -355,7 +398,8 @@ const Jobs = () => {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                  Showing {startIndex + 1} to {Math.min(endIndex, jobs.length)} of {jobs.length} jobs
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredJobs.length)} of {filteredJobs.length} jobs
+                  {searchTerm && ` (filtered from ${jobs.length} total)`}
                 </span>
                 <select 
                   value={itemsPerPage} 

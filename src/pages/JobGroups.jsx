@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEdit2, FiTrash2, FiClipboard, FiUsers } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiClipboard, FiUsers, FiSearch } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Modal, Button, Tooltip } from '../components/common';
+import Pagination from '../components/Pagination';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { getJobGroups, createJobGroup, deleteJobGroup } from '../api/jobGroupsService';
@@ -17,6 +18,9 @@ const JobGroups = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { addToast } = useToast();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
@@ -113,6 +117,29 @@ const JobGroups = () => {
     navigate(`/job-groups/${id}`);
   };
   
+  const filteredJobGroups = jobGroups.filter(group => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (group.name || '').toLowerCase().includes(searchLower) ||
+      (group.description || '').toLowerCase().includes(searchLower) ||
+      (group.created_by_name || '').toLowerCase().includes(searchLower)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredJobGroups.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentJobGroups = filteredJobGroups.slice(startIndex, endIndex);
+
+  // Clamp currentPage when filtered results shrink
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else if (filteredJobGroups.length === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [filteredJobGroups.length, currentPage, totalPages]);
+
   if (loading) {
     return <LoadingSpinner fullPage={true} />;
   }
@@ -121,25 +148,47 @@ const JobGroups = () => {
     <div className="job-groups-container">
       <div className="job-groups-header">
         <h1 className="job-groups-title">Groups</h1>
-        {canCreate && (
-          <div className="job-groups-actions">
-            <Button 
-              variant="primary" 
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              <FiPlus /> Create Group
-            </Button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative', minWidth: '300px' }}>
+            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search groups..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem 0.5rem 2.5rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                outline: 'none'
+              }}
+            />
           </div>
-        )}
+          {canCreate && (
+            <div className="job-groups-actions">
+              <Button 
+                variant="primary" 
+                onClick={() => setIsCreateModalOpen(true)}
+              >
+                <FiPlus /> Create Group
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
       
       {error && <div className="error-message">{error}</div>}
       
-      {!loading && jobGroups.length === 0 ? (
+      {!loading && filteredJobGroups.length === 0 ? (
         <div className="empty-job-groups">
           <FiClipboard size={48} />
-          <p>No groups found</p>
-          {canCreate && (
+          <p>{searchTerm ? 'No groups found' : 'No groups found'}</p>
+          {!searchTerm && canCreate && (
             <Button 
               variant="primary" 
               onClick={() => setIsCreateModalOpen(true)}
@@ -147,21 +196,23 @@ const JobGroups = () => {
               <FiPlus /> Create Your First Group
             </Button>
           )}
+          {searchTerm && <p>Try adjusting your search criteria</p>}
         </div>
       ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th className="group-name-column">Group Name</th>
-                <th className="description-column">Description</th>
-                <th className="jobs-column">Jobs</th>
-                <th className="created-by-column">Created By</th>
-                {canCreate && <th className="actions-column">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {jobGroups.map(group => (
+        <>
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th className="group-name-column">Group Name</th>
+                  <th className="description-column">Description</th>
+                  <th className="jobs-column">Jobs</th>
+                  <th className="created-by-column">Created By</th>
+                  {canCreate && <th className="actions-column">Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {currentJobGroups.map(group => (
                 <tr key={group.id} onClick={() => handleGroupClick(group.id)}>
                   <td className="group-name-cell">{group.name}</td>
                   <td>{group.description || 'No description'}</td>
@@ -204,7 +255,18 @@ const JobGroups = () => {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={pageSize}
+              totalItems={filteredJobGroups.length}
+            />
+          )}
+        </>
       )}
       
       {/* Create Group Modal */}

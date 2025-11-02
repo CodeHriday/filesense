@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { FaEdit } from 'react-icons/fa';
+import { FiSearch } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Pagination from '../components/Pagination';
 import '../styles/RoleManagement.css';
 
 const VendorRoleManagement = () => {
@@ -11,6 +13,9 @@ const VendorRoleManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -55,6 +60,28 @@ const VendorRoleManagement = () => {
     navigate(`/roles?action=edit&roleId=${roleId}`);
   };
   
+  const filteredRoles = roles.filter(role => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (role.name || '').toLowerCase().includes(searchLower) ||
+      (role.description || '').toLowerCase().includes(searchLower)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredRoles.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentRoles = filteredRoles.slice(startIndex, endIndex);
+
+  // Clamp currentPage when filtered results shrink
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else if (filteredRoles.length === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [filteredRoles.length, currentPage, totalPages]);
+  
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -63,6 +90,26 @@ const VendorRoleManagement = () => {
     <div className="role-management-container">
       <div className="role-management-header">
         <h1>Vendor Role Management</h1>
+        <div style={{ position: 'relative', minWidth: '300px' }}>
+          <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Search vendor roles..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{
+              width: '100%',
+              padding: '0.5rem 0.75rem 0.5rem 2.5rem',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              outline: 'none'
+            }}
+          />
+        </div>
       </div>
       
       {error && (
@@ -87,12 +134,14 @@ const VendorRoleManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {roles.length === 0 ? (
+            {filteredRoles.length === 0 ? (
               <tr>
-                <td colSpan="3" className="no-roles-message">No vendor roles found</td>
+                <td colSpan="3" className="no-roles-message">
+                  {searchTerm ? 'No vendor roles found matching your search' : 'No vendor roles found'}
+                </td>
               </tr>
             ) : (
-              roles.map(role => (
+              currentRoles.map(role => (
                 <tr key={role.id}>
                   <td>{role.name}</td>
                   <td>{role.description || '-'}</td>
@@ -111,6 +160,16 @@ const VendorRoleManagement = () => {
           </tbody>
         </table>
       </div>
+      
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={pageSize}
+          totalItems={filteredRoles.length}
+        />
+      )}
       
       <div className="role-info" style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
         <p><strong>Note:</strong> Vendor roles define permissions for vendor users accessing the system. Contact system administrators to modify role permissions.</p>

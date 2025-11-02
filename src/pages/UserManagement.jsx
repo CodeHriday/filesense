@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import PasswordInput from '../components/PasswordInput';
@@ -19,6 +19,7 @@ const UserManagement = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedUser, setSelectedUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -425,6 +426,24 @@ const UserManagement = () => {
     }
   };
   
+  const filteredUsers = users.filter(user => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (user.username || '').toLowerCase().includes(searchLower) ||
+      (user.email || '').toLowerCase().includes(searchLower) ||
+      (user.full_name || '').toLowerCase().includes(searchLower) ||
+      (user.first_name || '').toLowerCase().includes(searchLower) ||
+      (user.last_name || '').toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Clamp currentPage when filtered results are empty
+  useEffect(() => {
+    if (filteredUsers.length === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [filteredUsers.length, currentPage]);
+
   return (
     <div className="user-management-container">
       {loading ? (
@@ -434,6 +453,26 @@ const UserManagement = () => {
           <div className="user-management-header">
             <h1>User Management</h1>
             <div className="header-actions">
+              <div style={{ position: 'relative', minWidth: '300px' }}>
+                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem 0.5rem 2.5rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
               <Link to="/roles" className="role-management-link">
                 Role Management
               </Link>
@@ -479,12 +518,14 @@ const UserManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="8" className="no-users-message">No users found</td>
+                <td colSpan="8" className="no-users-message">
+                  {searchTerm ? 'No users found matching your search' : 'No users found'}
+                </td>
               </tr>
             ) : (
-              users.map(user => {
+              filteredUsers.map(user => {
                 const isLocked = user.locked_until && new Date(user.locked_until) > new Date();
                 const failedAttempts = user.failed_login_attempts || 0;
                 

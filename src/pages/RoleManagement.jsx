@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '../api/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -19,6 +19,7 @@ const RoleManagement = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedRole, setSelectedRole] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -450,6 +451,21 @@ const RoleManagement = () => {
     });
   };
 
+  const filteredRoles = roles.filter(role => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (role.name || '').toLowerCase().includes(searchLower) ||
+      (role.description || '').toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Clamp currentPage when filtered results are empty
+  useEffect(() => {
+    if (filteredRoles.length === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [filteredRoles.length, currentPage]);
+
   if (loading) {
     return (
       <div className="role-management-loading">
@@ -464,6 +480,26 @@ const RoleManagement = () => {
       <div className="role-management-header">
         <h1>Role Management</h1>
         <div className="header-actions">
+          <div style={{ position: 'relative', minWidth: '300px' }}>
+            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search roles..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem 0.5rem 2.5rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                outline: 'none'
+              }}
+            />
+          </div>
           <Link to="/users" className="user-management-link">
             User Management
           </Link>
@@ -494,12 +530,14 @@ const RoleManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {roles.length === 0 ? (
+            {filteredRoles.length === 0 ? (
               <tr>
-                <td colSpan="5" className="no-roles-message">No roles found</td>
+                <td colSpan="5" className="no-roles-message">
+                  {searchTerm ? 'No roles found matching your search' : 'No roles found'}
+                </td>
               </tr>
             ) : (
-              roles.map(role => {
+              filteredRoles.map(role => {
                 const permissions = formatPermissionsDisplay(role.permissions);
                 const isExpanded = expandedRoles[role.id];
                 const displayedPermissions = isExpanded ? permissions : permissions.slice(0, 3);
