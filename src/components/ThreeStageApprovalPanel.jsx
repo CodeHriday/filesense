@@ -285,10 +285,9 @@ const ThreeStageApprovalPanel = ({ agreement, currentUser, onUpdate, onError, on
                   {uploading ? 'Processing...' : 'Revise & Resubmit to Governance'}
                 </button>
                 <button
-                  className="approve-btn-stage"
+                  className="approve-btn-stage warning-action"
                   onClick={() => handleAction('send-to-vendor')}
                   disabled={uploading}
-                  style={{ backgroundColor: 'rgba(255, 152, 0, 0.85)' }}
                 >
                   {uploading ? 'Processing...' : 'Send Back to Vendor'}
                 </button>

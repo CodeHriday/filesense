@@ -251,40 +251,55 @@
 .reject-btn-stage {
   flex: 1;
   padding: 0.75rem 1.5rem;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  background: none;
 }
 
 .approve-btn-stage {
-  background-color: rgba(16, 185, 129, 0.85);
-  color: white;
+  color: var(--color-success, #10b981);
+  border-color: var(--color-success, #10b981);
 }
 
 .approve-btn-stage:hover:not(:disabled) {
-  background-color: rgba(5, 150, 105, 0.95);
+  background-color: var(--color-success-light, rgba(16, 185, 129, 0.1));
+  color: var(--color-success-dark, #059669);
+  border-color: var(--color-success-dark, #059669);
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
 }
 
 .reject-btn-stage {
-  background-color: rgba(239, 68, 68, 0.85);
-  color: white;
+  color: var(--color-error, #ef4444);
+  border-color: var(--color-error, #ef4444);
 }
 
 .reject-btn-stage:hover:not(:disabled) {
-  background-color: rgba(220, 38, 38, 0.95);
+  background-color: var(--color-error-light, rgba(239, 68, 68, 0.1));
+  color: var(--color-error-dark, #dc2626);
+  border-color: var(--color-error-dark, #dc2626);
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
 }
 
 .approve-btn-stage:disabled,
 .reject-btn-stage:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Warning/Orange variant for "Send Back to Vendor" type actions */
+.approve-btn-stage.warning-action {
+  color: var(--color-warning, #ea8600);
+  border-color: var(--color-warning, #ea8600);
+}
+
+.approve-btn-stage.warning-action:hover:not(:disabled) {
+  background-color: var(--color-warning-light, rgba(234, 134, 0, 0.1));
+  color: var(--color-warning-dark, #b56a00);
+  border-color: var(--color-warning-dark, #b56a00);
 }
 
 /* Locked Notice */
