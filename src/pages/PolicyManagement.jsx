@@ -112,7 +112,7 @@ function PolicyManagement() {
                     </td>
                     <td className="policy-actions-cell">
                       <button
-                        className="btn-icon"
+                        className="action-icon-btn edit-btn"
                         onClick={() => {
                           setSelectedPolicy(policy);
                           setShowModal(true);
@@ -122,7 +122,7 @@ function PolicyManagement() {
                         <FiEdit2 />
                       </button>
                       <button
-                        className="btn-icon btn-icon-danger"
+                        className="action-icon-btn delete-btn"
                         onClick={() => handleDelete(policy.policy_id)}
                         title="Delete policy"
                       >
