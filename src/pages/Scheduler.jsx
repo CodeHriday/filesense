@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiCalendar, FiClock, FiPlusCircle, FiEdit2, FiTrash2, FiPlay } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiPlusCircle, FiEdit2, FiTrash2, FiPlay, FiSearch } from 'react-icons/fi';
 import { PageTransition } from '../components/MicroAnimations';
 import PageHeader from '../components/PageHeader';
 import Modal from '../components/Modal';
@@ -461,13 +461,15 @@ const Scheduler = () => {
         
         <div className="scheduler-content">
           <div className="scheduler-filters">
-            <div className="search-container">
+            <div className="search-container" style={{ position: 'relative' }}>
+              <FiSearch style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }} />
               <input
                 type="text"
                 placeholder="Search schedules..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
+                style={{ paddingLeft: '2.5rem' }}
               />
             </div>
           </div>
