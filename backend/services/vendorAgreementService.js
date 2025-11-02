@@ -1500,13 +1500,11 @@ class VendorAgreementService {
            SET approval_status = $1,
                vendor_approved_at = CURRENT_TIMESTAMP,
                vendor_approved_by = $2,
-               manager_approved_at = CURRENT_TIMESTAMP,
-               manager_approved_by = $3,
                owner_approved_at = CURRENT_TIMESTAMP,
-               owner_approved_by = $4,
+               owner_approved_by = $3,
                updated_at = CURRENT_TIMESTAMP
-           WHERE id = $5`,
-          [newStatus, approverUserId, approverUserId, approverUserId, agreementId]
+           WHERE id = $4`,
+          [newStatus, approverUserId, approverUserId, agreementId]
         );
         
         // Notify governance manager
@@ -1616,8 +1614,6 @@ class VendorAgreementService {
         await client.query(
           `UPDATE vendor_agreements 
            SET approval_status = $1,
-               governance_approved_at = NULL,
-               governance_approved_by = NULL,
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $2`,
           [newStatus, agreementId]
@@ -1650,10 +1646,8 @@ class VendorAgreementService {
            SET approval_status = $1,
                vendor_approved_at = NULL,
                vendor_approved_by = NULL,
-               manager_approved_at = NULL,
-               manager_approved_by = NULL,
-               governance_approved_at = NULL,
-               governance_approved_by = NULL,
+               owner_approved_at = NULL,
+               owner_approved_by = NULL,
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $2`,
           [newStatus, agreementId]
@@ -1788,20 +1782,16 @@ class VendorAgreementService {
         await client.query(
           `UPDATE vendor_agreements 
            SET approval_status = $1,
-               governance_approved_at = CURRENT_TIMESTAMP,
-               governance_approved_by = $2,
-               is_locked = $3,
+               is_locked = $2,
                locked_at = CURRENT_TIMESTAMP,
                updated_at = CURRENT_TIMESTAMP
-           WHERE id = $4`,
-          [newStatus, approverUserId, isLocked, agreementId]
+           WHERE id = $3`,
+          [newStatus, isLocked, agreementId]
         );
       } else {
         await client.query(
           `UPDATE vendor_agreements 
            SET approval_status = $1,
-               governance_approved_at = NULL,
-               governance_approved_by = NULL,
                is_locked = $2,
                locked_at = NULL,
                updated_at = CURRENT_TIMESTAMP
