@@ -194,14 +194,14 @@ function TagManagement() {
                     </td>
                     <td className="tag-actions-cell">
                       <button
-                        className="btn-icon"
+                        className="action-icon-btn edit-btn"
                         onClick={() => handleOpenModal('edit', tag)}
                         title="Edit tag"
                       >
                         <FiEdit2 />
                       </button>
                       <button
-                        className="btn-icon btn-icon-danger"
+                        className="action-icon-btn delete-btn"
                         onClick={() => handleDelete(tag)}
                         title="Delete tag"
                       >
