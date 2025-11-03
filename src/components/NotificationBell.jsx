@@ -31,9 +31,26 @@ function NotificationBell() {
     fetchNotifications();
     
     // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    const interval = setInterval(() => {
+      // Only poll if tab is visible
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    }, 30000);
     
-    return () => clearInterval(interval);
+    // Fetch when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const fetchNotifications = async () => {
