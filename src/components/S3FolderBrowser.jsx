@@ -3,7 +3,7 @@ import { FaFolder, FaChevronRight, FaHome, FaSpinner } from 'react-icons/fa';
 import axios from 'axios';
 import './S3FolderBrowser.css';
 
-const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectFile, initialPath = '/' }) => {
+const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectFile, initialPath = '/', browseEndpoint = '/api/bulk-profiling/browse', agreementId = null }) => {
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
@@ -12,21 +12,23 @@ const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectF
   const [bucketName, setBucketName] = useState('');
 
   useEffect(() => {
-    if (connectionId || rawCredentials) {
+    if (connectionId || rawCredentials || agreementId) {
       loadPath(currentPath);
     }
-  }, [connectionId, rawCredentials, currentPath]);
+  }, [connectionId, rawCredentials, agreementId, currentPath]);
 
   const loadPath = async (path) => {
     setLoading(true);
     setError(null);
     
     try {
-      const payload = connectionId 
-        ? { connectionId, s3Path: path }
-        : { rawCredentials, s3Path: path };
+      const payload = agreementId 
+        ? { agreementId, s3Path: path }
+        : connectionId 
+          ? { connectionId, s3Path: path }
+          : { rawCredentials, s3Path: path };
       
-      const response = await axios.post('/api/bulk-profiling/browse', payload);
+      const response = await axios.post(browseEndpoint, payload);
       
       if (response.data.success) {
         setFolders(response.data.folders || []);

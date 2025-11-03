@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { systemLogger } = require('../utils/logger');
+const BulkProfilingService = require('../services/BulkProfilingService');
 
 /**
  * @route   GET /api/vendor-access/projects
@@ -184,6 +185,115 @@ router.get('/connections', async (req, res) => {
       error: error.message 
     });
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/vendor-access/browse
+ * @desc    Browse S3 folders for a vendor agreement
+ * @access  Vendor users only (authorized for specific agreement)
+ */
+router.post('/browse', async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const userId = req.user.id;
+    const { agreementId, s3Path } = req.body;
+    
+    if (!agreementId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'agreementId is required' 
+      });
+    }
+    
+    // Get vendor profile
+    const vendorResult = await pool.query(
+      'SELECT id FROM vendors WHERE vendor_user_id = $1 AND status = $2',
+      [userId, 'active']
+    );
+    
+    if (vendorResult.rows.length === 0) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Vendor access required'
+      });
+    }
+    
+    const vendorId = vendorResult.rows[0].id;
+    
+    // Get user email
+    const userResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+    
+    const userEmail = userResult.rows[0].email;
+    
+    // Get vendor agreement and verify authorization
+    const agreementResult = await pool.query(`
+      SELECT 
+        va.id,
+        va.vendor_connection_id,
+        va.drop_location_path
+      FROM vendor_agreements va
+      WHERE va.id = $1
+        AND va.vendor_id = $2
+        AND va.approval_status = 'fully_approved'
+        AND va.is_locked = true
+        AND va.status = 'active'
+        AND (
+          va.primary_contact_email = $3 
+          OR va.secondary_contact_email = $3
+        )
+    `, [agreementId, vendorId, userEmail]);
+    
+    if (agreementResult.rows.length === 0) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Access denied to this agreement'
+      });
+    }
+    
+    const agreement = agreementResult.rows[0];
+    
+    if (!agreement.vendor_connection_id) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'No connection configured for this agreement'
+      });
+    }
+    
+    // Browse the S3 path using the vendor connection
+    const contents = await BulkProfilingService.browseS3Path(
+      agreement.vendor_connection_id,
+      s3Path || agreement.drop_location_path || ''
+    );
+    
+    res.json({
+      success: true,
+      ...contents
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error browsing vendor S3 path', { 
+      userId: req.user?.id, 
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 });
 

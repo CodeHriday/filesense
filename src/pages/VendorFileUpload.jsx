@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUpload, FiCheckCircle } from 'react-icons/fi';
+import { FiUpload, FiCheckCircle, FiLoader } from 'react-icons/fi';
 import FileDropzone from '../components/FileDropzone';
+import S3FolderBrowser from '../components/S3FolderBrowser';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import '../styles/VendorFileUpload.css';
@@ -14,14 +16,65 @@ function VendorFileUpload() {
   const [vendorAgreements, setVendorAgreements] = useState([]);
   const [selectedAgreement, setSelectedAgreement] = useState(null);
   const [loadingAgreements, setLoadingAgreements] = useState(false);
-  const [browseFolders, setBrowseFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState('');
-  const [browsePrefix, setBrowsePrefix] = useState('');
   const [showFolderBrowser, setShowFolderBrowser] = useState(false);
   const [diagnosticInfo, setDiagnosticInfo] = useState('');
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [uploadStage, setUploadStage] = useState(null); // uploading | scanning | processing
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  const scanPollInterval = useRef(null);
 
   const { hasWritePermission } = useAuth();
+  const { addToast } = useToast();
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (scanPollInterval.current) {
+        clearInterval(scanPollInterval.current);
+      }
+    };
+  }, []);
+
+  // Poll virus scan status
+  const pollVirusScanStatus = async (fileId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/files/${fileId}/virus-scan`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const scanResult = response.data.virusScan;
+      
+      if (scanResult && scanResult.status !== 'pending') {
+        // Stop polling
+        if (scanPollInterval.current) {
+          clearInterval(scanPollInterval.current);
+          scanPollInterval.current = null;
+        }
+        
+        setUploadStage(null);
+        
+        if (scanResult.status === 'clean') {
+          setUploadStatus('success');
+          addToast('success', 'Upload Complete', `File passed virus scan and is ready for use.`);
+        } else if (scanResult.status === 'infected') {
+          setUploadStatus('error');
+          addToast('error', 'Virus Detected', `File was infected and has been automatically deleted.`);
+        } else if (scanResult.status === 'error') {
+          setUploadStatus('warning');
+          addToast('warning', 'Scan Error', `Virus scan encountered an error. Please contact support.`);
+        }
+        
+        return scanResult;
+      }
+    } catch (error) {
+      console.error('Error polling virus scan status:', error);
+    }
+    
+    return null;
+  };
 
   // Load vendor agreements on demand
   const loadVendorContracts = async () => {
@@ -45,33 +98,12 @@ function VendorFileUpload() {
     }
   };
 
-  // Browse folders in agreement's connection
-  const browseFoldersInAgreement = async (prefix = '') => {
-    if (!selectedAgreement) return;
-    
-    const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
-    if (!agreement || !agreement.vendor_connection_id) return;
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${API_BASE_URL}/api/vendor-browse-folders?connectionId=${agreement.vendor_connection_id}&prefix=${encodeURIComponent(prefix)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setBrowseFolders(response.data.items || []);
-      setBrowsePrefix(prefix);
-      setSelectedFolder(prefix);
-    } catch (error) {
-      console.error('Error browsing folders:', error);
-      setBrowseFolders([]);
-    }
-  };
-
   const handleDropFile = async (file, progressHandler) => {
     // Validate selections
     if (!selectedAgreement) {
       setUploadStatus('error');
       setDiagnosticInfo('Please select a vendor agreement before uploading\n');
+      addToast('error', 'Selection Required', 'Please select a vendor agreement before uploading');
       throw new Error('Agreement selection required');
     }
     
@@ -79,6 +111,7 @@ function VendorFileUpload() {
     if (!agreement || !agreement.vendor_connection_id) {
       setUploadStatus('error');
       setDiagnosticInfo('Selected agreement does not have a configured connection\n');
+      addToast('error', 'Configuration Error', 'Selected agreement does not have a configured connection');
       throw new Error('Agreement connection not configured');
     }
     
@@ -98,6 +131,8 @@ function VendorFileUpload() {
       
       setDiagnosticInfo(`Starting upload for ${timestampedFilename} to agreement ${agreement.agreement_code}...\n`);
       setUploadStatus('uploading');
+      setUploadStage('uploading');
+      setUploadProgress(0);
       
       const formData = new FormData();
       formData.append('file', timestampedFile);
@@ -106,8 +141,8 @@ function VendorFileUpload() {
       
       // Build URL with connection and folder parameters
       let uploadUrl = `${API_BASE_URL}/api/files/drop?connectionId=${encodeURIComponent(agreement.vendor_connection_id)}`;
-      if (browsePrefix) {
-        uploadUrl += `&folder=${encodeURIComponent(browsePrefix)}`;
+      if (selectedFolder) {
+        uploadUrl += `&folder=${encodeURIComponent(selectedFolder)}`;
       } else if (agreement.drop_location_path) {
         uploadUrl += `&folder=${encodeURIComponent(agreement.drop_location_path)}`;
       }
@@ -118,6 +153,9 @@ function VendorFileUpload() {
           'Content-Type': 'multipart/form-data'
         },
         onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+          
           if (progressHandler) {
             progressHandler(progressEvent);
           }
@@ -136,13 +174,50 @@ function VendorFileUpload() {
       };
       
       setUploadedFile(fileDetails);
-      setUploadStatus('success');
-      setShowSuccessNotification(true);
       
-      // Hide notification after 8 seconds
-      setTimeout(() => {
-        setShowSuccessNotification(false);
-      }, 8000);
+      // Check virus scan status
+      const virusScan = response.data.virusScan;
+      
+      if (virusScan && virusScan.status === 'pending') {
+        // Start polling for virus scan status
+        setUploadStage('scanning');
+        addToast('info', 'Scanning File', 'Your file is being scanned for viruses...');
+        
+        // Poll every 2 seconds
+        scanPollInterval.current = setInterval(() => {
+          pollVirusScanStatus(fileDetails.fileId);
+        }, 2000);
+        
+        // Also check immediately
+        pollVirusScanStatus(fileDetails.fileId);
+        
+      } else if (virusScan && virusScan.status === 'clean') {
+        setUploadStatus('success');
+        setUploadStage(null);
+        setShowSuccessNotification(true);
+        addToast('success', 'Upload Complete', 'File uploaded and passed virus scan successfully!');
+        
+        // Hide notification after 8 seconds
+        setTimeout(() => {
+          setShowSuccessNotification(false);
+        }, 8000);
+        
+      } else if (virusScan && virusScan.status === 'infected') {
+        setUploadStatus('error');
+        setUploadStage(null);
+        addToast('error', 'Virus Detected', 'File was infected and has been automatically deleted.');
+        
+      } else {
+        // No virus scan or unknown status - treat as success with warning
+        setUploadStatus('success');
+        setUploadStage(null);
+        setShowSuccessNotification(true);
+        addToast('warning', 'Upload Complete', 'File uploaded but virus scan status is unknown.');
+        
+        setTimeout(() => {
+          setShowSuccessNotification(false);
+        }, 8000);
+      }
       
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -151,16 +226,29 @@ function VendorFileUpload() {
         setDiagnosticInfo(prev => prev + `Error response: ${JSON.stringify(error.response.data, null, 2)}\n`);
       }
       setUploadStatus('error');
+      setUploadStage(null);
+      
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+      addToast('error', 'Upload Failed', errorMessage);
+      
       throw error;
     }
   };
 
   const handleUploadAnother = () => {
+    // Clear any polling interval
+    if (scanPollInterval.current) {
+      clearInterval(scanPollInterval.current);
+      scanPollInterval.current = null;
+    }
+    
     setUploadStatus(null);
     setUploadedFile(null);
     setDiagnosticInfo('');
     setDropzoneKey(prev => prev + 1);
     setShowSuccessNotification(false);
+    setUploadStage(null);
+    setUploadProgress(0);
   };
 
   return (
@@ -214,7 +302,7 @@ function VendorFileUpload() {
                     const agreementId = Number(e.target.value);
                     setSelectedAgreement(agreementId);
                     setShowFolderBrowser(false);
-                    setBrowseFolders([]);
+                    setSelectedFolder('');
                   }}
                   disabled={loadingAgreements || vendorAgreements.length === 0}
                   style={{
@@ -278,17 +366,12 @@ function VendorFileUpload() {
                     return (
                       <>
                         <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
-                          <strong>Upload Path:</strong> {agreement.drop_location_path || 'root'}
+                          <strong>Default Upload Path:</strong> {selectedFolder || agreement.drop_location_path || 'root'}
                         </div>
                         {agreement.vendor_connection_id && (
                           <button 
                             className="btn btn-sm btn-secondary"
-                            onClick={() => {
-                              setShowFolderBrowser(!showFolderBrowser);
-                              if (!showFolderBrowser && browseFolders.length === 0) {
-                                browseFoldersInAgreement('');
-                              }
-                            }}
+                            onClick={() => setShowFolderBrowser(!showFolderBrowser)}
                           >
                             {showFolderBrowser ? 'Hide' : 'Browse'} Folders
                           </button>
@@ -297,58 +380,72 @@ function VendorFileUpload() {
                     );
                   })()}
 
-                  {/* Folder Browser */}
-                  {showFolderBrowser && (
-                    <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '0.5rem' }}>
-                      {browsePrefix && (
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <button 
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => {
-                              const parts = browsePrefix.split('/').filter(p => p);
-                              parts.pop();
-                              const newPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
-                              browseFoldersInAgreement(newPrefix);
-                            }}
-                          >
-                            ← Back
-                          </button>
-                          <span style={{ marginLeft: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
-                            Current: /{browsePrefix}
-                          </span>
-                        </div>
-                      )}
-                      {browseFolders.length === 0 ? (
-                        <div style={{ padding: '1rem', textAlign: 'center', color: '#999' }}>
-                          No items found
-                        </div>
-                      ) : (
-                        <div>
-                          {browseFolders.filter(item => item.type === 'folder').map((folder, idx) => (
-                            <div 
-                              key={idx}
-                              style={{ 
-                                padding: '0.5rem', 
-                                cursor: 'pointer',
-                                borderBottom: '1px solid #f0f0f0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem'
-                              }}
-                              onClick={() => browseFoldersInAgreement(folder.path)}
-                            >
-                              <span>📁</span>
-                              <span>{folder.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* S3 Folder Browser */}
+                  {showFolderBrowser && (() => {
+                    const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+                    if (!agreement) return null;
+                    
+                    return (
+                      <div style={{ marginTop: '1rem' }}>
+                        <S3FolderBrowser 
+                          agreementId={selectedAgreement}
+                          browseEndpoint="/api/vendor-access/browse"
+                          initialPath={agreement.drop_location_path || '/'}
+                          onSelectPath={(path) => {
+                            setSelectedFolder(path);
+                            setShowFolderBrowser(false);
+                          }}
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Upload Progress Indicator */}
+          {uploadStage && (
+            <div style={{
+              marginBottom: '1rem',
+              padding: '1rem',
+              background: '#e3f2fd',
+              border: '1px solid #2196f3',
+              borderRadius: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                <FiLoader style={{ animation: 'spin 1s linear infinite', fontSize: '1.2rem', color: '#2196f3' }} />
+                <strong style={{ color: '#1976d2' }}>
+                  {uploadStage === 'uploading' && `Uploading... ${uploadProgress}%`}
+                  {uploadStage === 'scanning' && 'Scanning for viruses...'}
+                  {uploadStage === 'processing' && 'Processing file...'}
+                </strong>
+              </div>
+              
+              {uploadStage === 'uploading' && (
+                <div style={{
+                  width: '100%',
+                  height: '8px',
+                  background: '#bbdefb',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${uploadProgress}%`,
+                    height: '100%',
+                    background: '#2196f3',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              )}
+              
+              {uploadStage === 'scanning' && (
+                <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.9rem' }}>
+                  Your file is being scanned for threats. This usually takes a few seconds...
+                </p>
+              )}
+            </div>
+          )}
 
           {/* File Drop Zone */}
           {selectedAgreement && (() => {
