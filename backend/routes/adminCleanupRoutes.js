@@ -417,8 +417,8 @@ router.post('/', async (req, res) => {
     
     // Delete Connections
     if (categories.includes('connections')) {
-      const transformConnectionsResult = await client.query('DELETE FROM transform_connections RETURNING connection_id');
-      const storageConnectionsResult = await client.query('DELETE FROM storage_connections RETURNING connection_id');
+      const transformConnectionsResult = await client.query('DELETE FROM transform_connections');
+      const storageConnectionsResult = await client.query('DELETE FROM storage_connections');
       
       deletedCounts.connections = {
         storage_connections: storageConnectionsResult.rowCount,
