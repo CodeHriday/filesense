@@ -49,14 +49,22 @@ router.get('/counts', async (req, res) => {
     
     // Workflows & Orchestration category
     const workflowsCount = await pool.query('SELECT COUNT(*) FROM n_step_workflows');
+    const workflowRunsCount = await pool.query('SELECT COUNT(*) FROM n_step_workflow_runs');
+    const workflowStepsNStepCount = await pool.query('SELECT COUNT(*) FROM n_step_workflow_steps');
     const workflowStepsCount = await pool.query('SELECT COUNT(*) FROM workflow_steps');
     const mappingGroupsCount = await pool.query('SELECT COUNT(*) FROM mapping_groups');
+    const mappingGroupExecutionsCount = await pool.query('SELECT COUNT(*) FROM mapping_group_executions');
+    const mappingGroupMembersCount = await pool.query('SELECT COUNT(*) FROM mapping_group_members');
     const schedulesCount = await pool.query('SELECT COUNT(*) FROM schedules');
     
     counts.workflows = {
       n_step_workflows: parseInt(workflowsCount.rows[0].count),
+      n_step_workflow_runs: parseInt(workflowRunsCount.rows[0].count),
+      n_step_workflow_steps: parseInt(workflowStepsNStepCount.rows[0].count),
       workflow_steps: parseInt(workflowStepsCount.rows[0].count),
       mapping_groups: parseInt(mappingGroupsCount.rows[0].count),
+      mapping_group_executions: parseInt(mappingGroupExecutionsCount.rows[0].count),
+      mapping_group_members: parseInt(mappingGroupMembersCount.rows[0].count),
       schedules: parseInt(schedulesCount.rows[0].count)
     };
     
@@ -278,18 +286,26 @@ router.post('/', async (req, res) => {
       };
     }
     
-    // Delete Workflows & Orchestration
+    // Delete Workflows & Orchestration (proper FK order: child tables first)
     if (categories.includes('workflows')) {
       const schedulesResult = await client.query('DELETE FROM schedules RETURNING id');
-      const mappingGroupMembersResult = await client.query('DELETE FROM mapping_group_members RETURNING id');
-      const mappingGroupsResult = await client.query('DELETE FROM mapping_groups RETURNING id');
+      // Delete n_step_workflow child tables first
+      const workflowRunsResult = await client.query('DELETE FROM n_step_workflow_runs RETURNING id');
+      const workflowStepsNStepResult = await client.query('DELETE FROM n_step_workflow_steps RETURNING id');
       const workflowStepsResult = await client.query('DELETE FROM workflow_steps RETURNING id');
       const workflowsResult = await client.query('DELETE FROM n_step_workflows RETURNING id');
+      // Delete mapping_group child tables first
+      const mappingGroupExecutionsResult = await client.query('DELETE FROM mapping_group_executions RETURNING id');
+      const mappingGroupMembersResult = await client.query('DELETE FROM mapping_group_members RETURNING id');
+      const mappingGroupsResult = await client.query('DELETE FROM mapping_groups RETURNING id');
       
       deletedCounts.workflows = {
         n_step_workflows: workflowsResult.rowCount,
+        n_step_workflow_runs: workflowRunsResult.rowCount,
+        n_step_workflow_steps: workflowStepsNStepResult.rowCount,
         workflow_steps: workflowStepsResult.rowCount,
         mapping_groups: mappingGroupsResult.rowCount,
+        mapping_group_executions: mappingGroupExecutionsResult.rowCount,
         mapping_group_members: mappingGroupMembersResult.rowCount,
         schedules: schedulesResult.rowCount
       };
