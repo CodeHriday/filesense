@@ -2945,6 +2945,9 @@ cacheService.initialize().then(result => {
   console.error('Failed to initialize cache service:', err);
 });
 
+// Migration Tracker - prevents re-running migrations on server restart
+const migrationTracker = require('./backend/utils/migrationTracker');
+
 // Migrate connections from old table to new shared table
 const migrateConnectionsSchema = require('./backend/migrations/createSharedConnectionsTable');
 const { migrateTransformConnections } = require('./backend/migrations/migrateTransformConnections');
@@ -2980,212 +2983,48 @@ const { migrateVendorConnectionDirection } = require('./backend/migrations/migra
 const { up: addUnifiedConnectionFields } = require('./backend/migrations/addUnifiedConnectionFields');
 const addVendorIdToUsers = require('./backend/migrations/addVendorIdToUsers');
 
-// Run schema migration asynchronously
-migrateConnectionsSchema()
-  .then(result => {
-    console.log('Connection schema migration result:', result.message);
+// Run schema migrations asynchronously with tracking to prevent re-running
+(async () => {
+  try {
+    await migrationTracker.runOnce('createSharedConnectionsTable', () => migrateConnectionsSchema());
+    await migrationTracker.runOnce('migrateTransformConnections', () => migrateTransformConnections());
+    await migrationTracker.runOnce('addPerformanceIndexes', () => addPerformanceIndexes(dbPool));
+    await migrationTracker.runOnce('addProfilingColumns', () => addProfilingColumns(dbPool));
+    await migrationTracker.runOnce('expandNumericColumns', () => expandNumericColumns(dbPool));
+    await migrationTracker.runOnce('addDuplicateRecordsColumns', () => addDuplicateRecordsColumns(dbPool));
+    await migrationTracker.runOnce('addPatternsColumn', () => addPatternsColumn(dbPool));
+    await migrationTracker.runOnce('addHistoricalProfilingColumns', () => addHistoricalProfilingColumns(dbPool));
+    await migrationTracker.runOnce('initWorkflowOrchestrationTables', () => initWorkflowOrchestrationTables(dbPool));
+    await migrationTracker.runOnce('fixMappingGroupMembersSchema', () => fixMappingGroupMembersSchema(dbPool));
+    await migrationTracker.runOnce('updateObjectTypesToString', () => updateObjectTypesToString(dbPool));
+    await migrationTracker.runOnce('initFileInsightsTables', () => initFileInsightsTables(dbPool));
+    await migrationTracker.runOnce('addLineageColumns', () => addLineageColumns(dbPool));
+    await migrationTracker.runOnce('addProcessingStepColumn', () => addProcessingStepColumn(dbPool));
+    await migrationTracker.runOnce('createFilePreviewDataTable', () => createFilePreviewDataTable(dbPool));
+    await migrationTracker.runOnce('createDataGovernanceTables', () => createDataGovernanceTables(dbPool));
+    await migrationTracker.runOnce('createGovernanceTagsTables', () => createGovernanceTagsTables(dbPool));
+    await migrationTracker.runOnce('addSensitivityToFileOwnership', () => addSensitivityToFileOwnership(dbPool));
+    await migrationTracker.runOnce('createColumnGovernanceTables', () => createColumnGovernanceTables(dbPool));
+    await migrationTracker.runOnce('addCreatorToFileOwnership', () => addCreatorToFileOwnership(dbPool));
+    await migrationTracker.runOnce('addTagPermissionLevels', () => addTagPermissionLevels(dbPool));
+    await migrationTracker.runOnce('addUserProfileAndAuthFields', () => addUserProfileAndAuthFields());
+    await migrationTracker.runOnce('createProjectsAndGroups', () => createProjectsAndGroups(dbPool));
+    await migrationTracker.runOnce('addProjectIdToResources', () => addProjectIdToResources(dbPool));
+    await migrationTracker.runOnce('addProjectIdToRemainingTables', () => addProjectIdToRemainingTables(dbPool));
+    await migrationTracker.runOnce('createPolicyEngine', () => createPolicyEngine(dbPool));
+    await migrationTracker.runOnce('createABACAttributes', () => createABACAttributes(dbPool));
+    await migrationTracker.runOnce('createSCIMProvisioning', () => createSCIMProvisioning(dbPool));
+    await migrationTracker.runOnce('createVendorUsersTable', () => createVendorUsersTable());
+    await migrationTracker.runOnce('addVendorIdToUsers', () => addVendorIdToUsers());
+    await migrationTracker.runOnce('addConnectionNameUniqueConstraint', () => addConnectionNameUniqueConstraint());
+    await migrationTracker.runOnce('migrateVendorConnectionDirection', () => migrateVendorConnectionDirection());
+    await migrationTracker.runOnce('addUnifiedConnectionFields', () => addUnifiedConnectionFields(dbPool));
     
-    // After schema is created, migrate transform connections
-    return migrateTransformConnections();
-  })
-  .then(count => {
-    console.log(`Transform connections migration completed. Migrated ${count} connections.`);
-    
-    // After migrations, add performance indexes
-    return addPerformanceIndexes(dbPool);
-  })
-  .then(indexResult => {
-    if (indexResult.success) {
-      console.log(`✅ Performance indexes migration completed. Created ${indexResult.created} indexes.`);
-    } else {
-      console.error(`❌ Performance indexes migration failed:`, indexResult.error);
-    }
-    
-    // Add profiling columns migration
-    return addProfilingColumns(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Profiling columns migration completed');
-    
-    // Expand numeric columns to support larger values
-    return expandNumericColumns(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Numeric columns expansion completed');
-    
-    // Add duplicate records columns migration
-    return addDuplicateRecordsColumns(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Duplicate records columns migration completed');
-    
-    // Add patterns column migration
-    return addPatternsColumn(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Patterns column migration completed');
-    
-    // Add historical profiling columns
-    return addHistoricalProfilingColumns(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Historical profiling columns migration completed');
-    
-    // Initialize workflow orchestration tables
-    return initWorkflowOrchestrationTables(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Workflow orchestration tables migration completed');
-    
-    // Fix mapping_group_members schema (mapping_id type mismatch)
-    return fixMappingGroupMembersSchema(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Mapping group members schema fix completed');
-    
-    // Update object/array types to string in schemas
-    return updateObjectTypesToString(dbPool);
-  })
-  .then(result => {
-    if (result.success) {
-      console.log(`✅ Object/array to string type conversion completed. Updated ${result.updatedRecords} schema records.`);
-    }
-    
-    // Initialize file insights tables
-    return initFileInsightsTables(dbPool);
-  })
-  .then(() => {
-    console.log('✅ File insights tables migration completed');
-    
-    // Add lineage columns migration
-    return addLineageColumns(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Lineage columns migration completed');
-    
-    // Add processing step column migration
-    return addProcessingStepColumn(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Processing step column migration completed');
-    
-    // Create file preview data table
-    return createFilePreviewDataTable(dbPool);
-  })
-  .then(() => {
-    console.log('✅ File preview data table migration completed');
-    
-    // Create data governance tables
-    return createDataGovernanceTables(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Data governance tables migration completed');
-    
-    // Create governance tags tables
-    return createGovernanceTagsTables(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Governance tags tables migration completed');
-    
-    // Add sensitivity column to file_ownership
-    return addSensitivityToFileOwnership(dbPool);
-  })
-  .then(() => {
-    console.log('✅ File ownership sensitivity column migration completed');
-    
-    // Create column governance tables
-    return createColumnGovernanceTables(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Column governance tables migration completed');
-    
-    // Add creator columns to file_ownership
-    return addCreatorToFileOwnership(dbPool);
-  })
-  .then(() => {
-    console.log('✅ File ownership creator columns migration completed');
-    
-    // Add permission levels to governance tags
-    return addTagPermissionLevels(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Tag permission levels migration completed');
-    
-    // Add user profile and auth fields migration
-    return addUserProfileAndAuthFields();
-  })
-  .then(() => {
-    console.log('✅ User profile and auth fields migration completed');
-    
-    // Create projects and groups tables (Phase 1.1 RBAC revamp)
-    return createProjectsAndGroups(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Projects and groups tables migration completed');
-    
-    // Add project_id to resource tables (Phase 1.2 RBAC revamp)
-    return addProjectIdToResources(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Project_id resource migration completed');
-    
-    // Add project_id to remaining tables (mapping_groups, transformation_jobs, etc.)
-    return addProjectIdToRemainingTables(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Project_id remaining tables migration completed');
-    
-    // Create policy engine tables (Phase 2 RBAC revamp)
-    return createPolicyEngine(dbPool);
-  })
-  .then(() => {
-    console.log('✅ Policy engine migration completed');
-    
-    // Create ABAC attributes tables (Phase 3 RBAC revamp)
-    return createABACAttributes(dbPool);
-  })
-  .then(() => {
-    console.log('✅ ABAC attributes migration completed');
-    
-    // Create SCIM provisioning tables (Phase 4 RBAC revamp)
-    return createSCIMProvisioning(dbPool);
-  })
-  .then(() => {
-    console.log('✅ SCIM provisioning migration completed');
-    
-    // Create vendor users table
-    return createVendorUsersTable();
-  })
-  .then(() => {
-    console.log('✅ Vendor users table migration completed');
-    
-    // Add vendor_id column to users table
-    return addVendorIdToUsers();
-  })
-  .then((result) => {
-    console.log(`✅ Vendor_id column migration completed. Backfilled ${result.backfilledUsers} users.`);
-    
-    // Add unique constraint on connection names
-    return addConnectionNameUniqueConstraint();
-  })
-  .then(() => {
-    console.log('✅ Connection name unique constraint migration completed');
-    
-    // Migrate existing vendor connections to have proper direction
-    return migrateVendorConnectionDirection();
-  })
-  .then(() => {
-    console.log('✅ Vendor connection direction migration completed');
-    
-    // Add unified connection fields (connection_user, description, authentication_method)
-    return addUnifiedConnectionFields(dbPool);
-  })
-  .then((result) => {
-    console.log(`✅ Unified connection fields migration completed. Migrated ${result.migratedCount} connections.`);
-  })
-  .catch(err => {
-    console.error('Error during connection migration:', err);
-  });
+    console.log('🎉 All migrations completed successfully');
+  } catch (err) {
+    console.error('❌ Error during migrations:', err);
+  }
+})();
 
 // Mappings endpoint
 app.get('/api/mappings', async (req, res) => {
