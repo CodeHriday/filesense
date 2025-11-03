@@ -347,7 +347,7 @@ router.post('/', async (req, res) => {
     
     // Delete Projects & Access Control (preserve Default Project)
     if (categories.includes('projects')) {
-      const projectMembersResult = await client.query('DELETE FROM project_members RETURNING id');
+      const projectMembersResult = await client.query('DELETE FROM project_members');
       const projectsResult = await client.query('DELETE FROM projects WHERE id != 1 RETURNING id');
       
       deletedCounts.projects = {
@@ -370,7 +370,7 @@ router.post('/', async (req, res) => {
     // Delete Groups (preserve Default Group)
     if (categories.includes('groups')) {
       const groupRolesResult = await client.query('DELETE FROM access_group_roles WHERE group_id != 1 RETURNING id');
-      const groupMembersResult = await client.query('DELETE FROM access_group_members WHERE group_id != 1 RETURNING id');
+      const groupMembersResult = await client.query('DELETE FROM access_group_members WHERE group_id != 1');
       const groupsResult = await client.query('DELETE FROM access_groups WHERE id != 1 RETURNING id');
       
       deletedCounts.groups = {
