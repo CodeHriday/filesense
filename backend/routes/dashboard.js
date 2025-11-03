@@ -165,7 +165,7 @@ router.get('/metrics', async (req, res) => {
       anomaliesQuery = `
         SELECT COUNT(DISTINCT a.id) as count
         FROM anomalies a
-        INNER JOIN files f ON a.file_id = f.id
+        INNER JOIN files f ON a.file_id = f.file_id
         WHERE a.status = 'active' AND f.project_id IN (
           -- Direct project membership
           SELECT project_id FROM project_members WHERE user_id = $1
