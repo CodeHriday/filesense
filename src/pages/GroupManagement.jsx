@@ -20,7 +20,9 @@ function GroupManagement() {
     name: '',
     description: '',
     group_type: 'MANUAL',
-    idp_sync_enabled: false
+    idp_sync_enabled: false,
+    member_ids: [],
+    role_ids: []
   });
 
   const [memberFormData, setMemberFormData] = useState({
@@ -124,7 +126,7 @@ function GroupManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowCreateModal(false);
-      setFormData({ name: '', description: '', group_type: 'MANUAL', idp_sync_enabled: false });
+      setFormData({ name: '', description: '', group_type: 'MANUAL', idp_sync_enabled: false, member_ids: [], role_ids: [] });
       fetchGroups();
     } catch (err) {
       setError('Failed to create group');
@@ -408,6 +410,46 @@ function GroupManagement() {
                     />
                     Enable IdP Sync
                   </label>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Add Members</label>
+                    <select
+                      multiple
+                      value={formData.member_ids}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                        setFormData({ ...formData, member_ids: selected });
+                      }}
+                      style={{ minHeight: '120px' }}
+                    >
+                      {availableUsers.map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name || user.username} ({user.email})
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple users</small>
+                  </div>
+                  <div className="form-group">
+                    <label>Assign Roles</label>
+                    <select
+                      multiple
+                      value={formData.role_ids}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                        setFormData({ ...formData, role_ids: selected });
+                      }}
+                      style={{ minHeight: '120px' }}
+                    >
+                      {availableRoles.map(role => (
+                        <option key={role.id} value={role.id}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple roles</small>
+                  </div>
                 </div>
               </form>
             </div>

@@ -148,15 +148,18 @@ function createProjectRoutes(dbPool) {
 
   // Create new project
   router.post('/', async (req, res) => {
+    const client = await dbPool.connect();
     try {
-      const { name, description, parent_id, is_default, project_type, metadata, settings } = req.body;
+      const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids } = req.body;
       const userId = req.user?.id;
 
       if (!name) {
         return res.status(400).json({ error: 'Project name is required' });
       }
 
-      const result = await dbPool.query(`
+      await client.query('BEGIN');
+
+      const result = await client.query(`
         INSERT INTO projects (name, description, parent_id, owner_id, is_default, project_type, metadata, settings)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
@@ -165,21 +168,57 @@ function createProjectRoutes(dbPool) {
       const newProject = result.rows[0];
 
       // Add creator as project member (permissions are determined by their global role)
-      await dbPool.query(`
+      await client.query(`
         INSERT INTO project_members (project_id, user_id)
         VALUES ($1, $2)
       `, [newProject.id, userId]);
 
+      // Add additional members if provided
+      if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
+        const memberValues = member_ids
+          .filter(id => id !== userId) // Don't duplicate creator
+          .map(id => `(${newProject.id}, ${parseInt(id, 10)})`)
+          .join(', ');
+        
+        if (memberValues) {
+          await client.query(`
+            INSERT INTO project_members (project_id, user_id)
+            VALUES ${memberValues}
+            ON CONFLICT (project_id, user_id) DO NOTHING
+          `);
+        }
+      }
+
+      // Add access groups if provided
+      if (group_ids && Array.isArray(group_ids) && group_ids.length > 0) {
+        const groupValues = group_ids
+          .map(id => `(${newProject.id}, ${parseInt(id, 10)})`)
+          .join(', ');
+        
+        await client.query(`
+          INSERT INTO project_access_groups (project_id, group_id)
+          VALUES ${groupValues}
+          ON CONFLICT (project_id, group_id) DO NOTHING
+        `);
+      }
+
+      await client.query('COMMIT');
+
       systemLogger.info('Project created', {
         userId,
         projectId: newProject.id,
-        projectName: name
+        projectName: name,
+        memberCount: (member_ids?.length || 0) + 1, // +1 for creator
+        groupCount: group_ids?.length || 0
       });
 
       res.status(201).json(newProject);
     } catch (error) {
+      await client.query('ROLLBACK');
       systemLogger.error('Error creating project', error);
       res.status(500).json({ error: 'Failed to create project' });
+    } finally {
+      client.release();
     }
   });
 

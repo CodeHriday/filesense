@@ -22,7 +22,9 @@ function ProjectManagement() {
     name: '',
     description: '',
     parent_id: null,
-    project_type: 'internal'
+    project_type: 'internal',
+    member_ids: [],
+    group_ids: []
   });
 
   const [memberFormData, setMemberFormData] = useState({
@@ -123,7 +125,7 @@ function ProjectManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowCreateModal(false);
-      setFormData({ name: '', description: '', parent_id: null, project_type: 'internal' });
+      setFormData({ name: '', description: '', parent_id: null, project_type: 'internal', member_ids: [], group_ids: [] });
       fetchProjects();
     } catch (err) {
       setError('Failed to create project');
@@ -501,6 +503,46 @@ function ProjectManagement() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows="3"
                   />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Add Members</label>
+                    <select
+                      multiple
+                      value={formData.member_ids}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                        setFormData({ ...formData, member_ids: selected });
+                      }}
+                      style={{ minHeight: '120px' }}
+                    >
+                      {availableUsers.map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name || user.username} ({user.email})
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple users</small>
+                  </div>
+                  <div className="form-group">
+                    <label>Add Access Groups</label>
+                    <select
+                      multiple
+                      value={formData.group_ids}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                        setFormData({ ...formData, group_ids: selected });
+                      }}
+                      style={{ minHeight: '120px' }}
+                    >
+                      {availableGroups.map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple groups</small>
+                  </div>
                 </div>
               </form>
             </div>

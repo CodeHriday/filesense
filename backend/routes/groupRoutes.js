@@ -115,8 +115,9 @@ function createGroupRoutes(dbPool) {
 
   // Create new group
   router.post('/', async (req, res) => {
+    const client = await dbPool.connect();
     try {
-      const { name, description, group_type, external_id, idp_sync_enabled, metadata } = req.body;
+      const { name, description, group_type, external_id, idp_sync_enabled, metadata, member_ids, role_ids } = req.body;
       const userId = req.user?.id;
 
       if (!name) {
@@ -130,28 +131,65 @@ function createGroupRoutes(dbPool) {
         return res.status(400).json({ error: `Invalid group_type. Must be one of: ${validTypes.join(', ')}` });
       }
 
-      const result = await dbPool.query(`
+      await client.query('BEGIN');
+
+      const result = await client.query(`
         INSERT INTO access_groups (name, description, group_type, external_group_id, sync_enabled, created_by, metadata)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `, [name, description, type, external_id || null, idp_sync_enabled || false, userId, metadata || {}]);
 
-      const newGroup = {
-        ...result.rows[0],
-        idp_sync_enabled: result.rows[0].sync_enabled
+      const newGroup = result.rows[0];
+
+      // Add members if provided
+      if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
+        const memberValues = member_ids
+          .map(id => `(${newGroup.id}, ${parseInt(id, 10)})`)
+          .join(', ');
+        
+        await client.query(`
+          INSERT INTO access_group_members (group_id, user_id)
+          VALUES ${memberValues}
+          ON CONFLICT (group_id, user_id) DO NOTHING
+        `);
+      }
+
+      // Add role assignments if provided
+      if (role_ids && Array.isArray(role_ids) && role_ids.length > 0) {
+        const roleValues = role_ids
+          .map(id => `(${newGroup.id}, ${parseInt(id, 10)})`)
+          .join(', ');
+        
+        await client.query(`
+          INSERT INTO access_group_roles (group_id, role_id)
+          VALUES ${roleValues}
+          ON CONFLICT (group_id, role_id) DO NOTHING
+        `);
+      }
+
+      await client.query('COMMIT');
+
+      const responseGroup = {
+        ...newGroup,
+        idp_sync_enabled: newGroup.sync_enabled
       };
 
       systemLogger.info('Access group created', {
         userId,
         groupId: newGroup.id,
         groupName: name,
-        groupType: type
+        groupType: type,
+        memberCount: member_ids?.length || 0,
+        roleCount: role_ids?.length || 0
       });
 
-      res.status(201).json(newGroup);
+      res.status(201).json(responseGroup);
     } catch (error) {
+      await client.query('ROLLBACK');
       systemLogger.error('Error creating group', error);
       res.status(500).json({ error: 'Failed to create group' });
+    } finally {
+      client.release();
     }
   });
 
