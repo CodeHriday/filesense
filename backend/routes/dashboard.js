@@ -15,7 +15,7 @@ router.get('/metrics', async (req, res) => {
   }
 
   try {
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id, 10);
     const userRoles = req.user.roles || [];
 
     // Check if user is admin
