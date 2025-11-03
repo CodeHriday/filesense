@@ -39,9 +39,9 @@ router.get('/metrics', async (req, res) => {
           SELECT project_id FROM project_members WHERE user_id = $1
           UNION
           -- Group-based project membership
-          SELECT gp.project_id 
-          FROM group_projects gp
-          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          SELECT pag.project_id 
+          FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
           WHERE ug.user_id = $1
         )
       `;
@@ -69,9 +69,9 @@ router.get('/metrics', async (req, res) => {
           SELECT project_id FROM project_members WHERE user_id = $1
           UNION
           -- Group-based project membership
-          SELECT gp.project_id 
-          FROM group_projects gp
-          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          SELECT pag.project_id 
+          FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
           WHERE ug.user_id = $1
         )
       `;
@@ -103,9 +103,9 @@ router.get('/metrics', async (req, res) => {
           SELECT project_id FROM project_members WHERE user_id = $1
           UNION
           -- Group-based project membership
-          SELECT gp.project_id 
-          FROM group_projects gp
-          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          SELECT pag.project_id 
+          FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
           WHERE ug.user_id = $1
         )
       `;
@@ -136,9 +136,9 @@ router.get('/metrics', async (req, res) => {
           SELECT project_id FROM project_members WHERE user_id = $1
           UNION
           -- Group-based project membership
-          SELECT gp.project_id 
-          FROM group_projects gp
-          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          SELECT pag.project_id 
+          FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
           WHERE ug.user_id = $1
         )
       `;
@@ -171,9 +171,9 @@ router.get('/metrics', async (req, res) => {
           SELECT project_id FROM project_members WHERE user_id = $1
           UNION
           -- Group-based project membership
-          SELECT gp.project_id 
-          FROM group_projects gp
-          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          SELECT pag.project_id 
+          FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
           WHERE ug.user_id = $1
         )
       `;
