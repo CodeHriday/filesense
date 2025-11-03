@@ -69,7 +69,7 @@ function GroupManagement() {
   const fetchAvailableUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/users`, {
+      const response = await axios.get(`${API_BASE_URL}/users?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAvailableUsers(response.data.users || []);

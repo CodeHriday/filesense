@@ -18,25 +18,32 @@ router.get('/metrics', async (req, res) => {
     const userId = req.user.id;
     const userRoles = req.user.roles || [];
 
+    // Check if user is admin
+    const isAdmin = userRoles.includes('Admin');
+
     // Get user's accessible projects
     let projectsQuery;
     let projectsParams;
-
-    // Check if user is admin
-    const isAdmin = userRoles.includes('Admin');
 
     if (isAdmin) {
       // Admin sees all projects
       projectsQuery = 'SELECT COUNT(DISTINCT id) as count FROM projects';
       projectsParams = [];
     } else {
-      // Non-admin: get projects through group membership
+      // Non-admin: get projects through BOTH direct membership AND group membership
       projectsQuery = `
         SELECT COUNT(DISTINCT p.id) as count
         FROM projects p
-        INNER JOIN group_projects gp ON p.id = gp.project_id
-        INNER JOIN user_groups ug ON gp.group_id = ug.group_id
-        WHERE ug.user_id = $1
+        WHERE p.id IN (
+          -- Direct project membership
+          SELECT project_id FROM project_members WHERE user_id = $1
+          UNION
+          -- Group-based project membership
+          SELECT gp.project_id 
+          FROM group_projects gp
+          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          WHERE ug.user_id = $1
+        )
       `;
       projectsParams = [userId];
     }
@@ -53,13 +60,20 @@ router.get('/metrics', async (req, res) => {
       filesQuery = 'SELECT COUNT(DISTINCT id) as count FROM files';
       filesParams = [];
     } else {
-      // Non-admin: get files from accessible projects
+      // Non-admin: get files from accessible projects (both direct and group-based)
       filesQuery = `
         SELECT COUNT(DISTINCT f.id) as count
         FROM files f
-        INNER JOIN group_projects gp ON f.project_id = gp.project_id
-        INNER JOIN user_groups ug ON gp.group_id = ug.group_id
-        WHERE ug.user_id = $1
+        WHERE f.project_id IN (
+          -- Direct project membership
+          SELECT project_id FROM project_members WHERE user_id = $1
+          UNION
+          -- Group-based project membership
+          SELECT gp.project_id 
+          FROM group_projects gp
+          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          WHERE ug.user_id = $1
+        )
       `;
       filesParams = [userId];
     }
@@ -80,13 +94,20 @@ router.get('/metrics', async (req, res) => {
       `;
       schedulesParams = [];
     } else {
-      // Non-admin: get schedules from accessible projects
+      // Non-admin: get schedules from accessible projects (both direct and group-based)
       schedulesQuery = `
         SELECT COUNT(DISTINCT s.id) as count
         FROM schedules s
-        INNER JOIN group_projects gp ON s.project_id = gp.project_id
-        INNER JOIN user_groups ug ON gp.group_id = ug.group_id
-        WHERE ug.user_id = $1 AND s.is_active = true
+        WHERE s.is_active = true AND s.project_id IN (
+          -- Direct project membership
+          SELECT project_id FROM project_members WHERE user_id = $1
+          UNION
+          -- Group-based project membership
+          SELECT gp.project_id 
+          FROM group_projects gp
+          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          WHERE ug.user_id = $1
+        )
       `;
       schedulesParams = [userId];
     }
@@ -94,32 +115,38 @@ router.get('/metrics', async (req, res) => {
     const schedulesResult = await pool.query(schedulesQuery, schedulesParams);
     const schedulesCount = parseInt(schedulesResult.rows[0]?.count || 0);
 
-    // Get failed jobs count (from user's accessible projects)
-    let failedJobsQuery;
-    let failedJobsParams;
+    // Get all jobs count (from user's accessible projects) - not just failed
+    let jobsQuery;
+    let jobsParams;
 
     if (isAdmin) {
-      // Admin sees all failed jobs
-      failedJobsQuery = `
+      // Admin sees all jobs
+      jobsQuery = `
         SELECT COUNT(DISTINCT id) as count 
-        FROM transformation_jobs 
-        WHERE status = 'failed'
+        FROM transformation_jobs
       `;
-      failedJobsParams = [];
+      jobsParams = [];
     } else {
-      // Non-admin: get failed jobs from accessible projects
-      failedJobsQuery = `
+      // Non-admin: get jobs from accessible projects (both direct and group-based)
+      jobsQuery = `
         SELECT COUNT(DISTINCT tj.id) as count
         FROM transformation_jobs tj
-        INNER JOIN group_projects gp ON tj.project_id = gp.project_id
-        INNER JOIN user_groups ug ON gp.group_id = ug.group_id
-        WHERE ug.user_id = $1 AND tj.status = 'failed'
+        WHERE tj.project_id IN (
+          -- Direct project membership
+          SELECT project_id FROM project_members WHERE user_id = $1
+          UNION
+          -- Group-based project membership
+          SELECT gp.project_id 
+          FROM group_projects gp
+          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          WHERE ug.user_id = $1
+        )
       `;
-      failedJobsParams = [userId];
+      jobsParams = [userId];
     }
 
-    const failedJobsResult = await pool.query(failedJobsQuery, failedJobsParams);
-    const failedJobsCount = parseInt(failedJobsResult.rows[0]?.count || 0);
+    const jobsResult = await pool.query(jobsQuery, jobsParams);
+    const jobsCount = parseInt(jobsResult.rows[0]?.count || 0);
 
     // Get anomalies count from alerts (from user's accessible files)
     let anomaliesQuery;
@@ -134,14 +161,21 @@ router.get('/metrics', async (req, res) => {
       `;
       anomaliesParams = [];
     } else {
-      // Non-admin: get anomalies from accessible files
+      // Non-admin: get anomalies from accessible files (both direct and group-based project access)
       anomaliesQuery = `
         SELECT COUNT(DISTINCT a.id) as count
         FROM anomalies a
-        INNER JOIN files f ON a.file_id = f.file_id
-        INNER JOIN group_projects gp ON f.project_id = gp.project_id
-        INNER JOIN user_groups ug ON gp.group_id = ug.group_id
-        WHERE ug.user_id = $1 AND a.status = 'active'
+        INNER JOIN files f ON a.file_id = f.id
+        WHERE a.status = 'active' AND f.project_id IN (
+          -- Direct project membership
+          SELECT project_id FROM project_members WHERE user_id = $1
+          UNION
+          -- Group-based project membership
+          SELECT gp.project_id 
+          FROM group_projects gp
+          INNER JOIN user_groups ug ON gp.group_id = ug.group_id
+          WHERE ug.user_id = $1
+        )
       `;
       anomaliesParams = [userId];
     }
@@ -155,7 +189,7 @@ router.get('/metrics', async (req, res) => {
         projects: projectsCount,
         files: filesCount,
         schedules: schedulesCount,
-        failedJobs: failedJobsCount,
+        jobs: jobsCount,
         anomalies: anomaliesCount
       }
     });

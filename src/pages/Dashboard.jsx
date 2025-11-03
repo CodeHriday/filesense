@@ -23,7 +23,7 @@ const Dashboard = () => {
     projects: 0,
     files: 0,
     schedules: 0,
-    failedJobs: 0,
+    jobs: 0,
     anomalies: 0
   });
   const [fileStats, setFileStats] = useState({
@@ -814,8 +814,8 @@ const Dashboard = () => {
                   <FiAlertTriangle />
                 </div>
                 <div className="stat-content">
-                  <h3>Failed Jobs</h3>
-                  <div className="stat-value">{dashboardMetrics.failedJobs}</div>
+                  <h3>Jobs</h3>
+                  <div className="stat-value">{dashboardMetrics.jobs}</div>
                 </div>
               </div>
               
