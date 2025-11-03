@@ -261,9 +261,9 @@ router.post('/', async (req, res) => {
       await client.query('DELETE FROM files WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
       
       // Delete transformations and children (regardless of transformations category selection)
-      await client.query('DELETE FROM anomalies WHERE job_id IN (SELECT id FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
-      await client.query('DELETE FROM profiling_metrics WHERE job_id IN (SELECT id FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
-      await client.query('DELETE FROM transformation_logs WHERE job_id IN (SELECT id FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM anomalies WHERE job_id IN (SELECT id::varchar FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM profiling_metrics WHERE job_id IN (SELECT id::varchar FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM transformation_logs WHERE job_id IN (SELECT id::varchar FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
       await client.query('DELETE FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
       await client.query('DELETE FROM transformation_mappings WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
       
