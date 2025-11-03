@@ -227,7 +227,7 @@ const ETLScheduler = () => {
 
         {/* Notification Modal */}
         <Modal
-          isOpen={notification.show}
+          isOpen={notification.show && !deleteModal.show}
           onClose={() => setNotification({ show: false, message: '', type: '' })}
           title={notification.type === 'success' ? 'Success' : 'Error'}
           size="small"
