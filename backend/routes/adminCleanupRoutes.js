@@ -224,7 +224,7 @@ router.post('/', async (req, res) => {
     // Before deleting transformations: clean up file_audit_details that reference transformation_jobs
     if (categories.includes('transformations')) {
       // Delete file_audit_details that reference transformation_jobs (even if audits category not selected)
-      await client.query('DELETE FROM file_audit_details WHERE transformation_job_id IN (SELECT job_id FROM transformation_jobs)');
+      await client.query('DELETE FROM file_audit_details WHERE transformation_job_id IN (SELECT id FROM transformation_jobs)');
     }
     
     // Before deleting connections: clean up vendor agreements and profiling that reference connections
