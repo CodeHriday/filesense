@@ -252,6 +252,62 @@ router.post('/', async (req, res) => {
       await client.query('DELETE FROM transformation_mappings WHERE vendor_agreement_id IN (SELECT id FROM vendor_agreements)');
     }
     
+    // Before deleting projects: clean up ALL references to projects being deleted (except Default Project)
+    if (categories.includes('projects')) {
+      // Delete files and all their children (regardless of files category selection)
+      await client.query('DELETE FROM file_preview_data WHERE file_id IN (SELECT file_id FROM files WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM file_columns WHERE file_id IN (SELECT file_id FROM files WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM file_schemas WHERE file_id IN (SELECT file_id FROM files WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM files WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete transformations and children (regardless of transformations category selection)
+      await client.query('DELETE FROM anomalies WHERE job_id IN (SELECT id FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM profiling_metrics WHERE job_id IN (SELECT id FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM transformation_logs WHERE job_id IN (SELECT id FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM transformation_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM transformation_mappings WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete workflows and children (regardless of workflows category selection)
+      await client.query('DELETE FROM workflow_executions WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM workflow_steps WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM n_step_workflow_runs WHERE workflow_id IN (SELECT id FROM n_step_workflows WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM n_step_workflow_steps WHERE workflow_id IN (SELECT id FROM n_step_workflows WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM n_step_workflows WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM mapping_group_executions WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM mapping_group_members WHERE group_id IN (SELECT id FROM mapping_groups WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM mapping_groups WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM schedules WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM file_schedules WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM job_schedules WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM job_group_schedules WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM bulk_profiling_jobs WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete business processes
+      await client.query('DELETE FROM business_processes WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete logical file groups
+      await client.query('DELETE FROM logical_file_groups WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete connections that reference projects
+      await client.query('DELETE FROM storage_connections WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM transform_connections WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete vendor agreements that reference projects
+      await client.query('DELETE FROM vendor_agreement_documents WHERE agreement_id IN (SELECT id FROM vendor_agreements WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM vendor_agreement_changes WHERE agreement_id IN (SELECT id FROM vendor_agreements WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM vendor_agreement_approvals WHERE agreement_id IN (SELECT id FROM vendor_agreements WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM vendor_agreements WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete vendors that reference projects
+      await client.query('DELETE FROM vendor_users WHERE vendor_id IN (SELECT id FROM vendors WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      await client.query('DELETE FROM vendors WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      
+      // Delete access control
+      await client.query('DELETE FROM access_group_roles WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM project_access_groups WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+      await client.query('DELETE FROM rbac_policies WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
+    }
+    
     // MAIN CATEGORY DELETIONS
     
     // Delete Files & Storage (cascades to related tables)
