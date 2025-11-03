@@ -76,6 +76,8 @@ import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import { AnnouncementProvider } from './components/accessibility';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationsProvider, ModalProvider } from './hooks';
+import { NotificationProvider } from './contexts/NotificationContext';
+import ToastContainer from './components/ToastContainer';
 import { isVendorUser } from './utils/userHelpers';
 import './App.css';
 import './styles/accessibility.css';
@@ -165,15 +167,17 @@ function App() {
       <AuthProvider>
         <SidebarProvider>
           <AnnouncementProvider>
-            <ToastProvider>
-              <NotificationsProvider>
-                <ModalProvider>
-                  <Router>
-                    <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
-                  </Router>
-                </ModalProvider>
-              </NotificationsProvider>
-            </ToastProvider>
+            <NotificationProvider>
+              <ToastProvider>
+                <NotificationsProvider>
+                  <ModalProvider>
+                    <Router>
+                      <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
+                    </Router>
+                  </ModalProvider>
+                </NotificationsProvider>
+              </ToastProvider>
+            </NotificationProvider>
           </AnnouncementProvider>
         </SidebarProvider>
       </AuthProvider>
@@ -340,6 +344,9 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       
       {/* Global Notifications */}
       <NotificationList />
+      
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 }
