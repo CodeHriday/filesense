@@ -1792,7 +1792,8 @@ CREATE TABLE public.file_schemas (
     schema_hash character varying(64) NOT NULL,
     row_count bigint,
     column_count integer,
-    captured_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    captured_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    logical_file_id character varying(255)
 );
 
 
@@ -1883,7 +1884,8 @@ CREATE TABLE public.files (
     processing_error text,
     is_vendor_file boolean DEFAULT false,
     correlation_id character varying(255),
-    file_role character varying(50)
+    file_role character varying(50),
+    logical_file_id character varying(255)
 );
 
 
@@ -2351,6 +2353,51 @@ ALTER SEQUENCE public.jobs_id_seq OWNED BY public.jobs.id;
 
 
 --
+-- Name: logical_file_groups; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.logical_file_groups (
+    id integer NOT NULL,
+    logical_file_id character varying(255) NOT NULL,
+    project_id integer,
+    canonical_name character varying(500) NOT NULL,
+    file_pattern character varying(500),
+    pattern_metadata jsonb,
+    first_upload_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    last_upload_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    upload_count integer DEFAULT 0,
+    has_schema_changes boolean DEFAULT false,
+    last_schema_change_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.logical_file_groups OWNER TO neondb_owner;
+
+--
+-- Name: logical_file_groups_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.logical_file_groups_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.logical_file_groups_id_seq OWNER TO neondb_owner;
+
+--
+-- Name: logical_file_groups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+--
+
+ALTER SEQUENCE public.logical_file_groups_id_seq OWNED BY public.logical_file_groups.id;
+
+
+--
 -- Name: mapping_group_executions; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
@@ -2709,6 +2756,51 @@ ALTER SEQUENCE public.n_step_workflows_id_seq OWNER TO neondb_owner;
 --
 
 ALTER SEQUENCE public.n_step_workflows_id_seq OWNED BY public.n_step_workflows.id;
+
+
+--
+-- Name: notifications; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.notifications (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    notification_type character varying(100) NOT NULL,
+    title character varying(500) NOT NULL,
+    message text NOT NULL,
+    entity_type character varying(100),
+    entity_id integer,
+    action_url character varying(1000),
+    is_read boolean DEFAULT false,
+    read_at timestamp without time zone,
+    metadata jsonb,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    expires_at timestamp without time zone
+);
+
+
+ALTER TABLE public.notifications OWNER TO neondb_owner;
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.notifications_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.notifications_id_seq OWNER TO neondb_owner;
+
+--
+-- Name: notifications_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+--
+
+ALTER SEQUENCE public.notifications_id_seq OWNED BY public.notifications.id;
 
 
 --
@@ -3191,6 +3283,43 @@ ALTER SEQUENCE public.schedules_id_seq OWNER TO neondb_owner;
 --
 
 ALTER SEQUENCE public.schedules_id_seq OWNED BY public.schedules.id;
+
+
+--
+-- Name: schema_migrations; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.schema_migrations (
+    id integer NOT NULL,
+    migration_name character varying(255) NOT NULL,
+    executed_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    success boolean DEFAULT true,
+    error_message text
+);
+
+
+ALTER TABLE public.schema_migrations OWNER TO neondb_owner;
+
+--
+-- Name: schema_migrations_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.schema_migrations_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.schema_migrations_id_seq OWNER TO neondb_owner;
+
+--
+-- Name: schema_migrations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+--
+
+ALTER SEQUENCE public.schema_migrations_id_seq OWNED BY public.schema_migrations.id;
 
 
 --
@@ -4111,8 +4240,9 @@ CREATE TABLE public.vendor_agreement_approvals (
     approval_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     ip_address character varying(50),
     user_agent text,
+    approval_stage character varying(50),
     CONSTRAINT vendor_agreement_approvals_action_check CHECK (((action)::text = ANY ((ARRAY['approved'::character varying, 'rejected'::character varying, 'revoked'::character varying])::text[]))),
-    CONSTRAINT vendor_agreement_approvals_approver_type_check CHECK (((approver_type)::text = ANY ((ARRAY['vendor'::character varying, 'owner'::character varying])::text[])))
+    CONSTRAINT vendor_agreement_approvals_approver_type_check CHECK (((approver_type)::text = ANY ((ARRAY['vendor'::character varying, 'manager'::character varying, 'governance_manager'::character varying])::text[])))
 );
 
 
@@ -4187,6 +4317,50 @@ ALTER SEQUENCE public.vendor_agreement_changes_id_seq OWNED BY public.vendor_agr
 
 
 --
+-- Name: vendor_agreement_documents; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.vendor_agreement_documents (
+    id integer NOT NULL,
+    agreement_id integer NOT NULL,
+    approval_id integer,
+    document_name character varying(500) NOT NULL,
+    document_type character varying(100),
+    file_path text NOT NULL,
+    file_size integer,
+    mime_type character varying(100),
+    uploaded_by integer NOT NULL,
+    uploaded_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    description text,
+    approval_stage character varying(50)
+);
+
+
+ALTER TABLE public.vendor_agreement_documents OWNER TO neondb_owner;
+
+--
+-- Name: vendor_agreement_documents_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.vendor_agreement_documents_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.vendor_agreement_documents_id_seq OWNER TO neondb_owner;
+
+--
+-- Name: vendor_agreement_documents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+--
+
+ALTER SEQUENCE public.vendor_agreement_documents_id_seq OWNED BY public.vendor_agreement_documents.id;
+
+
+--
 -- Name: vendor_agreements; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
@@ -4238,7 +4412,10 @@ CREATE TABLE public.vendor_agreements (
     vendor_type character varying(100),
     vendor_department_email character varying(255),
     vendor_onboarding_date date,
-    CONSTRAINT vendor_agreements_approval_status_check CHECK (((approval_status)::text = ANY ((ARRAY['draft'::character varying, 'pending_approval'::character varying, 'vendor_approved'::character varying, 'owner_approved'::character varying, 'fully_approved'::character varying, 'rejected'::character varying, 'changes_pending'::character varying])::text[]))),
+    governance_manager_user_id integer,
+    governance_approved_at timestamp without time zone,
+    governance_approved_by integer,
+    CONSTRAINT vendor_agreements_approval_status_check CHECK (((approval_status)::text = ANY ((ARRAY['draft'::character varying, 'pending_vendor_acceptance'::character varying, 'vendor_accepted'::character varying, 'vendor_rejected'::character varying, 'pending_manager_approval'::character varying, 'manager_approved'::character varying, 'manager_rejected'::character varying, 'pending_governance_approval'::character varying, 'governance_approved'::character varying, 'governance_rejected'::character varying, 'fully_approved'::character varying, 'rejected'::character varying, 'changes_pending'::character varying])::text[]))),
     CONSTRAINT vendor_agreements_data_classification_check CHECK ((((data_classification)::text = ANY ((ARRAY['Public'::character varying, 'Private'::character varying, 'Confidential'::character varying])::text[])) OR (data_classification IS NULL))),
     CONSTRAINT vendor_agreements_status_check CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'inactive'::character varying, 'archived'::character varying, 'draft'::character varying, 'pending'::character varying])::text[])))
 );
@@ -4859,6 +5036,13 @@ ALTER TABLE ONLY public.jobs ALTER COLUMN id SET DEFAULT nextval('public.jobs_id
 
 
 --
+-- Name: logical_file_groups id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.logical_file_groups ALTER COLUMN id SET DEFAULT nextval('public.logical_file_groups_id_seq'::regclass);
+
+
+--
 -- Name: mapping_group_executions id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
@@ -4922,6 +5106,13 @@ ALTER TABLE ONLY public.n_step_workflows ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
+-- Name: notifications id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.notifications ALTER COLUMN id SET DEFAULT nextval('public.notifications_id_seq'::regclass);
+
+
+--
 -- Name: password_reset_requests id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
@@ -4975,6 +5166,13 @@ ALTER TABLE ONLY public.roles ALTER COLUMN id SET DEFAULT nextval('public.roles_
 --
 
 ALTER TABLE ONLY public.schedules ALTER COLUMN id SET DEFAULT nextval('public.schedules_id_seq'::regclass);
+
+
+--
+-- Name: schema_migrations id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.schema_migrations ALTER COLUMN id SET DEFAULT nextval('public.schema_migrations_id_seq'::regclass);
 
 
 --
@@ -5115,6 +5313,13 @@ ALTER TABLE ONLY public.vendor_agreement_approvals ALTER COLUMN id SET DEFAULT n
 --
 
 ALTER TABLE ONLY public.vendor_agreement_changes ALTER COLUMN id SET DEFAULT nextval('public.vendor_agreement_changes_id_seq'::regclass);
+
+
+--
+-- Name: vendor_agreement_documents id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.vendor_agreement_documents ALTER COLUMN id SET DEFAULT nextval('public.vendor_agreement_documents_id_seq'::regclass);
 
 
 --
@@ -5679,6 +5884,30 @@ ALTER TABLE ONLY public.jobs
 
 
 --
+-- Name: logical_file_groups logical_file_groups_logical_file_id_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.logical_file_groups
+    ADD CONSTRAINT logical_file_groups_logical_file_id_key UNIQUE (logical_file_id);
+
+
+--
+-- Name: logical_file_groups logical_file_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.logical_file_groups
+    ADD CONSTRAINT logical_file_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: logical_file_groups logical_file_groups_project_id_canonical_name_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.logical_file_groups
+    ADD CONSTRAINT logical_file_groups_project_id_canonical_name_key UNIQUE (project_id, canonical_name);
+
+
+--
 -- Name: mapping_group_executions mapping_group_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
@@ -5780,6 +6009,14 @@ ALTER TABLE ONLY public.n_step_workflow_steps
 
 ALTER TABLE ONLY public.n_step_workflows
     ADD CONSTRAINT n_step_workflows_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
 
 
 --
@@ -5940,6 +6177,22 @@ ALTER TABLE ONLY public.roles
 
 ALTER TABLE ONLY public.schedules
     ADD CONSTRAINT schedules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: schema_migrations schema_migrations_migration_name_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.schema_migrations
+    ADD CONSTRAINT schema_migrations_migration_name_key UNIQUE (migration_name);
+
+
+--
+-- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.schema_migrations
+    ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (id);
 
 
 --
@@ -6364,6 +6617,14 @@ ALTER TABLE ONLY public.vendor_agreement_approvals
 
 ALTER TABLE ONLY public.vendor_agreement_changes
     ADD CONSTRAINT vendor_agreement_changes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: vendor_agreement_documents vendor_agreement_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.vendor_agreement_documents
+    ADD CONSTRAINT vendor_agreement_documents_pkey PRIMARY KEY (id);
 
 
 --
@@ -7018,6 +7279,13 @@ CREATE INDEX idx_file_schemas_hash ON public.file_schemas USING btree (schema_ha
 
 
 --
+-- Name: idx_file_schemas_logical_file; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_file_schemas_logical_file ON public.file_schemas USING btree (logical_file_id, captured_at DESC);
+
+
+--
 -- Name: idx_file_schemas_pattern; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
@@ -7043,6 +7311,13 @@ CREATE INDEX idx_files_created_at ON public.files USING btree (created_at DESC);
 --
 
 CREATE INDEX idx_files_file_role ON public.files USING btree (file_role);
+
+
+--
+-- Name: idx_files_logical_file; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_files_logical_file ON public.files USING btree (logical_file_id);
 
 
 --
@@ -7158,6 +7433,34 @@ CREATE INDEX idx_jobs_updated_at ON public.jobs USING btree (updated_at DESC);
 
 
 --
+-- Name: idx_logical_file_groups_canonical; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_logical_file_groups_canonical ON public.logical_file_groups USING btree (canonical_name);
+
+
+--
+-- Name: idx_logical_file_groups_changes; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_logical_file_groups_changes ON public.logical_file_groups USING btree (has_schema_changes) WHERE (has_schema_changes = true);
+
+
+--
+-- Name: idx_logical_file_groups_pattern; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_logical_file_groups_pattern ON public.logical_file_groups USING btree (file_pattern);
+
+
+--
+-- Name: idx_logical_file_groups_project; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_logical_file_groups_project ON public.logical_file_groups USING btree (project_id);
+
+
+--
 -- Name: idx_mapping_group_executions_group_id; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
@@ -7225,6 +7528,27 @@ CREATE INDEX idx_n_step_workflow_steps_workflow ON public.n_step_workflow_steps 
 --
 
 CREATE INDEX idx_n_step_workflows_project_id ON public.n_step_workflows USING btree (project_id);
+
+
+--
+-- Name: idx_notifications_entity; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_notifications_entity ON public.notifications USING btree (entity_type, entity_id);
+
+
+--
+-- Name: idx_notifications_is_read; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_notifications_is_read ON public.notifications USING btree (user_id, is_read);
+
+
+--
+-- Name: idx_notifications_user_id; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_notifications_user_id ON public.notifications USING btree (user_id);
 
 
 --
@@ -7802,6 +8126,20 @@ CREATE INDEX idx_vendor_agreement_changes_changed_by ON public.vendor_agreement_
 
 
 --
+-- Name: idx_vendor_agreement_documents_agreement; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_vendor_agreement_documents_agreement ON public.vendor_agreement_documents USING btree (agreement_id);
+
+
+--
+-- Name: idx_vendor_agreement_documents_approval; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_vendor_agreement_documents_approval ON public.vendor_agreement_documents USING btree (approval_id);
+
+
+--
 -- Name: idx_vendor_agreements_agreement_code; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
@@ -7827,6 +8165,13 @@ CREATE INDEX idx_vendor_agreements_connection_id ON public.vendor_agreements USI
 --
 
 CREATE INDEX idx_vendor_agreements_file_owner ON public.vendor_agreements USING btree (file_owner_user_id);
+
+
+--
+-- Name: idx_vendor_agreements_governance_manager; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX idx_vendor_agreements_governance_manager ON public.vendor_agreements USING btree (governance_manager_user_id);
 
 
 --
@@ -8279,6 +8624,22 @@ ALTER TABLE ONLY public.file_lineage
 
 
 --
+-- Name: file_schemas file_schemas_logical_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.file_schemas
+    ADD CONSTRAINT file_schemas_logical_file_id_fkey FOREIGN KEY (logical_file_id) REFERENCES public.logical_file_groups(logical_file_id) ON DELETE SET NULL;
+
+
+--
+-- Name: files files_logical_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.files
+    ADD CONSTRAINT files_logical_file_id_fkey FOREIGN KEY (logical_file_id) REFERENCES public.logical_file_groups(logical_file_id) ON DELETE SET NULL;
+
+
+--
 -- Name: business_processes fk_business_processes_project; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
@@ -8639,6 +9000,14 @@ ALTER TABLE ONLY public.jobs
 
 
 --
+-- Name: logical_file_groups logical_file_groups_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.logical_file_groups
+    ADD CONSTRAINT logical_file_groups_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
+
+
+--
 -- Name: mapping_group_executions mapping_group_executions_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
@@ -8708,6 +9077,14 @@ ALTER TABLE ONLY public.n_step_workflow_steps
 
 ALTER TABLE ONLY public.n_step_workflows
     ADD CONSTRAINT n_step_workflows_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
+-- Name: notifications notifications_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -9047,6 +9424,30 @@ ALTER TABLE ONLY public.vendor_agreement_changes
 
 
 --
+-- Name: vendor_agreement_documents vendor_agreement_documents_agreement_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.vendor_agreement_documents
+    ADD CONSTRAINT vendor_agreement_documents_agreement_id_fkey FOREIGN KEY (agreement_id) REFERENCES public.vendor_agreements(id) ON DELETE CASCADE;
+
+
+--
+-- Name: vendor_agreement_documents vendor_agreement_documents_approval_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.vendor_agreement_documents
+    ADD CONSTRAINT vendor_agreement_documents_approval_id_fkey FOREIGN KEY (approval_id) REFERENCES public.vendor_agreement_approvals(id) ON DELETE SET NULL;
+
+
+--
+-- Name: vendor_agreement_documents vendor_agreement_documents_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.vendor_agreement_documents
+    ADD CONSTRAINT vendor_agreement_documents_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: vendor_agreements vendor_agreements_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
@@ -9060,6 +9461,22 @@ ALTER TABLE ONLY public.vendor_agreements
 
 ALTER TABLE ONLY public.vendor_agreements
     ADD CONSTRAINT vendor_agreements_file_owner_user_id_fkey FOREIGN KEY (file_owner_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: vendor_agreements vendor_agreements_governance_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.vendor_agreements
+    ADD CONSTRAINT vendor_agreements_governance_approved_by_fkey FOREIGN KEY (governance_approved_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: vendor_agreements vendor_agreements_governance_manager_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
+--
+
+ALTER TABLE ONLY public.vendor_agreements
+    ADD CONSTRAINT vendor_agreements_governance_manager_user_id_fkey FOREIGN KEY (governance_manager_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
