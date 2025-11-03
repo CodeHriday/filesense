@@ -34,6 +34,29 @@ The application features a hybrid architecture designed for scalability, securit
 - **Vendor Agreement Schema Validation:** Full-stack system for ETL transformations with schema drift handling policies (abort, alert, none) integrated into job execution and monitored via the UI.
 - **DBT Integration:** Configured for DBT Core and dbt-postgres for data transformations, including a UI for model discovery, execution, and monitoring.
 
+## Critical Implementation Details
+
+### Group-Based Access Control Database Structure
+**IMPORTANT:** The database uses the following tables for group-based project access:
+- **`user_groups`** - Links users to groups (user_id, group_id)
+- **`project_access_groups`** - Links groups to projects (project_id, group_id)
+
+**DO NOT USE:**
+- `access_group_members` (empty, newer schema not yet populated)
+- `group_projects` (does not exist)
+
+**Dashboard Metrics Pattern:** For non-admin users, always UNION direct membership (`project_members`) with group-based membership (`user_groups` → `project_access_groups`):
+```sql
+-- Direct project membership
+SELECT project_id FROM project_members WHERE user_id = $1
+UNION
+-- Group-based project membership
+SELECT pag.project_id 
+FROM project_access_groups pag
+INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+WHERE ug.user_id = $1
+```
+
 ## External Dependencies
 -   **Runtimes**: Python 3.11+, Node.js 20
 -   **Database**: PostgreSQL 16
