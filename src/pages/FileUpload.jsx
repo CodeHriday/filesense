@@ -58,12 +58,14 @@ function FileUpload() {
   const [browsePrefix, setBrowsePrefix] = useState('');
   const [showFolderBrowser, setShowFolderBrowser] = useState(false);
   
-  // Set initial tab based on route
+  // Set initial tab based on route or user type
   useEffect(() => {
     if (location.pathname === '/drop') {
       setActiveTab('drop-file');
+    } else if (currentUser && isVendorUser(currentUser)) {
+      setActiveTab('drop-file');
     }
-  }, [location.pathname]);
+  }, [location.pathname, currentUser]);
   
   useEffect(() => {
     if (currentUser?.email) {
