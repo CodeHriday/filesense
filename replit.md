@@ -7,6 +7,14 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**November 3, 2025** - Standardized authorization permission system across all routes:
+- Replaced granular permissions (:create, :update, :delete) with unified :write permission for all POST/PUT/DELETE operations
+- Updated 10 route handlers: transformations.js (3 changes), mappingGroups.js (6 changes), nStepWorkflows.js (1 change)
+- Created three new database permissions: transformation:write, mapping_group:write, workflow:write
+- Granted new permissions to Admin and Data Engineer roles
+- Fixed critical bug preventing dp_data_engineer user from creating mappings
+- Standard permission pattern now enforced: :read for GET, :write for POST/PUT/DELETE, :execute for execution operations
+
 **November 2, 2025** - Added governance rejection handling for vendor managers:
 - Vendor Managers now see action buttons when governance rejects an agreement
 - Three options available after governance rejection:
