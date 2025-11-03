@@ -20,34 +20,45 @@ function VendorFileUpload() {
   const [showFolderBrowser, setShowFolderBrowser] = useState(false);
   const [diagnosticInfo, setDiagnosticInfo] = useState('');
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [connectionDetails, setConnectionDetails] = useState(null);
 
   const { hasWritePermission } = useAuth();
 
-  // Auto-load vendor agreements on mount
-  useEffect(() => {
-    const loadAgreements = async () => {
-      setLoadingAgreements(true);
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements?pageSize=1000`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const agreements = response.data.agreements || [];
-        // Only show approved and locked agreements for file upload
-        const approvedAgreements = agreements.filter(a => 
-          a.approval_status === 'governance_approved' && a.is_locked === true
-        );
-        setVendorAgreements(approvedAgreements);
-      } catch (error) {
-        console.error('Error loading vendor agreements:', error);
-        setVendorAgreements([]);
-      } finally {
-        setLoadingAgreements(false);
-      }
-    };
+  // Load vendor agreements on demand
+  const loadVendorContracts = async () => {
+    setLoadingAgreements(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements?pageSize=1000`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const agreements = response.data.agreements || [];
+      // Only show approved and locked agreements for file upload
+      const approvedAgreements = agreements.filter(a => 
+        a.approval_status === 'governance_approved' && a.is_locked === true
+      );
+      setVendorAgreements(approvedAgreements);
+    } catch (error) {
+      console.error('Error loading vendor agreements:', error);
+      setVendorAgreements([]);
+    } finally {
+      setLoadingAgreements(false);
+    }
+  };
 
-    loadAgreements();
-  }, []);
+  // Fetch connection details when agreement is selected
+  const fetchConnectionDetails = async (vendorConnectionId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/connections/${vendorConnectionId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setConnectionDetails(response.data);
+    } catch (error) {
+      console.error('Error fetching connection details:', error);
+      setConnectionDetails(null);
+    }
+  };
 
   // Browse folders in agreement's connection
   const browseFoldersInAgreement = async (prefix = '') => {
@@ -171,7 +182,7 @@ function VendorFileUpload() {
     <div className="vendor-file-upload-container">
       <div className="page-header">
         <h1>Vendor File Upload</h1>
-        <p className="subtitle">Upload files to your designated S3 storage location</p>
+        <p className="subtitle">Upload files directly to S3 storage without profiling or analysis. Quick uploads for raw file storage.</p>
       </div>
 
       {/* Success Notification */}
@@ -181,7 +192,7 @@ function VendorFileUpload() {
             <FiCheckCircle className="notification-icon" />
             <div className="notification-text">
               <strong>File uploaded successfully!</strong>
-              <p>Your file has been uploaded and is being profiled.</p>
+              <p>Your file has been uploaded to S3 storage.</p>
             </div>
           </div>
           <Link to="/vendor-file-quality" className="notification-link">
@@ -192,32 +203,59 @@ function VendorFileUpload() {
 
       {hasWritePermission('vendor_file_quality') || hasWritePermission('file_drop') ? (
         <>
-          {/* Vendor Agreement Selection */}
-          <div className="selection-panel">
-            <div className="selection-row">
-              <div className="form-group">
-                <label htmlFor="vendor-agreement-select">
-                  Vendor Agreement: <span className="required">*</span>
-                </label>
+          {/* Vendor Contract and Connection Selection - Matching Drop File (S3 Direct) design */}
+          <div style={{ padding: '1rem', background: '#f8f9fa', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Vendor Contract Selection */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <label htmlFor="vendor-contract-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                    Vendor Contract: <span style={{ color: '#e74c3c' }}>*</span>
+                  </label>
+                  {!loadingAgreements && vendorAgreements.length === 0 && (
+                    <button 
+                      className="btn btn-sm btn-primary"
+                      onClick={loadVendorContracts}
+                      style={{ marginLeft: 'auto' }}
+                    >
+                      Load My Contracts
+                    </button>
+                  )}
+                </div>
                 <select 
-                  id="vendor-agreement-select"
+                  id="vendor-contract-select"
                   value={selectedAgreement || ''}
                   onChange={(e) => {
                     const agreementId = Number(e.target.value);
                     setSelectedAgreement(agreementId);
                     setShowFolderBrowser(false);
                     setBrowseFolders([]);
+                    setConnectionDetails(null);
+                    
+                    // Fetch connection details for the selected agreement
+                    if (agreementId) {
+                      const agreement = vendorAgreements.find(a => a.id === agreementId);
+                      if (agreement?.vendor_connection_id) {
+                        fetchConnectionDetails(agreement.vendor_connection_id);
+                      }
+                    }
                   }}
-                  disabled={loadingAgreements}
-                  className="form-select"
+                  disabled={loadingAgreements || vendorAgreements.length === 0}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    cursor: 'pointer'
+                  }}
                 >
                   {loadingAgreements ? (
-                    <option>Loading agreements...</option>
+                    <option>Loading contracts...</option>
                   ) : vendorAgreements.length === 0 ? (
-                    <option>No approved agreements available</option>
+                    <option>Click "Load My Contracts" to view your approved contracts</option>
                   ) : (
                     <>
-                      <option value="">Select an agreement...</option>
+                      <option value="">Select a contract...</option>
                       {vendorAgreements.map(agreement => (
                         <option key={agreement.id} value={agreement.id}>
                           {agreement.agreement_code} - {agreement.file_description || agreement.file_name}
@@ -227,83 +265,109 @@ function VendorFileUpload() {
                   )}
                 </select>
               </div>
-            </div>
 
-            {/* Agreement Details and Folder Browser */}
-            {selectedAgreement && (
-              <div className="connection-details">
-                {(() => {
-                  const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
-                  if (!agreement) return null;
-                  return (
-                    <>
-                      <div className="upload-path">
-                        <strong>Upload Path:</strong> {agreement.drop_location_path || 'root'}
-                      </div>
-                      {agreement.vendor_connection_id && (
-                        <button 
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => {
-                            setShowFolderBrowser(!showFolderBrowser);
-                            if (!showFolderBrowser && browseFolders.length === 0) {
-                              browseFoldersInAgreement('');
-                            }
-                          }}
-                        >
-                          {showFolderBrowser ? 'Hide' : 'Browse'} Folders
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-
-                {/* Folder Browser */}
-                {showFolderBrowser && (
-                  <div className="folder-browser">
-                    {browsePrefix && (
-                      <div className="folder-navigation">
-                        <button 
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => {
-                            const parts = browsePrefix.split('/').filter(p => p);
-                            parts.pop();
-                            const newPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
-                            browseFoldersInAgreement(newPrefix);
-                          }}
-                        >
-                          ← Back
-                        </button>
-                        <span className="current-path">
-                          Current: /{browsePrefix}
-                        </span>
-                      </div>
-                    )}
-                    {browseFolders.length === 0 ? (
-                      <div className="empty-folder">
-                        No items found
-                      </div>
-                    ) : (
-                      <div className="folder-list">
-                        {browseFolders.filter(item => item.type === 'folder').map((folder, idx) => (
-                          <div 
-                            key={idx}
-                            className="folder-item"
-                            onClick={() => browseFoldersInAgreement(folder.path)}
-                          >
-                            <span className="folder-icon">📁</span>
-                            <span className="folder-name">{folder.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              {/* Connection Display (Auto-derived from contract) */}
+              {selectedAgreement && connectionDetails && (
+                <div>
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                    Connection: <span style={{ color: '#e74c3c' }}>*</span>
+                  </label>
+                  <div style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    background: '#fff',
+                    color: '#333'
+                  }}>
+                    {connectionDetails.name} ({connectionDetails.type?.toUpperCase() || 'S3'})
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+
+              {/* Connection Details and Folder Browser */}
+              {selectedAgreement && connectionDetails && (
+                <div style={{ background: 'white', padding: '0.75rem', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
+                  {(() => {
+                    const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+                    if (!agreement) return null;
+                    return (
+                      <>
+                        <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
+                          <strong>Upload Path:</strong> {agreement.drop_location_path || connectionDetails.drop_location_path || 'root'}
+                        </div>
+                        {agreement.vendor_connection_id && (
+                          <button 
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => {
+                              setShowFolderBrowser(!showFolderBrowser);
+                              if (!showFolderBrowser && browseFolders.length === 0) {
+                                browseFoldersInAgreement('');
+                              }
+                            }}
+                          >
+                            {showFolderBrowser ? 'Hide' : 'Browse'} Folders
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  {/* Folder Browser */}
+                  {showFolderBrowser && (
+                    <div style={{ marginTop: '1rem', maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '0.5rem' }}>
+                      {browsePrefix && (
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <button 
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => {
+                              const parts = browsePrefix.split('/').filter(p => p);
+                              parts.pop();
+                              const newPrefix = parts.length > 0 ? parts.join('/') + '/' : '';
+                              browseFoldersInAgreement(newPrefix);
+                            }}
+                          >
+                            ← Back
+                          </button>
+                          <span style={{ marginLeft: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
+                            Current: /{browsePrefix}
+                          </span>
+                        </div>
+                      )}
+                      {browseFolders.length === 0 ? (
+                        <div style={{ padding: '1rem', textAlign: 'center', color: '#999' }}>
+                          No items found
+                        </div>
+                      ) : (
+                        <div>
+                          {browseFolders.filter(item => item.type === 'folder').map((folder, idx) => (
+                            <div 
+                              key={idx}
+                              style={{ 
+                                padding: '0.5rem', 
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f0f0f0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                              }}
+                              onClick={() => browseFoldersInAgreement(folder.path)}
+                            >
+                              <span>📁</span>
+                              <span>{folder.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* File Drop Zone */}
-          {selectedAgreement ? (
+          {selectedAgreement && connectionDetails ? (
             <>
               <FileDropzone 
                 key={`drop-${dropzoneKey}`}
@@ -317,7 +381,7 @@ function VendorFileUpload() {
               
               {/* Reset button */}
               {(uploadStatus === 'success' || uploadStatus === 'error') && (
-                <div className="upload-actions">
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
                   <button 
                     className="btn btn-primary"
                     onClick={handleUploadAnother}
@@ -328,10 +392,17 @@ function VendorFileUpload() {
               )}
             </>
           ) : (
-            <div className="placeholder-dropzone">
-              <FiUpload size={48} />
-              <p>
-                Please select a vendor agreement above to upload files
+            <div style={{
+              padding: '3rem',
+              border: '2px dashed #ccc',
+              borderRadius: '8px',
+              textAlign: 'center',
+              color: '#999',
+              background: '#f9f9f9'
+            }}>
+              <FiUpload size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+              <p style={{ fontSize: '1.1rem', margin: 0 }}>
+                Please select a vendor contract above to continue
               </p>
             </div>
           )}
