@@ -372,11 +372,11 @@ router.post('/', async (req, res) => {
     
     // Delete Data Governance
     if (categories.includes('governance')) {
-      const columnPoliciesResult = await client.query('DELETE FROM column_policy_assignments RETURNING id');
-      const columnGovernanceResult = await client.query('DELETE FROM column_governance_tag_assignments RETURNING id');
-      const fileOwnershipResult = await client.query('DELETE FROM file_ownership RETURNING id');
-      const tagsResult = await client.query('DELETE FROM governance_tags RETURNING id');
-      const policiesResult = await client.query('DELETE FROM governance_policies RETURNING id');
+      const columnPoliciesResult = await client.query('DELETE FROM column_policy_assignments');
+      const columnGovernanceResult = await client.query('DELETE FROM column_governance_tag_assignments');
+      const fileOwnershipResult = await client.query('DELETE FROM file_ownership');
+      const tagsResult = await client.query('DELETE FROM governance_tags');
+      const policiesResult = await client.query('DELETE FROM governance_policies');
       
       deletedCounts.governance = {
         column_governance_tag_assignments: columnGovernanceResult.rowCount,
