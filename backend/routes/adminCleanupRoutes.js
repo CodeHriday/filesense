@@ -210,6 +210,42 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     
+    // CROSS-CATEGORY DEPENDENCY CLEANUP
+    // Delete dependent records from other categories to prevent FK violations
+    
+    // Before deleting files: clean up references from activity and vendors categories
+    if (categories.includes('files')) {
+      // Delete user_badges that reference files (even if activity category not selected)
+      await client.query('DELETE FROM user_badges WHERE file_id IN (SELECT file_id FROM files)');
+      // Delete vendor_file_profiling_results that reference files (even if vendors category not selected)
+      await client.query('DELETE FROM vendor_file_profiling_results WHERE file_id IN (SELECT file_id FROM files)');
+    }
+    
+    // Before deleting transformations: clean up file_audit_details that reference transformation_jobs
+    if (categories.includes('transformations')) {
+      // Delete file_audit_details that reference transformation_jobs (even if audits category not selected)
+      await client.query('DELETE FROM file_audit_details WHERE transformation_job_id IN (SELECT job_id FROM transformation_jobs)');
+    }
+    
+    // Before deleting connections: clean up vendor agreements and profiling that reference connections
+    if (categories.includes('connections')) {
+      // Delete vendor_file_profiling_results that reference storage connections
+      await client.query('DELETE FROM vendor_file_profiling_results WHERE connection_id IN (SELECT connection_id FROM storage_connections)');
+      // Delete vendor_agreements that reference storage connections (must delete children first)
+      await client.query('DELETE FROM vendor_agreement_documents WHERE agreement_id IN (SELECT id FROM vendor_agreements WHERE vendor_connection_id IN (SELECT connection_id FROM storage_connections))');
+      await client.query('DELETE FROM vendor_agreement_changes WHERE agreement_id IN (SELECT id FROM vendor_agreements WHERE vendor_connection_id IN (SELECT connection_id FROM storage_connections))');
+      await client.query('DELETE FROM vendor_agreement_approvals WHERE agreement_id IN (SELECT id FROM vendor_agreements WHERE vendor_connection_id IN (SELECT connection_id FROM storage_connections))');
+      await client.query('DELETE FROM vendor_agreements WHERE vendor_connection_id IN (SELECT connection_id FROM storage_connections)');
+    }
+    
+    // Before deleting vendors: clean up transformation_mappings that reference vendor_agreements
+    if (categories.includes('vendors')) {
+      // Delete transformation_mappings that reference vendor_agreements
+      await client.query('DELETE FROM transformation_mappings WHERE vendor_agreement_id IN (SELECT id FROM vendor_agreements)');
+    }
+    
+    // MAIN CATEGORY DELETIONS
+    
     // Delete Files & Storage (cascades to related tables)
     if (categories.includes('files')) {
       const filePreviewResult = await client.query('DELETE FROM file_preview_data RETURNING preview_id');
