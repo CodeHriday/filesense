@@ -20,7 +20,6 @@ function VendorFileUpload() {
   const [showFolderBrowser, setShowFolderBrowser] = useState(false);
   const [diagnosticInfo, setDiagnosticInfo] = useState('');
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
-  const [connectionDetails, setConnectionDetails] = useState(null);
 
   const { hasWritePermission } = useAuth();
 
@@ -43,20 +42,6 @@ function VendorFileUpload() {
       setVendorAgreements([]);
     } finally {
       setLoadingAgreements(false);
-    }
-  };
-
-  // Fetch connection details when agreement is selected
-  const fetchConnectionDetails = async (vendorConnectionId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/connections/${vendorConnectionId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setConnectionDetails(response.data);
-    } catch (error) {
-      console.error('Error fetching connection details:', error);
-      setConnectionDetails(null);
     }
   };
 
@@ -230,15 +215,6 @@ function VendorFileUpload() {
                     setSelectedAgreement(agreementId);
                     setShowFolderBrowser(false);
                     setBrowseFolders([]);
-                    setConnectionDetails(null);
-                    
-                    // Fetch connection details for the selected agreement
-                    if (agreementId) {
-                      const agreement = vendorAgreements.find(a => a.id === agreementId);
-                      if (agreement?.vendor_connection_id) {
-                        fetchConnectionDetails(agreement.vendor_connection_id);
-                      }
-                    }
                   }}
                   disabled={loadingAgreements || vendorAgreements.length === 0}
                   style={{
@@ -267,26 +243,34 @@ function VendorFileUpload() {
               </div>
 
               {/* Connection Display (Auto-derived from contract) */}
-              {selectedAgreement && connectionDetails && (
-                <div>
-                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                    Connection: <span style={{ color: '#e74c3c' }}>*</span>
-                  </label>
-                  <div style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                    background: '#fff',
-                    color: '#333'
-                  }}>
-                    {connectionDetails.name} ({connectionDetails.type?.toUpperCase() || 'S3'})
+              {selectedAgreement && (() => {
+                const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+                if (!agreement || !agreement.vendor_connection_id) return null;
+                
+                return (
+                  <div>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Connection: <span style={{ color: '#e74c3c' }}>*</span>
+                    </label>
+                    <div style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      background: '#fff',
+                      color: '#333'
+                    }}>
+                      {agreement.connection_name || 'S3 Connection'} (S3)
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Connection Details and Folder Browser */}
-              {selectedAgreement && connectionDetails && (
+              {selectedAgreement && (() => {
+                const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+                return agreement?.vendor_connection_id;
+              })() && (
                 <div style={{ background: 'white', padding: '0.75rem', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
                   {(() => {
                     const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
@@ -294,7 +278,7 @@ function VendorFileUpload() {
                     return (
                       <>
                         <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
-                          <strong>Upload Path:</strong> {agreement.drop_location_path || connectionDetails.drop_location_path || 'root'}
+                          <strong>Upload Path:</strong> {agreement.drop_location_path || 'root'}
                         </div>
                         {agreement.vendor_connection_id && (
                           <button 
@@ -367,7 +351,10 @@ function VendorFileUpload() {
           </div>
 
           {/* File Drop Zone */}
-          {selectedAgreement && connectionDetails ? (
+          {selectedAgreement && (() => {
+            const agreement = vendorAgreements.find(a => a.id === selectedAgreement);
+            return agreement?.vendor_connection_id;
+          })() ? (
             <>
               <FileDropzone 
                 key={`drop-${dropzoneKey}`}
