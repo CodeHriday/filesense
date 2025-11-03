@@ -8,6 +8,7 @@ import StepProgress from '../components/StepProgress';
 import BulkProfilingTab from '../components/BulkProfilingTab';
 import { uploadFile, uploadFilesBatch, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
 import { useAuth } from '../context/AuthContext';
+import { isVendorUser } from '../utils/userHelpers';
 import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import './FileUpload.css';
