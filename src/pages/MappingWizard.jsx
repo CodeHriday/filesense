@@ -770,14 +770,13 @@ function MappingWizard() {
                         if (agreement.file_name) {
                           setFileNamePattern(agreement.file_name);
                         }
-                        // Auto-populate file path (strip bucket name)
-                        if (agreement.drop_location_path) {
+                        // Auto-populate file path from connection configuration
+                        if (agreement.vendor_connection_path) {
+                          setFilePath(agreement.vendor_connection_path);
+                        } else if (agreement.drop_location_path) {
+                          // Fallback to drop_location_path if vendor_connection_path not available
                           let path = agreement.drop_location_path;
-                          // Strip bucket name - keep only the path after the first "/"
-                          const slashIndex = path.indexOf('/');
-                          if (slashIndex >= 0) {
-                            path = path.substring(slashIndex);
-                          } else if (!path.startsWith('/')) {
+                          if (!path.startsWith('/')) {
                             path = '/' + path;
                           }
                           setFilePath(path);

@@ -2066,7 +2066,8 @@ class VendorAgreementService {
           owner.email as owner_email,
           vendor_approver.username as vendor_approver_username,
           owner_approver.username as owner_approver_username,
-          source_conn.name as vendor_connection_name
+          source_conn.name as vendor_connection_name,
+          source_conn.path as vendor_connection_path
         FROM vendor_agreements va
         JOIN vendors v ON va.vendor_id = v.id
         LEFT JOIN users owner ON va.file_owner_user_id = owner.id
