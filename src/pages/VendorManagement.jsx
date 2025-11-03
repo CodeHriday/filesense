@@ -49,6 +49,10 @@ const VendorManagement = () => {
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState(null);
   
+  // Success modal state for vendor creation
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdVendorInfo, setCreatedVendorInfo] = useState(null);
+  
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
   
@@ -281,20 +285,32 @@ const VendorManagement = () => {
       
       if (modalMode === 'create') {
         // Create new vendor
-        await axios.post('/api/vendors', vendorData);
-        setSuccessMessage(`Vendor "${formData.vendor_name}" created successfully!`);
+        const response = await axios.post('/api/vendors', vendorData);
+        const createdVendor = response.data.vendor;
+        
+        // Close modal first
+        closeModal();
+        fetchData();
+        
+        // Show success modal with vendor and project info
+        setCreatedVendorInfo({
+          vendorName: createdVendor.vendor_name,
+          projectName: createdVendor.project_name
+        });
+        setShowSuccessModal(true);
       } else {
         // Update existing vendor
         await axios.put(`/api/vendors/${selectedVendor.id}`, vendorData);
         setSuccessMessage(`Vendor "${formData.vendor_name}" updated successfully!`);
+        
+        closeModal();
+        fetchData();
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccessMessage(''), 5000);
       }
       
-      closeModal();
-      fetchData();
       setModalError('');
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
       console.error('Error saving vendor:', error);
       
@@ -700,6 +716,50 @@ const VendorManagement = () => {
         cancelText="Cancel"
         confirmButtonStyle={{ background: '#dc2626' }}
       />
+      
+      {/* Vendor Creation Success Modal */}
+      {showSuccessModal && createdVendorInfo && (
+        <div className="modal-overlay" onClick={() => setShowSuccessModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header" style={{ backgroundColor: '#10b981', color: 'white' }}>
+              <h2 style={{ color: 'white' }}>Vendor Created Successfully!</h2>
+              <button className="close-btn" onClick={() => setShowSuccessModal(false)} style={{ color: 'white' }}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '2rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '3rem', color: '#10b981', marginBottom: '1rem' }}>✓</div>
+                <h3 style={{ marginBottom: '0.5rem' }}>Vendor "{createdVendorInfo.vendorName}" has been created.</h3>
+                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+                  A default project <strong>"{createdVendorInfo.projectName}"</strong> has been created.
+                </p>
+                <p style={{ color: '#374151', padding: '1rem', backgroundColor: '#fef3c7', borderRadius: '8px', border: '1px solid #fbbf24' }}>
+                  Please go to the project management page and add respective dev teams or users to provide them access to the project.
+                </p>
+              </div>
+            </div>
+            <div className="modal-actions" style={{ justifyContent: 'center', gap: '1rem' }}>
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => setShowSuccessModal(false)}
+              >
+                Close
+              </button>
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate('/project-management');
+                }}
+                style={{ backgroundColor: '#10b981' }}
+              >
+                Go to Project Management
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
         </>
       )}
     </div>
