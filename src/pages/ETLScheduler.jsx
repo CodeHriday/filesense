@@ -6,6 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import Modal from '../components/Modal';
+import { useNotification } from '../contexts/NotificationContext';
 import './ETLScheduler.css';
 import axios from 'axios';
 
@@ -16,7 +17,7 @@ const ETLScheduler = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [deleteModal, setDeleteModal] = useState({ show: false, scheduleId: null });
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const { showSuccess, showError } = useNotification();
 
   useEffect(() => {
     fetchSchedules();
@@ -44,18 +45,10 @@ const ETLScheduler = () => {
       setSchedules(schedules.map(s =>
         s.schedule_id === scheduleId ? { ...s, enabled: !currentEnabled } : s
       ));
-      setNotification({
-        show: true,
-        message: `Schedule ${!currentEnabled ? 'enabled' : 'disabled'} successfully`,
-        type: 'success'
-      });
+      showSuccess(`Schedule ${!currentEnabled ? 'enabled' : 'disabled'} successfully`);
     } catch (err) {
       console.error('Error toggling schedule:', err);
-      setNotification({
-        show: true,
-        message: 'Failed to toggle schedule',
-        type: 'error'
-      });
+      showError('Failed to toggle schedule');
     }
   };
 
@@ -70,18 +63,10 @@ const ETLScheduler = () => {
     try {
       await axios.delete(`/api/schedules/${scheduleId}`);
       setSchedules(schedules.filter(s => s.schedule_id !== scheduleId));
-      setNotification({
-        show: true,
-        message: 'Schedule deleted successfully',
-        type: 'success'
-      });
+      showSuccess('Schedule deleted successfully');
     } catch (err) {
       console.error('Error deleting schedule:', err);
-      setNotification({
-        show: true,
-        message: 'Failed to delete schedule',
-        type: 'error'
-      });
+      showError('Failed to delete schedule');
     }
   };
 
@@ -225,23 +210,6 @@ const ETLScheduler = () => {
           </div>
         </Modal>
 
-        {/* Notification Modal */}
-        <Modal
-          isOpen={notification.show && !deleteModal.show}
-          onClose={() => setNotification({ show: false, message: '', type: '' })}
-          title={notification.type === 'success' ? 'Success' : 'Error'}
-          size="small"
-        >
-          <p style={{ margin: '0 0 1rem 0' }}>{notification.message}</p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button 
-              onClick={() => setNotification({ show: false, message: '', type: '' })} 
-              className="btn btn-primary"
-            >
-              OK
-            </button>
-          </div>
-        </Modal>
       </div>
     </PageTransition>
   );
