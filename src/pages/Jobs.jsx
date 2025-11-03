@@ -26,9 +26,28 @@ const Jobs = () => {
 
   useEffect(() => {
     fetchJobs();
-    // Refresh jobs every 10 seconds
-    const interval = setInterval(fetchJobs, 10000);
-    return () => clearInterval(interval);
+    
+    // Refresh jobs every 60 seconds (reduced from 10s to prevent rate limiting)
+    const interval = setInterval(() => {
+      // Only poll if tab is visible
+      if (document.visibilityState === 'visible') {
+        fetchJobs();
+      }
+    }, 60000);
+    
+    // Resume polling when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchJobs();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const fetchJobs = async (isManualRefresh = false) => {
