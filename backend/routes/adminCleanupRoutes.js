@@ -448,6 +448,8 @@ router.post('/', async (req, res) => {
       const vendorProfilingResult = await client.query('DELETE FROM vendor_file_profiling_results RETURNING id');
       const vendorAgreementsResult = await client.query('DELETE FROM vendor_agreements RETURNING id');
       const vendorUsersResult = await client.query('DELETE FROM vendor_users RETURNING id');
+      // Set vendor_id to NULL for users that reference vendors being deleted (preserve users, remove vendor link)
+      await client.query('UPDATE users SET vendor_id = NULL WHERE vendor_id IS NOT NULL');
       const vendorsResult = await client.query('DELETE FROM vendors RETURNING id');
       
       deletedCounts.vendors = {
