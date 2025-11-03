@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiUpload, FiCheckCircle, FiLoader } from 'react-icons/fi';
 import FileDropzone from '../components/FileDropzone';
@@ -22,59 +22,9 @@ function VendorFileUpload() {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [uploadStage, setUploadStage] = useState(null); // uploading | scanning | processing
   const [uploadProgress, setUploadProgress] = useState(0);
-  
-  const scanPollInterval = useRef(null);
 
   const { hasWritePermission } = useAuth();
   const { addToast } = useToast();
-
-  // Cleanup polling interval on unmount
-  useEffect(() => {
-    return () => {
-      if (scanPollInterval.current) {
-        clearInterval(scanPollInterval.current);
-      }
-    };
-  }, []);
-
-  // Poll virus scan status
-  const pollVirusScanStatus = async (fileId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/api/files/${fileId}/virus-scan`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      const scanResult = response.data.virusScan;
-      
-      if (scanResult && scanResult.status !== 'pending') {
-        // Stop polling
-        if (scanPollInterval.current) {
-          clearInterval(scanPollInterval.current);
-          scanPollInterval.current = null;
-        }
-        
-        setUploadStage(null);
-        
-        if (scanResult.status === 'clean') {
-          setUploadStatus('success');
-          addToast('success', 'Upload Complete', `File passed virus scan and is ready for use.`);
-        } else if (scanResult.status === 'infected') {
-          setUploadStatus('error');
-          addToast('error', 'Virus Detected', `File was infected and has been automatically deleted.`);
-        } else if (scanResult.status === 'error') {
-          setUploadStatus('warning');
-          addToast('warning', 'Scan Error', `Virus scan encountered an error. Please contact support.`);
-        }
-        
-        return scanResult;
-      }
-    } catch (error) {
-      console.error('Error polling virus scan status:', error);
-    }
-    
-    return null;
-  };
 
   // Load vendor agreements on demand
   const loadVendorContracts = async () => {
@@ -175,44 +125,38 @@ function VendorFileUpload() {
       
       setUploadedFile(fileDetails);
       
-      // Check virus scan status
+      // Process immediate virus scan result (scan is synchronous)
       const virusScan = response.data.virusScan;
       
-      if (virusScan && virusScan.status === 'pending') {
-        // Start polling for virus scan status
-        setUploadStage('scanning');
-        addToast('info', 'Scanning File', 'Your file is being scanned for viruses...');
-        
-        // Poll every 2 seconds
-        scanPollInterval.current = setInterval(() => {
-          pollVirusScanStatus(fileDetails.fileId);
-        }, 2000);
-        
-        // Also check immediately
-        pollVirusScanStatus(fileDetails.fileId);
-        
-      } else if (virusScan && virusScan.status === 'clean') {
+      if (virusScan && virusScan.scanned && virusScan.clean) {
+        // File passed virus scan
         setUploadStatus('success');
         setUploadStage(null);
         setShowSuccessNotification(true);
-        addToast('success', 'Upload Complete', 'File uploaded and passed virus scan successfully!');
+        
+        const scanMessage = virusScan.skipped 
+          ? 'File uploaded successfully! (Virus scan skipped - definitions unavailable)'
+          : 'File uploaded and passed virus scan successfully!';
+        
+        addToast('success', 'Upload Complete', scanMessage);
         
         // Hide notification after 8 seconds
         setTimeout(() => {
           setShowSuccessNotification(false);
         }, 8000);
         
-      } else if (virusScan && virusScan.status === 'infected') {
+      } else if (virusScan && virusScan.scanned && !virusScan.clean) {
+        // File failed virus scan (this shouldn't happen as server rejects infected files)
         setUploadStatus('error');
         setUploadStage(null);
-        addToast('error', 'Virus Detected', 'File was infected and has been automatically deleted.');
+        addToast('error', 'Upload Failed', 'File failed virus scan.');
         
       } else {
-        // No virus scan or unknown status - treat as success with warning
+        // No virus scan data or scan failed - treat as success with warning
         setUploadStatus('success');
         setUploadStage(null);
         setShowSuccessNotification(true);
-        addToast('warning', 'Upload Complete', 'File uploaded but virus scan status is unknown.');
+        addToast('warning', 'Upload Complete', virusScan?.message || 'File uploaded but virus scan status is unknown.');
         
         setTimeout(() => {
           setShowSuccessNotification(false);
@@ -236,12 +180,6 @@ function VendorFileUpload() {
   };
 
   const handleUploadAnother = () => {
-    // Clear any polling interval
-    if (scanPollInterval.current) {
-      clearInterval(scanPollInterval.current);
-      scanPollInterval.current = null;
-    }
-    
     setUploadStatus(null);
     setUploadedFile(null);
     setDiagnosticInfo('');
