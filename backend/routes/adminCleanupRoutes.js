@@ -392,8 +392,8 @@ router.post('/', async (req, res) => {
       const insightsResult = await client.query('DELETE FROM file_pattern_metrics RETURNING id');
       const alertsResult = await client.query('DELETE FROM alert_history RETURNING id');
       const auditResult = await client.query('DELETE FROM file_audit_details RETURNING id');
-      const executionAuditResult = await client.query('DELETE FROM execution_audit RETURNING id');
-      const securityAuditResult = await client.query('DELETE FROM security_audit_log RETURNING id');
+      const executionAuditResult = await client.query('DELETE FROM execution_audit');
+      const securityAuditResult = await client.query('DELETE FROM security_audit_log');
       
       deletedCounts.audits = {
         file_audit_details: auditResult.rowCount,
