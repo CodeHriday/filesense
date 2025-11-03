@@ -260,7 +260,7 @@ function VendorFileUpload() {
                       background: '#fff',
                       color: '#333'
                     }}>
-                      {agreement.connection_name || 'S3 Connection'} (S3)
+                      {agreement.vendor_connection_name || 'Vendor S3 Connection'} (S3)
                     </div>
                   </div>
                 );
