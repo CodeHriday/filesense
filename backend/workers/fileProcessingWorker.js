@@ -399,10 +399,20 @@ class FileProcessingWorker {
       });
 
       python.on('close', (code) => {
+        // Log stderr if present (warnings, debug info, etc.)
+        if (stderr) {
+          this.logger.warn('Python processor stderr output', {
+            stderr: stderr.substring(0, 1000),
+            filePath,
+            fileType
+          });
+        }
+        
         if (code !== 0) {
           this.logger.error('Python processor failed with non-zero exit code', {
             exitCode: code,
             stderr,
+            stdout: stdout.substring(0, 500),
             filePath,
             fileType
           });
@@ -425,9 +435,13 @@ class FileProcessingWorker {
             }
           } catch (error) {
             this.logger.error('Failed to parse Python JSON output', {
-              stdout: stdout.substring(0, 500),
+              stdout: stdout.substring(0, 1000),
+              stderr: stderr.substring(0, 1000),
+              stdoutLength: stdout.length,
+              stderrLength: stderr.length,
               parseError: error.message,
-              filePath
+              filePath,
+              fileType
             });
             reject(new Error(`Failed to parse Python processor output: ${error.message}`));
           }
