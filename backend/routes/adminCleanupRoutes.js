@@ -298,8 +298,11 @@ router.post('/', async (req, res) => {
       await client.query('DELETE FROM vendor_agreement_approvals WHERE agreement_id IN (SELECT id FROM vendor_agreements WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
       await client.query('DELETE FROM vendor_agreements WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
       
-      // Delete vendors that reference projects
+      // Delete vendors that reference projects (and handle users that reference these vendors)
+      await client.query('DELETE FROM vendor_file_profiling_results WHERE vendor_id IN (SELECT id FROM vendors WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
       await client.query('DELETE FROM vendor_users WHERE vendor_id IN (SELECT id FROM vendors WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
+      // Set vendor_id to NULL for users that reference vendors being deleted (preserve users, remove vendor link)
+      await client.query('UPDATE users SET vendor_id = NULL WHERE vendor_id IN (SELECT id FROM vendors WHERE project_id IN (SELECT id FROM projects WHERE id != 1))');
       await client.query('DELETE FROM vendors WHERE project_id IN (SELECT id FROM projects WHERE id != 1)');
       
       // Delete access control
