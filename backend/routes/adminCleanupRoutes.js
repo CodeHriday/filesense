@@ -79,11 +79,15 @@ router.get('/counts', async (req, res) => {
     const fileAuditCount = await pool.query('SELECT COUNT(*) FROM file_audit_details');
     const alertsCount = await pool.query('SELECT COUNT(*) FROM alert_history');
     const insightsCount = await pool.query('SELECT COUNT(*) FROM file_pattern_metrics');
+    const executionAuditCount = await pool.query('SELECT COUNT(*) FROM execution_audit');
+    const securityAuditCount = await pool.query('SELECT COUNT(*) FROM security_audit_log');
     
     counts.audits = {
       file_audit_details: parseInt(fileAuditCount.rows[0].count),
       alert_history: parseInt(alertsCount.rows[0].count),
-      file_pattern_metrics: parseInt(insightsCount.rows[0].count)
+      file_pattern_metrics: parseInt(insightsCount.rows[0].count),
+      execution_audit: parseInt(executionAuditCount.rows[0].count),
+      security_audit_log: parseInt(securityAuditCount.rows[0].count)
     };
     
     // Projects & Access Control category
@@ -113,6 +117,47 @@ router.get('/counts', async (req, res) => {
       access_groups: parseInt(groupsCount.rows[0].count),
       access_group_members: parseInt(groupMembersCount.rows[0].count),
       access_group_roles: parseInt(groupRolesCount.rows[0].count)
+    };
+    
+    // Vendors & Agreements category
+    const vendorAgreementsCount = await pool.query('SELECT COUNT(*) FROM vendor_agreements');
+    const vendorApprovalsCount = await pool.query('SELECT COUNT(*) FROM vendor_agreement_approvals');
+    const vendorChangesCount = await pool.query('SELECT COUNT(*) FROM vendor_agreement_changes');
+    const vendorDocsCount = await pool.query('SELECT COUNT(*) FROM vendor_agreement_documents');
+    const vendorProfilingCount = await pool.query('SELECT COUNT(*) FROM vendor_file_profiling_results');
+    const vendorUsersCount = await pool.query('SELECT COUNT(*) FROM vendor_users');
+    const vendorsCount = await pool.query('SELECT COUNT(*) FROM vendors');
+    
+    counts.vendors = {
+      vendor_agreements: parseInt(vendorAgreementsCount.rows[0].count),
+      vendor_agreement_approvals: parseInt(vendorApprovalsCount.rows[0].count),
+      vendor_agreement_changes: parseInt(vendorChangesCount.rows[0].count),
+      vendor_agreement_documents: parseInt(vendorDocsCount.rows[0].count),
+      vendor_file_profiling_results: parseInt(vendorProfilingCount.rows[0].count),
+      vendor_users: parseInt(vendorUsersCount.rows[0].count),
+      vendors: parseInt(vendorsCount.rows[0].count)
+    };
+    
+    // DBT Integration category
+    const dbtExecutionsCount = await pool.query('SELECT COUNT(*) FROM dbt_executions');
+    const dbtModelsCount = await pool.query('SELECT COUNT(*) FROM dbt_models');
+    
+    counts.dbt = {
+      dbt_executions: parseInt(dbtExecutionsCount.rows[0].count),
+      dbt_models: parseInt(dbtModelsCount.rows[0].count)
+    };
+    
+    // Notifications & User Activity category
+    const notificationsCount = await pool.query('SELECT COUNT(*) FROM notifications');
+    const userSessionsCount = await pool.query('SELECT COUNT(*) FROM user_sessions');
+    const userBadgesCount = await pool.query('SELECT COUNT(*) FROM user_badges');
+    const userDashboardCount = await pool.query('SELECT COUNT(*) FROM user_dashboard_settings');
+    
+    counts.activity = {
+      notifications: parseInt(notificationsCount.rows[0].count),
+      user_sessions: parseInt(userSessionsCount.rows[0].count),
+      user_badges: parseInt(userBadgesCount.rows[0].count),
+      user_dashboard_settings: parseInt(userDashboardCount.rows[0].count)
     };
     
     res.json({ counts });
@@ -149,7 +194,7 @@ router.post('/', async (req, res) => {
     });
   }
   
-  const validCategories = ['files', 'transformations', 'workflows', 'governance', 'audits', 'projects', 'connections', 'groups'];
+  const validCategories = ['files', 'transformations', 'workflows', 'governance', 'audits', 'projects', 'connections', 'groups', 'vendors', 'dbt', 'activity'];
   const invalidCategories = categories.filter(c => !validCategories.includes(c));
   
   if (invalidCategories.length > 0) {
@@ -167,7 +212,7 @@ router.post('/', async (req, res) => {
     
     // Delete Files & Storage (cascades to related tables)
     if (categories.includes('files')) {
-      const filePreviewResult = await client.query('DELETE FROM file_preview_data RETURNING id');
+      const filePreviewResult = await client.query('DELETE FROM file_preview_data RETURNING preview_id');
       const fileColumnsResult = await client.query('DELETE FROM file_columns RETURNING id');
       const fileSchemasResult = await client.query('DELETE FROM file_schemas RETURNING id');
       const filesResult = await client.query('DELETE FROM files RETURNING id');
@@ -236,11 +281,15 @@ router.post('/', async (req, res) => {
       const insightsResult = await client.query('DELETE FROM file_pattern_metrics RETURNING id');
       const alertsResult = await client.query('DELETE FROM alert_history RETURNING id');
       const auditResult = await client.query('DELETE FROM file_audit_details RETURNING id');
+      const executionAuditResult = await client.query('DELETE FROM execution_audit RETURNING id');
+      const securityAuditResult = await client.query('DELETE FROM security_audit_log RETURNING id');
       
       deletedCounts.audits = {
         file_audit_details: auditResult.rowCount,
         alert_history: alertsResult.rowCount,
-        file_pattern_metrics: insightsResult.rowCount
+        file_pattern_metrics: insightsResult.rowCount,
+        execution_audit: executionAuditResult.rowCount,
+        security_audit_log: securityAuditResult.rowCount
       };
     }
     
@@ -276,6 +325,54 @@ router.post('/', async (req, res) => {
         access_groups: groupsResult.rowCount,
         access_group_members: groupMembersResult.rowCount,
         access_group_roles: groupRolesResult.rowCount
+      };
+    }
+    
+    // Delete Vendors & Agreements (proper FK order)
+    if (categories.includes('vendors')) {
+      // Delete child tables first
+      const vendorDocsResult = await client.query('DELETE FROM vendor_agreement_documents RETURNING id');
+      const vendorChangesResult = await client.query('DELETE FROM vendor_agreement_changes RETURNING id');
+      const vendorApprovalsResult = await client.query('DELETE FROM vendor_agreement_approvals RETURNING id');
+      const vendorProfilingResult = await client.query('DELETE FROM vendor_file_profiling_results RETURNING id');
+      const vendorAgreementsResult = await client.query('DELETE FROM vendor_agreements RETURNING id');
+      const vendorUsersResult = await client.query('DELETE FROM vendor_users RETURNING id');
+      const vendorsResult = await client.query('DELETE FROM vendors RETURNING id');
+      
+      deletedCounts.vendors = {
+        vendor_agreement_documents: vendorDocsResult.rowCount,
+        vendor_agreement_changes: vendorChangesResult.rowCount,
+        vendor_agreement_approvals: vendorApprovalsResult.rowCount,
+        vendor_file_profiling_results: vendorProfilingResult.rowCount,
+        vendor_agreements: vendorAgreementsResult.rowCount,
+        vendor_users: vendorUsersResult.rowCount,
+        vendors: vendorsResult.rowCount
+      };
+    }
+    
+    // Delete DBT Integration
+    if (categories.includes('dbt')) {
+      const dbtExecutionsResult = await client.query('DELETE FROM dbt_executions RETURNING id');
+      const dbtModelsResult = await client.query('DELETE FROM dbt_models RETURNING id');
+      
+      deletedCounts.dbt = {
+        dbt_executions: dbtExecutionsResult.rowCount,
+        dbt_models: dbtModelsResult.rowCount
+      };
+    }
+    
+    // Delete Notifications & User Activity
+    if (categories.includes('activity')) {
+      const notificationsResult = await client.query('DELETE FROM notifications RETURNING id');
+      const userSessionsResult = await client.query('DELETE FROM user_sessions RETURNING id');
+      const userBadgesResult = await client.query('DELETE FROM user_badges RETURNING id');
+      const userDashboardResult = await client.query('DELETE FROM user_dashboard_settings RETURNING id');
+      
+      deletedCounts.activity = {
+        notifications: notificationsResult.rowCount,
+        user_sessions: userSessionsResult.rowCount,
+        user_badges: userBadgesResult.rowCount,
+        user_dashboard_settings: userDashboardResult.rowCount
       };
     }
     

@@ -35,8 +35,8 @@ const SystemCleanup = () => {
     },
     audits: {
       name: 'Audit & Monitoring',
-      description: 'All audit trails, alert history, and file insights metrics',
-      tables: ['file_audit_details', 'alert_history', 'file_pattern_metrics']
+      description: 'All audit trails, alert history, file insights, execution logs, and security audit logs',
+      tables: ['file_audit_details', 'alert_history', 'file_pattern_metrics', 'execution_audit', 'security_audit_log']
     },
     projects: {
       name: 'Projects & Access Control',
@@ -52,6 +52,21 @@ const SystemCleanup = () => {
       name: 'Groups',
       description: 'All access groups except Default Group, their members, and roles',
       tables: ['access_groups', 'access_group_members', 'access_group_roles']
+    },
+    vendors: {
+      name: 'Vendors & Agreements',
+      description: 'All vendor data including agreements, approvals, changes, documents, profiling results, and vendor users',
+      tables: ['vendor_agreements', 'vendor_agreement_approvals', 'vendor_agreement_changes', 'vendor_agreement_documents', 'vendor_file_profiling_results', 'vendor_users', 'vendors']
+    },
+    dbt: {
+      name: 'DBT Integration',
+      description: 'All DBT models and execution history',
+      tables: ['dbt_models', 'dbt_executions']
+    },
+    activity: {
+      name: 'Notifications & User Activity',
+      description: 'All notifications, user sessions, badges, and dashboard settings',
+      tables: ['notifications', 'user_sessions', 'user_badges', 'user_dashboard_settings']
     }
   };
 
