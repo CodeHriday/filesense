@@ -12,7 +12,9 @@
 const NodeClam = require('clamscan');
 const { systemLogger } = require('../utils/logger');
 const { execSync } = require('child_process');
+const { exec } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
 class VirusScanService {
   constructor() {
@@ -28,15 +30,67 @@ class VirusScanService {
    */
   detectClamScanPath() {
     try {
-      const path = execSync('which clamscan', { encoding: 'utf8' }).trim();
-      if (path && fs.existsSync(path)) {
-        systemLogger.info('ClamAV binary detected', { path });
-        return path;
+      const clamPath = execSync('which clamscan', { encoding: 'utf8' }).trim();
+      if (clamPath && fs.existsSync(clamPath)) {
+        systemLogger.info('ClamAV binary detected', { path: clamPath });
+        return clamPath;
       }
     } catch (error) {
       systemLogger.warn('ClamAV binary not found in PATH');
     }
     return null;
+  }
+
+  /**
+   * Check if virus definitions exist and are valid
+   */
+  checkVirusDefinitions(dbPath) {
+    try {
+      if (!fs.existsSync(dbPath)) {
+        return false;
+      }
+      
+      // Check for common virus definition files
+      const hasMain = fs.existsSync(path.join(dbPath, 'main.cvd')) || 
+                      fs.existsSync(path.join(dbPath, 'main.cld'));
+      const hasDaily = fs.existsSync(path.join(dbPath, 'daily.cvd')) || 
+                       fs.existsSync(path.join(dbPath, 'daily.cld'));
+      
+      return hasMain || hasDaily;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Initialize virus definitions by running the init script
+   */
+  async initializeVirusDefinitions() {
+    return new Promise((resolve, reject) => {
+      systemLogger.info('Initializing virus definitions...');
+      
+      const scriptPath = path.join(__dirname, '../../scripts/init-clamav.sh');
+      
+      if (!fs.existsSync(scriptPath)) {
+        systemLogger.warn('ClamAV init script not found', { scriptPath });
+        resolve(false);
+        return;
+      }
+
+      exec(`bash ${scriptPath}`, { timeout: 300000 }, (error, stdout, stderr) => {
+        if (error) {
+          systemLogger.error('Failed to initialize virus definitions', { 
+            error: error.message,
+            stderr 
+          });
+          resolve(false);
+          return;
+        }
+        
+        systemLogger.info('Virus definitions initialized successfully', { stdout });
+        resolve(true);
+      });
+    });
   }
 
   /**
@@ -72,6 +126,33 @@ class VirusScanService {
           return null;
         }
 
+        const dbPath = '/home/runner/.clamav';
+        
+        // Check if virus definitions exist
+        const hasDefinitions = this.checkVirusDefinitions(dbPath);
+        
+        if (!hasDefinitions) {
+          systemLogger.warn('Virus definitions not found, attempting to download...');
+          const initialized = await this.initializeVirusDefinitions();
+          
+          if (!initialized) {
+            systemLogger.warn('Failed to initialize virus definitions - scanning will be skipped');
+            this.unavailable = true;
+            return null;
+          }
+          
+          // Verify definitions were downloaded
+          if (!this.checkVirusDefinitions(dbPath)) {
+            systemLogger.warn('Virus definitions still not available after initialization');
+            this.unavailable = true;
+            return null;
+          }
+          
+          systemLogger.info('Virus definitions successfully initialized');
+        } else {
+          systemLogger.info('Virus definitions found', { dbPath });
+        }
+
         this.clamav = await new NodeClam().init({
           removeInfected: false, // Don't auto-delete, let us handle it
           quarantineInfected: false,
@@ -79,7 +160,7 @@ class VirusScanService {
           debugMode: false,
           clamscan: {
             path: clamScanPath, // Auto-detected path
-            db: '/home/runner/.clamav', // Custom virus definitions location
+            db: dbPath, // Custom virus definitions location
             active: true
           },
           clamdscan: {
