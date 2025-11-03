@@ -537,6 +537,13 @@ const VendorManagement = () => {
         }
       >
         <form id="vendor-form" onSubmit={handleSubmit} className="vendor-form">
+          {/* Error Display */}
+          {modalError && (
+            <div className="error-message" role="alert">
+              {modalError}
+            </div>
+          )}
+          
           {/* Section 1: Vendor Information */}
           <div className="form-section">
             <h3 className="section-title">Vendor Information</h3>
