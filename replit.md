@@ -7,6 +7,14 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+**November 3, 2025** - Enhanced vendor file upload error diagnostics:
+- Improved error logging in fileProcessingWorker.js to capture complete Python script output
+- Now logs both stdout and stderr (up to 1000 characters each) with full length tracking
+- Added stderr logging even on successful exits to surface Python warnings
+- Enhanced JSON parse failure logging with both streams and character counts
+- Fixes help diagnose "Failed to parse Python processor output" errors in production deployments
+- Changes require explicit publish/deploy to update production environment
+
 **November 3, 2025** - Standardized authorization permission system across all routes:
 - Replaced granular permissions (:create, :update, :delete) with unified :write permission for all POST/PUT/DELETE operations
 - Updated 10 route handlers: transformations.js (3 changes), mappingGroups.js (6 changes), nStepWorkflows.js (1 change)
