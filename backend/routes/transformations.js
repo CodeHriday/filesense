@@ -177,7 +177,7 @@ router.get('/:id',
 router.post('/',
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:create'],
+    requiredPermissions: ['transformation:write'],
     getProjectId: async (req) => {
       // For POST, project_id is required - no defaults allowed for security
       if (!req.body.project_id) {
@@ -405,7 +405,7 @@ router.post('/',
 router.put('/:id',
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:update']
+    requiredPermissions: ['transformation:write']
   }),
   async (req, res) => {
   try {
@@ -720,7 +720,7 @@ router.put('/:id',
 router.delete('/:id',
   authorizeProjectResource({
     resourceType: 'transformation',
-    requiredPermissions: ['transformation:delete']
+    requiredPermissions: ['transformation:write']
   }),
   async (req, res) => {
   try {

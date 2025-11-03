@@ -128,7 +128,7 @@ router.get('/:id',
 router.post('/',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:create'],
+    requiredPermissions: ['mapping_group:write'],
     getProjectId: async (req) => {
       // For POST, project_id is required - no defaults allowed for security
       if (!req.body.project_id) {
@@ -174,7 +174,7 @@ router.post('/',
 router.put('/:id',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:update']
+    requiredPermissions: ['mapping_group:write']
   }),
   async (req, res) => {
   try {
@@ -247,7 +247,7 @@ router.put('/:id',
 router.delete('/:id',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:delete']
+    requiredPermissions: ['mapping_group:write']
   }),
   async (req, res) => {
   try {
@@ -320,7 +320,7 @@ router.get('/:id/members',
 router.post('/:id/members',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:update']
+    requiredPermissions: ['mapping_group:write']
   }),
   async (req, res) => {
   try {
@@ -370,7 +370,7 @@ router.post('/:id/members',
 router.delete('/:id/members/:memberId',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:update']
+    requiredPermissions: ['mapping_group:write']
   }),
   async (req, res) => {
   try {
@@ -415,7 +415,7 @@ router.delete('/:id/members/:memberId',
 router.put('/:id/members',
   authorizeProjectResource({
     resourceType: 'mapping_group',
-    requiredPermissions: ['mapping_group:update']
+    requiredPermissions: ['mapping_group:write']
   }),
   async (req, res) => {
   const client = await pool.connect();

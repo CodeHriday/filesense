@@ -188,7 +188,7 @@ router.get('/:id', async (req, res) => {
 router.post('/',
   authorizeProjectResource({
     resourceType: 'workflow',
-    requiredPermissions: ['workflow:create'],
+    requiredPermissions: ['workflow:write'],
     getProjectId: async (req) => {
       // For POST, project_id is required - no defaults allowed for security
       if (!req.body.project_id) {
