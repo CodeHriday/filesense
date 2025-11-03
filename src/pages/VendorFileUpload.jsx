@@ -343,7 +343,7 @@ function VendorFileUpload() {
           </div>
 
           {/* Upload Progress Indicator */}
-          {uploadStage && (
+          {uploadStage === 'uploading' && (
             <div style={{
               marginBottom: '1rem',
               padding: '1rem',
@@ -354,34 +354,24 @@ function VendorFileUpload() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                 <FiLoader style={{ animation: 'spin 1s linear infinite', fontSize: '1.2rem', color: '#2196f3' }} />
                 <strong style={{ color: '#1976d2' }}>
-                  {uploadStage === 'uploading' && `Uploading... ${uploadProgress}%`}
-                  {uploadStage === 'scanning' && 'Scanning for viruses...'}
-                  {uploadStage === 'processing' && 'Processing file...'}
+                  Uploading... {uploadProgress}%
                 </strong>
               </div>
               
-              {uploadStage === 'uploading' && (
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: '#bbdefb',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
                 <div style={{
-                  width: '100%',
-                  height: '8px',
-                  background: '#bbdefb',
-                  borderRadius: '4px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    width: `${uploadProgress}%`,
-                    height: '100%',
-                    background: '#2196f3',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-              )}
-              
-              {uploadStage === 'scanning' && (
-                <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.9rem' }}>
-                  Your file is being scanned for threats. This usually takes a few seconds...
-                </p>
-              )}
+                  width: `${uploadProgress}%`,
+                  height: '100%',
+                  background: '#2196f3',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
             </div>
           )}
 
