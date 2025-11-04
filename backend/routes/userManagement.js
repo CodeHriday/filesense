@@ -698,20 +698,20 @@ router.get('/:id/dependencies', authenticateToken, asyncHandler(async (req, res)
   );
   dependencies.mappings = mappingsResult.rows;
   
-  // Check vendor file catalog ownership
+  // Check vendor file profiling results (files uploaded by user)
   const catalogsResult = await db.query(
-    `SELECT id, file_name, vendor_id, agreement_id 
-     FROM vendor_file_catalog 
-     WHERE file_owner_user_id = $1 OR uploaded_by = $1`,
+    `SELECT id, file_id, vendor_id 
+     FROM vendor_file_profiling_results 
+     WHERE uploaded_by_user_id = $1`,
     [userId]
   );
   dependencies.catalogs = catalogsResult.rows;
   
   // Check project ownership
   const projectsResult = await db.query(
-    `SELECT id, project_name, project_code 
+    `SELECT id, name, description 
      FROM projects 
-     WHERE owner_id = $1 AND status != 'deleted'`,
+     WHERE owner_id = $1 AND is_archived = false`,
     [userId]
   );
   dependencies.projects = projectsResult.rows;
@@ -778,13 +778,13 @@ router.post('/bulk-dependencies', authenticateToken, asyncHandler(async (req, re
     );
     
     const catalogsCount = await db.query(
-      'SELECT COUNT(*) FROM vendor_file_catalog WHERE file_owner_user_id = $1 OR uploaded_by = $1',
+      'SELECT COUNT(*) FROM vendor_file_profiling_results WHERE uploaded_by_user_id = $1',
       [id]
     );
     
     const projectsCount = await db.query(
-      'SELECT COUNT(*) FROM projects WHERE owner_id = $1 AND status != $2',
-      [id, 'deleted']
+      'SELECT COUNT(*) FROM projects WHERE owner_id = $1 AND is_archived = false',
+      [id]
     );
     
     const totalDependencies = 
@@ -939,12 +939,11 @@ router.post('/:id/transfer-ownership', authenticateToken, asyncHandler(async (re
     );
     transferResults.mappings = mappingsUpdate.rowCount;
     
-    // Transfer vendor file catalog ownership
+    // Transfer vendor file profiling results ownership
     const catalogsUpdate = await client.query(
-      `UPDATE vendor_file_catalog 
-       SET file_owner_user_id = CASE WHEN file_owner_user_id = $2 THEN $1 ELSE file_owner_user_id END,
-           uploaded_by = CASE WHEN uploaded_by = $2 THEN $1 ELSE uploaded_by END
-       WHERE file_owner_user_id = $2 OR uploaded_by = $2
+      `UPDATE vendor_file_profiling_results 
+       SET uploaded_by_user_id = $1
+       WHERE uploaded_by_user_id = $2
        RETURNING id`,
       [toUserIdInt, fromUserId]
     );
@@ -952,8 +951,8 @@ router.post('/:id/transfer-ownership', authenticateToken, asyncHandler(async (re
     
     // Transfer project ownership
     const projectsUpdate = await client.query(
-      'UPDATE projects SET owner_id = $1 WHERE owner_id = $2 AND status != $3 RETURNING id',
-      [toUserIdInt, fromUserId, 'deleted']
+      'UPDATE projects SET owner_id = $1 WHERE owner_id = $2 AND is_archived = false RETURNING id',
+      [toUserIdInt, fromUserId]
     );
     transferResults.projects = projectsUpdate.rowCount;
   });

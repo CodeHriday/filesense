@@ -144,11 +144,11 @@ const TransferOwnershipModal = ({
 
             {dependencies.catalogs.length > 0 && (
               <div style={{ marginBottom: '12px' }}>
-                <strong>File Catalogs ({dependencies.catalogs.length}):</strong>
+                <strong>Uploaded Files ({dependencies.catalogs.length}):</strong>
                 <ul style={{ marginLeft: '20px', marginTop: '5px' }}>
                   {dependencies.catalogs.map(catalog => (
                     <li key={catalog.id}>
-                      {catalog.file_name}
+                      File ID: {catalog.file_id}
                     </li>
                   ))}
                 </ul>
@@ -161,7 +161,7 @@ const TransferOwnershipModal = ({
                 <ul style={{ marginLeft: '20px', marginTop: '5px' }}>
                   {dependencies.projects.map(project => (
                     <li key={project.id}>
-                      {project.project_name} ({project.project_code})
+                      {project.name}
                     </li>
                   ))}
                 </ul>
