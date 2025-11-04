@@ -22,6 +22,7 @@ function VendorFileUpload() {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [uploadStage, setUploadStage] = useState(null); // uploading | scanning | processing
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [schemaValidationError, setSchemaValidationError] = useState(null);
 
   const { hasWritePermission } = useAuth();
   const { addToast } = useToast();
@@ -172,8 +173,15 @@ function VendorFileUpload() {
       setUploadStatus('error');
       setUploadStage(null);
       
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
-      addToast('error', 'Upload Failed', errorMessage);
+      // Check if this is a schema validation error
+      if (error.response?.data?.error === 'Schema validation failed' && error.response?.data?.details) {
+        setSchemaValidationError(error.response.data.details);
+        addToast('error', 'Schema Validation Failed', 'The uploaded file does not match the expected schema. See details below.');
+      } else {
+        setSchemaValidationError(null);
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+        addToast('error', 'Upload Failed', errorMessage);
+      }
       
       throw error;
     }
@@ -187,6 +195,7 @@ function VendorFileUpload() {
     setShowSuccessNotification(false);
     setUploadStage(null);
     setUploadProgress(0);
+    setSchemaValidationError(null);
   };
 
   return (
