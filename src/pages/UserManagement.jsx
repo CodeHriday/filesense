@@ -567,7 +567,6 @@ const UserManagement = () => {
                 <button 
                   className="bulk-delete-btn"
                   onClick={openBulkDeleteModal}
-                  style={{ backgroundColor: '#dc2626', color: 'white' }}
                 >
                   Delete Selected ({selectedUserIds.length})
                 </button>

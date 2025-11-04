@@ -585,7 +585,6 @@ const RoleManagement = () => {
             <button 
               className="bulk-delete-btn"
               onClick={openBulkDeleteModal}
-              style={{ backgroundColor: '#dc2626', color: 'white' }}
             >
               Delete Selected ({selectedRoleIds.length})
             </button>
