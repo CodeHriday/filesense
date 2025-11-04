@@ -394,14 +394,16 @@ const UserManagement = () => {
     }
   };
   
-  // Fetch vendor contacts
-  const fetchVendorContacts = async () => {
+  // Fetch eligible replacement users based on the user being deleted
+  const fetchEligibleReplacements = async (userId) => {
     try {
-      const response = await axios.get('/api/users/by-role/vendor');
-      setVendorContacts(response.data || []);
+      const response = await axios.get(`/api/users/${userId}/eligible-replacements`);
+      setVendorContacts(response.data.eligibleReplacements || []);
+      return response.data;
     } catch (error) {
-      console.error('Error fetching vendor contacts:', error);
+      console.error('Error fetching eligible replacements:', error);
       setVendorContacts([]);
+      throw error;
     }
   };
   
@@ -422,8 +424,8 @@ const UserManagement = () => {
       const dependencies = await checkUserDependencies(user.id);
       
       if (dependencies.hasDependencies) {
-        // Fetch all vendor contacts
-        await fetchVendorContacts();
+        // Fetch eligible replacement users for this specific user
+        await fetchEligibleReplacements(user.id);
         
         // Show transfer modal instead
         setUserWithDependencies(user);
