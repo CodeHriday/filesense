@@ -21,10 +21,20 @@ class VendorService {
 
   /**
    * Generate unique project code for vendor
+   * @param {string} vendorName - Vendor name to include in project code
    */
-  async generateProjectCode() {
+  async generateProjectCode(vendorName) {
+    let sanitizedName = vendorName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .substring(0, 10);
+    
+    if (!sanitizedName) {
+      sanitizedName = 'VENDOR';
+    }
+    
     const randomSuffix = crypto.randomBytes(4).toString('hex').toUpperCase();
-    return `VENDOR-${randomSuffix}`;
+    return `VEND-${sanitizedName}-${randomSuffix}`;
   }
 
   /**
@@ -167,7 +177,7 @@ class VendorService {
       if (!finalProjectId) {
         // Auto-create a project for this vendor (always external type)
         // Generate unique project code
-        let projectCode = await this.generateProjectCode();
+        let projectCode = await this.generateProjectCode(vendor_name);
         
         // Ensure project code is unique
         let codeExists = await client.query(
@@ -176,7 +186,7 @@ class VendorService {
         );
         
         while (codeExists.rows.length > 0) {
-          projectCode = await this.generateProjectCode();
+          projectCode = await this.generateProjectCode(vendor_name);
           codeExists = await client.query(
             'SELECT id FROM projects WHERE name = $1',
             [projectCode]
