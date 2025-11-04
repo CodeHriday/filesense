@@ -1806,6 +1806,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     let uploadPath = '';
     let profileData = null; // Will store profiling results if connection-based upload
     let agreementSchema = null; // Will store vendor agreement schema for validation
+    let expectedFilePattern = null; // Will store expected filename pattern for validation
     
     if (connectionId) {
       // Connection-based upload: either vendor or admin
@@ -1907,8 +1908,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         // Override projectId with the agreement's project for vendors
         projectId = connection.project_id;
         
-        // Store agreement schema for validation (if vendor upload)
+        // Store agreement schema and filename pattern for validation (if vendor upload)
         agreementSchema = connection.agreement_schema;
+        expectedFilePattern = connection.expected_file_pattern;
       }
       
       // Continue with connection (works for both admin and vendor)
@@ -1981,6 +1983,67 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       uploadPath = dropConfig.path_prefix 
         ? `${dropConfig.path_prefix}/${file.originalname}`
         : file.originalname;
+    }
+    
+    // Validate filename pattern against vendor agreement (for vendor uploads with pattern defined)
+    if (expectedFilePattern && expectedFilePattern.trim() !== '') {
+      try {
+        const { validateFilename } = require('./backend/utils/filenameValidator');
+        
+        logger.info('Starting filename pattern validation for vendor upload', { 
+          fileId, 
+          filename: file.originalname,
+          expectedPattern: expectedFilePattern,
+          userId 
+        });
+        
+        // Validate the uploaded filename against the expected pattern
+        const validationResult = validateFilename(file.originalname, expectedFilePattern);
+        
+        if (!validationResult.valid) {
+          // Filename validation failed - reject upload
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          
+          logger.warn('Filename pattern validation failed for vendor upload', {
+            fileId,
+            filename: file.originalname,
+            expectedPattern: expectedFilePattern,
+            normalizedActual: validationResult.normalizedActual,
+            normalizedExpected: validationResult.normalizedExpected,
+            userId
+          });
+          
+          return res.status(400).json({
+            error: 'Filename pattern validation failed',
+            message: 'The uploaded filename does not match the expected pattern defined in the vendor agreement',
+            details: {
+              uploadedFilename: file.originalname,
+              expectedPattern: expectedFilePattern,
+              normalizedUploaded: validationResult.normalizedActual,
+              normalizedExpected: validationResult.normalizedExpected,
+              hint: 'Filenames are compared after removing timestamps. Make sure your base filename matches the pattern.'
+            }
+          });
+        }
+        
+        logger.info('Filename pattern validation passed', { 
+          fileId, 
+          filename: file.originalname,
+          message: validationResult.message 
+        });
+        
+      } catch (filenameError) {
+        logger.error('Filename validation error', {
+          fileId,
+          filename: file.originalname,
+          expectedPattern: expectedFilePattern,
+          error: filenameError.message,
+          stack: filenameError.stack
+        });
+        
+        // Allow upload to continue if filename validation fails unexpectedly
+        logger.warn('Allowing upload despite filename validation error', { fileId, filename: file.originalname });
+      }
     }
     
     // Validate schema against vendor agreement (for vendor uploads with schema defined)

@@ -23,6 +23,7 @@ function VendorFileUpload() {
   const [uploadStage, setUploadStage] = useState(null); // uploading | scanning | processing
   const [uploadProgress, setUploadProgress] = useState(0);
   const [schemaValidationError, setSchemaValidationError] = useState(null);
+  const [filenameValidationError, setFilenameValidationError] = useState(null);
 
   const { hasWritePermission } = useAuth();
   const { addToast } = useToast();
@@ -50,8 +51,9 @@ function VendorFileUpload() {
   };
 
   const handleDropFile = async (file, progressHandler) => {
-    // Clear any previous schema validation errors
+    // Clear any previous validation errors
     setSchemaValidationError(null);
+    setFilenameValidationError(null);
     
     // Validate selections
     if (!selectedAgreement) {
@@ -176,12 +178,18 @@ function VendorFileUpload() {
       setUploadStatus('error');
       setUploadStage(null);
       
+      // Check if this is a filename pattern validation error
+      if (error.response?.data?.error === 'Filename pattern validation failed' && error.response?.data?.details) {
+        setFilenameValidationError(error.response.data.details);
+        addToast('error', 'Filename Validation Failed', 'The uploaded filename does not match the expected pattern. See details below.');
+      }
       // Check if this is a schema validation error
-      if (error.response?.data?.error === 'Schema validation failed' && error.response?.data?.details) {
+      else if (error.response?.data?.error === 'Schema validation failed' && error.response?.data?.details) {
         setSchemaValidationError(error.response.data.details);
         addToast('error', 'Schema Validation Failed', 'The uploaded file does not match the expected schema. See details below.');
       } else {
         setSchemaValidationError(null);
+        setFilenameValidationError(null);
         const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
         addToast('error', 'Upload Failed', errorMessage);
       }
@@ -199,6 +207,7 @@ function VendorFileUpload() {
     setUploadStage(null);
     setUploadProgress(0);
     setSchemaValidationError(null);
+    setFilenameValidationError(null);
   };
 
   return (
@@ -221,6 +230,96 @@ function VendorFileUpload() {
           <Link to="/vendor-file-quality" className="notification-link">
             View in Vendor File Catalog →
           </Link>
+        </div>
+      )}
+
+      {/* Filename Validation Error Display */}
+      {filenameValidationError && (
+        <div style={{
+          marginBottom: '1.5rem',
+          padding: '1.5rem',
+          background: '#fff5f5',
+          border: '2px solid #e53e3e',
+          borderRadius: '8px'
+        }}>
+          <h3 style={{ 
+            color: '#c53030', 
+            marginTop: 0, 
+            marginBottom: '1rem',
+            fontSize: '1.1rem',
+            fontWeight: 'bold'
+          }}>
+            Filename Pattern Validation Failed
+          </h3>
+          
+          <p style={{ color: '#742a2a', marginBottom: '1rem' }}>
+            The uploaded filename does not match the expected pattern defined in the vendor agreement.
+          </p>
+
+          <div style={{ 
+            background: 'white', 
+            padding: '1rem', 
+            borderRadius: '4px',
+            marginBottom: '1rem',
+            border: '1px solid #feb2b2'
+          }}>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
+                Uploaded Filename:
+              </strong>
+              <code style={{ 
+                background: '#fed7d7', 
+                padding: '4px 8px', 
+                borderRadius: '3px',
+                fontSize: '0.95em',
+                color: '#742a2a',
+                display: 'inline-block'
+              }}>
+                {filenameValidationError.uploadedFilename}
+              </code>
+              {filenameValidationError.normalizedUploaded && 
+               filenameValidationError.normalizedUploaded !== filenameValidationError.uploadedFilename && (
+                <div style={{ fontSize: '0.85rem', color: '#9b2c2c', marginTop: '0.25rem' }}>
+                  (normalized: <code style={{ fontSize: '0.9em' }}>{filenameValidationError.normalizedUploaded}</code>)
+                </div>
+              )}
+            </div>
+
+            <div>
+              <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
+                Expected Pattern:
+              </strong>
+              <code style={{ 
+                background: '#c6f6d5', 
+                padding: '4px 8px', 
+                borderRadius: '3px',
+                fontSize: '0.95em',
+                color: '#22543d',
+                display: 'inline-block'
+              }}>
+                {filenameValidationError.expectedPattern}
+              </code>
+              {filenameValidationError.normalizedExpected && 
+               filenameValidationError.normalizedExpected !== filenameValidationError.expectedPattern && (
+                <div style={{ fontSize: '0.85rem', color: '#22543d', marginTop: '0.25rem' }}>
+                  (normalized: <code style={{ fontSize: '0.9em' }}>{filenameValidationError.normalizedExpected}</code>)
+                </div>
+              )}
+            </div>
+          </div>
+
+          {filenameValidationError.hint && (
+            <div style={{ 
+              padding: '0.75rem',
+              background: '#fffaf0',
+              border: '1px solid #f6ad55',
+              borderRadius: '4px',
+              fontSize: '0.9rem',
+              color: '#744210'
+            }}>
+              <strong>💡 Tip: </strong>{filenameValidationError.hint}
+            </div>
+          )}
         </div>
       )}
 
