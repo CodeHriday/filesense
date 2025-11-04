@@ -448,10 +448,13 @@ class VendorService {
       const params = [];
       let paramIndex = 1;
       
+      // Exclude deleted vendors by default unless explicitly requested
       if (filters.status) {
         whereClause += ` AND v.status = $${paramIndex}`;
         params.push(filters.status);
         paramIndex++;
+      } else {
+        whereClause += ` AND v.status != 'deleted'`;
       }
       
       if (filters.project_id) {
