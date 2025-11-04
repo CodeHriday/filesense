@@ -1660,15 +1660,20 @@ const VendorAgreements = () => {
                     
                     <div className="form-group">
                       <label htmlFor="file_type">File Type <span className="required-field">*</span></label>
-                      <input
-                        type="text"
+                      <select
                         id="file_type"
                         name="file_type"
                         value={formData.file_type}
                         onChange={handleInputChange}
-                        placeholder="e.g., CSV, JSON, XML"
                         required
-                      />
+                      >
+                        <option value="">Select file type</option>
+                        <option value="CSV">CSV</option>
+                        <option value="JSON">JSON</option>
+                        <option value="XML">XML</option>
+                        <option value="Parquet">Parquet</option>
+                        <option value="Excel">Excel</option>
+                      </select>
                     </div>
                   </div>
                   

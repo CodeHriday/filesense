@@ -19,7 +19,15 @@ class AgreementTemplateUtils {
       owner_contact: 'Contact person at your organization',
       frequency: 'Daily',
       frequency_description: 'Detailed description of frequency (e.g., "Every business day at 9:00 AM EST")',
-      schema: '[{"column_name":"column1","data_type":"string","description":"Description of column1"},{"column_name":"column2","data_type":"integer","description":"Description of column2"}]'
+      schema: '[{"column_name":"column1","data_type":"string","description":"Description of column1"},{"column_name":"column2","data_type":"integer","description":"Description of column2"}]',
+      domain: 'Finance',
+      delivery_method: 'SFTP',
+      file_type: 'CSV',
+      vendor_type: 'Data Provider',
+      data_classification: 'Confidential',
+      retention_days: '365',
+      expected_arrival_time: '9:00 AM EST',
+      contains_pii: 'false'
     };
   }
 
@@ -40,7 +48,15 @@ class AgreementTemplateUtils {
         ['owner_contact', fields.owner_contact, 'Owner contact person'],
         ['frequency', fields.frequency, 'Options: Daily, Weekly, Monthly, Quarterly, Yearly, Ad-hoc'],
         ['frequency_description', fields.frequency_description, 'Detailed frequency information'],
-        ['schema', fields.schema, 'Required: JSON array of column definitions']
+        ['schema', fields.schema, 'Required: JSON array of column definitions'],
+        ['domain', fields.domain, 'Required: Business domain (e.g., Finance, Operations, Sales, HR)'],
+        ['delivery_method', fields.delivery_method, 'Required: Options: SFTP, S3, API, Email, Manual'],
+        ['file_type', fields.file_type, 'Required: Options: CSV, JSON, XML, Parquet, Excel'],
+        ['vendor_type', fields.vendor_type, 'Required: Type of vendor (e.g., Data Provider, Service Provider)'],
+        ['data_classification', fields.data_classification, 'Required: Options: Public, Private, Confidential'],
+        ['retention_days', fields.retention_days, 'Required: Number of days to retain the file (e.g., 365)'],
+        ['expected_arrival_time', fields.expected_arrival_time, 'Required: Expected time of file arrival (e.g., 9:00 AM EST)'],
+        ['contains_pii', fields.contains_pii, 'true or false - Does the file contain PII?']
       ];
       
       const ws = XLSX.utils.aoa_to_sheet(data);
@@ -49,7 +65,7 @@ class AgreementTemplateUtils {
       ws['!cols'] = [
         { wch: 25 },  // Field Name
         { wch: 50 },  // Value
-        { wch: 60 }   // Instructions
+        { wch: 70 }   // Instructions
       ];
       
       const wb = XLSX.utils.book_new();
@@ -78,7 +94,15 @@ class AgreementTemplateUtils {
         ['owner_contact', fields.owner_contact, 'Owner contact person'],
         ['frequency', fields.frequency, 'Options: Daily, Weekly, Monthly, Quarterly, Yearly, Ad-hoc'],
         ['frequency_description', fields.frequency_description, 'Detailed frequency information'],
-        ['schema', fields.schema, 'Required: JSON array of column definitions']
+        ['schema', fields.schema, 'Required: JSON array of column definitions'],
+        ['domain', fields.domain, 'Required: Business domain (e.g., Finance, Operations, Sales, HR)'],
+        ['delivery_method', fields.delivery_method, 'Required: Options: SFTP, S3, API, Email, Manual'],
+        ['file_type', fields.file_type, 'Required: Options: CSV, JSON, XML, Parquet, Excel'],
+        ['vendor_type', fields.vendor_type, 'Required: Type of vendor (e.g., Data Provider, Service Provider)'],
+        ['data_classification', fields.data_classification, 'Required: Options: Public, Private, Confidential'],
+        ['retention_days', fields.retention_days, 'Required: Number of days to retain the file (e.g., 365)'],
+        ['expected_arrival_time', fields.expected_arrival_time, 'Required: Expected time of file arrival (e.g., 9:00 AM EST)'],
+        ['contains_pii', fields.contains_pii, 'true or false - Does the file contain PII?']
       ];
       
       // Convert to CSV
@@ -109,7 +133,15 @@ class AgreementTemplateUtils {
           owner_contact: 'Owner contact person',
           frequency: 'Options: Daily, Weekly, Monthly, Quarterly, Yearly, Ad-hoc',
           frequency_description: 'Detailed frequency information',
-          schema: 'Required: Array of column definitions with name, type, and description'
+          schema: 'Required: Array of column definitions with name, type, and description',
+          domain: 'Required: Business domain (e.g., Finance, Operations, Sales, HR)',
+          delivery_method: 'Required: Options: SFTP, S3, API, Email, Manual',
+          file_type: 'Required: Options: CSV, JSON, XML, Parquet, Excel',
+          vendor_type: 'Required: Type of vendor (e.g., Data Provider, Service Provider)',
+          data_classification: 'Required: Options: Public, Private, Confidential',
+          retention_days: 'Required: Number of days to retain the file (e.g., 365)',
+          expected_arrival_time: 'Required: Expected time of file arrival (e.g., 9:00 AM EST)',
+          contains_pii: 'true or false - Does the file contain PII?'
         },
         file_name: fields.file_name,
         file_description: fields.file_description,
@@ -129,7 +161,15 @@ class AgreementTemplateUtils {
             data_type: 'integer',
             description: 'Description of column2'
           }
-        ]
+        ],
+        domain: fields.domain,
+        delivery_method: fields.delivery_method,
+        file_type: fields.file_type,
+        vendor_type: fields.vendor_type,
+        data_classification: fields.data_classification,
+        retention_days: fields.retention_days,
+        expected_arrival_time: fields.expected_arrival_time,
+        contains_pii: fields.contains_pii
       };
       
       return Buffer.from(JSON.stringify(template, null, 2), 'utf-8');
