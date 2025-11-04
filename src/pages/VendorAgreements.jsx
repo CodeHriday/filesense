@@ -540,7 +540,7 @@ const VendorAgreements = () => {
       retention_days: '',
       expected_arrival_time: '',
       delivery_method: '',
-      contract_start_date: new Date().toISOString().split('T')[0],
+      contract_start_date: new Date().toISOString().slice(0, 16),
       contract_end_date: ''
     });
     setTemplateFile(null);
@@ -561,14 +561,14 @@ const VendorAgreements = () => {
       formattedDate = dateStr;
     }
     
-    // Format contract dates
+    // Format contract dates for datetime-local input (YYYY-MM-DDTHH:mm)
     let formattedStartDate = '';
     if (agreement.contract_start_date) {
-      formattedStartDate = agreement.contract_start_date.split('T')[0];
+      formattedStartDate = new Date(agreement.contract_start_date).toISOString().slice(0, 16);
     }
     let formattedEndDate = '';
     if (agreement.contract_end_date) {
-      formattedEndDate = agreement.contract_end_date.split('T')[0];
+      formattedEndDate = new Date(agreement.contract_end_date).toISOString().slice(0, 16);
     }
     
     setFormData({
@@ -1597,9 +1597,9 @@ const VendorAgreements = () => {
                     
                     <div className="form-row-grid">
                       <div className="form-group">
-                        <label htmlFor="contract_start_date">Contract Start Date <span className="required-field">*</span></label>
+                        <label htmlFor="contract_start_date">Contract Start Date & Time <span className="required-field">*</span></label>
                         <input
-                          type="date"
+                          type="datetime-local"
                           id="contract_start_date"
                           name="contract_start_date"
                           value={formData.contract_start_date}
@@ -1607,14 +1607,14 @@ const VendorAgreements = () => {
                           required
                         />
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Date when the contract becomes active
+                          Date and time when the contract becomes active
                         </small>
                       </div>
                       
                       <div className="form-group">
-                        <label htmlFor="contract_end_date">Contract End Date <span className="required-field">*</span></label>
+                        <label htmlFor="contract_end_date">Contract End Date & Time <span className="required-field">*</span></label>
                         <input
-                          type="date"
+                          type="datetime-local"
                           id="contract_end_date"
                           name="contract_end_date"
                           value={formData.contract_end_date}
@@ -1622,7 +1622,7 @@ const VendorAgreements = () => {
                           required
                         />
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Contract will be automatically disabled after this date
+                          Contract will be automatically disabled after this date and time
                         </small>
                       </div>
                     </div>

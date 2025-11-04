@@ -755,8 +755,9 @@ class VendorAgreementService {
       }
       
       if (contract_start_date !== undefined) {
-        const currentStartDate = current.contract_start_date ? current.contract_start_date.toISOString().split('T')[0] : null;
-        if (contract_start_date !== currentStartDate) {
+        const currentStartDate = current.contract_start_date ? current.contract_start_date.toISOString() : null;
+        const newStartDate = contract_start_date ? new Date(contract_start_date).toISOString() : null;
+        if (newStartDate !== currentStartDate) {
           updates.push(`contract_start_date = $${paramIndex}`);
           params.push(contract_start_date || null);
           changes.contract_start_date = { from: currentStartDate, to: contract_start_date };
@@ -765,8 +766,9 @@ class VendorAgreementService {
       }
       
       if (contract_end_date !== undefined) {
-        const currentEndDate = current.contract_end_date ? current.contract_end_date.toISOString().split('T')[0] : null;
-        if (contract_end_date !== currentEndDate) {
+        const currentEndDate = current.contract_end_date ? current.contract_end_date.toISOString() : null;
+        const newEndDate = contract_end_date ? new Date(contract_end_date).toISOString() : null;
+        if (newEndDate !== currentEndDate) {
           updates.push(`contract_end_date = $${paramIndex}`);
           params.push(contract_end_date || null);
           changes.contract_end_date = { from: currentEndDate, to: contract_end_date };
