@@ -39,6 +39,10 @@ const RoleManagement = () => {
   // Delete confirmation modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
+  
+  // Bulk delete state
+  const [selectedRoleIds, setSelectedRoleIds] = useState([]);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
 
   const { currentUser, hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -421,6 +425,80 @@ const RoleManagement = () => {
       setError('Failed to delete role: ' + (error.response?.data?.error || error.message));
     }
   };
+  
+  // Bulk delete handlers for roles
+  const protectedRoleNames = ['Admin', 'User', 'Vendor', 'Governance Manager', 'Data Steward'];
+  
+  const handleSelectAllRoles = (e) => {
+    if (e.target.checked) {
+      const selectableRoleIds = filteredRoles
+        .filter(role => !protectedRoleNames.includes(role.name))
+        .map(role => role.id);
+      setSelectedRoleIds(selectableRoleIds);
+    } else {
+      setSelectedRoleIds([]);
+    }
+  };
+  
+  const handleSelectRole = (roleId) => {
+    setSelectedRoleIds(prev => {
+      if (prev.includes(roleId)) {
+        return prev.filter(id => id !== roleId);
+      } else {
+        return [...prev, roleId];
+      }
+    });
+  };
+  
+  const openBulkDeleteModal = () => {
+    if (selectedRoleIds.length === 0) {
+      setError('Please select at least one role to delete');
+      return;
+    }
+    setBulkDeleteModalOpen(true);
+  };
+  
+  const closeBulkDeleteModal = () => {
+    setBulkDeleteModalOpen(false);
+  };
+  
+  const confirmBulkDeleteRoles = async () => {
+    if (selectedRoleIds.length === 0) return;
+    
+    try {
+      const response = await axios.post('/api/users/roles/bulk-delete', {
+        roleIds: selectedRoleIds
+      });
+      
+      const { results } = response.data;
+      
+      closeBulkDeleteModal();
+      setSelectedRoleIds([]);
+      fetchData();
+      
+      if (results.failed.length > 0) {
+        setError(`Deleted ${results.successful.length} role(s). ${results.failed.length} failed.`);
+      } else {
+        setError('');
+      }
+    } catch (error) {
+      console.error('Error deleting roles:', error);
+      
+      let errorMessage = 'Failed to delete roles';
+      if (error.response?.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+      closeBulkDeleteModal();
+    }
+  };
 
   // Helper function to format permission display in the table
   const formatPermissionsDisplay = (permissions) => {
@@ -503,6 +581,15 @@ const RoleManagement = () => {
           <Link to="/users" className="user-management-link">
             User Management
           </Link>
+          {selectedRoleIds.length > 0 && (
+            <button 
+              className="bulk-delete-btn"
+              onClick={openBulkDeleteModal}
+              style={{ backgroundColor: '#dc2626', color: 'white' }}
+            >
+              Delete Selected ({selectedRoleIds.length})
+            </button>
+          )}
           <button 
             className="create-role-btn"
             onClick={openCreateModal}
@@ -522,6 +609,13 @@ const RoleManagement = () => {
         <table className="roles-table">
           <thead>
             <tr>
+              <th style={{ width: '50px' }}>
+                <input
+                  type="checkbox"
+                  onChange={handleSelectAllRoles}
+                  checked={selectedRoleIds.length > 0 && selectedRoleIds.length === filteredRoles.filter(r => !protectedRoleNames.includes(r.name)).length}
+                />
+              </th>
               <th>Role Name</th>
               <th>Description</th>
               <th>Permissions</th>
@@ -532,7 +626,7 @@ const RoleManagement = () => {
           <tbody>
             {filteredRoles.length === 0 ? (
               <tr>
-                <td colSpan="5" className="no-roles-message">
+                <td colSpan="6" className="no-roles-message">
                   {searchTerm ? 'No roles found matching your search' : 'No roles found'}
                 </td>
               </tr>
@@ -541,9 +635,18 @@ const RoleManagement = () => {
                 const permissions = formatPermissionsDisplay(role.permissions);
                 const isExpanded = expandedRoles[role.id];
                 const displayedPermissions = isExpanded ? permissions : permissions.slice(0, 3);
+                const isProtected = protectedRoleNames.includes(role.name);
                 
                 return (
                   <tr key={role.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedRoleIds.includes(role.id)}
+                        onChange={() => handleSelectRole(role.id)}
+                        disabled={isProtected}
+                      />
+                    </td>
                     <td>{role.name}</td>
                     <td>{role.description || '-'}</td>
                     <td>
@@ -853,6 +956,39 @@ const RoleManagement = () => {
               </button>
               <button type="button" className="delete-confirm-btn" onClick={confirmDeleteRole}>
                 Delete Role
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Bulk Delete Roles Confirmation Modal */}
+      {bulkDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>Delete Multiple Roles</h2>
+              <button className="close-modal-btn" onClick={closeBulkDeleteModal} aria-label="Close">
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning-icon">⚠️</div>
+              <p className="delete-confirmation-text">
+                Are you sure you want to delete <strong>{selectedRoleIds.length}</strong> selected role(s)?
+              </p>
+              <p className="delete-warning-text">
+                This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button type="button" className="cancel-btn" onClick={closeBulkDeleteModal}>
+                Cancel
+              </button>
+              <button type="button" className="delete-confirm-btn" onClick={confirmBulkDeleteRoles}>
+                Delete {selectedRoleIds.length} Role(s)
               </button>
             </div>
           </div>

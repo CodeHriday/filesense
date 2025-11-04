@@ -723,4 +723,165 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
   }
 }));
 
+/**
+ * POST /api/users/bulk-delete
+ * Delete multiple users at once (admin only)
+ */
+router.post('/bulk-delete', authenticateToken, asyncHandler(async (req, res) => {
+  const { userIds } = req.body;
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can delete users'
+    });
+  }
+  
+  // Validate input
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      error: 'Invalid input',
+      message: 'userIds must be a non-empty array'
+    });
+  }
+  
+  // Prevent deleting self
+  const currentUserId = req.user.id;
+  if (userIds.includes(currentUserId)) {
+    return res.status(400).json({
+      error: 'Cannot delete self',
+      message: 'You cannot delete your own user account'
+    });
+  }
+  
+  const results = {
+    successful: [],
+    failed: []
+  };
+  
+  // Delete each user
+  for (const userId of userIds) {
+    try {
+      await db.transaction(async (client) => {
+        // Check if user exists
+        const userCheck = await client.query(
+          'SELECT id, username FROM users WHERE id = $1',
+          [userId]
+        );
+        
+        if (userCheck.rows.length === 0) {
+          results.failed.push({ id: userId, error: 'User not found' });
+          return;
+        }
+        
+        // Delete related records in the correct order (foreign key constraints)
+        await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM user_policy_attachments WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM user_groups WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM user_attributes WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM user_sessions WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM user_uuid_mapping WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM project_members WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM access_group_members WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM file_audit_details WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM password_reset_requests WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM policy_evaluation_cache WHERE user_id = $1', [userId]);
+        
+        // Delete the user
+        await client.query('DELETE FROM users WHERE id = $1', [userId]);
+        
+        results.successful.push({ id: userId, username: userCheck.rows[0].username });
+      });
+    } catch (error) {
+      results.failed.push({ id: userId, error: error.message });
+    }
+  }
+  
+  res.json({
+    message: `Deleted ${results.successful.length} user(s) successfully`,
+    results
+  });
+}));
+
+/**
+ * POST /api/users/roles/bulk-delete
+ * Delete multiple roles at once (admin only)
+ */
+router.post('/roles/bulk-delete', authenticateToken, asyncHandler(async (req, res) => {
+  const { roleIds } = req.body;
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can delete roles'
+    });
+  }
+  
+  // Validate input
+  if (!Array.isArray(roleIds) || roleIds.length === 0) {
+    return res.status(400).json({
+      error: 'Invalid input',
+      message: 'roleIds must be a non-empty array'
+    });
+  }
+  
+  const results = {
+    successful: [],
+    failed: []
+  };
+  
+  // System roles that cannot be deleted
+  const protectedRoles = ['Admin', 'User', 'Vendor', 'Governance Manager', 'Data Steward'];
+  
+  // Delete each role
+  for (const roleId of roleIds) {
+    try {
+      await db.transaction(async (client) => {
+        // Check if role exists
+        const roleCheck = await client.query(
+          'SELECT id, name FROM roles WHERE id = $1',
+          [roleId]
+        );
+        
+        if (roleCheck.rows.length === 0) {
+          results.failed.push({ id: roleId, error: 'Role not found' });
+          return;
+        }
+        
+        const roleName = roleCheck.rows[0].name;
+        
+        // Prevent deleting protected system roles
+        if (protectedRoles.includes(roleName)) {
+          results.failed.push({ 
+            id: roleId, 
+            error: `Cannot delete system role: ${roleName}` 
+          });
+          return;
+        }
+        
+        // Delete related records
+        await client.query('DELETE FROM user_roles WHERE role_id = $1', [roleId]);
+        await client.query('DELETE FROM role_policy_attachments WHERE role_id = $1', [roleId]);
+        
+        // Delete the role
+        await client.query('DELETE FROM roles WHERE id = $1', [roleId]);
+        
+        results.successful.push({ id: roleId, name: roleName });
+      });
+    } catch (error) {
+      results.failed.push({ id: roleId, error: error.message });
+    }
+  }
+  
+  res.json({
+    message: `Deleted ${results.successful.length} role(s) successfully`,
+    results
+  });
+}));
+
 module.exports = router;

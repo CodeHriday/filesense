@@ -53,6 +53,10 @@ const UserManagement = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   
+  // Bulk delete state
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+  
   // Password reset confirmation modal state
   const [resetConfirmModalOpen, setResetConfirmModalOpen] = useState(false);
   const [resetActionType, setResetActionType] = useState(null);
@@ -426,6 +430,78 @@ const UserManagement = () => {
     }
   };
   
+  // Bulk delete handlers
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const selectableUserIds = filteredUsers
+        .filter(user => user.id !== currentUser?.id)
+        .map(user => user.id);
+      setSelectedUserIds(selectableUserIds);
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+  
+  const handleSelectUser = (userId) => {
+    setSelectedUserIds(prev => {
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+  };
+  
+  const openBulkDeleteModal = () => {
+    if (selectedUserIds.length === 0) {
+      setError('Please select at least one user to delete');
+      return;
+    }
+    setBulkDeleteModalOpen(true);
+  };
+  
+  const closeBulkDeleteModal = () => {
+    setBulkDeleteModalOpen(false);
+  };
+  
+  const confirmBulkDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+    
+    try {
+      const response = await axios.post('/api/users/bulk-delete', {
+        userIds: selectedUserIds
+      });
+      
+      const { results } = response.data;
+      
+      closeBulkDeleteModal();
+      setSelectedUserIds([]);
+      fetchData();
+      
+      if (results.failed.length > 0) {
+        setError(`Deleted ${results.successful.length} user(s). ${results.failed.length} failed.`);
+      } else {
+        setError('');
+      }
+    } catch (error) {
+      console.error('Error deleting users:', error);
+      
+      let errorMessage = 'Failed to delete users';
+      if (error.response?.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+      closeBulkDeleteModal();
+    }
+  };
+  
   const filteredUsers = users.filter(user => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -487,6 +563,15 @@ const UserManagement = () => {
                   )}
                 </button>
               )}
+              {selectedUserIds.length > 0 && (
+                <button 
+                  className="bulk-delete-btn"
+                  onClick={openBulkDeleteModal}
+                  style={{ backgroundColor: '#dc2626', color: 'white' }}
+                >
+                  Delete Selected ({selectedUserIds.length})
+                </button>
+              )}
               <button 
                 className="create-user-btn"
                 onClick={openCreateModal}
@@ -507,6 +592,14 @@ const UserManagement = () => {
         <table className="users-table">
           <thead>
             <tr>
+              <th style={{ width: '50px' }}>
+                <input
+                  type="checkbox"
+                  onChange={handleSelectAll}
+                  checked={selectedUserIds.length > 0 && selectedUserIds.length === filteredUsers.filter(u => u.id !== currentUser?.id).length}
+                  indeterminate={selectedUserIds.length > 0 && selectedUserIds.length < filteredUsers.filter(u => u.id !== currentUser?.id).length}
+                />
+              </th>
               <th>Username</th>
               <th>Full Name</th>
               <th>Email</th>
@@ -520,7 +613,7 @@ const UserManagement = () => {
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="8" className="no-users-message">
+                <td colSpan="9" className="no-users-message">
                   {searchTerm ? 'No users found matching your search' : 'No users found'}
                 </td>
               </tr>
@@ -528,9 +621,18 @@ const UserManagement = () => {
               filteredUsers.map(user => {
                 const isLocked = user.locked_until && new Date(user.locked_until) > new Date();
                 const failedAttempts = user.failed_login_attempts || 0;
+                const isCurrentUser = user.id === currentUser?.id;
                 
                 return (
                   <tr key={user.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.includes(user.id)}
+                        onChange={() => handleSelectUser(user.id)}
+                        disabled={isCurrentUser}
+                      />
+                    </td>
                     <td>{user.username}</td>
                     <td>{user.full_name || '-'}</td>
                     <td>{user.email || '-'}</td>
@@ -937,6 +1039,39 @@ const UserManagement = () => {
               </button>
               <button type="button" className="delete-confirm-btn" onClick={confirmDeleteUser}>
                 Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>Delete Multiple Users</h2>
+              <button className="close-modal-btn" onClick={closeBulkDeleteModal} aria-label="Close">
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="delete-warning-icon">⚠️</div>
+              <p className="delete-confirmation-text">
+                Are you sure you want to delete <strong>{selectedUserIds.length}</strong> selected user(s)?
+              </p>
+              <p className="delete-warning-text">
+                This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="modal-actions">
+              <button type="button" className="cancel-btn" onClick={closeBulkDeleteModal}>
+                Cancel
+              </button>
+              <button type="button" className="delete-confirm-btn" onClick={confirmBulkDelete}>
+                Delete {selectedUserIds.length} User(s)
               </button>
             </div>
           </div>
