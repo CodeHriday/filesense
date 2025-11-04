@@ -25,7 +25,9 @@ const TransferOwnershipModal = ({
 
   const handleTransfer = async () => {
     if (!selectedContactId) {
-      setError('Please select a replacement vendor contact');
+      const isVendorUser = user.vendor_id || user.user_type === 'Vendor';
+      const contactLabel = isVendorUser ? 'vendor contact' : 'replacement user';
+      setError(`Please select a ${contactLabel}`);
       return;
     }
 
@@ -58,19 +60,13 @@ const TransferOwnershipModal = ({
     dependencies.catalogs.length +
     dependencies.projects.length;
 
-  // Filter vendor contacts to only those from the same vendor (if user has vendor_id)
-  const eligibleContacts = vendorContacts.filter(contact => {
-    // Exclude the user being deleted
-    if (contact.id === user.id) return false;
-    
-    // If user has a vendor_id, only show contacts from the same vendor
-    if (user.vendor_id) {
-      return contact.vendor_id === user.vendor_id;
-    }
-    
-    // If user doesn't have vendor_id, show all vendor contacts
-    return true;
-  });
+  // All contacts are already filtered by the backend based on user type
+  // No additional filtering needed
+  const eligibleContacts = vendorContacts.filter(contact => contact.id !== user.id);
+  
+  // Determine if user is a vendor user or internal user
+  const isVendorUser = user.vendor_id || user.user_type === 'Vendor';
+  const contactLabel = isVendorUser ? 'Vendor Contact' : 'Replacement User';
 
   return (
     <div className="modal-overlay">
@@ -89,7 +85,7 @@ const TransferOwnershipModal = ({
               Cannot delete user <strong>{user.username}</strong> because they have {totalDependencies} associated asset(s).
             </p>
             <p style={{ marginTop: '10px', color: '#5f6368' }}>
-              Please transfer ownership to another vendor contact before deletion.
+              Please transfer ownership to another {contactLabel.toLowerCase()} before deletion.
             </p>
           </div>
 
@@ -169,10 +165,10 @@ const TransferOwnershipModal = ({
             )}
           </div>
 
-          {/* Vendor Contact Selection */}
+          {/* Contact Selection */}
           <div>
             <label htmlFor="replacement-contact" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-              Transfer Ownership To (Vendor Contact):
+              Transfer Ownership To ({contactLabel}):
             </label>
             <select
               id="replacement-contact"
@@ -187,7 +183,7 @@ const TransferOwnershipModal = ({
               }}
               disabled={isTransferring}
             >
-              <option value="">-- Select a vendor contact --</option>
+              <option value="">-- Select a {contactLabel.toLowerCase()} --</option>
               {eligibleContacts.map(contact => (
                 <option key={contact.id} value={contact.id}>
                   {contact.username} ({contact.email})
@@ -196,8 +192,8 @@ const TransferOwnershipModal = ({
             </select>
             {eligibleContacts.length === 0 && (
               <p style={{ marginTop: '8px', color: '#d93025', fontSize: '13px' }}>
-                No eligible vendor contacts available for transfer.
-                {user.vendor_id && ' (Must be from the same vendor organization)'}
+                No eligible {contactLabel.toLowerCase()}s available for transfer.
+                {isVendorUser ? ' (Must be from the same vendor organization)' : ' (Must be internal users)'}
               </p>
             )}
           </div>
