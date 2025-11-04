@@ -678,7 +678,7 @@ router.get('/:id/dependencies', authenticateToken, asyncHandler(async (req, res)
   
   // Check vendor agreements where user is a contact or approver
   const agreementsResult = await db.query(
-    `SELECT id, agreement_name, vendor_id 
+    `SELECT id, agreement_code, vendor_id 
      FROM vendor_agreements 
      WHERE (manager_contact = (SELECT email FROM users WHERE id = $1)
             OR vendor_approved_by = $1 

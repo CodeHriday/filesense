@@ -122,7 +122,7 @@ const TransferOwnershipModal = ({
                 <ul style={{ marginLeft: '20px', marginTop: '5px' }}>
                   {dependencies.agreements.map(agreement => (
                     <li key={agreement.id}>
-                      {agreement.agreement_name}
+                      {agreement.agreement_code}
                     </li>
                   ))}
                 </ul>
