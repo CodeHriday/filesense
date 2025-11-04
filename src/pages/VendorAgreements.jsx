@@ -540,7 +540,15 @@ const VendorAgreements = () => {
       retention_days: '',
       expected_arrival_time: '',
       delivery_method: '',
-      contract_start_date: new Date().toISOString().slice(0, 16),
+      contract_start_date: (() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      })(),
       contract_end_date: ''
     });
     setTemplateFile(null);
@@ -562,14 +570,20 @@ const VendorAgreements = () => {
     }
     
     // Format contract dates for datetime-local input (YYYY-MM-DDTHH:mm)
-    let formattedStartDate = '';
-    if (agreement.contract_start_date) {
-      formattedStartDate = new Date(agreement.contract_start_date).toISOString().slice(0, 16);
-    }
-    let formattedEndDate = '';
-    if (agreement.contract_end_date) {
-      formattedEndDate = new Date(agreement.contract_end_date).toISOString().slice(0, 16);
-    }
+    // datetime-local expects local time, not UTC
+    const formatDateTimeLocal = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    
+    let formattedStartDate = formatDateTimeLocal(agreement.contract_start_date);
+    let formattedEndDate = formatDateTimeLocal(agreement.contract_end_date);
     
     setFormData({
       vendor_id: agreement.vendor_id || '',
