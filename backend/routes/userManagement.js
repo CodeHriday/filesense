@@ -728,6 +728,93 @@ router.get('/:id/dependencies', authenticateToken, asyncHandler(async (req, res)
 }));
 
 /**
+ * GET /api/users/:id/eligible-replacements
+ * Get eligible replacement users for ownership transfer
+ * - For vendor users: Returns only users from the same vendor
+ * - For internal users: Returns only other internal users (not vendor users)
+ */
+router.get('/:id/eligible-replacements', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = parseInt(req.params.id);
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can fetch eligible replacements'
+    });
+  }
+  
+  // Get the user being deleted
+  const userResult = await db.query(
+    `SELECT id, username, email, internal_user, user_type, vendor_id
+     FROM users 
+     WHERE id = $1`,
+    [userId]
+  );
+  
+  if (userResult.rows.length === 0) {
+    return res.status(404).json({
+      error: 'User not found',
+      message: `No user found with ID ${userId}`
+    });
+  }
+  
+  const userToDelete = userResult.rows[0];
+  let eligibleUsers = [];
+  
+  // Determine filtering logic based on user type
+  if (userToDelete.vendor_id) {
+    // Vendor user: Only show contacts from the same vendor
+    const result = await db.query(
+      `SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
+              u.internal_user, u.user_type, u.vendor_id,
+              ARRAY_AGG(r.name) as roles
+       FROM users u
+       LEFT JOIN user_roles ur ON u.id = ur.user_id
+       LEFT JOIN roles r ON ur.role_id = r.id
+       WHERE u.vendor_id = $1 
+         AND u.id != $2
+       GROUP BY u.id, u.username, u.email, u.first_name, u.last_name,
+                u.internal_user, u.user_type, u.vendor_id
+       ORDER BY u.username`,
+      [userToDelete.vendor_id, userId]
+    );
+    eligibleUsers = result.rows;
+  } else if (userToDelete.internal_user || !userToDelete.user_type || userToDelete.user_type !== 'Vendor') {
+    // Internal user: Only show other internal users (exclude vendor users)
+    const result = await db.query(
+      `SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
+              u.internal_user, u.user_type, u.vendor_id,
+              ARRAY_AGG(r.name) as roles
+       FROM users u
+       LEFT JOIN user_roles ur ON u.id = ur.user_id
+       LEFT JOIN roles r ON ur.role_id = r.id
+       WHERE (u.internal_user = true OR u.user_type IS NULL OR u.user_type != 'Vendor')
+         AND u.vendor_id IS NULL
+         AND u.id != $1
+       GROUP BY u.id, u.username, u.email, u.first_name, u.last_name,
+                u.internal_user, u.user_type, u.vendor_id
+       ORDER BY u.username`,
+      [userId]
+    );
+    eligibleUsers = result.rows;
+  }
+  
+  res.json({
+    userToDelete: {
+      id: userToDelete.id,
+      username: userToDelete.username,
+      email: userToDelete.email,
+      internal_user: userToDelete.internal_user,
+      user_type: userToDelete.user_type,
+      vendor_id: userToDelete.vendor_id
+    },
+    eligibleReplacements: eligibleUsers
+  });
+}));
+
+/**
  * POST /api/users/bulk-dependencies
  * Check dependencies for multiple users
  */
