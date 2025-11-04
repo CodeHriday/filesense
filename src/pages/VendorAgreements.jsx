@@ -87,7 +87,9 @@ const VendorAgreements = () => {
     domain: '',
     retention_days: '',
     expected_arrival_time: '',
-    delivery_method: ''
+    delivery_method: '',
+    contract_start_date: new Date().toISOString().split('T')[0],
+    contract_end_date: ''
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -537,7 +539,9 @@ const VendorAgreements = () => {
       domain: '',
       retention_days: '',
       expected_arrival_time: '',
-      delivery_method: ''
+      delivery_method: '',
+      contract_start_date: new Date().toISOString().split('T')[0],
+      contract_end_date: ''
     });
     setTemplateFile(null);
     setModalMode('create');
@@ -555,6 +559,16 @@ const VendorAgreements = () => {
     if (agreement.vendor_onboarding_date) {
       const dateStr = agreement.vendor_onboarding_date.split('T')[0]; // Handle ISO format
       formattedDate = dateStr;
+    }
+    
+    // Format contract dates
+    let formattedStartDate = '';
+    if (agreement.contract_start_date) {
+      formattedStartDate = agreement.contract_start_date.split('T')[0];
+    }
+    let formattedEndDate = '';
+    if (agreement.contract_end_date) {
+      formattedEndDate = agreement.contract_end_date.split('T')[0];
     }
     
     setFormData({
@@ -594,7 +608,9 @@ const VendorAgreements = () => {
       domain: agreement.domain || '',
       retention_days: agreement.retention_days || '',
       expected_arrival_time: agreement.expected_arrival_time || '',
-      delivery_method: agreement.delivery_method || ''
+      delivery_method: agreement.delivery_method || '',
+      contract_start_date: formattedStartDate,
+      contract_end_date: formattedEndDate
     });
     setTemplateFile(null);
     setModalMode('edit');
@@ -1548,6 +1564,38 @@ const VendorAgreements = () => {
                         onChange={handleInputChange}
                         required
                       />
+                    </div>
+                    
+                    <div className="form-row-grid">
+                      <div className="form-group">
+                        <label htmlFor="contract_start_date">Contract Start Date <span className="required-field">*</span></label>
+                        <input
+                          type="date"
+                          id="contract_start_date"
+                          name="contract_start_date"
+                          value={formData.contract_start_date}
+                          onChange={handleInputChange}
+                          required
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Date when the contract becomes active
+                        </small>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="contract_end_date">Contract End Date <span className="required-field">*</span></label>
+                        <input
+                          type="date"
+                          id="contract_end_date"
+                          name="contract_end_date"
+                          value={formData.contract_end_date}
+                          onChange={handleInputChange}
+                          required
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Contract will be automatically disabled after this date
+                        </small>
+                      </div>
                     </div>
                   </div>
                 )}
