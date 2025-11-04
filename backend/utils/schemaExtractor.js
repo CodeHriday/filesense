@@ -289,10 +289,40 @@ async function extractSchemaFromParquet(filePath) {
 }
 
 /**
+ * Map MIME types to file extensions
+ */
+function mimeTypeToExtension(mimeType) {
+  const mimeMap = {
+    'text/csv': 'csv',
+    'application/vnd.ms-excel': 'xlsx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'application/json': 'json',
+    'text/json': 'json',
+    'application/xml': 'xml',
+    'text/xml': 'xml',
+    'application/x-parquet': 'parquet'
+  };
+  
+  return mimeMap[mimeType] || null;
+}
+
+/**
  * Main function to extract schema based on file type
  */
 async function extractSchema(filePath, fileType) {
-  const ext = fileType || filePath.split('.').pop().toLowerCase();
+  let ext;
+  
+  // If fileType is a MIME type, convert it to extension
+  if (fileType && fileType.includes('/')) {
+    ext = mimeTypeToExtension(fileType);
+    if (!ext) {
+      // Fall back to file extension from path
+      ext = filePath.split('.').pop().toLowerCase();
+    }
+  } else {
+    // Use provided extension or extract from path
+    ext = fileType || filePath.split('.').pop().toLowerCase();
+  }
   
   switch (ext) {
     case 'csv':

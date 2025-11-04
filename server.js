@@ -1805,6 +1805,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     let provider;
     let uploadPath = '';
     let profileData = null; // Will store profiling results if connection-based upload
+    let agreementSchema = null; // Will store vendor agreement schema for validation
     
     if (connectionId) {
       // Connection-based upload: either vendor or admin
@@ -1870,7 +1871,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             sc.*,
             va.id as agreement_id,
             va.project_id,
-            va.drop_location_path
+            va.drop_location_path,
+            va.schema as agreement_schema,
+            va.file_name as expected_file_pattern
           FROM storage_connections sc
           JOIN vendor_agreements va ON va.vendor_connection_id = sc.connection_id
           WHERE sc.connection_id = $1
@@ -1903,6 +1906,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         
         // Override projectId with the agreement's project for vendors
         projectId = connection.project_id;
+        
+        // Store agreement schema for validation (if vendor upload)
+        agreementSchema = connection.agreement_schema;
       }
       
       // Continue with connection (works for both admin and vendor)
@@ -1975,6 +1981,78 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       uploadPath = dropConfig.path_prefix 
         ? `${dropConfig.path_prefix}/${file.originalname}`
         : file.originalname;
+    }
+    
+    // Validate schema against vendor agreement (for vendor uploads with schema defined)
+    if (agreementSchema && agreementSchema.length > 0) {
+      try {
+        const { extractSchema, compareSchemas } = require('./backend/utils/schemaExtractor');
+        
+        logger.info('Starting schema validation for vendor upload', { 
+          fileId, 
+          filename: file.originalname,
+          userId 
+        });
+        
+        // Extract schema from uploaded file
+        const uploadedSchema = await extractSchema(file.path, file.mimetype);
+        
+        // Parse agreement schema (it's stored as JSON)
+        const expectedSchema = typeof agreementSchema === 'string' 
+          ? JSON.parse(agreementSchema) 
+          : agreementSchema;
+        
+        // Compare schemas
+        const validationResult = compareSchemas(uploadedSchema, expectedSchema);
+        
+        if (!validationResult.valid) {
+          // Schema validation failed - reject upload
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          
+          logger.warn('Schema validation failed for vendor upload', {
+            fileId,
+            filename: file.originalname,
+            userId,
+            errors: validationResult.errors,
+            missingColumns: validationResult.missingColumns,
+            typeMismatches: validationResult.typeMismatches
+          });
+          
+          return res.status(400).json({
+            error: 'Schema validation failed',
+            message: 'The uploaded file does not match the expected schema defined in the vendor agreement',
+            details: {
+              errors: validationResult.errors,
+              missingColumns: validationResult.missingColumns,
+              typeMismatches: validationResult.typeMismatches,
+              warnings: validationResult.warnings
+            }
+          });
+        }
+        
+        // Schema is valid - log warnings if any
+        if (validationResult.warnings.length > 0) {
+          logger.info('Schema validation passed with warnings', {
+            fileId,
+            filename: file.originalname,
+            warnings: validationResult.warnings
+          });
+        } else {
+          logger.info('Schema validation passed', { fileId, filename: file.originalname });
+        }
+        
+      } catch (schemaError) {
+        logger.error('Schema validation error', {
+          fileId,
+          filename: file.originalname,
+          error: schemaError.message,
+          stack: schemaError.stack
+        });
+        
+        // For now, allow upload to continue if schema extraction fails
+        // You can make this stricter by rejecting the upload here
+        logger.warn('Allowing upload despite schema validation error', { fileId, filename: file.originalname });
+      }
     }
     
     // Profile file locally BEFORE uploading (for connection-based uploads only)
