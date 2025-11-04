@@ -277,19 +277,10 @@ const VendorAgreements = () => {
       );
       
       if (selectedConnection) {
-        console.log('[VendorAgreements] Selected connection:', selectedConnection);
         const config = selectedConnection.config || {};
         const bucket = config.bucket || config.bucket_name || '';
         // Check both top-level path field and config fields
         const filePath = selectedConnection.path || config.path_prefix || config.file_path || config.path || '';
-        console.log('[VendorAgreements] Path extraction:', {
-          topLevelPath: selectedConnection.path,
-          configPathPrefix: config.path_prefix,
-          configFilePath: config.file_path,
-          configPath: config.path,
-          finalFilePath: filePath,
-          bucket: bucket
-        });
         
         // Combine bucket and file path with proper slash handling
         let fullPath = bucket;
@@ -298,7 +289,6 @@ const VendorAgreements = () => {
             ? `${bucket}${filePath}` 
             : `${bucket}/${filePath}`;
         }
-        console.log('[VendorAgreements] Final fullPath:', fullPath);
         
         // Only update if the value would actually change
         if (formData.drop_location_path !== fullPath) {
