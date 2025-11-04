@@ -52,6 +52,7 @@ const VendorAgreements = () => {
   
   const [formData, setFormData] = useState({
     vendor_id: '',
+    vendor_code: '',
     file_name: '',
     file_description: '',
     schema: '',
@@ -358,6 +359,49 @@ const VendorAgreements = () => {
     }
   }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
   
+  // Auto-populate vendor_code and vendor_onboarding_date from selected vendor
+  useEffect(() => {
+    if (formData.vendor_id && vendors.length > 0) {
+      const selectedVendor = vendors.find(
+        vendor => String(vendor.id) === String(formData.vendor_id)
+      );
+      
+      if (selectedVendor) {
+        const newVendorCode = selectedVendor.vendor_code || '';
+        const newOnboardingDate = selectedVendor.created_at 
+          ? new Date(selectedVendor.created_at).toISOString().split('T')[0] 
+          : '';
+        
+        // Only update if the values would actually change
+        if (formData.vendor_code !== newVendorCode || formData.vendor_onboarding_date !== newOnboardingDate) {
+          setFormData(prev => ({
+            ...prev,
+            vendor_code: newVendorCode,
+            vendor_onboarding_date: newOnboardingDate
+          }));
+        }
+      } else {
+        // Vendor not found, clear vendor code and onboarding date
+        if (formData.vendor_code !== '' || formData.vendor_onboarding_date !== '') {
+          setFormData(prev => ({
+            ...prev,
+            vendor_code: '',
+            vendor_onboarding_date: ''
+          }));
+        }
+      }
+    } else {
+      // No vendor selected, clear vendor code and onboarding date
+      if (formData.vendor_code !== '' || formData.vendor_onboarding_date !== '') {
+        setFormData(prev => ({
+          ...prev,
+          vendor_code: '',
+          vendor_onboarding_date: ''
+        }));
+      }
+    }
+  }, [formData.vendor_id, formData.vendor_code, formData.vendor_onboarding_date, vendors]);
+  
   // Auto-populate manager_contact from selected vendor manager
   useEffect(() => {
     if (formData.file_owner_user_id && users.length > 0) {
@@ -398,6 +442,7 @@ const VendorAgreements = () => {
   const openCreateModal = () => {
     setFormData({
       vendor_id: isVendor && currentVendorId ? currentVendorId : '',
+      vendor_code: '',
       file_name: '',
       file_description: '',
       schema: '',
@@ -454,6 +499,7 @@ const VendorAgreements = () => {
     
     setFormData({
       vendor_id: agreement.vendor_id || '',
+      vendor_code: agreement.vendor_code || '',
       file_name: agreement.file_name || '',
       file_description: agreement.file_description || '',
       schema: agreement.schema ? JSON.stringify(agreement.schema, null, 2) : '',
@@ -523,6 +569,8 @@ const VendorAgreements = () => {
   
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Note: vendor_code and vendor_onboarding_date auto-population is handled by useEffect
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -1402,13 +1450,14 @@ const VendorAgreements = () => {
                         <input
                           type="text"
                           id="vendor_code"
-                          value={Array.isArray(vendors) ? (vendors.find(v => v.id === formData.vendor_id)?.vendor_code || '') : ''}
+                          name="vendor_code"
+                          value={formData.vendor_code}
                           readOnly
                           placeholder="Auto from vendor"
                           style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Automatically assigned from vendor
+                          Automatically assigned when vendor is selected
                         </small>
                       </div>
                       
