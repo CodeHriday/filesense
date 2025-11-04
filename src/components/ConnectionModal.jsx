@@ -331,9 +331,13 @@ const ConnectionModal = ({
         
         const response = await axios.post('/api/connections/test', payload);
         
-        // Store test credentials for browsing
+        // Store test credentials for browsing (ensure provider is explicitly retained)
         setTestSuccessful(true);
-        setTestCredentials(payload);
+        setTestCredentials({
+          ...payload,
+          provider: formData.provider || 'aws',
+          storage_type: formData.provider || 'aws'  // Backend compatibility
+        });
         
         setTestResult({
           success: true,
