@@ -643,6 +643,328 @@ router.post('/:id/unlock', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/users/:id/dependencies
+ * Check if user has dependencies (vendors, agreements, mappings, catalogs, projects)
+ */
+router.get('/:id/dependencies', authenticateToken, asyncHandler(async (req, res) => {
+  const userId = parseInt(req.params.id);
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can check user dependencies'
+    });
+  }
+  
+  const dependencies = {
+    hasDependencies: false,
+    vendors: [],
+    agreements: [],
+    mappings: [],
+    catalogs: [],
+    projects: []
+  };
+  
+  // Check vendors where user is assigned
+  const vendorsResult = await db.query(
+    `SELECT id, vendor_name, vendor_code 
+     FROM vendors 
+     WHERE vendor_user_id = $1 AND status != 'deleted'`,
+    [userId]
+  );
+  dependencies.vendors = vendorsResult.rows;
+  
+  // Check vendor agreements where user is a contact or approver
+  const agreementsResult = await db.query(
+    `SELECT id, agreement_name, vendor_id 
+     FROM vendor_agreements 
+     WHERE (manager_contact = (SELECT email FROM users WHERE id = $1)
+            OR vendor_approved_by = $1 
+            OR owner_approved_by = $1
+            OR governance_approved_by = $1)
+     AND status != 'deleted'`,
+    [userId]
+  );
+  dependencies.agreements = agreementsResult.rows;
+  
+  // Check transformation mappings created by user
+  const mappingsResult = await db.query(
+    `SELECT mapping_id, mapping_name, project_id 
+     FROM transformation_mappings 
+     WHERE created_by = $1`,
+    [userId]
+  );
+  dependencies.mappings = mappingsResult.rows;
+  
+  // Check vendor file catalog ownership
+  const catalogsResult = await db.query(
+    `SELECT id, file_name, vendor_id, agreement_id 
+     FROM vendor_file_catalog 
+     WHERE file_owner_user_id = $1 OR uploaded_by = $1`,
+    [userId]
+  );
+  dependencies.catalogs = catalogsResult.rows;
+  
+  // Check project ownership
+  const projectsResult = await db.query(
+    `SELECT id, project_name, project_code 
+     FROM projects 
+     WHERE owner_id = $1 AND status != 'deleted'`,
+    [userId]
+  );
+  dependencies.projects = projectsResult.rows;
+  
+  // Set hasDependencies flag
+  dependencies.hasDependencies = 
+    dependencies.vendors.length > 0 ||
+    dependencies.agreements.length > 0 ||
+    dependencies.mappings.length > 0 ||
+    dependencies.catalogs.length > 0 ||
+    dependencies.projects.length > 0;
+  
+  res.json(dependencies);
+}));
+
+/**
+ * POST /api/users/bulk-dependencies
+ * Check dependencies for multiple users
+ */
+router.post('/bulk-dependencies', authenticateToken, asyncHandler(async (req, res) => {
+  const { userIds } = req.body;
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can check user dependencies'
+    });
+  }
+  
+  // Validate input
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      error: 'Invalid input',
+      message: 'userIds must be a non-empty array'
+    });
+  }
+  
+  const usersWithDependencies = [];
+  
+  for (const userId of userIds) {
+    const id = parseInt(userId);
+    
+    // Check for any dependencies
+    const vendorsCount = await db.query(
+      'SELECT COUNT(*) FROM vendors WHERE vendor_user_id = $1 AND status != $2',
+      [id, 'deleted']
+    );
+    
+    const agreementsCount = await db.query(
+      `SELECT COUNT(*) FROM vendor_agreements 
+       WHERE (manager_contact = (SELECT email FROM users WHERE id = $1)
+              OR vendor_approved_by = $1 
+              OR owner_approved_by = $1
+              OR governance_approved_by = $1)
+       AND status != 'deleted'`,
+      [id]
+    );
+    
+    const mappingsCount = await db.query(
+      'SELECT COUNT(*) FROM transformation_mappings WHERE created_by = $1',
+      [id]
+    );
+    
+    const catalogsCount = await db.query(
+      'SELECT COUNT(*) FROM vendor_file_catalog WHERE file_owner_user_id = $1 OR uploaded_by = $1',
+      [id]
+    );
+    
+    const projectsCount = await db.query(
+      'SELECT COUNT(*) FROM projects WHERE owner_id = $1 AND status != $2',
+      [id, 'deleted']
+    );
+    
+    const totalDependencies = 
+      parseInt(vendorsCount.rows[0].count) +
+      parseInt(agreementsCount.rows[0].count) +
+      parseInt(mappingsCount.rows[0].count) +
+      parseInt(catalogsCount.rows[0].count) +
+      parseInt(projectsCount.rows[0].count);
+    
+    if (totalDependencies > 0) {
+      const userInfo = await db.query(
+        'SELECT id, username, email FROM users WHERE id = $1',
+        [id]
+      );
+      usersWithDependencies.push({
+        ...userInfo.rows[0],
+        dependencyCount: totalDependencies
+      });
+    }
+  }
+  
+  res.json({
+    usersWithDependencies,
+    canDelete: usersWithDependencies.length === 0
+  });
+}));
+
+/**
+ * POST /api/users/:id/transfer-ownership
+ * Transfer ownership from one user to another vendor contact
+ */
+router.post('/:id/transfer-ownership', authenticateToken, asyncHandler(async (req, res) => {
+  const fromUserId = parseInt(req.params.id);
+  const { toUserId } = req.body;
+  
+  // Check if user has admin permissions
+  const userRoles = req.user.roles || [];
+  if (!userRoles.includes('Admin')) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions',
+      message: 'Only administrators can transfer ownership'
+    });
+  }
+  
+  // Validate input
+  if (!toUserId) {
+    return res.status(400).json({
+      error: 'Invalid input',
+      message: 'toUserId is required'
+    });
+  }
+  
+  const toUserIdInt = parseInt(toUserId);
+  
+  // Prevent transferring to self
+  if (fromUserId === toUserIdInt) {
+    return res.status(400).json({
+      error: 'Invalid transfer',
+      message: 'Cannot transfer ownership to the same user'
+    });
+  }
+  
+  // Verify target user is a vendor contact
+  const targetUser = await db.query(
+    `SELECT id, username, email, internal_user, user_type, vendor_id 
+     FROM users 
+     WHERE id = $1`,
+    [toUserIdInt]
+  );
+  
+  if (targetUser.rows.length === 0) {
+    return res.status(404).json({
+      error: 'Target user not found',
+      message: 'The selected user does not exist'
+    });
+  }
+  
+  const targetUserData = targetUser.rows[0];
+  if (targetUserData.internal_user !== false || targetUserData.user_type !== 'Vendor') {
+    return res.status(400).json({
+      error: 'Invalid target user',
+      message: 'Target user must be a vendor contact'
+    });
+  }
+  
+  // Get source user's vendor associations
+  const sourceUser = await db.query(
+    `SELECT id, email, vendor_id 
+     FROM users 
+     WHERE id = $1`,
+    [fromUserId]
+  );
+  
+  if (sourceUser.rows.length === 0) {
+    return res.status(404).json({
+      error: 'Source user not found',
+      message: 'The user to transfer from does not exist'
+    });
+  }
+  
+  const sourceUserData = sourceUser.rows[0];
+  
+  // If source user has a vendor_id, ensure target user has the same vendor_id
+  if (sourceUserData.vendor_id && targetUserData.vendor_id !== sourceUserData.vendor_id) {
+    return res.status(400).json({
+      error: 'Invalid transfer',
+      message: 'Target user must belong to the same vendor organization'
+    });
+  }
+  
+  const sourceEmail = sourceUserData.email;
+  const targetEmail = targetUserData.email;
+  
+  // Transfer ownership in transaction
+  const transferResults = {
+    vendors: 0,
+    agreements: 0,
+    mappings: 0,
+    catalogs: 0,
+    projects: 0
+  };
+  
+  await db.transaction(async (client) => {
+    // Transfer vendor assignments
+    const vendorsUpdate = await client.query(
+      'UPDATE vendors SET vendor_user_id = $1 WHERE vendor_user_id = $2 AND status != $3 RETURNING id',
+      [toUserIdInt, fromUserId, 'deleted']
+    );
+    transferResults.vendors = vendorsUpdate.rowCount;
+    
+    // Transfer vendor agreement contacts (manager_contact uses email)
+    const agreementsUpdate = await client.query(
+      `UPDATE vendor_agreements 
+       SET manager_contact = $1,
+           vendor_approved_by = CASE WHEN vendor_approved_by = $2 THEN $3 ELSE vendor_approved_by END,
+           owner_approved_by = CASE WHEN owner_approved_by = $2 THEN $3 ELSE owner_approved_by END,
+           governance_approved_by = CASE WHEN governance_approved_by = $2 THEN $3 ELSE governance_approved_by END
+       WHERE (manager_contact = $4 
+              OR vendor_approved_by = $2 
+              OR owner_approved_by = $2
+              OR governance_approved_by = $2)
+       AND status != 'deleted'
+       RETURNING id`,
+      [targetEmail, fromUserId, toUserIdInt, sourceEmail]
+    );
+    transferResults.agreements = agreementsUpdate.rowCount;
+    
+    // Transfer transformation mappings
+    const mappingsUpdate = await client.query(
+      'UPDATE transformation_mappings SET created_by = $1 WHERE created_by = $2 RETURNING mapping_id',
+      [toUserIdInt, fromUserId]
+    );
+    transferResults.mappings = mappingsUpdate.rowCount;
+    
+    // Transfer vendor file catalog ownership
+    const catalogsUpdate = await client.query(
+      `UPDATE vendor_file_catalog 
+       SET file_owner_user_id = CASE WHEN file_owner_user_id = $2 THEN $1 ELSE file_owner_user_id END,
+           uploaded_by = CASE WHEN uploaded_by = $2 THEN $1 ELSE uploaded_by END
+       WHERE file_owner_user_id = $2 OR uploaded_by = $2
+       RETURNING id`,
+      [toUserIdInt, fromUserId]
+    );
+    transferResults.catalogs = catalogsUpdate.rowCount;
+    
+    // Transfer project ownership
+    const projectsUpdate = await client.query(
+      'UPDATE projects SET owner_id = $1 WHERE owner_id = $2 AND status != $3 RETURNING id',
+      [toUserIdInt, fromUserId, 'deleted']
+    );
+    transferResults.projects = projectsUpdate.rowCount;
+  });
+  
+  res.json({
+    message: 'Ownership transferred successfully',
+    results: transferResults
+  });
+}));
+
+/**
  * DELETE /api/users/:id
  * Delete a user (admin only)
  */

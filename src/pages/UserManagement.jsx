@@ -5,6 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 import PasswordInput from '../components/PasswordInput';
 import Pagination from '../components/Pagination';
+import TransferOwnershipModal from '../components/TransferOwnershipModal';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getRoles, createUser, updateUser, deleteUser } from '../api/authService';
 import axios from 'axios';
@@ -66,6 +67,12 @@ const UserManagement = () => {
   const [tempPasswordModalOpen, setTempPasswordModalOpen] = useState(false);
   const [displayTempPassword, setDisplayTempPassword] = useState('');
   const [tempPasswordUsername, setTempPasswordUsername] = useState('');
+  
+  // Transfer ownership modal state
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [userWithDependencies, setUserWithDependencies] = useState(null);
+  const [userDependencies, setUserDependencies] = useState(null);
+  const [vendorContacts, setVendorContacts] = useState([]);
   
   const { currentUser, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
@@ -387,9 +394,50 @@ const UserManagement = () => {
     }
   };
   
-  const openDeleteModal = (user) => {
-    setUserToDelete(user);
-    setDeleteModalOpen(true);
+  // Fetch vendor contacts
+  const fetchVendorContacts = async () => {
+    try {
+      const response = await axios.get('/api/users/by-role/vendor');
+      setVendorContacts(response.data || []);
+    } catch (error) {
+      console.error('Error fetching vendor contacts:', error);
+      setVendorContacts([]);
+    }
+  };
+  
+  // Check user dependencies before delete
+  const checkUserDependencies = async (userId) => {
+    try {
+      const response = await axios.get(`/api/users/${userId}/dependencies`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking user dependencies:', error);
+      throw error;
+    }
+  };
+  
+  const openDeleteModal = async (user) => {
+    try {
+      // Check if user has dependencies
+      const dependencies = await checkUserDependencies(user.id);
+      
+      if (dependencies.hasDependencies) {
+        // Fetch all vendor contacts
+        await fetchVendorContacts();
+        
+        // Show transfer modal instead
+        setUserWithDependencies(user);
+        setUserDependencies(dependencies);
+        setTransferModalOpen(true);
+      } else {
+        // No dependencies, proceed with normal delete
+        setUserToDelete(user);
+        setDeleteModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error checking dependencies:', error);
+      setError('Failed to check user dependencies');
+    }
   };
   
   const closeDeleteModal = () => {
@@ -401,14 +449,9 @@ const UserManagement = () => {
     if (!userToDelete) return;
     
     try {
-      // Temporarily bypass permission checks
-      // if (!hasPermission('user_delete')) {
-      //   setError("You don't have permission to delete users");
-      //   return;
-      // }
-      
       await deleteUser(userToDelete.id);
       closeDeleteModal();
+      setSelectedUserIds(prev => prev.filter(id => id !== userToDelete.id));
       fetchData();
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -427,6 +470,33 @@ const UserManagement = () => {
       
       setError(errorMessage);
       closeDeleteModal();
+    }
+  };
+  
+  // Transfer ownership modal handlers
+  const closeTransferModal = () => {
+    setTransferModalOpen(false);
+    setUserWithDependencies(null);
+    setUserDependencies(null);
+  };
+  
+  const handleTransferAndDelete = async (fromUserId, toUserId) => {
+    try {
+      // Transfer ownership
+      await axios.post(`/api/users/${fromUserId}/transfer-ownership`, {
+        toUserId: toUserId
+      });
+      
+      // Delete user after successful transfer
+      await deleteUser(fromUserId);
+      
+      // Close modal and refresh
+      closeTransferModal();
+      setSelectedUserIds(prev => prev.filter(id => id !== fromUserId));
+      fetchData();
+    } catch (error) {
+      console.error('Error transferring ownership:', error);
+      throw error;
     }
   };
   
@@ -452,12 +522,36 @@ const UserManagement = () => {
     });
   };
   
-  const openBulkDeleteModal = () => {
+  const openBulkDeleteModal = async () => {
     if (selectedUserIds.length === 0) {
       setError('Please select at least one user to delete');
       return;
     }
-    setBulkDeleteModalOpen(true);
+    
+    try {
+      // Check if any selected users have dependencies
+      const response = await axios.post('/api/users/bulk-dependencies', {
+        userIds: selectedUserIds
+      });
+      
+      if (response.data.usersWithDependencies.length > 0) {
+        // Some users have dependencies
+        const userList = response.data.usersWithDependencies
+          .map(u => u.username)
+          .join(', ');
+        setError(
+          `Cannot delete the following user(s) because they have associated assets: ${userList}. ` +
+          `Please delete each user individually to transfer ownership.`
+        );
+        return;
+      }
+      
+      // No dependencies, proceed with bulk delete
+      setBulkDeleteModalOpen(true);
+    } catch (error) {
+      console.error('Error checking dependencies:', error);
+      setError('Failed to check user dependencies');
+    }
   };
   
   const closeBulkDeleteModal = () => {
@@ -1183,6 +1277,16 @@ const UserManagement = () => {
       )}
         </>
       )}
+      
+      {/* Transfer Ownership Modal */}
+      <TransferOwnershipModal
+        isOpen={transferModalOpen}
+        onClose={closeTransferModal}
+        user={userWithDependencies}
+        dependencies={userDependencies}
+        vendorContacts={vendorContacts}
+        onTransfer={handleTransferAndDelete}
+      />
     </div>
   );
 };
