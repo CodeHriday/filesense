@@ -50,6 +50,9 @@ function VendorFileUpload() {
   };
 
   const handleDropFile = async (file, progressHandler) => {
+    // Clear any previous schema validation errors
+    setSchemaValidationError(null);
+    
     // Validate selections
     if (!selectedAgreement) {
       setUploadStatus('error');
@@ -218,6 +221,144 @@ function VendorFileUpload() {
           <Link to="/vendor-file-quality" className="notification-link">
             View in Vendor File Catalog →
           </Link>
+        </div>
+      )}
+
+      {/* Schema Validation Error Display */}
+      {schemaValidationError && (
+        <div style={{
+          marginBottom: '1.5rem',
+          padding: '1.5rem',
+          background: '#fff5f5',
+          border: '2px solid #e53e3e',
+          borderRadius: '8px'
+        }}>
+          <h3 style={{ 
+            color: '#c53030', 
+            marginTop: 0, 
+            marginBottom: '1rem',
+            fontSize: '1.1rem',
+            fontWeight: 'bold'
+          }}>
+            Schema Validation Failed
+          </h3>
+          
+          <p style={{ color: '#742a2a', marginBottom: '1rem' }}>
+            The uploaded file does not match the expected schema defined in the vendor agreement. Please correct the following issues:
+          </p>
+
+          {/* Missing Columns */}
+          {schemaValidationError.missingColumns && schemaValidationError.missingColumns.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ 
+                color: '#c53030', 
+                fontSize: '0.95rem', 
+                marginBottom: '0.5rem',
+                fontWeight: 'bold'
+              }}>
+                Missing Required Columns ({schemaValidationError.missingColumns.length})
+              </h4>
+              <ul style={{ 
+                margin: '0 0 0 1.5rem', 
+                padding: 0,
+                color: '#742a2a'
+              }}>
+                {schemaValidationError.missingColumns.map((col, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                    <strong>{col}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Type Mismatches */}
+          {schemaValidationError.typeMismatches && schemaValidationError.typeMismatches.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ 
+                color: '#c53030', 
+                fontSize: '0.95rem', 
+                marginBottom: '0.5rem',
+                fontWeight: 'bold'
+              }}>
+                Type Mismatches ({schemaValidationError.typeMismatches.length})
+              </h4>
+              <ul style={{ 
+                margin: '0 0 0 1.5rem', 
+                padding: 0,
+                color: '#742a2a'
+              }}>
+                {schemaValidationError.typeMismatches.map((mismatch, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                    <strong>{mismatch.column}</strong>: Expected <code style={{ 
+                      background: '#fed7d7', 
+                      padding: '2px 6px', 
+                      borderRadius: '3px',
+                      fontSize: '0.9em'
+                    }}>{mismatch.expected}</code>, found <code style={{ 
+                      background: '#fed7d7', 
+                      padding: '2px 6px', 
+                      borderRadius: '3px',
+                      fontSize: '0.9em'
+                    }}>{mismatch.found}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* General Errors */}
+          {schemaValidationError.errors && schemaValidationError.errors.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ 
+                color: '#c53030', 
+                fontSize: '0.95rem', 
+                marginBottom: '0.5rem',
+                fontWeight: 'bold'
+              }}>
+                Additional Issues
+              </h4>
+              <ul style={{ 
+                margin: '0 0 0 1.5rem', 
+                padding: 0,
+                color: '#742a2a'
+              }}>
+                {schemaValidationError.errors.map((error, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.25rem' }}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Warnings (informational) */}
+          {schemaValidationError.warnings && schemaValidationError.warnings.length > 0 && (
+            <div style={{ 
+              marginTop: '1rem',
+              padding: '0.75rem',
+              background: '#fffaf0',
+              border: '1px solid #f6ad55',
+              borderRadius: '4px'
+            }}>
+              <h4 style={{ 
+                color: '#c05621', 
+                fontSize: '0.9rem', 
+                marginTop: 0,
+                marginBottom: '0.5rem',
+                fontWeight: 'bold'
+              }}>
+                Warnings
+              </h4>
+              <ul style={{ 
+                margin: 0, 
+                padding: '0 0 0 1.5rem',
+                color: '#744210'
+              }}>
+                {schemaValidationError.warnings.map((warning, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.25rem', fontSize: '0.9rem' }}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
