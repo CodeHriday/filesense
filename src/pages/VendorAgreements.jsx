@@ -279,7 +279,7 @@ const VendorAgreements = () => {
       if (selectedConnection) {
         const config = selectedConnection.config || {};
         const bucket = config.bucket || config.bucket_name || '';
-        const filePath = config.path_prefix || '';
+        const filePath = config.path_prefix || config.file_path || config.path || '';
         
         // Combine bucket and file path with proper slash handling
         let fullPath = bucket;
