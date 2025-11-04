@@ -2080,7 +2080,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             userId,
             errors: validationResult.errors,
             missingColumns: validationResult.missingColumns,
-            typeMismatches: validationResult.typeMismatches
+            extraColumns: validationResult.extraColumns
           });
           
           return res.status(400).json({
@@ -2089,7 +2089,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             details: {
               errors: validationResult.errors,
               missingColumns: validationResult.missingColumns,
-              typeMismatches: validationResult.typeMismatches,
+              extraColumns: validationResult.extraColumns,
               warnings: validationResult.warnings
             }
           });

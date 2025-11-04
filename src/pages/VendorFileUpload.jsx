@@ -359,41 +359,6 @@ function VendorFileUpload() {
             </div>
           )}
 
-          {/* Type Mismatches */}
-          {schemaValidationError.typeMismatches && schemaValidationError.typeMismatches.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <h4 style={{ 
-                color: '#c53030', 
-                fontSize: '0.95rem', 
-                marginBottom: '0.5rem',
-                fontWeight: 'bold'
-              }}>
-                Type Mismatches ({schemaValidationError.typeMismatches.length})
-              </h4>
-              <ul style={{ 
-                margin: '0 0 0 1.5rem', 
-                padding: 0,
-                color: '#742a2a'
-              }}>
-                {schemaValidationError.typeMismatches.map((mismatch, idx) => (
-                  <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                    <strong>{mismatch.column}</strong>: Expected <code style={{ 
-                      background: '#fed7d7', 
-                      padding: '2px 6px', 
-                      borderRadius: '3px',
-                      fontSize: '0.9em'
-                    }}>{mismatch.expected}</code>, found <code style={{ 
-                      background: '#fed7d7', 
-                      padding: '2px 6px', 
-                      borderRadius: '3px',
-                      fontSize: '0.9em'
-                    }}>{mismatch.found}</code>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {/* General Errors */}
           {schemaValidationError.errors && schemaValidationError.errors.length > 0 && (
             <div style={{ marginBottom: '1rem' }}>

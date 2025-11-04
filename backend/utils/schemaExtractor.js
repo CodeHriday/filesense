@@ -348,6 +348,7 @@ async function extractSchema(filePath, fileType) {
 
 /**
  * Compare two schemas and return validation result
+ * Only validates column names (case-insensitive), not types
  */
 function compareSchemas(uploadedSchema, expectedSchema) {
   const result = {
@@ -355,15 +356,14 @@ function compareSchemas(uploadedSchema, expectedSchema) {
     errors: [],
     warnings: [],
     missingColumns: [],
-    extraColumns: [],
-    typeMismatches: []
+    extraColumns: []
   };
   
-  // Create maps for easy lookup
+  // Create maps for easy lookup (case-insensitive)
   const uploadedMap = new Map(uploadedSchema.map(col => [col.name.toLowerCase(), col]));
   const expectedMap = new Map(expectedSchema.map(col => [col.name.toLowerCase(), col]));
   
-  // Check for missing required columns
+  // Check for missing required columns (case-insensitive)
   expectedSchema.forEach(expectedCol => {
     const uploadedCol = uploadedMap.get(expectedCol.name.toLowerCase());
     
@@ -371,25 +371,8 @@ function compareSchemas(uploadedSchema, expectedSchema) {
       result.missingColumns.push(expectedCol.name);
       result.errors.push(`Missing required column: ${expectedCol.name}`);
       result.valid = false;
-    } else {
-      // Check type compatibility
-      if (uploadedCol.type !== expectedCol.type) {
-        // Allow some type flexibility (e.g., integer can be float, string can be anything)
-        const compatible = isTypeCompatible(uploadedCol.type, expectedCol.type);
-        
-        if (!compatible) {
-          result.typeMismatches.push({
-            column: expectedCol.name,
-            expected: expectedCol.type,
-            actual: uploadedCol.type
-          });
-          result.errors.push(`Type mismatch for column '${expectedCol.name}': expected ${expectedCol.type}, got ${uploadedCol.type}`);
-          result.valid = false;
-        } else {
-          result.warnings.push(`Column '${expectedCol.name}': type ${uploadedCol.type} will be converted to ${expectedCol.type}`);
-        }
-      }
     }
+    // Note: Type checking removed - CSV files have all columns as strings
   });
   
   // Check for extra columns (warning only)
@@ -401,34 +384,6 @@ function compareSchemas(uploadedSchema, expectedSchema) {
   });
   
   return result;
-}
-
-/**
- * Check if two types are compatible
- */
-function isTypeCompatible(actualType, expectedType) {
-  // Exact match
-  if (actualType === expectedType) {
-    return true;
-  }
-  
-  // String can accept anything
-  if (expectedType === 'string') {
-    return true;
-  }
-  
-  // Integer can be promoted to float
-  if (actualType === 'integer' && expectedType === 'float') {
-    return true;
-  }
-  
-  // Date and timestamp are compatible
-  if ((actualType === 'date' && expectedType === 'timestamp') ||
-      (actualType === 'timestamp' && expectedType === 'date')) {
-    return true;
-  }
-  
-  return false;
 }
 
 module.exports = {
