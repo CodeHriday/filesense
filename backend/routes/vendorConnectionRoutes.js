@@ -45,6 +45,7 @@ router.get('/', async (req, res) => {
         sc.description,
         sc.authentication_method,
         sc.auth_config,
+        sc.path,
         sc.created_at,
         sc.updated_at,
         p.name as project_name
@@ -106,6 +107,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
         sc.description,
         sc.authentication_method,
         sc.auth_config,
+        sc.path,
         sc.created_at,
         sc.updated_at,
         p.name as project_name
