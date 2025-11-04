@@ -50,10 +50,10 @@ class AgreementTemplateUtils {
         ['frequency_description', fields.frequency_description, 'Detailed frequency information'],
         ['schema', fields.schema, 'Required: JSON array of column definitions'],
         ['domain', fields.domain, 'Required: Business domain (e.g., Finance, Operations, Sales, HR)'],
-        ['delivery_method', fields.delivery_method, 'Required: Options: SFTP, S3, API, Email, Manual'],
-        ['file_type', fields.file_type, 'Required: Options: CSV, JSON, XML, Parquet, Excel'],
+        ['delivery_method', fields.delivery_method, 'Required: Must be one of: SFTP, S3, API, Email, Manual'],
+        ['file_type', fields.file_type, 'Required: Must be one of: CSV, JSON, XML, Parquet, Excel'],
         ['vendor_type', fields.vendor_type, 'Required: Type of vendor (e.g., Data Provider, Service Provider)'],
-        ['data_classification', fields.data_classification, 'Required: Options: Public, Private, Confidential'],
+        ['data_classification', fields.data_classification, 'Required: Must be one of: Public, Private, Confidential'],
         ['retention_days', fields.retention_days, 'Required: Number of days to retain the file (e.g., 365)'],
         ['expected_arrival_time', fields.expected_arrival_time, 'Required: Expected time of file arrival (e.g., 9:00 AM EST)'],
         ['contains_pii', fields.contains_pii, 'true or false - Does the file contain PII?']
@@ -96,10 +96,10 @@ class AgreementTemplateUtils {
         ['frequency_description', fields.frequency_description, 'Detailed frequency information'],
         ['schema', fields.schema, 'Required: JSON array of column definitions'],
         ['domain', fields.domain, 'Required: Business domain (e.g., Finance, Operations, Sales, HR)'],
-        ['delivery_method', fields.delivery_method, 'Required: Options: SFTP, S3, API, Email, Manual'],
-        ['file_type', fields.file_type, 'Required: Options: CSV, JSON, XML, Parquet, Excel'],
+        ['delivery_method', fields.delivery_method, 'Required: Must be one of: SFTP, S3, API, Email, Manual'],
+        ['file_type', fields.file_type, 'Required: Must be one of: CSV, JSON, XML, Parquet, Excel'],
         ['vendor_type', fields.vendor_type, 'Required: Type of vendor (e.g., Data Provider, Service Provider)'],
-        ['data_classification', fields.data_classification, 'Required: Options: Public, Private, Confidential'],
+        ['data_classification', fields.data_classification, 'Required: Must be one of: Public, Private, Confidential'],
         ['retention_days', fields.retention_days, 'Required: Number of days to retain the file (e.g., 365)'],
         ['expected_arrival_time', fields.expected_arrival_time, 'Required: Expected time of file arrival (e.g., 9:00 AM EST)'],
         ['contains_pii', fields.contains_pii, 'true or false - Does the file contain PII?']
@@ -135,10 +135,10 @@ class AgreementTemplateUtils {
           frequency_description: 'Detailed frequency information',
           schema: 'Required: Array of column definitions with name, type, and description',
           domain: 'Required: Business domain (e.g., Finance, Operations, Sales, HR)',
-          delivery_method: 'Required: Options: SFTP, S3, API, Email, Manual',
-          file_type: 'Required: Options: CSV, JSON, XML, Parquet, Excel',
+          delivery_method: 'Required: Must be one of: SFTP, S3, API, Email, Manual',
+          file_type: 'Required: Must be one of: CSV, JSON, XML, Parquet, Excel',
           vendor_type: 'Required: Type of vendor (e.g., Data Provider, Service Provider)',
-          data_classification: 'Required: Options: Public, Private, Confidential',
+          data_classification: 'Required: Must be one of: Public, Private, Confidential',
           retention_days: 'Required: Number of days to retain the file (e.g., 365)',
           expected_arrival_time: 'Required: Expected time of file arrival (e.g., 9:00 AM EST)',
           contains_pii: 'true or false - Does the file contain PII?'
@@ -303,6 +303,41 @@ class AgreementTemplateUtils {
     const validFrequencies = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly', 'Ad-hoc'];
     if (data.frequency && !validFrequencies.includes(data.frequency)) {
       errors.push(`Invalid frequency. Must be one of: ${validFrequencies.join(', ')}`);
+    }
+    
+    // Validate delivery_method if present
+    const validDeliveryMethods = ['SFTP', 'S3', 'API', 'Email', 'Manual'];
+    if (data.delivery_method && !validDeliveryMethods.includes(data.delivery_method)) {
+      errors.push(`Invalid delivery_method. Must be one of: ${validDeliveryMethods.join(', ')}`);
+    }
+    
+    // Validate file_type if present
+    const validFileTypes = ['CSV', 'JSON', 'XML', 'Parquet', 'Excel'];
+    if (data.file_type && !validFileTypes.includes(data.file_type)) {
+      errors.push(`Invalid file_type. Must be one of: ${validFileTypes.join(', ')}`);
+    }
+    
+    // Validate data_classification if present
+    const validClassifications = ['Public', 'Private', 'Confidential'];
+    if (data.data_classification && !validClassifications.includes(data.data_classification)) {
+      errors.push(`Invalid data_classification. Must be one of: ${validClassifications.join(', ')}`);
+    }
+    
+    // Validate contains_pii if present (should be boolean or string 'true'/'false')
+    if (data.contains_pii !== undefined && data.contains_pii !== null) {
+      const piiValue = String(data.contains_pii).toLowerCase();
+      if (piiValue !== 'true' && piiValue !== 'false') {
+        errors.push(`Invalid contains_pii. Must be either 'true' or 'false'`);
+      }
+    }
+    
+    // Validate retention_days if present (should be a positive number greater than 0)
+    if (data.retention_days !== undefined && data.retention_days !== null && String(data.retention_days).trim() !== '') {
+      const trimmedValue = String(data.retention_days).trim();
+      const retentionDays = Number(trimmedValue);
+      if (isNaN(retentionDays) || retentionDays <= 0) {
+        errors.push(`Invalid retention_days. Must be a positive number greater than 0`);
+      }
     }
     
     return {
