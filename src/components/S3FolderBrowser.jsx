@@ -28,12 +28,6 @@ const S3FolderBrowser = ({ connectionId, rawCredentials, onSelectPath, onSelectF
           ? { connectionId, s3Path: path }
           : { rawCredentials, s3Path: path };
       
-      console.log('[S3FolderBrowser] Sending browse request with payload:', JSON.stringify(payload, null, 2));
-      if (rawCredentials) {
-        console.log('[S3FolderBrowser] rawCredentials.provider:', rawCredentials.provider);
-        console.log('[S3FolderBrowser] rawCredentials.storage_type:', rawCredentials.storage_type);
-      }
-      
       const response = await axios.post(browseEndpoint, payload);
       
       if (response.data.success) {
