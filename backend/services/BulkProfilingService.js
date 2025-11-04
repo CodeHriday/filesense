@@ -122,6 +122,13 @@ class BulkProfilingService {
       
       // Use raw credentials if provided (for testing before save)
       if (rawCredentials) {
+        systemLogger.info('[DEBUG] browseS3Path received rawCredentials:', { 
+          hasProvider: !!rawCredentials.provider,
+          hasStorageType: !!rawCredentials.storage_type,
+          provider: rawCredentials.provider,
+          storage_type: rawCredentials.storage_type,
+          keys: Object.keys(rawCredentials)
+        });
         config = rawCredentials;
         
         // Validate provider
