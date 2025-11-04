@@ -13,12 +13,12 @@ class VendorAgreementTemplateService {
       { field: 'frequency', label: 'Frequency *', type: 'dropdown', required: true, options: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual', 'Ad-hoc'] },
       { field: 'frequency_description', label: 'Frequency Description', type: 'text', required: false },
       { field: 'contains_pii', label: 'Contains PII', type: 'boolean', required: false },
-      { field: 'file_type', label: 'File Type', type: 'text', required: false },
-      { field: 'data_classification', label: 'Data Classification', type: 'dropdown', required: false, options: ['Public', 'Internal', 'Confidential', 'Restricted'] },
+      { field: 'file_type', label: 'File Type', type: 'dropdown', required: false, options: ['CSV', 'JSON', 'XML', 'Parquet', 'Excel'] },
+      { field: 'data_classification', label: 'Data Classification', type: 'dropdown', required: false, options: ['Public', 'Private', 'Confidential'] },
       { field: 'domain', label: 'Domain', type: 'text', required: false },
       { field: 'retention_days', label: 'Retention Days', type: 'number', required: false },
       { field: 'expected_arrival_time', label: 'Expected Arrival Time', type: 'text', required: false },
-      { field: 'delivery_method', label: 'Delivery Method', type: 'dropdown', required: false, options: ['SFTP', 'API', 'Email', 'Manual Upload'] }
+      { field: 'delivery_method', label: 'Delivery Method', type: 'dropdown', required: false, options: ['SFTP', 'S3', 'API', 'Email', 'Manual'] }
     ];
   }
 
@@ -161,12 +161,12 @@ class VendorAgreementTemplateService {
       ['Frequency: How often the file is delivered - REQUIRED. Allowed values: Daily, Weekly, Monthly, Quarterly, Annual, Ad-hoc'],
       ['Frequency Description: Details about delivery timing (optional)'],
       ['Contains PII: Whether the file contains personally identifiable information (optional). Enter TRUE or FALSE'],
-      ['File Type: Type of file - e.g., CSV, JSON, XML, XLSX, Parquet (optional)'],
-      ['Data Classification: Security classification level (optional). Allowed values: Public, Internal, Confidential, Restricted'],
+      ['File Type: Type of file (optional). Allowed values: CSV, JSON, XML, Parquet, Excel'],
+      ['Data Classification: Security classification level (optional). Allowed values: Public, Private, Confidential'],
       ['Domain: Business domain or category (optional)'],
       ['Retention Days: How long to keep the data in days - enter a number (optional)'],
       ['Expected Arrival Time: When the file typically arrives - e.g., 06:00 EST (optional)'],
-      ['Delivery Method: How the file is delivered (optional). Allowed values: SFTP, API, Email, Manual Upload']
+      ['Delivery Method: How the file is delivered (optional). Allowed values: SFTP, S3, API, Email, Manual']
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(instructions);
