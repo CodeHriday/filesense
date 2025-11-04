@@ -249,11 +249,11 @@ function VendorFileUpload() {
             fontSize: '1.1rem',
             fontWeight: 'bold'
           }}>
-            Filename Pattern Validation Failed
+            Filename Validation Failed
           </h3>
           
-          <p style={{ color: '#742a2a', marginBottom: '1rem' }}>
-            The uploaded filename does not match the expected pattern defined in the vendor agreement.
+          <p style={{ color: '#742a2a', marginBottom: '1rem', fontWeight: '500' }}>
+            {filenameValidationError.message}
           </p>
 
           <div style={{ 
@@ -265,6 +265,22 @@ function VendorFileUpload() {
           }}>
             <div style={{ marginBottom: '0.75rem' }}>
               <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
+                Expected Filename:
+              </strong>
+              <code style={{ 
+                background: '#c6f6d5', 
+                padding: '4px 8px', 
+                borderRadius: '3px',
+                fontSize: '0.95em',
+                color: '#22543d',
+                display: 'inline-block'
+              }}>
+                {filenameValidationError.expectedBase}{filenameValidationError.expectedExt}
+              </code>
+            </div>
+
+            <div>
+              <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
                 Uploaded Filename:
               </strong>
               <code style={{ 
@@ -275,51 +291,23 @@ function VendorFileUpload() {
                 color: '#742a2a',
                 display: 'inline-block'
               }}>
-                {filenameValidationError.uploadedFilename}
+                {filenameValidationError.actualBase}{filenameValidationError.actualExt}
               </code>
-              {filenameValidationError.normalizedUploaded && 
-               filenameValidationError.normalizedUploaded !== filenameValidationError.uploadedFilename && (
-                <div style={{ fontSize: '0.85rem', color: '#9b2c2c', marginTop: '0.25rem' }}>
-                  (normalized: <code style={{ fontSize: '0.9em' }}>{filenameValidationError.normalizedUploaded}</code>)
-                </div>
-              )}
-            </div>
-
-            <div>
-              <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
-                Expected Pattern:
-              </strong>
-              <code style={{ 
-                background: '#c6f6d5', 
-                padding: '4px 8px', 
-                borderRadius: '3px',
-                fontSize: '0.95em',
-                color: '#22543d',
-                display: 'inline-block'
-              }}>
-                {filenameValidationError.expectedPattern}
-              </code>
-              {filenameValidationError.normalizedExpected && 
-               filenameValidationError.normalizedExpected !== filenameValidationError.expectedPattern && (
-                <div style={{ fontSize: '0.85rem', color: '#22543d', marginTop: '0.25rem' }}>
-                  (normalized: <code style={{ fontSize: '0.9em' }}>{filenameValidationError.normalizedExpected}</code>)
-                </div>
-              )}
             </div>
           </div>
 
-          {filenameValidationError.hint && (
-            <div style={{ 
-              padding: '0.75rem',
-              background: '#fffaf0',
-              border: '1px solid #f6ad55',
-              borderRadius: '4px',
-              fontSize: '0.9rem',
-              color: '#744210'
-            }}>
-              <strong>💡 Tip: </strong>{filenameValidationError.hint}
-            </div>
-          )}
+          <div style={{ 
+            padding: '0.75rem',
+            background: '#fffaf0',
+            border: '1px solid #f6ad55',
+            borderRadius: '4px',
+            fontSize: '0.9rem',
+            color: '#744210'
+          }}>
+            <strong>💡 Tip: </strong>
+            The expected filename (without extension) must be contained in your uploaded filename. 
+            You can add timestamps or other suffixes, but the base name and file extension must match.
+          </div>
         </div>
       )}
 

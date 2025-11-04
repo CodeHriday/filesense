@@ -2004,24 +2004,26 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           // Filename validation failed - reject upload
           try { fs.unlinkSync(file.path); } catch (e) {}
           
-          logger.warn('Filename pattern validation failed for vendor upload', {
+          logger.warn('Filename validation failed for vendor upload', {
             fileId,
             filename: file.originalname,
             expectedPattern: expectedFilePattern,
-            normalizedActual: validationResult.normalizedActual,
-            normalizedExpected: validationResult.normalizedExpected,
+            expectedBase: validationResult.expectedBase,
+            actualBase: validationResult.actualBase,
+            expectedExt: validationResult.expectedExt,
+            actualExt: validationResult.actualExt,
             userId
           });
           
           return res.status(400).json({
             error: 'Filename pattern validation failed',
-            message: 'The uploaded filename does not match the expected pattern defined in the vendor agreement',
+            message: validationResult.message,
             details: {
-              uploadedFilename: file.originalname,
-              expectedPattern: expectedFilePattern,
-              normalizedUploaded: validationResult.normalizedActual,
-              normalizedExpected: validationResult.normalizedExpected,
-              hint: 'Filenames are compared after removing timestamps. Make sure your base filename matches the pattern.'
+              expectedBase: validationResult.expectedBase,
+              actualBase: validationResult.actualBase,
+              expectedExt: validationResult.expectedExt,
+              actualExt: validationResult.actualExt,
+              message: validationResult.message
             }
           });
         }
