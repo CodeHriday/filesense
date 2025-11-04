@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiEye, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiTrash2, FiSearch, FiSlash } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
@@ -892,6 +892,25 @@ const VendorAgreements = () => {
     setConfirmModalOpen(true);
   };
   
+  const handleDisableAgreement = (agreementId, fileName) => {
+    setConfirmModalConfig({
+      title: 'Disable Agreement',
+      message: `Are you sure you want to disable agreement "${fileName}"? This action can be reversed by editing the agreement later.`,
+      onConfirm: async () => {
+        try {
+          await axios.patch(`/api/vendor-agreements/${agreementId}/disable`);
+          setSuccessMessage('Vendor agreement disabled successfully!');
+          fetchData();
+          setTimeout(() => setSuccessMessage(''), 5000);
+        } catch (error) {
+          console.error('Error disabling agreement:', error);
+          setError('Failed to disable contract: ' + (error.response?.data?.error || error.message));
+        }
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+  
   const handleDownloadTemplate = async () => {
     try {
       setError('');
@@ -1263,6 +1282,16 @@ const VendorAgreements = () => {
                               title="Edit contract"
                             >
                               <FiEdit2 />
+                            </button>
+                          )}
+                          {isAdmin && agreement.status !== 'disabled' && (
+                            <button 
+                              className="action-icon-btn disable-btn" 
+                              onClick={() => handleDisableAgreement(agreement.id, agreement.file_name)}
+                              title="Disable contract"
+                              style={{ color: '#f59e0b' }}
+                            >
+                              <FiSlash />
                             </button>
                           )}
                           {isAdmin && (

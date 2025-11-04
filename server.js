@@ -3101,10 +3101,54 @@ const initSchedulesTable = async () => {
   }
 };
 
+// Initialize vendor agreement expiration schedule (daily cron job to disable expired contracts)
+const initVendorAgreementExpirationSchedule = async () => {
+  try {
+    // Check if the schedule already exists
+    const existing = await dbPool.query(`
+      SELECT id FROM schedules 
+      WHERE entity_type = 'vendor_agreement_expiration' 
+      AND entity_id = 'system'
+    `);
+    
+    if (existing.rows.length === 0) {
+      // Create daily schedule at midnight UTC to check for expired agreements
+      const cronSchedulerService = require('./backend/services/cronSchedulerService');
+      const nextRun = cronSchedulerService.parseAndCalculateNextRun('0 0 * * *'); // Daily at midnight
+      
+      await dbPool.query(`
+        INSERT INTO schedules (
+          entity_type, entity_id, schedule_name, schedule_type, 
+          cron_expression, timezone, next_run, project_id, created_by, is_active
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [
+        'vendor_agreement_expiration',
+        'system',
+        'Auto-disable Expired Vendor Agreements',
+        'cron',
+        '0 0 * * *', // Daily at midnight UTC
+        'UTC',
+        nextRun,
+        null, // System-level schedule, not tied to a project
+        1,    // System user ID
+        true  // Active by default
+      ]);
+      
+      console.log('✅ Vendor agreement expiration schedule initialized (runs daily at midnight UTC)');
+    } else {
+      console.log('ℹ️  Vendor agreement expiration schedule already exists');
+    }
+  } catch (err) {
+    console.error('Error initializing vendor agreement expiration schedule:', err);
+  }
+};
+
 // Initialize file_mappings table on startup
 initFileMappingsTable();
 // Initialize schedules table on startup
 initSchedulesTable();
+// Initialize vendor agreement expiration schedule
+initVendorAgreementExpirationSchedule();
 
 // Create a new mapping
 app.post('/api/mappings', async (req, res) => {

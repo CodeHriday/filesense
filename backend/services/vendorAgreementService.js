@@ -112,7 +112,9 @@ class VendorAgreementService {
         retention_days,
         expected_arrival_time,
         delivery_method,
-        status
+        status,
+        contract_start_date,
+        contract_end_date
       } = agreementData;
       
       // Check for duplicate file_name
@@ -280,8 +282,8 @@ class VendorAgreementService {
           vendor_connection_id, drop_location_path, project_id,
           manager_contact, governance_manager_user_id,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
-          status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, 1, $36, CURRENT_TIMESTAMP)
+          status, contract_start_date, contract_end_date, version, created_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, 1, $38, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -292,7 +294,7 @@ class VendorAgreementService {
           vendor_connection_id, drop_location_path || null, project_id,
           finalManagerContact, governance_manager_user_id || null,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
-          finalStatus,
+          finalStatus, contract_start_date || null, contract_end_date || null,
           createdBy
         ]
       );
@@ -434,7 +436,9 @@ class VendorAgreementService {
         domain,
         retention_days,
         expected_arrival_time,
-        delivery_method
+        delivery_method,
+        contract_start_date,
+        contract_end_date
       } = updateData;
       
       // Check for duplicate file_name (excluding current agreement)
@@ -748,6 +752,26 @@ class VendorAgreementService {
         params.push(delivery_method);
         changes.delivery_method = { from: current.delivery_method, to: delivery_method };
         paramIndex++;
+      }
+      
+      if (contract_start_date !== undefined) {
+        const currentStartDate = current.contract_start_date ? current.contract_start_date.toISOString().split('T')[0] : null;
+        if (contract_start_date !== currentStartDate) {
+          updates.push(`contract_start_date = $${paramIndex}`);
+          params.push(contract_start_date || null);
+          changes.contract_start_date = { from: currentStartDate, to: contract_start_date };
+          paramIndex++;
+        }
+      }
+      
+      if (contract_end_date !== undefined) {
+        const currentEndDate = current.contract_end_date ? current.contract_end_date.toISOString().split('T')[0] : null;
+        if (contract_end_date !== currentEndDate) {
+          updates.push(`contract_end_date = $${paramIndex}`);
+          params.push(contract_end_date || null);
+          changes.contract_end_date = { from: currentEndDate, to: contract_end_date };
+          paramIndex++;
+        }
       }
       
       if (updates.length === 0) {
@@ -2338,6 +2362,153 @@ class VendorAgreementService {
     } catch (error) {
       await client.query('ROLLBACK');
       systemLogger.error('Error deleting agreement', { agreementId, error: error.message });
+      return {
+        success: false,
+        error: error.message
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Disable vendor agreement
+   */
+  async disableAgreement(agreementId, disabledBy) {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Check if agreement exists
+      const checkResult = await client.query(
+        'SELECT id, agreement_code, status FROM vendor_agreements WHERE id = $1',
+        [agreementId]
+      );
+      
+      if (checkResult.rows.length === 0) {
+        throw new Error('Agreement not found');
+      }
+      
+      if (checkResult.rows[0].status === 'disabled') {
+        throw new Error('Agreement is already disabled');
+      }
+      
+      // Disable by updating status to 'disabled'
+      const result = await client.query(
+        `UPDATE vendor_agreements 
+         SET status = 'disabled', 
+             updated_at = CURRENT_TIMESTAMP,
+             updated_by = $2
+         WHERE id = $1
+         RETURNING id, agreement_code`,
+        [agreementId, disabledBy]
+      );
+      
+      // Log change
+      await client.query(
+        `INSERT INTO vendor_agreement_changes (
+          agreement_id, change_type, changes_summary, changed_by, changed_at
+        ) VALUES ($1, 'disabled', 'Agreement disabled', $2, CURRENT_TIMESTAMP)`,
+        [agreementId, disabledBy]
+      );
+      
+      await client.query('COMMIT');
+      
+      systemLogger.info('Agreement disabled', {
+        agreementId,
+        agreementCode: result.rows[0].agreement_code,
+        disabledBy
+      });
+      
+      return {
+        success: true,
+        message: 'Agreement disabled successfully'
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error disabling agreement', { agreementId, error: error.message });
+      return {
+        success: false,
+        error: error.message
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Auto-disable expired agreements
+   * This is called by the scheduled job to disable agreements past their contract_end_date
+   */
+  async autoDisableExpiredAgreements() {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Find active agreements that have passed their contract_end_date
+      const expiredAgreements = await client.query(
+        `SELECT id, agreement_code, file_name, contract_end_date
+         FROM vendor_agreements 
+         WHERE status = 'active' 
+         AND contract_end_date IS NOT NULL 
+         AND contract_end_date < CURRENT_DATE`
+      );
+      
+      if (expiredAgreements.rows.length === 0) {
+        await client.query('COMMIT');
+        systemLogger.info('No expired agreements found');
+        return {
+          success: true,
+          disabledCount: 0
+        };
+      }
+      
+      // Disable all expired agreements
+      for (const agreement of expiredAgreements.rows) {
+        await client.query(
+          `UPDATE vendor_agreements 
+           SET status = 'disabled', 
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = 1
+           WHERE id = $1`,
+          [agreement.id]
+        );
+        
+        // Log change
+        await client.query(
+          `INSERT INTO vendor_agreement_changes (
+            agreement_id, change_type, changes_summary, changed_by, changed_at
+          ) VALUES ($1, 'auto_disabled', $2, 1, CURRENT_TIMESTAMP)`,
+          [agreement.id, `Agreement automatically disabled due to contract expiration (end date: ${agreement.contract_end_date})`]
+        );
+        
+        systemLogger.info('Agreement auto-disabled', {
+          agreementId: agreement.id,
+          agreementCode: agreement.agreement_code,
+          fileName: agreement.file_name,
+          contractEndDate: agreement.contract_end_date
+        });
+      }
+      
+      await client.query('COMMIT');
+      
+      return {
+        success: true,
+        disabledCount: expiredAgreements.rows.length,
+        disabledAgreements: expiredAgreements.rows.map(a => ({
+          id: a.id,
+          agreementCode: a.agreement_code,
+          fileName: a.file_name,
+          contractEndDate: a.contract_end_date
+        }))
+      };
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Error auto-disabling expired agreements', { error: error.message });
       return {
         success: false,
         error: error.message

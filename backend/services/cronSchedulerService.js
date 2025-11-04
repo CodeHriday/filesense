@@ -355,6 +355,10 @@ async function processDueSchedules() {
             schedule.entity_id,
             userId
           );
+        } else if (schedule.entity_type === 'vendor_agreement_expiration') {
+          // Auto-disable expired vendor agreements
+          const vendorAgreementService = require('./vendorAgreementService');
+          executionResult = await vendorAgreementService.autoDisableExpiredAgreements();
         } else {
           throw new Error(`Unknown entity type: ${schedule.entity_type}`);
         }
