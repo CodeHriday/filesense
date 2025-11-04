@@ -359,7 +359,7 @@ const VendorAgreements = () => {
     }
   }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
   
-  // Auto-populate vendor_code, vendor_type, and vendor_onboarding_date from selected vendor
+  // Auto-populate vendor_code, vendor_type, vendor_onboarding_date, and contact information from selected vendor
   useEffect(() => {
     if (formData.vendor_id && vendors.length > 0) {
       const selectedVendor = vendors.find(
@@ -373,40 +373,94 @@ const VendorAgreements = () => {
           ? new Date(selectedVendor.created_at).toISOString().split('T')[0] 
           : '';
         
+        // Extract primary contact information from vendor
+        const newPrimaryContactName = selectedVendor.contact_name || '';
+        const newPrimaryContactEmail = selectedVendor.contact_email || '';
+        const newPrimaryContactPhone = selectedVendor.contact_phone || '';
+        
+        // Extract secondary contact information from vendor's backup contact
+        const newSecondaryContactName = selectedVendor.backup_contact_name || '';
+        const newSecondaryContactEmail = selectedVendor.backup_contact_email || '';
+        const newSecondaryContactPhone = selectedVendor.backup_contact_phone || '';
+        
         // Only update if the values would actually change
         if (formData.vendor_code !== newVendorCode || 
             formData.vendor_type !== newVendorType ||
-            formData.vendor_onboarding_date !== newOnboardingDate) {
+            formData.vendor_onboarding_date !== newOnboardingDate ||
+            formData.primary_contact_name !== newPrimaryContactName ||
+            formData.primary_contact_email !== newPrimaryContactEmail ||
+            formData.primary_contact_phone !== newPrimaryContactPhone ||
+            formData.secondary_contact_name !== newSecondaryContactName ||
+            formData.secondary_contact_email !== newSecondaryContactEmail ||
+            formData.secondary_contact_phone !== newSecondaryContactPhone) {
           setFormData(prev => ({
             ...prev,
             vendor_code: newVendorCode,
             vendor_type: newVendorType,
-            vendor_onboarding_date: newOnboardingDate
+            vendor_onboarding_date: newOnboardingDate,
+            primary_contact_name: newPrimaryContactName,
+            primary_contact_email: newPrimaryContactEmail,
+            primary_contact_phone: newPrimaryContactPhone,
+            secondary_contact_name: newSecondaryContactName,
+            secondary_contact_email: newSecondaryContactEmail,
+            secondary_contact_phone: newSecondaryContactPhone
           }));
         }
       } else {
-        // Vendor not found, clear vendor fields
-        if (formData.vendor_code !== '' || formData.vendor_type !== '' || formData.vendor_onboarding_date !== '') {
+        // Vendor not found, clear vendor and contact fields
+        if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
+            formData.vendor_onboarding_date !== '' ||
+            formData.primary_contact_name !== '' ||
+            formData.primary_contact_email !== '' ||
+            formData.primary_contact_phone !== '' ||
+            formData.secondary_contact_name !== '' ||
+            formData.secondary_contact_email !== '' ||
+            formData.secondary_contact_phone !== '') {
           setFormData(prev => ({
             ...prev,
             vendor_code: '',
             vendor_type: '',
-            vendor_onboarding_date: ''
+            vendor_onboarding_date: '',
+            primary_contact_name: '',
+            primary_contact_email: '',
+            primary_contact_phone: '',
+            secondary_contact_name: '',
+            secondary_contact_email: '',
+            secondary_contact_phone: ''
           }));
         }
       }
     } else {
-      // No vendor selected, clear vendor fields
-      if (formData.vendor_code !== '' || formData.vendor_type !== '' || formData.vendor_onboarding_date !== '') {
+      // No vendor selected, clear vendor and contact fields
+      if (formData.vendor_code !== '' || formData.vendor_type !== '' || 
+          formData.vendor_onboarding_date !== '' ||
+          formData.primary_contact_name !== '' ||
+          formData.primary_contact_email !== '' ||
+          formData.primary_contact_phone !== '' ||
+          formData.secondary_contact_name !== '' ||
+          formData.secondary_contact_email !== '' ||
+          formData.secondary_contact_phone !== '') {
         setFormData(prev => ({
           ...prev,
           vendor_code: '',
           vendor_type: '',
-          vendor_onboarding_date: ''
+          vendor_onboarding_date: '',
+          primary_contact_name: '',
+          primary_contact_email: '',
+          primary_contact_phone: '',
+          secondary_contact_name: '',
+          secondary_contact_email: '',
+          secondary_contact_phone: ''
         }));
       }
     }
-  }, [formData.vendor_id, formData.vendor_code, formData.vendor_type, formData.vendor_onboarding_date, vendors]);
+  }, [
+    formData.vendor_id, 
+    formData.vendor_code, 
+    formData.vendor_type, 
+    formData.vendor_onboarding_date,
+    vendors
+  ]);
   
   // Auto-populate manager_contact from selected vendor manager
   useEffect(() => {
