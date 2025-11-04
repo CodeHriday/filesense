@@ -125,14 +125,16 @@ class BulkProfilingService {
         systemLogger.info('[DEBUG] browseS3Path received rawCredentials:', { 
           hasProvider: !!rawCredentials.provider,
           hasStorageType: !!rawCredentials.storage_type,
+          hasConnectionType: !!rawCredentials.connection_type,
           provider: rawCredentials.provider,
           storage_type: rawCredentials.storage_type,
+          connection_type: rawCredentials.connection_type,
           keys: Object.keys(rawCredentials)
         });
         config = rawCredentials;
         
-        // Validate provider
-        const provider = config.provider || config.storage_type;
+        // Validate provider (check multiple field names for compatibility)
+        const provider = config.provider || config.storage_type || config.connection_type;
         if (provider !== 'aws' && provider !== 's3') {
           throw new Error(`Provider ${provider} not supported. Only AWS S3 is supported`);
         }
@@ -151,7 +153,7 @@ class BulkProfilingService {
         // For vendor connections, extract the actual provider type from config
         if (connectionType === 'vendor') {
           config = typeof config === 'string' ? JSON.parse(config) : config;
-          const provider = config.provider || config.storage_type;
+          const provider = config.provider || config.storage_type || config.connection_type;
           
           if (provider !== 'aws' && provider !== 's3') {
             throw new Error(`Vendor connection provider ${provider} not supported. Only AWS S3 is supported`);
