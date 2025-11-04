@@ -359,7 +359,7 @@ const VendorAgreements = () => {
     }
   }, [formData.vendor_id, formData.project_id, formData.project_name, vendors]);
   
-  // Auto-populate vendor_code and vendor_onboarding_date from selected vendor
+  // Auto-populate vendor_code, vendor_type, and vendor_onboarding_date from selected vendor
   useEffect(() => {
     if (formData.vendor_id && vendors.length > 0) {
       const selectedVendor = vendors.find(
@@ -368,39 +368,45 @@ const VendorAgreements = () => {
       
       if (selectedVendor) {
         const newVendorCode = selectedVendor.vendor_code || '';
+        const newVendorType = selectedVendor.vendor_type || '';
         const newOnboardingDate = selectedVendor.created_at 
           ? new Date(selectedVendor.created_at).toISOString().split('T')[0] 
           : '';
         
         // Only update if the values would actually change
-        if (formData.vendor_code !== newVendorCode || formData.vendor_onboarding_date !== newOnboardingDate) {
+        if (formData.vendor_code !== newVendorCode || 
+            formData.vendor_type !== newVendorType ||
+            formData.vendor_onboarding_date !== newOnboardingDate) {
           setFormData(prev => ({
             ...prev,
             vendor_code: newVendorCode,
+            vendor_type: newVendorType,
             vendor_onboarding_date: newOnboardingDate
           }));
         }
       } else {
-        // Vendor not found, clear vendor code and onboarding date
-        if (formData.vendor_code !== '' || formData.vendor_onboarding_date !== '') {
+        // Vendor not found, clear vendor fields
+        if (formData.vendor_code !== '' || formData.vendor_type !== '' || formData.vendor_onboarding_date !== '') {
           setFormData(prev => ({
             ...prev,
             vendor_code: '',
+            vendor_type: '',
             vendor_onboarding_date: ''
           }));
         }
       }
     } else {
-      // No vendor selected, clear vendor code and onboarding date
-      if (formData.vendor_code !== '' || formData.vendor_onboarding_date !== '') {
+      // No vendor selected, clear vendor fields
+      if (formData.vendor_code !== '' || formData.vendor_type !== '' || formData.vendor_onboarding_date !== '') {
         setFormData(prev => ({
           ...prev,
           vendor_code: '',
+          vendor_type: '',
           vendor_onboarding_date: ''
         }));
       }
     }
-  }, [formData.vendor_id, formData.vendor_code, formData.vendor_onboarding_date, vendors]);
+  }, [formData.vendor_id, formData.vendor_code, formData.vendor_type, formData.vendor_onboarding_date, vendors]);
   
   // Auto-populate manager_contact from selected vendor manager
   useEffect(() => {
@@ -1462,16 +1468,19 @@ const VendorAgreements = () => {
                       </div>
                       
                       <div className="form-group">
-                        <label htmlFor="vendor_type">Vendor Type <span className="required-field">*</span></label>
+                        <label htmlFor="vendor_type">Vendor Type</label>
                         <input
                           type="text"
                           id="vendor_type"
                           name="vendor_type"
                           value={formData.vendor_type}
-                          onChange={handleInputChange}
-                          placeholder="e.g., Data Provider, Service Provider"
-                          required
+                          readOnly
+                          placeholder="Auto from vendor"
+                          style={{ backgroundColor: '#f9fafb', cursor: 'not-allowed' }}
                         />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Automatically assigned when vendor is selected
+                        </small>
                       </div>
                     </div>
                     

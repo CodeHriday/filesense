@@ -21,6 +21,7 @@ const VendorManagement = () => {
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [formData, setFormData] = useState({
     vendor_name: '',
+    vendor_type: '',
     description: '',
     contact_name: '',
     contact_email: '',
@@ -101,6 +102,7 @@ const VendorManagement = () => {
   const openCreateModal = () => {
     setFormData({
       vendor_name: '',
+      vendor_type: '',
       description: '',
       contact_name: '',
       contact_email: '',
@@ -135,6 +137,7 @@ const VendorManagement = () => {
     
     setFormData({
       vendor_name: vendor.vendor_name || '',
+      vendor_type: vendor.vendor_type || '',
       description: vendor.description || '',
       contact_name: vendor.contact_name || '',
       contact_email: vendor.contact_email || '',
@@ -253,6 +256,11 @@ const VendorManagement = () => {
       return;
     }
     
+    if (!formData.vendor_type) {
+      setModalError('Vendor type is required');
+      return;
+    }
+    
     if (!formData.contact_name.trim()) {
       setModalError('Contact name is required');
       return;
@@ -272,6 +280,7 @@ const VendorManagement = () => {
       // Prepare vendor data (exclude project_name as it's display-only)
       const vendorData = {
         vendor_name: formData.vendor_name,
+        vendor_type: formData.vendor_type,
         description: formData.description,
         contact_name: formData.contact_name,
         contact_email: formData.contact_email,
@@ -560,6 +569,27 @@ const VendorManagement = () => {
                 onChange={handleInputChange}
                 required
               />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="vendor_type">
+                Vendor Type <span className="required-field">*</span>
+              </label>
+              <select
+                id="vendor_type"
+                name="vendor_type"
+                value={formData.vendor_type}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select vendor type</option>
+                <option value="Data Provider">Data Provider</option>
+                <option value="Service Provider">Service Provider</option>
+                <option value="Technology Partner">Technology Partner</option>
+                <option value="Consultant">Consultant</option>
+                <option value="Supplier">Supplier</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
             
             <div className="form-group">
