@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import SimpleSuccessModal from '../components/SimpleSuccessModal';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
@@ -820,33 +821,18 @@ export const FileCatalog = ({ onFileSelect }) => {
         isDeleting={fileToDelete ? (deletingFileId === fileToDelete.file_id) : bulkDeleteMutation.isPending}
       />
       
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="notification-modal-overlay" onClick={() => setShowSuccessModal(false)}>
-          <div className="notification-modal success" onClick={(e) => e.stopPropagation()}>
-            <div className="notification-header">
-              <h3>Success</h3>
-              <button className="close-button" onClick={() => setShowSuccessModal(false)}>×</button>
-            </div>
-            <p>{successMessage}</p>
-            <button className="notification-button" onClick={() => setShowSuccessModal(false)}>OK</button>
-          </div>
-        </div>
-      )}
+      <SimpleSuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        message={successMessage}
+      />
       
-      {/* Error Modal */}
-      {showErrorModal && (
-        <div className="notification-modal-overlay" onClick={() => setShowErrorModal(false)}>
-          <div className="notification-modal error" onClick={(e) => e.stopPropagation()}>
-            <div className="notification-header">
-              <h3>Error</h3>
-              <button className="close-button" onClick={() => setShowErrorModal(false)}>×</button>
-            </div>
-            <p>{errorMessage}</p>
-            <button className="notification-button" onClick={() => setShowErrorModal(false)}>OK</button>
-          </div>
-        </div>
-      )}
+      <SimpleSuccessModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Error"
+        message={errorMessage}
+      />
     </div>
   );
 };
