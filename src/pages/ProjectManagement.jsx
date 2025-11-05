@@ -125,8 +125,7 @@ function ProjectManagement() {
       await axios.post(`${API_BASE_URL}/projects`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setShowCreateModal(false);
-      setFormData({ name: '', description: '', parent_id: null, project_type: 'internal', member_ids: [], group_ids: [] });
+      handleCloseCreateModal();
       fetchProjects();
     } catch (err) {
       setError('Failed to create project');
@@ -138,15 +137,12 @@ function ProjectManagement() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_BASE_URL}/projects/${selectedProject.id}`, formData, {
+      const projectId = selectedProject.id;
+      await axios.put(`${API_BASE_URL}/projects/${projectId}`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setShowEditModal(false);
-      setFormData({ name: '', description: '', parent_id: null, project_type: 'internal' });
+      handleCloseEditModal();
       fetchProjects();
-      if (selectedProject) {
-        fetchProjectDetails(selectedProject.id);
-      }
     } catch (err) {
       setError('Failed to update project');
       console.error(err);
@@ -246,6 +242,33 @@ function ProjectManagement() {
       project_type: project.project_type || 'internal'
     });
     setShowEditModal(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setFormData({ 
+      name: '', 
+      description: '', 
+      parent_id: null, 
+      project_type: 'internal', 
+      member_ids: [], 
+      group_ids: [] 
+    });
+    setShowCreateModal(false);
+  };
+
+  const handleCloseEditModal = () => {
+    setFormData({ 
+      name: '', 
+      description: '', 
+      parent_id: null, 
+      project_type: 'internal', 
+      member_ids: [], 
+      group_ids: [] 
+    });
+    setMemberFormData({ user_id: '' });
+    setGroupFormData({ group_id: '' });
+    setSelectedProject(null);
+    setShowEditModal(false);
   };
 
   const openDeleteProjectConfirm = (project) => {
@@ -471,7 +494,7 @@ function ProjectManagement() {
           <div className="modal">
             <div className="modal-header">
               <h2>Create New Project</h2>
-              <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
+              <button className="close-btn" onClick={handleCloseCreateModal}>×</button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleCreate}>
@@ -548,7 +571,7 @@ function ProjectManagement() {
               </form>
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>
+              <button type="button" className="btn-secondary" onClick={handleCloseCreateModal}>
                 Cancel
               </button>
               <button type="submit" className="btn-primary" onClick={handleCreate}>Create Project</button>
@@ -562,7 +585,7 @@ function ProjectManagement() {
           <div className="modal modal-large">
             <div className="modal-header">
               <h2>Edit Project - {selectedProject.name}</h2>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
+              <button className="close-btn" onClick={handleCloseEditModal}>×</button>
             </div>
             <div className="modal-body">
               <div className="modal-content-sections">
@@ -750,7 +773,7 @@ function ProjectManagement() {
               </div>
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+              <button type="button" className="btn-secondary" onClick={handleCloseEditModal}>
                 Close
               </button>
             </div>
