@@ -307,19 +307,47 @@ async function checkProjectMembership(userId, projectId) {
 
 /**
  * Helper to get all projects accessible by a user
+ * Includes both parent projects and sub-projects (RBAC cascades from parent)
  */
 async function getUserProjects(userId) {
   try {
     const result = await db.query(`
-      SELECT DISTINCT
-        p.id,
-        p.name,
-        p.description
-      FROM projects p
-      JOIN project_members pm ON p.id = pm.project_id
-      WHERE pm.user_id = $1
-        AND p.is_active = TRUE
-      ORDER BY p.name
+      WITH user_parent_projects AS (
+        -- Get parent projects user has direct access to
+        SELECT DISTINCT
+          p.id,
+          p.name,
+          p.description,
+          p.parent_id,
+          p.owner_id,
+          p.is_active,
+          p.created_at
+        FROM projects p
+        JOIN project_members pm ON p.id = pm.project_id
+        WHERE pm.user_id = $1
+          AND p.is_active = TRUE
+      ),
+      user_sub_projects AS (
+        -- Get sub-projects where user has access to parent
+        SELECT DISTINCT
+          sp.id,
+          sp.name,
+          sp.description,
+          sp.parent_id,
+          sp.owner_id,
+          sp.is_active,
+          sp.created_at
+        FROM projects sp
+        WHERE sp.parent_id IN (SELECT id FROM user_parent_projects)
+          AND sp.is_active = TRUE
+      )
+      -- Union parent projects and sub-projects
+      SELECT id, name, description, parent_id, owner_id, is_active, created_at
+      FROM user_parent_projects
+      UNION
+      SELECT id, name, description, parent_id, owner_id, is_active, created_at
+      FROM user_sub_projects
+      ORDER BY name
     `, [userId]);
 
     return result.rows;
