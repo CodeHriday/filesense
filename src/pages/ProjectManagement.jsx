@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FiEdit2, FiTrash2, FiFolderPlus } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
+import SubProjectManagement from '../components/SubProjectManagement';
 import './ProjectManagement.css';
 
 const API_BASE_URL = '/api';
@@ -736,6 +737,15 @@ function ProjectManagement() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+
+              <div className="subprojects-section">
+                <SubProjectManagement 
+                  projectId={selectedProject.id} 
+                  projectName={selectedProject.name} 
+                />
               </div>
               </div>
             </div>
