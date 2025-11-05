@@ -3009,6 +3009,15 @@ try {
   console.error('✗ Failed to register /api/groups:', error.message);
 }
 
+// Retention & Archival routes (requires authentication)
+try {
+  const retentionRoutes = require('./backend/routes/retentionRoutes');
+  app.use('/api/retention-policies', retentionRoutes(dbPool, logger, diContainer.get('auditService')));
+  console.log('✓ Registered /api/retention-policies route');
+} catch (error) {
+  console.error('✗ Failed to register /api/retention-policies:', error.message);
+}
+
 // Admin authorization middleware for sensitive routes
 const requireAdmin = (req, res, next) => {
   if (!req.user || !req.user.roles || !req.user.roles.includes('Admin')) {
