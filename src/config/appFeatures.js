@@ -13,6 +13,7 @@ import {
   FiPlay,
   FiMonitor,
   FiAlertTriangle,
+  FiXCircle,
   FiTrendingUp,
   FiShield,
   FiTag,
@@ -377,6 +378,14 @@ export const APP_FEATURES = [
     category: 'Insights',
     icon: FiAlertTriangle,
     route: '/quality-rules',
+    showInSidebar: true
+  },
+  { 
+    id: 'error_review', 
+    name: 'Error Review', 
+    category: 'Insights',
+    icon: FiXCircle,
+    route: '/error-review',
     showInSidebar: true
   },
   { 

@@ -18,6 +18,7 @@ import DataProfile from './pages/DataProfile';
 import QualityChecks from './pages/QualityChecks';
 import QualityReport from './pages/QualityReport';
 import QualityRules from './pages/QualityRules';
+import ErrorReview from './pages/ErrorReview';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
 import MappingWizard from './pages/MappingWizard';
@@ -245,6 +246,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 </ProtectedRoute>} />
                 <Route path="/quality-rules" element={<ProtectedRoute><QualityRules /></ProtectedRoute>} />
                 <Route path="/alerts" element={<Navigate to="/quality-rules" replace />} />
+                <Route path="/error-review" element={<ProtectedRoute><ErrorReview /></ProtectedRoute>} />
                 <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
                 <Route path="/mappings" element={<ProtectedRoute><Mappings /></ProtectedRoute>} />
                 <Route path="/mappings/create" element={<ProtectedRoute><MappingWizard /></ProtectedRoute>} />

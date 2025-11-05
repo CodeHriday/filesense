@@ -2944,6 +2944,15 @@ try {
   console.error('✗ Failed to register /api/quality-rules:', error.message);
 }
 
+// Error Review routes
+try {
+  const errorReviewRoutes = require('./backend/routes/errorReview');
+  app.use('/api/error-review', authenticateToken, errorReviewRoutes);
+  console.log('✓ Registered /api/error-review route');
+} catch (error) {
+  console.error('✗ Failed to register /api/error-review:', error.message);
+}
+
 // Visual Workflows routes (new graph-based workflow orchestration)
 try {
   const visualWorkflowsRoutes = require('./backend/routes/visualWorkflows');
