@@ -7,7 +7,7 @@ const createAuditMiddleware = require('../middleware/auditMiddleware');
 // Helper middleware for common permission checks
 const requirePermission = (permission) => authorize(permission);
 
-module.exports = (dbPool, logger, auditService) => {
+module.exports = (dbPool, logger, auditService, retentionWorker) => {
   
   // ============================================================================
   // GET /api/retention-policies - List all retention policies
@@ -380,31 +380,29 @@ module.exports = (dbPool, logger, auditService) => {
           });
         }
         
-        // Create execution record
-        const runResult = await dbPool.query(`
-          INSERT INTO retention_policy_runs (
-            policy_id, triggered_by, executed_by
-          ) VALUES ($1, 'manual', $2)
-          RETURNING id
-        `, [id, req.user.id]);
-        
-        const runId = runResult.rows[0].id;
-        
         logger.info('Manual retention policy execution started', {
           policy_id: id,
-          run_id: runId,
+          policy_name: policy.name,
           executed_by: req.user.username
         });
         
-        // Return immediately - actual execution happens in background
-        res.json({
-          success: true,
-          message: 'Retention policy execution started',
-          run_id: runId
+        // Execute retention policy using the worker
+        const result = await retentionWorker.executeManually(parseInt(id));
+        
+        logger.info('Retention policy execution completed', {
+          policy_id: id,
+          policy_name: policy.name,
+          result
         });
         
-        // TODO: Queue background job for actual execution
-        // This will be implemented with the archival service
+        res.json({
+          success: true,
+          message: 'Retention policy executed successfully',
+          filesEvaluated: result.filesEvaluated,
+          filesMarkedForArchival: result.filesMarkedForArchival,
+          bytesArchived: result.bytesArchived,
+          duration_ms: result.duration_ms
+        });
         
       } catch (error) {
         logger.error('Error executing retention policy', { error: error.message, stack: error.stack });

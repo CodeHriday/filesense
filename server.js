@@ -23,6 +23,7 @@ const { getQueue } = require('./backend/queue/queueFactory');
 const FileProcessingWorker = require('./backend/workers/fileProcessingWorker');
 const SchedulerWorker = require('./backend/workers/schedulerWorker');
 const InsightsAggregationWorker = require('./backend/workers/insightsAggregationWorker');
+const RetentionPolicyWorker = require('./backend/workers/retentionPolicyWorker');
 
 // Initialize queue and workers
 const queue = getQueue();
@@ -47,6 +48,14 @@ const insightsWorker = new InsightsAggregationWorker(
   '02:00' // Run at 2 AM
 );
 insightsWorker.start();
+
+// Initialize retention policy worker (runs daily at 1 AM)
+const retentionWorker = new RetentionPolicyWorker(
+  diContainer.get('dbPool'),
+  diContainer.get('logger'),
+  '01:00' // Run at 1 AM
+);
+retentionWorker.start();
 
 // Import validation middleware and schemas
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
@@ -3012,7 +3021,7 @@ try {
 // Retention & Archival routes (requires authentication)
 try {
   const retentionRoutes = require('./backend/routes/retentionRoutes');
-  app.use('/api/retention-policies', retentionRoutes(dbPool, logger, diContainer.get('auditService')));
+  app.use('/api/retention-policies', retentionRoutes(dbPool, logger, diContainer.get('auditService'), retentionWorker));
   console.log('✓ Registered /api/retention-policies route');
 } catch (error) {
   console.error('✗ Failed to register /api/retention-policies:', error.message);
@@ -8462,6 +8471,11 @@ const gracefulShutdown = async (signal) => {
     // Stop insights aggregation worker
     if (insightsWorker) {
       insightsWorker.stop();
+    }
+    
+    // Stop retention policy worker
+    if (retentionWorker) {
+      retentionWorker.stop();
     }
     
     // Stop file processing worker
