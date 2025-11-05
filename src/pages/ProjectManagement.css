@@ -160,10 +160,10 @@
   align-items: center;
   padding: 0.5rem 1.5rem;
   background: #6D8196;
-  height: 40px;
+  height: 50px;
   flex-shrink: 0;
-  min-height: 40px;
-  max-height: 40px;
+  min-height: 50px;
+  max-height: 50px;
 }
 
 .modal-header h2 {
@@ -236,10 +236,10 @@
   gap: 1rem;
   padding: 0.5rem 1.5rem;
   border-top: 1px solid var(--border-color);
-  height: 45px;
+  height: 50px;
   flex-shrink: 0;
-  min-height: 45px;
-  max-height: 45px;
+  min-height: 50px;
+  max-height: 50px;
   background: #ffffff;
 }
 
