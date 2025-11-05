@@ -54,7 +54,7 @@ module.exports = (dbPool, authenticate) => {
       let paramIndex = 1;
 
       if (project_id) {
-        query += ` AND (qr.project_id = $${paramIndex} OR qr.project_id IS NULL)`;
+        query += ` AND (qr.project_id = $${paramIndex} OR qr.sub_project_id = $${paramIndex} OR qr.project_id IS NULL)`;
         params.push(project_id);
         paramIndex++;
       }
@@ -82,7 +82,7 @@ module.exports = (dbPool, authenticate) => {
       let countParamIndex = 1;
 
       if (project_id) {
-        countQuery += ` AND (project_id = $${countParamIndex} OR project_id IS NULL)`;
+        countQuery += ` AND (project_id = $${countParamIndex} OR sub_project_id = $${countParamIndex} OR project_id IS NULL)`;
         countParams.push(project_id);
         countParamIndex++;
       }
@@ -189,7 +189,8 @@ module.exports = (dbPool, authenticate) => {
         column_name,
         rule_config,
         severity = 'warning',
-        project_id
+        project_id,
+        sub_project_id
       } = req.body;
 
       // Validate required fields
@@ -220,10 +221,10 @@ module.exports = (dbPool, authenticate) => {
 
       const result = await dbPool.query(
         `INSERT INTO quality_rules 
-        (rule_name, rule_type, description, column_name, rule_config, severity, project_id, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (rule_name, rule_type, description, column_name, rule_config, severity, project_id, sub_project_id, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *`,
-        [rule_name, rule_type, description, column_name, JSON.stringify(rule_config), severity, project_id, req.user.id]
+        [rule_name, rule_type, description, column_name, JSON.stringify(rule_config), severity, project_id, sub_project_id, req.user.id]
       );
 
       // Invalidate cache
@@ -264,7 +265,9 @@ module.exports = (dbPool, authenticate) => {
         column_name,
         rule_config,
         severity,
-        enabled
+        enabled,
+        project_id,
+        sub_project_id
       } = req.body;
 
       // Check if rule exists
@@ -342,6 +345,18 @@ module.exports = (dbPool, authenticate) => {
       if (enabled !== undefined) {
         updates.push(`enabled = $${paramIndex}`);
         params.push(enabled);
+        paramIndex++;
+      }
+
+      if (project_id !== undefined) {
+        updates.push(`project_id = $${paramIndex}`);
+        params.push(project_id);
+        paramIndex++;
+      }
+
+      if (sub_project_id !== undefined) {
+        updates.push(`sub_project_id = $${paramIndex}`);
+        params.push(sub_project_id);
         paramIndex++;
       }
 
