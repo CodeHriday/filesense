@@ -1344,6 +1344,20 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
     let subProjectId = req.body.sub_project_id ? parseInt(req.body.sub_project_id) : null;
     
+    // Get quality_rule_ids if provided
+    let qualityRuleIds = [];
+    if (req.body.quality_rule_ids) {
+      try {
+        qualityRuleIds = JSON.parse(req.body.quality_rule_ids);
+        if (!Array.isArray(qualityRuleIds)) {
+          qualityRuleIds = [];
+        }
+      } catch (e) {
+        logger.warn('Invalid quality_rule_ids format', { quality_rule_ids: req.body.quality_rule_ids });
+        qualityRuleIds = [];
+      }
+    }
+    
     // Get replaceFileId if provided (for atomic file replacement)
     const replaceFileId = req.body.replace_file_id || null;
     
@@ -1458,7 +1472,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           userId,
           fileHash,
           projectId,
-          subProjectId
+          subProjectId,
+          qualityRuleIds
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
@@ -1700,6 +1715,20 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
     const isAdmin = req.user?.roles?.includes('Admin');
     let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
+    
+    // Get quality_rule_ids if provided
+    let qualityRuleIds = [];
+    if (req.body.quality_rule_ids) {
+      try {
+        qualityRuleIds = JSON.parse(req.body.quality_rule_ids);
+        if (!Array.isArray(qualityRuleIds)) {
+          qualityRuleIds = [];
+        }
+      } catch (e) {
+        logger.warn('Invalid quality_rule_ids format in drop', { quality_rule_ids: req.body.quality_rule_ids });
+        qualityRuleIds = [];
+      }
+    }
     
     // If no project_id provided, default to user's first accessible project (admins can skip)
     if (!projectId) {
@@ -2904,6 +2933,15 @@ try {
   console.log('✓ Registered /api/insights route');
 } catch (error) {
   console.error('✗ Failed to register /api/insights:', error.message);
+}
+
+// Quality Rules routes
+try {
+  const qualityRulesRoutes = require('./backend/routes/qualityRules');
+  app.use('/api/quality-rules', qualityRulesRoutes(dbPool, authenticateToken));
+  console.log('✓ Registered /api/quality-rules route');
+} catch (error) {
+  console.error('✗ Failed to register /api/quality-rules:', error.message);
 }
 
 // Visual Workflows routes (new graph-based workflow orchestration)

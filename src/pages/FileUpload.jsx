@@ -7,6 +7,7 @@ import DuplicateFileModal from '../components/DuplicateFileModal';
 import StepProgress from '../components/StepProgress';
 import BulkProfilingTab from '../components/BulkProfilingTab';
 import { uploadFile, uploadFilesBatch, testApiConnection, checkDuplicateFile, deleteFile } from '../api/fileService';
+import { getQualityRules } from '../api/qualityRulesService';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import { API_BASE_URL } from '../config';
@@ -60,6 +61,11 @@ function FileUpload() {
   const [selectedFolder, setSelectedFolder] = useState('');
   const [browsePrefix, setBrowsePrefix] = useState('');
   const [showFolderBrowser, setShowFolderBrowser] = useState(false);
+  
+  // Quality rules states
+  const [availableQualityRules, setAvailableQualityRules] = useState([]);
+  const [selectedQualityRules, setSelectedQualityRules] = useState([]);
+  const [loadingQualityRules, setLoadingQualityRules] = useState(false);
   
   // Set initial tab based on route or user type
   useEffect(() => {
@@ -168,6 +174,29 @@ function FileUpload() {
     
     fetchSubProjects();
   }, [selectedProject, searchParams]);
+  
+  // Fetch quality rules when project is selected
+  useEffect(() => {
+    const fetchQualityRules = async () => {
+      if (!selectedProject) {
+        setAvailableQualityRules([]);
+        return;
+      }
+      
+      try {
+        setLoadingQualityRules(true);
+        const response = await getQualityRules({ project_id: selectedProject, enabled: true });
+        setAvailableQualityRules(response.rules || []);
+      } catch (error) {
+        console.error('Error fetching quality rules:', error);
+        setAvailableQualityRules([]);
+      } finally {
+        setLoadingQualityRules(false);
+      }
+    };
+    
+    fetchQualityRules();
+  }, [selectedProject]);
   
   // Cleanup polling on unmount
   useEffect(() => {
@@ -495,7 +524,7 @@ function FileUpload() {
           };
           
           // Upload individual file
-          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, null, selectedSubProject);
+          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, null, selectedSubProject, selectedQualityRules);
           
           // Extract fileId from result
           let fileId;
@@ -609,7 +638,7 @@ function FileUpload() {
       }
       
       // Upload the file with progress tracking (optionally with atomic replacement)
-      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId, selectedSubProject);
+      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId, selectedSubProject, selectedQualityRules);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -812,6 +841,11 @@ function FileUpload() {
       
       const formData = new FormData();
       formData.append('file', timestampedFile);
+      
+      // Add quality rule IDs if selected
+      if (selectedQualityRules && selectedQualityRules.length > 0) {
+        formData.append('quality_rule_ids', JSON.stringify(selectedQualityRules));
+      }
       
       const token = localStorage.getItem('token');
       
@@ -1088,6 +1122,54 @@ function FileUpload() {
                 </button>
               </div>
             </div>
+
+            {/* Quality Rules Selection */}
+            {selectedProject && (
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="quality-rules-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  Quality Rules (Optional):
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  Select quality rules to validate this data. Rules will run during processing.
+                </p>
+                <select 
+                  id="quality-rules-select"
+                  multiple
+                  value={selectedQualityRules.map(String)}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                    setSelectedQualityRules(selected);
+                  }}
+                  disabled={loadingQualityRules}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    minHeight: '100px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {loadingQualityRules ? (
+                    <option disabled>Loading quality rules...</option>
+                  ) : availableQualityRules.length === 0 ? (
+                    <option disabled>No quality rules available for this project</option>
+                  ) : (
+                    availableQualityRules.map(rule => (
+                      <option key={rule.id} value={rule.id}>
+                        {rule.rule_name} - {rule.rule_type} ({rule.severity})
+                      </option>
+                    ))
+                  )}
+                </select>
+                <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                  {selectedQualityRules.length > 0 
+                    ? `${selectedQualityRules.length} rule(s) selected` 
+                    : 'No rules selected (hold Ctrl/Cmd to select multiple)'}
+                </div>
+              </div>
+            )}
+
             {!selectedProject && (
               <div style={{ marginTop: '0.75rem', color: '#e74c3c', fontSize: '0.875rem' }}>
                 Please select a project to upload files
@@ -1364,6 +1446,53 @@ function FileUpload() {
                           )}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Quality Rules Selection */}
+                  {selectedVendorProject && (
+                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                      <label htmlFor="quality-rules-select-drop" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                        Quality Rules (Optional):
+                      </label>
+                      <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                        Select quality rules to validate this data. Rules will run during processing.
+                      </p>
+                      <select 
+                        id="quality-rules-select-drop"
+                        multiple
+                        value={selectedQualityRules.map(String)}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                          setSelectedQualityRules(selected);
+                        }}
+                        disabled={loadingQualityRules}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                          minHeight: '100px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {loadingQualityRules ? (
+                          <option disabled>Loading quality rules...</option>
+                        ) : availableQualityRules.length === 0 ? (
+                          <option disabled>No quality rules available for this project</option>
+                        ) : (
+                          availableQualityRules.map(rule => (
+                            <option key={rule.id} value={rule.id}>
+                              {rule.rule_name} - {rule.rule_type} ({rule.severity})
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                        {selectedQualityRules.length > 0 
+                          ? `${selectedQualityRules.length} rule(s) selected` 
+                          : 'No rules selected (hold Ctrl/Cmd to select multiple)'}
+                      </div>
                     </div>
                   )}
                 </div>

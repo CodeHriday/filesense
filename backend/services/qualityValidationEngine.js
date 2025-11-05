@@ -1,0 +1,651 @@
+const { systemLogger } = require('../utils/logger');
+const pool = require('../db');
+
+/**
+ * Quality Validation Engine
+ * Executes data quality rules against files and ETL job data
+ * Supports 5 rule types: completeness, validity, consistency, uniqueness, freshness
+ */
+
+class QualityValidationEngine {
+  constructor(dbPool = pool) {
+    this.pool = dbPool;
+  }
+
+  /**
+   * Validate data against a set of quality rules
+   * @param {Array} rules - Array of quality rule objects
+   * @param {Array} data - Array of data rows to validate
+   * @param {Object} metadata - File/job metadata (file_id or job_id, file_name, upload_date, etc.)
+   * @returns {Promise<{violations: Array, errors: Array, summary: Object}>}
+   */
+  async validateData(rules, data, metadata) {
+    try {
+      const violations = [];
+      const errors = [];
+      const summary = {
+        total_rows: data.length,
+        rules_applied: rules.length,
+        violations_found: 0,
+        critical_count: 0,
+        error_count: 0,
+        warning_count: 0
+      };
+
+      if (!data || data.length === 0) {
+        systemLogger.warn('No data provided for validation', metadata);
+        return { violations, errors, summary };
+      }
+
+      // Filter enabled rules
+      const enabledRules = rules.filter(rule => rule.enabled !== false);
+
+      if (enabledRules.length === 0) {
+        systemLogger.info('No enabled quality rules to apply', metadata);
+        return { violations, errors, summary };
+      }
+
+      // Execute each rule
+      for (const rule of enabledRules) {
+        try {
+          const ruleViolations = await this.executeRule(rule, data, metadata);
+          violations.push(...ruleViolations);
+          
+          // Update summary counts
+          ruleViolations.forEach(violation => {
+            summary.violations_found++;
+            if (violation.severity === 'critical') summary.critical_count++;
+            else if (violation.severity === 'error') summary.error_count++;
+            else if (violation.severity === 'warning') summary.warning_count++;
+          });
+        } catch (error) {
+          systemLogger.error('Error executing quality rule', { 
+            rule_id: rule.id, 
+            rule_name: rule.rule_name,
+            error: error.message 
+          });
+          errors.push({
+            rule_id: rule.id,
+            rule_name: rule.rule_name,
+            error_message: error.message
+          });
+        }
+      }
+
+      return { violations, errors, summary };
+    } catch (error) {
+      systemLogger.error('Quality validation engine error', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a single quality rule
+   * @param {Object} rule - Quality rule definition
+   * @param {Array} data - Data rows to validate
+   * @param {Object} metadata - File/job metadata
+   * @returns {Promise<Array>} - Array of violations
+   */
+  async executeRule(rule, data, metadata) {
+    const ruleType = rule.rule_type.toLowerCase();
+    
+    switch (ruleType) {
+      case 'completeness':
+        return this.validateCompleteness(rule, data, metadata);
+      case 'validity':
+        return this.validateValidity(rule, data, metadata);
+      case 'consistency':
+        return this.validateConsistency(rule, data, metadata);
+      case 'uniqueness':
+        return this.validateUniqueness(rule, data, metadata);
+      case 'freshness':
+        return this.validateFreshness(rule, data, metadata);
+      default:
+        throw new Error(`Unsupported rule type: ${ruleType}`);
+    }
+  }
+
+  /**
+   * Validate completeness - check for null/empty values
+   * rule_config: { threshold: 0.95 (95% completeness required), columns: ['col1', 'col2'] or null for all }
+   */
+  async validateCompleteness(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config;
+    const threshold = config.threshold || 1.0; // Default: 100% completeness
+    const columnsToCheck = config.columns || null; // null = check specific column from rule
+    
+    // If rule specifies a column, check only that column
+    if (rule.column_name) {
+      const columnStats = this.calculateCompleteness(data, rule.column_name);
+      
+      if (columnStats.completeness < threshold) {
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          column_name: rule.column_name,
+          expected_value: `${(threshold * 100).toFixed(1)}% completeness`,
+          actual_value: `${(columnStats.completeness * 100).toFixed(1)}% completeness (${columnStats.null_count} nulls out of ${columnStats.total_rows})`,
+          violation_details: {
+            rule_type: 'completeness',
+            threshold_required: threshold,
+            actual_completeness: columnStats.completeness,
+            null_count: columnStats.null_count,
+            empty_count: columnStats.empty_count
+          },
+          severity: rule.severity
+        });
+      }
+    } else if (columnsToCheck && Array.isArray(columnsToCheck)) {
+      // Check multiple columns
+      for (const column of columnsToCheck) {
+        const columnStats = this.calculateCompleteness(data, column);
+        
+        if (columnStats.completeness < threshold) {
+          violations.push({
+            rule_id: rule.id,
+            file_id: metadata.file_id || null,
+            job_id: metadata.job_id || null,
+            column_name: column,
+            expected_value: `${(threshold * 100).toFixed(1)}% completeness`,
+            actual_value: `${(columnStats.completeness * 100).toFixed(1)}% completeness`,
+            violation_details: {
+              rule_type: 'completeness',
+              threshold_required: threshold,
+              actual_completeness: columnStats.completeness,
+              null_count: columnStats.null_count,
+              empty_count: columnStats.empty_count
+            },
+            severity: rule.severity
+          });
+        }
+      }
+    }
+    
+    return violations;
+  }
+
+  /**
+   * Calculate completeness statistics for a column
+   */
+  calculateCompleteness(data, columnName) {
+    let null_count = 0;
+    let empty_count = 0;
+    
+    data.forEach(row => {
+      const value = row[columnName];
+      if (value === null || value === undefined) {
+        null_count++;
+      } else if (typeof value === 'string' && value.trim() === '') {
+        empty_count++;
+      }
+    });
+    
+    const total_rows = data.length;
+    const missing = null_count + empty_count;
+    const completeness = total_rows > 0 ? (total_rows - missing) / total_rows : 0;
+    
+    return { completeness, null_count, empty_count, total_rows };
+  }
+
+  /**
+   * Validate validity - check values against patterns, ranges, enums
+   * rule_config: { 
+   *   type: 'pattern|range|enum|datatype',
+   *   pattern: 'regex',
+   *   min: number,
+   *   max: number,
+   *   allowed_values: [],
+   *   datatype: 'string|number|date|email|phone'
+   * }
+   */
+  async validateValidity(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config;
+    const validationType = config.type;
+    
+    if (!rule.column_name) {
+      systemLogger.warn('Validity rule requires column_name', { rule_id: rule.id });
+      return violations;
+    }
+    
+    data.forEach((row, rowIndex) => {
+      const value = row[rule.column_name];
+      
+      // Skip null/empty values unless explicitly checking for them
+      if (value === null || value === undefined || value === '') {
+        return;
+      }
+      
+      let isValid = true;
+      let violationMessage = '';
+      
+      switch (validationType) {
+        case 'pattern':
+          if (config.pattern) {
+            const regex = new RegExp(config.pattern);
+            isValid = regex.test(String(value));
+            violationMessage = `Value does not match pattern: ${config.pattern}`;
+          }
+          break;
+          
+        case 'range':
+          const numValue = Number(value);
+          if (!isNaN(numValue)) {
+            if (config.min !== undefined && numValue < config.min) {
+              isValid = false;
+              violationMessage = `Value ${numValue} is less than minimum ${config.min}`;
+            }
+            if (config.max !== undefined && numValue > config.max) {
+              isValid = false;
+              violationMessage = `Value ${numValue} exceeds maximum ${config.max}`;
+            }
+          }
+          break;
+          
+        case 'enum':
+          if (config.allowed_values && Array.isArray(config.allowed_values)) {
+            isValid = config.allowed_values.includes(value);
+            violationMessage = `Value "${value}" not in allowed list: ${config.allowed_values.join(', ')}`;
+          }
+          break;
+          
+        case 'datatype':
+          const datatypeCheck = this.validateDatatype(value, config.datatype);
+          isValid = datatypeCheck.valid;
+          violationMessage = datatypeCheck.message;
+          break;
+      }
+      
+      if (!isValid) {
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: rule.column_name,
+          expected_value: violationMessage.split(':')[0],
+          actual_value: String(value),
+          violation_details: {
+            rule_type: 'validity',
+            validation_type: validationType,
+            reason: violationMessage
+          },
+          severity: rule.severity
+        });
+      }
+    });
+    
+    return violations;
+  }
+
+  /**
+   * Validate datatype
+   */
+  validateDatatype(value, datatype) {
+    switch (datatype) {
+      case 'number':
+        return {
+          valid: !isNaN(Number(value)),
+          message: 'Value must be a valid number'
+        };
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return {
+          valid: emailRegex.test(String(value)),
+          message: 'Value must be a valid email address'
+        };
+      case 'phone':
+        const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+        return {
+          valid: phoneRegex.test(String(value)) && String(value).replace(/\D/g, '').length >= 10,
+          message: 'Value must be a valid phone number'
+        };
+      case 'date':
+        const dateValue = new Date(value);
+        return {
+          valid: !isNaN(dateValue.getTime()),
+          message: 'Value must be a valid date'
+        };
+      case 'string':
+        return {
+          valid: typeof value === 'string',
+          message: 'Value must be a string'
+        };
+      default:
+        return { valid: true, message: '' };
+    }
+  }
+
+  /**
+   * Validate consistency - check for consistent formatting, cross-field relationships
+   * rule_config: { 
+   *   type: 'cross_field|format_consistency',
+   *   expression: 'column1 > column2',
+   *   columns: ['col1', 'col2']
+   * }
+   */
+  async validateConsistency(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config;
+    const consistencyType = config.type;
+    
+    if (consistencyType === 'cross_field' && config.expression) {
+      // Evaluate cross-field expressions like "start_date < end_date"
+      data.forEach((row, rowIndex) => {
+        try {
+          const isConsistent = this.evaluateExpression(config.expression, row);
+          
+          if (!isConsistent) {
+            violations.push({
+              rule_id: rule.id,
+              file_id: metadata.file_id || null,
+              job_id: metadata.job_id || null,
+              row_number: rowIndex + 1,
+              column_name: rule.column_name,
+              expected_value: config.expression,
+              actual_value: JSON.stringify(row),
+              violation_details: {
+                rule_type: 'consistency',
+                consistency_type: consistencyType,
+                expression: config.expression
+              },
+              severity: rule.severity
+            });
+          }
+        } catch (error) {
+          // Skip rows where expression can't be evaluated
+        }
+      });
+    } else if (consistencyType === 'format_consistency') {
+      // Check that all values in a column follow the same format pattern
+      const formatPattern = this.detectFormatPattern(data, rule.column_name);
+      
+      data.forEach((row, rowIndex) => {
+        const value = row[rule.column_name];
+        if (value && !this.matchesFormatPattern(value, formatPattern)) {
+          violations.push({
+            rule_id: rule.id,
+            file_id: metadata.file_id || null,
+            job_id: metadata.job_id || null,
+            row_number: rowIndex + 1,
+            column_name: rule.column_name,
+            expected_value: `Format: ${formatPattern.description}`,
+            actual_value: String(value),
+            violation_details: {
+              rule_type: 'consistency',
+              consistency_type: consistencyType,
+              expected_format: formatPattern.description
+            },
+            severity: rule.severity
+          });
+        }
+      });
+    }
+    
+    return violations;
+  }
+
+  /**
+   * Simple expression evaluator for cross-field validation
+   */
+  evaluateExpression(expression, row) {
+    try {
+      // Basic safety: only allow simple comparison operators
+      const safeExpression = expression.replace(/[^a-zA-Z0-9_\s<>=!&|()]/g, '');
+      
+      // Replace column names with values
+      let evaluableExpression = expression;
+      for (const [key, value] of Object.entries(row)) {
+        const regex = new RegExp(`\\b${key}\\b`, 'g');
+        const safeValue = typeof value === 'string' ? `"${value}"` : value;
+        evaluableExpression = evaluableExpression.replace(regex, safeValue);
+      }
+      
+      // Evaluate using Function (safer than eval)
+      const result = new Function(`return ${evaluableExpression}`)();
+      return Boolean(result);
+    } catch (error) {
+      systemLogger.debug('Expression evaluation failed', { expression, error: error.message });
+      return true; // Don't flag as violation if we can't evaluate
+    }
+  }
+
+  /**
+   * Detect common format pattern in a column
+   */
+  detectFormatPattern(data, columnName) {
+    // Sample first 100 rows to detect pattern
+    const sample = data.slice(0, 100).map(row => row[columnName]).filter(v => v);
+    
+    if (sample.length === 0) {
+      return { description: 'empty', pattern: null };
+    }
+    
+    // Detect if it's a date pattern, phone pattern, etc.
+    const firstValue = String(sample[0]);
+    
+    if (/^\d{4}-\d{2}-\d{2}/.test(firstValue)) {
+      return { description: 'ISO date (YYYY-MM-DD)', pattern: /^\d{4}-\d{2}-\d{2}/ };
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(firstValue)) {
+      return { description: 'US date (MM/DD/YYYY)', pattern: /^\d{2}\/\d{2}\/\d{4}/ };
+    }
+    
+    return { description: 'mixed format', pattern: null };
+  }
+
+  /**
+   * Check if value matches detected format pattern
+   */
+  matchesFormatPattern(value, formatPattern) {
+    if (!formatPattern.pattern) return true;
+    return formatPattern.pattern.test(String(value));
+  }
+
+  /**
+   * Validate uniqueness - check for duplicate values
+   * rule_config: { columns: ['col1'] or ['col1', 'col2'] for composite uniqueness }
+   */
+  async validateUniqueness(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config;
+    const columnsToCheck = config.columns || [rule.column_name];
+    
+    if (!columnsToCheck || columnsToCheck.length === 0) {
+      systemLogger.warn('Uniqueness rule requires columns', { rule_id: rule.id });
+      return violations;
+    }
+    
+    // Track seen values
+    const seen = new Map();
+    
+    data.forEach((row, rowIndex) => {
+      // Create composite key
+      const keyParts = columnsToCheck.map(col => row[col]);
+      const key = JSON.stringify(keyParts);
+      
+      if (seen.has(key)) {
+        const firstOccurrence = seen.get(key);
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          row_number: rowIndex + 1,
+          column_name: columnsToCheck.join(', '),
+          expected_value: 'Unique value',
+          actual_value: key,
+          violation_details: {
+            rule_type: 'uniqueness',
+            duplicate_of_row: firstOccurrence.row,
+            columns_checked: columnsToCheck,
+            duplicate_value: keyParts
+          },
+          severity: rule.severity
+        });
+      } else {
+        seen.set(key, { row: rowIndex + 1, value: keyParts });
+      }
+    });
+    
+    return violations;
+  }
+
+  /**
+   * Validate freshness - check file timestamps, update timestamps
+   * rule_config: { 
+   *   max_age_hours: 24,
+   *   timestamp_column: 'updated_at' (optional - check column values)
+   * }
+   */
+  async validateFreshness(rule, data, metadata) {
+    const violations = [];
+    const config = rule.rule_config;
+    const maxAgeHours = config.max_age_hours || 24;
+    const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+    const now = new Date();
+    
+    // Check file upload timestamp
+    if (metadata.upload_date) {
+      const uploadDate = new Date(metadata.upload_date);
+      const ageMs = now - uploadDate;
+      
+      if (ageMs > maxAgeMs) {
+        violations.push({
+          rule_id: rule.id,
+          file_id: metadata.file_id || null,
+          job_id: metadata.job_id || null,
+          column_name: null,
+          expected_value: `File age < ${maxAgeHours} hours`,
+          actual_value: `File age: ${(ageMs / (60 * 60 * 1000)).toFixed(1)} hours`,
+          violation_details: {
+            rule_type: 'freshness',
+            max_age_hours: maxAgeHours,
+            actual_age_hours: ageMs / (60 * 60 * 1000),
+            upload_date: uploadDate.toISOString()
+          },
+          severity: rule.severity
+        });
+      }
+    }
+    
+    // Check timestamp column if specified
+    if (config.timestamp_column && rule.column_name) {
+      data.forEach((row, rowIndex) => {
+        const timestamp = row[rule.column_name];
+        if (timestamp) {
+          const rowDate = new Date(timestamp);
+          const ageMs = now - rowDate;
+          
+          if (ageMs > maxAgeMs) {
+            violations.push({
+              rule_id: rule.id,
+              file_id: metadata.file_id || null,
+              job_id: metadata.job_id || null,
+              row_number: rowIndex + 1,
+              column_name: rule.column_name,
+              expected_value: `Timestamp < ${maxAgeHours} hours old`,
+              actual_value: `${(ageMs / (60 * 60 * 1000)).toFixed(1)} hours old`,
+              violation_details: {
+                rule_type: 'freshness',
+                max_age_hours: maxAgeHours,
+                actual_age_hours: ageMs / (60 * 60 * 1000),
+                timestamp: rowDate.toISOString()
+              },
+              severity: rule.severity
+            });
+          }
+        }
+      });
+    }
+    
+    return violations;
+  }
+
+  /**
+   * Persist violations to database
+   * @param {Array} violations - Array of violation objects
+   * @returns {Promise<void>}
+   */
+  async persistViolations(violations) {
+    if (violations.length === 0) return;
+    
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      for (const violation of violations) {
+        await client.query(
+          `INSERT INTO quality_rule_violations 
+          (rule_id, file_id, job_id, row_number, column_name, expected_value, actual_value, violation_details, severity)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            violation.rule_id,
+            violation.file_id,
+            violation.job_id,
+            violation.row_number,
+            violation.column_name,
+            violation.expected_value,
+            violation.actual_value,
+            JSON.stringify(violation.violation_details),
+            violation.severity
+          ]
+        );
+      }
+      
+      await client.query('COMMIT');
+      systemLogger.info('Quality rule violations persisted', { count: violations.length });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Failed to persist violations', { error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Persist errors to appropriate error table
+   * @param {Array} errors - Array of error objects
+   * @param {string} context - 'file' or 'mapping_job'
+   * @param {string} entityId - file_id or job_id
+   * @returns {Promise<void>}
+   */
+  async persistErrors(errors, context, entityId) {
+    if (errors.length === 0) return;
+    
+    const tableName = context === 'file' ? 'file_errors' : 'mapping_job_errors';
+    const idColumn = context === 'file' ? 'file_id' : 'job_id';
+    
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      for (const error of errors) {
+        const query = context === 'file'
+          ? `INSERT INTO file_errors (file_id, error_type, severity, row_number, column_name, error_message, error_details)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`
+          : `INSERT INTO mapping_job_errors (job_id, mapping_id, error_type, severity, row_number, column_name, error_message, error_details)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`;
+        
+        const params = context === 'file'
+          ? [entityId, error.error_type, error.severity, error.row_number, error.column_name, error.error_message, JSON.stringify(error.error_details || {})]
+          : [entityId, error.mapping_id, error.error_type, error.severity, error.row_number, error.column_name, error.error_message, JSON.stringify(error.error_details || {})];
+        
+        await client.query(query, params);
+      }
+      
+      await client.query('COMMIT');
+      systemLogger.info('Errors persisted', { context, count: errors.length });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      systemLogger.error('Failed to persist errors', { error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+}
+
+module.exports = QualityValidationEngine;

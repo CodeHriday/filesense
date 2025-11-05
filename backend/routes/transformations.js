@@ -162,7 +162,17 @@ router.get('/:id',
       return res.status(404).json({ error: 'Transformation mapping not found' });
     }
     
-    res.json(result.rows[0]);
+    const transformation = result.rows[0];
+    
+    // Fetch associated quality rule IDs
+    const qualityRulesResult = await pool.query(
+      'SELECT quality_rule_id FROM transformation_quality_rules WHERE transformation_id = $1',
+      [id]
+    );
+    
+    transformation.quality_rule_ids = qualityRulesResult.rows.map(row => row.quality_rule_id);
+    
+    res.json(transformation);
     
   } catch (error) {
     systemLogger.error('Error getting transformation:', error);
@@ -207,7 +217,8 @@ router.post('/',
       anomaly_rules = null,
       schema_drift_handling = 'none',
       source_schema = null,
-      status = 'draft'
+      status = 'draft',
+      quality_rule_ids = null
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
@@ -388,6 +399,28 @@ router.post('/',
       status, req.user?.id || null, projectId
     ]);
     
+    // Insert quality rule associations if provided
+    if (quality_rule_ids && Array.isArray(quality_rule_ids) && quality_rule_ids.length > 0) {
+      for (const ruleId of quality_rule_ids) {
+        try {
+          await pool.query(
+            'INSERT INTO transformation_quality_rules (transformation_id, quality_rule_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [mappingId, ruleId]
+          );
+        } catch (err) {
+          systemLogger.warn('Failed to insert transformation quality rule association', { 
+            transformation_id: mappingId, 
+            quality_rule_id: ruleId, 
+            error: err.message 
+          });
+        }
+      }
+      systemLogger.info('Transformation quality rule associations created', { 
+        mappingId, 
+        ruleCount: quality_rule_ids.length 
+      });
+    }
+    
     systemLogger.info('Transformation mapping created', { mappingId, mapping_name });
     
     res.status(201).json(result.rows[0]);
@@ -427,7 +460,8 @@ router.put('/:id',
       anomaly_rules,
       schema_drift_handling,
       source_schema,
-      status
+      status,
+      quality_rule_ids
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
@@ -701,6 +735,39 @@ router.put('/:id',
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Transformation mapping not found' });
+    }
+    
+    // Update quality rule associations if provided
+    if (quality_rule_ids !== undefined) {
+      // Delete existing associations
+      await pool.query(
+        'DELETE FROM transformation_quality_rules WHERE transformation_id = $1',
+        [id]
+      );
+      
+      // Insert new associations if any
+      if (Array.isArray(quality_rule_ids) && quality_rule_ids.length > 0) {
+        for (const ruleId of quality_rule_ids) {
+          try {
+            await pool.query(
+              'INSERT INTO transformation_quality_rules (transformation_id, quality_rule_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              [id, ruleId]
+            );
+          } catch (err) {
+            systemLogger.warn('Failed to insert transformation quality rule association', { 
+              transformation_id: id, 
+              quality_rule_id: ruleId, 
+              error: err.message 
+            });
+          }
+        }
+        systemLogger.info('Transformation quality rule associations updated', { 
+          mappingId: id, 
+          ruleCount: quality_rule_ids.length 
+        });
+      } else {
+        systemLogger.info('Transformation quality rule associations cleared', { mappingId: id });
+      }
     }
     
     systemLogger.info('Transformation mapping updated', { mappingId: id });

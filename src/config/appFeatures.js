@@ -372,11 +372,11 @@ export const APP_FEATURES = [
   
   // Insights
   { 
-    id: 'alerts', 
-    name: 'Alerts', 
+    id: 'quality_rules', 
+    name: 'Quality Rules', 
     category: 'Insights',
     icon: FiAlertTriangle,
-    route: '/alerts',
+    route: '/quality-rules',
     showInSidebar: true
   },
   { 

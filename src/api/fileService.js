@@ -171,7 +171,7 @@ export const bulkDeleteFiles = async (fileIds) => {
 /**
  * Upload a file with progress tracking
  */
-export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null) => {
+export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null) => {
   try {
     const formData = new FormData();
     formData.append('files', file);
@@ -186,6 +186,9 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
     }
     if (replaceFileId) {
       formData.append('replace_file_id', replaceFileId);
+    }
+    if (qualityRuleIds && qualityRuleIds.length > 0) {
+      formData.append('quality_rule_ids', JSON.stringify(qualityRuleIds));
     }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {
@@ -209,7 +212,7 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
 /**
  * Upload multiple files in a single batch request with progress tracking
  */
-export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null) => {
+export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null, qualityRuleIds = null) => {
   try {
     const formData = new FormData();
     
@@ -226,6 +229,9 @@ export const uploadFilesBatch = async (files, progressCallback, owner = null, pr
     }
     if (subProjectId) {
       formData.append('sub_project_id', subProjectId);
+    }
+    if (qualityRuleIds && qualityRuleIds.length > 0) {
+      formData.append('quality_rule_ids', JSON.stringify(qualityRuleIds));
     }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {

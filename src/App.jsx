@@ -17,7 +17,7 @@ import { FileCatalog } from './pages/FileCatalog';
 import DataProfile from './pages/DataProfile';
 import QualityChecks from './pages/QualityChecks';
 import QualityReport from './pages/QualityReport';
-import Alerts from './pages/Alerts';
+import QualityRules from './pages/QualityRules';
 import Connections from './pages/Connections';
 import Mappings from './pages/Mappings';
 import MappingWizard from './pages/MappingWizard';
@@ -243,7 +243,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                     );
                   }}
                 </ProtectedRoute>} />
-                <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+                <Route path="/quality-rules" element={<ProtectedRoute><QualityRules /></ProtectedRoute>} />
+                <Route path="/alerts" element={<Navigate to="/quality-rules" replace />} />
                 <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
                 <Route path="/mappings" element={<ProtectedRoute><Mappings /></ProtectedRoute>} />
                 <Route path="/mappings/create" element={<ProtectedRoute><MappingWizard /></ProtectedRoute>} />

@@ -16,6 +16,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { captureFileAudit, captureFileSchema } = require('../services/fileAuditService');
 const { saveSchemaSnapshot } = require('../services/schemaService');
+const QualityValidationEngine = require('../services/qualityValidationEngine');
 
 class FileProcessingWorker {
   constructor(queue, dbPool, logger, auditService = null) {
@@ -69,7 +70,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -170,6 +171,26 @@ class FileProcessingWorker {
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
       await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId);
       
+      // Step 4.1: Save file-quality-rule associations if provided
+      if (qualityRuleIds && Array.isArray(qualityRuleIds) && qualityRuleIds.length > 0) {
+        this.logger.info('Saving file-quality-rule associations', { fileId, ruleCount: qualityRuleIds.length });
+        for (const ruleId of qualityRuleIds) {
+          try {
+            await this.dbPool.query(
+              'INSERT INTO file_quality_rules (file_id, quality_rule_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              [fileId, ruleId]
+            );
+          } catch (err) {
+            this.logger.warn('Failed to insert file quality rule association', { 
+              file_id: fileId, 
+              quality_rule_id: ruleId, 
+              error: err.message 
+            });
+          }
+        }
+        this.logger.info('File-quality-rule associations saved', { fileId, ruleCount: qualityRuleIds.length });
+      }
+      
       // Step 4.5: Create file ownership record with creator and owner from uploader
       await this.createFileOwnership(fileId, userId, originalName);
       
@@ -265,6 +286,88 @@ class FileProcessingWorker {
           error: schemaSnapshotError.message
         });
         // Don't fail the whole processing if schema snapshot fails
+      }
+
+      // Step 7: Run quality validation if quality rules are associated
+      if (qualityRuleIds && qualityRuleIds.length > 0) {
+        try {
+          await this.updateProcessingStep(fileId, 'quality_validation');
+          await this.queue.updateProgress(jobId, 92);
+          
+          this.logger.info('Running quality validation', { 
+            fileId, 
+            ruleCount: qualityRuleIds.length 
+          });
+          
+          // Fetch quality rules from database
+          const rulesResult = await this.dbPool.query(
+            'SELECT * FROM quality_rules WHERE id = ANY($1) AND enabled = true',
+            [qualityRuleIds]
+          );
+          
+          if (rulesResult.rows.length > 0) {
+            // Use preview data for validation (up to 100 rows)
+            const dataToValidate = fileInfo.preview_data || [];
+            
+            if (dataToValidate.length > 0) {
+              // Initialize quality validation engine
+              const validationEngine = new QualityValidationEngine(this.dbPool);
+              
+              // Run validation
+              const validationResult = await validationEngine.validateData(
+                rulesResult.rows,
+                dataToValidate,
+                {
+                  file_id: fileId,
+                  file_name: originalName,
+                  upload_date: new Date()
+                }
+              );
+              
+              this.logger.info('Quality validation completed', {
+                fileId,
+                violations: validationResult.violations.length,
+                errors: validationResult.errors.length,
+                summary: validationResult.summary
+              });
+              
+              // Persist violations to database
+              if (validationResult.violations.length > 0) {
+                await validationEngine.persistViolations(validationResult.violations);
+                this.logger.info('Quality rule violations persisted', {
+                  fileId,
+                  violationCount: validationResult.violations.length
+                });
+              }
+              
+              // Persist errors to database
+              if (validationResult.errors.length > 0) {
+                const errors = validationResult.errors.map(err => ({
+                  error_type: 'data_quality',
+                  severity: 'error',
+                  error_message: err.error_message,
+                  error_details: { rule_id: err.rule_id, rule_name: err.rule_name }
+                }));
+                await validationEngine.persistErrors(errors, 'file', fileId);
+                this.logger.info('Quality validation errors persisted', {
+                  fileId,
+                  errorCount: errors.length
+                });
+              }
+            } else {
+              this.logger.warn('No data available for quality validation', { fileId });
+            }
+          } else {
+            this.logger.info('No enabled quality rules found for validation', { fileId });
+          }
+        } catch (validationError) {
+          this.logger.error('Quality validation failed', {
+            fileId,
+            error: validationError.message,
+            stack: validationError.stack
+          });
+          // Don't fail the whole processing if quality validation fails
+        }
       }
 
       await this.queue.updateProgress(jobId, 100);

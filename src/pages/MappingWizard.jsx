@@ -17,7 +17,8 @@ import {
   FiPlay,
   FiChevronDown,
   FiChevronUp,
-  FiFolder
+  FiFolder,
+  FiShield
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -25,6 +26,7 @@ import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TableBasedMapper from '../components/TableBasedMapper';
 import S3FolderBrowser from '../components/S3FolderBrowser';
+import { getQualityRules } from '../api/qualityRulesService';
 import './MappingWizard.css';
 
 const TRANSFORMATION_FUNCTIONS = {
@@ -115,6 +117,11 @@ function MappingWizard() {
     { metric: 'null_spike', threshold: 15, enabled: true },
     { metric: 'type_mismatch', threshold: 5, enabled: true }
   ]);
+  
+  // Quality Rules
+  const [qualityRules, setQualityRules] = useState([]);
+  const [selectedQualityRules, setSelectedQualityRules] = useState([]);
+  const [loadingQualityRules, setLoadingQualityRules] = useState(false);
 
   // S3 Browse modals
   const [showSourceBrowse, setShowSourceBrowse] = useState(false);
@@ -132,6 +139,15 @@ function MappingWizard() {
       loadMapping();
     }
   }, [mappingId]);
+  
+  // Fetch quality rules when projectId changes
+  useEffect(() => {
+    if (projectId) {
+      fetchQualityRules();
+    } else {
+      setQualityRules([]);
+    }
+  }, [projectId]);
 
   const fetchConnections = async () => {
     try {
@@ -182,6 +198,21 @@ function MappingWizard() {
       setVendorAgreements([]);
     }
   };
+  
+  const fetchQualityRules = async () => {
+    if (!projectId) return;
+    
+    try {
+      setLoadingQualityRules(true);
+      const rules = await getQualityRules(projectId);
+      setQualityRules(rules || []);
+    } catch (err) {
+      console.error('Error fetching quality rules:', err);
+      setQualityRules([]);
+    } finally {
+      setLoadingQualityRules(false);
+    }
+  };
 
   const loadMapping = async () => {
     try {
@@ -219,6 +250,13 @@ function MappingWizard() {
         setAnomalyRules(mapping.anomaly_rules);
       } else {
         setAnomalyRules(anomalyRules);
+      }
+      
+      // Load quality rule IDs if present
+      if (mapping.quality_rule_ids && Array.isArray(mapping.quality_rule_ids)) {
+        setSelectedQualityRules(mapping.quality_rule_ids);
+      } else {
+        setSelectedQualityRules([]);
       }
       
       // Determine max completed step based on available data
@@ -483,7 +521,8 @@ function MappingWizard() {
         variables: variables,
         anomaly_rules: anomalyRulesObject,
         schema_drift_handling: schemaDriftHandling,
-        source_schema: schema || null
+        source_schema: schema || null,
+        quality_rule_ids: selectedQualityRules && selectedQualityRules.length > 0 ? selectedQualityRules : null
       };
 
       let response;
@@ -1057,6 +1096,81 @@ function MappingWizard() {
                 <option value="parquet">Parquet</option>
               </select>
               <small className="form-help">Choose output file format (any format can be converted to any other format)</small>
+            </div>
+
+            {/* Quality Rules Selection */}
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FiShield /> Quality Rules (Optional)
+              </label>
+              {loadingQualityRules ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>
+                  <LoadingSpinner />
+                  <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>Loading quality rules...</p>
+                </div>
+              ) : qualityRules.length > 0 ? (
+                <div style={{ 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '4px', 
+                  padding: '0.75rem',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  backgroundColor: '#f8fafc'
+                }}>
+                  {qualityRules.map(rule => (
+                    <label key={rule.id} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      padding: '0.5rem',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s',
+                      marginBottom: '0.25rem'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedQualityRules.includes(rule.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedQualityRules([...selectedQualityRules, rule.id]);
+                          } else {
+                            setSelectedQualityRules(selectedQualityRules.filter(id => id !== rule.id));
+                          }
+                        }}
+                        style={{ marginRight: '0.75rem', cursor: 'pointer' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                          {rule.rule_name}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                          Type: {rule.rule_type} {rule.target_column && `• Column: ${rule.target_column}`}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ 
+                  padding: '1rem', 
+                  textAlign: 'center', 
+                  color: '#64748b',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '4px',
+                  backgroundColor: '#f8fafc'
+                }}>
+                  {projectId ? 'No quality rules available for this project' : 'Select a project to view quality rules'}
+                </div>
+              )}
+              <small className="form-help">
+                {selectedQualityRules.length > 0 
+                  ? `${selectedQualityRules.length} rule(s) selected. Rules will run during processing.`
+                  : 'Select quality rules to validate this data. Rules will run during processing.'
+                }
+              </small>
             </div>
 
             <h3 
