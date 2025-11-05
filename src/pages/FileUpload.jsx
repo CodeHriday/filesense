@@ -144,7 +144,20 @@ function FileUpload() {
         });
         
         setSubProjects(response.data.subProjects || []);
-        setSelectedSubProject(null); // Reset sub-project selection when project changes
+        
+        // Check if sub_project_id is in URL parameters
+        const subProjectIdFromUrl = searchParams.get('sub_project_id');
+        if (subProjectIdFromUrl) {
+          const subProjectId = parseInt(subProjectIdFromUrl);
+          const subProjectExists = response.data.subProjects?.find(sp => sp.id === subProjectId);
+          if (subProjectExists) {
+            setSelectedSubProject(subProjectId);
+          } else {
+            setSelectedSubProject(null);
+          }
+        } else {
+          setSelectedSubProject(null); // Reset sub-project selection when project changes
+        }
       } catch (error) {
         console.error('Error fetching sub-projects:', error);
         setSubProjects([]);
@@ -154,7 +167,7 @@ function FileUpload() {
     };
     
     fetchSubProjects();
-  }, [selectedProject]);
+  }, [selectedProject, searchParams]);
   
   // Cleanup polling on unmount
   useEffect(() => {
