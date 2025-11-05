@@ -81,14 +81,10 @@ function createProjectRoutes(dbPool) {
         const subProjectsResult = await dbPool.query(`
           SELECT 
             p.*,
-            u.username as owner_name,
-            COALESCE(SUM(fc.file_size), 0) as total_size,
-            COUNT(fc.id) as file_count
+            u.username as owner_name
           FROM projects p
           LEFT JOIN users u ON p.owner_id = u.id
-          LEFT JOIN file_catalog fc ON fc.project_id = p.id
           WHERE p.parent_id = $1
-          GROUP BY p.id, u.username
           ORDER BY p.created_at DESC
         `, [project.id]);
 
@@ -99,8 +95,8 @@ function createProjectRoutes(dbPool) {
           sub_project_count: parseInt(project.sub_project_count) || 0,
           sub_projects: subProjectsResult.rows.map(sp => ({
             ...sp,
-            total_size: parseInt(sp.total_size) || 0,
-            file_count: parseInt(sp.file_count) || 0
+            total_size: 0,
+            file_count: 0
           }))
         };
       }));
