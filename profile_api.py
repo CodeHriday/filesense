@@ -15,11 +15,18 @@ from google.cloud import storage as gcs_storage
 from azure.storage.blob import BlobServiceClient
 import tempfile
 import json
+import psycopg2
+import psycopg2.extras
+from datetime import datetime
 
 # Import existing profiling modules
 import quality_checks
 import data_profiling
 from utils import header_validator
+
+# Import ML anomaly detection
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
+from ml.anomaly_service import AnomalyService
 
 # Configure logging
 logging.basicConfig(
@@ -33,6 +40,126 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
+
+# Database connection
+def get_db_connection():
+    """Get PostgreSQL database connection"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        logger.warning("DATABASE_URL not set, anomaly detection disabled")
+        return None
+    try:
+        conn = psycopg2.connect(database_url)
+        return conn
+    except Exception as e:
+        logger.error(f"Database connection failed: {str(e)}")
+        return None
+
+def store_profiling_metrics_and_detect_anomalies(
+    conn,
+    file_id,
+    filename,
+    profile_result,
+    job_id=None,
+    mapping_id=None
+):
+    """
+    Store profiling metrics and run anomaly detection
+    
+    Args:
+        conn: Database connection
+        file_id: File identifier
+        filename: File name
+        profile_result: Profiling results dictionary
+        job_id: Optional job ID
+        mapping_id: Optional mapping ID
+        
+    Returns:
+        Dictionary with anomaly information
+    """
+    if not conn:
+        return {'anomalies_detected': 0, 'anomalies': []}
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Extract metrics from profile result
+        quality_score = profile_result.get('quality_score', {})
+        metadata = profile_result.get('metadata', {})
+        
+        # Store profiling metrics
+        cursor.execute("""
+            INSERT INTO profiling_metrics (
+                file_id,
+                file_name,
+                mapping_id,
+                job_id,
+                row_count,
+                column_count,
+                completeness_score,
+                consistency_score,
+                validity_score,
+                overall_quality_score,
+                profiled_at,
+                file_role
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            file_id,
+            filename,
+            mapping_id,
+            job_id,
+            metadata.get('row_count'),
+            metadata.get('column_count'),
+            quality_score.get('components', {}).get('completeness'),
+            quality_score.get('components', {}).get('consistency'),
+            quality_score.get('components', {}).get('validity'),
+            quality_score.get('overall_score'),
+            datetime.now(),
+            'adhoc'
+        ))
+        
+        conn.commit()
+        cursor.close()
+        
+        logger.info(f"Stored profiling metrics for file {file_id}")
+        
+        # Run anomaly detection
+        anomaly_service = AnomalyService(conn)
+        
+        current_metrics = {
+            'row_count': metadata.get('row_count'),
+            'column_count': metadata.get('column_count'),
+            'completeness_score': quality_score.get('components', {}).get('completeness'),
+            'consistency_score': quality_score.get('components', {}).get('consistency'),
+            'validity_score': quality_score.get('components', {}).get('validity'),
+            'overall_quality_score': quality_score.get('overall_score')
+        }
+        
+        anomaly_ids = anomaly_service.detect_and_store_anomalies(
+            file_id=file_id,
+            file_name=filename,
+            current_metrics=current_metrics,
+            job_id=job_id,
+            mapping_id=mapping_id,
+            sensitivity='medium'
+        )
+        
+        # Get detailed anomaly information
+        anomalies = anomaly_service.get_file_anomalies(file_id, status='open')
+        
+        logger.info(f"Detected {len(anomaly_ids)} anomalies for file {file_id}")
+        
+        return {
+            'anomalies_detected': len(anomaly_ids),
+            'anomaly_ids': anomaly_ids,
+            'anomalies': anomalies
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in anomaly detection: {str(e)}", exc_info=True)
+        if conn:
+            conn.rollback()
+        return {'anomalies_detected': 0, 'anomalies': [], 'error': str(e)}
 
 def download_file_from_storage(storage_location, provider, storage_key, credentials=None):
     """
@@ -322,6 +449,27 @@ def vendor_profile():
             
             logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
             
+            # Run anomaly detection if database is available
+            conn = get_db_connection()
+            if conn:
+                try:
+                    anomaly_info = store_profiling_metrics_and_detect_anomalies(
+                        conn,
+                        file_id,
+                        filename,
+                        profile_result,
+                        job_id=data.get('job_id'),
+                        mapping_id=data.get('mapping_id')
+                    )
+                    profile_result['anomaly_detection'] = anomaly_info
+                finally:
+                    conn.close()
+            else:
+                profile_result['anomaly_detection'] = {
+                    'anomalies_detected': 0,
+                    'message': 'Anomaly detection unavailable (no database connection)'
+                }
+            
             return jsonify(profile_result), 200
         
         # Fallback to cloud storage download (legacy)
@@ -348,6 +496,27 @@ def vendor_profile():
                 profile_result = profile_vendor_file(temp_path, filename)
                 
                 logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
+                
+                # Run anomaly detection if database is available
+                conn = get_db_connection()
+                if conn:
+                    try:
+                        anomaly_info = store_profiling_metrics_and_detect_anomalies(
+                            conn,
+                            file_id,
+                            filename,
+                            profile_result,
+                            job_id=data.get('job_id'),
+                            mapping_id=data.get('mapping_id')
+                        )
+                        profile_result['anomaly_detection'] = anomaly_info
+                    finally:
+                        conn.close()
+                else:
+                    profile_result['anomaly_detection'] = {
+                        'anomalies_detected': 0,
+                        'message': 'Anomaly detection unavailable (no database connection)'
+                    }
                 
                 return jsonify(profile_result), 200
                 

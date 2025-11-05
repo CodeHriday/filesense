@@ -67,6 +67,7 @@ import GroupManagement from './pages/GroupManagement';
 import SystemCleanup from './pages/SystemCleanup';
 import RetentionPolicies from './pages/RetentionPolicies';
 import ArchivedFiles from './pages/ArchivedFiles';
+import Anomalies from './pages/Anomalies';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -307,6 +308,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/policy-management" element={<ProtectedRoute><PolicyManagement /></ProtectedRoute>} />
                 <Route path="/retention-policies" element={<ProtectedRoute><RetentionPolicies /></ProtectedRoute>} />
                 <Route path="/archived-files" element={<ProtectedRoute><ArchivedFiles /></ProtectedRoute>} />
+                <Route path="/anomalies" element={<ProtectedRoute><Anomalies /></ProtectedRoute>} />
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
                 <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />

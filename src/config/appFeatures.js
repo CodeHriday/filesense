@@ -205,6 +205,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'anomalies', 
+    name: 'Anomaly Detection', 
+    category: 'Governance',
+    icon: FiAlertTriangle,
+    route: '/anomalies',
+    showInSidebar: true
+  },
+  { 
     id: 'tags', 
     name: 'Tags', 
     category: 'Governance',

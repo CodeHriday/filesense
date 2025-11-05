@@ -3022,6 +3022,10 @@ try {
 try {
   const retentionRoutes = require('./backend/routes/retentionRoutes');
   app.use('/api/retention-policies', retentionRoutes(dbPool, logger, diContainer.get('auditService'), retentionWorker));
+  
+  // ML anomaly detection routes
+  const anomalyRoutes = require('./backend/routes/anomalyRoutes');
+  app.use('/api/ml', anomalyRoutes(dbPool, logger));
   console.log('✓ Registered /api/retention-policies route');
 } catch (error) {
   console.error('✗ Failed to register /api/retention-policies:', error.message);
