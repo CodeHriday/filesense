@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FiEdit2, FiTrash2, FiFolderPlus } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolderPlus, FiChevronRight, FiChevronDown, FiFolder } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
 import SubProjectManagement from '../components/SubProjectManagement';
 import './ProjectManagement.css';
@@ -25,7 +25,8 @@ function ProjectManagement() {
     parent_id: null,
     project_type: 'internal',
     member_ids: [],
-    group_ids: []
+    group_ids: [],
+    sub_projects: []
   });
 
   const [memberFormData, setMemberFormData] = useState({
@@ -34,6 +35,12 @@ function ProjectManagement() {
 
   const [groupFormData, setGroupFormData] = useState({
     group_id: ''
+  });
+
+  const [subProjectFormData, setSubProjectFormData] = useState({
+    name: '',
+    description: '',
+    is_active: true
   });
 
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -49,6 +56,7 @@ function ProjectManagement() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
+  const [expandedProjects, setExpandedProjects] = useState(new Set());
 
   useEffect(() => {
     fetchProjects();
@@ -244,6 +252,25 @@ function ProjectManagement() {
     setShowEditModal(true);
   };
 
+  const handleAddSubProject = () => {
+    if (!subProjectFormData.name.trim()) {
+      alert('Sub-project name is required');
+      return;
+    }
+    setFormData({
+      ...formData,
+      sub_projects: [...formData.sub_projects, { ...subProjectFormData, temp_id: Date.now() }]
+    });
+    setSubProjectFormData({ name: '', description: '', is_active: true });
+  };
+
+  const handleRemoveSubProject = (tempId) => {
+    setFormData({
+      ...formData,
+      sub_projects: formData.sub_projects.filter(sp => sp.temp_id !== tempId)
+    });
+  };
+
   const handleCloseCreateModal = () => {
     setFormData({ 
       name: '', 
@@ -251,8 +278,10 @@ function ProjectManagement() {
       parent_id: null, 
       project_type: 'internal', 
       member_ids: [], 
-      group_ids: [] 
+      group_ids: [],
+      sub_projects: []
     });
+    setSubProjectFormData({ name: '', description: '', is_active: true });
     setShowCreateModal(false);
   };
 
@@ -263,7 +292,8 @@ function ProjectManagement() {
       parent_id: null, 
       project_type: 'internal', 
       member_ids: [], 
-      group_ids: [] 
+      group_ids: [],
+      sub_projects: []
     });
     setMemberFormData({ user_id: '' });
     setGroupFormData({ group_id: '' });
@@ -319,6 +349,18 @@ function ProjectManagement() {
     setConfirmModal({ isOpen: false, action: null, title: '', message: '', data: null });
   };
 
+  const toggleProjectExpansion = (projectId) => {
+    setExpandedProjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
+      } else {
+        newSet.add(projectId);
+      }
+      return newSet;
+    });
+  };
+
   const totalPages = Math.ceil(projects.length / pageSize);
   const displayedProjects = projects.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
@@ -370,19 +412,32 @@ function ProjectManagement() {
             </thead>
             <tbody>
               {displayedProjects.map((project) => (
-                <tr key={project.id}>
-                  <td>
-                    <div className="project-name">
-                      <Link 
-                        to={`/file-catalog?project=${project.id}`}
-                        className="project-name-link" 
-                        style={{ color: '#4a90e2', textDecoration: 'none' }}
-                      >
-                        {project.name}
-                      </Link>
-                      {project.is_default && <span className="badge badge-default">DEFAULT</span>}
-                    </div>
-                  </td>
+                <React.Fragment key={project.id}>
+                  <tr>
+                    <td>
+                      <div className="project-name">
+                        {project.sub_project_count > 0 && (
+                          <button
+                            onClick={() => toggleProjectExpansion(project.id)}
+                            className="expand-toggle-btn"
+                            aria-label={expandedProjects.has(project.id) ? 'Collapse sub-projects' : 'Expand sub-projects'}
+                          >
+                            {expandedProjects.has(project.id) ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+                          </button>
+                        )}
+                        <Link 
+                          to={`/file-catalog?project=${project.id}`}
+                          className="project-name-link" 
+                          style={{ color: '#4a90e2', textDecoration: 'none' }}
+                        >
+                          {project.name}
+                        </Link>
+                        {project.is_default && <span className="badge badge-default">DEFAULT</span>}
+                        {project.sub_project_count > 0 && (
+                          <span className="sub-project-count-badge">{project.sub_project_count} sub</span>
+                        )}
+                      </div>
+                    </td>
                   <td>
                     <span className={`badge ${project.project_type === 'external' ? 'badge-external' : 'badge-internal'}`}>
                       {project.project_type === 'external' ? 'External' : 'Internal'}
@@ -438,6 +493,63 @@ function ProjectManagement() {
                     </div>
                   </td>
                 </tr>
+                {expandedProjects.has(project.id) && project.sub_projects && project.sub_projects.length > 0 && (
+                  <tr className="sub-project-row">
+                    <td colSpan="8" style={{ padding: 0, backgroundColor: '#f9fafb' }}>
+                      <div className="sub-projects-container">
+                        <table className="sub-projects-nested-table">
+                          <thead>
+                            <tr>
+                              <th style={{ paddingLeft: '3rem' }}>Sub-Project Name</th>
+                              <th>Files</th>
+                              <th>Size</th>
+                              <th>Status</th>
+                              <th>Owner</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {project.sub_projects.map((subProject) => (
+                              <tr key={subProject.id}>
+                                <td style={{ paddingLeft: '3rem' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <FiFolder size={14} style={{ color: '#6b7280' }} />
+                                    <Link 
+                                      to={`/file-catalog?project=${project.id}&sub_project=${subProject.id}`}
+                                      style={{ color: '#6b7280', textDecoration: 'none' }}
+                                    >
+                                      {subProject.name}
+                                    </Link>
+                                  </div>
+                                </td>
+                                <td>{subProject.file_count || 0}</td>
+                                <td>{formatBytes(subProject.total_size || 0)}</td>
+                                <td>
+                                  <span className={`badge ${subProject.is_active ? 'badge-active' : 'badge-inactive'}`}>
+                                    {subProject.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </td>
+                                <td>{subProject.owner_name || '-'}</td>
+                                <td>
+                                  <div className="action-buttons">
+                                    <button 
+                                      className="action-icon-btn project-btn" 
+                                      onClick={() => navigate(`/upload?project_id=${project.id}&sub_project_id=${subProject.id}`)}
+                                      title="Add File to Sub-Project"
+                                    >
+                                      <FiFolderPlus size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
@@ -567,6 +679,84 @@ function ProjectManagement() {
                     </select>
                     <small style={{ color: '#666', fontSize: '0.7rem' }}>Hold Ctrl/Cmd to select multiple groups</small>
                   </div>
+                </div>
+
+                <hr style={{ margin: '1rem 0', border: '1px solid #ddd' }} />
+
+                <div className="subprojects-create-section">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.8rem' }}>Sub-Projects</h3>
+                    <button type="button" className="btn-primary btn-small" onClick={handleAddSubProject}>
+                      <FiFolderPlus style={{ marginRight: '0.25rem' }} /> Add Sub-Project
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <input
+                      type="text"
+                      placeholder="Sub-project name"
+                      value={subProjectFormData.name}
+                      onChange={(e) => setSubProjectFormData({ ...subProjectFormData, name: e.target.value })}
+                      style={{ padding: '0.4rem', fontSize: '0.75rem' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description (optional)"
+                      value={subProjectFormData.description}
+                      onChange={(e) => setSubProjectFormData({ ...subProjectFormData, description: e.target.value })}
+                      style={{ padding: '0.4rem', fontSize: '0.75rem' }}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={subProjectFormData.is_active}
+                        onChange={(e) => setSubProjectFormData({ ...subProjectFormData, is_active: e.target.checked })}
+                        style={{ marginRight: '0.25rem' }}
+                      />
+                      Active
+                    </label>
+                  </div>
+
+                  {formData.sub_projects.length > 0 && (
+                    <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f5f5f5' }}>
+                          <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Name</th>
+                          <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Description</th>
+                          <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '1px solid #ddd' }}>Status</th>
+                          <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '1px solid #ddd' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.sub_projects.map((sp) => (
+                          <tr key={sp.temp_id} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '0.5rem' }}>{sp.name}</td>
+                            <td style={{ padding: '0.5rem', color: '#666' }}>{sp.description || '-'}</td>
+                            <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                              <span className={`badge ${sp.is_active ? 'badge-active' : 'badge-inactive'}`}>
+                                {sp.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn-small btn-danger"
+                                onClick={() => handleRemoveSubProject(sp.temp_id)}
+                                style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {formData.sub_projects.length === 0 && (
+                    <p style={{ textAlign: 'center', color: '#999', fontSize: '0.75rem', padding: '1rem' }}>
+                      No sub-projects added yet
+                    </p>
+                  )}
                 </div>
               </form>
             </div>
@@ -794,6 +984,14 @@ function ProjectManagement() {
 
     </div>
   );
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 
 export default ProjectManagement;

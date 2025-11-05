@@ -201,106 +201,108 @@ function SubProjectManagement({ projectId, projectName }) {
           </button>
         </div>
       ) : (
-        <div className="sub-projects-grid">
-          {subProjects.map((subProject) => (
-            <div key={subProject.id} className={`sub-project-card ${!subProject.is_active ? 'inactive' : ''}`}>
-              {editingId === subProject.id ? (
-                <div className="edit-form">
-                  <div className="form-group">
-                    <label>Name</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      disabled={submitting}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Description</label>
-                    <textarea
-                      className="form-input"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={2}
-                      disabled={submitting}
-                    />
-                  </div>
-                  <div className="form-group-checkbox">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={formData.is_active}
-                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                        disabled={submitting}
-                      />
-                      <span>Active</span>
-                    </label>
-                  </div>
-                  <div className="form-actions">
-                    <button className="btn btn-secondary btn-sm" onClick={cancelEdit} disabled={submitting}>
-                      <FiX size={14} /> Cancel
-                    </button>
-                    <button className="btn btn-primary btn-sm" onClick={() => handleUpdate(subProject.id)} disabled={submitting}>
-                      <FiSave size={14} /> {submitting ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="card-header">
-                    <div className="card-title">
-                      <FiFolder size={20} className="folder-icon" />
-                      <h3>{subProject.name}</h3>
-                    </div>
-                    <div className="card-actions">
+        <div className="sub-projects-table-container">
+          <table className="sub-projects-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Files</th>
+                <th>Size</th>
+                <th>Status</th>
+                <th>Owner</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subProjects.map((subProject) => (
+                editingId === subProject.id ? (
+                  <tr key={subProject.id} className="edit-row">
+                    <td colSpan="6">
+                      <div className="inline-edit-form">
+                        <div className="edit-form-grid">
+                          <div className="form-group">
+                            <label>Name</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={formData.name}
+                              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                              disabled={submitting}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Description</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={formData.description}
+                              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                              disabled={submitting}
+                            />
+                          </div>
+                          <div className="form-group-checkbox">
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={formData.is_active}
+                                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                                disabled={submitting}
+                              />
+                              <span>Active</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="form-actions">
+                          <button className="btn btn-secondary btn-sm" onClick={cancelEdit} disabled={submitting}>
+                            <FiX size={14} /> Cancel
+                          </button>
+                          <button className="btn btn-primary btn-sm" onClick={() => handleUpdate(subProject.id)} disabled={submitting}>
+                            <FiSave size={14} /> {submitting ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={subProject.id} className={!subProject.is_active ? 'inactive-row' : ''}>
+                    <td>
+                      <div className="name-cell">
+                        <FiFolder size={16} className="folder-icon" />
+                        <span>{subProject.name}</span>
+                      </div>
+                      {subProject.description && (
+                        <div className="description-text">{subProject.description}</div>
+                      )}
+                    </td>
+                    <td className="text-center">{subProject.file_count || 0}</td>
+                    <td className="text-center">{formatBytes(subProject.total_size || 0)}</td>
+                    <td className="text-center">
+                      <span className={`status-badge ${subProject.is_active ? 'active' : 'inactive'}`}>
+                        {subProject.is_active ? 'ACTIVE' : 'INACTIVE'}
+                      </span>
+                    </td>
+                    <td>{subProject.owner_name || '-'}</td>
+                    <td className="actions-cell">
                       <button 
                         className="btn-icon" 
                         onClick={() => startEdit(subProject)}
                         title="Edit sub-project"
                       >
-                        <FiEdit2 size={16} />
+                        <FiEdit2 size={14} />
                       </button>
                       <button 
                         className="btn-icon btn-icon-danger" 
                         onClick={() => handleDelete(subProject.id, subProject.name)}
                         title="Delete sub-project"
                       >
-                        <FiTrash2 size={16} />
+                        <FiTrash2 size={14} />
                       </button>
-                    </div>
-                  </div>
-                  <div className="card-body">
-                    {subProject.description && (
-                      <p className="description">{subProject.description}</p>
-                    )}
-                    <div className="card-stats">
-                      <div className="stat">
-                        <span className="stat-label">Files</span>
-                        <span className="stat-value">{subProject.file_count || 0}</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label">Size</span>
-                        <span className="stat-value">{formatBytes(subProject.total_size || 0)}</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label">Status</span>
-                        <span className={`status-badge ${subProject.is_active ? 'active' : 'inactive'}`}>
-                          {subProject.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </div>
-                    {subProject.owner_name && (
-                      <div className="card-footer">
-                        <span className="owner-label">Owner:</span>
-                        <span className="owner-name">{subProject.owner_name}</span>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+                    </td>
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

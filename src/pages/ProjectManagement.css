@@ -499,6 +499,72 @@
   font-weight: 500;
 }
 
+.expand-toggle-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: color 0.2s;
+}
+
+.expand-toggle-btn:hover {
+  color: #1f2937;
+}
+
+.sub-project-count-badge {
+  background: #e5e7eb;
+  color: #6b7280;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.sub-project-row {
+  background: #f9fafb;
+}
+
+.sub-projects-container {
+  padding: 0.5rem 0;
+}
+
+.sub-projects-nested-table {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.sub-projects-nested-table thead {
+  background: #f3f4f6;
+}
+
+.sub-projects-nested-table th {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sub-projects-nested-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sub-projects-nested-table tbody tr:hover {
+  background: #ffffff;
+}
+
+.sub-projects-nested-table td {
+  padding: 0.6rem 0.75rem;
+  color: #374151;
+}
+
 .action-buttons {
   display: flex;
   gap: 0.5rem;

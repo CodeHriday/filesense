@@ -23,7 +23,8 @@ function createProjectRoutes(dbPool) {
         SELECT 
           p.*,
           COUNT(DISTINCT pm.user_id) as member_count,
-          COUNT(DISTINCT pag.group_id) as group_count
+          COUNT(DISTINCT pag.group_id) as group_count,
+          (SELECT COUNT(*) FROM projects sub WHERE sub.parent_id = p.id) as sub_project_count
         FROM projects p
         LEFT JOIN project_members pm ON p.id = pm.project_id
         LEFT JOIN project_access_groups pag ON p.id = pag.project_id
@@ -42,14 +43,15 @@ function createProjectRoutes(dbPool) {
           -- Projects accessible via user's access groups
           SELECT pag2.project_id 
           FROM project_access_groups pag2
-          JOIN access_group_members agm ON pag2.group_id = agm.group_id
-          WHERE agm.user_id = $${paramIndex}
+          INNER JOIN user_groups ug ON pag2.group_id = ug.group_id
+          WHERE ug.user_id = $${paramIndex}
         )
+        AND p.parent_id IS NULL
         `;
         params.push(userId);
         paramIndex++;
       } else {
-        query += ' WHERE 1=1';
+        query += ' WHERE p.parent_id IS NULL';
       }
 
       if (archived !== undefined) {
@@ -74,11 +76,33 @@ function createProjectRoutes(dbPool) {
 
       const result = await dbPool.query(query, params);
       
-      // Convert count strings to numbers
-      const projects = result.rows.map(project => ({
-        ...project,
-        member_count: parseInt(project.member_count) || 0,
-        group_count: parseInt(project.group_count) || 0
+      // Fetch sub-projects for each project
+      const projectsWithSubs = await Promise.all(result.rows.map(async (project) => {
+        const subProjectsResult = await dbPool.query(`
+          SELECT 
+            p.*,
+            u.username as owner_name,
+            COALESCE(SUM(fc.file_size), 0) as total_size,
+            COUNT(fc.id) as file_count
+          FROM projects p
+          LEFT JOIN users u ON p.owner_id = u.id
+          LEFT JOIN file_catalog fc ON fc.project_id = p.id
+          WHERE p.parent_id = $1
+          GROUP BY p.id, u.username
+          ORDER BY p.created_at DESC
+        `, [project.id]);
+
+        return {
+          ...project,
+          member_count: parseInt(project.member_count) || 0,
+          group_count: parseInt(project.group_count) || 0,
+          sub_project_count: parseInt(project.sub_project_count) || 0,
+          sub_projects: subProjectsResult.rows.map(sp => ({
+            ...sp,
+            total_size: parseInt(sp.total_size) || 0,
+            file_count: parseInt(sp.file_count) || 0
+          }))
+        };
       }));
       
       systemLogger.info('Projects listed', {
@@ -87,7 +111,7 @@ function createProjectRoutes(dbPool) {
         count: result.rows.length
       });
 
-      res.json(projects);
+      res.json(projectsWithSubs);
     } catch (error) {
       systemLogger.error('Error listing projects', error);
       res.status(500).json({ error: 'Failed to list projects' });
@@ -150,7 +174,7 @@ function createProjectRoutes(dbPool) {
   router.post('/', async (req, res) => {
     const client = await dbPool.connect();
     try {
-      const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids } = req.body;
+      const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids, sub_projects } = req.body;
       const userId = req.user?.id;
 
       if (!name) {
@@ -202,6 +226,25 @@ function createProjectRoutes(dbPool) {
         `);
       }
 
+      // Create sub-projects if provided
+      if (sub_projects && Array.isArray(sub_projects) && sub_projects.length > 0) {
+        for (const subProject of sub_projects) {
+          if (subProject.name && subProject.name.trim()) {
+            await client.query(`
+              INSERT INTO projects (name, description, parent_id, owner_id, is_active, project_type)
+              VALUES ($1, $2, $3, $4, $5, $6)
+            `, [
+              subProject.name.trim(),
+              subProject.description || null,
+              newProject.id,
+              userId,
+              subProject.is_active !== undefined ? subProject.is_active : true,
+              project_type || 'internal'
+            ]);
+          }
+        }
+      }
+
       await client.query('COMMIT');
 
       systemLogger.info('Project created', {
@@ -209,7 +252,8 @@ function createProjectRoutes(dbPool) {
         projectId: newProject.id,
         projectName: name,
         memberCount: (member_ids?.length || 0) + 1, // +1 for creator
-        groupCount: group_ids?.length || 0
+        groupCount: group_ids?.length || 0,
+        subProjectCount: sub_projects?.length || 0
       });
 
       res.status(201).json(newProject);
