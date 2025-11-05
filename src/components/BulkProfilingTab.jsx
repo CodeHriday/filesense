@@ -16,6 +16,14 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
   const [duplicateHandling, setDuplicateHandling] = useState('skip');
   const [recursive, setRecursive] = useState(false);
   
+  // Sub-project support
+  const [subProjects, setSubProjects] = useState([]);
+  const [selectedSubProject, setSelectedSubProject] = useState('');
+  
+  // Quality rules support
+  const [availableQualityRules, setAvailableQualityRules] = useState([]);
+  const [selectedQualityRules, setSelectedQualityRules] = useState([]);
+  
   const [discoveredFiles, setDiscoveredFiles] = useState([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
@@ -69,6 +77,26 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
     }
   }, [viewMode]);
 
+  // Fetch sub-projects when project changes
+  useEffect(() => {
+    if (selectedProject) {
+      fetchSubProjects(selectedProject);
+      fetchQualityRules();
+    } else {
+      setSubProjects([]);
+      setSelectedSubProject('');
+      setAvailableQualityRules([]);
+      setSelectedQualityRules([]);
+    }
+  }, [selectedProject]);
+
+  // Fetch quality rules when sub-project changes
+  useEffect(() => {
+    if (selectedProject) {
+      fetchQualityRules();
+    }
+  }, [selectedSubProject]);
+
   const fetchConnections = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -103,6 +131,47 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       }
     } catch (err) {
       console.error('Error fetching projects:', err);
+    }
+  };
+
+  const fetchSubProjects = async (projectId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/sub-projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setSubProjects(response.data.subProjects || []);
+      setSelectedSubProject('');
+    } catch (err) {
+      console.error('Error fetching sub-projects:', err);
+      setSubProjects([]);
+    }
+  };
+
+  const fetchQualityRules = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+      
+      if (selectedProject) {
+        params.append('project_id', selectedProject);
+      }
+      
+      if (selectedSubProject) {
+        params.append('sub_project_id', selectedSubProject);
+      }
+      
+      params.append('enabled', 'true');
+      
+      const response = await axios.get(`${API_BASE_URL}/api/quality-rules?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setAvailableQualityRules(response.data.rules || []);
+    } catch (err) {
+      console.error('Error fetching quality rules:', err);
+      setAvailableQualityRules([]);
     }
   };
 
@@ -257,6 +326,16 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
         recursive,
         executionType
       };
+
+      // Add sub-project if selected
+      if (selectedSubProject) {
+        jobData.subProjectId = selectedSubProject;
+      }
+
+      // Add quality rules if selected
+      if (selectedQualityRules.length > 0) {
+        jobData.qualityRuleIds = selectedQualityRules;
+      }
 
       // Add scheduling data if scheduled
       if (executionType === 'scheduled') {
@@ -693,45 +772,133 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
       {/* Create New Job View */}
       {viewMode === 'create' && (
         <>
-      {/* Configuration Section */}
+      {/* Configuration Section with 2-Column Grid Layout */}
       <div style={{ marginBottom: '2rem' }}>
-        <div className="form-group">
-          <label htmlFor="project">Project *</label>
-          <select
-            id="project"
-            className="form-control"
-            value={selectedProject || ''}
-            onChange={(e) => setSelectedProject(e.target.value)}
-          >
-            <option value="">Select a project...</option>
-            {projects.map(proj => (
-              <option key={proj.id} value={proj.id}>
-                {proj.name}
-              </option>
-            ))}
-          </select>
-          <small style={{ color: '#666' }}>
-            Files will be organized under this project
-          </small>
+        {/* 2-Column Grid for Form Fields */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '1.5rem',
+          marginBottom: '1.5rem'
+        }}>
+          {/* Row 1: Project | Sub-Project */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="project">Project *</label>
+            <select
+              id="project"
+              className="form-control"
+              value={selectedProject || ''}
+              onChange={(e) => {
+                setSelectedProject(e.target.value);
+                setSelectedSubProject('');
+              }}
+            >
+              <option value="">Select a project...</option>
+              {projects.map(proj => (
+                <option key={proj.id} value={proj.id}>
+                  {proj.name}
+                </option>
+              ))}
+            </select>
+            <small style={{ color: '#666' }}>
+              Files will be organized under this project
+            </small>
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="subProject">Sub-Project</label>
+            <select
+              id="subProject"
+              className="form-control"
+              value={selectedSubProject}
+              onChange={(e) => setSelectedSubProject(e.target.value)}
+              disabled={!selectedProject || subProjects.length === 0}
+            >
+              <option value="">None (Parent Project Level)</option>
+              {subProjects.map(subProj => (
+                <option key={subProj.id} value={subProj.id}>
+                  {subProj.name}
+                </option>
+              ))}
+            </select>
+            <small style={{ color: '#666' }}>
+              {!selectedProject 
+                ? 'Select a project first'
+                : subProjects.length === 0 
+                  ? 'No sub-projects available'
+                  : 'Optional: Organize files under a sub-project'
+              }
+            </small>
+          </div>
+
+          {/* Row 2: S3 Connection | File Pattern */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="connection">S3 Connection *</label>
+            <select
+              id="connection"
+              className="form-control"
+              value={selectedConnection}
+              onChange={(e) => setSelectedConnection(e.target.value)}
+            >
+              <option value="">Select a connection...</option>
+              {connections.map(conn => (
+                <option key={conn.id} value={conn.id}>
+                  {conn.name} ({conn.bucket_name})
+                </option>
+              ))}
+            </select>
+            <small style={{ color: '#666' }}>
+              S3 connection to discover files from
+            </small>
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="pattern">File Pattern</label>
+            <input
+              id="pattern"
+              type="text"
+              className="form-control"
+              placeholder="* for all compatible files"
+              value={filePattern}
+              onChange={(e) => setFilePattern(e.target.value)}
+            />
+            <small style={{ color: '#666' }}>
+              Use * for all files, or patterns like sales_*.csv
+            </small>
+          </div>
+
+          {/* Row 4: Duplicate Handling | Recursive Checkbox */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="duplicate">Duplicate Handling</label>
+            <select
+              id="duplicate"
+              className="form-control"
+              value={duplicateHandling}
+              onChange={(e) => setDuplicateHandling(e.target.value)}
+            >
+              <option value="skip">Skip if already profiled</option>
+              <option value="reprefilit">Re-profile (create new version)</option>
+              <option value="ask">Ask me for each duplicate</option>
+            </select>
+            <small style={{ color: '#666' }}>
+              How to handle files already profiled
+            </small>
+          </div>
+
+          <div className="form-group" style={{ margin: 0, display: 'flex', alignItems: 'flex-end' }}>
+            <label style={{ marginBottom: 0 }}>
+              <input
+                type="checkbox"
+                checked={recursive}
+                onChange={(e) => setRecursive(e.target.checked)}
+                style={{ marginRight: '0.5rem' }}
+              />
+              Scan subdirectories recursively
+            </label>
+          </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="connection">S3 Connection *</label>
-          <select
-            id="connection"
-            className="form-control"
-            value={selectedConnection}
-            onChange={(e) => setSelectedConnection(e.target.value)}
-          >
-            <option value="">Select a connection...</option>
-            {connections.map(conn => (
-              <option key={conn.id} value={conn.id}>
-                {conn.name} ({conn.bucket_name})
-              </option>
-            ))}
-          </select>
-        </div>
-
+        {/* Row 3: S3 Path (Full Width) */}
         <div className="form-group">
           <label htmlFor="s3path">S3 Path *</label>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -776,48 +943,7 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
           </div>
         )}
 
-        <div className="form-group">
-          <label htmlFor="pattern">File Pattern</label>
-          <input
-            id="pattern"
-            type="text"
-            className="form-control"
-            placeholder="* for all compatible files"
-            value={filePattern}
-            onChange={(e) => setFilePattern(e.target.value)}
-          />
-          <small style={{ color: '#666' }}>
-            Use * for all files, or patterns like sales_*.csv, data_2024*
-          </small>
-        </div>
-
-        <div className="form-group">
-          <label>
-            <input
-              type="checkbox"
-              checked={recursive}
-              onChange={(e) => setRecursive(e.target.checked)}
-              style={{ marginRight: '0.5rem' }}
-            />
-            Scan subdirectories recursively
-          </label>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="duplicate">Duplicate Handling</label>
-          <select
-            id="duplicate"
-            className="form-control"
-            value={duplicateHandling}
-            onChange={(e) => setDuplicateHandling(e.target.value)}
-          >
-            <option value="skip">Skip if already profiled</option>
-            <option value="reprefilit">Re-profile (create new version)</option>
-            <option value="ask">Ask me for each duplicate</option>
-          </select>
-        </div>
-
-        {/* Scheduling Section */}
+        {/* Row 5: Execution Type (Full Width) */}
         <div className="form-group" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
           <label htmlFor="executionType">
             <FiClock style={{ marginRight: '0.5rem' }} />
@@ -834,9 +960,15 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
           </select>
         </div>
 
+        {/* Scheduling Options (when scheduled is selected) */}
         {executionType === 'scheduled' && (
-          <>
-            <div className="form-group">
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '1.5rem',
+            marginTop: '1rem'
+          }}>
+            <div className="form-group" style={{ margin: 0 }}>
               <label htmlFor="scheduleType">Schedule Type</label>
               <select
                 id="scheduleType"
@@ -849,8 +981,8 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
               </select>
             </div>
 
-            {scheduleType === 'recurring' && (
-              <div className="form-group">
+            {scheduleType === 'recurring' ? (
+              <div className="form-group" style={{ margin: 0 }}>
                 <label htmlFor="cronExpression">Cron Expression</label>
                 <input
                   id="cronExpression"
@@ -861,13 +993,11 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                   placeholder="0 0 * * * (Daily at midnight)"
                 />
                 <small style={{ color: '#666' }}>
-                  Examples: <code>0 0 * * *</code> (daily at midnight), <code>0 */6 * * *</code> (every 6 hours)
+                  Examples: <code>0 0 * * *</code> (daily), <code>0 */6 * * *</code> (every 6 hours)
                 </small>
               </div>
-            )}
-
-            {scheduleType === 'one-time' && (
-              <div className="form-group">
+            ) : (
+              <div className="form-group" style={{ margin: 0 }}>
                 <label htmlFor="scheduleStartDate">Start Date & Time</label>
                 <input
                   id="scheduleStartDate"
@@ -881,7 +1011,86 @@ function BulkProfilingTab({ selectedProject: initialProject }) {
                 </small>
               </div>
             )}
-          </>
+          </div>
+        )}
+
+        {/* Quality Rules Multi-Select Section (Full Width) */}
+        {availableQualityRules.length > 0 && (
+          <div className="form-group" style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
+            <label>Quality Rules (Optional)</label>
+            <div style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              padding: '1rem',
+              background: '#f9fafb',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}>
+              <p style={{ margin: '0 0 1rem 0', color: '#666', fontSize: '0.875rem' }}>
+                Select quality rules to apply during profiling. These rules will be validated against the profiled data.
+              </p>
+              {availableQualityRules.length === 0 ? (
+                <p style={{ color: '#666', textAlign: 'center', padding: '1rem' }}>
+                  No quality rules available for the selected project{selectedSubProject ? ' and sub-project' : ''}.
+                </p>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                  gap: '0.75rem'
+                }}>
+                  {availableQualityRules.map((rule) => (
+                    <label
+                      key={rule.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        padding: '0.75rem',
+                        background: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        borderColor: selectedQualityRules.includes(rule.id) ? '#3b82f6' : '#e5e7eb',
+                        backgroundColor: selectedQualityRules.includes(rule.id) ? '#eff6ff' : 'white'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedQualityRules.includes(rule.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedQualityRules([...selectedQualityRules, rule.id]);
+                          } else {
+                            setSelectedQualityRules(selectedQualityRules.filter(id => id !== rule.id));
+                          }
+                        }}
+                        style={{ marginRight: '0.75rem', marginTop: '0.25rem' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>
+                          {rule.rule_name}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.25rem' }}>
+                          Type: {rule.rule_type} | Severity: {rule.severity}
+                        </div>
+                        {rule.column_name && (
+                          <div style={{ fontSize: '0.75rem', color: '#666' }}>
+                            Column: {rule.column_name}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedQualityRules.length > 0 && (
+                <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#e0f2fe', borderRadius: '4px' }}>
+                  <strong>{selectedQualityRules.length}</strong> quality rule{selectedQualityRules.length !== 1 ? 's' : ''} selected
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         <button
