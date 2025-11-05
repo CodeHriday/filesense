@@ -69,7 +69,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -168,7 +168,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 75);
 
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId);
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId);
       
       // Step 4.5: Create file ownership record with creator and owner from uploader
       await this.createFileOwnership(fileId, userId, originalName);
@@ -701,7 +701,7 @@ print(json.dumps(result))
   /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId) {
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null) {
     // Build metadata object with encoding, delimiter, preview data, and header validation
     const metadata = {
       encoding: fileInfo.encoding || null,
@@ -724,8 +724,8 @@ print(json.dumps(result))
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
         row_count, column_count, quality_score, metadata, checksum,
-        duplicate_records_count, duplicate_records_percentage, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        duplicate_records_count, duplicate_records_percentage, project_id, sub_project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         row_count = EXCLUDED.row_count,
@@ -735,6 +735,7 @@ print(json.dumps(result))
         checksum = EXCLUDED.checksum,
         duplicate_records_count = EXCLUDED.duplicate_records_count,
         duplicate_records_percentage = EXCLUDED.duplicate_records_percentage,
+        sub_project_id = EXCLUDED.sub_project_id,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
@@ -751,7 +752,8 @@ print(json.dumps(result))
       fileHash || null,
       duplicateStats?.duplicate_count || 0,
       duplicateStats?.duplicate_percentage || 0.0,
-      projectId
+      projectId,
+      subProjectId
     ];
 
     const result = await this.dbPool.query(query, values);

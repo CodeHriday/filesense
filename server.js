@@ -1338,10 +1338,11 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       return res.status(400).json({ error: 'No files uploaded' });
     }
     
-    // Validate and get project_id
+    // Validate and get project_id and sub_project_id
     const { getUserProjects } = require('./backend/middleware/requireProjectAccess');
     const isAdmin = req.user?.roles?.includes('Admin');
     let projectId = req.body.project_id ? parseInt(req.body.project_id) : null;
+    let subProjectId = req.body.sub_project_id ? parseInt(req.body.sub_project_id) : null;
     
     // Get replaceFileId if provided (for atomic file replacement)
     const replaceFileId = req.body.replace_file_id || null;
@@ -1456,7 +1457,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           fileType,
           userId,
           fileHash,
-          projectId
+          projectId,
+          subProjectId
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
