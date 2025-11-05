@@ -2929,6 +2929,17 @@ try {
   console.error('✗ Failed to register /api/projects:', error.message);
 }
 
+// Sub-Project Management routes (requires authentication)
+try {
+  const subProjectRoutes = require('./backend/routes/subProjects');
+  subProjectRoutes.use = (path, ...middleware) => app.use(path, ...middleware);
+  app.locals.pool = dbPool;
+  app.use('/api/projects', authenticateToken, subProjectRoutes);
+  console.log('✓ Registered /api/projects/:id/sub-projects routes');
+} catch (error) {
+  console.error('✗ Failed to register sub-projects routes:', error.message);
+}
+
 // Group Management routes (requires authentication)
 try {
   const groupRoutes = require('./backend/routes/groupRoutes');
