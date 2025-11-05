@@ -5,13 +5,14 @@
  * - Runs at configurable intervals (default: daily at 01:00)
  * - Evaluates all enabled retention policies
  * - Identifies files that meet archival criteria
+ * - Archives files using storage abstraction layer (S3/GCS/Azure/local)
  * - Logs execution runs and results
- * - Queues files for archival (actual archival handled by storage abstraction layer)
  * 
  * Runs independently of queue system for reliability
  */
 
 const { systemLogger } = require('../utils/logger');
+const ArchivalStorageService = require('../services/archivalStorageService');
 
 class RetentionPolicyWorker {
   constructor(dbPool, logger, scheduleTime = '01:00') {
@@ -21,6 +22,7 @@ class RetentionPolicyWorker {
     this.isProcessing = false;
     this.intervalId = null;
     this.lastRunDate = null;
+    this.storageService = new ArchivalStorageService(dbPool);
   }
 
   /**
@@ -192,7 +194,7 @@ class RetentionPolicyWorker {
       let filesMarkedForArchival = 0;
       let bytesArchived = 0;
 
-      // Mark each matching file for archival (if not already archived)
+      // Archive each matching file
       for (const file of matchingFiles) {
         try {
           // Check if file is already archived
@@ -209,7 +211,50 @@ class RetentionPolicyWorker {
             continue;
           }
 
-          // Create archived_files entry (actual archival will happen in next task)
+          // Prepare file info for archival
+          const fileInfo = {
+            file_id: file.file_id,
+            filename: file.filename,
+            file_path: file.file_path || `./uploads/${file.filename}`,
+            file_type: file.file_type,
+            size: parseInt(file.file_size) || 0
+          };
+
+          // Archive the file using storage abstraction layer
+          let archiveStatus = 'pending';
+          let archivePath = null;
+          let compressedSize = null;
+          let errorMessage = null;
+
+          try {
+            const archiveResult = await this.storageService.archiveFile(
+              fileInfo,
+              policy.storage_config
+            );
+
+            archiveStatus = 'archived';
+            archivePath = archiveResult.archivePath;
+            compressedSize = archiveResult.compressedSize;
+
+            this.logger.info('File archived successfully', {
+              fileId: file.file_id,
+              archivePath
+            });
+
+          } catch (archiveError) {
+            archiveStatus = 'failed';
+            errorMessage = archiveError.message;
+            
+            this.logger.error('File archival failed', {
+              fileId: file.file_id,
+              error: archiveError.message
+            });
+
+            // Continue with creating the record even if archival failed
+            // This allows retry later
+          }
+
+          // Create archived_files entry with actual archival results
           await client.query(`
             INSERT INTO archived_files (
               policy_id,
@@ -222,36 +267,35 @@ class RetentionPolicyWorker {
               metadata_snapshot,
               archived_at,
               archived_by,
-              archive_status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), 1, 'pending')
+              archive_status,
+              error_message
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), 1, $9, $10)
           `, [
             policy.id,
             file.file_id,
             file.filename,
-            file.file_path || `/uploads/${file.filename}`,
-            null, // Archive path will be set during actual archival
-            parseInt(file.file_size) || 0,
-            null, // Compressed size will be set during actual archival
+            fileInfo.file_path,
+            archivePath,
+            fileInfo.size,
+            compressedSize,
             JSON.stringify({
               row_count: file.row_count,
               column_count: file.column_count,
               quality_score: file.quality_score,
               processed_at: file.processed_at,
               metadata: file.metadata
-            })
+            }),
+            archiveStatus,
+            errorMessage
           ]);
 
-          filesMarkedForArchival++;
-          bytesArchived += parseInt(file.file_size) || 0;
-
-          this.logger.debug('File marked for archival', {
-            fileId: file.file_id,
-            filename: file.filename,
-            size: file.file_size
-          });
+          if (archiveStatus === 'archived') {
+            filesMarkedForArchival++;
+            bytesArchived += compressedSize || fileInfo.size;
+          }
 
         } catch (error) {
-          this.logger.error('Error marking file for archival', {
+          this.logger.error('Error processing file for archival', {
             fileId: file.file_id,
             error: error.message
           });
@@ -321,6 +365,7 @@ class RetentionPolicyWorker {
       SELECT 
         f.file_id,
         f.filename,
+        f.file_path,
         f.file_type,
         f.file_size,
         f.row_count,
