@@ -20,6 +20,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedSubProject, setSelectedSubProject] = useState(null);
   const [deletingFileId, setDeletingFileId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
@@ -99,6 +100,15 @@ export const FileCatalog = ({ onFileSelect }) => {
   
   // Properly handle the file data format from the API
   const files = fileData || [];
+  
+  // Get unique sub-projects for filtering
+  const uniqueSubProjects = React.useMemo(() => {
+    const subProjects = files
+      .filter(f => f.sub_project_id)
+      .map(f => ({ id: f.sub_project_id, name: f.sub_project_name }))
+      .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
+    return subProjects;
+  }, [files]);
 
   const handleViewDetails = (file) => {
     navigate(`/profile/${encodeURIComponent(file.file_id)}`);
@@ -240,7 +250,10 @@ export const FileCatalog = ({ onFileSelect }) => {
       // Filter by project
       const matchesProject = selectedProject === null || file.project_id === selectedProject;
       
-      return matchesSearch && matchesType && matchesProject;
+      // Filter by sub-project
+      const matchesSubProject = selectedSubProject === null || file.sub_project_id === selectedSubProject;
+      
+      return matchesSearch && matchesType && matchesProject && matchesSubProject;
     })
     .sort((a, b) => {
       // Sort based on selected criteria
@@ -457,6 +470,17 @@ export const FileCatalog = ({ onFileSelect }) => {
           </select>
           
           <select 
+            value={selectedSubProject || ''}
+            onChange={(e) => setSelectedSubProject(e.target.value ? parseInt(e.target.value) : null)}
+            className="filter-select"
+          >
+            <option value="">All Sub-Projects</option>
+            {uniqueSubProjects.map(sp => (
+              <option key={sp.id} value={sp.id}>{sp.name}</option>
+            ))}
+          </select>
+          
+          <select 
             value={sortBy}
             onChange={handleSortChange}
             className="sort-select"
@@ -519,6 +543,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                     />
                   </th>
                   <th>Project</th>
+                  <th>Sub-Project</th>
                   <th>File Name</th>
                   <th>Type</th>
                   <th>Size</th>
@@ -556,6 +581,9 @@ export const FileCatalog = ({ onFileSelect }) => {
                         </td>
                         <td>
                           {file.project_name || 'Default Project'}
+                        </td>
+                        <td>
+                          {file.sub_project_name || '-'}
                         </td>
                         <td className="file-name-cell" onClick={() => toggleGroup(group.groupId)} style={{cursor: 'pointer'}}>
                           <span className="expand-icon">
@@ -675,6 +703,9 @@ export const FileCatalog = ({ onFileSelect }) => {
                           </td>
                           <td>
                             {childFile.project_name || 'Default Project'}
+                          </td>
+                          <td>
+                            {childFile.sub_project_name || '-'}
                           </td>
                           <td className="file-name-cell" style={{paddingLeft: '3rem'}}>
                             <span className="file-icon">
