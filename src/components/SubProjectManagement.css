@@ -21,16 +21,17 @@
 
 .header-title h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 0.75rem;
   color: #1f2937;
+  font-weight: 600;
 }
 
 .parent-project-badge {
   background: #dbeafe;
   color: #1e40af;
-  padding: 0.25rem 0.75rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   font-weight: 500;
 }
 
@@ -91,13 +92,14 @@
 .empty-state h3 {
   color: #374151;
   margin: 0.5rem 0;
-  font-size: 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .empty-state p {
   color: #6b7280;
   margin: 0.5rem 0 1.5rem 0;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
 }
 
 .sub-project-form-card {
@@ -124,7 +126,8 @@
   gap: 0.5rem;
   margin: 0;
   color: #1f2937;
-  font-size: 1.125rem;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .sub-project-form .form-group {
@@ -133,10 +136,10 @@
 
 .sub-project-form label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   font-weight: 500;
   color: #374151;
-  font-size: 0.9rem;
+  font-size: 0.7rem;
 }
 
 .sub-project-form .required {
@@ -145,10 +148,10 @@
 
 .sub-project-form .form-input {
   width: 100%;
-  padding: 0.625rem 0.875rem;
+  padding: 0.5rem 0.7rem;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 0.95rem;
+  font-size: 0.75rem;
   transition: all 0.2s;
 }
 
@@ -220,9 +223,10 @@
 
 .sub-project-card h3 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 0.75rem;
   color: #1f2937;
   word-break: break-word;
+  font-weight: 600;
 }
 
 .sub-project-card .card-actions {
@@ -236,7 +240,7 @@
 
 .sub-project-card .description {
   color: #6b7280;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   line-height: 1.5;
   margin-bottom: 1rem;
 }
@@ -257,7 +261,7 @@
 }
 
 .card-stats .stat-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -265,16 +269,16 @@
 }
 
 .card-stats .stat-value {
-  font-size: 1.125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #1f2937;
 }
 
 .status-badge {
   display: inline-block;
-  padding: 0.25rem 0.625rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 12px;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 500;
 }
 
@@ -292,7 +296,7 @@
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #e5e7eb;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #6b7280;
 }
 
@@ -315,10 +319,10 @@
 
 .edit-form label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   font-weight: 500;
   color: #374151;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
 }
 
 .edit-form .form-input {
@@ -326,7 +330,7 @@
   padding: 0.5rem 0.75rem;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .edit-form .form-input:focus {
@@ -358,10 +362,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 6px;
-  font-size: 0.95rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -391,8 +395,8 @@
 }
 
 .btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
 }
 
 .btn-icon {
