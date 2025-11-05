@@ -358,3 +358,8 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.modal-large {
+  max-width: 900px;
+  width: 90%;
+}

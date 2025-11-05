@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './Anomalies.css';
+import HealingRecommendations from '../components/HealingRecommendations';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -22,6 +23,9 @@ const Anomalies = () => {
   const [selectedAnomaly, setSelectedAnomaly] = useState(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolving, setResolving] = useState(false);
+  
+  // Recommendations modal
+  const [recommendationsAnomaly, setRecommendationsAnomaly] = useState(null);
 
   useEffect(() => {
     fetchAnomalies();
@@ -225,14 +229,23 @@ const Anomalies = () => {
                     </td>
                     <td className="detected-date">{formatDate(anomaly.detected_at)}</td>
                     <td>
-                      {anomaly.status === 'open' && (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {anomaly.status === 'open' && (
+                          <button 
+                            className="btn-resolve"
+                            onClick={() => setSelectedAnomaly(anomaly)}
+                          >
+                            Resolve
+                          </button>
+                        )}
                         <button 
-                          className="btn-resolve"
-                          onClick={() => setSelectedAnomaly(anomaly)}
+                          className="btn-secondary"
+                          onClick={() => setRecommendationsAnomaly(anomaly)}
+                          title="View healing recommendations"
                         >
-                          Resolve
+                          💡 Recommendations
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -287,8 +300,38 @@ const Anomalies = () => {
           </div>
         </div>
       )}
+
+      {recommendationsAnomaly && (
+        <div className="modal-overlay" onClick={() => setRecommendationsAnomaly(null)}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>Healing Recommendations</h2>
+              <button 
+                className="btn-close"
+                onClick={() => setRecommendationsAnomaly(null)}
+                style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="anomaly-details" style={{ marginBottom: '24px' }}>
+              <p><strong>Title:</strong> {recommendationsAnomaly.title}</p>
+              <p><strong>File:</strong> {recommendationsAnomaly.file_name}</p>
+              <p><strong>Type:</strong> {recommendationsAnomaly.anomaly_type?.replace(/_/g, ' ')}</p>
+              <p><strong>Severity:</strong> {recommendationsAnomaly.severity}</p>
+            </div>
+
+            <HealingRecommendations 
+              anomalyId={recommendationsAnomaly.anomaly_id} 
+              anomaly={recommendationsAnomaly}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 export default Anomalies;
