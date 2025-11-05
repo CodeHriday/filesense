@@ -27,13 +27,14 @@ module.exports = (dbPool, authenticate) => {
     try {
       const {
         project_id,
+        sub_project_id,
         rule_type,
         enabled,
         limit = 100,
         offset = 0
       } = req.query;
 
-      const cacheKey = `${CACHE_PREFIX}:list:${project_id || 'all'}:${rule_type || 'all'}:${enabled || 'all'}:${limit}:${offset}`;
+      const cacheKey = `${CACHE_PREFIX}:list:${project_id || 'all'}:${sub_project_id || 'all'}:${rule_type || 'all'}:${enabled || 'all'}:${limit}:${offset}`;
       
       // Try cache first
       const cached = await cacheService.get(cacheKey);
@@ -53,9 +54,24 @@ module.exports = (dbPool, authenticate) => {
       const params = [];
       let paramIndex = 1;
 
-      if (project_id) {
-        query += ` AND (qr.project_id = $${paramIndex} OR qr.sub_project_id = $${paramIndex} OR qr.project_id IS NULL)`;
+      if (project_id && sub_project_id) {
+        // If both project and sub-project specified, get rules for both levels
+        query += ` AND (
+          (qr.project_id = $${paramIndex} AND qr.sub_project_id IS NULL) 
+          OR qr.sub_project_id = $${paramIndex + 1}
+          OR qr.project_id IS NULL
+        )`;
+        params.push(project_id, sub_project_id);
+        paramIndex += 2;
+      } else if (project_id) {
+        // Only project specified: get project-level and global rules
+        query += ` AND (qr.project_id = $${paramIndex} OR qr.project_id IS NULL)`;
         params.push(project_id);
+        paramIndex++;
+      } else if (sub_project_id) {
+        // Only sub-project specified: get sub-project-level and global rules
+        query += ` AND (qr.sub_project_id = $${paramIndex} OR qr.project_id IS NULL)`;
+        params.push(sub_project_id);
         paramIndex++;
       }
 
@@ -81,9 +97,21 @@ module.exports = (dbPool, authenticate) => {
       const countParams = [];
       let countParamIndex = 1;
 
-      if (project_id) {
-        countQuery += ` AND (project_id = $${countParamIndex} OR sub_project_id = $${countParamIndex} OR project_id IS NULL)`;
+      if (project_id && sub_project_id) {
+        countQuery += ` AND (
+          (project_id = $${countParamIndex} AND sub_project_id IS NULL) 
+          OR sub_project_id = $${countParamIndex + 1}
+          OR project_id IS NULL
+        )`;
+        countParams.push(project_id, sub_project_id);
+        countParamIndex += 2;
+      } else if (project_id) {
+        countQuery += ` AND (project_id = $${countParamIndex} OR project_id IS NULL)`;
         countParams.push(project_id);
+        countParamIndex++;
+      } else if (sub_project_id) {
+        countQuery += ` AND (sub_project_id = $${countParamIndex} OR project_id IS NULL)`;
+        countParams.push(sub_project_id);
         countParamIndex++;
       }
 
