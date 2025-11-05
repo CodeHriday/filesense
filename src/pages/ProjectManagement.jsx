@@ -474,8 +474,8 @@ function ProjectManagement() {
               <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
             </div>
             <div className="modal-body">
-              <form onSubmit={handleCreate} style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <form onSubmit={handleCreate}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div className="form-group">
                     <label>Project Name *</label>
                     <input
@@ -505,7 +505,7 @@ function ProjectManagement() {
                     rows="3"
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div className="form-group">
                     <label>Add Members</label>
                     <select
@@ -515,7 +515,7 @@ function ProjectManagement() {
                         const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
                         setFormData({ ...formData, member_ids: selected });
                       }}
-                      style={{ minHeight: '120px' }}
+                      style={{ minHeight: '100px' }}
                     >
                       {availableUsers.map(user => (
                         <option key={user.id} value={user.id}>
@@ -523,7 +523,7 @@ function ProjectManagement() {
                         </option>
                       ))}
                     </select>
-                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple users</small>
+                    <small style={{ color: '#666', fontSize: '0.7rem' }}>Hold Ctrl/Cmd to select multiple users</small>
                   </div>
                   <div className="form-group">
                     <label>Add Access Groups</label>
@@ -534,7 +534,7 @@ function ProjectManagement() {
                         const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
                         setFormData({ ...formData, group_ids: selected });
                       }}
-                      style={{ minHeight: '120px' }}
+                      style={{ minHeight: '100px' }}
                     >
                       {availableGroups.map(group => (
                         <option key={group.id} value={group.id}>
@@ -542,7 +542,7 @@ function ProjectManagement() {
                         </option>
                       ))}
                     </select>
-                    <small style={{ color: '#666', fontSize: '0.85rem' }}>Hold Ctrl/Cmd to select multiple groups</small>
+                    <small style={{ color: '#666', fontSize: '0.7rem' }}>Hold Ctrl/Cmd to select multiple groups</small>
                   </div>
                 </div>
               </form>
@@ -568,7 +568,7 @@ function ProjectManagement() {
               <div className="modal-content-sections">
                 <form onSubmit={handleUpdate}>
                   <h3>Project Details</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                     <div className="form-group">
                       <label>Project Name *</label>
                       <input
@@ -598,12 +598,12 @@ function ProjectManagement() {
                       rows="3"
                     />
                   </div>
-                  <div style={{ marginTop: '1rem' }}>
+                  <div style={{ marginTop: '0.75rem' }}>
                     <button type="submit" className="btn-primary">Update Details</button>
                   </div>
                 </form>
 
-              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+              <hr style={{ margin: '1rem 0', border: '1px solid #ddd' }} />
 
               <div className="members-section">
                 <h3>Members</h3>
@@ -684,7 +684,7 @@ function ProjectManagement() {
                 </div>
               </div>
 
-              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+              <hr style={{ margin: '1rem 0', border: '1px solid #ddd' }} />
 
               <div className="groups-section">
                 <h3>Access Groups</h3>
@@ -739,7 +739,7 @@ function ProjectManagement() {
                 </div>
               </div>
 
-              <hr style={{ margin: '1.5rem 0', border: '1px solid #ddd' }} />
+              <hr style={{ margin: '1rem 0', border: '1px solid #ddd' }} />
 
               <div className="subprojects-section">
                 <SubProjectManagement 
