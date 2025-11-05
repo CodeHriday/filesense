@@ -707,7 +707,7 @@ function QualityRules() {
       </Card>
 
       {loading ? (
-        <LoadingSpinner />
+        <LoadingSpinner size="small" />
       ) : error ? (
         <div className="error-message">
           <FiAlertTriangle />
