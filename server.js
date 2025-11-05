@@ -419,7 +419,7 @@ const storage = multer.diskStorage({
 });
 
 // File upload validation
-const MAX_FILE_SIZE = process.env.MAX_FILE_SIZE || (100 * 1024 * 1024); // Default 100MB (reduced from 1GB for security)
+const MAX_FILE_SIZE = process.env.MAX_FILE_SIZE || (25 * 1024 * 1024); // Default 25MB - use Mapping Jobs for larger files
 const ALLOWED_FILE_TYPES = [
   'text/csv',
   'application/json',
@@ -2419,6 +2419,17 @@ app.use('/api/files/drop', (error, req, res, next) => {
       message: error.message,
       field: error.field 
     });
+    
+    // Provide specific error message for file size limit
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        error: 'File too large', 
+        details: `File exceeds the maximum size limit of 25 MB. For larger files, please use ETL Mapping Jobs which can handle files of any size.`,
+        code: error.code,
+        maxSize: '25 MB'
+      });
+    }
+    
     return res.status(400).json({ 
       error: 'File upload error', 
       details: error.message,

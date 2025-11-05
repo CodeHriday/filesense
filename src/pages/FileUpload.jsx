@@ -1160,7 +1160,7 @@ function FileUpload() {
                 onFileDrop={handleFileDrop}
                 onBatchFileDrop={handleBatchFileDrop}
                 acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
-                maxSizeMB={50}
+                maxSizeMB={25}
                 multiple={true}
                 externalStatus={uploadStatus}
               />
@@ -1376,7 +1376,7 @@ function FileUpload() {
                     onFileDrop={handleDropFile}
                     onBatchFileDrop={handleBatchFileDrop}
                     acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
-                    maxSizeMB={50}
+                    maxSizeMB={25}
                     multiple={true}
                     virusScan={uploadedFile?.virusScan}
                     externalStatus={uploadStatus}

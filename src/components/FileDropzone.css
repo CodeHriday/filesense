@@ -88,6 +88,18 @@
   margin: var(--space-1) 0;
 }
 
+.file-size-limit {
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+.file-size-helper {
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  font-style: italic;
+  margin-top: var(--space-2) !important;
+}
+
 .upload-progress {
   display: flex;
   flex-direction: column;

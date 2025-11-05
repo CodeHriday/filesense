@@ -661,7 +661,10 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
             </div>
             <div className="file-requirements">
               <p>Supported file types: {acceptedFileTypes.join(', ')}</p>
-              <p>Maximum file size: {maxSizeMB}MB</p>
+              <p className="file-size-limit">Maximum file size: {maxSizeMB}MB</p>
+              {maxSizeMB <= 25 && (
+                <p className="file-size-helper">For larger files, please use ETL Mapping Jobs</p>
+              )}
             </div>
           </>
         )}
