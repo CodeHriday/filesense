@@ -36,6 +36,9 @@ function FileUpload() {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [subProjects, setSubProjects] = useState([]);
+  const [selectedSubProject, setSelectedSubProject] = useState(null);
+  const [loadingSubProjects, setLoadingSubProjects] = useState(false);
   const [batchUploadStatus, setBatchUploadStatus] = useState(null); // Track batch upload progress
   const [batchResults, setBatchResults] = useState(null); // Store batch upload results
   const pollingInterval = useRef(null);
@@ -121,6 +124,37 @@ function FileUpload() {
     
     fetchProjects();
   }, [searchParams]);
+  
+  // Fetch sub-projects when project is selected
+  useEffect(() => {
+    const fetchSubProjects = async () => {
+      if (!selectedProject) {
+        setSubProjects([]);
+        setSelectedSubProject(null);
+        return;
+      }
+      
+      try {
+        setLoadingSubProjects(true);
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await axios.get(`${API_BASE_URL}/api/projects/${selectedProject}/sub-projects`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setSubProjects(response.data.subProjects || []);
+        setSelectedSubProject(null); // Reset sub-project selection when project changes
+      } catch (error) {
+        console.error('Error fetching sub-projects:', error);
+        setSubProjects([]);
+      } finally {
+        setLoadingSubProjects(false);
+      }
+    };
+    
+    fetchSubProjects();
+  }, [selectedProject]);
   
   // Cleanup polling on unmount
   useEffect(() => {
@@ -448,7 +482,7 @@ function FileUpload() {
           };
           
           // Upload individual file
-          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject);
+          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, null, selectedSubProject);
           
           // Extract fileId from result
           let fileId;
@@ -562,7 +596,7 @@ function FileUpload() {
       }
       
       // Upload the file with progress tracking (optionally with atomic replacement)
-      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId);
+      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId, selectedSubProject);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -990,6 +1024,42 @@ function FileUpload() {
                   )}
                 </select>
               </div>
+
+              {/* Sub-Project Selection */}
+              {selectedProject && subProjects.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
+                  <label htmlFor="sub-project-select" style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                    Sub-Project:
+                  </label>
+                  <select 
+                    id="sub-project-select"
+                    value={selectedSubProject || ''}
+                    onChange={(e) => setSelectedSubProject(e.target.value ? Number(e.target.value) : null)}
+                    disabled={loadingSubProjects}
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      cursor: 'pointer',
+                      minWidth: '200px'
+                    }}
+                  >
+                    {loadingSubProjects ? (
+                      <option>Loading sub-projects...</option>
+                    ) : (
+                      <>
+                        <option value="">None (use parent project)</option>
+                        {subProjects.map(subProject => (
+                          <option key={subProject.id} value={subProject.id}>
+                            {subProject.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+              )}
 
               {/* File Owner */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
