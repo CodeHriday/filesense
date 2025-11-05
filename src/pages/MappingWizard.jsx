@@ -1269,14 +1269,81 @@ function MappingWizard() {
                 </p>
               </div>
 
-              {schemaValidationResult.differences && schemaValidationResult.differences.length > 0 && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#1e293b' }}>
-                    Issues Found:
-                  </h3>
-                  <ul style={{ paddingLeft: '1.5rem', margin: 0, color: '#dc2626' }}>
-                    {schemaValidationResult.differences.map((diff, idx) => (
-                      <li key={idx} style={{ marginBottom: '0.5rem' }}>{diff}</li>
+              {/* Missing Required Columns */}
+              {schemaValidationResult.missingColumns && schemaValidationResult.missingColumns.length > 0 && (
+                <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#fff5f5', border: '2px solid #e53e3e', borderRadius: '6px' }}>
+                  <h4 style={{ 
+                    color: '#c53030', 
+                    fontSize: '0.95rem', 
+                    marginTop: 0,
+                    marginBottom: '0.5rem',
+                    fontWeight: 'bold'
+                  }}>
+                    Missing Required Columns ({schemaValidationResult.missingColumns.length})
+                  </h4>
+                  <ul style={{ 
+                    margin: '0 0 0 1.5rem', 
+                    padding: 0,
+                    color: '#742a2a'
+                  }}>
+                    {schemaValidationResult.missingColumns.map((col, idx) => (
+                      <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                        <strong>{col}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Additional Errors */}
+              {schemaValidationResult.errors && schemaValidationResult.errors.length > 0 && (
+                <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#fff5f5', border: '2px solid #e53e3e', borderRadius: '6px' }}>
+                  <h4 style={{ 
+                    color: '#c53030', 
+                    fontSize: '0.95rem', 
+                    marginTop: 0,
+                    marginBottom: '0.5rem',
+                    fontWeight: 'bold'
+                  }}>
+                    Additional Issues
+                  </h4>
+                  <ul style={{ 
+                    margin: '0 0 0 1.5rem', 
+                    padding: 0,
+                    color: '#742a2a'
+                  }}>
+                    {schemaValidationResult.errors.map((error, idx) => (
+                      <li key={idx} style={{ marginBottom: '0.25rem' }}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Warnings (Extra Columns) */}
+              {schemaValidationResult.warnings && schemaValidationResult.warnings.length > 0 && (
+                <div style={{ 
+                  marginBottom: '1rem',
+                  padding: '1rem',
+                  background: '#fffaf0',
+                  border: '1px solid #f6ad55',
+                  borderRadius: '6px'
+                }}>
+                  <h4 style={{ 
+                    color: '#c05621', 
+                    fontSize: '0.9rem', 
+                    marginTop: 0,
+                    marginBottom: '0.5rem',
+                    fontWeight: 'bold'
+                  }}>
+                    Warnings ({schemaValidationResult.warnings.length})
+                  </h4>
+                  <ul style={{ 
+                    margin: '0 0 0 1.5rem', 
+                    padding: 0,
+                    color: '#744210'
+                  }}>
+                    {schemaValidationResult.warnings.map((warning, idx) => (
+                      <li key={idx} style={{ marginBottom: '0.25rem', fontSize: '0.9rem' }}>{warning}</li>
                     ))}
                   </ul>
                 </div>
@@ -1295,14 +1362,12 @@ function MappingWizard() {
                         <thead>
                           <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                             <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Column</th>
-                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Type</th>
                           </tr>
                         </thead>
                         <tbody>
                           {schemaValidationResult.expectedSchema.map((field, idx) => (
                             <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '0.5rem' }}>{field.name}</td>
-                              <td style={{ padding: '0.5rem', color: '#64748b' }}>{field.type}</td>
+                              <td style={{ padding: '0.5rem' }}>{field.name || field.column_name}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1316,23 +1381,28 @@ function MappingWizard() {
                 {/* Actual Schema */}
                 <div>
                   <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FiAlertCircle style={{ color: '#dc2626' }} />
+                    <FiAlertCircle style={{ color: schemaValidationResult.schemaDrift ? '#dc2626' : '#10b981' }} />
                     Actual File Schema
                   </h3>
-                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '1rem', maxHeight: '300px', overflowY: 'auto' }}>
+                  <div style={{ 
+                    backgroundColor: schemaValidationResult.schemaDrift ? '#fef2f2' : '#f0fdf4', 
+                    border: schemaValidationResult.schemaDrift ? '1px solid #fecaca' : '1px solid #bbf7d0', 
+                    borderRadius: '6px', 
+                    padding: '1rem', 
+                    maxHeight: '300px', 
+                    overflowY: 'auto' 
+                  }}>
                     {schemaValidationResult.actualSchema && schemaValidationResult.actualSchema.length > 0 ? (
                       <table style={{ width: '100%', fontSize: '0.9rem' }}>
                         <thead>
-                          <tr style={{ borderBottom: '1px solid #fecaca' }}>
+                          <tr style={{ borderBottom: schemaValidationResult.schemaDrift ? '1px solid #fecaca' : '1px solid #bbf7d0' }}>
                             <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Column</th>
-                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: '600' }}>Type</th>
                           </tr>
                         </thead>
                         <tbody>
                           {schemaValidationResult.actualSchema.map((field, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #fee2e2' }}>
-                              <td style={{ padding: '0.5rem' }}>{field.name}</td>
-                              <td style={{ padding: '0.5rem', color: '#64748b' }}>{field.type}</td>
+                            <tr key={idx} style={{ borderBottom: schemaValidationResult.schemaDrift ? '1px solid #fee2e2' : '1px solid #dcfce7' }}>
+                              <td style={{ padding: '0.5rem' }}>{field.name || field.column_name}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1346,7 +1416,10 @@ function MappingWizard() {
 
               <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fffbeb', border: '1px solid #fbbf24', borderRadius: '6px' }}>
                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#92400e' }}>
-                  <strong>Note:</strong> You can still proceed with creating the mapping, but this schema mismatch may cause issues during job execution based on your Schema Drift Handling policy.
+                  <strong>Note:</strong> Your Schema Drift Handling policy is set to <strong>{schemaDriftHandling}</strong>. 
+                  {schemaDriftHandling === 'abort' && ' This schema mismatch will cause job execution to fail.'}
+                  {schemaDriftHandling === 'alert' && ' This schema mismatch will be logged with a "Fail" status, but the job will continue processing.'}
+                  {schemaDriftHandling === 'none' && ' This schema mismatch will not affect job execution.'}
                 </p>
               </div>
             </div>

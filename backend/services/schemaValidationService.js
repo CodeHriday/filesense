@@ -123,25 +123,41 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
       systemLogger.warn('Schema drift detected', { 
         vendorAgreementId, 
         filePath: fullPath,
-        differences: comparison.differences 
+        errors: comparison.errors,
+        missingColumns: comparison.missingColumns,
+        extraColumns: comparison.extraColumns
       });
       
       return {
         valid: false,
         schemaDrift: true,
-        message: `Schema drift detected: ${comparison.differences.join(', ')}`,
+        message: `Schema drift detected: ${comparison.errors.join(', ')}`,
         actualSchema,
         expectedSchema,
-        differences: comparison.differences
+        differences: comparison.differences,
+        errors: comparison.errors,
+        warnings: comparison.warnings,
+        missingColumns: comparison.missingColumns,
+        extraColumns: comparison.extraColumns
       };
     }
+    
+    // Schema validation passed - may have warnings (extra columns)
+    const message = comparison.warnings.length > 0
+      ? `Schema validation passed with ${comparison.warnings.length} warning(s)`
+      : 'Schema validation passed';
     
     return {
       valid: true,
       schemaDrift: false,
-      message: 'Schema validation passed',
+      message,
       actualSchema,
-      expectedSchema
+      expectedSchema,
+      differences: comparison.differences,
+      errors: comparison.errors,
+      warnings: comparison.warnings,
+      missingColumns: comparison.missingColumns,
+      extraColumns: comparison.extraColumns
     };
     
   } catch (error) {
@@ -368,41 +384,56 @@ async function extractJSONSchema(stream) {
 }
 
 /**
- * Compare two schemas
+ * Compare two schemas (column-name-only validation, case-insensitive)
+ * Matches the simplified logic from schemaExtractor.js for consistent validation
  */
 function compareSchemas(expectedSchema, actualSchema) {
-  const differences = [];
+  const errors = [];
+  const warnings = [];
+  const missingColumns = [];
+  const extraColumns = [];
   let drift = false;
   
   // Normalize schema formats
   const expected = normalizeSchema(expectedSchema);
   const actual = normalizeSchema(actualSchema);
   
-  // Check for missing columns
-  const expectedNames = expected.map(col => col.name.toLowerCase());
-  const actualNames = actual.map(col => col.name.toLowerCase());
+  // Create case-insensitive column name maps
+  const expectedMap = new Map();
+  expected.forEach(col => {
+    expectedMap.set(col.name.toLowerCase(), col.name);
+  });
   
-  expectedNames.forEach(name => {
-    if (!actualNames.includes(name)) {
-      differences.push(`Missing column: ${name}`);
+  const actualMap = new Map();
+  actual.forEach(col => {
+    actualMap.set(col.name.toLowerCase(), col.name);
+  });
+  
+  // Check for missing columns (CRITICAL - causes drift/failure)
+  expectedMap.forEach((originalName, lowerName) => {
+    if (!actualMap.has(lowerName)) {
+      missingColumns.push(originalName);
+      errors.push(`Missing required column: ${originalName}`);
       drift = true;
     }
   });
   
-  // Check for extra columns
-  actualNames.forEach(name => {
-    if (!expectedNames.includes(name)) {
-      differences.push(`Unexpected column: ${name}`);
-      drift = true;
+  // Check for extra columns (WARNING ONLY - does not cause drift)
+  actualMap.forEach((originalName, lowerName) => {
+    if (!expectedMap.has(lowerName)) {
+      extraColumns.push(originalName);
+      warnings.push(`Extra column found: ${originalName} (not in contract schema)`);
     }
   });
   
-  // Check column order (warning only, not critical)
-  if (!drift && expectedNames.join(',') !== actualNames.join(',')) {
-    differences.push('Column order mismatch (non-critical)');
-  }
-  
-  return { drift, differences };
+  return { 
+    drift, 
+    differences: [...errors, ...warnings],
+    errors,
+    warnings,
+    missingColumns,
+    extraColumns
+  };
 }
 
 /**
