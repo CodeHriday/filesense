@@ -13,6 +13,7 @@ function QualityRules() {
   const { hasWritePermission } = useAuth();
   const [rules, setRules] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [subProjects, setSubProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showRuleForm, setShowRuleForm] = useState(false);
@@ -41,6 +42,7 @@ function QualityRules() {
     column_name: '',
     severity: 'warning',
     project_id: '',
+    sub_project_id: '',
     enabled: true,
     rule_config: {}
   });
@@ -94,6 +96,33 @@ function QualityRules() {
     }
   };
 
+  const fetchSubProjects = async (parentProjectId) => {
+    if (!parentProjectId) {
+      setSubProjects([]);
+      return;
+    }
+    
+    try {
+      const allProjects = await getProjects();
+      const filteredSubProjects = Array.isArray(allProjects) 
+        ? allProjects.filter(p => p.parent_project_id === parseInt(parentProjectId))
+        : [];
+      setSubProjects(filteredSubProjects);
+    } catch (err) {
+      console.error('Error fetching sub-projects:', err);
+      setSubProjects([]);
+    }
+  };
+
+  const handleProjectChange = async (projectId) => {
+    setFormData({
+      ...formData,
+      project_id: projectId,
+      sub_project_id: ''
+    });
+    await fetchSubProjects(projectId);
+  };
+
   const handleAddRule = () => {
     setCurrentRule(null);
     setFormData({
@@ -103,14 +132,16 @@ function QualityRules() {
       column_name: '',
       severity: 'warning',
       project_id: '',
+      sub_project_id: '',
       enabled: true,
       rule_config: {}
     });
     setFormErrors({});
+    setSubProjects([]);
     setShowRuleForm(true);
   };
 
-  const handleEditRule = (rule) => {
+  const handleEditRule = async (rule) => {
     setCurrentRule(rule);
     
     // Parse rule config
@@ -128,10 +159,16 @@ function QualityRules() {
       column_name: rule.column_name || '',
       severity: rule.severity,
       project_id: rule.project_id || '',
+      sub_project_id: rule.sub_project_id || '',
       enabled: rule.enabled,
       rule_config: ruleConfig
     });
     setFormErrors({});
+    
+    if (rule.project_id) {
+      await fetchSubProjects(rule.project_id);
+    }
+    
     setShowRuleForm(true);
   };
 
@@ -245,6 +282,7 @@ function QualityRules() {
         rule_config: ruleConfig,
         severity: formData.severity,
         project_id: formData.project_id || null,
+        sub_project_id: formData.sub_project_id || null,
         enabled: formData.enabled
       };
       
@@ -746,7 +784,7 @@ function QualityRules() {
                       id="rule-project"
                       className="form-control"
                       value={formData.project_id}
-                      onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                      onChange={(e) => handleProjectChange(e.target.value)}
                     >
                       <option value="">All Projects</option>
                       {projects.map(project => (
@@ -757,6 +795,27 @@ function QualityRules() {
                     </select>
                   </div>
                 </div>
+                
+                {formData.project_id && (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="rule-sub-project">Sub-Project (Optional)</label>
+                      <select
+                        id="rule-sub-project"
+                        className="form-control"
+                        value={formData.sub_project_id}
+                        onChange={(e) => setFormData({ ...formData, sub_project_id: e.target.value })}
+                      >
+                        <option value="">None (Parent Project Level)</option>
+                        {subProjects.map(subProject => (
+                          <option key={subProject.id} value={subProject.id}>
+                            {subProject.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="form-group">
                   <label htmlFor="rule-description">Description</label>
