@@ -15,6 +15,7 @@ const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const virusScanService = require('./VirusScanService');
 const { createSchedule } = require('./cronSchedulerService');
 const { describeCronExpression } = require('../utils/cronDescriber');
+const { validateDataWithRules } = require('./qualityValidationEngine');
 
 class BulkProfilingService {
   /**
@@ -331,9 +332,9 @@ class BulkProfilingService {
       
       const query = `
         INSERT INTO bulk_profiling_jobs (
-          id, job_name, project_id, connection_id, s3_path, file_pattern,
-          duplicate_handling, recursive, status, execution_type, schedule_id, created_by, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+          id, job_name, project_id, sub_project_id, connection_id, s3_path, file_pattern,
+          duplicate_handling, recursive, status, execution_type, schedule_id, quality_rule_ids, created_by, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
         RETURNING *
       `;
       
@@ -341,6 +342,7 @@ class BulkProfilingService {
         jobId,
         jobData.jobName || `Bulk Profiling ${new Date().toISOString()}`,
         jobData.projectId,
+        jobData.subProjectId || null,
         jobData.connectionId,
         jobData.s3Path,
         jobData.filePattern || '*',
@@ -349,6 +351,7 @@ class BulkProfilingService {
         'pending',
         jobData.executionType || 'manual',
         scheduleId,
+        jobData.qualityRuleIds || null,
         jobData.createdBy
       ];
       
@@ -787,6 +790,31 @@ class BulkProfilingService {
               await this._savePreviewData(fileId, fileInfo.preview_data);
             }
             
+            // Step 6.5: Run quality rules validation if configured
+            if (job.quality_rule_ids && job.quality_rule_ids.length > 0 && fileInfo.preview_data && fileInfo.preview_data.length > 0) {
+              try {
+                await this._runQualityValidation(
+                  fileId,
+                  file.file_name,
+                  job.quality_rule_ids,
+                  fileInfo.preview_data,
+                  userId
+                );
+                systemLogger.info('Quality validation completed', { 
+                  jobId, 
+                  fileName: file.file_name,
+                  ruleCount: job.quality_rule_ids.length
+                });
+              } catch (validationError) {
+                systemLogger.error('Error running quality validation', {
+                  jobId,
+                  fileName: file.file_name,
+                  error: validationError.message
+                });
+                // Don't fail the entire job, just log the validation error
+              }
+            }
+            
             // Step 7: Create file ownership
             await this._createFileOwnership(fileId, userId, file.file_name);
             
@@ -1197,6 +1225,83 @@ print(json.dumps(result))
     if (value === null || value === undefined || value === '') return null;
     const parsed = parseFloat(value);
     return !isNaN(parsed) && isFinite(parsed) ? parsed : null;
+  }
+  
+  /**
+   * Run quality validation on file data
+   */
+  async _runQualityValidation(fileId, fileName, qualityRuleIds, previewData, userId) {
+    try {
+      // Fetch quality rules from database
+      const rulesQuery = `
+        SELECT id, rule_name, rule_type, column_name, rule_config, severity
+        FROM quality_rules
+        WHERE id = ANY($1) AND enabled = true
+      `;
+      const rulesResult = await pool.query(rulesQuery, [qualityRuleIds]);
+      
+      if (rulesResult.rows.length === 0) {
+        systemLogger.info('No enabled quality rules found', { qualityRuleIds });
+        return;
+      }
+      
+      const rules = rulesResult.rows.map(rule => ({
+        ...rule,
+        rule_config: typeof rule.rule_config === 'string' ? JSON.parse(rule.rule_config) : rule.rule_config
+      }));
+      
+      // Run validation on preview data (first 100 rows)
+      const validationResult = await validateDataWithRules(previewData, rules);
+      
+      // Store violations if any
+      if (validationResult.violations && validationResult.violations.length > 0) {
+        for (const violation of validationResult.violations) {
+          try {
+            await pool.query(
+              `INSERT INTO quality_violations 
+               (file_id, file_name, rule_id, rule_name, column_name, severity, 
+                violation_details, row_number, expected_value, actual_value, created_by, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+              [
+                fileId,
+                fileName,
+                violation.rule_id,
+                violation.rule_name,
+                violation.column_name,
+                violation.severity,
+                violation.message || violation.violation_details,
+                violation.row_number || null,
+                violation.expected_value || null,
+                violation.actual_value || null,
+                userId
+              ]
+            );
+          } catch (violationError) {
+            systemLogger.error('Error storing quality violation', {
+              fileId,
+              ruleId: violation.rule_id,
+              error: violationError.message
+            });
+          }
+        }
+        
+        systemLogger.info('Quality violations stored', {
+          fileId,
+          fileName,
+          violationCount: validationResult.violations.length
+        });
+      } else {
+        systemLogger.info('No quality violations found', { fileId, fileName });
+      }
+      
+    } catch (error) {
+      systemLogger.error('Error running quality validation', {
+        fileId,
+        fileName,
+        error: error.message
+      });
+      throw error;
+    }
   }
 }
 
