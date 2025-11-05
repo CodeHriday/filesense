@@ -22,28 +22,24 @@
 }
 
 /* Throbbing spinner animation */
-.throb-spinner {
+/* UPDATED 2025-11-05 - ALL SPINNERS MUST BE 5PX */
+.throb-spinner,
+.throb-spinner-small,
+.throb-spinner-medium,
+.throb-spinner-large,
+div.throb-spinner,
+div.throb-spinner-small,
+div.throb-spinner-medium,
+div.throb-spinner-large {
   width: 5px !important;
   height: 5px !important;
+  min-width: 5px !important;
+  min-height: 5px !important;
+  max-width: 5px !important;
+  max-height: 5px !important;
   background: var(--color-primary);
   border-radius: var(--radius-full);
   animation: throb 1.2s ease-in-out infinite;
-}
-
-/* Size variations */
-.throb-spinner-small {
-  width: 5px !important;
-  height: 5px !important;
-}
-
-.throb-spinner-medium {
-  width: 5px !important;
-  height: 5px !important;
-}
-
-.throb-spinner-large {
-  width: 5px !important;
-  height: 5px !important;
 }
 
 /* Throbbing animation - pulsing effect */
