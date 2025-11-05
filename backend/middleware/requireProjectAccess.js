@@ -74,16 +74,21 @@ function requireProjectAccess(options = {}) {
         return next();
       }
 
-      // Check project membership
+      // Resolve sub-projects to their parent for access control
+      // Check membership against both the project and its parent (if it's a sub-project)
+      const parentProjectId = await resolveToParentProject(projectId);
+      
+      // Check project membership (allow access if user is member of either the project itself OR its parent)
       const membershipResult = await db.query(`
         SELECT 
           p.name as project_name,
           p.is_active as project_active
         FROM project_members pm
         JOIN projects p ON pm.project_id = p.id
-        WHERE pm.project_id = $1 
-          AND pm.user_id = $2
-      `, [projectId, req.user.id]);
+        WHERE pm.project_id IN ($1, $2)
+          AND pm.user_id = $3
+        LIMIT 1
+      `, [projectId, parentProjectId, req.user.id]);
 
       if (membershipResult.rows.length === 0) {
         systemLogger.warn('Project access denied: User not a member', {
@@ -98,14 +103,32 @@ function requireProjectAccess(options = {}) {
         });
       }
 
-      const membership = membershipResult.rows[0];
+      // Always check the target project's active status (not the parent's)
+      const targetProjectResult = await db.query(`
+        SELECT name, is_active 
+        FROM projects 
+        WHERE id = $1
+      `, [projectId]);
 
-      // Check if project is active
-      if (!membership.project_active) {
-        systemLogger.warn('Project access denied: Project inactive', {
+      if (targetProjectResult.rows.length === 0) {
+        systemLogger.warn('Project access denied: Target project not found', {
+          userId: req.user.id,
+          projectId
+        });
+        return res.status(404).json({ 
+          error: 'Not found',
+          message: 'Project not found'
+        });
+      }
+
+      const targetProject = targetProjectResult.rows[0];
+
+      // Check if target project is active
+      if (!targetProject.is_active) {
+        systemLogger.warn('Project access denied: Target project inactive', {
           userId: req.user.id,
           projectId,
-          projectName: membership.project_name
+          projectName: targetProject.name
         });
         return res.status(403).json({
           error: 'Access denied',
@@ -115,14 +138,14 @@ function requireProjectAccess(options = {}) {
 
       // Success - attach project context to request
       req.projectId = projectId;
-      req.projectName = membership.project_name;
+      req.projectName = targetProject.name;
       req.isAdminBypass = false;
 
       systemLogger.info('Project access granted', {
         userId: req.user.id,
         username: req.user.username,
         projectId,
-        projectName: membership.project_name,
+        projectName: targetProject.name,
         resourceType
       });
 
@@ -269,11 +292,41 @@ async function lookupResourceProject(req, resourceType) {
 }
 
 /**
+ * Resolve a sub-project to its parent project for access control
+ * If the project has a parent_id, return the parent_id; otherwise return the original projectId
+ */
+async function resolveToParentProject(projectId) {
+  try {
+    const result = await db.query(`
+      SELECT parent_id 
+      FROM projects 
+      WHERE id = $1
+    `, [projectId]);
+    
+    if (result.rows.length === 0) {
+      return projectId; // Project not found, return original ID
+    }
+    
+    const parentId = result.rows[0].parent_id;
+    return parentId || projectId; // Return parent_id if exists, otherwise the original projectId
+  } catch (error) {
+    systemLogger.error('Error resolving project to parent', {
+      error: error.message,
+      projectId
+    });
+    return projectId; // On error, return original ID
+  }
+}
+
+/**
  * Helper function to check if user has access to a specific project
  * Can be used programmatically without middleware
  */
 async function checkProjectMembership(userId, projectId) {
   try {
+    // Check membership against both the project and its parent (if it's a sub-project)
+    const parentProjectId = await resolveToParentProject(projectId);
+    
     const result = await db.query(`
       SELECT 
         pm.user_id,
@@ -281,10 +334,11 @@ async function checkProjectMembership(userId, projectId) {
         p.name as project_name
       FROM project_members pm
       JOIN projects p ON pm.project_id = p.id
-      WHERE pm.project_id = $1 
-        AND pm.user_id = $2
+      WHERE pm.project_id IN ($1, $2)
+        AND pm.user_id = $3
         AND p.is_active = TRUE
-    `, [projectId, userId]);
+      LIMIT 1
+    `, [projectId, parentProjectId, userId]);
 
     if (result.rows.length === 0) {
       return { hasAccess: false, role: null, projectName: null };
