@@ -460,5 +460,220 @@ module.exports = (dbPool, logger, auditService, retentionWorker) => {
     }
   );
 
+  // ============================================================================
+  // GET /api/retention-policies/archives - Get all archived files
+  // ============================================================================
+  router.get('/archives/list',
+    authenticateToken,
+    requirePermission('settings:read'),
+    async (req, res) => {
+      try {
+        const { policy_id, status, start_date, end_date, limit = 100, offset = 0 } = req.query;
+        
+        let query = `
+          SELECT 
+            af.*,
+            rp.name as policy_name,
+            rp.description as policy_description,
+            f.filename as original_filename,
+            f.file_type,
+            f.file_size as original_file_size,
+            u.email as archived_by_email
+          FROM archived_files af
+          LEFT JOIN retention_policies rp ON af.policy_id = rp.id
+          LEFT JOIN files f ON af.file_id = f.file_id
+          LEFT JOIN users u ON af.archived_by = u.id
+          WHERE af.is_deleted = false
+        `;
+        
+        const params = [];
+        let paramCounter = 1;
+
+        if (policy_id) {
+          params.push(policy_id);
+          query += ` AND af.policy_id = $${paramCounter}`;
+          paramCounter++;
+        }
+
+        if (status) {
+          params.push(status);
+          query += ` AND af.archive_status = $${paramCounter}`;
+          paramCounter++;
+        }
+
+        if (start_date) {
+          params.push(start_date);
+          query += ` AND af.archived_at >= $${paramCounter}::timestamptz`;
+          paramCounter++;
+        }
+
+        if (end_date) {
+          params.push(end_date);
+          query += ` AND af.archived_at <= $${paramCounter}::timestamptz`;
+          paramCounter++;
+        }
+
+        query += ` ORDER BY af.archived_at DESC`;
+        
+        // Add pagination
+        params.push(parseInt(limit), parseInt(offset));
+        query += ` LIMIT $${paramCounter} OFFSET $${paramCounter + 1}`;
+
+        const result = await dbPool.query(query, params);
+
+        // Get total count
+        let countQuery = `
+          SELECT COUNT(*) as total
+          FROM archived_files af
+          WHERE af.is_deleted = false
+        `;
+        
+        const countParams = [];
+        let countParamCounter = 1;
+        
+        if (policy_id) {
+          countParams.push(policy_id);
+          countQuery += ` AND af.policy_id = $${countParamCounter}`;
+          countParamCounter++;
+        }
+
+        if (status) {
+          countParams.push(status);
+          countQuery += ` AND af.archive_status = $${countParamCounter}`;
+          countParamCounter++;
+        }
+
+        if (start_date) {
+          countParams.push(start_date);
+          countQuery += ` AND af.archived_at >= $${countParamCounter}::timestamptz`;
+          countParamCounter++;
+        }
+
+        if (end_date) {
+          countParams.push(end_date);
+          countQuery += ` AND af.archived_at <= $${countParamCounter}::timestamptz`;
+          countParamCounter++;
+        }
+
+        const countResult = await dbPool.query(countQuery, countParams);
+
+        res.json({
+          success: true,
+          archives: result.rows,
+          pagination: {
+            total: parseInt(countResult.rows[0].total),
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+            hasMore: parseInt(offset) + result.rows.length < parseInt(countResult.rows[0].total)
+          }
+        });
+      } catch (error) {
+        logger.error('Error fetching archived files', { error: error.message, stack: error.stack });
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch archived files'
+        });
+      }
+    }
+  );
+
+  // ============================================================================
+  // GET /api/retention-policies/restorations - Get file restoration history
+  // ============================================================================
+  router.get('/restorations/history',
+    authenticateToken,
+    requirePermission('settings:read'),
+    async (req, res) => {
+      try {
+        const { status, start_date, end_date, limit = 50, offset = 0 } = req.query;
+        
+        let query = `
+          SELECT 
+            fr.*,
+            af.filename as archived_filename,
+            af.archive_path,
+            rp.name as policy_name,
+            u.email as restored_by_email
+          FROM file_restorations fr
+          LEFT JOIN archived_files af ON fr.archived_file_id = af.id
+          LEFT JOIN retention_policies rp ON af.policy_id = rp.id
+          LEFT JOIN users u ON fr.restored_by = u.id
+          WHERE 1=1
+        `;
+        
+        const params = [];
+        let paramCounter = 1;
+
+        if (status) {
+          params.push(status);
+          query += ` AND fr.restoration_status = $${paramCounter}`;
+          paramCounter++;
+        }
+
+        if (start_date) {
+          params.push(start_date);
+          query += ` AND fr.requested_at >= $${paramCounter}::timestamptz`;
+          paramCounter++;
+        }
+
+        if (end_date) {
+          params.push(end_date);
+          query += ` AND fr.requested_at <= $${paramCounter}::timestamptz`;
+          paramCounter++;
+        }
+
+        query += ` ORDER BY fr.requested_at DESC`;
+        
+        // Add pagination
+        params.push(parseInt(limit), parseInt(offset));
+        query += ` LIMIT $${paramCounter} OFFSET $${paramCounter + 1}`;
+
+        const result = await dbPool.query(query, params);
+
+        // Get total count
+        let countQuery = `SELECT COUNT(*) as total FROM file_restorations WHERE 1=1`;
+        const countParams = [];
+        let countParamCounter = 1;
+        
+        if (status) {
+          countParams.push(status);
+          countQuery += ` AND restoration_status = $${countParamCounter}`;
+          countParamCounter++;
+        }
+
+        if (start_date) {
+          countParams.push(start_date);
+          countQuery += ` AND requested_at >= $${countParamCounter}::timestamptz`;
+          countParamCounter++;
+        }
+
+        if (end_date) {
+          countParams.push(end_date);
+          countQuery += ` AND requested_at <= $${countParamCounter}::timestamptz`;
+          countParamCounter++;
+        }
+
+        const countResult = await dbPool.query(countQuery, countParams);
+
+        res.json({
+          success: true,
+          restorations: result.rows,
+          pagination: {
+            total: parseInt(countResult.rows[0].total),
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+            hasMore: parseInt(offset) + result.rows.length < parseInt(countResult.rows[0].total)
+          }
+        });
+      } catch (error) {
+        logger.error('Error fetching file restorations', { error: error.message, stack: error.stack });
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch restoration history'
+        });
+      }
+    }
+  );
+
   return router;
 };

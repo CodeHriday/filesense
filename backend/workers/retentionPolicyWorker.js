@@ -13,6 +13,7 @@
 
 const { systemLogger } = require('../utils/logger');
 const ArchivalStorageService = require('../services/archivalStorageService');
+const AuditService = require('../services/AuditService');
 
 class RetentionPolicyWorker {
   constructor(dbPool, logger, scheduleTime = '01:00') {
@@ -23,6 +24,7 @@ class RetentionPolicyWorker {
     this.intervalId = null;
     this.lastRunDate = null;
     this.storageService = new ArchivalStorageService(dbPool);
+    this.auditService = new AuditService(dbPool);
   }
 
   /**
@@ -241,6 +243,35 @@ class RetentionPolicyWorker {
               archivePath
             });
 
+            // Log successful archival to audit system (using transaction client)
+            await this.auditService.logAction({
+              userId: 'system',
+              userEmail: 'retention-worker@system',
+              userRole: 'system',
+              actionType: 'ARCHIVE',
+              entityType: 'file',
+              entityId: file.file_id,
+              entityName: file.filename,
+              operation: 'ARCHIVE',
+              newValues: {
+                archive_path: archivePath,
+                archive_status: 'archived',
+                compressed_size: compressedSize,
+                storage_type: policy.storage_config.storage_type
+              },
+              metadata: {
+                policy_id: policy.id,
+                policy_name: policy.name,
+                original_size: fileInfo.size,
+                compressed_size: compressedSize,
+                compression_ratio: compressedSize ? (compressedSize / fileInfo.size).toFixed(2) : null,
+                storage_provider: policy.storage_config.storage_type,
+                automated: true
+              },
+              status: 'SUCCESS',
+              client
+            });
+
           } catch (archiveError) {
             archiveStatus = 'failed';
             errorMessage = archiveError.message;
@@ -248,6 +279,28 @@ class RetentionPolicyWorker {
             this.logger.error('File archival failed', {
               fileId: file.file_id,
               error: archiveError.message
+            });
+
+            // Log failed archival to audit system (using transaction client)
+            await this.auditService.logAction({
+              userId: 'system',
+              userEmail: 'retention-worker@system',
+              userRole: 'system',
+              actionType: 'ARCHIVE',
+              entityType: 'file',
+              entityId: file.file_id,
+              entityName: file.filename,
+              operation: 'ARCHIVE',
+              metadata: {
+                policy_id: policy.id,
+                policy_name: policy.name,
+                original_size: fileInfo.size,
+                automated: true,
+                error_type: archiveError.name || 'ArchivalError'
+              },
+              status: 'FAILURE',
+              errorMessage: archiveError.message,
+              client
             });
 
             // Continue with creating the record even if archival failed

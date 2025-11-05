@@ -77,13 +77,17 @@ class AuditService {
     metadata,
     status = 'SUCCESS',
     errorMessage = null,
-    context = null
+    context = null,
+    client = null
   }) {
     try {
       const user = this.getCurrentUser(context);
       const changes = this.calculateDiff(oldValues, newValues);
 
-      const result = await this.dbPool.query(`
+      // Use provided transaction client or pool
+      const dbClient = client || this.dbPool;
+
+      const result = await dbClient.query(`
         INSERT INTO audit_log (
           user_id, user_email, user_role,
           ip_address, session_id, request_id,
