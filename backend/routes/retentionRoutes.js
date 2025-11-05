@@ -578,6 +578,190 @@ module.exports = (dbPool, logger, auditService, retentionWorker) => {
   );
 
   // ============================================================================
+  // POST /api/retention-policies/archives/:id/restore - Restore an archived file
+  // ============================================================================
+  router.post('/archives/:id/restore',
+    authenticateToken,
+    requirePermission('settings:write'),
+    async (req, res) => {
+      const client = await dbPool.getClient();
+      
+      try {
+        const { id } = req.params;
+        const { restore_path, reason } = req.body;
+        const userId = req.user.id || req.user.user_id;
+        
+        await client.query('BEGIN');
+        
+        // Get archived file details
+        const archivedFileResult = await client.query(`
+          SELECT 
+            af.*,
+            rp.storage_config,
+            f.file_path as original_file_path
+          FROM archived_files af
+          LEFT JOIN retention_policies rp ON af.policy_id = rp.id
+          LEFT JOIN files f ON af.file_id = f.file_id
+          WHERE af.id = $1 AND af.is_deleted = false
+        `, [id]);
+        
+        if (archivedFileResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({
+            success: false,
+            error: 'Archived file not found'
+          });
+        }
+        
+        const archivedFile = archivedFileResult.rows[0];
+        
+        if (archivedFile.archive_status !== 'archived') {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            error: `Cannot restore file with status: ${archivedFile.archive_status}`
+          });
+        }
+        
+        // Use storage config or create default for local storage
+        const storageConfig = archivedFile.storage_config || {
+          storage_type: 'local',
+          local_archive_path: './archive'
+        };
+        
+        // Determine restoration path
+        const destinationPath = restore_path || archivedFile.original_path || `./uploads/${archivedFile.filename}`;
+        
+        // Create restoration record
+        const restorationResult = await client.query(`
+          INSERT INTO file_restorations (
+            archived_file_id,
+            requested_by,
+            requested_at,
+            restoration_path,
+            reason,
+            restoration_status
+          ) VALUES ($1, $2, NOW(), $3, $4, 'pending')
+          RETURNING *
+        `, [id, userId, destinationPath, reason || 'Manual restoration']);
+        
+        const restoration = restorationResult.rows[0];
+        
+        // Perform actual file restoration using storage service
+        let restorationStatus = 'pending';
+        let errorMessage = null;
+        
+        try {
+          const ArchivalStorageService = require('../services/archivalStorageService');
+          const storageService = new ArchivalStorageService(dbPool);
+          
+          await storageService.restoreFile(
+            archivedFile.archive_path,
+            destinationPath,
+            storageConfig
+          );
+          
+          restorationStatus = 'completed';
+          
+          logger.info('File restored successfully', {
+            archivedFileId: id,
+            restorationId: restoration.id,
+            destinationPath
+          });
+          
+          // Log restoration to audit system (using transaction client)
+          await auditService.logAction({
+            userId,
+            actionType: 'RESTORE',
+            entityType: 'file',
+            entityId: archivedFile.file_id,
+            entityName: archivedFile.filename,
+            operation: 'RESTORE',
+            newValues: {
+              restoration_path: destinationPath,
+              restoration_status: 'completed'
+            },
+            metadata: {
+              archived_file_id: id,
+              restoration_id: restoration.id,
+              archive_path: archivedFile.archive_path,
+              policy_id: archivedFile.policy_id,
+              reason: reason || 'Manual restoration'
+            },
+            status: 'SUCCESS',
+            client
+          });
+          
+        } catch (restoreError) {
+          restorationStatus = 'failed';
+          errorMessage = restoreError.message;
+          
+          logger.error('File restoration failed', {
+            archivedFileId: id,
+            error: restoreError.message
+          });
+          
+          // Log failed restoration to audit system
+          await auditService.logAction({
+            userId,
+            actionType: 'RESTORE',
+            entityType: 'file',
+            entityId: archivedFile.file_id,
+            entityName: archivedFile.filename,
+            operation: 'RESTORE',
+            metadata: {
+              archived_file_id: id,
+              restoration_id: restoration.id,
+              archive_path: archivedFile.archive_path,
+              policy_id: archivedFile.policy_id,
+              reason: reason || 'Manual restoration',
+              error_type: restoreError.name || 'RestorationError'
+            },
+            status: 'FAILURE',
+            errorMessage: restoreError.message,
+            client
+          });
+        }
+        
+        // Update restoration record with result
+        await client.query(`
+          UPDATE file_restorations
+          SET 
+            restoration_status = $1,
+            completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE NULL END,
+            error_message = $2
+          WHERE id = $3
+        `, [restorationStatus, errorMessage, restoration.id]);
+        
+        await client.query('COMMIT');
+        
+        res.json({
+          success: restorationStatus === 'completed',
+          restoration: {
+            ...restoration,
+            restoration_status: restorationStatus,
+            completed_at: restorationStatus === 'completed' ? new Date() : null,
+            error_message: errorMessage
+          },
+          message: restorationStatus === 'completed' 
+            ? 'File restored successfully' 
+            : `Restoration failed: ${errorMessage}`
+        });
+        
+      } catch (error) {
+        await client.query('ROLLBACK');
+        logger.error('Error restoring file', { error: error.message, stack: error.stack });
+        res.status(500).json({
+          success: false,
+          error: 'Failed to restore file'
+        });
+      } finally {
+        client.release();
+      }
+    }
+  );
+
+  // ============================================================================
   // GET /api/retention-policies/restorations - Get file restoration history
   // ============================================================================
   router.get('/restorations/history',

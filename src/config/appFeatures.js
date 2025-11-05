@@ -24,7 +24,8 @@ import {
   FiBookOpen,
   FiBriefcase,
   FiTruck,
-  FiCheckCircle
+  FiCheckCircle,
+  FiArchive
 } from 'react-icons/fi';
 
 export const APP_FEATURES = [
@@ -193,6 +194,14 @@ export const APP_FEATURES = [
     category: 'Governance',
     icon: FiDatabase,
     route: '/retention-policies',
+    showInSidebar: true
+  },
+  { 
+    id: 'archived_files', 
+    name: 'Archived Files', 
+    category: 'Governance',
+    icon: FiArchive,
+    route: '/archived-files',
     showInSidebar: true
   },
   { 

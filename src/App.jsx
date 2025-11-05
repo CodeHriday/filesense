@@ -66,6 +66,7 @@ import Projects from './pages/Projects';
 import GroupManagement from './pages/GroupManagement';
 import SystemCleanup from './pages/SystemCleanup';
 import RetentionPolicies from './pages/RetentionPolicies';
+import ArchivedFiles from './pages/ArchivedFiles';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -305,6 +306,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 {/* Data Governance & RBAC routes */}
                 <Route path="/policy-management" element={<ProtectedRoute><PolicyManagement /></ProtectedRoute>} />
                 <Route path="/retention-policies" element={<ProtectedRoute><RetentionPolicies /></ProtectedRoute>} />
+                <Route path="/archived-files" element={<ProtectedRoute><ArchivedFiles /></ProtectedRoute>} />
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
                 <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
