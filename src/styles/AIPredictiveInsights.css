@@ -62,11 +62,11 @@
 }
 
 .loading-spinner {
-  border: 3px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
   border-radius: 50%;
-  border-top: 3px solid #1a73e8;
-  width: 28px;
-  height: 28px;
+  border-top: 1px solid #1a73e8 !important;
+  width: 5px !important;
+  height: 5px !important;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
 }

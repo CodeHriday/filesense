@@ -122,10 +122,10 @@
 }
 
 .stepper-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  width: 5px !important;
+  height: 5px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-top-color: white !important;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

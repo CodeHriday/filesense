@@ -8,26 +8,26 @@
 }
 
 .loader-spinner {
-  border: 3px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
   border-radius: 50%;
-  border-top: 3px solid var(--primary-color, #3498db);
+  border-top: 1px solid var(--primary-color, #3498db) !important;
   animation: spin 1s linear infinite;
 }
 
 .loader-small {
-  width: 18px;
-  height: 18px;
-  border-width: 2px;
+  width: 5px !important;
+  height: 5px !important;
+  border-width: 1px !important;
 }
 
 .loader-medium {
-  width: 28px;
-  height: 28px;
+  width: 5px !important;
+  height: 5px !important;
 }
 
 .loader-large {
-  width: 48px;
-  height: 48px;
+  width: 5px !important;
+  height: 5px !important;
 }
 
 .loader-message {
