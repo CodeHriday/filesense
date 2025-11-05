@@ -11,6 +11,7 @@ from datetime import datetime
 import logging
 
 from .anomaly_detector import AnomalyAnalyzer, AnomalyDetector
+from .healing_recommender import HealingRecommender
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class AnomalyService:
         """
         self.db = db_connection
         self.analyzer = None
+        self.recommender = HealingRecommender()
     
     def initialize_analyzer(self, sensitivity: str = 'medium'):
         """
@@ -369,3 +371,64 @@ class AnomalyService:
         except Exception as e:
             logger.error(f"Error fetching anomaly statistics: {str(e)}", exc_info=True)
             return {}
+    
+    def get_recommendations(
+        self,
+        anomaly_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Get healing recommendations for an anomaly
+        
+        Args:
+            anomaly_id: Anomaly identifier
+            
+        Returns:
+            List of recommendations
+        """
+        try:
+            cursor = self.db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # Get anomaly details
+            cursor.execute("""
+                SELECT 
+                    id,
+                    anomaly_id,
+                    file_id,
+                    file_name,
+                    mapping_id,
+                    job_id,
+                    anomaly_type,
+                    severity,
+                    title,
+                    description,
+                    anomaly_details,
+                    expected_value,
+                    actual_value,
+                    deviation_percentage,
+                    status,
+                    detected_at
+                FROM anomalies
+                WHERE anomaly_id = %s
+            """, (anomaly_id,))
+            
+            anomaly = cursor.fetchone()
+            cursor.close()
+            
+            if not anomaly:
+                return []
+            
+            anomaly_dict = dict(anomaly)
+            
+            # Generate recommendations
+            recommendations = self.recommender.generate_recommendations(anomaly_dict)
+            
+            # Prioritize recommendations
+            recommendations = self.recommender.prioritize_recommendations(recommendations)
+            
+            logger.info(f"Generated {len(recommendations)} recommendations for anomaly {anomaly_id}")
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {str(e)}", exc_info=True)
+            return []

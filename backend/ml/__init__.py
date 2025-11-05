@@ -36,5 +36,6 @@ __version__ = '1.0.0'
 
 from .anomaly_detector import AnomalyDetector, AnomalyAnalyzer
 from .anomaly_service import AnomalyService
+from .healing_recommender import HealingRecommender
 
-__all__ = ['AnomalyDetector', 'AnomalyAnalyzer', 'AnomalyService']
+__all__ = ['AnomalyDetector', 'AnomalyAnalyzer', 'AnomalyService', 'HealingRecommender']

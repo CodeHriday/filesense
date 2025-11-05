@@ -3026,6 +3026,10 @@ try {
   // ML anomaly detection routes
   const anomalyRoutes = require('./backend/routes/anomalyRoutes');
   app.use('/api/ml', anomalyRoutes(dbPool, logger));
+  
+  // ML healing recommendation routes
+  const healingRoutes = require('./backend/routes/healingRoutes');
+  app.use('/api/ml', healingRoutes(dbPool, logger));
   console.log('✓ Registered /api/retention-policies route');
 } catch (error) {
   console.error('✗ Failed to register /api/retention-policies:', error.message);
