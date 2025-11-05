@@ -4,6 +4,7 @@ import axios from 'axios';
 import { FiEdit2, FiTrash2, FiFolderPlus, FiChevronRight, FiChevronDown, FiFolder } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
 import SubProjectManagement from '../components/SubProjectManagement';
+import EditSubProjectModal from '../components/EditSubProjectModal';
 import './ProjectManagement.css';
 
 const API_BASE_URL = '/api';
@@ -57,6 +58,9 @@ function ProjectManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
   const [expandedProjects, setExpandedProjects] = useState(new Set());
+  const [showEditSubProjectModal, setShowEditSubProjectModal] = useState(false);
+  const [selectedSubProject, setSelectedSubProject] = useState(null);
+  const [currentProjectId, setCurrentProjectId] = useState(null);
 
   useEffect(() => {
     fetchProjects();
@@ -361,6 +365,52 @@ function ProjectManagement() {
     });
   };
 
+  const openEditSubProjectModal = (projectId, subProject, e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setCurrentProjectId(projectId);
+    setSelectedSubProject(subProject);
+    setShowEditSubProjectModal(true);
+  };
+
+  const closeEditSubProjectModal = () => {
+    setShowEditSubProjectModal(false);
+    setSelectedSubProject(null);
+    setCurrentProjectId(null);
+  };
+
+  const handleSubProjectUpdate = async () => {
+    await fetchProjects();
+  };
+
+  const handleDeleteSubProject = async (projectId, subProject, e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    
+    if (!confirm(`Are you sure you want to delete the sub-project "${subProject.name}"?\n\nThis action cannot be undone. The sub-project must not contain any files.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/projects/${projectId}/sub-projects/${subProject.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchProjects();
+    } catch (err) {
+      if (err.response?.data?.message) {
+        alert(err.response.data.message);
+      } else {
+        setError('Failed to delete sub-project');
+      }
+      console.error(err);
+    }
+  };
+
   const totalPages = Math.ceil(projects.length / pageSize);
   const displayedProjects = projects.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
@@ -538,6 +588,20 @@ function ProjectManagement() {
                                       title="Add File to Sub-Project"
                                     >
                                       <FiFolderPlus size={14} />
+                                    </button>
+                                    <button 
+                                      className="action-icon-btn edit-btn" 
+                                      onClick={(e) => openEditSubProjectModal(project.id, subProject, e)}
+                                      title="Edit Sub-Project"
+                                    >
+                                      <FiEdit2 size={14} />
+                                    </button>
+                                    <button 
+                                      className="action-icon-btn delete-btn" 
+                                      onClick={(e) => handleDeleteSubProject(project.id, subProject, e)}
+                                      title="Delete Sub-Project"
+                                    >
+                                      <FiTrash2 size={14} />
                                     </button>
                                   </div>
                                 </td>
@@ -980,6 +1044,14 @@ function ProjectManagement() {
         confirmText="Confirm"
         cancelText="Cancel"
         variant="danger"
+      />
+
+      <EditSubProjectModal
+        show={showEditSubProjectModal}
+        onClose={closeEditSubProjectModal}
+        projectId={currentProjectId}
+        subProject={selectedSubProject}
+        onUpdate={handleSubProjectUpdate}
       />
 
     </div>

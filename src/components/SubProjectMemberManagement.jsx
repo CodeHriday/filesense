@@ -3,8 +3,8 @@ import { FiUsers, FiUserPlus, FiTrash2, FiX, FiAlertCircle, FiShield } from 'rea
 import axios from 'axios';
 import './SubProjectMemberManagement.css';
 
-function SubProjectMemberManagement({ projectId, subProjectId, subProjectName }) {
-  const [activeTab, setActiveTab] = useState('members');
+function SubProjectMemberManagement({ projectId, subProjectId, subProjectName, mode }) {
+  const [activeTab, setActiveTab] = useState(mode || 'members');
   const [members, setMembers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +17,12 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName })
   const [selectedRole, setSelectedRole] = useState('viewer');
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (mode) {
+      setActiveTab(mode);
+    }
+  }, [mode]);
 
   useEffect(() => {
     if (projectId && subProjectId) {
@@ -158,30 +164,34 @@ function SubProjectMemberManagement({ projectId, subProjectId, subProjectName })
 
   return (
     <div className="subproject-member-management">
-      <div className="spmm-header">
-        <div className="header-title">
-          <FiUsers size={20} />
-          <h2>Access Management</h2>
-          <span className="subproject-badge">{subProjectName}</span>
-        </div>
-      </div>
+      {!mode && (
+        <>
+          <div className="spmm-header">
+            <div className="header-title">
+              <FiUsers size={20} />
+              <h2>Access Management</h2>
+              <span className="subproject-badge">{subProjectName}</span>
+            </div>
+          </div>
 
-      <div className="spmm-tabs">
-        <button
-          className={`tab-button ${activeTab === 'members' ? 'active' : ''}`}
-          onClick={() => setActiveTab('members')}
-        >
-          <FiUsers size={16} />
-          Members
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'groups' ? 'active' : ''}`}
-          onClick={() => setActiveTab('groups')}
-        >
-          <FiShield size={16} />
-          Access Groups
-        </button>
-      </div>
+          <div className="spmm-tabs">
+            <button
+              className={`tab-button ${activeTab === 'members' ? 'active' : ''}`}
+              onClick={() => setActiveTab('members')}
+            >
+              <FiUsers size={16} />
+              Members
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'groups' ? 'active' : ''}`}
+              onClick={() => setActiveTab('groups')}
+            >
+              <FiShield size={16} />
+              Access Groups
+            </button>
+          </div>
+        </>
+      )}
 
       {error && (
         <div className="error-banner">
