@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../src/middleware/authenticate');
-const { requirePermission } = require('../src/middleware/authorize');
+const authorize = require('../middleware/authorize');
 const createAuditMiddleware = require('../middleware/auditMiddleware');
+
+// Helper middleware for common permission checks
+const requirePermission = (permission) => authorize(permission);
 
 module.exports = (dbPool, logger, auditService) => {
   

@@ -188,6 +188,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'retention_policies', 
+    name: 'Retention & Archival', 
+    category: 'Governance',
+    icon: FiDatabase,
+    route: '/retention-policies',
+    showInSidebar: true
+  },
+  { 
     id: 'tags', 
     name: 'Tags', 
     category: 'Governance',

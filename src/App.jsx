@@ -65,6 +65,7 @@ import ProjectManagement from './pages/ProjectManagement';
 import Projects from './pages/Projects';
 import GroupManagement from './pages/GroupManagement';
 import SystemCleanup from './pages/SystemCleanup';
+import RetentionPolicies from './pages/RetentionPolicies';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -303,6 +304,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/etl-scheduler/:scheduleId/edit" element={<ProtectedRoute><SchedulerForm /></ProtectedRoute>} />
                 {/* Data Governance & RBAC routes */}
                 <Route path="/policy-management" element={<ProtectedRoute><PolicyManagement /></ProtectedRoute>} />
+                <Route path="/retention-policies" element={<ProtectedRoute><RetentionPolicies /></ProtectedRoute>} />
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
                 <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
