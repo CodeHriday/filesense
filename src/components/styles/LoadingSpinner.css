@@ -12,18 +12,18 @@
 }
 
 .spinner-small {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
 }
 
 .spinner-medium {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
 }
 
 .spinner-large {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
 }
 
 .spinner-circle {
@@ -33,7 +33,7 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   animation: spinner-rotate 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
 }
 

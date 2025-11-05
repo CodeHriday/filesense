@@ -23,8 +23,8 @@
 
 /* Throbbing spinner animation */
 .throb-spinner {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   background: var(--color-primary);
   border-radius: var(--radius-full);
   animation: throb 1.2s ease-in-out infinite;
@@ -32,18 +32,18 @@
 
 /* Size variations */
 .throb-spinner-small {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .throb-spinner-medium {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
 }
 
 .throb-spinner-large {
-  width: 60px;
-  height: 60px;
+  width: 48px;
+  height: 48px;
 }
 
 /* Throbbing animation - pulsing effect */
