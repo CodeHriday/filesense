@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiFolder, FiFolderPlus, FiSave, FiX, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiFolder, FiFolderPlus, FiSave, FiX, FiAlertCircle, FiChevronDown, FiChevronRight, FiUsers } from 'react-icons/fi';
 import axios from 'axios';
+import SubProjectMemberManagement from './SubProjectMemberManagement';
 import './SubProjectManagement.css';
 
 function SubProjectManagement({ projectId, projectName }) {
@@ -11,6 +12,7 @@ function SubProjectManagement({ projectId, projectName }) {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '', is_active: true });
   const [submitting, setSubmitting] = useState(false);
+  const [expandedSubProject, setExpandedSubProject] = useState(null);
 
   useEffect(() => {
     if (projectId) {
@@ -264,41 +266,70 @@ function SubProjectManagement({ projectId, projectName }) {
                     </td>
                   </tr>
                 ) : (
-                  <tr key={subProject.id} className={!subProject.is_active ? 'inactive-row' : ''}>
-                    <td>
-                      <div className="name-cell">
-                        <FiFolder size={16} className="folder-icon" />
-                        <span>{subProject.name}</span>
-                      </div>
-                      {subProject.description && (
-                        <div className="description-text">{subProject.description}</div>
-                      )}
-                    </td>
-                    <td className="text-center">{subProject.file_count || 0}</td>
-                    <td className="text-center">{formatBytes(subProject.total_size || 0)}</td>
-                    <td className="text-center">
-                      <span className={`status-badge ${subProject.is_active ? 'active' : 'inactive'}`}>
-                        {subProject.is_active ? 'ACTIVE' : 'INACTIVE'}
-                      </span>
-                    </td>
-                    <td>{subProject.owner_name || '-'}</td>
-                    <td className="actions-cell">
-                      <button 
-                        className="btn-icon" 
-                        onClick={() => startEdit(subProject)}
-                        title="Edit sub-project"
-                      >
-                        <FiEdit2 size={14} />
-                      </button>
-                      <button 
-                        className="btn-icon btn-icon-danger" 
-                        onClick={() => handleDelete(subProject.id, subProject.name)}
-                        title="Delete sub-project"
-                      >
-                        <FiTrash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
+                  <React.Fragment key={subProject.id}>
+                    <tr className={!subProject.is_active ? 'inactive-row' : ''}>
+                      <td>
+                        <div className="name-cell">
+                          <button 
+                            className="btn-icon-minimal"
+                            onClick={() => setExpandedSubProject(expandedSubProject === subProject.id ? null : subProject.id)}
+                            title={expandedSubProject === subProject.id ? "Collapse" : "Expand to manage members"}
+                          >
+                            {expandedSubProject === subProject.id ? <FiChevronDown size={16} /> : <FiChevronRight size={16} />}
+                          </button>
+                          <FiFolder size={16} className="folder-icon" />
+                          <span>{subProject.name}</span>
+                        </div>
+                        {subProject.description && (
+                          <div className="description-text">{subProject.description}</div>
+                        )}
+                      </td>
+                      <td className="text-center">{subProject.file_count || 0}</td>
+                      <td className="text-center">{formatBytes(subProject.total_size || 0)}</td>
+                      <td className="text-center">
+                        <span className={`status-badge ${subProject.is_active ? 'active' : 'inactive'}`}>
+                          {subProject.is_active ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                      </td>
+                      <td>{subProject.owner_name || '-'}</td>
+                      <td className="actions-cell">
+                        <button 
+                          className="btn-icon" 
+                          onClick={() => setExpandedSubProject(expandedSubProject === subProject.id ? null : subProject.id)}
+                          title="Manage members"
+                        >
+                          <FiUsers size={14} />
+                        </button>
+                        <button 
+                          className="btn-icon" 
+                          onClick={() => startEdit(subProject)}
+                          title="Edit sub-project"
+                        >
+                          <FiEdit2 size={14} />
+                        </button>
+                        <button 
+                          className="btn-icon btn-icon-danger" 
+                          onClick={() => handleDelete(subProject.id, subProject.name)}
+                          title="Delete sub-project"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedSubProject === subProject.id && (
+                      <tr className="expanded-member-row">
+                        <td colSpan="6">
+                          <div className="member-management-container">
+                            <SubProjectMemberManagement 
+                              projectId={projectId}
+                              subProjectId={subProject.id}
+                              subProjectName={subProject.name}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 )
               ))}
             </tbody>
