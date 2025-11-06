@@ -662,7 +662,8 @@ const AuditTrail = () => {
             <table className="audit-table">
               <thead>
                 <tr>
-                  <th>Timestamp</th>
+                  <th style={{ width: '12%' }}>Timestamp</th>
+                  <th style={{ width: '20%' }}>Module</th>
                   <th>User</th>
                   <th>Entity</th>
                   <th>Actions</th>
@@ -671,17 +672,30 @@ const AuditTrail = () => {
               <tbody>
                 {auditLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="no-data-message">
+                    <td colSpan="5" className="no-data-message">
                       No audit logs found
                     </td>
                   </tr>
                 ) : (
                   paginatedLogs.map((log) => (
                     <tr key={log.audit_id}>
-                      <td>
+                      <td style={{ width: '12%' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <FiClock style={{ color: '#9aa0a6', flexShrink: 0, width: '12px', height: '12px' }} />
-                          <span>{formatTimestamp(log.timestamp)}</span>
+                          <span style={{ fontSize: '0.813rem' }}>{formatTimestamp(log.timestamp)}</span>
+                        </div>
+                      </td>
+                      <td style={{ width: '20%' }}>
+                        <div style={{ 
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          backgroundColor: '#e8f0fe',
+                          color: '#1967d2',
+                          borderRadius: '12px',
+                          fontSize: '0.813rem',
+                          fontWeight: 500
+                        }}>
+                          {determineModule(log.entity_type, log.action_type)}
                         </div>
                       </td>
                       <td>
