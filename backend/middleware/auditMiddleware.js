@@ -51,7 +51,43 @@ function extractEntityType(path) {
     { regex: /\/api\/profiles/, type: 'profile' },
     { regex: /\/api\/users/, type: 'user' },
     { regex: /\/api\/audit/, type: 'audit' },
-    { regex: /\/api\/dbt/, type: 'dbt' }
+    { regex: /\/api\/dbt/, type: 'dbt' },
+    { regex: /\/api\/projects/, type: 'project' },
+    { regex: /\/api\/sub-projects/, type: 'sub_project' },
+    { regex: /\/api\/vendors/, type: 'vendor' },
+    { regex: /\/api\/vendor-/, type: 'vendor' },
+    { regex: /\/api\/notifications/, type: 'notification' },
+    { regex: /\/api\/mapping-groups/, type: 'mapping_group' },
+    { regex: /\/api\/mappings/, type: 'mapping' },
+    { regex: /\/api\/workflows/, type: 'workflow' },
+    { regex: /\/api\/n-step-workflows/, type: 'workflow' },
+    { regex: /\/api\/visual-workflows/, type: 'workflow' },
+    { regex: /\/api\/workflow-steps/, type: 'workflow_step' },
+    { regex: /\/api\/dashboard/, type: 'dashboard' },
+    { regex: /\/api\/connections/, type: 'connection' },
+    { regex: /\/api\/auth/, type: 'authentication' },
+    { regex: /\/api\/roles/, type: 'role' },
+    { regex: /\/api\/permissions/, type: 'permission' },
+    { regex: /\/api\/groups/, type: 'group' },
+    { regex: /\/api\/lineage/, type: 'lineage' },
+    { regex: /\/api\/badges/, type: 'badge' },
+    { regex: /\/api\/alerts/, type: 'alert' },
+    { regex: /\/api\/governance-tags/, type: 'governance_tag' },
+    { regex: /\/api\/policies/, type: 'policy' },
+    { regex: /\/api\/retention-policies/, type: 'retention_policy' },
+    { regex: /\/api\/ai/, type: 'ai' },
+    { regex: /\/api\/ml/, type: 'ml' },
+    { regex: /\/api\/anomaly/, type: 'anomaly' },
+    { regex: /\/api\/healing/, type: 'healing' },
+    { regex: /\/api\/cache/, type: 'cache' },
+    { regex: /\/api\/jobs/, type: 'job' },
+    { regex: /\/api\/schema-history/, type: 'schema_history' },
+    { regex: /\/api\/drop-location/, type: 'drop_location' },
+    { regex: /\/api\/error-review/, type: 'error_review' },
+    { regex: /\/api\/file-insights/, type: 'file_insight' },
+    { regex: /\/api\/file-audit/, type: 'file_audit' },
+    { regex: /\/api\/password-reset/, type: 'password_reset' },
+    { regex: /\/api\/admin/, type: 'admin' }
   ];
   
   for (const pattern of patterns) {
@@ -60,7 +96,7 @@ function extractEntityType(path) {
     }
   }
   
-  return 'unknown';
+  return 'system';
 }
 
 function extractEntityId(req) {
