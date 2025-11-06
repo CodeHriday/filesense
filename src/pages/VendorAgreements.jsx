@@ -65,6 +65,11 @@ const VendorAgreements = () => {
   // File configurations state (for create/edit modal)
   const [fileConfigurations, setFileConfigurations] = useState([]);
   
+  // Multiple files display modal
+  const [multipleFilesModalOpen, setMultipleFilesModalOpen] = useState(false);
+  const [multipleFilesData, setMultipleFilesData] = useState([]);
+  const [modalSuccessMessage, setModalSuccessMessage] = useState('');
+  
   const [formData, setFormData] = useState({
     vendor_id: '',
     vendor_code: '',
@@ -841,7 +846,7 @@ const VendorAgreements = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
-        setSuccessMessage(isDraft ? 'Draft saved successfully!' : 'Vendor agreement created successfully!');
+        setModalSuccessMessage(isDraft ? 'Draft saved successfully!' : 'Vendor agreement created successfully!');
       } else {
         if (selectedAgreement.is_locked && isAdmin) {
           setConfirmModalConfig({
@@ -854,11 +859,13 @@ const VendorAgreements = () => {
                     'Content-Type': 'multipart/form-data'
                   }
                 });
-                setSuccessMessage('Vendor agreement updated successfully!');
-                closeModal();
-                fetchData();
+                setModalSuccessMessage('Vendor agreement updated successfully!');
                 setModalError('');
-                setTimeout(() => setSuccessMessage(''), 5000);
+                setTimeout(() => {
+                  setModalSuccessMessage('');
+                  closeModal();
+                  fetchData();
+                }, 2000);
               } catch (error) {
                 console.error('Error saving agreement:', error);
                 let errorMessage = 'Failed to save vendor agreement';
@@ -881,7 +888,7 @@ const VendorAgreements = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
-        setSuccessMessage('Vendor agreement updated successfully!');
+        setModalSuccessMessage('Vendor agreement updated successfully!');
       }
       
       // Save file configurations after agreement is created/updated
@@ -948,11 +955,13 @@ const VendorAgreements = () => {
         console.log('Skipping file configurations save:', { agreementId, hasConfigs: fileConfigurations.length > 0 });
       }
       
-      closeModal();
-      fetchData();
       setModalError('');
       
-      setTimeout(() => setSuccessMessage(''), 5000);
+      setTimeout(() => {
+        setModalSuccessMessage('');
+        closeModal();
+        fetchData();
+      }, 2000);
     } catch (error) {
       console.error('Error saving agreement:', error);
       
@@ -1418,7 +1427,38 @@ const VendorAgreements = () => {
                   paginatedAgreements.map(agreement => (
                     <tr key={agreement.id}>
                       <td>{agreement.agreement_code}</td>
-                      <td>{agreement.file_name}</td>
+                      <td>
+                        {(() => {
+                          const fileSchemas = agreement.file_schemas || [];
+                          const legacyFileName = agreement.file_name;
+                          
+                          if (fileSchemas.length === 0 && !legacyFileName) {
+                            return <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No files configured</span>;
+                          } else if (fileSchemas.length === 0 && legacyFileName) {
+                            return legacyFileName;
+                          } else if (fileSchemas.length === 1) {
+                            return fileSchemas[0].file_name;
+                          } else {
+                            return (
+                              <span
+                                onClick={() => {
+                                  setMultipleFilesData(fileSchemas);
+                                  setMultipleFilesModalOpen(true);
+                                }}
+                                style={{
+                                  color: '#3b82f6',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  fontWeight: 500
+                                }}
+                                title="Click to view all files"
+                              >
+                                Multiple Files ({fileSchemas.length})
+                              </span>
+                            );
+                          }
+                        })()}
+                      </td>
                       <td>{agreement.vendor_name || agreement.vendor_code || '-'}</td>
                       <td>{agreement.frequency}</td>
                       <td>
@@ -1509,6 +1549,19 @@ const VendorAgreements = () => {
                 </>
               }
             >
+              {modalSuccessMessage && (
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  borderRadius: '8px',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  fontWeight: 500
+                }}>
+                  {modalSuccessMessage}
+                </div>
+              )}
               <form id="agreement-form" onSubmit={handleSubmit} className="agreement-form">
                 {/* Section 1: Quick Setup with Template (Optional - Auto-populate fields) */}
                 {modalMode === 'create' && (
@@ -2507,6 +2560,121 @@ const VendorAgreements = () => {
                 }}
                 initialPath="/"
               />
+            </ThreeSectionModal>
+          )}
+          
+          {/* Multiple Files Modal */}
+          {multipleFilesModalOpen && (
+            <ThreeSectionModal
+              isOpen={multipleFilesModalOpen}
+              onClose={() => setMultipleFilesModalOpen(false)}
+              title="Agreement Files"
+              size="medium"
+              footer={
+                <>
+                  <button type="button" onClick={() => setMultipleFilesModalOpen(false)}>
+                    Close
+                  </button>
+                </>
+              }
+            >
+              <div style={{ padding: '1rem' }}>
+                {multipleFilesData.length === 0 ? (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No files configured</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {multipleFilesData.map((fileSchema, index) => (
+                      <div 
+                        key={index}
+                        style={{
+                          padding: '1rem',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          backgroundColor: '#f9fafb'
+                        }}
+                      >
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          marginBottom: '0.5rem'
+                        }}>
+                          <h4 style={{ 
+                            margin: 0, 
+                            fontSize: '1rem', 
+                            fontWeight: 600,
+                            color: '#1f2937'
+                          }}>
+                            {fileSchema.file_name}
+                          </h4>
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            {fileSchema.contains_pii && (
+                              <span style={{
+                                padding: '0.25rem 0.5rem',
+                                backgroundColor: '#fef3c7',
+                                color: '#92400e',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 500
+                              }}>
+                                PII
+                              </span>
+                            )}
+                            {fileSchema.data_classification && (
+                              <span style={{
+                                padding: '0.25rem 0.5rem',
+                                backgroundColor: fileSchema.data_classification === 'Highly Confidential' ? '#fecaca' : 
+                                                 fileSchema.data_classification === 'Confidential' ? '#fed7aa' :
+                                                 fileSchema.data_classification === 'Internal' ? '#bfdbfe' : '#d1fae5',
+                                color: fileSchema.data_classification === 'Highly Confidential' ? '#991b1b' :
+                                       fileSchema.data_classification === 'Confidential' ? '#9a3412' :
+                                       fileSchema.data_classification === 'Internal' ? '#1e40af' : '#065f46',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 500
+                              }}>
+                                {fileSchema.data_classification}
+                              </span>
+                            )}
+                            {fileSchema.file_type && (
+                              <span style={{
+                                padding: '0.25rem 0.5rem',
+                                backgroundColor: '#e0e7ff',
+                                color: '#3730a3',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 500
+                              }}>
+                                {fileSchema.file_type}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {fileSchema.file_description && (
+                          <p style={{ 
+                            margin: '0.5rem 0 0 0', 
+                            color: '#6b7280', 
+                            fontSize: '0.875rem' 
+                          }}>
+                            {fileSchema.file_description}
+                          </p>
+                        )}
+                        {fileSchema.quality_rule_ids && fileSchema.quality_rule_ids.length > 0 && (
+                          <div style={{ marginTop: '0.5rem' }}>
+                            <span style={{ 
+                              fontSize: '0.75rem', 
+                              color: '#6b7280',
+                              fontWeight: 500
+                            }}>
+                              Quality Rules: {fileSchema.quality_rule_ids.length}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </ThreeSectionModal>
           )}
         </>

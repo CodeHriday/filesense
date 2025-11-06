@@ -15,7 +15,10 @@ class VendorAgreementService {
   async generateAgreementCode(vendorId, fileName) {
     const vendorResult = await pool.query('SELECT vendor_code FROM vendors WHERE id = $1', [vendorId]);
     const vendorCode = vendorResult.rows[0]?.vendor_code || 'VND';
-    const filePrefix = fileName.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
+    // Use fileName if provided, otherwise use 'DFT' for draft or 'CFG' for configured agreements
+    const filePrefix = fileName 
+      ? fileName.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X')
+      : 'CFG';
     const randomSuffix = crypto.randomBytes(2).toString('hex').toUpperCase();
     return `AGR-${vendorCode}-${filePrefix}-${randomSuffix}`;
   }
@@ -248,24 +251,21 @@ class VendorAgreementService {
         parsedSchema = null;
       }
       
-      // Generate agreement code (only if file_name is provided)
-      let agreementCode = null;
-      if (file_name) {
+      // Generate agreement code (always generate, even without file_name)
+      let agreementCode = await this.generateAgreementCode(vendor_id || 0, file_name);
+      
+      // Ensure agreement code is unique
+      let codeExists = await client.query(
+        'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
+        [agreementCode]
+      );
+      
+      while (codeExists.rows.length > 0) {
         agreementCode = await this.generateAgreementCode(vendor_id || 0, file_name);
-        
-        // Ensure agreement code is unique
-        let codeExists = await client.query(
+        codeExists = await client.query(
           'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
           [agreementCode]
         );
-        
-        while (codeExists.rows.length > 0) {
-          agreementCode = await this.generateAgreementCode(vendor_id || 0, file_name);
-          codeExists = await client.query(
-            'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
-            [agreementCode]
-          );
-        }
       }
       
       // Set status - default to 'active' if not specified
@@ -2174,9 +2174,36 @@ class VendorAgreementService {
       
       const result = await pool.query(dataQuery, queryParams);
       
-      // Enrich agreements with rejection/acceptance timestamps
+      // Fetch file schemas for each agreement
+      const agreementIds = result.rows.map(row => row.id);
+      let fileSchemasMap = {};
+      
+      if (agreementIds.length > 0) {
+        const fileSchemasResult = await pool.query(
+          `SELECT agreement_id, file_name, file_description, schema, contains_pii, 
+                  data_classification, file_type, quality_rule_ids, created_at
+           FROM vendor_agreement_file_schemas 
+           WHERE agreement_id = ANY($1)
+           ORDER BY created_at ASC`,
+          [agreementIds]
+        );
+        
+        // Group file schemas by agreement_id
+        fileSchemasResult.rows.forEach(schema => {
+          if (!fileSchemasMap[schema.agreement_id]) {
+            fileSchemasMap[schema.agreement_id] = [];
+          }
+          fileSchemasMap[schema.agreement_id].push(schema);
+        });
+      }
+      
+      // Enrich agreements with rejection/acceptance timestamps and file schemas
       const enrichedAgreements = await Promise.all(
-        result.rows.map(agreement => this.enrichAgreementWithTimestamps(agreement))
+        result.rows.map(async agreement => {
+          const enriched = await this.enrichAgreementWithTimestamps(agreement);
+          enriched.file_schemas = fileSchemasMap[agreement.id] || [];
+          return enriched;
+        })
       );
       
       return {
