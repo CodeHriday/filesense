@@ -265,6 +265,31 @@ router.get('/by-role/:roleName', authenticateToken, asyncHandler(async (req, res
 }));
 
 /**
+ * GET /api/users/data-stewards
+ * Get all users with the Data Steward role
+ */
+router.get('/data-stewards', authenticateToken, asyncHandler(async (req, res) => {
+  const result = await db.query(
+    `SELECT 
+      u.id,
+      u.username,
+      u.email,
+      u.first_name,
+      u.middle_name,
+      u.last_name,
+      u.full_name
+    FROM users u
+    INNER JOIN user_roles ur ON u.id = ur.user_id
+    INNER JOIN roles r ON ur.role_id = r.id
+    WHERE r.name = 'Data Steward'
+      AND u.is_active = true
+    ORDER BY u.full_name, u.username`
+  );
+  
+  res.json({ dataStewards: result.rows });
+}));
+
+/**
  * PUT /api/users/change-password
  * Change user password (authenticated)
  */

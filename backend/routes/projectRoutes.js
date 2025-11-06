@@ -658,6 +658,38 @@ function createProjectRoutes(dbPool) {
     }
   });
 
+  // Get project members (all users assigned to a project)
+  router.get('/:projectId/members', async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Fetch all users who are members of this project
+      const result = await dbPool.query(`
+        SELECT DISTINCT
+          u.id,
+          u.email,
+          u.first_name,
+          u.last_name,
+          u.full_name
+        FROM users u
+        INNER JOIN project_members pm ON u.id = pm.user_id
+        WHERE pm.project_id = $1
+          AND u.is_active = true
+        ORDER BY u.full_name, u.email
+      `, [projectId]);
+
+      res.json({ members: result.rows });
+    } catch (error) {
+      systemLogger.error('Error fetching project members', error);
+      res.status(500).json({ error: 'Failed to fetch project members' });
+    }
+  });
+
   // Get vendor agreements with file schemas for a project (for contract validation)
   router.get('/:projectId/vendor-agreements-with-schemas', async (req, res) => {
     try {
@@ -676,6 +708,8 @@ function createProjectRoutes(dbPool) {
           va.project_id,
           va.file_name,
           va.file_description,
+          va.primary_contact_email,
+          va.secondary_contact_email,
           v.name as vendor_name,
           v.company as vendor_company,
           json_agg(
@@ -697,7 +731,7 @@ function createProjectRoutes(dbPool) {
         WHERE va.project_id = $1 
           AND va.status = 'approved'
           AND va.is_active = true
-        GROUP BY va.id, va.vendor_id, va.project_id, va.file_name, va.file_description, v.name, v.company
+        GROUP BY va.id, va.vendor_id, va.project_id, va.file_name, va.file_description, va.primary_contact_email, va.secondary_contact_email, v.name, v.company
         ORDER BY v.name, va.file_name
       `, [projectId]);
 
