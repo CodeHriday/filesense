@@ -272,8 +272,8 @@ class VendorAgreementService {
       // Set status - default to 'active' if not specified
       const finalStatus = status || 'active';
       
-      // Set approval_status - 'draft' for draft agreements, 'pending_vendor' for active agreements
-      const approvalStatus = finalStatus === 'draft' ? 'draft' : 'pending_vendor';
+      // Set approval_status - 'draft' for draft agreements, 'pending_vendor_acceptance' for active agreements
+      const approvalStatus = finalStatus === 'draft' ? 'draft' : 'pending_vendor_acceptance';
       
       // Create agreement
       const result = await client.query(
@@ -848,14 +848,14 @@ class VendorAgreementService {
       // Initialize approval workflow when activating a draft
       if (shouldInitiateApprovalWorkflow) {
         updates.push(`approval_status = $${paramIndex}`);
-        params.push('pending_vendor');
-        changes.approval_status = { from: current.approval_status, to: 'pending_vendor' };
+        params.push('pending_vendor_acceptance');
+        changes.approval_status = { from: current.approval_status, to: 'pending_vendor_acceptance' };
         paramIndex++;
         
         systemLogger.info('Initiated approval workflow for activated draft', { 
           agreementId, 
           previousApprovalStatus: current.approval_status,
-          newApprovalStatus: 'pending_vendor'
+          newApprovalStatus: 'pending_vendor_acceptance'
         });
       }
       
