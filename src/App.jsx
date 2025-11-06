@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
+import { initializeAuditInterceptor } from './utils/auditInterceptor';
+
 // External link component for BlumeETL redirect
 const BlumeETLRedirect = () => {
   useEffect(() => {
@@ -164,28 +167,32 @@ const FileUploadOrRedirect = () => {
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   
-  // Onboarding wizard auto-load removed - no longer automatically opens
+  useEffect(() => {
+    initializeAuditInterceptor();
+  }, []);
   
   return (
-    <AccessibilityProvider>
-      <AuthProvider>
-        <SidebarProvider>
-          <AnnouncementProvider>
-            <NotificationProvider>
-              <ToastProvider>
-                <NotificationsProvider>
-                  <ModalProvider>
-                    <Router>
-                      <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
-                    </Router>
-                  </ModalProvider>
-                </NotificationsProvider>
-              </ToastProvider>
-            </NotificationProvider>
-          </AnnouncementProvider>
-        </SidebarProvider>
-      </AuthProvider>
-    </AccessibilityProvider>
+    <ErrorBoundary componentName="App">
+      <AccessibilityProvider>
+        <AuthProvider>
+          <SidebarProvider>
+            <AnnouncementProvider>
+              <NotificationProvider>
+                <ToastProvider>
+                  <NotificationsProvider>
+                    <ModalProvider>
+                      <Router>
+                        <AppContent showOnboarding={showOnboarding} setShowOnboarding={setShowOnboarding} />
+                      </Router>
+                    </ModalProvider>
+                  </NotificationsProvider>
+                </ToastProvider>
+              </NotificationProvider>
+            </AnnouncementProvider>
+          </SidebarProvider>
+        </AuthProvider>
+      </AccessibilityProvider>
+    </ErrorBoundary>
   );
 }
 
