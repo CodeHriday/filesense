@@ -366,7 +366,7 @@ async function checkProjectMembership(userId, projectId) {
 async function getUserProjects(userId) {
   try {
     const result = await db.query(`
-      WITH user_parent_projects AS (
+      WITH user_direct_parent_projects AS (
         -- Get parent projects user has direct access to
         SELECT DISTINCT
           p.id,
@@ -381,8 +381,30 @@ async function getUserProjects(userId) {
         WHERE pm.user_id = $1
           AND p.is_active = TRUE
       ),
+      user_group_parent_projects AS (
+        -- Get parent projects user has access to via groups
+        SELECT DISTINCT
+          p.id,
+          p.name,
+          p.description,
+          p.parent_id,
+          p.owner_id,
+          p.is_active,
+          p.created_at
+        FROM projects p
+        JOIN project_access_groups pag ON p.id = pag.project_id
+        JOIN user_groups ug ON pag.group_id = ug.group_id
+        WHERE ug.user_id = $1
+          AND p.is_active = TRUE
+      ),
+      user_parent_projects AS (
+        -- Combine direct and group-based parent project access
+        SELECT * FROM user_direct_parent_projects
+        UNION
+        SELECT * FROM user_group_parent_projects
+      ),
       user_sub_projects AS (
-        -- Get sub-projects where user has access to parent
+        -- Get sub-projects where user has access to parent (via direct or group membership)
         SELECT DISTINCT
           sp.id,
           sp.name,
