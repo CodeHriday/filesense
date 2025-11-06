@@ -90,6 +90,9 @@ function MappingWizard() {
   const [connections, setConnections] = useState([]);
   const [vendorAgreements, setVendorAgreements] = useState([]);
   const [selectedVendorAgreement, setSelectedVendorAgreement] = useState('');
+  const [agreementFileSchemas, setAgreementFileSchemas] = useState([]);
+  const [selectedFileSchema, setSelectedFileSchema] = useState(null);
+  const [loadingFileSchemas, setLoadingFileSchemas] = useState(false);
 
   // Step 2: Source Configuration
   const [sourceType, setSourceType] = useState('files');
@@ -267,6 +270,46 @@ function MappingWizard() {
     } catch (err) {
       console.error('Error fetching vendor agreements:', err);
       setVendorAgreements([]);
+    }
+  };
+
+  const fetchAgreementFileSchemas = async (agreementId) => {
+    if (!agreementId) {
+      setAgreementFileSchemas([]);
+      setSelectedFileSchema(null);
+      return;
+    }
+
+    try {
+      setLoadingFileSchemas(true);
+      const response = await axios.get(
+        `${API_BASE_URL}/api/vendor-agreements/${agreementId}/file-schemas`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }
+      );
+
+      const fileSchemas = response.data.fileSchemas || [];
+      setAgreementFileSchemas(fileSchemas);
+
+      // If only one file schema, auto-select it
+      if (fileSchemas.length === 1) {
+        setSelectedFileSchema(fileSchemas[0]);
+        setFileNamePattern(fileSchemas[0].file_name_pattern);
+      } else if (fileSchemas.length === 0) {
+        // Fallback to old agreement.file_name if no file schemas
+        setSelectedFileSchema(null);
+      } else {
+        // Multiple file schemas - user must select
+        setSelectedFileSchema(null);
+        setFileNamePattern('');
+      }
+    } catch (err) {
+      console.error('Error fetching agreement file schemas:', err);
+      setAgreementFileSchemas([]);
+      setSelectedFileSchema(null);
+    } finally {
+      setLoadingFileSchemas(false);
     }
   };
 
@@ -943,13 +986,12 @@ function MappingWizard() {
                     setSelectedVendorAgreement(value);
                     if (value) {
                       setSourceConnectionId('');
+                      // Fetch file schemas for the selected agreement
+                      fetchAgreementFileSchemas(value);
+                      
                       // Auto-populate from agreement
                       const agreement = vendorAgreements.find(a => a.id === parseInt(value));
                       if (agreement) {
-                        // Auto-populate file name pattern from agreement (read-only)
-                        if (agreement.file_name) {
-                          setFileNamePattern(agreement.file_name);
-                        }
                         // Auto-populate file path from connection configuration
                         if (agreement.vendor_connection_path) {
                           setFilePath(agreement.vendor_connection_path);
@@ -967,6 +1009,8 @@ function MappingWizard() {
                     } else {
                       // Clear auto-populated fields when vendor contract is deselected
                       setSchemaDriftHandling('none');
+                      setAgreementFileSchemas([]);
+                      setSelectedFileSchema(null);
                     }
                   }}
                   disabled={!!sourceConnectionId}
