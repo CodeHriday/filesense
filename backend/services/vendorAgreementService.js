@@ -2180,7 +2180,7 @@ class VendorAgreementService {
       
       if (agreementIds.length > 0) {
         const fileSchemasResult = await pool.query(
-          `SELECT vendor_agreement_id, file_name, file_description, schema, contains_pii, 
+          `SELECT vendor_agreement_id, file_name_pattern as file_name, file_description, schema, contains_pii, 
                   data_classification, file_type, quality_rule_ids, created_at
            FROM vendor_agreement_file_schemas 
            WHERE vendor_agreement_id = ANY($1)
