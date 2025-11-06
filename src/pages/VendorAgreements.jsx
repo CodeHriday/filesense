@@ -1519,7 +1519,7 @@ const VendorAgreements = () => {
                           >
                             <FiEye />
                           </button>
-                          {(isAdmin || (isVendor && currentUser.vendor_id === agreement.vendor_id)) && (
+                          {(isAdmin || (isVendor && currentUser.vendor_id === agreement.vendor_id && hasPermission && hasPermission('vendor_agreements:write'))) && (
                             <button 
                               className="action-icon-btn edit-btn" 
                               onClick={() => openEditModal(agreement)}
