@@ -168,7 +168,7 @@ router.get('/:id',
     
     // Fetch associated quality rule IDs
     const qualityRulesResult = await pool.query(
-      'SELECT quality_rule_id FROM transformation_quality_rules WHERE transformation_id = $1',
+      'SELECT quality_rule_id FROM transformation_quality_rules WHERE mapping_id = $1',
       [id]
     );
     
@@ -407,12 +407,12 @@ router.post('/',
       for (const ruleId of quality_rule_ids) {
         try {
           await pool.query(
-            'INSERT INTO transformation_quality_rules (transformation_id, quality_rule_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            'INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
             [mappingId, ruleId]
           );
         } catch (err) {
           systemLogger.warn('Failed to insert transformation quality rule association', { 
-            transformation_id: mappingId, 
+            mapping_id: mappingId, 
             quality_rule_id: ruleId, 
             error: err.message 
           });
@@ -750,7 +750,7 @@ router.put('/:id',
     if (quality_rule_ids !== undefined) {
       // Delete existing associations
       await pool.query(
-        'DELETE FROM transformation_quality_rules WHERE transformation_id = $1',
+        'DELETE FROM transformation_quality_rules WHERE mapping_id = $1',
         [id]
       );
       
@@ -759,12 +759,12 @@ router.put('/:id',
         for (const ruleId of quality_rule_ids) {
           try {
             await pool.query(
-              'INSERT INTO transformation_quality_rules (transformation_id, quality_rule_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              'INSERT INTO transformation_quality_rules (mapping_id, quality_rule_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
               [id, ruleId]
             );
           } catch (err) {
             systemLogger.warn('Failed to insert transformation quality rule association', { 
-              transformation_id: id, 
+              mapping_id: id, 
               quality_rule_id: ruleId, 
               error: err.message 
             });
