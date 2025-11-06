@@ -4,37 +4,64 @@ const fs = require('fs');
 
 class VendorAgreementTemplateService {
   constructor() {
-    this.templateFields = [
-      { field: 'file_name', label: 'File Name *', type: 'text', required: true },
-      { field: 'file_description', label: 'File Description *', type: 'text', required: true },
+    // Agreement-level fields
+    this.agreementFields = [
+      { field: 'agreement_id', label: 'Agreement ID *', type: 'text', required: true },
       { field: 'vendor_department_team', label: 'Vendor Department/Team *', type: 'text', required: true },
       { field: 'vendor_department_email', label: 'Vendor Department Email *', type: 'text', required: true },
-      { field: 'schema', label: 'Schema (JSON)', type: 'text', required: false },
       { field: 'frequency', label: 'Frequency *', type: 'dropdown', required: true, options: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual', 'Ad-hoc'] },
       { field: 'frequency_description', label: 'Frequency Description', type: 'text', required: false },
-      { field: 'contains_pii', label: 'Contains PII', type: 'boolean', required: false },
-      { field: 'file_type', label: 'File Type', type: 'dropdown', required: false, options: ['CSV', 'JSON', 'XML', 'Parquet', 'Excel'] },
-      { field: 'data_classification', label: 'Data Classification', type: 'dropdown', required: false, options: ['Public', 'Private', 'Confidential'] },
       { field: 'domain', label: 'Domain', type: 'text', required: false },
       { field: 'retention_days', label: 'Retention Days', type: 'number', required: false },
       { field: 'expected_arrival_time', label: 'Expected Arrival Time', type: 'text', required: false },
       { field: 'delivery_method', label: 'Delivery Method', type: 'dropdown', required: false, options: ['SFTP', 'S3', 'API', 'Email', 'Manual'] }
     ];
+
+    // File configuration fields (multiple per agreement)
+    this.fileConfigFields = [
+      { field: 'agreement_id', label: 'Agreement ID *', type: 'text', required: true },
+      { field: 'file_name_pattern', label: 'File Name Pattern *', type: 'text', required: true },
+      { field: 'file_description', label: 'File Description', type: 'text', required: false },
+      { field: 'file_type', label: 'File Type *', type: 'dropdown', required: true, options: ['csv', 'json', 'xml', 'xlsx', 'parquet'] },
+      { field: 'schema', label: 'Schema (JSON)', type: 'text', required: false },
+      { field: 'priority', label: 'Priority', type: 'number', required: false },
+      { field: 'contains_pii', label: 'Contains PII', type: 'boolean', required: false },
+      { field: 'data_classification', label: 'Data Classification', type: 'dropdown', required: false, options: ['Public', 'Internal', 'Confidential', 'Highly Confidential'] },
+      { field: 'quality_rule_ids', label: 'Quality Rule IDs', type: 'text', required: false }
+    ];
   }
 
   generateTemplate() {
-    const headers = this.templateFields.map(f => f.label);
-    const exampleRow = this.templateFields.map(f => this._getExampleValue(f));
+    const wb = XLSX.utils.book_new();
+
+    // Create Agreement Info sheet
+    const agreementWs = this._createSheetFromFields(this.agreementFields, 'AGR001');
+    XLSX.utils.book_append_sheet(wb, agreementWs, 'Agreement Info');
+
+    // Create File Configurations sheet
+    const fileConfigWs = this._createFileConfigSheet();
+    XLSX.utils.book_append_sheet(wb, fileConfigWs, 'File Configurations');
+
+    // Create Instructions sheet
+    const instructionsWs = this._createInstructionsSheet();
+    XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
+
+    return wb;
+  }
+
+  _createSheetFromFields(fields, exampleAgreementId) {
+    const headers = fields.map(f => f.label);
+    const exampleRow = fields.map(f => this._getExampleValue(f, exampleAgreementId));
 
     const wsData = [
       headers,
       exampleRow,
-      Array(this.templateFields.length).fill('')
+      Array(fields.length).fill('')
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    const colWidths = this.templateFields.map(f => ({
+    const colWidths = fields.map(f => ({
       wch: Math.max(f.label.length, 20)
     }));
     ws['!cols'] = colWidths;
@@ -63,23 +90,62 @@ class VendorAgreementTemplateService {
       };
     }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Vendor Agreements');
-
-    const instructionsWs = this._createInstructionsSheet();
-    XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
-
-    return wb;
+    return ws;
   }
 
-  _getExampleValue(field) {
+  _createFileConfigSheet() {
+    const headers = this.fileConfigFields.map(f => f.label);
+    const exampleRow1 = this.fileConfigFields.map(f => this._getExampleFileConfigValue(f, 'AGR001', 1));
+    const exampleRow2 = this.fileConfigFields.map(f => this._getExampleFileConfigValue(f, 'AGR001', 2));
+
+    const wsData = [
+      headers,
+      exampleRow1,
+      exampleRow2,
+      Array(this.fileConfigFields.length).fill('')
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    const colWidths = this.fileConfigFields.map(f => ({
+      wch: Math.max(f.label.length, 25)
+    }));
+    ws['!cols'] = colWidths;
+
+    ws['!rows'] = [
+      { hpt: 25 },
+      { hpt: 20 },
+      { hpt: 20 }
+    ];
+
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const headerCell = XLSX.utils.encode_cell({ r: 0, c: C });
+      if (!ws[headerCell]) continue;
+      ws[headerCell].s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '4472C4' } },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+      };
+
+      for (let R = 1; R <= 2; R++) {
+        const exampleCell = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[exampleCell]) continue;
+        ws[exampleCell].s = {
+          font: { color: { rgb: '999999' } },
+          fill: { fgColor: { rgb: 'FFFACD' } },
+          alignment: { horizontal: 'left', vertical: 'center' }
+        };
+      }
+    }
+
+    return ws;
+  }
+
+  _getExampleValue(field, agreementId = 'AGR001') {
     switch (field.field) {
-      case 'file_name':
-        return 'customer_data_export.csv';
-      case 'file_description':
-        return 'Daily export of customer information';
-      case 'schema':
-        return '[{"name":"ID","type":"integer","description":"Primary Key"},{"name":"Name","type":"string","description":"Customer name"},{"name":"Email","type":"string","description":"Email address"}]';
+      case 'agreement_id':
+        return agreementId;
       case 'frequency':
         return 'Daily';
       case 'frequency_description':
@@ -88,18 +154,41 @@ class VendorAgreementTemplateService {
         return 'Data Engineering Team';
       case 'vendor_department_email':
         return 'data-team@vendor.com';
-      case 'contains_pii':
-        return 'TRUE';
-      case 'file_type':
-        return 'CSV';
-      case 'data_classification':
-        return 'Confidential';
+      case 'domain':
+        return 'Customer Data';
       case 'retention_days':
         return '90';
       case 'expected_arrival_time':
         return '06:00 EST';
       case 'delivery_method':
         return 'SFTP';
+      default:
+        return '';
+    }
+  }
+
+  _getExampleFileConfigValue(field, agreementId = 'AGR001', fileNum = 1) {
+    switch (field.field) {
+      case 'agreement_id':
+        return agreementId;
+      case 'file_name_pattern':
+        return fileNum === 1 ? 'customer_data' : 'transaction_log';
+      case 'file_description':
+        return fileNum === 1 ? 'Daily customer information export' : 'Transaction logs for audit';
+      case 'file_type':
+        return fileNum === 1 ? 'csv' : 'json';
+      case 'schema':
+        return fileNum === 1 
+          ? '[{"column_name":"ID","data_type":"integer"},{"column_name":"Name","data_type":"string"},{"column_name":"Email","data_type":"string"}]'
+          : '[{"column_name":"transaction_id","data_type":"string"},{"column_name":"amount","data_type":"decimal"},{"column_name":"timestamp","data_type":"datetime"}]';
+      case 'priority':
+        return fileNum === 1 ? '100' : '200';
+      case 'contains_pii':
+        return fileNum === 1 ? 'TRUE' : 'FALSE';
+      case 'data_classification':
+        return fileNum === 1 ? 'Highly Confidential' : 'Internal';
+      case 'quality_rule_ids':
+        return fileNum === 1 ? '1,2,3' : '2,4';
       default:
         return '';
     }
@@ -132,46 +221,80 @@ class VendorAgreementTemplateService {
       ['Vendor Agreement Template - Instructions'],
       [''],
       ['Overview:'],
-      ['This template allows you to create multiple vendor agreements at once by filling in the spreadsheet and uploading it.'],
+      ['This template allows you to create vendor agreements with multiple file configurations in a single upload.'],
+      ['The template now has TWO sheets: "Agreement Info" for agreement-level details and "File Configurations" for individual files.'],
       [''],
       ['How to Use:'],
-      ['1. Go to the "Vendor Agreements" sheet'],
-      ['2. Row 1 contains the field names (headers) - do not modify'],
-      ['3. Row 2 contains example values to guide you'],
-      ['4. Start entering your data from Row 3 onwards'],
-      ['5. Fields marked with * are required'],
-      ['6. For dropdown fields, use only the exact values listed below'],
-      ['7. For boolean fields (like Contains PII), use TRUE or FALSE'],
-      ['8. For Schema field, use JSON array format: [{"name":"Col","type":"datatype","description":"info"}]'],
+      ['1. Agreement Info Sheet:'],
+      ['   - Each row represents one vendor agreement'],
+      ['   - Row 1 contains headers (do not modify)'],
+      ['   - Row 2 has example data'],
+      ['   - Start entering data from Row 3'],
+      ['   - Assign a unique Agreement ID (e.g., AGR001, AGR002) to link file configurations'],
+      [''],
+      ['2. File Configurations Sheet:'],
+      ['   - Each row represents one file pattern within an agreement'],
+      ['   - Multiple files can share the same Agreement ID'],
+      ['   - Row 1 contains headers (do not modify)'],
+      ['   - Rows 2-3 show examples (both linked to AGR001)'],
+      ['   - Start entering data from Row 4'],
+      [''],
+      ['3. Linking Files to Agreements:'],
+      ['   - Use the same Agreement ID in both sheets to link them'],
+      ['   - Example: If Agreement Info has "AGR001", all File Configurations with "AGR001" belong to that agreement'],
+      ['   - You can have multiple file configurations per agreement'],
       [''],
       ['Important Notes:'],
-      ['- Admin-only fields (Vendor, Project, Connections, Contacts, File Owner) will be set in the creation form'],
-      ['- Make sure all required fields are filled'],
-      ['- Invalid data will be flagged during upload with specific error messages'],
-      ['- Template upload auto-populates the agreement creation form for review before submission'],
+      ['- Fields marked with * are required'],
+      ['- For dropdown fields, use only the exact values listed below'],
+      ['- For boolean fields (Contains PII), use TRUE or FALSE'],
+      ['- For Schema field, use JSON array format: [{"column_name":"Name","data_type":"string"}]'],
+      ['- Quality Rule IDs should be comma-separated numbers (e.g., 1,2,3)'],
+      ['- Admin-only fields (Vendor, Project, Connections, Contacts) will be set in the creation form'],
+      ['- Template upload auto-populates the form for review before submission'],
       [''],
-      ['Field Descriptions & Allowed Values:'],
+      ['Agreement Info Fields:'],
       [''],
-      ['File Name: The name of the data file (e.g., customer_export.csv) - REQUIRED'],
-      ['File Description: A description of what the file contains - REQUIRED'],
-      ['Vendor Department/Team: Name of the vendor department/team responsible - REQUIRED'],
-      ['Vendor Department Email: Contact email for the vendor department/team - REQUIRED'],
-      ['Schema: JSON array of column definitions. Format: [{"name":"ColumnName","type":"datatype","description":"details"}]'],
-      ['  Example: [{"name":"ID","type":"integer","description":"Primary Key"},{"name":"Sales","type":"integer","description":"Total sales"}]'],
-      ['Frequency: How often the file is delivered - REQUIRED. Allowed values: Daily, Weekly, Monthly, Quarterly, Annual, Ad-hoc'],
+      ['Agreement ID: Unique identifier to link with file configurations (e.g., AGR001) - REQUIRED'],
+      ['Vendor Department/Team: Name of vendor department/team responsible - REQUIRED'],
+      ['Vendor Department Email: Contact email for vendor department/team - REQUIRED'],
+      ['Frequency: Delivery frequency - REQUIRED. Values: Daily, Weekly, Monthly, Quarterly, Annual, Ad-hoc'],
       ['Frequency Description: Details about delivery timing (optional)'],
-      ['Contains PII: Whether the file contains personally identifiable information (optional). Enter TRUE or FALSE'],
-      ['File Type: Type of file (optional). Allowed values: CSV, JSON, XML, Parquet, Excel'],
-      ['Data Classification: Security classification level (optional). Allowed values: Public, Private, Confidential'],
       ['Domain: Business domain or category (optional)'],
-      ['Retention Days: How long to keep the data in days - enter a number (optional)'],
-      ['Expected Arrival Time: When the file typically arrives - e.g., 06:00 EST (optional)'],
-      ['Delivery Method: How the file is delivered (optional). Allowed values: SFTP, S3, API, Email, Manual']
+      ['Retention Days: Data retention period in days - enter a number (optional)'],
+      ['Expected Arrival Time: When file typically arrives, e.g., 06:00 EST (optional)'],
+      ['Delivery Method: How file is delivered (optional). Values: SFTP, S3, API, Email, Manual'],
+      [''],
+      ['File Configuration Fields:'],
+      [''],
+      ['Agreement ID: Must match an Agreement ID from Agreement Info sheet - REQUIRED'],
+      ['File Name Pattern: Base pattern without extension, e.g., customer_data - REQUIRED'],
+      ['File Description: What the file contains (optional)'],
+      ['File Type: Type of file - REQUIRED. Values: csv, json, xml, xlsx, parquet'],
+      ['Schema: JSON array of column definitions. Format: [{"column_name":"Name","data_type":"string"}]'],
+      ['  Example: [{"column_name":"ID","data_type":"integer"},{"column_name":"Email","data_type":"string"}]'],
+      ['Priority: Match priority (lower numbers match first). Default: 100 (optional)'],
+      ['Contains PII: Does file contain personally identifiable information? TRUE or FALSE (optional)'],
+      ['Data Classification: Security level (optional). Values: Public, Internal, Confidential, Highly Confidential'],
+      ['Quality Rule IDs: Comma-separated rule IDs, e.g., 1,2,3 (optional)'],
+      [''],
+      ['Example Structure:'],
+      [''],
+      ['Agreement Info sheet has:'],
+      ['  Row 3: AGR001, Data Team, data@vendor.com, Daily, ...'],
+      ['  Row 4: AGR002, Analytics Team, analytics@vendor.com, Weekly, ...'],
+      [''],
+      ['File Configurations sheet has:'],
+      ['  Row 4: AGR001, customer_data, Customer info, csv, [...], 100, TRUE, Highly Confidential, 1,2'],
+      ['  Row 5: AGR001, transaction_log, Transactions, json, [...], 200, FALSE, Internal, 2,4'],
+      ['  Row 6: AGR002, weekly_report, Reports, xlsx, [...], 100, FALSE, Public, '],
+      [''],
+      ['This creates 2 agreements: AGR001 with 2 files, AGR002 with 1 file.']
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(instructions);
     
-    ws['!cols'] = [{ wch: 100 }];
+    ws['!cols'] = [{ wch: 110 }];
     
     const titleCell = 'A1';
     ws[titleCell].s = {
@@ -185,31 +308,50 @@ class VendorAgreementTemplateService {
   parseTemplateUpload(filePath) {
     try {
       const workbook = XLSX.readFile(filePath);
-      const sheetName = 'Vendor Agreements';
       
-      if (!workbook.SheetNames.includes(sheetName)) {
-        throw new Error('Invalid template: "Vendor Agreements" sheet not found');
+      // Check for required sheets
+      if (!workbook.SheetNames.includes('Agreement Info')) {
+        throw new Error('Invalid template: "Agreement Info" sheet not found');
+      }
+      if (!workbook.SheetNames.includes('File Configurations')) {
+        throw new Error('Invalid template: "File Configurations" sheet not found');
       }
 
-      const worksheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(worksheet, { 
+      // Parse Agreement Info sheet
+      const agreementWs = workbook.Sheets['Agreement Info'];
+      const agreementData = XLSX.utils.sheet_to_json(agreementWs, { 
         header: 1,
         defval: '',
         raw: false
       });
 
-      if (data.length < 3) {
-        throw new Error('Template must have at least 3 rows (headers, example, and data)');
+      // Parse File Configurations sheet
+      const fileConfigWs = workbook.Sheets['File Configurations'];
+      const fileConfigData = XLSX.utils.sheet_to_json(fileConfigWs, { 
+        header: 1,
+        defval: '',
+        raw: false
+      });
+
+      if (agreementData.length < 3) {
+        throw new Error('Agreement Info sheet must have at least 3 rows (headers, example, and data)');
+      }
+      if (fileConfigData.length < 4) {
+        throw new Error('File Configurations sheet must have at least 4 rows (headers, 2 examples, and data)');
       }
 
-      const headers = data[0];
-      const dataRows = data.slice(2);
+      const agreementHeaders = agreementData[0];
+      const agreementRows = agreementData.slice(2);
+      
+      const fileConfigHeaders = fileConfigData[0];
+      const fileConfigRows = fileConfigData.slice(3);
 
-      const agreements = [];
+      const agreements = {};
       const errors = [];
 
-      for (let i = 0; i < dataRows.length; i++) {
-        const row = dataRows[i];
+      // Parse agreements
+      for (let i = 0; i < agreementRows.length; i++) {
+        const row = agreementRows[i];
         
         if (row.every(cell => !cell || cell.toString().trim() === '')) {
           continue;
@@ -218,13 +360,11 @@ class VendorAgreementTemplateService {
         const agreement = {};
         const rowErrors = [];
 
-        for (let j = 0; j < headers.length; j++) {
-          const header = headers[j];
-          const fieldDef = this.templateFields.find(f => f.label === header);
+        for (let j = 0; j < agreementHeaders.length; j++) {
+          const header = agreementHeaders[j];
+          const fieldDef = this.agreementFields.find(f => f.label === header);
           
-          if (!fieldDef) {
-            continue;
-          }
+          if (!fieldDef) continue;
 
           const value = row[j];
           const validationResult = this._validateField(fieldDef, value);
@@ -238,20 +378,105 @@ class VendorAgreementTemplateService {
 
         if (rowErrors.length > 0) {
           errors.push({
+            sheet: 'Agreement Info',
             row: i + 3,
             errors: rowErrors
           });
-        } else {
-          agreements.push(agreement);
+        } else if (agreement.agreement_id) {
+          agreement.fileConfigurations = [];
+          agreements[agreement.agreement_id] = agreement;
         }
+      }
+
+      // Parse file configurations
+      for (let i = 0; i < fileConfigRows.length; i++) {
+        const row = fileConfigRows[i];
+        
+        if (row.every(cell => !cell || cell.toString().trim() === '')) {
+          continue;
+        }
+
+        const fileConfig = {};
+        const rowErrors = [];
+        let agreementId = null;
+
+        for (let j = 0; j < fileConfigHeaders.length; j++) {
+          const header = fileConfigHeaders[j];
+          const fieldDef = this.fileConfigFields.find(f => f.label === header);
+          
+          if (!fieldDef) continue;
+
+          const value = row[j];
+          
+          if (fieldDef.field === 'agreement_id') {
+            agreementId = value ? value.toString().trim() : null;
+            continue;
+          }
+
+          const validationResult = this._validateField(fieldDef, value);
+          
+          if (!validationResult.valid) {
+            rowErrors.push(`${fieldDef.label}: ${validationResult.error}`);
+          } else {
+            fileConfig[fieldDef.field] = validationResult.value;
+          }
+        }
+
+        if (!agreementId) {
+          rowErrors.push('Agreement ID is required to link file to agreement');
+        } else if (!agreements[agreementId]) {
+          rowErrors.push(`Agreement ID "${agreementId}" not found in Agreement Info sheet`);
+        }
+
+        if (rowErrors.length > 0) {
+          errors.push({
+            sheet: 'File Configurations',
+            row: i + 4,
+            errors: rowErrors
+          });
+        } else if (agreementId && agreements[agreementId]) {
+          // Build the file configuration with derived pattern
+          const basePattern = fileConfig.file_name_pattern || '';
+          const fileType = fileConfig.file_type || 'csv';
+          
+          const fullConfig = {
+            file_name_pattern_base: basePattern,
+            file_type: fileType,
+            file_name_pattern: `${basePattern}*.${fileType}`,
+            file_description: fileConfig.file_description || '',
+            schema: fileConfig.schema || null,
+            priority: fileConfig.priority ?? 100,
+            is_active: true,
+            contains_pii: fileConfig.contains_pii || false,
+            data_classification: fileConfig.data_classification || null,
+            quality_rule_ids: fileConfig.quality_rule_ids || []
+          };
+
+          agreements[agreementId].fileConfigurations.push(fullConfig);
+        }
+      }
+
+      // Convert to array and filter agreements with at least one file config
+      const agreementArray = Object.values(agreements).filter(agr => agr.fileConfigurations.length > 0);
+
+      // Add warning for agreements without files
+      const agreementsWithoutFiles = Object.values(agreements).filter(agr => agr.fileConfigurations.length === 0);
+      if (agreementsWithoutFiles.length > 0) {
+        agreementsWithoutFiles.forEach(agr => {
+          errors.push({
+            sheet: 'Agreement Info',
+            row: '?',
+            errors: [`Agreement "${agr.agreement_id}" has no file configurations`]
+          });
+        });
       }
 
       return {
         success: errors.length === 0,
-        agreements,
+        agreements: agreementArray,
         errors,
-        totalRows: dataRows.filter(row => !row.every(cell => !cell || cell.toString().trim() === '')).length,
-        validRows: agreements.length
+        totalRows: agreementRows.filter(r => !r.every(c => !c || c.toString().trim() === '')).length,
+        validRows: agreementArray.length
       };
 
     } catch (error) {
@@ -271,6 +496,24 @@ class VendorAgreementTemplateService {
 
     if (!strValue) {
       return { valid: true, value: null };
+    }
+
+    // Special handling for quality_rule_ids
+    if (fieldDef.field === 'quality_rule_ids') {
+      const ids = strValue.split(',').map(id => id.trim()).filter(id => id);
+      const validIds = ids.every(id => /^\d+$/.test(id));
+      
+      if (!validIds) {
+        return {
+          valid: false,
+          error: 'Must be comma-separated numbers (e.g., 1,2,3)'
+        };
+      }
+      
+      return { 
+        valid: true, 
+        value: ids.map(id => parseInt(id, 10))
+      };
     }
 
     switch (fieldDef.type) {
@@ -321,13 +564,31 @@ class VendorAgreementTemplateService {
         return { valid: true, value: strValue };
 
       case 'text':
-        if (fieldDef.field.includes('json') && strValue) {
+        // Special handling for schema field
+        if (fieldDef.field === 'schema' && strValue) {
           try {
-            JSON.parse(strValue);
+            const parsed = JSON.parse(strValue);
+            // Validate it's an array with proper structure
+            if (!Array.isArray(parsed)) {
+              return {
+                valid: false,
+                error: 'Schema must be a JSON array'
+              };
+            }
+            // Check each item has column_name and data_type
+            for (const col of parsed) {
+              if (!col.column_name || !col.data_type) {
+                return {
+                  valid: false,
+                  error: 'Each schema column must have column_name and data_type'
+                };
+              }
+            }
+            return { valid: true, value: parsed };
           } catch (e) {
             return {
               valid: false,
-              error: 'Must be valid JSON'
+              error: 'Must be valid JSON array format'
             };
           }
         }
