@@ -282,7 +282,6 @@ router.get('/data-stewards', authenticateToken, asyncHandler(async (req, res) =>
     INNER JOIN user_roles ur ON u.id = ur.user_id
     INNER JOIN roles r ON ur.role_id = r.id
     WHERE r.name = 'Data Steward'
-      AND u.is_active = true
     ORDER BY u.full_name, u.username`
   );
   
