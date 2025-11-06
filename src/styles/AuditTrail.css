@@ -251,29 +251,33 @@
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   margin-bottom: 20px;
 }
 
 .audit-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
 }
 
 .audit-table th,
 .audit-table td {
-  padding: 12px 16px;
+  padding: 6px 8px;
   text-align: left;
   border-bottom: 1px solid #dadce0;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .audit-table th {
   background-color: #f8f9fa;
   font-weight: 500;
   color: #5f6368;
-  font-size: 12px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .audit-table tbody tr:hover {
@@ -286,41 +290,43 @@
 
 .no-data-message {
   text-align: center;
-  padding: 48px 20px;
+  padding: 24px 10px;
   color: #5f6368;
-  font-size: 14px;
+  font-size: 11px;
 }
 
 /* Icon-based action buttons */
 .action-icon-btn {
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  padding: 6px;
+  background: #e8f0fe;
+  border: 1px solid #1a73e8;
+  border-radius: 4px;
+  padding: 4px 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #6c757d;
+  color: #1a73e8;
 }
 
 .action-icon-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .action-icon-btn:hover {
-  background-color: rgba(0, 0, 0, 0.04);
-  transform: translateY(-2px);
+  background-color: #1a73e8;
+  color: white;
+  transform: translateY(-1px);
 }
 
 .action-icon-btn.view-btn {
-  color: #6c757d;
+  color: #1a73e8;
 }
 
 .action-icon-btn.view-btn:hover {
-  background-color: #e9ecef;
+  background-color: #1a73e8;
+  color: white;
 }
 
 .action-icon-btn:disabled {
@@ -329,19 +335,20 @@
 }
 
 .action-icon-btn:disabled:hover {
-  background-color: transparent;
+  background-color: #e8f0fe;
+  color: #1a73e8;
   transform: none;
 }
 
 /* Status Badges */
 .badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .badge-success {
@@ -368,9 +375,9 @@
 .action-tag {
   background-color: #e8f0fe;
   color: #1a73e8;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 9px;
   font-weight: 500;
 }
 
@@ -398,9 +405,9 @@
 .entity-tag {
   background-color: #f1f3f4;
   color: #5f6368;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
 }

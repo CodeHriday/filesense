@@ -215,7 +215,12 @@ const AuditTrail = () => {
   };
 
   const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleString();
+    const date = new Date(timestamp);
+    const dateStr = date.toLocaleDateString();
+    const timeStr = date.toLocaleTimeString();
+    const ms = date.getMilliseconds().toString().padStart(3, '0');
+    const us = '000';
+    return `${dateStr} ${timeStr}.${ms}${us}`;
   };
 
   const getStatusBadgeClass = (status) => {
@@ -292,28 +297,37 @@ const AuditTrail = () => {
             </div>
 
             {statistics && (
-              <div className="stats-grid">
-                {Object.entries(statistics).map(([table, data]) => {
-                  const tableName = table.replace(/_/g, ' ').toUpperCase();
-                  const isArchive = table.includes('archive');
-                  
-                  return (
-                    <div key={table} className="stat-card" style={{ borderLeft: isArchive ? '4px solid #9aa0a6' : '4px solid #1a73e8' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <h3 style={{ fontSize: '12px', fontWeight: 500, color: '#5f6368', textTransform: 'uppercase', margin: 0 }}>
-                          {tableName}
-                        </h3>
-                        {isArchive ? <FiArchive className="stat-icon" style={{ color: '#9aa0a6' }} /> : <FiDatabase className="stat-icon" style={{ color: '#1a73e8' }} />}
-                      </div>
-                      <p className="stat-value">{data?.count ? data.count.toLocaleString() : '0'}</p>
-                      {data?.oldest_record && (
-                        <p className="stat-label">
-                          Oldest: {new Date(data.oldest_record).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+              <div style={{ overflowX: 'auto' }}>
+                <table className="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Table Name</th>
+                      <th>Type</th>
+                      <th>Record Count</th>
+                      <th>Oldest Record</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(statistics).map(([table, data]) => {
+                      const tableName = table.replace(/_/g, ' ').toUpperCase();
+                      const isArchive = table.includes('archive');
+                      
+                      return (
+                        <tr key={table}>
+                          <td style={{ fontWeight: 500 }}>{tableName}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {isArchive ? <FiArchive style={{ color: '#9aa0a6' }} /> : <FiDatabase style={{ color: '#1a73e8' }} />}
+                              <span>{isArchive ? 'Archive' : 'Active'}</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 600 }}>{data?.count ? data.count.toLocaleString() : '0'}</td>
+                          <td>{data?.oldest_record ? new Date(data.oldest_record).toLocaleDateString() : 'N/A'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -526,32 +540,32 @@ const AuditTrail = () => {
                 ) : (
                   paginatedLogs.map((log) => (
                     <tr key={log.audit_id}>
-                      <td style={{ fontSize: '13px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <FiClock style={{ color: '#9aa0a6', flexShrink: 0 }} />
-                          {formatTimestamp(log.timestamp)}
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <FiClock style={{ color: '#9aa0a6', flexShrink: 0, width: '12px', height: '12px' }} />
+                          <span>{formatTimestamp(log.timestamp)}</span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <FiUser style={{ color: '#9aa0a6', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <FiUser style={{ color: '#9aa0a6', flexShrink: 0, width: '12px', height: '12px' }} />
                           <div>
-                            <div style={{ fontSize: '13px', fontWeight: 500, color: '#202124' }}>
+                            <div style={{ fontWeight: 500, color: '#202124' }}>
                               {log.user_email || log.user_id || 'System'}
                             </div>
                             {log.user_role && (
-                              <div style={{ fontSize: '11px', color: '#5f6368' }}>{log.user_role}</div>
+                              <div style={{ fontSize: '9px', color: '#5f6368' }}>{log.user_role}</div>
                             )}
                           </div>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <span className="entity-tag">
                             {log.entity_type}
                           </span>
                           {log.entity_id && (
-                            <span style={{ fontSize: '11px', color: '#5f6368', fontFamily: 'monospace' }}>
+                            <span style={{ fontSize: '8px', color: '#5f6368', fontFamily: 'monospace' }}>
                               {log.entity_id}
                             </span>
                           )}
