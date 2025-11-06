@@ -67,6 +67,13 @@ function FileUpload() {
   const [selectedQualityRules, setSelectedQualityRules] = useState([]);
   const [loadingQualityRules, setLoadingQualityRules] = useState(false);
   
+  // Upload type and contract validation states
+  const [uploadType, setUploadType] = useState('adhoc'); // 'adhoc' or 'contract'
+  const [vendorAgreements, setVendorAgreements] = useState([]);
+  const [selectedAgreement, setSelectedAgreement] = useState(null);
+  const [selectedAgreementSchema, setSelectedAgreementSchema] = useState(null);
+  const [loadingAgreements, setLoadingAgreements] = useState(false);
+  
   // Set initial tab based on route or user type
   useEffect(() => {
     if (location.pathname === '/drop') {
@@ -197,6 +204,55 @@ function FileUpload() {
     
     fetchQualityRules();
   }, [selectedProject]);
+  
+  // Fetch vendor agreements when project is selected and upload type is 'contract'
+  useEffect(() => {
+    const fetchVendorAgreements = async () => {
+      if (!selectedProject || uploadType !== 'contract') {
+        setVendorAgreements([]);
+        setSelectedAgreement(null);
+        setSelectedAgreementSchema(null);
+        return;
+      }
+      
+      try {
+        setLoadingAgreements(true);
+        const token = localStorage.getItem('token');
+        const response = await axios.get(
+          `${API_BASE_URL}/api/projects/${selectedProject}/vendor-agreements-with-schemas`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setVendorAgreements(response.data.agreements || []);
+      } catch (error) {
+        console.error('Error fetching vendor agreements:', error);
+        setVendorAgreements([]);
+      } finally {
+        setLoadingAgreements(false);
+      }
+    };
+    
+    fetchVendorAgreements();
+  }, [selectedProject, uploadType]);
+  
+  // Auto-populate quality rules and schema when agreement is selected
+  useEffect(() => {
+    if (!selectedAgreement) {
+      setSelectedAgreementSchema(null);
+      return;
+    }
+    
+    const agreement = vendorAgreements.find(a => a.id === parseInt(selectedAgreement));
+    if (agreement && agreement.fileSchemas && agreement.fileSchemas.length > 0) {
+      // For now, use the first file schema (later we can add file pattern matching)
+      const firstSchema = agreement.fileSchemas[0];
+      setSelectedAgreementSchema(firstSchema);
+      
+      // Auto-populate quality rules from the schema
+      if (firstSchema.quality_rule_ids && Array.isArray(firstSchema.quality_rule_ids)) {
+        setSelectedQualityRules(firstSchema.quality_rule_ids);
+      }
+    }
+  }, [selectedAgreement, vendorAgreements]);
   
   // Cleanup polling on unmount
   useEffect(() => {
@@ -493,6 +549,11 @@ function FileUpload() {
         throw new Error('Please select a project before uploading');
       }
       
+      // Validate agreement selection in contract validation mode
+      if (uploadType === 'contract' && !selectedAgreement) {
+        throw new Error('Please select a vendor agreement for contract validation');
+      }
+      
       const results = [];
       let successCount = 0;
       let failedCount = 0;
@@ -524,7 +585,8 @@ function FileUpload() {
           };
           
           // Upload individual file
-          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, null, selectedSubProject, selectedQualityRules);
+          const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
+          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, null, selectedSubProject, selectedQualityRules, agreementIdForUpload);
           
           // Extract fileId from result
           let fileId;
@@ -637,8 +699,14 @@ function FileUpload() {
         throw new Error('Please select a project before uploading');
       }
       
+      // Validate agreement selection in contract validation mode
+      if (uploadType === 'contract' && !selectedAgreement) {
+        throw new Error('Please select a vendor agreement for contract validation');
+      }
+      
       // Upload the file with progress tracking (optionally with atomic replacement)
-      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId, selectedSubProject, selectedQualityRules);
+      const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
+      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId, selectedSubProject, selectedQualityRules, agreementIdForUpload);
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -1035,6 +1103,43 @@ function FileUpload() {
         {/* Project and Owner Section - Combined */}
         {!isProcessing && activeTab === 'upload-profile' && hasWritePermission('file') && (
           <div style={{ padding: '1rem', background: 'transparent', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+            {/* Upload Type Selection */}
+            <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #e0e0e0' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.75rem' }}>
+                Upload Type:
+              </label>
+              <div style={{ display: 'flex', gap: '2rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="uploadType"
+                    value="adhoc"
+                    checked={uploadType === 'adhoc'}
+                    onChange={(e) => {
+                      setUploadType(e.target.value);
+                      setSelectedAgreement(null);
+                      setSelectedAgreementSchema(null);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>Ad-hoc Upload</span>
+                  <span style={{ fontSize: '0.875rem', color: '#666' }}>(Standard file upload)</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="uploadType"
+                    value="contract"
+                    checked={uploadType === 'contract'}
+                    onChange={(e) => setUploadType(e.target.value)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>Contract Validation</span>
+                  <span style={{ fontSize: '0.875rem', color: '#666' }}>(Validate against vendor agreement)</span>
+                </label>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {/* Project Selection */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px' }}>
@@ -1123,8 +1228,118 @@ function FileUpload() {
               </div>
             </div>
 
+            {/* Vendor Agreement Selection (Contract Validation Mode) */}
+            {selectedProject && uploadType === 'contract' && (
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="vendor-agreement-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  Vendor Agreement: <span style={{ color: '#e74c3c' }}>*</span>
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  Select the vendor agreement to validate the uploaded file against its defined schema and governance rules.
+                </p>
+                <select 
+                  id="vendor-agreement-select"
+                  value={selectedAgreement || ''}
+                  onChange={(e) => setSelectedAgreement(e.target.value)}
+                  disabled={loadingAgreements}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {loadingAgreements ? (
+                    <option>Loading agreements...</option>
+                  ) : vendorAgreements.length === 0 ? (
+                    <option>No vendor agreements available for this project</option>
+                  ) : (
+                    <>
+                      <option value="">Select an agreement...</option>
+                      {vendorAgreements.map(agreement => (
+                        <option key={agreement.id} value={agreement.id}>
+                          {agreement.vendor_name} - {agreement.file_name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                
+                {/* Schema Preview */}
+                {selectedAgreementSchema && selectedAgreementSchema.schema && (
+                  <div style={{ 
+                    marginTop: '1rem', 
+                    padding: '1rem', 
+                    background: '#f8f9fa', 
+                    borderRadius: '4px',
+                    border: '1px solid #dee2e6'
+                  }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#495057' }}>
+                      Expected Schema:
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {Array.isArray(selectedAgreementSchema.schema) && selectedAgreementSchema.schema.map((col, idx) => (
+                        <span 
+                          key={idx}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            background: '#fff',
+                            border: '1px solid #ced4da',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          {col.column_name} <span style={{ color: '#6c757d' }}>({col.data_type})</span>
+                        </span>
+                      ))}
+                    </div>
+                    
+                    {/* Governance Info */}
+                    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #dee2e6' }}>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
+                        {selectedAgreementSchema.contains_pii && (
+                          <span style={{ 
+                            padding: '0.25rem 0.5rem', 
+                            background: '#fff3cd', 
+                            border: '1px solid #ffc107',
+                            borderRadius: '4px',
+                            color: '#856404'
+                          }}>
+                            🔒 Contains PII
+                          </span>
+                        )}
+                        {selectedAgreementSchema.data_classification && (
+                          <span style={{ 
+                            padding: '0.25rem 0.5rem', 
+                            background: '#d1ecf1', 
+                            border: '1px solid #17a2b8',
+                            borderRadius: '4px',
+                            color: '#0c5460'
+                          }}>
+                            {selectedAgreementSchema.data_classification}
+                          </span>
+                        )}
+                        {selectedAgreementSchema.file_type && (
+                          <span style={{ 
+                            padding: '0.25rem 0.5rem', 
+                            background: '#d4edda', 
+                            border: '1px solid #28a745',
+                            borderRadius: '4px',
+                            color: '#155724'
+                          }}>
+                            {selectedAgreementSchema.file_type.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Quality Rules Selection */}
-            {selectedProject && (
+            {selectedProject && uploadType === 'adhoc' && (
               <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
                 <label htmlFor="quality-rules-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
                   Quality Rules (Optional):
@@ -1166,6 +1381,30 @@ function FileUpload() {
                   {selectedQualityRules.length > 0 
                     ? `${selectedQualityRules.length} rule(s) selected` 
                     : 'No rules selected (hold Ctrl/Cmd to select multiple)'}
+                </div>
+              </div>
+            )}
+            
+            {/* Quality Rules Display for Contract Validation (read-only) */}
+            {selectedProject && uploadType === 'contract' && selectedQualityRules.length > 0 && (
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  Quality Rules (from agreement):
+                </label>
+                <div style={{ 
+                  padding: '0.75rem', 
+                  background: '#f8f9fa', 
+                  borderRadius: '4px',
+                  border: '1px solid #dee2e6'
+                }}>
+                  {selectedQualityRules.map(ruleId => {
+                    const rule = availableQualityRules.find(r => r.id === ruleId);
+                    return rule ? (
+                      <div key={ruleId} style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                        ✓ {rule.rule_name} - {rule.rule_type} ({rule.severity})
+                      </div>
+                    ) : null;
+                  })}
                 </div>
               </div>
             )}

@@ -658,6 +658,61 @@ function createProjectRoutes(dbPool) {
     }
   });
 
+  // Get vendor agreements with file schemas for a project (for contract validation)
+  router.get('/:projectId/vendor-agreements-with-schemas', async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Fetch approved vendor agreements for this project with their file schemas
+      const result = await dbPool.query(`
+        SELECT 
+          va.id,
+          va.vendor_id,
+          va.project_id,
+          va.file_name,
+          va.file_description,
+          v.name as vendor_name,
+          v.company as vendor_company,
+          json_agg(
+            json_build_object(
+              'id', vafs.id,
+              'file_name_pattern', vafs.file_name_pattern,
+              'file_type', vafs.file_type,
+              'schema', vafs.schema,
+              'priority', vafs.priority,
+              'contains_pii', vafs.contains_pii,
+              'data_classification', vafs.data_classification,
+              'quality_rule_ids', vafs.quality_rule_ids
+            )
+            ORDER BY vafs.priority ASC
+          ) FILTER (WHERE vafs.id IS NOT NULL) as file_schemas
+        FROM vendor_agreements va
+        LEFT JOIN vendors v ON va.vendor_id = v.id
+        LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.agreement_id AND vafs.is_active = true
+        WHERE va.project_id = $1 
+          AND va.status = 'approved'
+          AND va.is_active = true
+        GROUP BY va.id, va.vendor_id, va.project_id, va.file_name, va.file_description, v.name, v.company
+        ORDER BY v.name, va.file_name
+      `, [projectId]);
+
+      const agreements = result.rows.map(row => ({
+        ...row,
+        fileSchemas: row.file_schemas || []
+      }));
+
+      res.json({ agreements });
+    } catch (error) {
+      systemLogger.error('Error fetching vendor agreements with schemas', error);
+      res.status(500).json({ error: 'Failed to fetch vendor agreements' });
+    }
+  });
+
   // Update project
   router.put('/:projectId', async (req, res) => {
     try {
