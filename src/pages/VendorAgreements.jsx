@@ -8,6 +8,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
+import FileSchemaManager from '../components/FileSchemaManager';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import axios from 'axios';
@@ -50,6 +51,10 @@ const VendorAgreements = () => {
   const [filteredConnections, setFilteredConnections] = useState([]);
   const [allConnections, setAllConnections] = useState([]);
   
+  // Sub-projects state
+  const [subProjects, setSubProjects] = useState([]);
+  const [loadingSubProjects, setLoadingSubProjects] = useState(false);
+  
   const [formData, setFormData] = useState({
     vendor_id: '',
     vendor_code: '',
@@ -78,6 +83,7 @@ const VendorAgreements = () => {
     drop_location_path: '',
     project_id: '',
     project_name: '',
+    sub_project_id: '',
     manager_contact: '',
     vendor_type: '',
     vendor_onboarding_date: '',
@@ -253,6 +259,28 @@ const VendorAgreements = () => {
     }
   };
   
+  const fetchSubProjects = async (projectId) => {
+    if (!projectId) {
+      setSubProjects([]);
+      return;
+    }
+    
+    try {
+      setLoadingSubProjects(true);
+      const response = await axios.get(`/api/projects/${projectId}/sub-projects`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      const subProjectsData = response.data?.subProjects || response.data || [];
+      setSubProjects(Array.isArray(subProjectsData) ? subProjectsData : []);
+    } catch (error) {
+      console.error('Error fetching sub-projects:', error);
+      setSubProjects([]);
+    } finally {
+      setLoadingSubProjects(false);
+    }
+  };
+  
   // Auto-populate currentVendorId for vendor users
   useEffect(() => {
     if (isVendor && currentUser && Array.isArray(vendors) && vendors.length > 0) {
@@ -263,6 +291,17 @@ const VendorAgreements = () => {
       }
     }
   }, [isVendor, currentUser, vendors]);
+  
+  // Fetch sub-projects when project_id changes
+  useEffect(() => {
+    if (formData.project_id) {
+      setFormData(prev => ({ ...prev, sub_project_id: '' }));
+      fetchSubProjects(formData.project_id);
+    } else {
+      setSubProjects([]);
+      setFormData(prev => ({ ...prev, sub_project_id: '' }));
+    }
+  }, [formData.project_id]);
   
   // Filter vendor connections - show only external connections
   useEffect(() => {
@@ -1468,6 +1507,35 @@ const VendorAgreements = () => {
                     )}
                   </div>
                   
+                  {/* Row 2: Sub-Project */}
+                  {formData.vendor_id && formData.project_id && (
+                    <div className="form-row-grid">
+                      <div className="form-group">
+                        <label htmlFor="sub_project_id">Sub Project</label>
+                        <select
+                          id="sub_project_id"
+                          name="sub_project_id"
+                          value={formData.sub_project_id || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            sub_project_id: e.target.value ? parseInt(e.target.value) : ''
+                          }))}
+                          disabled={!formData.project_id || loadingSubProjects || subProjects.length === 0}
+                        >
+                          <option value="">Select a sub-project (optional)...</option>
+                          {subProjects.map(sp => (
+                            <option key={sp.id} value={sp.id}>
+                              {sp.name}
+                            </option>
+                          ))}
+                        </select>
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          {!formData.project_id ? 'Project assignment required' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project for this agreement'}
+                        </small>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Row 2: Vendor Manager and Manager Contact */}
                   <div className="form-row-grid">
                     <div className="form-group">
@@ -2108,6 +2176,12 @@ const VendorAgreements = () => {
                     Details
                   </button>
                   <button
+                    className={activeTab === 'fileSchemas' ? 'active' : ''}
+                    onClick={() => setActiveTab('fileSchemas')}
+                  >
+                    File Schemas
+                  </button>
+                  <button
                     className={activeTab === 'approvals' ? 'active' : ''}
                     onClick={() => setActiveTab('approvals')}
                   >
@@ -2311,6 +2385,12 @@ const VendorAgreements = () => {
                           </tbody>
                         </table>
                       )}
+                    </div>
+                  )}
+                  
+                  {activeTab === 'fileSchemas' && (
+                    <div className="file-schemas-tab">
+                      <FileSchemaManager agreementId={selectedAgreement.id} />
                     </div>
                   )}
                   
