@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle } from 'react-icons/fi';
+import axios from 'axios';
 import './FileConfigurationsSection.css';
 
 function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [qualityRules, setQualityRules] = useState([]);
   const [formData, setFormData] = useState({
     file_name_pattern_base: '',
     file_type: 'csv',
     file_description: '',
     schema: '',
-    priority: 100
+    priority: 100,
+    contains_pii: false,
+    data_classification: '',
+    quality_rule_ids: []
   });
 
   const FILE_TYPES = [
@@ -20,6 +25,30 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     { value: 'xml', label: 'XML' },
     { value: 'parquet', label: 'Parquet' }
   ];
+
+  const DATA_CLASSIFICATIONS = [
+    { value: '', label: 'Select classification' },
+    { value: 'Public', label: 'Public' },
+    { value: 'Internal', label: 'Internal' },
+    { value: 'Confidential', label: 'Confidential' },
+    { value: 'Highly Confidential', label: 'Highly Confidential' }
+  ];
+
+  useEffect(() => {
+    fetchQualityRules();
+  }, []);
+
+  const fetchQualityRules = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/quality-rules?limit=1000', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setQualityRules(response.data.rules || []);
+    } catch (error) {
+      console.error('Error fetching quality rules:', error);
+    }
+  };
 
   const getDerivedPattern = (base, type) => {
     if (!base || !type) return '';
@@ -55,7 +84,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       file_description: formData.file_description.trim(),
       schema: formData.schema ? JSON.parse(formData.schema) : null,
       priority: formData.priority || 100,
-      is_active: true
+      is_active: true,
+      contains_pii: formData.contains_pii,
+      data_classification: formData.data_classification || null,
+      quality_rule_ids: formData.quality_rule_ids || []
     };
 
     onChange([...fileConfigurations, newConfig]);
@@ -65,7 +97,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       file_type: 'csv',
       file_description: '',
       schema: '',
-      priority: 100
+      priority: 100,
+      contains_pii: false,
+      data_classification: '',
+      quality_rule_ids: []
     });
     setShowAddForm(false);
   };
@@ -77,7 +112,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       file_type: config.file_type || 'csv',
       file_description: config.file_description || '',
       schema: config.schema ? JSON.stringify(config.schema, null, 2) : '',
-      priority: config.priority ?? 100
+      priority: config.priority ?? 100,
+      contains_pii: config.contains_pii || false,
+      data_classification: config.data_classification || '',
+      quality_rule_ids: config.quality_rule_ids || []
     });
     setEditingIndex(index);
   };
@@ -94,13 +132,17 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
     }
 
     const updatedConfig = {
+      ...fileConfigurations[editingIndex],
       file_name_pattern_base: formData.file_name_pattern_base.trim(),
       file_type: formData.file_type,
       file_name_pattern: getDerivedPattern(formData.file_name_pattern_base.trim(), formData.file_type),
       file_description: formData.file_description.trim(),
       schema: formData.schema ? JSON.parse(formData.schema) : null,
       priority: formData.priority || 100,
-      is_active: true
+      is_active: true,
+      contains_pii: formData.contains_pii,
+      data_classification: formData.data_classification || null,
+      quality_rule_ids: formData.quality_rule_ids || []
     };
 
     const updated = [...fileConfigurations];
@@ -112,7 +154,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       file_type: 'csv',
       file_description: '',
       schema: '',
-      priority: 100
+      priority: 100,
+      contains_pii: false,
+      data_classification: '',
+      quality_rule_ids: []
     });
     setEditingIndex(null);
   };
@@ -131,10 +176,21 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
       file_type: 'csv',
       file_description: '',
       schema: '',
-      priority: 100
+      priority: 100,
+      contains_pii: false,
+      data_classification: '',
+      quality_rule_ids: []
     });
     setShowAddForm(false);
     setEditingIndex(null);
+  };
+
+  const handleQualityRuleToggle = (ruleId) => {
+    const currentRules = formData.quality_rule_ids || [];
+    const newRules = currentRules.includes(ruleId)
+      ? currentRules.filter(id => id !== ruleId)
+      : [...currentRules, ruleId];
+    setFormData({ ...formData, quality_rule_ids: newRules });
   };
 
   return (
@@ -220,6 +276,68 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
               <small>Lower numbers match first (default: 100)</small>
             </div>
 
+            <div className="form-group full-width governance-section">
+              <div className="governance-header">
+                <FiShield className="governance-icon" />
+                <h5>Data Governance</h5>
+              </div>
+              
+              <div className="governance-controls">
+                <div className="form-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.contains_pii}
+                      onChange={(e) => setFormData({ ...formData, contains_pii: e.target.checked })}
+                    />
+                    <span>Contains PII</span>
+                  </label>
+                  <small>Check if this file contains personally identifiable information</small>
+                </div>
+
+                <div className="form-group">
+                  <label>Data Classification</label>
+                  <select
+                    value={formData.data_classification}
+                    onChange={(e) => setFormData({ ...formData, data_classification: e.target.value })}
+                  >
+                    {DATA_CLASSIFICATIONS.map(cls => (
+                      <option key={cls.value} value={cls.value}>{cls.label}</option>
+                    ))}
+                  </select>
+                  <small>Classification level for this file</small>
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Quality Rules</label>
+                  <div className="quality-rules-selector">
+                    {qualityRules.length === 0 ? (
+                      <small className="no-rules-message">No quality rules available</small>
+                    ) : (
+                      <div className="quality-rules-list">
+                        {qualityRules.map(rule => (
+                          <label key={rule.id} className="quality-rule-item">
+                            <input
+                              type="checkbox"
+                              checked={(formData.quality_rule_ids || []).includes(rule.id)}
+                              onChange={() => handleQualityRuleToggle(rule.id)}
+                            />
+                            <span className="rule-name">{rule.rule_name}</span>
+                            {rule.severity && (
+                              <span className={`severity-badge severity-${rule.severity.toLowerCase()}`}>
+                                {rule.severity}
+                              </span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <small>Select quality rules to apply to this file</small>
+                </div>
+              </div>
+            </div>
+
             <div className="form-group full-width">
               <label>Schema (JSON)</label>
               <textarea
@@ -269,6 +387,26 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                   {config.file_description && (
                     <div className="config-description">{config.file_description}</div>
                   )}
+                  
+                  {/* Governance Badges */}
+                  <div className="governance-badges">
+                    {config.contains_pii && (
+                      <span className="governance-badge pii-badge">
+                        <FiShield /> Contains PII
+                      </span>
+                    )}
+                    {config.data_classification && (
+                      <span className={`governance-badge classification-badge classification-${config.data_classification.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {config.data_classification}
+                      </span>
+                    )}
+                    {config.quality_rule_ids && config.quality_rule_ids.length > 0 && (
+                      <span className="governance-badge quality-badge">
+                        <FiCheckCircle /> {config.quality_rule_ids.length} Quality Rule{config.quality_rule_ids.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  
                   {config.schema && (
                     <div className="config-schema-preview">
                       <details>

@@ -91,9 +91,6 @@ const VendorAgreements = () => {
     manager_contact: '',
     vendor_type: '',
     vendor_onboarding_date: '',
-    contains_pii: false,
-    file_type: '',
-    data_classification: '',
     domain: '',
     retention_days: '',
     expected_arrival_time: '',
@@ -577,9 +574,6 @@ const VendorAgreements = () => {
       manager_contact: '',
       vendor_type: '',
       vendor_onboarding_date: '',
-      contains_pii: false,
-      file_type: '',
-      data_classification: '',
       domain: '',
       retention_days: '',
       expected_arrival_time: '',
@@ -681,9 +675,6 @@ const VendorAgreements = () => {
       manager_contact: agreement.manager_contact || '',
       vendor_type: agreement.vendor_type || '',
       vendor_onboarding_date: formattedDate,
-      contains_pii: agreement.contains_pii || false,
-      file_type: agreement.file_type || '',
-      data_classification: agreement.data_classification || '',
       domain: agreement.domain || '',
       retention_days: agreement.retention_days || '',
       expected_arrival_time: agreement.expected_arrival_time || '',
@@ -1087,9 +1078,6 @@ const VendorAgreements = () => {
           schema: agreement.schema || '',
           frequency: agreement.frequency || '',
           frequency_description: agreement.frequency_description || '',
-          contains_pii: agreement.contains_pii || false,
-          file_type: agreement.file_type || '',
-          data_classification: agreement.data_classification || '',
           domain: agreement.domain || '',
           retention_days: agreement.retention_days || '',
           expected_arrival_time: agreement.expected_arrival_time || '',
@@ -1929,61 +1917,11 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 6: Data Classification */}
+                {/* Section 6: Configuration */}
                 <div className="form-section">
-                  <h3 className="section-title">Data Classification</h3>
+                  <h3 className="section-title">Configuration</h3>
                   
                   <div className="form-row-grid">
-                    <div className="form-group">
-                      <label htmlFor="contains_pii" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                          type="checkbox"
-                          id="contains_pii"
-                          name="contains_pii"
-                          checked={formData.contains_pii}
-                          onChange={(e) => setFormData(prev => ({ ...prev, contains_pii: e.target.checked }))}
-                          style={{ width: 'auto', margin: 0 }}
-                        />
-                        Contains PII
-                      </label>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="file_type">File Type <span className="required-field">*</span></label>
-                      <select
-                        id="file_type"
-                        name="file_type"
-                        value={formData.file_type}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="">Select file type</option>
-                        <option value="CSV">CSV</option>
-                        <option value="JSON">JSON</option>
-                        <option value="XML">XML</option>
-                        <option value="Parquet">Parquet</option>
-                        <option value="Excel">Excel</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="form-row-grid">
-                    <div className="form-group">
-                      <label htmlFor="data_classification">Data Classification <span className="required-field">*</span></label>
-                      <select
-                        id="data_classification"
-                        name="data_classification"
-                        value={formData.data_classification}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="">Select classification</option>
-                        <option value="Public">Public</option>
-                        <option value="Private">Private</option>
-                        <option value="Confidential">Confidential</option>
-                      </select>
-                    </div>
-                    
                     <div className="form-group">
                       <label htmlFor="domain">Domain <span className="required-field">*</span></label>
                       <input
@@ -1996,9 +1934,7 @@ const VendorAgreements = () => {
                         required
                       />
                     </div>
-                  </div>
-                  
-                  <div className="form-row-grid">
+                    
                     <div className="form-group">
                       <label htmlFor="retention_days">Retention (in Days) <span className="required-field">*</span></label>
                       <input
@@ -2012,7 +1948,9 @@ const VendorAgreements = () => {
                         required
                       />
                     </div>
-                    
+                  </div>
+                  
+                  <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="expected_arrival_time">Expected Arrival Time <span className="required-field">*</span></label>
                       <input
@@ -2025,24 +1963,24 @@ const VendorAgreements = () => {
                         required
                       />
                     </div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="delivery_method">Delivery Method <span className="required-field">*</span></label>
-                    <select
-                      id="delivery_method"
-                      name="delivery_method"
-                      value={formData.delivery_method}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select delivery method</option>
-                      <option value="SFTP">SFTP</option>
-                      <option value="S3">S3</option>
-                      <option value="API">API</option>
-                      <option value="Email">Email</option>
-                      <option value="Manual">Manual</option>
-                    </select>
+                    
+                    <div className="form-group">
+                      <label htmlFor="delivery_method">Delivery Method <span className="required-field">*</span></label>
+                      <select
+                        id="delivery_method"
+                        name="delivery_method"
+                        value={formData.delivery_method}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select delivery method</option>
+                        <option value="SFTP">SFTP</option>
+                        <option value="S3">S3</option>
+                        <option value="API">API</option>
+                        <option value="Email">Email</option>
+                        <option value="Manual">Manual</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
                 

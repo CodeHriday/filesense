@@ -111,7 +111,11 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
       file_description, 
       schema, 
       priority = 0,
-      is_active = true 
+      is_active = true,
+      contains_pii = false,
+      data_classification = null,
+      file_type = null,
+      quality_rule_ids = []
     } = req.body;
     
     // Validate required fields
@@ -139,6 +143,24 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
       }
     }
     
+    // Validate data_classification if provided
+    const validClassifications = ['Public', 'Internal', 'Confidential', 'Highly Confidential'];
+    if (data_classification && !validClassifications.includes(data_classification)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid data_classification. Must be one of: ${validClassifications.join(', ')}`
+      });
+    }
+    
+    // Validate file_type if provided
+    const validFileTypes = ['csv', 'json', 'xml', 'xlsx', 'parquet'];
+    if (file_type && !validFileTypes.includes(file_type.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid file_type. Must be one of: ${validFileTypes.join(', ')}`
+      });
+    }
+    
     // Verify vendor agreement exists
     const agreementCheck = await pool.query(
       'SELECT id FROM vendor_agreements WHERE id = $1',
@@ -161,9 +183,13 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         schema,
         priority,
         is_active,
+        contains_pii,
+        data_classification,
+        file_type,
+        quality_rule_ids,
         created_by,
         updated_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
         agreementId,
@@ -172,6 +198,10 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         JSON.stringify(schema),
         priority,
         is_active,
+        contains_pii,
+        data_classification,
+        file_type,
+        JSON.stringify(quality_rule_ids),
         req.user.id,
         req.user.id
       ]
@@ -212,7 +242,11 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
       file_description, 
       schema, 
       priority,
-      is_active 
+      is_active,
+      contains_pii,
+      data_classification,
+      file_type,
+      quality_rule_ids
     } = req.body;
     
     // Verify file schema exists and belongs to this agreement
@@ -225,6 +259,24 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
       return res.status(404).json({
         success: false,
         error: 'File schema not found'
+      });
+    }
+    
+    // Validate data_classification if provided
+    const validClassifications = ['Public', 'Internal', 'Confidential', 'Highly Confidential'];
+    if (data_classification !== undefined && data_classification !== null && !validClassifications.includes(data_classification)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid data_classification. Must be one of: ${validClassifications.join(', ')}`
+      });
+    }
+    
+    // Validate file_type if provided
+    const validFileTypes = ['csv', 'json', 'xml', 'xlsx', 'parquet'];
+    if (file_type !== undefined && file_type !== null && !validFileTypes.includes(file_type.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid file_type. Must be one of: ${validFileTypes.join(', ')}`
       });
     }
     
@@ -273,6 +325,26 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
     if (is_active !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(is_active);
+    }
+    
+    if (contains_pii !== undefined) {
+      updates.push(`contains_pii = $${paramIndex++}`);
+      values.push(contains_pii);
+    }
+    
+    if (data_classification !== undefined) {
+      updates.push(`data_classification = $${paramIndex++}`);
+      values.push(data_classification);
+    }
+    
+    if (file_type !== undefined) {
+      updates.push(`file_type = $${paramIndex++}`);
+      values.push(file_type);
+    }
+    
+    if (quality_rule_ids !== undefined) {
+      updates.push(`quality_rule_ids = $${paramIndex++}`);
+      values.push(JSON.stringify(quality_rule_ids));
     }
     
     if (updates.length === 0) {
