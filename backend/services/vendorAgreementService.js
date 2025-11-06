@@ -458,6 +458,8 @@ class VendorAgreementService {
       
       // Handle status change from draft to active
       let generatedAgreementCode = null;
+      let shouldInitiateApprovalWorkflow = false;
+      
       if (status !== undefined && status === 'active' && current.status === 'draft') {
         // Validate required fields when activating a draft
         // Note: file_name is now optional since agreements use file-level configurations
@@ -469,6 +471,9 @@ class VendorAgreementService {
         if (!finalVendorId || !finalFileOwnerId || !finalVendorConnectionId) {
           throw new Error('Cannot activate draft: vendor_id, file_owner_user_id, and vendor_connection_id are required');
         }
+        
+        // Set flag to initiate approval workflow
+        shouldInitiateApprovalWorkflow = true;
         
         // Generate agreement code if not already present
         if (!current.agreement_code) {
@@ -834,6 +839,20 @@ class VendorAgreementService {
         params.push(status);
         changes.status = { from: current.status, to: status };
         paramIndex++;
+      }
+      
+      // Initialize approval workflow when activating a draft
+      if (shouldInitiateApprovalWorkflow) {
+        updates.push(`approval_status = $${paramIndex}`);
+        params.push('pending_vendor');
+        changes.approval_status = { from: current.approval_status, to: 'pending_vendor' };
+        paramIndex++;
+        
+        systemLogger.info('Initiated approval workflow for activated draft', { 
+          agreementId, 
+          previousApprovalStatus: current.approval_status,
+          newApprovalStatus: 'pending_vendor'
+        });
       }
       
       if (generatedAgreementCode) {
