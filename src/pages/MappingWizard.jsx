@@ -1314,7 +1314,7 @@ function MappingWizard() {
                   backgroundColor: '#f8fafc'
                 }}>
                   {qualityRules.map(rule => (
-                    <label key={rule.id} style={{ 
+                    <div key={rule.id} style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
                       padding: '0.5rem',
@@ -1325,11 +1325,19 @@ function MappingWizard() {
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    onClick={() => {
+                      if (selectedQualityRules.includes(rule.id)) {
+                        setSelectedQualityRules(selectedQualityRules.filter(id => id !== rule.id));
+                      } else {
+                        setSelectedQualityRules([...selectedQualityRules, rule.id]);
+                      }
+                    }}
                     >
                       <input
                         type="checkbox"
                         checked={selectedQualityRules.includes(rule.id)}
                         onChange={(e) => {
+                          e.stopPropagation();
                           if (e.target.checked) {
                             setSelectedQualityRules([...selectedQualityRules, rule.id]);
                           } else {
@@ -1344,7 +1352,7 @@ function MappingWizard() {
                       <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
                         Type: {rule.rule_type}
                       </span>
-                    </label>
+                    </div>
                   ))}
                 </div>
               ) : (
