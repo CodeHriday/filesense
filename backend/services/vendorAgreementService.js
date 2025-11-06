@@ -440,7 +440,8 @@ class VendorAgreementService {
         delivery_method,
         contract_start_date,
         contract_end_date,
-        sub_project_id
+        sub_project_id,
+        status
       } = updateData;
       
       // Check for duplicate file_name (excluding current agreement)
@@ -452,6 +453,44 @@ class VendorAgreementService {
         
         if (duplicateCheck.rows.length > 0) {
           throw new Error(`An agreement with the file name "${file_name}" already exists. Please use a different file name.`);
+        }
+      }
+      
+      // Handle status change from draft to active
+      let generatedAgreementCode = null;
+      if (status !== undefined && status === 'active' && current.status === 'draft') {
+        // Validate required fields when activating a draft
+        const finalFileName = file_name !== undefined ? file_name : current.file_name;
+        const finalVendorId = current.vendor_id;
+        const finalFileOwnerId = file_owner_user_id !== undefined ? file_owner_user_id : current.file_owner_user_id;
+        const finalVendorConnectionId = vendor_connection_id !== undefined ? vendor_connection_id : current.vendor_connection_id;
+        
+        if (!finalVendorId || !finalFileName || !finalFileOwnerId || !finalVendorConnectionId) {
+          throw new Error('Cannot activate draft: vendor_id, file_name, file_owner_user_id, and vendor_connection_id are required');
+        }
+        
+        // Generate agreement code if not already present
+        if (!current.agreement_code) {
+          generatedAgreementCode = await this.generateAgreementCode(finalVendorId, finalFileName);
+          
+          // Ensure agreement code is unique
+          let codeExists = await client.query(
+            'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
+            [generatedAgreementCode]
+          );
+          
+          while (codeExists.rows.length > 0) {
+            generatedAgreementCode = await this.generateAgreementCode(finalVendorId, finalFileName);
+            codeExists = await client.query(
+              'SELECT id FROM vendor_agreements WHERE agreement_code = $1',
+              [generatedAgreementCode]
+            );
+          }
+          
+          systemLogger.info('Generated agreement code for draft activation', { 
+            agreementId, 
+            agreementCode: generatedAgreementCode 
+          });
         }
       }
       
@@ -783,6 +822,20 @@ class VendorAgreementService {
           changes.contract_end_date = { from: currentEndDate, to: contract_end_date };
           paramIndex++;
         }
+      }
+      
+      if (status !== undefined && status !== current.status) {
+        updates.push(`status = $${paramIndex}`);
+        params.push(status);
+        changes.status = { from: current.status, to: status };
+        paramIndex++;
+      }
+      
+      if (generatedAgreementCode) {
+        updates.push(`agreement_code = $${paramIndex}`);
+        params.push(generatedAgreementCode);
+        changes.agreement_code = { from: current.agreement_code, to: generatedAgreementCode };
+        paramIndex++;
       }
       
       if (updates.length === 0) {
