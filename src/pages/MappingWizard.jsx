@@ -318,8 +318,8 @@ function MappingWizard() {
     
     try {
       setLoadingQualityRules(true);
-      const rules = await getQualityRules({ project_id: projectId });
-      setQualityRules(rules || []);
+      const response = await getQualityRules({ project_id: projectId });
+      setQualityRules(response.rules || []);
     } catch (err) {
       console.error('Error fetching quality rules:', err);
       setQualityRules([]);
