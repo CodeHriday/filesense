@@ -555,13 +555,20 @@
 .details-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
 }
 
 .detail-label {
@@ -570,6 +577,7 @@
   color: #5f6368;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  padding-top: 2px;
 }
 
 .detail-value {

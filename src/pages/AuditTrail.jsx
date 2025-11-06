@@ -669,15 +669,6 @@ const AuditTrail = () => {
                 </div>
 
                 <div className="detail-item">
-                  <div className="detail-label">Action</div>
-                  <div className="detail-value">
-                    <span className={`action-tag ${getActionBadgeClass(selectedLog.action)}`}>
-                      {selectedLog.action}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="detail-item">
                   <div className="detail-label">Entity Type</div>
                   <div className="detail-value">
                     <span className="entity-tag">{selectedLog.entity_type}</span>
@@ -692,15 +683,6 @@ const AuditTrail = () => {
                     </div>
                   </div>
                 )}
-
-                <div className="detail-item">
-                  <div className="detail-label">Status</div>
-                  <div className="detail-value">
-                    <span className={`badge ${getStatusBadgeClass(selectedLog.status)}`}>
-                      {selectedLog.status || 'SUCCESS'}
-                    </span>
-                  </div>
-                </div>
 
                 {selectedLog.ip_address && (
                   <div className="detail-item">
