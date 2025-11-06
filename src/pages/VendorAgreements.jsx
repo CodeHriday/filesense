@@ -742,7 +742,13 @@ const VendorAgreements = () => {
       return;
     }
     
-    // Only validate if not saving as draft
+    // Vendor is always required (even for drafts)
+    if (!formData.vendor_id) {
+      setModalError('Vendor is required');
+      return;
+    }
+    
+    // Only validate other fields if not saving as draft
     if (!isDraft) {
       if (!formData.file_owner_user_id) {
         setModalError('File owner is required');
@@ -751,11 +757,6 @@ const VendorAgreements = () => {
       
       if (!formData.governance_manager_user_id) {
         setModalError('Governance manager is required');
-        return;
-      }
-      
-      if (!formData.vendor_id) {
-        setModalError('Vendor is required');
         return;
       }
       
