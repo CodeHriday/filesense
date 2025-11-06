@@ -608,12 +608,15 @@ const VendorAgreements = () => {
       const configs = schemas.map(schema => ({
         id: schema.id,
         file_name_pattern_base: schema.file_name_pattern ? schema.file_name_pattern.replace(/\*\.\w+$/, '') : '',
-        file_type: schema.file_name_pattern ? schema.file_name_pattern.split('.').pop() : 'csv',
+        file_type: schema.file_type || (schema.file_name_pattern ? schema.file_name_pattern.split('.').pop() : 'csv'),
         file_name_pattern: schema.file_name_pattern,
         file_description: schema.file_description || '',
         schema: schema.schema,
         priority: schema.priority ?? 100,
-        is_active: schema.is_active !== false
+        is_active: schema.is_active !== false,
+        contains_pii: schema.contains_pii || false,
+        data_classification: schema.data_classification || '',
+        quality_rule_ids: schema.quality_rule_ids || []
       }));
       setFileConfigurations(configs);
     } catch (error) {
