@@ -15,6 +15,8 @@ const AuditTrail = () => {
   });
   const [operationLoading, setOperationLoading] = useState(false);
   const [showRetentionPanel, setShowRetentionPanel] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -85,11 +87,13 @@ const AuditTrail = () => {
     try {
       setOperationLoading(true);
       await axios.put('/api/audit/retention-settings', retentionSettings);
-      alert('Retention settings updated successfully');
+      setConfirmMessage('Retention settings updated successfully');
+      setShowConfirmModal(true);
       fetchRetentionSettings();
     } catch (error) {
       console.error('Error updating retention settings:', error);
-      alert('Failed to update retention settings');
+      setConfirmMessage('Failed to update retention settings');
+      setShowConfirmModal(true);
     } finally {
       setOperationLoading(false);
     }
@@ -525,15 +529,13 @@ const AuditTrail = () => {
                   <th>Timestamp</th>
                   <th>User</th>
                   <th>Entity</th>
-                  <th>Action</th>
-                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {auditLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="no-data-message">
+                    <td colSpan="4" className="no-data-message">
                       No audit logs found
                     </td>
                   </tr>
@@ -570,16 +572,6 @@ const AuditTrail = () => {
                             </span>
                           )}
                         </div>
-                      </td>
-                      <td>
-                        <span className={`action-tag ${getActionBadgeClass(log.action)}`}>
-                          {log.action}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`badge ${getStatusBadgeClass(log.status)}`}>
-                          {log.status || 'SUCCESS'}
-                        </span>
                       </td>
                       <td>
                         <button
@@ -748,7 +740,9 @@ const AuditTrail = () => {
                   <div className="detail-item">
                     <div className="detail-label">Metadata</div>
                     <div className="detail-value">
-                      <pre>{JSON.stringify(typeof selectedLog.metadata === 'string' ? JSON.parse(selectedLog.metadata) : selectedLog.metadata, null, 2)}</pre>
+                      <div className="metadata-container">
+                        <pre className="metadata-json">{JSON.stringify(typeof selectedLog.metadata === 'string' ? JSON.parse(selectedLog.metadata) : selectedLog.metadata, null, 2)}</pre>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -758,6 +752,29 @@ const AuditTrail = () => {
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setSelectedLog(null)}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Notification</h3>
+              <button className="close-modal-btn" onClick={() => setShowConfirmModal(false)}>
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <p style={{ fontSize: '14px', color: '#202124', margin: 0 }}>{confirmMessage}</p>
+            </div>
+            
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => setShowConfirmModal(false)}>
+                OK
               </button>
             </div>
           </div>
