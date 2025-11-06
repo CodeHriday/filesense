@@ -3177,6 +3177,217 @@ app.post('/api/audit/export', authenticateToken, requireAdmin, async (req, res) 
   }
 });
 
+// Audit Retention Management Routes
+const auditRetentionService = require('./backend/services/auditRetentionService');
+
+app.get('/api/audit/retention-settings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const settings = await auditRetentionService.getRetentionSettings(pool);
+    res.json(settings);
+  } catch (error) {
+    logger.error('Error fetching retention settings', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch retention settings' });
+  }
+});
+
+app.put('/api/audit/retention-settings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { retention_days, auto_archive_enabled, auto_delete_enabled } = req.body;
+    
+    const settings = await auditRetentionService.updateRetentionSettings(pool, {
+      retention_days,
+      auto_archive_enabled,
+      auto_delete_enabled
+    });
+    
+    res.json(settings);
+  } catch (error) {
+    logger.error('Error updating retention settings', { error: error.message });
+    res.status(500).json({ error: 'Failed to update retention settings' });
+  }
+});
+
+app.get('/api/audit/statistics', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const stats = await auditRetentionService.getAuditStatistics(pool);
+    res.json(stats);
+  } catch (error) {
+    logger.error('Error fetching audit statistics', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch audit statistics' });
+  }
+});
+
+app.post('/api/audit/archive', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { retention_days } = req.body;
+    
+    const result = await auditRetentionService.archiveOldRecords(pool, retention_days);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('Error archiving audit records', { error: error.message });
+    res.status(500).json({ error: 'Failed to archive audit records' });
+  }
+});
+
+app.delete('/api/audit/cleanup', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { retention_days, delete_archived, archive_cutoff_days } = req.body;
+    
+    let result;
+    
+    if (delete_archived) {
+      result = await auditRetentionService.deleteArchivedRecords(pool, archive_cutoff_days || 90);
+    } else {
+      result = await auditRetentionService.deleteOldRecords(pool, retention_days);
+    }
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('Error cleaning up audit records', { error: error.message });
+    res.status(500).json({ error: 'Failed to clean up audit records' });
+  }
+});
+
+// Frontend audit logging
+app.post('/api/audit/frontend-error', authenticateToken, async (req, res) => {
+  try {
+    const {
+      error_message,
+      error_stack,
+      error_component,
+      page_url,
+      page_title,
+      component_name,
+      browser_info,
+      screen_resolution,
+      viewport_size,
+      metadata
+    } = req.body;
+    
+    await pool.query(`
+      INSERT INTO frontend_audit_log (
+        user_id, user_email, session_id,
+        event_type, event_category,
+        page_url, page_title, component_name,
+        error_message, error_stack, error_component,
+        browser_info, screen_resolution, viewport_size,
+        metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    `, [
+      req.user.id,
+      req.user.email,
+      req.sessionID || null,
+      'ERROR',
+      'frontend_error',
+      page_url,
+      page_title,
+      component_name,
+      error_message,
+      error_stack,
+      error_component,
+      JSON.stringify(browser_info),
+      screen_resolution,
+      viewport_size,
+      JSON.stringify(metadata)
+    ]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error logging frontend error', { error: error.message });
+    res.status(500).json({ error: 'Failed to log frontend error' });
+  }
+});
+
+app.post('/api/audit/frontend-interaction', authenticateToken, async (req, res) => {
+  try {
+    const {
+      event_type,
+      action_type,
+      page_url,
+      page_title,
+      component_name,
+      target_element,
+      element_text,
+      browser_info,
+      metadata
+    } = req.body;
+    
+    await pool.query(`
+      INSERT INTO frontend_audit_log (
+        user_id, user_email, session_id,
+        event_type, event_category,
+        page_url, page_title, component_name,
+        action_type, target_element, element_text,
+        browser_info, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `, [
+      req.user.id,
+      req.user.email,
+      req.sessionID || null,
+      event_type || 'INTERACTION',
+      'user_interaction',
+      page_url,
+      page_title,
+      component_name,
+      action_type,
+      target_element,
+      element_text,
+      JSON.stringify(browser_info),
+      JSON.stringify(metadata)
+    ]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error logging frontend interaction', { error: error.message });
+    res.status(500).json({ error: 'Failed to log frontend interaction' });
+  }
+});
+
+app.post('/api/audit/frontend-api-error', authenticateToken, async (req, res) => {
+  try {
+    const {
+      api_endpoint,
+      api_method,
+      api_status_code,
+      api_error_message,
+      page_url,
+      page_title,
+      browser_info,
+      metadata
+    } = req.body;
+    
+    await pool.query(`
+      INSERT INTO frontend_audit_log (
+        user_id, user_email, session_id,
+        event_type, event_category,
+        page_url, page_title,
+        api_endpoint, api_method, api_status_code, api_error_message,
+        browser_info, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `, [
+      req.user.id,
+      req.user.email,
+      req.sessionID || null,
+      'API_ERROR',
+      'api_failure',
+      page_url,
+      page_title,
+      api_endpoint,
+      api_method,
+      api_status_code,
+      api_error_message,
+      JSON.stringify(browser_info),
+      JSON.stringify(metadata)
+    ]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error logging frontend API error', { error: error.message });
+    res.status(500).json({ error: 'Failed to log frontend API error' });
+  }
+});
+
 // Initialize cache service
 const cacheService = require('./backend/services/cacheService');
 cacheService.initialize().then(result => {
