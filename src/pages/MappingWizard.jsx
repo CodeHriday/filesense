@@ -83,6 +83,9 @@ function MappingWizard() {
   const [projectId, setProjectId] = useState('');
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [subProjectId, setSubProjectId] = useState('');
+  const [subProjects, setSubProjects] = useState([]);
+  const [loadingSubProjects, setLoadingSubProjects] = useState(false);
   const [sourceConnectionId, setSourceConnectionId] = useState('');
   const [connections, setConnections] = useState([]);
   const [vendorAgreements, setVendorAgreements] = useState([]);
@@ -149,6 +152,16 @@ function MappingWizard() {
     }
   }, [projectId]);
 
+  // Fetch sub-projects when projectId changes
+  useEffect(() => {
+    if (projectId) {
+      fetchSubProjects(projectId);
+    } else {
+      setSubProjects([]);
+      setSubProjectId('');
+    }
+  }, [projectId]);
+
   const fetchConnections = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/connections`, {
@@ -173,6 +186,26 @@ function MappingWizard() {
       setProjects([]);
     } finally {
       setLoadingProjects(false);
+    }
+  };
+
+  const fetchSubProjects = async (selectedProjectId) => {
+    if (!selectedProjectId) {
+      setSubProjects([]);
+      return;
+    }
+    
+    try {
+      setLoadingSubProjects(true);
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${selectedProjectId}/sub-projects`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setSubProjects(response.data || []);
+    } catch (err) {
+      console.error('Error fetching sub-projects:', err);
+      setSubProjects([]);
+    } finally {
+      setLoadingSubProjects(false);
     }
   };
 
@@ -225,6 +258,7 @@ function MappingWizard() {
       setMappingName(mapping.mapping_name || mapping.name);
       setMappingDescription(mapping.description || '');
       setProjectId(mapping.project_id || '');
+      setSubProjectId(mapping.sub_project_id || '');
       setSourceConnectionId(mapping.source_connection_id || '');
       setSelectedVendorAgreement(mapping.vendor_agreement_id ? String(mapping.vendor_agreement_id) : '');
       setSourceType(mapping.source_type || 'files');
@@ -508,6 +542,7 @@ function MappingWizard() {
         mapping_name: mappingName,
         description: mappingDescription || null,
         project_id: projectId,
+        sub_project_id: subProjectId || null,
         source_connection_id: selectedVendorAgreement ? null : (sourceConnectionId || null),
         vendor_agreement_id: selectedVendorAgreement ? parseInt(selectedVendorAgreement) : null,
         source_type: sourceType,
@@ -720,23 +755,49 @@ function MappingWizard() {
           <div className="wizard-step-content">
             <h2><FiServer /> Mapping Configuration</h2>
             
-            {/* Project - First field */}
-            <div className="form-group">
-              <label>Project *</label>
-              <select
-                className="form-control"
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value ? parseInt(e.target.value) : '')}
-                disabled={loadingProjects}
-              >
-                <option value="">Select a project...</option>
-                {projects.map(proj => (
-                  <option key={proj.id} value={proj.id}>
-                    {proj.name}
-                  </option>
-                ))}
-              </select>
-              <small className="form-help">Select the project for this mapping</small>
+            {/* Project and Sub Project side-by-side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Project *</label>
+                <select
+                  className="form-control"
+                  value={projectId}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseInt(e.target.value) : '';
+                    setProjectId(value);
+                    setSubProjectId('');
+                  }}
+                  disabled={loadingProjects}
+                >
+                  <option value="">Select a project...</option>
+                  {projects.map(proj => (
+                    <option key={proj.id} value={proj.id}>
+                      {proj.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="form-help">Select the project for this mapping</small>
+              </div>
+
+              <div className="form-group">
+                <label>Sub Project</label>
+                <select
+                  className="form-control"
+                  value={subProjectId}
+                  onChange={(e) => setSubProjectId(e.target.value ? parseInt(e.target.value) : '')}
+                  disabled={!projectId || loadingSubProjects || subProjects.length === 0}
+                >
+                  <option value="">Select a sub-project (optional)...</option>
+                  {subProjects.map(sp => (
+                    <option key={sp.id} value={sp.id}>
+                      {sp.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="form-help">
+                  {!projectId ? 'Select a project first' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project'}
+                </small>
+              </div>
             </div>
 
             {/* Name and Description side-by-side */}
