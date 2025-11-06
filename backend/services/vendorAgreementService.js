@@ -2135,7 +2135,7 @@ class VendorAgreementService {
       const countQuery = `
         SELECT COUNT(*) 
         FROM vendor_agreements va
-        JOIN vendors v ON va.vendor_id = v.id
+        LEFT JOIN vendors v ON va.vendor_id = v.id
         ${whereClause}
       `;
       
@@ -2157,7 +2157,7 @@ class VendorAgreementService {
           source_conn.name as vendor_connection_name,
           source_conn.path as vendor_connection_path
         FROM vendor_agreements va
-        JOIN vendors v ON va.vendor_id = v.id
+        LEFT JOIN vendors v ON va.vendor_id = v.id
         LEFT JOIN users owner ON va.file_owner_user_id = owner.id
         LEFT JOIN users vendor_approver ON va.vendor_approved_by = vendor_approver.id
         LEFT JOIN users owner_approver ON va.owner_approved_by = owner_approver.id
