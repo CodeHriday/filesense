@@ -23,9 +23,10 @@ async function addSubProjectToTransformationMappings(pool) {
     }
     
     // Add sub_project_id column (nullable, since it's optional)
+    // Note: Sub-projects are stored in the projects table with parent_id set
     await pool.query(`
       ALTER TABLE transformation_mappings 
-      ADD COLUMN sub_project_id INTEGER REFERENCES sub_projects(id) ON DELETE SET NULL
+      ADD COLUMN sub_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL
     `);
     
     systemLogger.info('✓ Added sub_project_id column to transformation_mappings table');
