@@ -71,31 +71,17 @@ function DeleteConfirmationModal({
               <div className="dependencies-section">
                 <h3>Associated Assets</h3>
                 <div className="dependencies-list">
-                  {deps.fileSchemas > 0 && (
-                    <div className="dependency-item">
-                      <FiFileText className="dep-icon" />
-                      <span className="dep-label">File Configurations:</span>
-                      <span className="dep-count">{deps.fileSchemas}</span>
-                    </div>
-                  )}
                   {deps.documents > 0 && (
                     <div className="dependency-item">
                       <FiFile className="dep-icon" />
-                      <span className="dep-label">Documents:</span>
+                      <span className="dep-label">Uploaded Documents:</span>
                       <span className="dep-count">{deps.documents}</span>
-                    </div>
-                  )}
-                  {deps.transformationMappings > 0 && (
-                    <div className="dependency-item">
-                      <FiZap className="dep-icon" />
-                      <span className="dep-label">Transformation Mappings:</span>
-                      <span className="dep-count">{deps.transformationMappings}</span>
                     </div>
                   )}
                   {deps.transformationJobs > 0 && (
                     <div className="dependency-item">
                       <FiDatabase className="dep-icon" />
-                      <span className="dep-label">Transformation Jobs:</span>
+                      <span className="dep-label">Processed Files:</span>
                       <span className="dep-count">{deps.transformationJobs}</span>
                     </div>
                   )}

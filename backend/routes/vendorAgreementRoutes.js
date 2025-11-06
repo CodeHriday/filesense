@@ -908,22 +908,9 @@ router.get('/:id/check-dependencies', requirePermission('vendor_agreements:read'
     
     const { pool } = require('../config/database');
     
-    // Check file schemas
-    const fileSchemasResult = await pool.query(
-      'SELECT COUNT(*) as count FROM vendor_agreement_file_schemas WHERE vendor_agreement_id = $1 AND is_active = TRUE',
-      [agreementId]
-    );
-    
-    // Check documents
+    // Check documents (actual uploaded assets)
     const documentsResult = await pool.query(
       'SELECT COUNT(*) as count FROM vendor_agreement_documents WHERE agreement_id = $1',
-      [agreementId]
-    );
-    
-    // Check for transformation mappings linked to this agreement
-    const mappingsResult = await pool.query(
-      `SELECT COUNT(*) as count FROM transformation_mappings 
-       WHERE vendor_agreement_id = $1`,
       [agreementId]
     );
     
@@ -937,21 +924,17 @@ router.get('/:id/check-dependencies', requirePermission('vendor_agreements:read'
       [agreementId]
     );
     
-    const fileSchemasCount = parseInt(fileSchemasResult.rows[0].count) || 0;
     const documentsCount = parseInt(documentsResult.rows[0].count) || 0;
-    const mappingsCount = parseInt(mappingsResult.rows[0].count) || 0;
     const processedFilesCount = parseInt(processedFilesResult.rows[0].count) || 0;
     
-    const totalDependencies = fileSchemasCount + documentsCount + mappingsCount + processedFilesCount;
+    const totalDependencies = documentsCount + processedFilesCount;
     const canDelete = totalDependencies === 0;
     
     res.json({
       success: true,
       canDelete,
       dependencies: {
-        fileSchemas: fileSchemasCount,
         documents: documentsCount,
-        transformationMappings: mappingsCount,
         transformationJobs: processedFilesCount,
         total: totalDependencies
       }
