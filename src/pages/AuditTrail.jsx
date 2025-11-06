@@ -830,6 +830,23 @@ const AuditTrail = () => {
                 </div>
 
                 <div className="detail-item">
+                  <div className="detail-label">Module</div>
+                  <div className="detail-value">
+                    <div style={{ 
+                      display: 'inline-block',
+                      padding: '4px 10px',
+                      backgroundColor: '#e8f0fe',
+                      color: '#1967d2',
+                      borderRadius: '12px',
+                      fontSize: '0.813rem',
+                      fontWeight: 500
+                    }}>
+                      {determineModule(selectedLog.entity_type, selectedLog.action_type)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-item">
                   <div className="detail-label">User</div>
                   <div className="detail-value">
                     {selectedLog.user_email || selectedLog.user_id || 'System'}
