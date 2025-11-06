@@ -800,7 +800,8 @@ const VendorAgreements = () => {
         'governance_manager_user_id',
         'vendor_connection_id',
         'retention_days',
-        'project_id'
+        'project_id',
+        'sub_project_id'
       ];
       
       // Wrap form data in agreementData/updateData as expected by backend
