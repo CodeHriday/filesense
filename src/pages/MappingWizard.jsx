@@ -1336,16 +1336,14 @@ function MappingWizard() {
                             setSelectedQualityRules(selectedQualityRules.filter(id => id !== rule.id));
                           }
                         }}
-                        style={{ marginRight: '0.75rem', cursor: 'pointer' }}
+                        style={{ marginRight: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
                       />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
-                          {rule.rule_name}
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                          Type: {rule.rule_type} {rule.target_column && `• Column: ${rule.target_column}`}
-                        </div>
-                      </div>
+                      <span style={{ fontWeight: 500, fontSize: '0.9rem', marginRight: '0.5rem' }}>
+                        {rule.rule_name}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        Type: {rule.rule_type}
+                      </span>
                     </label>
                   ))}
                 </div>
