@@ -2077,7 +2077,7 @@ class VendorAgreementService {
       
       // Filter by status if specified
       if (status) {
-        whereClauses.push(`va.approval_status = $${paramCounter}`);
+        whereClauses.push(`va.status = $${paramCounter}`);
         queryParams.push(status);
         paramCounter++;
       }
