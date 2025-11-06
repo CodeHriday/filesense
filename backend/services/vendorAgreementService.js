@@ -460,13 +460,14 @@ class VendorAgreementService {
       let generatedAgreementCode = null;
       if (status !== undefined && status === 'active' && current.status === 'draft') {
         // Validate required fields when activating a draft
+        // Note: file_name is now optional since agreements use file-level configurations
         const finalFileName = file_name !== undefined ? file_name : current.file_name;
         const finalVendorId = current.vendor_id;
         const finalFileOwnerId = file_owner_user_id !== undefined ? file_owner_user_id : current.file_owner_user_id;
         const finalVendorConnectionId = vendor_connection_id !== undefined ? vendor_connection_id : current.vendor_connection_id;
         
-        if (!finalVendorId || !finalFileName || !finalFileOwnerId || !finalVendorConnectionId) {
-          throw new Error('Cannot activate draft: vendor_id, file_name, file_owner_user_id, and vendor_connection_id are required');
+        if (!finalVendorId || !finalFileOwnerId || !finalVendorConnectionId) {
+          throw new Error('Cannot activate draft: vendor_id, file_owner_user_id, and vendor_connection_id are required');
         }
         
         // Generate agreement code if not already present
