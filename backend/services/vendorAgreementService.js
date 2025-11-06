@@ -133,31 +133,30 @@ class VendorAgreementService {
       // Determine if this is a draft
       const isDraft = status === 'draft';
       
-      // Validation - skip for drafts, enforce for active agreements
+      // Validation - vendor_id is always required, other fields only for active agreements
+      if (!vendor_id) {
+        throw new Error('vendor_id is required');
+      }
+      
       if (!isDraft) {
-        if (!vendor_id || !file_name || !file_owner_user_id || !vendor_connection_id) {
-          throw new Error('vendor_id, file_name, file_owner_user_id, and vendor_connection_id are required');
+        if (!file_name || !file_owner_user_id || !vendor_connection_id) {
+          throw new Error('file_name, file_owner_user_id, and vendor_connection_id are required');
         }
       }
       
-      // Verify vendor exists and get project_id (skip if draft and no vendor_id)
-      let project_id = null;
-      let vendorUserId = null;
+      // Verify vendor exists and get project_id (vendor_id is now always required)
+      const vendorCheck = await client.query('SELECT id, project_id, vendor_user_id FROM vendors WHERE id = $1', [vendor_id]);
+      if (vendorCheck.rows.length === 0) {
+        throw new Error('Vendor not found');
+      }
       
-      if (vendor_id) {
-        const vendorCheck = await client.query('SELECT id, project_id, vendor_user_id FROM vendors WHERE id = $1', [vendor_id]);
-        if (vendorCheck.rows.length === 0) {
-          throw new Error('Vendor not found');
-        }
-        
-        project_id = vendorCheck.rows[0].project_id;
-        vendorUserId = vendorCheck.rows[0].vendor_user_id;
-        
-        // Vendor user validation: if creating user is a vendor user, they can only create contracts for their associated vendor
-        if (creatingUser && creatingUser.user_type === 'Vendor') {
-          if (vendorUserId !== createdBy) {
-            throw new Error('Vendor users can only create agreements for their associated vendor');
-          }
+      const project_id = vendorCheck.rows[0].project_id;
+      const vendorUserId = vendorCheck.rows[0].vendor_user_id;
+      
+      // Vendor user validation: if creating user is a vendor user, they can only create contracts for their associated vendor
+      if (creatingUser && creatingUser.user_type === 'Vendor') {
+        if (vendorUserId !== createdBy) {
+          throw new Error('Vendor users can only create agreements for their associated vendor');
         }
       }
       
