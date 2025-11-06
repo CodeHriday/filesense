@@ -231,6 +231,145 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
 });
 
 /**
+ * PUT /api/vendor-agreements/:agreementId/file-schemas
+ * Bulk replace all file schemas for an agreement (atomic operation)
+ * Deletes all existing schemas and creates new ones in a single transaction
+ */
+router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:write'), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { agreementId } = req.params;
+    const { fileSchemas } = req.body;
+    
+    if (!Array.isArray(fileSchemas)) {
+      return res.status(400).json({
+        success: false,
+        error: 'fileSchemas must be an array'
+      });
+    }
+    
+    // Verify vendor agreement exists
+    const agreementCheck = await client.query(
+      'SELECT id FROM vendor_agreements WHERE id = $1',
+      [agreementId]
+    );
+    
+    if (agreementCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Vendor agreement not found'
+      });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Delete all existing file schemas for this agreement
+    await client.query(
+      'DELETE FROM vendor_agreement_file_schemas WHERE vendor_agreement_id = $1',
+      [agreementId]
+    );
+    
+    systemLogger.info('Deleted existing file schemas', { agreementId, userId: req.user.id });
+    
+    // Insert new file schemas
+    const createdSchemas = [];
+    for (const schema of fileSchemas) {
+      const {
+        file_name_pattern,
+        file_description,
+        schema: schemaDefinition,
+        priority = 0,
+        is_active = true,
+        contains_pii = false,
+        data_classification = null,
+        file_type = null,
+        quality_rule_ids = []
+      } = schema;
+      
+      // Validate required fields
+      if (!file_name_pattern) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          error: 'Each file schema must have a file_name_pattern'
+        });
+      }
+      
+      if (!schemaDefinition || !Array.isArray(schemaDefinition) || schemaDefinition.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          error: 'Each file schema must have a valid schema definition array'
+        });
+      }
+      
+      const result = await client.query(
+        `INSERT INTO vendor_agreement_file_schemas (
+          vendor_agreement_id,
+          file_name_pattern,
+          file_description,
+          schema,
+          priority,
+          is_active,
+          contains_pii,
+          data_classification,
+          file_type,
+          quality_rule_ids,
+          created_by,
+          updated_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *`,
+        [
+          agreementId,
+          file_name_pattern,
+          file_description,
+          JSON.stringify(schemaDefinition),
+          priority,
+          is_active,
+          contains_pii,
+          data_classification,
+          file_type,
+          JSON.stringify(quality_rule_ids),
+          req.user.id,
+          req.user.id
+        ]
+      );
+      
+      createdSchemas.push(result.rows[0]);
+    }
+    
+    await client.query('COMMIT');
+    
+    systemLogger.info('Bulk replaced file schemas', { 
+      agreementId,
+      count: createdSchemas.length,
+      userId: req.user.id 
+    });
+    
+    res.json({
+      success: true,
+      fileSchemas: createdSchemas,
+      message: `Successfully replaced file schemas (${createdSchemas.length} schemas created)`
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    systemLogger.error('Error bulk replacing file schemas', { 
+      error: error.message, 
+      agreementId: req.params.agreementId 
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to bulk replace file schemas',
+      details: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
+/**
  * PUT /api/vendor-agreements/:agreementId/file-schemas/:schemaId
  * Update an existing file schema
  */

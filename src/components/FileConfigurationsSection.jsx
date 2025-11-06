@@ -7,6 +7,7 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [qualityRules, setQualityRules] = useState([]);
+  const [deleteConfirmation, setDeleteConfirmation] = useState({ show: false, index: null });
   const [formData, setFormData] = useState({
     file_name_pattern_base: '',
     file_type: 'csv',
@@ -163,11 +164,19 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
   };
 
   const handleDelete = (index) => {
-    if (!confirm('Are you sure you want to remove this file configuration?')) {
-      return;
+    setDeleteConfirmation({ show: true, index });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirmation.index !== null) {
+      const updated = fileConfigurations.filter((_, i) => i !== deleteConfirmation.index);
+      onChange(updated);
     }
-    const updated = fileConfigurations.filter((_, i) => i !== index);
-    onChange(updated);
+    setDeleteConfirmation({ show: false, index: null });
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmation({ show: false, index: null });
   };
 
   const cancelForm = () => {
@@ -436,6 +445,37 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
                 </div>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation.show && (
+        <div className="modal-overlay" onClick={cancelDelete}>
+          <div className="modal-content delete-confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button className="modal-close-btn" onClick={cancelDelete}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to remove this file configuration?</p>
+              {deleteConfirmation.index !== null && fileConfigurations[deleteConfirmation.index] && (
+                <div className="deletion-target-info">
+                  <strong>Pattern:</strong> {fileConfigurations[deleteConfirmation.index].file_name_pattern}
+                </div>
+              )}
+              <p className="warning-text">This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={cancelDelete}>
+                Cancel
+              </button>
+              <button className="btn-danger" onClick={confirmDelete}>
+                <FiTrash2 /> Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
