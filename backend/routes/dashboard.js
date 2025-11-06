@@ -1,11 +1,22 @@
 const express = require('express');
 const router = express.Router();
+const { createCacheMiddleware } = require('../src/middleware/cache');
+
+const dashboardCacheMiddleware = createCacheMiddleware({
+  ttl: 120,
+  keyGenerator: (req) => {
+    const userId = req.user?.id || 'anonymous';
+    const roles = req.user?.roles?.sort().join(':') || 'no-roles';
+    return `dashboard:metrics:user:${userId}:roles:${roles}`;
+  },
+  shouldCache: (req, res) => res.statusCode === 200
+});
 
 /**
  * GET /api/dashboard/metrics
  * Get dashboard metrics for the current user
  */
-router.get('/metrics', async (req, res) => {
+router.get('/metrics', dashboardCacheMiddleware, async (req, res) => {
   const pool = req.app.locals.pool || req.app.get('db');
   
   if (!req.user || !req.user.id) {
