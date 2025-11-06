@@ -77,11 +77,13 @@ router.get('/', async (req, res) => {
         tm.*,
         sc.name as source_connection_name,
         tc.name as target_connection_name,
-        p.name as project_name
+        p.name as project_name,
+        sp.name as sub_project_name
       FROM transformation_mappings tm
       LEFT JOIN transform_connections sc ON CAST(tm.source_connection_id AS TEXT) = CAST(sc.id AS TEXT)
       LEFT JOIN transform_connections tc ON CAST(tm.target_connection_id AS TEXT) = CAST(tc.id AS TEXT)
       LEFT JOIN projects p ON tm.project_id = p.id
+      LEFT JOIN sub_projects sp ON tm.sub_project_id = sp.id
     `;
     const params = [];
     const whereClauses = [];
@@ -218,7 +220,8 @@ router.post('/',
       schema_drift_handling = 'none',
       source_schema = null,
       status = 'draft',
-      quality_rule_ids = null
+      quality_rule_ids = null,
+      sub_project_id = null
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
@@ -386,8 +389,8 @@ router.post('/',
         mapping_id, mapping_name, source_connection_id, vendor_agreement_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_path, target_file_name, target_file_format,
-        field_mappings, variables, anomaly_rules, schema_drift_handling, source_schema, status, created_by, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        field_mappings, variables, anomaly_rules, schema_drift_handling, source_schema, status, created_by, project_id, sub_project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *
     `, [
       mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, source_type, file_path,
@@ -396,7 +399,7 @@ router.post('/',
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), 
       schema_drift_handling,
       source_schema ? JSON.stringify(source_schema) : null,
-      status, req.user?.id || null, projectId
+      status, req.user?.id || null, projectId, sub_project_id
     ]);
     
     // Insert quality rule associations if provided
@@ -461,7 +464,8 @@ router.put('/:id',
       schema_drift_handling,
       source_schema,
       status,
-      quality_rule_ids
+      quality_rule_ids,
+      sub_project_id
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
@@ -715,6 +719,11 @@ router.put('/:id',
     if (status !== undefined) {
       updates.push(`status = $${paramIndex}`);
       values.push(status);
+      paramIndex++;
+    }
+    if (sub_project_id !== undefined) {
+      updates.push(`sub_project_id = $${paramIndex}`);
+      values.push(sub_project_id);
       paramIndex++;
     }
     
