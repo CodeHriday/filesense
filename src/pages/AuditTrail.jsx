@@ -27,7 +27,7 @@ const AuditTrail = () => {
     actionType: '',
     startDate: '',
     endDate: '',
-    limit: 1000
+    limit: 50
   });
 
   const actionTypes = [
@@ -181,7 +181,7 @@ const AuditTrail = () => {
       actionType: '',
       startDate: '',
       endDate: '',
-      limit: 1000
+      limit: 50
     });
     setCurrentPage(1);
   };

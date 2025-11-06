@@ -30,13 +30,13 @@ function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
     
-    // Poll for new notifications every 30 seconds
+    // Poll for new notifications every 60 seconds (reduced from 30 for better performance)
     const interval = setInterval(() => {
       // Only poll if tab is visible
       if (document.visibilityState === 'visible') {
         fetchNotifications();
       }
-    }, 30000);
+    }, 60000);
     
     // Fetch when tab becomes visible
     const handleVisibilityChange = () => {

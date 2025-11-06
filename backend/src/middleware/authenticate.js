@@ -6,6 +6,7 @@
 const authService = require('../services/authService');
 const userRepository = require('../repositories/userRepository');
 const db = require('../config/database');
+const { cache } = require('../../config/redis');
 
 /**
  * Middleware to authenticate API requests using JWT
@@ -146,11 +147,27 @@ const mapPermissionsToFeatures = (permissions) => {
 };
 
 /**
- * Get user permissions based on roles
+ * Get user permissions based on roles (with Redis caching)
  * @param {Object} user - User object with roles
  * @returns {Promise<Array>} Array of permission objects
  */
 const getUserPermissions = async (user) => {
+  // Create cache key based on user roles
+  const rolesKey = user.roles ? user.roles.sort().join(':') : 'no-roles';
+  const cacheKey = `permissions:roles:${rolesKey}`;
+  
+  // Try to get from cache first
+  try {
+    const cachedPermissions = await cache.get(cacheKey);
+    if (cachedPermissions) {
+      console.log(`Cache HIT for permissions (${cacheKey})`);
+      return cachedPermissions;
+    }
+    console.log(`Cache MISS for permissions (${cacheKey})`);
+  } catch (error) {
+    console.error('Redis cache error (falling back to database):', error);
+  }
+  
   // Start with some core permissions based on user existence
   const permissions = [
     'dashboard:read',
@@ -226,6 +243,15 @@ const getUserPermissions = async (user) => {
   // Remove duplicates and return
   const uniquePermissions = [...new Set(permissions)];
   console.log('Final permission count:', permissions.length);
+  
+  // Cache the permissions for 10 minutes (600 seconds)
+  try {
+    await cache.set(cacheKey, uniquePermissions, 600);
+    console.log(`Cached permissions with key: ${cacheKey}`);
+  } catch (error) {
+    console.error('Error caching permissions:', error);
+  }
+  
   return uniquePermissions;
 };
 
