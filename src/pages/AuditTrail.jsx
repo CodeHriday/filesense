@@ -57,124 +57,6 @@ const AuditTrail = () => {
       .join(' ');
   };
 
-  const determineModule = (entityType, actionType) => {
-    if (!entityType) return 'System';
-    
-    if (actionType === 'UPLOAD' && entityType === 'file') {
-      return 'File Upload';
-    }
-    
-    if (entityType.includes('vendor') || entityType === 'vendor') {
-      if (actionType === 'UPLOAD') return 'Vendor File Upload';
-      return 'Vendor Management';
-    }
-    
-    if (entityType === 'transformation' || entityType === 'mapping') {
-      if (actionType === 'EXECUTE') return 'Mapping Job';
-      return 'ETL Transformations';
-    }
-    
-    if (entityType === 'mapping_group') {
-      if (actionType === 'EXECUTE') return 'Batch Mapping Job';
-      return 'Mapping Groups';
-    }
-    
-    if (entityType === 'workflow' || entityType === 'workflow_step') {
-      if (actionType === 'EXECUTE') return 'Workflow Execution';
-      return 'Workflow Orchestration';
-    }
-    
-    if (entityType === 'schedule') {
-      return 'Job Scheduler';
-    }
-    
-    if (entityType === 'job' || entityType === 'job_group') {
-      return 'Job Management';
-    }
-    
-    if (entityType === 'quality_check') {
-      return 'Quality Validation';
-    }
-    
-    if (entityType === 'profile') {
-      return 'Data Profiling';
-    }
-    
-    if (entityType === 'dbt') {
-      return 'DBT Integration';
-    }
-    
-    if (entityType === 'user' || entityType === 'role' || entityType === 'permission' || entityType === 'group') {
-      return 'User Management';
-    }
-    
-    if (entityType === 'authentication' || entityType === 'password_reset') {
-      return 'Authentication';
-    }
-    
-    if (entityType === 'project' || entityType === 'sub_project') {
-      return 'Project Management';
-    }
-    
-    if (entityType === 'connection') {
-      return 'Data Connections';
-    }
-    
-    if (entityType === 'governance_tag' || entityType === 'policy') {
-      return 'Data Governance';
-    }
-    
-    if (entityType === 'retention_policy') {
-      return 'Retention Policies';
-    }
-    
-    if (entityType === 'lineage') {
-      return 'Data Lineage';
-    }
-    
-    if (entityType === 'alert' || entityType === 'notification') {
-      return 'Alerts & Notifications';
-    }
-    
-    if (entityType === 'anomaly' || entityType === 'ml' || entityType === 'ai') {
-      return 'ML & AI';
-    }
-    
-    if (entityType === 'healing') {
-      return 'Auto-Healing';
-    }
-    
-    if (entityType === 'audit') {
-      return 'Audit Management';
-    }
-    
-    if (entityType === 'admin') {
-      return 'System Administration';
-    }
-    
-    if (entityType === 'dashboard') {
-      return 'Dashboard';
-    }
-    
-    if (entityType === 'file_insight' || entityType === 'file_audit') {
-      return 'File Analytics';
-    }
-    
-    if (entityType === 'schema_history') {
-      return 'Schema Management';
-    }
-    
-    if (entityType === 'error_review') {
-      return 'Error Review';
-    }
-    
-    if (entityType === 'cache') {
-      return 'Cache Management';
-    }
-    
-    return 'System';
-  };
-
   useEffect(() => {
     fetchAuditLogs();
     fetchStatistics();
@@ -662,8 +544,7 @@ const AuditTrail = () => {
             <table className="audit-table">
               <thead>
                 <tr>
-                  <th style={{ width: '12%' }}>Timestamp</th>
-                  <th style={{ width: '20%' }}>Module</th>
+                  <th>Timestamp</th>
                   <th>User</th>
                   <th>Entity</th>
                   <th>Actions</th>
@@ -672,30 +553,17 @@ const AuditTrail = () => {
               <tbody>
                 {auditLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="no-data-message">
+                    <td colSpan="4" className="no-data-message">
                       No audit logs found
                     </td>
                   </tr>
                 ) : (
                   paginatedLogs.map((log) => (
                     <tr key={log.audit_id}>
-                      <td style={{ width: '12%' }}>
+                      <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <FiClock style={{ color: '#9aa0a6', flexShrink: 0, width: '12px', height: '12px' }} />
-                          <span style={{ fontSize: '0.813rem' }}>{formatTimestamp(log.timestamp)}</span>
-                        </div>
-                      </td>
-                      <td style={{ width: '20%' }}>
-                        <div style={{ 
-                          display: 'inline-block',
-                          padding: '4px 10px',
-                          backgroundColor: '#e8f0fe',
-                          color: '#1967d2',
-                          borderRadius: '12px',
-                          fontSize: '0.813rem',
-                          fontWeight: 500
-                        }}>
-                          {determineModule(log.entity_type, log.action_type)}
+                          <span>{formatTimestamp(log.timestamp)}</span>
                         </div>
                       </td>
                       <td>
@@ -827,23 +695,6 @@ const AuditTrail = () => {
                 <div className="detail-item">
                   <div className="detail-label">Timestamp</div>
                   <div className="detail-value">{formatTimestamp(selectedLog.timestamp)}</div>
-                </div>
-
-                <div className="detail-item">
-                  <div className="detail-label">Module</div>
-                  <div className="detail-value">
-                    <div style={{ 
-                      display: 'inline-block',
-                      padding: '4px 10px',
-                      backgroundColor: '#e8f0fe',
-                      color: '#1967d2',
-                      borderRadius: '12px',
-                      fontSize: '0.813rem',
-                      fontWeight: 500
-                    }}>
-                      {determineModule(selectedLog.entity_type, selectedLog.action_type)}
-                    </div>
-                  </div>
                 </div>
 
                 <div className="detail-item">
