@@ -305,8 +305,8 @@ const AuditTrail = () => {
                         </h3>
                         {isArchive ? <FiArchive className="stat-icon" style={{ color: '#9aa0a6' }} /> : <FiDatabase className="stat-icon" style={{ color: '#1a73e8' }} />}
                       </div>
-                      <p className="stat-value">{data.count.toLocaleString()}</p>
-                      {data.oldest_record && (
+                      <p className="stat-value">{data?.count ? data.count.toLocaleString() : '0'}</p>
+                      {data?.oldest_record && (
                         <p className="stat-label">
                           Oldest: {new Date(data.oldest_record).toLocaleDateString()}
                         </p>
@@ -416,7 +416,7 @@ const AuditTrail = () => {
       )}
 
       <div className="card">
-        <div className="card-header">
+        <div className="card-header" style={{ justifyContent: 'flex-start' }}>
           <FiFilter style={{ color: '#5f6368' }} />
           <h2 className="card-title">Filters</h2>
         </div>
@@ -510,8 +510,8 @@ const AuditTrail = () => {
                 <tr>
                   <th>Timestamp</th>
                   <th>User</th>
-                  <th>Action</th>
                   <th>Entity</th>
+                  <th>Action</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -546,11 +546,6 @@ const AuditTrail = () => {
                         </div>
                       </td>
                       <td>
-                        <span className={`action-tag ${getActionBadgeClass(log.action)}`}>
-                          {log.action}
-                        </span>
-                      </td>
-                      <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span className="entity-tag">
                             {log.entity_type}
@@ -561,6 +556,11 @@ const AuditTrail = () => {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td>
+                        <span className={`action-tag ${getActionBadgeClass(log.action)}`}>
+                          {log.action}
+                        </span>
                       </td>
                       <td>
                         <span className={`badge ${getStatusBadgeClass(log.status)}`}>
