@@ -36,8 +36,26 @@ const AuditTrail = () => {
 
   const entityTypes = [
     'file', 'schedule', 'job_group', 'transformation', 'quality_check', 
-    'profile', 'user', 'audit', 'dbt'
+    'profile', 'user', 'audit', 'dbt', 'project', 'sub_project', 'vendor',
+    'notification', 'mapping_group', 'mapping', 'workflow', 'workflow_step',
+    'dashboard', 'connection', 'authentication', 'role', 'permission', 'group',
+    'lineage', 'badge', 'alert', 'governance_tag', 'policy', 'retention_policy',
+    'ai', 'ml', 'anomaly', 'healing', 'cache', 'job', 'schema_history',
+    'drop_location', 'error_review', 'file_insight', 'file_audit',
+    'password_reset', 'admin', 'system', 'unknown'
   ];
+
+  const formatEntityType = (entityType) => {
+    if (!entityType) return 'N/A';
+    
+    if (entityType === 'unknown') return 'System';
+    if (entityType === 'system') return 'System';
+    
+    return entityType
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   useEffect(() => {
     fetchAuditLogs();
@@ -474,7 +492,7 @@ const AuditTrail = () => {
             >
               <option value="">All Entities</option>
               {entityTypes.map(entity => (
-                <option key={entity} value={entity}>{entity.replace('_', ' ').toUpperCase()}</option>
+                <option key={entity} value={entity}>{formatEntityType(entity)}</option>
               ))}
             </select>
           </div>
@@ -564,7 +582,7 @@ const AuditTrail = () => {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <span className="entity-tag">
-                            {log.entity_type}
+                            {formatEntityType(log.entity_type)}
                           </span>
                           {log.entity_id && (
                             <span style={{ fontSize: '8px', color: '#5f6368', fontFamily: 'monospace' }}>
@@ -694,7 +712,7 @@ const AuditTrail = () => {
                 <div className="detail-item">
                   <div className="detail-label">Entity Type</div>
                   <div className="detail-value">
-                    <span className="entity-tag">{selectedLog.entity_type}</span>
+                    <span className="entity-tag">{formatEntityType(selectedLog.entity_type)}</span>
                   </div>
                 </div>
 
