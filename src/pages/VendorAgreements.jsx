@@ -694,6 +694,7 @@ const VendorAgreements = () => {
       drop_location_path: agreement.drop_location_path || '',
       project_id: agreement.project_id || '',
       project_name: agreement.project_name || '',
+      sub_project_id: agreement.sub_project_id || '',
       manager_contact: agreement.manager_contact || '',
       vendor_type: agreement.vendor_type || '',
       vendor_onboarding_date: formattedDate,
@@ -869,13 +870,9 @@ const VendorAgreements = () => {
       });
       
       // Add status field based on isDraft
-      // For editing existing drafts, preserve draft status unless explicitly saving as draft or activating
-      if (modalMode === 'edit' && selectedAgreement?.status === 'draft' && !isDraft) {
-        // Keep as draft when updating a draft (clicking "Create Contract" on a draft)
-        agreementData.status = 'draft';
-      } else {
-        agreementData.status = isDraft ? 'draft' : 'active';
-      }
+      // isDraft = true means "Save Draft" button was clicked
+      // isDraft = false means "Create Contract" button was clicked (should set to active)
+      agreementData.status = isDraft ? 'draft' : 'active';
       
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
