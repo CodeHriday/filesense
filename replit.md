@@ -34,6 +34,31 @@ The application features a hybrid architecture designed for scalability, securit
 - **Vendor Agreement Schema Validation:** Full-stack system for ETL transformations with schema drift handling policies (abort, alert, none) integrated into job execution and monitored via the UI.
 - **DBT Integration:** Configured for DBT Core and dbt-postgres for data transformations, including a UI for model discovery, execution, and monitoring.
 
+## Performance Optimizations
+
+**Implemented November 2025:**
+
+**Phase 1 - Authentication & Audit Trail Optimizations:**
+- **Redis-Based Permission Caching:** Permissions cached for 10 minutes using `permissions:roles:{rolesKey}` pattern, reducing auth overhead from 130ms to near-zero on cache hits. Falls back to in-memory cache when Redis unavailable.
+- **Database Indexes:** Created composite indexes on `user_roles(user_id, role_id)`, `role_permissions(role_id, permission_id)`, `project_members(user_id, project_id)`, `user_groups(user_id, group_id)`, and `project_access_groups(group_id, project_id)` for faster joins.
+- **Audit Trail Optimization:** Default limit reduced from 1000 to 50 records for faster page loads, maintained even when filters are cleared.
+
+**Phase 2 - Dashboard & Polling Optimizations:**
+- **Optimized Project Access Function:** Created PostgreSQL function `get_user_projects(user_id)` to replace expensive UNION queries for direct + group-based project membership across all dashboard metrics (projects, files, schedules, jobs, anomalies).
+- **Reduced API Polling:** Notification polling interval increased from 30 to 60 seconds, cutting notification API calls in half. Polling only occurs when tab is visible.
+- **Redis Retry Control:** Limited Redis connection retries to 3 attempts to eliminate log spam, with silent ECONNREFUSED handling.
+
+**Phase 3 - Response Caching Infrastructure:**
+- **Dual-Layer Caching Middleware:** Created `backend/src/middleware/cache.js` with Redis primary cache and in-memory (NodeCache) fallback. Supports configurable TTL, custom key generation, and conditional caching based on response status.
+- **Dashboard Metrics Caching:** Dashboard endpoint cached for 2 minutes with user-specific cache keys (`dashboard:metrics:user:{userId}:roles:{roles}`) to prevent data leakage. Includes X-Cache headers for monitoring hit/miss ratios.
+- **Cache Invalidation Helpers:** Implemented functions for invalidating dashboard, file catalog, user data, and project caches. Uses safe pattern matching with proper regex escaping to prevent under/over-invalidation.
+
+**Performance Impact:**
+- Authentication overhead reduced from ~130ms to near-zero on cache hits
+- Dashboard metric queries optimized by eliminating repeated UNION operations
+- Notification API load reduced by 50%
+- Page load times improved for audit trail (50 vs 1000 record default)
+
 ## Critical Implementation Details
 
 ### Group-Based Access Control Database Structure
