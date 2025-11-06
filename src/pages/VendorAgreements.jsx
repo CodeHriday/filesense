@@ -872,12 +872,21 @@ const VendorAgreements = () => {
       // Save file configurations after agreement is created/updated
       const agreementId = modalMode === 'create' ? response.data.agreementId || response.data.id : selectedAgreement.id;
       
+      console.log('File configurations save check:', { 
+        agreementId, 
+        fileConfigsLength: fileConfigurations.length,
+        fileConfigurations: fileConfigurations 
+      });
+      
       if (agreementId && fileConfigurations.length > 0) {
         try {
+          console.log('Starting file configurations save process...');
+          
           // Delete existing file schemas if in edit mode
           if (modalMode === 'edit') {
             const existingSchemas = await axios.get(`/api/vendor-agreements/${agreementId}/file-schemas`);
             const schemasToDelete = existingSchemas.data.fileSchemas || existingSchemas.data || [];
+            console.log('Deleting existing schemas:', schemasToDelete.length);
             
             for (const schema of schemasToDelete) {
               await axios.delete(`/api/vendor-agreements/${agreementId}/file-schemas/${schema.id}`);
@@ -885,19 +894,42 @@ const VendorAgreements = () => {
           }
           
           // Create new file schemas
+          console.log('Creating file schemas:', fileConfigurations.length);
           for (const config of fileConfigurations) {
-            await axios.post(`/api/vendor-agreements/${agreementId}/file-schemas`, {
+            console.log('Saving file config:', config);
+            
+            // Validate that config has required fields
+            if (!config.file_name_pattern) {
+              console.error('Skipping config - missing file_name_pattern:', config);
+              continue;
+            }
+            
+            if (!config.schema || !Array.isArray(config.schema) || config.schema.length === 0) {
+              console.error('Skipping config - invalid schema:', config);
+              continue;
+            }
+            
+            const response = await axios.post(`/api/vendor-agreements/${agreementId}/file-schemas`, {
               file_name_pattern: config.file_name_pattern,
               file_description: config.file_description || '',
               schema: config.schema || null,
               priority: config.priority ?? 100,
-              is_active: config.is_active !== false
+              is_active: config.is_active !== false,
+              contains_pii: config.contains_pii || false,
+              data_classification: config.data_classification || null,
+              file_type: config.file_type || null,
+              quality_rule_ids: config.quality_rule_ids || []
             });
+            console.log('File config saved successfully:', response.data);
           }
+          console.log('All file configurations saved successfully');
         } catch (fileConfigError) {
           console.error('Error saving file configurations:', fileConfigError);
-          setModalError('Agreement saved but failed to save file configurations. Please edit the agreement to add file schemas.');
+          console.error('Error details:', fileConfigError.response?.data);
+          setModalError('Agreement saved but failed to save file configurations: ' + (fileConfigError.response?.data?.error || fileConfigError.message));
         }
+      } else {
+        console.log('Skipping file configurations save:', { agreementId, hasConfigs: fileConfigurations.length > 0 });
       }
       
       closeModal();
