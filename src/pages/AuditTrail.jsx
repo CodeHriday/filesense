@@ -57,6 +57,124 @@ const AuditTrail = () => {
       .join(' ');
   };
 
+  const determineModule = (entityType, actionType) => {
+    if (!entityType) return 'System';
+    
+    if (actionType === 'UPLOAD' && entityType === 'file') {
+      return 'File Upload';
+    }
+    
+    if (entityType.includes('vendor') || entityType === 'vendor') {
+      if (actionType === 'UPLOAD') return 'Vendor File Upload';
+      return 'Vendor Management';
+    }
+    
+    if (entityType === 'transformation' || entityType === 'mapping') {
+      if (actionType === 'EXECUTE') return 'Mapping Job';
+      return 'ETL Transformations';
+    }
+    
+    if (entityType === 'mapping_group') {
+      if (actionType === 'EXECUTE') return 'Batch Mapping Job';
+      return 'Mapping Groups';
+    }
+    
+    if (entityType === 'workflow' || entityType === 'workflow_step') {
+      if (actionType === 'EXECUTE') return 'Workflow Execution';
+      return 'Workflow Orchestration';
+    }
+    
+    if (entityType === 'schedule') {
+      return 'Job Scheduler';
+    }
+    
+    if (entityType === 'job' || entityType === 'job_group') {
+      return 'Job Management';
+    }
+    
+    if (entityType === 'quality_check') {
+      return 'Quality Validation';
+    }
+    
+    if (entityType === 'profile') {
+      return 'Data Profiling';
+    }
+    
+    if (entityType === 'dbt') {
+      return 'DBT Integration';
+    }
+    
+    if (entityType === 'user' || entityType === 'role' || entityType === 'permission' || entityType === 'group') {
+      return 'User Management';
+    }
+    
+    if (entityType === 'authentication' || entityType === 'password_reset') {
+      return 'Authentication';
+    }
+    
+    if (entityType === 'project' || entityType === 'sub_project') {
+      return 'Project Management';
+    }
+    
+    if (entityType === 'connection') {
+      return 'Data Connections';
+    }
+    
+    if (entityType === 'governance_tag' || entityType === 'policy') {
+      return 'Data Governance';
+    }
+    
+    if (entityType === 'retention_policy') {
+      return 'Retention Policies';
+    }
+    
+    if (entityType === 'lineage') {
+      return 'Data Lineage';
+    }
+    
+    if (entityType === 'alert' || entityType === 'notification') {
+      return 'Alerts & Notifications';
+    }
+    
+    if (entityType === 'anomaly' || entityType === 'ml' || entityType === 'ai') {
+      return 'ML & AI';
+    }
+    
+    if (entityType === 'healing') {
+      return 'Auto-Healing';
+    }
+    
+    if (entityType === 'audit') {
+      return 'Audit Management';
+    }
+    
+    if (entityType === 'admin') {
+      return 'System Administration';
+    }
+    
+    if (entityType === 'dashboard') {
+      return 'Dashboard';
+    }
+    
+    if (entityType === 'file_insight' || entityType === 'file_audit') {
+      return 'File Analytics';
+    }
+    
+    if (entityType === 'schema_history') {
+      return 'Schema Management';
+    }
+    
+    if (entityType === 'error_review') {
+      return 'Error Review';
+    }
+    
+    if (entityType === 'cache') {
+      return 'Cache Management';
+    }
+    
+    return 'System';
+  };
+
   useEffect(() => {
     fetchAuditLogs();
     fetchStatistics();
