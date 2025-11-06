@@ -627,6 +627,8 @@ class VendorAgreementService {
         paramIndex++;
       }
       
+      let managerContactUpdated = false;
+      
       if (file_owner_user_id !== undefined && file_owner_user_id !== current.file_owner_user_id) {
         updates.push(`file_owner_user_id = $${paramIndex}`);
         params.push(file_owner_user_id);
@@ -641,10 +643,12 @@ class VendorAgreementService {
           params.push(newManagerContact);
           changes.manager_contact = { from: current.manager_contact, to: newManagerContact };
           paramIndex++;
+          managerContactUpdated = true;
         }
       }
       
-      if (manager_contact !== undefined && manager_contact !== current.manager_contact) {
+      // Only update manager_contact explicitly if it wasn't already updated by file_owner_user_id change
+      if (!managerContactUpdated && manager_contact !== undefined && manager_contact !== current.manager_contact) {
         updates.push(`manager_contact = $${paramIndex}`);
         params.push(manager_contact);
         changes.manager_contact = { from: current.manager_contact, to: manager_contact };
