@@ -9,6 +9,7 @@ import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
 import FileSchemaManager from '../components/FileSchemaManager';
+import FileConfigurationsSection from '../components/FileConfigurationsSection';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
 import axios from 'axios';
@@ -54,6 +55,9 @@ const VendorAgreements = () => {
   // Sub-projects state
   const [subProjects, setSubProjects] = useState([]);
   const [loadingSubProjects, setLoadingSubProjects] = useState(false);
+  
+  // File configurations state (for create/edit modal)
+  const [fileConfigurations, setFileConfigurations] = useState([]);
   
   const [formData, setFormData] = useState({
     vendor_id: '',
@@ -541,6 +545,7 @@ const VendorAgreements = () => {
   }, [formData.file_owner_user_id, formData.manager_contact, users]);
   
   const openCreateModal = () => {
+    setFileConfigurations([]);
     setFormData({
       vendor_id: isVendor && currentVendorId ? currentVendorId : '',
       vendor_code: '',
@@ -598,8 +603,29 @@ const VendorAgreements = () => {
     setModalOpen(true);
   };
   
-  const openEditModal = (agreement) => {
+  const openEditModal = async (agreement) => {
     setSelectedAgreement(agreement);
+    
+    // Load file configurations for this agreement
+    try {
+      const response = await axios.get(`/api/vendor-agreements/${agreement.id}/file-schemas`);
+      const schemas = response.data.fileSchemas || response.data || [];
+      // Convert to the format expected by FileConfigurationsSection
+      const configs = schemas.map(schema => ({
+        id: schema.id,
+        file_name_pattern_base: schema.file_name_pattern ? schema.file_name_pattern.replace(/\*\.\w+$/, '') : '',
+        file_type: schema.file_name_pattern ? schema.file_name_pattern.split('.').pop() : 'csv',
+        file_name_pattern: schema.file_name_pattern,
+        file_description: schema.file_description || '',
+        schema: schema.schema,
+        priority: schema.priority ?? 100,
+        is_active: schema.is_active !== false
+      }));
+      setFileConfigurations(configs);
+    } catch (error) {
+      console.error('Error loading file schemas:', error);
+      setFileConfigurations([]);
+    }
     
     // Format date for HTML date input (YYYY-MM-DD)
     let formattedDate = '';
@@ -727,11 +753,6 @@ const VendorAgreements = () => {
     
     // Only validate if not saving as draft
     if (!isDraft) {
-      if (!formData.file_name.trim()) {
-        setModalError('File name is required');
-        return;
-      }
-      
       if (!formData.file_owner_user_id) {
         setModalError('File owner is required');
         return;
@@ -854,6 +875,37 @@ const VendorAgreements = () => {
           }
         });
         setSuccessMessage('Vendor agreement updated successfully!');
+      }
+      
+      // Save file configurations after agreement is created/updated
+      const agreementId = modalMode === 'create' ? response.data.agreementId || response.data.id : selectedAgreement.id;
+      
+      if (agreementId && fileConfigurations.length > 0) {
+        try {
+          // Delete existing file schemas if in edit mode
+          if (modalMode === 'edit') {
+            const existingSchemas = await axios.get(`/api/vendor-agreements/${agreementId}/file-schemas`);
+            const schemasToDelete = existingSchemas.data.fileSchemas || existingSchemas.data || [];
+            
+            for (const schema of schemasToDelete) {
+              await axios.delete(`/api/vendor-agreements/${agreementId}/file-schemas/${schema.id}`);
+            }
+          }
+          
+          // Create new file schemas
+          for (const config of fileConfigurations) {
+            await axios.post(`/api/vendor-agreements/${agreementId}/file-schemas`, {
+              file_name_pattern: config.file_name_pattern,
+              file_description: config.file_description || '',
+              schema: config.schema || null,
+              priority: config.priority ?? 100,
+              is_active: config.is_active !== false
+            });
+          }
+        } catch (fileConfigError) {
+          console.error('Error saving file configurations:', fileConfigError);
+          setModalError('Agreement saved but failed to save file configurations. Please edit the agreement to add file schemas.');
+        }
       }
       
       closeModal();
@@ -1744,40 +1796,7 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 4: File Details */}
-                <div className="form-section">
-                  <h3 className="section-title">File Details</h3>
-                  
-                  {/* File Name and File Description in same row */}
-                  <div className="form-row-grid">
-                    <div className="form-group">
-                      <label htmlFor="file_name">
-                        File Name <span className="required-field">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        id="file_name"
-                        name="file_name"
-                        value={formData.file_name}
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label htmlFor="file_description">File Description</label>
-                      <textarea
-                        id="file_description"
-                        name="file_description"
-                        value={formData.file_description}
-                        onChange={handleInputChange}
-                        rows="2"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Section 5: Vendor Contact Information */}
+                {/* Section 4: Vendor Contact Information */}
                 <div className="form-section">
                   <h3 className="section-title">Vendor Contact Information</h3>
                   
@@ -2127,25 +2146,11 @@ const VendorAgreements = () => {
                   </div>
                 </div>
                 
-                {/* Section 8: Schema */}
-                <div className="form-section">
-                  <h3 className="section-title">Schema</h3>
-                  
-                  <div className="form-group">
-                    <label htmlFor="schema">Schema (JSON)</label>
-                    <textarea
-                      id="schema"
-                      name="schema"
-                      value={formData.schema}
-                      onChange={handleInputChange}
-                      rows="6"
-                      placeholder='[{"name": "column1", "type": "string", "description": "Description"}]'
-                    />
-                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                      Optional: Define the file structure as a JSON array of column definitions
-                    </small>
-                  </div>
-                </div>
+                {/* File Configurations Section */}
+                <FileConfigurationsSection
+                  fileConfigurations={fileConfigurations}
+                  onChange={setFileConfigurations}
+                />
                 
                 {/* Error Message at Bottom */}
                 {modalError && (
