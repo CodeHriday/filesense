@@ -816,10 +816,10 @@ function MappingWizard() {
             </button>
             <button 
               className="btn btn-secondary"
-              onClick={() => navigate('/mappings')}
+              onClick={() => navigate('/jobs')}
               disabled={loading}
             >
-              View All Mappings
+              View Transformation Jobs
             </button>
             <button 
               className="btn btn-secondary"
