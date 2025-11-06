@@ -3222,6 +3222,7 @@ const { addConnectionNameUniqueConstraint } = require('./backend/migrations/conn
 const { migrateVendorConnectionDirection } = require('./backend/migrations/migrateVendorConnectionDirection');
 const { up: addUnifiedConnectionFields } = require('./backend/migrations/addUnifiedConnectionFields');
 const addVendorIdToUsers = require('./backend/migrations/addVendorIdToUsers');
+const { addSubProjectToTransformationMappings } = require('./backend/migrations/addSubProjectToTransformationMappings');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -3259,6 +3260,7 @@ const addVendorIdToUsers = require('./backend/migrations/addVendorIdToUsers');
     await migrationTracker.runOnce('addConnectionNameUniqueConstraint', () => addConnectionNameUniqueConstraint());
     await migrationTracker.runOnce('migrateVendorConnectionDirection', () => migrateVendorConnectionDirection());
     await migrationTracker.runOnce('addUnifiedConnectionFields', () => addUnifiedConnectionFields(dbPool));
+    await migrationTracker.runOnce('addSubProjectToTransformationMappings', () => addSubProjectToTransformationMappings(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
