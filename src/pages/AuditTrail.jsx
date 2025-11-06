@@ -639,6 +639,29 @@ const AuditTrail = () => {
         </>
       )}
 
+      {showConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Notification</h3>
+              <button className="close-modal-btn" onClick={() => setShowConfirmModal(false)}>
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <p style={{ fontSize: '14px', color: '#202124', margin: 0 }}>{confirmMessage}</p>
+            </div>
+            
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => setShowConfirmModal(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedLog && (
         <div className="modal-overlay" onClick={() => setSelectedLog(null)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -734,29 +757,6 @@ const AuditTrail = () => {
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setSelectedLog(null)}>
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showConfirmModal && (
-        <div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
-          <div className="modal-container" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Notification</h3>
-              <button className="close-modal-btn" onClick={() => setShowConfirmModal(false)}>
-                ×
-              </button>
-            </div>
-            
-            <div className="modal-content">
-              <p style={{ fontSize: '14px', color: '#202124', margin: 0 }}>{confirmMessage}</p>
-            </div>
-            
-            <div className="modal-footer">
-              <button className="btn-primary" onClick={() => setShowConfirmModal(false)}>
-                OK
               </button>
             </div>
           </div>
