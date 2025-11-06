@@ -114,7 +114,8 @@ class VendorAgreementService {
         delivery_method,
         status,
         contract_start_date,
-        contract_end_date
+        contract_end_date,
+        sub_project_id
       } = agreementData;
       
       // Check for duplicate file_name
@@ -279,11 +280,11 @@ class VendorAgreementService {
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata,
-          vendor_connection_id, drop_location_path, project_id,
+          vendor_connection_id, drop_location_path, project_id, sub_project_id,
           manager_contact, governance_manager_user_id,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           status, contract_start_date, contract_end_date, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, 1, $38, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, 1, $39, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
           vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
@@ -291,7 +292,7 @@ class VendorAgreementService {
           primary_contact_name, primary_contact_phone, finalPrimaryContactEmail, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
           owner_contact, metadata ? JSON.stringify(metadata) : null,
-          vendor_connection_id, drop_location_path || null, project_id,
+          vendor_connection_id, drop_location_path || null, project_id, sub_project_id || null,
           finalManagerContact, governance_manager_user_id || null,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           finalStatus, contract_start_date || null, contract_end_date || null,
@@ -438,7 +439,8 @@ class VendorAgreementService {
         expected_arrival_time,
         delivery_method,
         contract_start_date,
-        contract_end_date
+        contract_end_date,
+        sub_project_id
       } = updateData;
       
       // Check for duplicate file_name (excluding current agreement)
@@ -702,6 +704,13 @@ class VendorAgreementService {
         updates.push(`drop_location_path = $${paramIndex}`);
         params.push(drop_location_path || null);
         changes.drop_location_path = { from: current.drop_location_path, to: drop_location_path };
+        paramIndex++;
+      }
+      
+      if (sub_project_id !== undefined && sub_project_id !== current.sub_project_id) {
+        updates.push(`sub_project_id = $${paramIndex}`);
+        params.push(sub_project_id || null);
+        changes.sub_project_id = { from: current.sub_project_id, to: sub_project_id };
         paramIndex++;
       }
       

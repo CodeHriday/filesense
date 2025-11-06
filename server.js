@@ -3223,6 +3223,9 @@ const { migrateVendorConnectionDirection } = require('./backend/migrations/migra
 const { up: addUnifiedConnectionFields } = require('./backend/migrations/addUnifiedConnectionFields');
 const addVendorIdToUsers = require('./backend/migrations/addVendorIdToUsers');
 const { addSubProjectToTransformationMappings } = require('./backend/migrations/addSubProjectToTransformationMappings');
+const { up: addSubProjectToVendorAgreements } = require('./backend/migrations/addSubProjectToVendorAgreements');
+const { up: createVendorAgreementFileSchemas } = require('./backend/migrations/createVendorAgreementFileSchemas');
+const { up: migrateVendorAgreementSchemasToFileSchemas } = require('./backend/migrations/migrateVendorAgreementSchemasToFileSchemas');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -3261,6 +3264,9 @@ const { addSubProjectToTransformationMappings } = require('./backend/migrations/
     await migrationTracker.runOnce('migrateVendorConnectionDirection', () => migrateVendorConnectionDirection());
     await migrationTracker.runOnce('addUnifiedConnectionFields', () => addUnifiedConnectionFields(dbPool));
     await migrationTracker.runOnce('addSubProjectToTransformationMappings', () => addSubProjectToTransformationMappings(dbPool));
+    await migrationTracker.runOnce('addSubProjectToVendorAgreements', () => addSubProjectToVendorAgreements());
+    await migrationTracker.runOnce('createVendorAgreementFileSchemas', () => createVendorAgreementFileSchemas());
+    await migrationTracker.runOnce('migrateVendorAgreementSchemasToFileSchemas', () => migrateVendorAgreementSchemasToFileSchemas());
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -8346,6 +8352,11 @@ console.log('Added vendor management routes');
 const vendorAgreementRoutes = require('./backend/routes/vendorAgreementRoutes');
 app.use('/api/vendor-agreements', authenticateToken, vendorAgreementRoutes);
 console.log('Added vendor agreement routes');
+
+// Vendor agreement file schema routes
+const vendorAgreementFileSchemaRoutes = require('./backend/routes/vendorAgreementFileSchemaRoutes');
+app.use('/api/vendor-agreements', authenticateToken, vendorAgreementFileSchemaRoutes);
+console.log('Added vendor agreement file schema routes');
 
 // Vendor connections routes (admin-only)
 const vendorConnectionRoutes = require('./backend/routes/vendorConnectionRoutes');

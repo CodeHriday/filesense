@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
 const { decryptCredentials } = require('../utils/encryption');
+const { matchesPattern } = require('../utils/filePatternMatcher');
 
 /**
  * Validate file schema against vendor agreement schema
@@ -20,35 +21,149 @@ const { decryptCredentials } = require('../utils/encryption');
  */
 async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePath, fileName) {
   try {
-    // Fetch vendor agreement schema
-    const agreementResult = await pool.query(
-      'SELECT schema, file_name FROM vendor_agreements WHERE id = $1',
+    // Fetch all active file schemas for this vendor agreement, ordered by priority
+    const fileSchemasResult = await pool.query(
+      `SELECT id, file_name_pattern, schema, priority, file_description 
+       FROM vendor_agreement_file_schemas 
+       WHERE vendor_agreement_id = $1 AND is_active = TRUE 
+       ORDER BY priority ASC, id ASC`,
       [vendorAgreementId]
     );
     
-    if (agreementResult.rows.length === 0) {
+    if (fileSchemasResult.rows.length === 0) {
+      // Fall back to legacy schema from vendor_agreements table for backward compatibility
+      const agreementResult = await pool.query(
+        'SELECT schema, file_name FROM vendor_agreements WHERE id = $1',
+        [vendorAgreementId]
+      );
+      
+      if (agreementResult.rows.length === 0) {
+        return {
+          valid: false,
+          schemaDrift: false,
+          message: 'Vendor agreement not found',
+          actualSchema: [],
+          expectedSchema: []
+        };
+      }
+      
+      const legacySchema = agreementResult.rows[0].schema;
+      
+      if (!legacySchema || legacySchema.length === 0) {
+        systemLogger.warn('No schema defined in vendor agreement', { vendorAgreementId });
+        return {
+          valid: true,
+          schemaDrift: false,
+          message: 'No schema validation required (schema not defined in agreement)',
+          actualSchema: [],
+          expectedSchema: []
+        };
+      }
+      
+      // Continue with legacy schema validation
+      const expectedSchema = legacySchema;
+      const matchedPattern = agreementResult.rows[0].file_name;
+      const matchedSchemaId = null;
+      
+      return await performSchemaValidation(
+        expectedSchema, 
+        matchedPattern, 
+        matchedSchemaId,
+        vendorAgreementId, 
+        vendorConnectionId, 
+        filePath, 
+        fileName
+      );
+    }
+    
+    // Match file name against patterns
+    let matchedSchema = null;
+    for (const fileSchema of fileSchemasResult.rows) {
+      if (matchesPattern(fileName, fileSchema.file_name_pattern)) {
+        matchedSchema = fileSchema;
+        systemLogger.info('File name matched pattern', { 
+          fileName, 
+          pattern: fileSchema.file_name_pattern,
+          priority: fileSchema.priority,
+          vendorAgreementId 
+        });
+        break;
+      }
+    }
+    
+    if (!matchedSchema) {
+      systemLogger.warn('No matching file pattern found', { 
+        fileName, 
+        vendorAgreementId,
+        availablePatterns: fileSchemasResult.rows.map(r => r.file_name_pattern)
+      });
       return {
         valid: false,
         schemaDrift: false,
-        message: 'Vendor agreement not found',
+        message: `No schema pattern matches file name: ${fileName}`,
         actualSchema: [],
-        expectedSchema: []
+        expectedSchema: [],
+        availablePatterns: fileSchemasResult.rows.map(r => ({
+          pattern: r.file_name_pattern,
+          description: r.file_description
+        }))
       };
     }
     
-    const expectedSchema = agreementResult.rows[0].schema;
+    const expectedSchema = matchedSchema.schema;
     
     if (!expectedSchema || expectedSchema.length === 0) {
-      systemLogger.warn('No schema defined in vendor agreement', { vendorAgreementId });
+      systemLogger.warn('Empty schema for matched pattern', { 
+        vendorAgreementId,
+        pattern: matchedSchema.file_name_pattern 
+      });
       return {
         valid: true,
         schemaDrift: false,
-        message: 'No schema validation required (schema not defined in agreement)',
+        message: 'No schema validation required (matched pattern has no schema defined)',
         actualSchema: [],
-        expectedSchema: []
+        expectedSchema: [],
+        matchedPattern: matchedSchema.file_name_pattern
       };
     }
     
+    // Perform validation with the matched schema
+    return await performSchemaValidation(
+      expectedSchema,
+      matchedSchema.file_name_pattern,
+      matchedSchema.id,
+      vendorAgreementId,
+      vendorConnectionId,
+      filePath,
+      fileName
+    );
+    
+  } catch (error) {
+    systemLogger.error('Schema validation error', { error: error.message, vendorAgreementId });
+    return {
+      valid: false,
+      schemaDrift: false,
+      message: `Validation error: ${error.message}`,
+      actualSchema: [],
+      expectedSchema: []
+    };
+  }
+}
+
+/**
+ * Perform the actual schema validation against a matched schema
+ * @private
+ */
+async function performSchemaValidation(
+  expectedSchema,
+  matchedPattern,
+  matchedSchemaId,
+  vendorAgreementId,
+  vendorConnectionId,
+  filePath,
+  fileName
+) {
+  try {
     // Fetch vendor connection details
     const connectionResult = await pool.query(
       'SELECT type, config, auth_config, authentication_method FROM storage_connections WHERE connection_id = $1',
@@ -61,7 +176,9 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
         schemaDrift: false,
         message: 'Vendor connection not found',
         actualSchema: [],
-        expectedSchema: []
+        expectedSchema: [],
+        matchedPattern,
+        matchedSchemaId
       };
     }
     
@@ -112,7 +229,9 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
         message: `Failed to read file: ${error.message}`,
         actualSchema: [],
         expectedSchema,
-        differences: [`File could not be read or does not exist: ${error.message}`]
+        differences: [`File could not be read or does not exist: ${error.message}`],
+        matchedPattern,
+        matchedSchemaId
       };
     }
     
@@ -125,7 +244,8 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
         filePath: fullPath,
         errors: comparison.errors,
         missingColumns: comparison.missingColumns,
-        extraColumns: comparison.extraColumns
+        extraColumns: comparison.extraColumns,
+        matchedPattern
       });
       
       return {
@@ -138,7 +258,9 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
         errors: comparison.errors,
         warnings: comparison.warnings,
         missingColumns: comparison.missingColumns,
-        extraColumns: comparison.extraColumns
+        extraColumns: comparison.extraColumns,
+        matchedPattern,
+        matchedSchemaId
       };
     }
     
@@ -157,17 +279,25 @@ async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePat
       errors: comparison.errors,
       warnings: comparison.warnings,
       missingColumns: comparison.missingColumns,
-      extraColumns: comparison.extraColumns
+      extraColumns: comparison.extraColumns,
+      matchedPattern,
+      matchedSchemaId
     };
     
   } catch (error) {
-    systemLogger.error('Schema validation error', { error: error.message, vendorAgreementId });
+    systemLogger.error('Schema validation error in performSchemaValidation', { 
+      error: error.message, 
+      vendorAgreementId,
+      matchedPattern 
+    });
     return {
       valid: false,
       schemaDrift: false,
       message: `Validation error: ${error.message}`,
       actualSchema: [],
-      expectedSchema: []
+      expectedSchema: [],
+      matchedPattern,
+      matchedSchemaId
     };
   }
 }
