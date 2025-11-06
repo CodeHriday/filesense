@@ -200,7 +200,7 @@ function MappingWizard() {
       const response = await axios.get(`${API_BASE_URL}/api/projects/${selectedProjectId}/sub-projects`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setSubProjects(response.data || []);
+      setSubProjects(response.data.subProjects || []);
     } catch (err) {
       console.error('Error fetching sub-projects:', err);
       setSubProjects([]);
