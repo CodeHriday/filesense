@@ -1097,29 +1097,126 @@ function MappingWizard() {
               </small>
             </div>
 
-            <div className="form-group">
-              <label>File Name/Pattern * {selectedVendorAgreement && <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span>}</label>
-              <input
-                type="text"
-                className="form-control"
-                value={fileNamePattern}
-                onChange={(e) => setFileNamePattern(e.target.value)}
-                placeholder="e.g., sales_data.csv or sales_*.csv"
-                readOnly={!!selectedVendorAgreement}
-                style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed' } : {}}
-              />
-              <small className="form-help">
-                {selectedVendorAgreement ? (
-                  <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
-                ) : (
-                  <>
-                    Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
-                    Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
-                    File existence will be validated during job execution.
-                  </>
+            {/* File Schema Selection - Show when agreement has multiple files */}
+            {selectedVendorAgreement && agreementFileSchemas.length > 1 && (
+              <div className="form-group">
+                <label>Select File Pattern * <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span></label>
+                <select
+                  className="form-control"
+                  value={selectedFileSchema?.id || ''}
+                  onChange={(e) => {
+                    const schemaId = parseInt(e.target.value);
+                    const schema = agreementFileSchemas.find(s => s.id === schemaId);
+                    setSelectedFileSchema(schema);
+                    if (schema) {
+                      setFileNamePattern(schema.file_name_pattern);
+                    }
+                  }}
+                  style={{ marginBottom: '0.5rem' }}
+                >
+                  <option value="">Select a file pattern...</option>
+                  {agreementFileSchemas.map(schema => (
+                    <option key={schema.id} value={schema.id}>
+                      {schema.file_name_pattern}
+                      {schema.file_description && ` - ${schema.file_description}`}
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Show governance badges for selected file */}
+                {selectedFileSchema && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                    {selectedFileSchema.contains_pii && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        backgroundColor: '#fef2f2',
+                        color: '#dc2626',
+                        border: '1px solid #fca5a5',
+                        borderRadius: '4px'
+                      }}>
+                        <FiAlertCircle size={12} /> Contains PII
+                      </span>
+                    )}
+                    {selectedFileSchema.data_classification && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        backgroundColor: selectedFileSchema.data_classification === 'Highly Confidential' ? '#fef2f2' :
+                                       selectedFileSchema.data_classification === 'Confidential' ? '#fff7ed' :
+                                       selectedFileSchema.data_classification === 'Internal' ? '#eff6ff' : '#f0fdf4',
+                        color: selectedFileSchema.data_classification === 'Highly Confidential' ? '#dc2626' :
+                               selectedFileSchema.data_classification === 'Confidential' ? '#ea580c' :
+                               selectedFileSchema.data_classification === 'Internal' ? '#2563eb' : '#16a34a',
+                        border: `1px solid ${selectedFileSchema.data_classification === 'Highly Confidential' ? '#fca5a5' :
+                                             selectedFileSchema.data_classification === 'Confidential' ? '#fed7aa' :
+                                             selectedFileSchema.data_classification === 'Internal' ? '#bfdbfe' : '#86efac'}`,
+                        borderRadius: '4px'
+                      }}>
+                        {selectedFileSchema.data_classification}
+                      </span>
+                    )}
+                    {selectedFileSchema.file_type && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        backgroundColor: '#f3f4f6',
+                        color: '#374151',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px'
+                      }}>
+                        {selectedFileSchema.file_type.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                 )}
-              </small>
-            </div>
+                
+                <small className="form-help">
+                  {selectedFileSchema 
+                    ? 'File pattern selected from vendor contract with governance settings applied.'
+                    : 'Select which file pattern to use for this mapping job.'}
+                </small>
+              </div>
+            )}
+
+            {/* File Name/Pattern Input - Show when no agreement OR only one file */}
+            {(!selectedVendorAgreement || agreementFileSchemas.length <= 1) && (
+              <div className="form-group">
+                <label>File Name/Pattern * {selectedVendorAgreement && <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span>}</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={fileNamePattern}
+                  onChange={(e) => setFileNamePattern(e.target.value)}
+                  placeholder="e.g., sales_data.csv or sales_*.csv"
+                  readOnly={!!selectedVendorAgreement}
+                  style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed' } : {}}
+                />
+                <small className="form-help">
+                  {selectedVendorAgreement ? (
+                    <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
+                  ) : (
+                    <>
+                      Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
+                      Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
+                      File existence will be validated during job execution.
+                    </>
+                  )}
+                </small>
+              </div>
+            )}
 
             {/* Source Owner Field */}
             <div className="form-group">
