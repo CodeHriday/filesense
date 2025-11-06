@@ -3182,7 +3182,7 @@ const auditRetentionService = require('./backend/services/auditRetentionService'
 
 app.get('/api/audit/retention-settings', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const settings = await auditRetentionService.getRetentionSettings(pool);
+    const settings = await auditRetentionService.getRetentionSettings(req.app.locals.pool);
     res.json(settings);
   } catch (error) {
     logger.error('Error fetching retention settings', { error: error.message });
@@ -3194,7 +3194,7 @@ app.put('/api/audit/retention-settings', authenticateToken, requireAdmin, async 
   try {
     const { retention_days, auto_archive_enabled, auto_delete_enabled } = req.body;
     
-    const settings = await auditRetentionService.updateRetentionSettings(pool, {
+    const settings = await auditRetentionService.updateRetentionSettings(req.app.locals.pool, {
       retention_days,
       auto_archive_enabled,
       auto_delete_enabled
@@ -3209,7 +3209,7 @@ app.put('/api/audit/retention-settings', authenticateToken, requireAdmin, async 
 
 app.get('/api/audit/statistics', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const stats = await auditRetentionService.getAuditStatistics(pool);
+    const stats = await auditRetentionService.getAuditStatistics(req.app.locals.pool);
     res.json(stats);
   } catch (error) {
     logger.error('Error fetching audit statistics', { error: error.message });
@@ -3221,7 +3221,7 @@ app.post('/api/audit/archive', authenticateToken, requireAdmin, async (req, res)
   try {
     const { retention_days } = req.body;
     
-    const result = await auditRetentionService.archiveOldRecords(pool, retention_days);
+    const result = await auditRetentionService.archiveOldRecords(req.app.locals.pool, retention_days);
     
     res.json(result);
   } catch (error) {
@@ -3237,9 +3237,9 @@ app.delete('/api/audit/cleanup', authenticateToken, requireAdmin, async (req, re
     let result;
     
     if (delete_archived) {
-      result = await auditRetentionService.deleteArchivedRecords(pool, archive_cutoff_days || 90);
+      result = await auditRetentionService.deleteArchivedRecords(req.app.locals.pool, archive_cutoff_days || 90);
     } else {
-      result = await auditRetentionService.deleteOldRecords(pool, retention_days);
+      result = await auditRetentionService.deleteOldRecords(req.app.locals.pool, retention_days);
     }
     
     res.json(result);
@@ -3265,7 +3265,7 @@ app.post('/api/audit/frontend-error', authenticateToken, async (req, res) => {
       metadata
     } = req.body;
     
-    await pool.query(`
+    await req.app.locals.pool.query(`
       INSERT INTO frontend_audit_log (
         user_id, user_email, session_id,
         event_type, event_category,
@@ -3313,7 +3313,7 @@ app.post('/api/audit/frontend-interaction', authenticateToken, async (req, res) 
       metadata
     } = req.body;
     
-    await pool.query(`
+    await req.app.locals.pool.query(`
       INSERT INTO frontend_audit_log (
         user_id, user_email, session_id,
         event_type, event_category,
@@ -3357,7 +3357,7 @@ app.post('/api/audit/frontend-api-error', authenticateToken, async (req, res) =>
       metadata
     } = req.body;
     
-    await pool.query(`
+    await req.app.locals.pool.query(`
       INSERT INTO frontend_audit_log (
         user_id, user_email, session_id,
         event_type, event_category,
