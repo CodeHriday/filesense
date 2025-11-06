@@ -444,7 +444,8 @@ class VendorAgreementService {
       } = updateData;
       
       // Check for duplicate file_name (excluding current agreement)
-      if (file_name !== undefined && file_name !== current.file_name) {
+      // Only check if file_name has a value (draft contracts can have empty file names)
+      if (file_name !== undefined && file_name !== current.file_name && file_name && file_name.trim()) {
         const duplicateCheck = await client.query(
           'SELECT id FROM vendor_agreements WHERE LOWER(TRIM(file_name)) = LOWER(TRIM($1)) AND id != $2',
           [file_name, agreementId]
