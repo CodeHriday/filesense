@@ -18,9 +18,9 @@ function createGroupRoutes(dbPool) {
       let query = `
         SELECT 
           ag.*,
-          COUNT(agm.user_id) as member_count
+          COUNT(ug.user_id) as member_count
         FROM access_groups ag
-        LEFT JOIN access_group_members agm ON ag.id = agm.group_id
+        LEFT JOIN user_groups ug ON ag.id = ug.group_id
         WHERE 1=1
       `;
       const params = [];
@@ -78,14 +78,15 @@ function createGroupRoutes(dbPool) {
       // Get members
       const membersResult = await dbPool.query(`
         SELECT 
-          agm.*,
+          ug.user_id,
+          ug.group_id,
           u.username,
           u.email,
           u.full_name
-        FROM access_group_members agm
-        JOIN users u ON agm.user_id = u.id
-        WHERE agm.group_id = $1
-        ORDER BY agm.created_at DESC
+        FROM user_groups ug
+        JOIN users u ON ug.user_id = u.id
+        WHERE ug.group_id = $1
+        ORDER BY u.username
       `, [groupId]);
 
       // Get role assignments
@@ -144,13 +145,13 @@ function createGroupRoutes(dbPool) {
       // Add members if provided
       if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
         const memberValues = member_ids
-          .map(id => `(${newGroup.id}, ${parseInt(id, 10)})`)
+          .map(id => `(${parseInt(id, 10)}, ${newGroup.id})`)
           .join(', ');
         
         await client.query(`
-          INSERT INTO access_group_members (group_id, user_id)
+          INSERT INTO user_groups (user_id, group_id)
           VALUES ${memberValues}
-          ON CONFLICT (group_id, user_id) DO NOTHING
+          ON CONFLICT (user_id, group_id) DO NOTHING
         `);
       }
 
@@ -294,32 +295,23 @@ function createGroupRoutes(dbPool) {
   router.post('/:groupId/members', async (req, res) => {
     try {
       const { groupId } = req.params;
-      const { user_id, source } = req.body;
+      const { user_id } = req.body;
 
       if (!user_id) {
         return res.status(400).json({ error: 'user_id is required' });
       }
 
-      const validSources = ['MANUAL', 'IDP_SYNCED', 'INHERITED'];
-      const memberSource = source || 'MANUAL';
-      
-      if (!validSources.includes(memberSource)) {
-        return res.status(400).json({ error: `Invalid source. Must be one of: ${validSources.join(', ')}` });
-      }
-
       const result = await dbPool.query(`
-        INSERT INTO access_group_members (group_id, user_id, source)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (group_id, user_id) 
-        DO UPDATE SET source = $3
+        INSERT INTO user_groups (user_id, group_id)
+        VALUES ($1, $2)
+        ON CONFLICT (user_id, group_id) DO NOTHING
         RETURNING *
-      `, [groupId, user_id, memberSource]);
+      `, [user_id, groupId]);
 
       systemLogger.info('Group member added', {
         userId: req.user?.id,
         groupId,
-        memberId: user_id,
-        source: memberSource
+        memberId: user_id
       });
 
       res.status(201).json(result.rows[0]);
@@ -335,7 +327,7 @@ function createGroupRoutes(dbPool) {
       const { groupId, userId } = req.params;
 
       const result = await dbPool.query(
-        'DELETE FROM access_group_members WHERE group_id = $1 AND user_id = $2 RETURNING *',
+        'DELETE FROM user_groups WHERE group_id = $1 AND user_id = $2 RETURNING *',
         [groupId, userId]
       );
 
