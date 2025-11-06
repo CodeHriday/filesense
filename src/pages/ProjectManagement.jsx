@@ -16,6 +16,7 @@ function ProjectManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -132,16 +133,32 @@ function ProjectManagement() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    setIsCreating(true);
+    setError(null);
+    
     try {
       const token = localStorage.getItem('token');
+      const idempotencyKey = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
       await axios.post(`${API_BASE_URL}/projects`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Idempotency-Key': idempotencyKey
+        }
       });
       handleCloseCreateModal();
       fetchProjects();
     } catch (err) {
-      setError('Failed to create project');
+      if (err.response?.status === 429) {
+        setError(err.response.data.message || 'Rate limit exceeded. Please try again later.');
+      } else if (err.response?.status === 409) {
+        setError('A project with this name already exists.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to create project');
+      }
       console.error(err);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -825,10 +842,17 @@ function ProjectManagement() {
               </form>
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={handleCloseCreateModal}>
+              <button type="button" className="btn-secondary" onClick={handleCloseCreateModal} disabled={isCreating}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary" onClick={handleCreate}>Create Project</button>
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                onClick={handleCreate}
+                disabled={isCreating}
+              >
+                {isCreating ? 'Creating...' : 'Create Project'}
+              </button>
             </div>
           </div>
         </div>

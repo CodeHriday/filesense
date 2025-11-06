@@ -5,10 +5,152 @@
  */
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 const { systemLogger } = require('../utils/logger');
+const { createIdempotencyMiddleware } = require('../src/middleware/idempotency');
+const AuditService = require('../services/AuditService');
 
 function createProjectRoutes(dbPool) {
   const router = express.Router();
+  const auditService = new AuditService(dbPool);
+  
+  const projectIdempotency = createIdempotencyMiddleware({
+    ttlHours: 24,
+    resourceType: 'project'
+  });
+  
+  const hourlyRateLimit = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    message: {
+      error: 'Rate limit exceeded',
+      message: 'You can only create 10 projects per hour. Please try again later.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `project-create-hourly:${req.user?.id || req.ip}`,
+    skip: (req) => !req.user,
+    handler: async (req, res) => {
+      const { name, description, project_type } = req.body;
+      const userId = req.user?.id;
+      
+      // Calculate payload hash for tracking
+      const payloadHash = crypto
+        .createHash('sha256')
+        .update(JSON.stringify({ name, description, project_type }))
+        .digest('hex');
+      
+      // Log rate limit violation to audit trail
+      await auditService.logAction({
+        userId,
+        userEmail: req.user?.email,
+        userRole: req.user?.role,
+        actionType: 'project_create',
+        entityType: 'project',
+        entityId: 'N/A',
+        entityName: name || 'Unknown',
+        operation: 'CREATE',
+        oldValues: null,
+        newValues: { name, description, project_type },
+        metadata: {
+          ip_address: req.ip,
+          user_agent: req.get('user-agent'),
+          payload_hash: payloadHash,
+          idempotency_key: req.get('Idempotency-Key'),
+          rate_limit_type: 'hourly',
+          rate_limit_max: 10,
+          rate_limit_window: '1 hour'
+        },
+        status: 'RATE_LIMITED',
+        errorMessage: 'Hourly rate limit exceeded',
+        context: {
+          ipAddress: req.ip,
+          sessionId: req.sessionID,
+          requestId: req.id,
+          userId,
+          userEmail: req.user?.email,
+          userRole: req.user?.role
+        }
+      });
+      
+      systemLogger.warn('Hourly rate limit exceeded for project creation', {
+        userId,
+        ip: req.ip
+      });
+      res.status(429).json({
+        error: 'Rate limit exceeded',
+        message: 'You can only create 10 projects per hour. Please try again later.',
+        retryAfter: Math.ceil(req.rateLimit.resetTime / 1000)
+      });
+    }
+  });
+  
+  const burstRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    max: 3,
+    message: {
+      error: 'Rate limit exceeded',
+      message: 'Too many project creations. Maximum 3 per minute. Please slow down.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `project-create-burst:${req.user?.id || req.ip}`,
+    skip: (req) => !req.user,
+    handler: async (req, res) => {
+      const { name, description, project_type } = req.body;
+      const userId = req.user?.id;
+      
+      // Calculate payload hash for tracking
+      const payloadHash = crypto
+        .createHash('sha256')
+        .update(JSON.stringify({ name, description, project_type }))
+        .digest('hex');
+      
+      // Log rate limit violation to audit trail
+      await auditService.logAction({
+        userId,
+        userEmail: req.user?.email,
+        userRole: req.user?.role,
+        actionType: 'project_create',
+        entityType: 'project',
+        entityId: 'N/A',
+        entityName: name || 'Unknown',
+        operation: 'CREATE',
+        oldValues: null,
+        newValues: { name, description, project_type },
+        metadata: {
+          ip_address: req.ip,
+          user_agent: req.get('user-agent'),
+          payload_hash: payloadHash,
+          idempotency_key: req.get('Idempotency-Key'),
+          rate_limit_type: 'burst',
+          rate_limit_max: 3,
+          rate_limit_window: '1 minute'
+        },
+        status: 'RATE_LIMITED',
+        errorMessage: 'Burst rate limit exceeded',
+        context: {
+          ipAddress: req.ip,
+          sessionId: req.sessionID,
+          requestId: req.id,
+          userId,
+          userEmail: req.user?.email,
+          userRole: req.user?.role
+        }
+      });
+      
+      systemLogger.warn('Burst rate limit exceeded for project creation', {
+        userId,
+        ip: req.ip
+      });
+      res.status(429).json({
+        error: 'Rate limit exceeded',
+        message: 'Too many project creations. Maximum 3 per minute. Please slow down.',
+        retryAfter: Math.ceil(req.rateLimit.resetTime / 1000)
+      });
+    }
+  });
 
   // List all projects with member and group counts
   router.get('/', async (req, res) => {
@@ -167,7 +309,7 @@ function createProjectRoutes(dbPool) {
   });
 
   // Create new project
-  router.post('/', async (req, res) => {
+  router.post('/', burstRateLimit, hourlyRateLimit, projectIdempotency, async (req, res) => {
     const client = await dbPool.connect();
     try {
       const { name, description, parent_id, is_default, project_type, metadata, settings, member_ids, group_ids, sub_projects } = req.body;
@@ -177,13 +319,84 @@ function createProjectRoutes(dbPool) {
         return res.status(400).json({ error: 'Project name is required' });
       }
 
+      if (!name.trim()) {
+        return res.status(400).json({ error: 'Project name cannot be empty' });
+      }
+
       await client.query('BEGIN');
+
+      const duplicateCheck = await client.query(`
+        SELECT id, name FROM projects 
+        WHERE owner_id = $1 AND LOWER(name) = LOWER($2)
+      `, [userId, name.trim()]);
+
+      if (duplicateCheck.rows.length > 0) {
+        const existingProjectId = duplicateCheck.rows[0].id;
+        const existingProjectName = duplicateCheck.rows[0].name;
+        
+        await client.query('ROLLBACK');
+        client.release(); // Release connection before audit logging
+        
+        // Calculate payload hash for tracking
+        const payloadHash = crypto
+          .createHash('sha256')
+          .update(JSON.stringify({ name: name.trim(), description, project_type, parent_id }))
+          .digest('hex');
+        
+        // Log duplicate attempt to audit trail after client is fully released
+        // Use setImmediate to ensure connection is back in pool before audit reuses it
+        setImmediate(async () => {
+          try {
+            await auditService.logAction({
+              userId,
+              userEmail: req.user?.email,
+              userRole: req.user?.role,
+              actionType: 'project_create',
+              entityType: 'project',
+              entityId: 'N/A',
+              entityName: name.trim(),
+              operation: 'CREATE',
+              oldValues: null,
+              newValues: { name: name.trim(), description, project_type, parent_id },
+              metadata: {
+                ip_address: req.ip,
+                user_agent: req.get('user-agent'),
+                payload_hash: payloadHash,
+                idempotency_key: req.get('Idempotency-Key'),
+                existing_project_id: existingProjectId,
+                existing_project_name: existingProjectName
+              },
+              status: 'FAILED',
+              errorMessage: 'Duplicate project name',
+              context: {
+                ipAddress: req.ip,
+                sessionId: req.sessionID,
+                requestId: req.id,
+                userId,
+                userEmail: req.user?.email,
+                userRole: req.user?.role
+              }
+            });
+          } catch (auditError) {
+            systemLogger.error('Failed to log duplicate project attempt to audit', {
+              userId,
+              projectName: name.trim(),
+              error: auditError.message
+            });
+          }
+        });
+        
+        return res.status(409).json({ 
+          error: 'Duplicate project name',
+          message: `You already have a project named "${existingProjectName}". Please choose a different name.`
+        });
+      }
 
       const result = await client.query(`
         INSERT INTO projects (name, description, parent_id, owner_id, is_default, project_type, metadata, settings)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
-      `, [name, description, parent_id || null, userId, is_default || false, project_type || 'internal', metadata || {}, settings || {}]);
+      `, [name.trim(), description, parent_id || null, userId, is_default || false, project_type || 'internal', metadata || {}, settings || {}]);
 
       const newProject = result.rows[0];
 
@@ -243,19 +456,202 @@ function createProjectRoutes(dbPool) {
 
       await client.query('COMMIT');
 
+      // Calculate payload hash for duplicate detection
+      const payloadHash = crypto
+        .createHash('sha256')
+        .update(JSON.stringify({ name: name.trim(), description, project_type, parent_id }))
+        .digest('hex');
+
+      // Log successful project creation to audit trail
+      await auditService.logAction({
+        userId,
+        userEmail: req.user?.email,
+        userRole: req.user?.role,
+        actionType: 'project_create',
+        entityType: 'project',
+        entityId: newProject.id.toString(),
+        entityName: name.trim(),
+        operation: 'CREATE',
+        oldValues: null,
+        newValues: {
+          id: newProject.id,
+          name: name.trim(),
+          description,
+          project_type: project_type || 'internal',
+          parent_id,
+          member_count: (member_ids?.length || 0) + 1,
+          group_count: group_ids?.length || 0,
+          sub_project_count: sub_projects?.length || 0
+        },
+        metadata: {
+          ip_address: req.ip,
+          user_agent: req.get('user-agent'),
+          payload_hash: payloadHash,
+          idempotency_key: req.get('Idempotency-Key')
+        },
+        status: 'SUCCESS',
+        context: {
+          ipAddress: req.ip,
+          sessionId: req.sessionID,
+          requestId: req.id,
+          userId,
+          userEmail: req.user?.email,
+          userRole: req.user?.role
+        },
+        client
+      });
+
+      // Check for creation spike (>5 attempts in 5 minutes, including rate-limited and failed attempts)
+      const spikeCheck = await client.query(`
+        SELECT COUNT(*) as recent_count
+        FROM audit_log
+        WHERE user_id = $1
+          AND action_type = 'project_create'
+          AND status IN ('SUCCESS', 'FAILED', 'RATE_LIMITED')
+          AND timestamp > NOW() - INTERVAL '5 minutes'
+      `, [userId]);
+
+      const recentCreations = parseInt(spikeCheck.rows[0]?.recent_count || 0);
+      
+      if (recentCreations > 5) {
+        systemLogger.warn('Project creation spike detected', {
+          userId,
+          userEmail: req.user?.email,
+          recentCreations,
+          threshold: 5,
+          timeWindow: '5 minutes'
+        });
+        
+        // Log security event
+        await auditService.logSecurityEvent({
+          userId,
+          userEmail: req.user?.email,
+          userRole: req.user?.role,
+          eventType: 'SUSPICIOUS_ACTIVITY',
+          severity: 'MEDIUM',
+          description: `User created ${recentCreations} projects in 5 minutes`,
+          metadata: {
+            recent_creations: recentCreations,
+            threshold: 5,
+            time_window: '5 minutes',
+            ip_address: req.ip
+          },
+          context: {
+            ipAddress: req.ip,
+            sessionId: req.sessionID,
+            requestId: req.id,
+            userId,
+            userEmail: req.user?.email,
+            userRole: req.user?.role
+          },
+          client
+        });
+      }
+
       systemLogger.info('Project created', {
         userId,
         projectId: newProject.id,
         projectName: name,
-        memberCount: (member_ids?.length || 0) + 1, // +1 for creator
+        memberCount: (member_ids?.length || 0) + 1,
         groupCount: group_ids?.length || 0,
-        subProjectCount: sub_projects?.length || 0
+        subProjectCount: sub_projects?.length || 0,
+        recentCreations
       });
 
       res.status(201).json(newProject);
     } catch (error) {
       await client.query('ROLLBACK');
-      systemLogger.error('Error creating project', error);
+      
+      const userId = req.user?.id;
+      const { name, description, project_type } = req.body;
+      
+      // Calculate payload hash for tracking
+      const payloadHash = crypto
+        .createHash('sha256')
+        .update(JSON.stringify({ name, description, project_type }))
+        .digest('hex');
+      
+      if (error.code === '23505' && error.constraint === 'idx_projects_owner_name_unique') {
+        // Log duplicate attempt to audit trail
+        await auditService.logAction({
+          userId,
+          userEmail: req.user?.email,
+          userRole: req.user?.role,
+          actionType: 'project_create',
+          entityType: 'project',
+          entityId: 'N/A',
+          entityName: name,
+          operation: 'CREATE',
+          oldValues: null,
+          newValues: { name, description, project_type },
+          metadata: {
+            ip_address: req.ip,
+            user_agent: req.get('user-agent'),
+            payload_hash: payloadHash,
+            idempotency_key: req.get('Idempotency-Key'),
+            error_code: error.code,
+            constraint: error.constraint
+          },
+          status: 'FAILED',
+          errorMessage: 'Duplicate project name',
+          context: {
+            ipAddress: req.ip,
+            sessionId: req.sessionID,
+            requestId: req.id,
+            userId,
+            userEmail: req.user?.email,
+            userRole: req.user?.role
+          }
+        });
+        
+        systemLogger.warn('Duplicate project creation attempt', {
+          userId,
+          projectName: name,
+          error: error.message
+        });
+        return res.status(409).json({ 
+          error: 'Duplicate project name',
+          message: `You already have a project with this name. Please choose a different name.`
+        });
+      }
+      
+      // Log general error to audit trail
+      await auditService.logAction({
+        userId,
+        userEmail: req.user?.email,
+        userRole: req.user?.role,
+        actionType: 'project_create',
+        entityType: 'project',
+        entityId: 'N/A',
+        entityName: name || 'Unknown',
+        operation: 'CREATE',
+        oldValues: null,
+        newValues: { name, description, project_type },
+        metadata: {
+          ip_address: req.ip,
+          user_agent: req.get('user-agent'),
+          payload_hash: payloadHash,
+          idempotency_key: req.get('Idempotency-Key'),
+          error_code: error.code,
+          error_name: error.name
+        },
+        status: 'FAILED',
+        errorMessage: error.message,
+        context: {
+          ipAddress: req.ip,
+          sessionId: req.sessionID,
+          requestId: req.id,
+          userId,
+          userEmail: req.user?.email,
+          userRole: req.user?.role
+        }
+      });
+      
+      systemLogger.error('Error creating project', {
+        userId,
+        error: error.message,
+        stack: error.stack
+      });
       res.status(500).json({ error: 'Failed to create project' });
     } finally {
       client.release();
