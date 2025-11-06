@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiFilter, FiDownload, FiEye, FiClock, FiUser, FiActivity, FiDatabase, FiArchive, FiTrash2, FiSettings } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiDownload, FiEye, FiClock, FiUser, FiActivity, FiDatabase, FiArchive, FiTrash2, FiSettings, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import axios from 'axios';
 
 const AuditTrail = () => {
@@ -15,13 +15,16 @@ const AuditTrail = () => {
   const [operationLoading, setOperationLoading] = useState(false);
   const [showRetentionPanel, setShowRetentionPanel] = useState(false);
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  
   const [filters, setFilters] = useState({
     userId: '',
     entityType: '',
     actionType: '',
     startDate: '',
     endDate: '',
-    limit: 100
+    limit: 1000
   });
 
   const actionTypes = [
@@ -162,6 +165,7 @@ const AuditTrail = () => {
   };
 
   const handleSearch = () => {
+    setCurrentPage(1);
     fetchAuditLogs();
   };
 
@@ -172,8 +176,24 @@ const AuditTrail = () => {
       actionType: '',
       startDate: '',
       endDate: '',
-      limit: 100
+      limit: 1000
     });
+    setCurrentPage(1);
+  };
+
+  const totalPages = Math.ceil(auditLogs.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedLogs = auditLogs.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
   };
 
   const handleExport = async () => {
@@ -403,7 +423,7 @@ const AuditTrail = () => {
             <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 User ID
@@ -472,18 +492,6 @@ const AuditTrail = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Limit
-              </label>
-              <input
-                type="number"
-                value={filters.limit}
-                onChange={(e) => handleFilterChange('limit', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
           </div>
 
           <div className="flex gap-3">
@@ -549,17 +557,17 @@ const AuditTrail = () => {
                       </td>
                     </tr>
                   ) : (
-                    auditLogs.map((log) => (
-                      <tr key={log.audit_id} className="hover:bg-gray-50">
+                    paginatedLogs.map((log) => (
+                      <tr key={log.audit_id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div className="flex items-center gap-2">
-                            <FiClock className="text-gray-400" />
+                            <FiClock className="text-gray-400 flex-shrink-0" />
                             {formatTimestamp(log.timestamp)}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <FiUser className="text-gray-400" />
+                            <FiUser className="text-gray-400 flex-shrink-0" />
                             <div>
                               <div className="text-sm font-medium text-gray-900">
                                 {log.user_email || log.user_id || 'System'}
@@ -588,13 +596,13 @@ const AuditTrail = () => {
                             {log.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <button
                             onClick={() => setSelectedLog(log)}
-                            className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                            className="text-blue-600 hover:text-blue-800 transition-colors p-1 hover:bg-blue-50 rounded"
+                            title="View Details"
                           >
-                            <FiEye />
-                            View Details
+                            <FiEye className="w-5 h-5" />
                           </button>
                         </td>
                       </tr>
@@ -603,6 +611,84 @@ const AuditTrail = () => {
                 </tbody>
               </table>
             </div>
+
+            {auditLogs.length > 0 && (
+              <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm text-gray-700">
+                      Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                      <span className="font-medium">{Math.min(endIndex, auditLogs.length)}</span> of{' '}
+                      <span className="font-medium">{auditLogs.length}</span> results
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-700">Rows per page:</label>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                        className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      <FiChevronLeft className="w-4 h-4" />
+                      Previous
+                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {[...Array(totalPages)].map((_, i) => {
+                        const pageNum = i + 1;
+                        if (
+                          pageNum === 1 ||
+                          pageNum === totalPages ||
+                          (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                        ) {
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handlePageChange(pageNum)}
+                              className={`px-3 py-1 border rounded-md text-sm font-medium ${
+                                currentPage === pageNum
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        } else if (
+                          pageNum === currentPage - 2 ||
+                          pageNum === currentPage + 2
+                        ) {
+                          return <span key={pageNum} className="px-2 text-gray-500">...</span>;
+                        }
+                        return null;
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      Next
+                      <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
