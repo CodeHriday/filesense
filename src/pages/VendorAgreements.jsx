@@ -822,7 +822,13 @@ const VendorAgreements = () => {
       });
       
       // Add status field based on isDraft
-      agreementData.status = isDraft ? 'draft' : 'active';
+      // For editing existing drafts, preserve draft status unless explicitly saving as draft or activating
+      if (modalMode === 'edit' && selectedAgreement?.status === 'draft' && !isDraft) {
+        // Keep as draft when updating a draft (clicking "Create Contract" on a draft)
+        agreementData.status = 'draft';
+      } else {
+        agreementData.status = isDraft ? 'draft' : 'active';
+      }
       
       // Backend expects 'agreementData' for CREATE and 'updateData' for UPDATE
       const dataKey = modalMode === 'create' ? 'agreementData' : 'updateData';
@@ -1498,7 +1504,7 @@ const VendorAgreements = () => {
                     Save Draft
                   </button>
                   <button type="submit" form="agreement-form">
-                    {modalMode === 'create' ? 'Create Contract' : 'Update Contract'}
+                    {modalMode === 'create' || selectedAgreement?.status === 'draft' ? 'Create Contract' : 'Update Contract'}
                   </button>
                 </>
               }
