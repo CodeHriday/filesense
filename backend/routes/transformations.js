@@ -83,7 +83,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN transform_connections sc ON CAST(tm.source_connection_id AS TEXT) = CAST(sc.id AS TEXT)
       LEFT JOIN transform_connections tc ON CAST(tm.target_connection_id AS TEXT) = CAST(tc.id AS TEXT)
       LEFT JOIN projects p ON tm.project_id = p.id
-      LEFT JOIN sub_projects sp ON tm.sub_project_id = sp.id
+      LEFT JOIN projects sp ON tm.sub_project_id = sp.id
     `;
     const params = [];
     const whereClauses = [];
