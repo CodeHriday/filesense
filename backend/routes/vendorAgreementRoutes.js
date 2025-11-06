@@ -897,6 +897,74 @@ router.patch('/:id/disable', requirePermission('vendor_agreements:write'), async
   }
 });
 
+// GET /api/vendor-agreements/:id/check-dependencies - Check if agreement has dependencies
+router.get('/:id/check-dependencies', requirePermission('vendor_agreements:read'), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    if (isNaN(agreementId)) {
+      return res.status(400).json({ error: 'Invalid agreement ID' });
+    }
+    
+    const { pool } = require('../config/database');
+    
+    // Check file schemas
+    const fileSchemasResult = await pool.query(
+      'SELECT COUNT(*) as count FROM vendor_agreement_file_schemas WHERE vendor_agreement_id = $1 AND is_active = TRUE',
+      [agreementId]
+    );
+    
+    // Check documents
+    const documentsResult = await pool.query(
+      'SELECT COUNT(*) as count FROM vendor_agreement_documents WHERE agreement_id = $1',
+      [agreementId]
+    );
+    
+    // Check for transformation mappings linked to this agreement
+    const mappingsResult = await pool.query(
+      `SELECT COUNT(*) as count FROM transformation_mappings 
+       WHERE vendor_agreement_id = $1`,
+      [agreementId]
+    );
+    
+    // Check for processed files through transformation jobs linked to this agreement
+    const processedFilesResult = await pool.query(
+      `SELECT COUNT(DISTINCT tj.id) as count 
+       FROM transformation_jobs tj
+       INNER JOIN transformation_mappings tm ON tj.mapping_id = tm.mapping_id
+       WHERE tm.vendor_agreement_id = $1
+       AND tj.status IN ('completed', 'running', 'pending')`,
+      [agreementId]
+    );
+    
+    const fileSchemasCount = parseInt(fileSchemasResult.rows[0].count) || 0;
+    const documentsCount = parseInt(documentsResult.rows[0].count) || 0;
+    const mappingsCount = parseInt(mappingsResult.rows[0].count) || 0;
+    const processedFilesCount = parseInt(processedFilesResult.rows[0].count) || 0;
+    
+    const totalDependencies = fileSchemasCount + documentsCount + mappingsCount + processedFilesCount;
+    const canDelete = totalDependencies === 0;
+    
+    res.json({
+      success: true,
+      canDelete,
+      dependencies: {
+        fileSchemas: fileSchemasCount,
+        documents: documentsCount,
+        transformationMappings: mappingsCount,
+        transformationJobs: processedFilesCount,
+        total: totalDependencies
+      }
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error checking agreement dependencies', { error: error.message });
+    res.status(500).json({ 
+      error: error.message || 'Failed to check dependencies'
+    });
+  }
+});
+
 // DELETE /api/vendor-agreements/:id - Delete a vendor agreement
 router.delete('/:id', requirePermission('vendor_agreements:write'), async (req, res) => {
   try {

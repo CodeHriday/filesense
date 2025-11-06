@@ -5,6 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
@@ -41,6 +42,11 @@ const VendorAgreements = () => {
     message: '',
     onConfirm: null
   });
+  
+  // Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteModalAgreement, setDeleteModalAgreement] = useState(null);
+  const [deleteModalDependencies, setDeleteModalDependencies] = useState(null);
   
   // S3 Folder Browser state
   const [s3BrowserOpen, setS3BrowserOpen] = useState(false);
@@ -1006,23 +1012,35 @@ const VendorAgreements = () => {
     }
   };
   
-  const handleDeleteAgreement = (agreementId, fileName) => {
-    setConfirmModalConfig({
-      title: 'Delete Agreement',
-      message: `Are you sure you want to delete agreement "${fileName}"?`,
-      onConfirm: async () => {
-        try {
-          await axios.delete(`/api/vendor-agreements/${agreementId}`);
-          setSuccessMessage('Vendor agreement deleted successfully!');
-          fetchData();
-          setTimeout(() => setSuccessMessage(''), 5000);
-        } catch (error) {
-          console.error('Error deleting agreement:', error);
-          setError('Failed to delete contract: ' + (error.response?.data?.error || error.message));
-        }
-      }
-    });
-    setConfirmModalOpen(true);
+  const handleDeleteAgreement = async (agreementId, fileName) => {
+    try {
+      // First, check for dependencies
+      const response = await axios.get(`/api/vendor-agreements/${agreementId}/check-dependencies`);
+      const dependencyData = response.data;
+      
+      // Find the full agreement object
+      const agreement = agreements.find(a => a.id === agreementId);
+      
+      // Set modal data and open the delete confirmation modal
+      setDeleteModalAgreement(agreement);
+      setDeleteModalDependencies(dependencyData);
+      setDeleteModalOpen(true);
+    } catch (error) {
+      console.error('Error checking dependencies:', error);
+      setError('Failed to check contract dependencies: ' + (error.response?.data?.error || error.message));
+    }
+  };
+  
+  const handleConfirmDelete = async (agreementId) => {
+    try {
+      await axios.delete(`/api/vendor-agreements/${agreementId}`);
+      setSuccessMessage('Vendor agreement deleted successfully!');
+      fetchData();
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (error) {
+      console.error('Error deleting agreement:', error);
+      setError('Failed to delete contract: ' + (error.response?.data?.error || error.message));
+    }
   };
   
   const handleDisableAgreement = (agreementId, fileName) => {
@@ -2447,6 +2465,16 @@ const VendorAgreements = () => {
             }}
             title={confirmModalConfig.title}
             message={confirmModalConfig.message}
+          />
+          
+          {/* Delete Confirmation Modal */}
+          <DeleteConfirmationModal
+            isOpen={deleteModalOpen}
+            onClose={() => setDeleteModalOpen(false)}
+            agreement={deleteModalAgreement}
+            dependencies={deleteModalDependencies}
+            onDelete={handleConfirmDelete}
+            onDisable={handleDisableAgreement}
           />
           
           {/* S3 Folder Browser Modal */}
