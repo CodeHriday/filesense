@@ -557,39 +557,41 @@ const VendorManagement = () => {
           <div className="form-section">
             <h3 className="section-title">Vendor Information</h3>
             
-            <div className="form-group">
-              <label htmlFor="vendor_name">
-                Vendor Name <span className="required-field">*</span>
-              </label>
-              <input
-                type="text"
-                id="vendor_name"
-                name="vendor_name"
-                value={formData.vendor_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="vendor_type">
-                Vendor Type <span className="required-field">*</span>
-              </label>
-              <select
-                id="vendor_type"
-                name="vendor_type"
-                value={formData.vendor_type}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">Select vendor type</option>
-                <option value="Data Provider">Data Provider</option>
-                <option value="Service Provider">Service Provider</option>
-                <option value="Technology Partner">Technology Partner</option>
-                <option value="Consultant">Consultant</option>
-                <option value="Supplier">Supplier</option>
-                <option value="Other">Other</option>
-              </select>
+            <div className="form-row-2col">
+              <div className="form-group">
+                <label htmlFor="vendor_name">
+                  Vendor Name <span className="required-field">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="vendor_name"
+                  name="vendor_name"
+                  value={formData.vendor_name}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="vendor_type">
+                  Vendor Type <span className="required-field">*</span>
+                </label>
+                <select
+                  id="vendor_type"
+                  name="vendor_type"
+                  value={formData.vendor_type}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select vendor type</option>
+                  <option value="Data Provider">Data Provider</option>
+                  <option value="Service Provider">Service Provider</option>
+                  <option value="Technology Partner">Technology Partner</option>
+                  <option value="Consultant">Consultant</option>
+                  <option value="Supplier">Supplier</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
             </div>
             
             <div className="form-group">
@@ -599,7 +601,7 @@ const VendorManagement = () => {
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                rows="3"
+                rows="2"
               />
             </div>
             
@@ -623,17 +625,32 @@ const VendorManagement = () => {
               </select>
             </div>
             
-            <div className="form-group">
-              <label htmlFor="contact_name">Contact Name (Auto-filled)</label>
-              <input
-                type="text"
-                id="contact_name"
-                name="contact_name"
-                value={formData.contact_name}
-                readOnly
-                disabled
-                style={{ backgroundColor: '#f3f4f6' }}
-              />
+            <div className="form-row-2col">
+              <div className="form-group">
+                <label htmlFor="contact_name">Contact Name (Auto-filled)</label>
+                <input
+                  type="text"
+                  id="contact_name"
+                  name="contact_name"
+                  value={formData.contact_name}
+                  readOnly
+                  disabled
+                  style={{ backgroundColor: '#f3f4f6' }}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="contact_phone">Contact Phone (Auto-filled)</label>
+                <input
+                  type="tel"
+                  id="contact_phone"
+                  name="contact_phone"
+                  value={formData.contact_phone}
+                  readOnly
+                  disabled
+                  style={{ backgroundColor: '#f3f4f6' }}
+                />
+              </div>
             </div>
             
             <div className="form-group">
@@ -653,26 +670,13 @@ const VendorManagement = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="contact_phone">Contact Phone (Auto-filled)</label>
-              <input
-                type="tel"
-                id="contact_phone"
-                name="contact_phone"
-                value={formData.contact_phone}
-                readOnly
-                disabled
-                style={{ backgroundColor: '#f3f4f6' }}
-              />
-            </div>
-            
-            <div className="form-group">
               <label htmlFor="address">Address</label>
               <textarea
                 id="address"
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
-                rows="3"
+                rows="2"
                 placeholder="Enter vendor's full address"
               />
             </div>
@@ -694,18 +698,34 @@ const VendorManagement = () => {
               </select>
             </div>
             
-            <div className="form-group">
-              <label htmlFor="backup_contact_name">Backup Contact Name (Auto-filled)</label>
-              <input
-                type="text"
-                id="backup_contact_name"
-                name="backup_contact_name"
-                value={formData.backup_contact_name}
-                readOnly
-                disabled
-                style={{ backgroundColor: '#f3f4f6' }}
-                placeholder="Alternate contact person"
-              />
+            <div className="form-row-2col">
+              <div className="form-group">
+                <label htmlFor="backup_contact_name">Backup Contact Name (Auto-filled)</label>
+                <input
+                  type="text"
+                  id="backup_contact_name"
+                  name="backup_contact_name"
+                  value={formData.backup_contact_name}
+                  readOnly
+                  disabled
+                  style={{ backgroundColor: '#f3f4f6' }}
+                  placeholder="Alternate contact person"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="backup_contact_phone">Backup Contact Phone (Auto-filled)</label>
+                <input
+                  type="tel"
+                  id="backup_contact_phone"
+                  name="backup_contact_phone"
+                  value={formData.backup_contact_phone}
+                  readOnly
+                  disabled
+                  style={{ backgroundColor: '#f3f4f6' }}
+                  placeholder="Alternate contact phone number"
+                />
+              </div>
             </div>
             
             <div className="form-group">
@@ -719,20 +739,6 @@ const VendorManagement = () => {
                 disabled
                 style={{ backgroundColor: '#f3f4f6' }}
                 placeholder="Alternate contact email"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="backup_contact_phone">Backup Contact Phone (Auto-filled)</label>
-              <input
-                type="tel"
-                id="backup_contact_phone"
-                name="backup_contact_phone"
-                value={formData.backup_contact_phone}
-                readOnly
-                disabled
-                style={{ backgroundColor: '#f3f4f6' }}
-                placeholder="Alternate contact phone number"
               />
             </div>
           </div>
