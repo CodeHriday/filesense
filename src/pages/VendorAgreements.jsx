@@ -870,10 +870,11 @@ const VendorAgreements = () => {
       }
       
       // Save file configurations after agreement is created/updated
-      const agreementId = modalMode === 'create' ? response.data.agreementId || response.data.id : selectedAgreement.id;
+      const agreementId = modalMode === 'create' ? response.data.agreement?.id : selectedAgreement.id;
       
       console.log('File configurations save check:', { 
         agreementId, 
+        responseData: response.data,
         fileConfigsLength: fileConfigurations.length,
         fileConfigurations: fileConfigurations 
       });
