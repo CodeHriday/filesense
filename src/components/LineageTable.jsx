@@ -48,6 +48,7 @@ function LineageTable({ lineages }) {
               <th></th>
               <th>Target File</th>
               <th>Transformation</th>
+              <th>Owner</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
@@ -66,6 +67,11 @@ function LineageTable({ lineages }) {
                       {lineage.type === 'transformation' 
                         ? (lineage.source_file_pattern ? 'PATTERN' : lineage.source_file_type?.toUpperCase())
                         : lineage.source_file_type?.toUpperCase()}
+                      {lineage.source_owner && (
+                        <span className="owner-badge" title="Source Owner">
+                          {' • '}{lineage.source_owner}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -83,6 +89,11 @@ function LineageTable({ lineages }) {
                       {lineage.type === 'transformation' 
                         ? (lineage.target_file_format?.toUpperCase() || 'PATTERN')
                         : lineage.target_file_type?.toUpperCase()}
+                      {lineage.target_owner && (
+                        <span className="owner-badge" title="Target Owner">
+                          {' • '}{lineage.target_owner}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -95,6 +106,25 @@ function LineageTable({ lineages }) {
                   ) : (
                     <span className="no-transformation">Direct</span>
                   )}
+                </td>
+                <td className="owner-cell">
+                  <div className="owner-info">
+                    {lineage.source_owner && (
+                      <div className="owner-item" title="Source Owner">
+                        <span className="owner-label">Src:</span>
+                        <span className="owner-value">{lineage.source_owner}</span>
+                      </div>
+                    )}
+                    {lineage.target_owner && (
+                      <div className="owner-item" title="Target Owner">
+                        <span className="owner-label">Tgt:</span>
+                        <span className="owner-value">{lineage.target_owner}</span>
+                      </div>
+                    )}
+                    {!lineage.source_owner && !lineage.target_owner && (
+                      <span className="no-owner">N/A</span>
+                    )}
+                  </div>
                 </td>
                 <td className="date-cell">{formatDate(lineage.created_at)}</td>
                 <td className="actions-cell">

@@ -101,6 +101,46 @@
   font-style: italic;
 }
 
+.owner-cell {
+  min-width: 150px;
+}
+
+.owner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.owner-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.813rem;
+}
+
+.owner-label {
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.owner-value {
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.owner-badge {
+  color: #6366f1;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+.no-owner {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
 .date-cell {
   color: #6b7280;
   font-size: 0.875rem;

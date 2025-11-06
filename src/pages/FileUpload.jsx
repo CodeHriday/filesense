@@ -74,6 +74,10 @@ function FileUpload() {
   const [selectedAgreementSchema, setSelectedAgreementSchema] = useState(null);
   const [loadingAgreements, setLoadingAgreements] = useState(false);
   
+  // Owner dropdown states
+  const [availableOwners, setAvailableOwners] = useState([]);
+  const [loadingOwners, setLoadingOwners] = useState(false);
+  
   // Set initial tab based on route or user type
   useEffect(() => {
     if (location.pathname === '/drop') {
@@ -253,6 +257,89 @@ function FileUpload() {
       }
     }
   }, [selectedAgreement, vendorAgreements]);
+  
+  // Fetch available owners based on context
+  useEffect(() => {
+    const fetchAvailableOwners = async () => {
+      try {
+        setLoadingOwners(true);
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          setAvailableOwners([]);
+          return;
+        }
+        
+        let owners = [];
+        
+        // For vendor users, show their agreement's primary and secondary contacts
+        if (currentUser && isVendorUser(currentUser)) {
+          if (selectedConnection) {
+            try {
+              const response = await axios.get(
+                `${API_BASE_URL}/api/vendor-access/connections/${selectedConnection}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              
+              const connection = response.data;
+              if (connection.primary_contact_email) {
+                owners.push({ email: connection.primary_contact_email, label: `${connection.primary_contact_email} (Primary)` });
+              }
+              if (connection.secondary_contact_email) {
+                owners.push({ email: connection.secondary_contact_email, label: `${connection.secondary_contact_email} (Secondary)` });
+              }
+            } catch (error) {
+              console.error('Error fetching connection contacts:', error);
+            }
+          }
+        } 
+        // For internal users with contract validation, show agreement contacts
+        else if (uploadType === 'contract' && selectedAgreement) {
+          const agreement = vendorAgreements.find(a => a.id === parseInt(selectedAgreement));
+          if (agreement) {
+            if (agreement.primary_contact_email) {
+              owners.push({ email: agreement.primary_contact_email, label: `${agreement.primary_contact_email} (Primary)` });
+            }
+            if (agreement.secondary_contact_email) {
+              owners.push({ email: agreement.secondary_contact_email, label: `${agreement.secondary_contact_email} (Secondary)` });
+            }
+          }
+        }
+        // For internal users with ad-hoc upload, show project members
+        else if (selectedProject) {
+          try {
+            const response = await axios.get(
+              `${API_BASE_URL}/api/projects/${selectedProject}/members`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            owners = response.data.members.map(member => ({
+              email: member.email,
+              label: member.full_name ? `${member.full_name} (${member.email})` : member.email
+            }));
+          } catch (error) {
+            console.error('Error fetching project members:', error);
+          }
+        }
+        
+        setAvailableOwners(owners);
+        
+        // Auto-select current user if they're in the list
+        if (currentUser?.email && owners.some(o => o.email === currentUser.email)) {
+          setFileOwner(currentUser.email);
+        } else if (owners.length > 0) {
+          setFileOwner(owners[0].email);
+        }
+      } catch (error) {
+        console.error('Error fetching available owners:', error);
+        setAvailableOwners([]);
+      } finally {
+        setLoadingOwners(false);
+      }
+    };
+    
+    fetchAvailableOwners();
+  }, [selectedProject, uploadType, selectedAgreement, vendorAgreements, selectedConnection, currentUser]);
   
   // Cleanup polling on unmount
   useEffect(() => {
@@ -979,23 +1066,36 @@ function FileUpload() {
           <div className="modal-content ownership-modal">
             <h2>Edit File Owner</h2>
             <p className="modal-description">
-              Set the owner for files you upload. This defaults to your email address.
+              Select the owner for files you upload from the available users.
             </p>
             <div className="form-group">
-              <label htmlFor="owner-input">Owner Email:</label>
-              <input
-                id="owner-input"
-                type="email"
-                value={tempOwner}
-                onChange={(e) => setTempOwner(e.target.value)}
-                placeholder="owner@example.com"
-                className="form-control"
-              />
+              <label htmlFor="owner-select">Owner:</label>
+              {loadingOwners ? (
+                <div className="loading-spinner">Loading available owners...</div>
+              ) : availableOwners.length > 0 ? (
+                <select
+                  id="owner-select"
+                  value={tempOwner}
+                  onChange={(e) => setTempOwner(e.target.value)}
+                  className="form-control"
+                >
+                  {availableOwners.map((owner) => (
+                    <option key={owner.email} value={owner.email}>
+                      {owner.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="no-owners-message">
+                  No available owners found. Please select a project {uploadType === 'contract' ? 'and agreement' : ''} first.
+                </div>
+              )}
             </div>
             <div className="modal-actions">
               <button 
                 className="btn btn-primary"
                 onClick={handleSaveOwner}
+                disabled={!tempOwner || loadingOwners}
               >
                 Save
               </button>

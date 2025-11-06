@@ -101,6 +101,9 @@ function MappingWizard() {
   const [schemaDriftHandling, setSchemaDriftHandling] = useState('none'); // 'abort', 'alert', 'none'
   const [schemaDriftDetected, setSchemaDriftDetected] = useState(false);
   const [schemaDriftMessage, setSchemaDriftMessage] = useState('');
+  const [sourceOwner, setSourceOwner] = useState('');
+  const [availableSourceOwners, setAvailableSourceOwners] = useState([]);
+  const [loadingSourceOwners, setLoadingSourceOwners] = useState(false);
 
   // Step 3: Schema & Field Mapping
   const [schema, setSchema] = useState([]);
@@ -113,6 +116,9 @@ function MappingWizard() {
   const [targetFilePath, setTargetFilePath] = useState('');
   const [targetFileName, setTargetFileName] = useState('');
   const [targetFileFormat, setTargetFileFormat] = useState('csv');
+  const [targetOwner, setTargetOwner] = useState('');
+  const [dataStewards, setDataStewards] = useState([]);
+  const [loadingDataStewards, setLoadingDataStewards] = useState(false);
   const [anomalyRulesExpanded, setAnomalyRulesExpanded] = useState(false);
   const [anomalyRules, setAnomalyRules] = useState([
     { metric: 'numeric_deviation', threshold: 10, enabled: true },
@@ -138,6 +144,7 @@ function MappingWizard() {
     fetchConnections();
     fetchProjects();
     fetchVendorAgreements();
+    fetchDataStewards();
     if (isEditMode) {
       loadMapping();
     }
@@ -161,6 +168,37 @@ function MappingWizard() {
       setSubProjectId('');
     }
   }, [projectId]);
+
+  // Fetch source owners when projectId or selectedVendorAgreement changes
+  useEffect(() => {
+    if (selectedVendorAgreement) {
+      // Populate from vendor agreement contacts
+      const agreement = vendorAgreements.find(a => a.id === parseInt(selectedVendorAgreement));
+      if (agreement) {
+        const owners = [];
+        if (agreement.primary_contact_email) {
+          owners.push({
+            email: agreement.primary_contact_email,
+            label: `${agreement.primary_contact_email} (Primary)`,
+            type: 'primary'
+          });
+        }
+        if (agreement.secondary_contact_email) {
+          owners.push({
+            email: agreement.secondary_contact_email,
+            label: `${agreement.secondary_contact_email} (Secondary)`,
+            type: 'secondary'
+          });
+        }
+        setAvailableSourceOwners(owners);
+      }
+    } else if (projectId) {
+      // Fetch project members
+      fetchProjectMembers(projectId);
+    } else {
+      setAvailableSourceOwners([]);
+    }
+  }, [projectId, selectedVendorAgreement, vendorAgreements]);
 
   const fetchConnections = async () => {
     try {
@@ -231,6 +269,49 @@ function MappingWizard() {
       setVendorAgreements([]);
     }
   };
+
+  const fetchProjectMembers = async (selectedProjectId) => {
+    if (!selectedProjectId) {
+      setAvailableSourceOwners([]);
+      return;
+    }
+    
+    try {
+      setLoadingSourceOwners(true);
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${selectedProjectId}/members`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      const members = (response.data || []).map(member => ({
+        email: member.email,
+        label: member.full_name ? `${member.full_name} (${member.email})` : member.email,
+        type: 'member'
+      }));
+      
+      setAvailableSourceOwners(members);
+    } catch (err) {
+      console.error('Error fetching project members:', err);
+      setAvailableSourceOwners([]);
+    } finally {
+      setLoadingSourceOwners(false);
+    }
+  };
+
+  const fetchDataStewards = async () => {
+    try {
+      setLoadingDataStewards(true);
+      const response = await axios.get(`${API_BASE_URL}/api/users/data-stewards`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      setDataStewards(response.data.dataStewards || []);
+    } catch (err) {
+      console.error('Error fetching data stewards:', err);
+      setDataStewards([]);
+    } finally {
+      setLoadingDataStewards(false);
+    }
+  };
   
   const fetchQualityRules = async () => {
     if (!projectId) return;
@@ -264,10 +345,12 @@ function MappingWizard() {
       setSourceType(mapping.source_type || 'files');
       setFilePath(mapping.file_path || '');
       setFileNamePattern(mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern || '*.csv');
+      setSourceOwner(mapping.source_owner || '');
       setTargetConnectionId(mapping.target_connection_id || '');
       setTargetFilePath(mapping.target_file_path || '');
       setTargetFileName(mapping.target_file_name || '');
       setTargetFileFormat(mapping.target_file_format || 'csv');
+      setTargetOwner(mapping.target_owner || '');
       setFieldMappings(mapping.field_mappings || []);
       setVariables(mapping.variables || []);
       setSchemaDriftHandling(mapping.schema_drift_handling || 'none');
@@ -548,10 +631,12 @@ function MappingWizard() {
         source_type: sourceType,
         file_path: filePath,
         file_name_pattern: fileNamePattern,
+        source_owner: sourceOwner || null,
         target_connection_id: targetConnectionId || null,
         target_file_path: targetFilePath || null,
         target_file_name: targetFileName || null,
         target_file_format: targetFileFormat || 'csv',
+        target_owner: targetOwner || null,
         field_mappings: fieldMappings,
         variables: variables,
         anomaly_rules: anomalyRulesObject,
@@ -997,6 +1082,35 @@ function MappingWizard() {
               </small>
             </div>
 
+            {/* Source Owner Field */}
+            <div className="form-group">
+              <label>Source File Owner</label>
+              <select
+                className="form-control"
+                value={sourceOwner}
+                onChange={(e) => setSourceOwner(e.target.value)}
+                disabled={loadingSourceOwners || availableSourceOwners.length === 0}
+              >
+                <option value="">Select source file owner (optional)...</option>
+                {availableSourceOwners.map((owner, idx) => (
+                  <option key={idx} value={owner.email}>
+                    {owner.label}
+                  </option>
+                ))}
+              </select>
+              <small className="form-help">
+                {loadingSourceOwners ? (
+                  'Loading available owners...'
+                ) : selectedVendorAgreement ? (
+                  'Select from vendor agreement contacts (primary or secondary)'
+                ) : projectId ? (
+                  'Select from project members'
+                ) : (
+                  'Select a project or vendor agreement first'
+                )}
+              </small>
+            </div>
+
             {/* Schema Drift Handling - Available for all source types */}
             <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
@@ -1157,6 +1271,32 @@ function MappingWizard() {
                 <option value="parquet">Parquet</option>
               </select>
               <small className="form-help">Choose output file format (any format can be converted to any other format)</small>
+            </div>
+
+            <div className="form-group">
+              <label>Target File Owner (Data Steward)</label>
+              <select
+                className="form-control"
+                value={targetOwner}
+                onChange={(e) => setTargetOwner(e.target.value)}
+                disabled={loadingDataStewards || dataStewards.length === 0}
+              >
+                <option value="">Select target file owner (optional)...</option>
+                {dataStewards.map((steward) => (
+                  <option key={steward.id} value={steward.email}>
+                    {steward.full_name ? `${steward.full_name} (${steward.email})` : steward.email}
+                  </option>
+                ))}
+              </select>
+              <small className="form-help">
+                {loadingDataStewards ? (
+                  'Loading data stewards...'
+                ) : dataStewards.length === 0 ? (
+                  'No data stewards available'
+                ) : (
+                  'Select a data steward to own the target file'
+                )}
+              </small>
             </div>
 
             {/* Quality Rules Selection */}
