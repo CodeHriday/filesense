@@ -2180,20 +2180,20 @@ class VendorAgreementService {
       
       if (agreementIds.length > 0) {
         const fileSchemasResult = await pool.query(
-          `SELECT agreement_id, file_name, file_description, schema, contains_pii, 
+          `SELECT vendor_agreement_id, file_name, file_description, schema, contains_pii, 
                   data_classification, file_type, quality_rule_ids, created_at
            FROM vendor_agreement_file_schemas 
-           WHERE agreement_id = ANY($1)
+           WHERE vendor_agreement_id = ANY($1)
            ORDER BY created_at ASC`,
           [agreementIds]
         );
         
-        // Group file schemas by agreement_id
+        // Group file schemas by vendor_agreement_id
         fileSchemasResult.rows.forEach(schema => {
-          if (!fileSchemasMap[schema.agreement_id]) {
-            fileSchemasMap[schema.agreement_id] = [];
+          if (!fileSchemasMap[schema.vendor_agreement_id]) {
+            fileSchemasMap[schema.vendor_agreement_id] = [];
           }
-          fileSchemasMap[schema.agreement_id].push(schema);
+          fileSchemasMap[schema.vendor_agreement_id].push(schema);
         });
       }
       
