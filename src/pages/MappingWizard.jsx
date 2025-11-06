@@ -668,11 +668,6 @@ function MappingWizard() {
 
       setSaveSuccess(true);
       setError(null);
-      
-      if (isDraft) {
-        // Show success message for draft save
-        setTimeout(() => setSaveSuccess(false), 3000);
-      }
       // Don't change currentStep - let the wizard stay where it is
     } catch (err) {
       console.error('Save mapping error:', err);
