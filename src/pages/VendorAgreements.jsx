@@ -6,6 +6,7 @@ import Pagination from '../components/Pagination';
 import ThreeSectionModal from '../components/ThreeSectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import NotificationModal from '../components/NotificationModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import VendorUserSelect from '../components/VendorUserSelect';
 import ThreeStageApprovalPanel from '../components/ThreeStageApprovalPanel';
@@ -69,6 +70,14 @@ const VendorAgreements = () => {
   const [multipleFilesModalOpen, setMultipleFilesModalOpen] = useState(false);
   const [multipleFilesData, setMultipleFilesData] = useState([]);
   const [modalSuccessMessage, setModalSuccessMessage] = useState('');
+  
+  // Notification modal state
+  const [notificationModal, setNotificationModal] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
   
   const [formData, setFormData] = useState({
     vendor_id: '',
@@ -603,7 +612,6 @@ const VendorAgreements = () => {
     setTemplateFile(null);
     setModalMode('create');
     setError('');
-    setModalError('');
     setSuccessMessage('');
     setModalOpen(true);
   };
@@ -698,7 +706,6 @@ const VendorAgreements = () => {
     });
     setTemplateFile(null);
     setModalMode('edit');
-    setModalError('');
     setSuccessMessage('');
     setModalOpen(true);
   };
@@ -713,7 +720,6 @@ const VendorAgreements = () => {
   const closeModal = () => {
     setModalOpen(false);
     setSelectedAgreement(null);
-    setModalError('');
     setTemplateFile(null);
   };
   
@@ -752,41 +758,76 @@ const VendorAgreements = () => {
     
     // Critical validation: ensure vendor_id is present for vendor users
     if (isVendor && !formData.vendor_id) {
-      setModalError('Unable to determine your vendor. Please refresh the page and try again.');
+      setNotificationModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Unable to determine your vendor. Please refresh the page and try again.'
+      });
       return;
     }
     
     // Vendor is always required (even for drafts)
     if (!formData.vendor_id) {
-      setModalError('Vendor is required');
+      setNotificationModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Vendor is required'
+      });
       return;
     }
     
     // Only validate other fields if not saving as draft
     if (!isDraft) {
       if (!formData.file_owner_user_id) {
-        setModalError('File owner is required');
+        setNotificationModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Error',
+          message: 'File owner is required'
+        });
         return;
       }
       
       if (!formData.governance_manager_user_id) {
-        setModalError('Governance manager is required');
+        setNotificationModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Error',
+          message: 'Governance manager is required'
+        });
         return;
       }
       
       if (!formData.vendor_connection_id) {
-        setModalError('Vendor connection is required');
+        setNotificationModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Error',
+          message: 'Vendor connection is required'
+        });
         return;
       }
     }
     
     if (formData.schema && !validateJSON(formData.schema)) {
-      setModalError('Invalid JSON format in schema');
+      setNotificationModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Invalid JSON format in schema'
+      });
       return;
     }
     
     if (formData.metadata && !validateJSON(formData.metadata)) {
-      setModalError('Invalid JSON format in metadata');
+      setNotificationModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Invalid JSON format in metadata'
+      });
       return;
     }
     
@@ -847,7 +888,12 @@ const VendorAgreements = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
-        setModalSuccessMessage(isDraft ? 'Draft saved successfully!' : 'Vendor agreement created successfully!');
+        setNotificationModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: isDraft ? 'Draft saved successfully!' : 'Vendor agreement created successfully!'
+        });
       } else {
         if (selectedAgreement.is_locked && isAdmin) {
           setConfirmModalConfig({
@@ -860,10 +906,13 @@ const VendorAgreements = () => {
                     'Content-Type': 'multipart/form-data'
                   }
                 });
-                setModalSuccessMessage('Vendor agreement updated successfully!');
-                setModalError('');
+                setNotificationModal({
+                  isOpen: true,
+                  type: 'success',
+                  title: 'Success',
+                  message: 'Vendor agreement updated successfully!'
+                });
                 setTimeout(() => {
-                  setModalSuccessMessage('');
                   closeModal();
                   fetchData();
                 }, 2000);
@@ -876,7 +925,12 @@ const VendorAgreements = () => {
                 } else if (error.message) {
                   errorMessage += ': ' + error.message;
                 }
-                setModalError(errorMessage);
+                setNotificationModal({
+                  isOpen: true,
+                  type: 'error',
+                  title: 'Error',
+                  message: errorMessage
+                });
               }
             }
           });
@@ -889,7 +943,12 @@ const VendorAgreements = () => {
             'Content-Type': 'multipart/form-data'
           }
         });
-        setModalSuccessMessage('Vendor agreement updated successfully!');
+        setNotificationModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: 'Vendor agreement updated successfully!'
+        });
       }
       
       // Save file configurations after agreement is created/updated
@@ -928,16 +987,18 @@ const VendorAgreements = () => {
         } catch (fileConfigError) {
           console.error('Error saving file configurations:', fileConfigError);
           console.error('Error details:', fileConfigError.response?.data);
-          setModalError('Agreement saved but failed to save file configurations: ' + (fileConfigError.response?.data?.error || fileConfigError.message));
+          setNotificationModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Partial Error',
+            message: 'Agreement saved but failed to save file configurations: ' + (fileConfigError.response?.data?.error || fileConfigError.message)
+          });
         }
       } else {
         console.log('Skipping file configurations save:', { agreementId, hasConfigs: fileConfigurations.length > 0 });
       }
       
-      setModalError('');
-      
       setTimeout(() => {
-        setModalSuccessMessage('');
         closeModal();
         fetchData();
       }, 2000);
@@ -953,7 +1014,12 @@ const VendorAgreements = () => {
         errorMessage += ': ' + error.message;
       }
       
-      setModalError(errorMessage);
+      setNotificationModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: errorMessage
+      });
     }
   };
   
@@ -1528,19 +1594,6 @@ const VendorAgreements = () => {
                 </>
               }
             >
-              {modalSuccessMessage && (
-                <div style={{
-                  padding: '1rem',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  borderRadius: '8px',
-                  marginBottom: '1rem',
-                  textAlign: 'center',
-                  fontWeight: 500
-                }}>
-                  {modalSuccessMessage}
-                </div>
-              )}
               <form id="agreement-form" onSubmit={handleSubmit} className="agreement-form">
                 {/* Section 1: Quick Setup with Template (Optional - Auto-populate fields) */}
                 {modalMode === 'create' && (
@@ -2190,13 +2243,6 @@ const VendorAgreements = () => {
                   fileConfigurations={fileConfigurations}
                   onChange={setFileConfigurations}
                 />
-                
-                {/* Error Message at Bottom */}
-                {modalError && (
-                  <div className="modal-error-message" role="alert" style={{ marginTop: '1.5rem' }}>
-                    {modalError}
-                  </div>
-                )}
               </form>
             </ThreeSectionModal>
           )}
@@ -2656,6 +2702,15 @@ const VendorAgreements = () => {
               </div>
             </ThreeSectionModal>
           )}
+          
+          {/* Notification Modal for Success/Error Messages */}
+          <NotificationModal
+            isOpen={notificationModal.isOpen}
+            onClose={() => setNotificationModal({ ...notificationModal, isOpen: false })}
+            type={notificationModal.type}
+            title={notificationModal.title}
+            message={notificationModal.message}
+          />
         </>
       )}
     </div>
