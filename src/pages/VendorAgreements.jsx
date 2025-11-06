@@ -1094,6 +1094,14 @@ const VendorAgreements = () => {
           secondary_contact_designation: ''
         }));
         
+        // Populate file configurations from template
+        if (agreement.fileConfigurations && agreement.fileConfigurations.length > 0) {
+          console.log('Setting file configurations from template:', agreement.fileConfigurations);
+          setFileConfigurations(agreement.fileConfigurations);
+        } else {
+          setFileConfigurations([]);
+        }
+        
         setModalOpen(true);
         
         if (response.data.agreements.length > 1) {
