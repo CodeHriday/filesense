@@ -63,11 +63,15 @@ The application features a hybrid architecture designed for scalability, securit
 
 ### Group-Based Access Control Database Structure
 **IMPORTANT:** The database uses the following tables for group-based project access:
-- **`user_groups`** - Links users to groups (user_id, group_id)
-- **`project_access_groups`** - Links groups to projects (project_id, group_id)
+- **`access_groups`** - Group definitions (id, name, description, group_type, etc.)
+- **`user_groups`** - Links users to groups (user_id, group_id) - Foreign key to `access_groups.id`
+- **`project_access_groups`** - Links groups to projects (project_id, group_id) - Foreign key to `access_groups.id`
+
+**Group Management Routes:** The Group Management UI (`backend/routes/groupRoutes.js`) now uses `user_groups` table for all member operations (November 2025 fix). Previously used `access_group_members` table, causing sync issues.
 
 **DO NOT USE:**
-- `access_group_members` (empty, newer schema not yet populated)
+- `access_group_members` (legacy table, no longer used)
+- `groups` (legacy table with orphaned data)
 - `group_projects` (does not exist)
 
 **Dashboard Metrics Pattern:** For non-admin users, always UNION direct membership (`project_members`) with group-based membership (`user_groups` → `project_access_groups`):
