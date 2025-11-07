@@ -845,8 +845,24 @@ print(json.dumps(result))
    * Save file metadata to database
    */
   async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null) {
-    // Build metadata object with encoding, delimiter, preview data, and header validation
+    // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
+    let existingMetadata = {};
+    try {
+      const existingFile = await this.dbPool.query('SELECT metadata FROM files WHERE file_id = $1', [fileId]);
+      if (existingFile.rows.length > 0 && existingFile.rows[0].metadata) {
+        existingMetadata = typeof existingFile.rows[0].metadata === 'string' 
+          ? JSON.parse(existingFile.rows[0].metadata) 
+          : existingFile.rows[0].metadata;
+      }
+    } catch (err) {
+      this.logger.warn('Could not fetch existing metadata, will create new', { fileId, error: err.message });
+    }
+
+    // Merge existing metadata with new profiling data
+    // Existing fields (connection_id, storage_location, provider, etc.) are preserved
+    // New/updated fields (encoding, delimiter, preview_data, header_validation) are added
     const metadata = {
+      ...existingMetadata, // Preserve original metadata
       encoding: fileInfo.encoding || null,
       delimiter: fileInfo.delimiter || null,
       preview_data: fileInfo.preview_data || [],
@@ -907,7 +923,22 @@ print(json.dumps(result))
    * Save failed file metadata to database with error information
    */
   async saveFailedFileMetadata(fileId, filename, fileType, fileSize, errorMessage, fileHash, projectId) {
+    // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
+    let existingMetadata = {};
+    try {
+      const existingFile = await this.dbPool.query('SELECT metadata FROM files WHERE file_id = $1', [fileId]);
+      if (existingFile.rows.length > 0 && existingFile.rows[0].metadata) {
+        existingMetadata = typeof existingFile.rows[0].metadata === 'string' 
+          ? JSON.parse(existingFile.rows[0].metadata) 
+          : existingFile.rows[0].metadata;
+      }
+    } catch (err) {
+      this.logger.warn('Could not fetch existing metadata for failed file, will create new', { fileId, error: err.message });
+    }
+
+    // Merge existing metadata with error information
     const metadata = {
+      ...existingMetadata, // Preserve original metadata
       encoding: null,
       delimiter: null,
       preview_data: [],
