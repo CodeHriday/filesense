@@ -514,6 +514,7 @@ function MappingWizard() {
             `${API_BASE_URL}/api/transformations/validate-vendor-schema`,
             {
               vendor_agreement_id: selectedVendorAgreement,
+              vendor_agreement_file_schema_id: selectedFileSchema?.id || null,
               source_connection_id: connectionIdToUse,
               file_path: filePath,
               file_name_pattern: fileNamePattern

@@ -1035,7 +1035,7 @@ router.post('/extract-schema', async (req, res) => {
  */
 router.post('/validate-vendor-schema', async (req, res) => {
   try {
-    const { vendor_agreement_id, source_connection_id, file_path = '', file_name_pattern } = req.body;
+    const { vendor_agreement_id, vendor_agreement_file_schema_id, source_connection_id, file_path = '', file_name_pattern } = req.body;
     
     if (!vendor_agreement_id) {
       return res.status(400).json({ error: 'Vendor agreement ID is required' });
@@ -1057,7 +1057,8 @@ router.post('/validate-vendor-schema', async (req, res) => {
       vendor_agreement_id,
       source_connection_id,
       normalizedPath || '/',
-      file_name_pattern
+      file_name_pattern,
+      vendor_agreement_file_schema_id || null
     );
     
     res.json(validationResult);
