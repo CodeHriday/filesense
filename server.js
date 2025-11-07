@@ -1808,8 +1808,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         SELECT DISTINCT
           vafs.id as schema_id,
           vafs.file_name_pattern,
-          vafs.file_description,
-          va.agreement_name
+          vafs.file_description
         FROM vendor_agreement_file_schemas vafs
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
         WHERE va.vendor_connection_id = $1
