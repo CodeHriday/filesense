@@ -71,7 +71,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -225,6 +225,21 @@ class FileProcessingWorker {
           this.logger.warn('Failed to apply vendor agreement governance', { 
             fileId, 
             agreementId, 
+            error: govError.message 
+          });
+          // Don't fail the job - governance is supplementary
+        }
+      }
+
+      // Step 5.8: Apply vendor file governance metadata (ISOLATED from contract validation)
+      // This block ONLY runs for vendor file uploads (isVendorFile flag set during upload)
+      // Does NOT affect: contract validation files, mapping jobs, or normal file uploads
+      if (isVendorFile && fileInfo.schema && fileInfo.schema.length > 0 && !agreementId) {
+        try {
+          await this.applyVendorFileGovernance(fileId, originalName, fileInfo.schema, projectId);
+        } catch (govError) {
+          this.logger.warn('Failed to apply vendor file governance', { 
+            fileId, 
             error: govError.message 
           });
           // Don't fail the job - governance is supplementary
@@ -1371,6 +1386,189 @@ print(json.dumps(result))
       });
     } else {
       this.logger.error('Failed to apply governance metadata', {
+        fileId,
+        error: result.error
+      });
+    }
+  }
+
+  /**
+   * Apply vendor file governance metadata (file tags, PII columns, sensitivity)
+   * This is ISOLATED from contract validation and only runs for vendor file uploads
+   * Does NOT affect: contract validation files, mapping jobs, or normal file uploads
+   * @param {string} fileId - File ID
+   * @param {string} filename - Original filename
+   * @param {Array} schema - Profiled file schema
+   * @param {number} projectId - Project ID
+   */
+  async applyVendorFileGovernance(fileId, filename, schema, projectId) {
+    this.logger.info('Applying vendor file governance (isolated path)', { fileId, filename, projectId });
+    
+    // Step 1: Get connection_id from file metadata
+    const fileResult = await this.dbPool.query(`
+      SELECT metadata
+      FROM files
+      WHERE file_id = $1
+    `, [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      this.logger.warn('File not found for vendor governance', { fileId });
+      return;
+    }
+    
+    const metadata = typeof fileResult.rows[0].metadata === 'string' 
+      ? JSON.parse(fileResult.rows[0].metadata) 
+      : fileResult.rows[0].metadata;
+    
+    const connectionId = metadata.connection_id;
+    
+    if (!connectionId) {
+      this.logger.warn('No connection_id found in vendor file metadata', { fileId });
+      return;
+    }
+    
+    this.logger.info('Retrieved connection_id from file metadata', { fileId, connectionId });
+    
+    // Step 2: Query vendor agreement file schemas using connection_id
+    const schemaResult = await this.dbPool.query(`
+      SELECT 
+        vafs.id as schema_id,
+        vafs.file_name_pattern,
+        vafs.schema,
+        vafs.contains_pii,
+        vafs.data_classification,
+        vafs.quality_rule_ids,
+        vafs.priority,
+        va.id as agreement_id,
+        va.agreement_code
+      FROM vendor_agreement_file_schemas vafs
+      INNER JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
+      WHERE va.vendor_connection_id = $1
+        AND va.project_id = $2
+        AND va.approval_status = 'governance_approved'
+        AND va.is_locked = true
+        AND va.status = 'active'
+        AND vafs.is_active = true
+      ORDER BY vafs.priority ASC NULLS LAST
+    `, [connectionId, projectId]);
+    
+    this.logger.info('Fetched vendor agreement file schemas', {
+      fileId,
+      connectionId,
+      schemaCount: schemaResult.rows.length,
+      schemas: schemaResult.rows.map(r => ({
+        schema_id: r.schema_id,
+        pattern: r.file_name_pattern,
+        contains_pii: r.contains_pii,
+        classification: r.data_classification,
+        quality_rules: r.quality_rule_ids
+      }))
+    });
+    
+    if (schemaResult.rows.length === 0) {
+      this.logger.info('No vendor agreement file schemas found for connection', { fileId, connectionId });
+      return;
+    }
+    
+    // Step 3: Match filename against patterns
+    const { matchFilePattern } = require('../utils/filePatternMatcher');
+    let matchedSchema = null;
+    
+    for (const row of schemaResult.rows) {
+      if (!row.file_name_pattern) {
+        continue;
+      }
+      
+      const isMatch = matchFilePattern(filename, row.file_name_pattern);
+      
+      if (isMatch) {
+        matchedSchema = row;
+        this.logger.info('Matched vendor file pattern', {
+          fileId,
+          filename,
+          pattern: row.file_name_pattern,
+          schema_id: row.schema_id,
+          contains_pii: row.contains_pii,
+          classification: row.data_classification
+        });
+        break;
+      }
+    }
+    
+    // Fallback to first schema if no pattern match
+    if (!matchedSchema && schemaResult.rows[0].schema) {
+      matchedSchema = schemaResult.rows[0];
+      this.logger.warn('No pattern match, using first schema as fallback', {
+        fileId,
+        filename,
+        fallback_pattern: matchedSchema.file_name_pattern
+      });
+    }
+    
+    if (!matchedSchema) {
+      this.logger.warn('No matching schema found for vendor file', { fileId, filename });
+      return;
+    }
+    
+    // Step 4: Extract PII columns from schema
+    const schemaObj = typeof matchedSchema.schema === 'string' 
+      ? JSON.parse(matchedSchema.schema) 
+      : matchedSchema.schema;
+    
+    let piiColumnNames = [];
+    if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+      const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
+      piiColumnNames = piiColumns.map(col => col.name || col.column_name);
+      
+      this.logger.info('PII columns detected in vendor file schema', {
+        fileId,
+        piiColumnCount: piiColumns.length,
+        piiColumns: piiColumnNames
+      });
+    }
+    
+    // Step 5: Extract file-level tags from quality_rule_ids
+    let fileTags = [];
+    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids)) {
+      try {
+        const rulesResult = await this.dbPool.query(`
+          SELECT id, rule_name 
+          FROM quality_rules 
+          WHERE id = ANY($1::int[])
+        `, [matchedSchema.quality_rule_ids]);
+        
+        fileTags = rulesResult.rows.map(r => r.rule_name);
+        
+        this.logger.info('Extracted file-level tags from quality rules for vendor file', {
+          fileId,
+          ruleIds: matchedSchema.quality_rule_ids,
+          tags: fileTags
+        });
+      } catch (tagError) {
+        this.logger.warn('Failed to fetch quality rule names for vendor file tags', {
+          fileId,
+          error: tagError.message
+        });
+      }
+    }
+    
+    // Step 6: Use unified governance service to persist all metadata atomically
+    const result = await persistGovernanceMetadata(this.dbPool, {
+      fileId,
+      containsPii: matchedSchema.contains_pii || false,
+      dataClassification: matchedSchema.data_classification,
+      fileTags,
+      piiColumns: piiColumnNames,
+      profiledSchema: schema
+    });
+    
+    if (result.success) {
+      this.logger.info('Successfully applied vendor file governance via unified service', {
+        fileId,
+        governanceApplied: result.governanceApplied
+      });
+    } else {
+      this.logger.error('Failed to apply vendor file governance', {
         fileId,
         error: result.error
       });
