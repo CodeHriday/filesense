@@ -853,6 +853,13 @@ print(json.dumps(result))
         existingMetadata = typeof existingFile.rows[0].metadata === 'string' 
           ? JSON.parse(existingFile.rows[0].metadata) 
           : existingFile.rows[0].metadata;
+        
+        this.logger.info('Fetched existing metadata for merge', { 
+          fileId, 
+          hasConnectionId: !!existingMetadata.connection_id,
+          connectionId: existingMetadata.connection_id,
+          existingKeys: Object.keys(existingMetadata)
+        });
       }
     } catch (err) {
       this.logger.warn('Could not fetch existing metadata, will create new', { fileId, error: err.message });
@@ -868,6 +875,13 @@ print(json.dumps(result))
       preview_data: fileInfo.preview_data || [],
       header_validation: headerValidation || null
     };
+    
+    this.logger.info('Merged metadata result', { 
+      fileId, 
+      hasConnectionId: !!metadata.connection_id,
+      connectionId: metadata.connection_id,
+      mergedKeys: Object.keys(metadata)
+    });
 
     // Calculate dynamic quality score based on multiple factors
     const qualityScore = this.calculateQualityScore(fileInfo, duplicateStats, headerValidation);

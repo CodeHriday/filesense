@@ -2341,6 +2341,23 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       throw new Error(`Unsupported provider: ${provider}`);
     }
     
+    // Build initial metadata with connection_id
+    const initialMetadata = {
+      storage_location: storageLocation,
+      uploaded_by: userId,
+      provider: provider,
+      storage_key: storageKey,
+      drop_file: true,
+      connection_id: connectionId || null
+    };
+    
+    logger.info('Inserting file with metadata', { 
+      fileId, 
+      hasConnectionId: !!connectionId,
+      connectionId: connectionId,
+      metadata: initialMetadata 
+    });
+    
     // Log to database
     await dbPool.query(
       `INSERT INTO files (file_id, filename, file_type, file_size, metadata, project_id, is_vendor_file, created_at, updated_at)
@@ -2350,14 +2367,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
         file.originalname,
         path.extname(file.originalname).substring(1).toLowerCase(),
         file.size,
-        JSON.stringify({
-          storage_location: storageLocation,
-          uploaded_by: userId,
-          provider: provider,
-          storage_key: storageKey,
-          drop_file: true,
-          connection_id: connectionId || null
-        }),
+        JSON.stringify(initialMetadata),
         projectId,
         !!connectionId // true if connectionId exists (vendor upload), false otherwise
       ]
