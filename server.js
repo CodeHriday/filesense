@@ -1370,6 +1370,13 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     // Get vendor agreement_id if provided (for contract validation)
     const agreementId = req.body.agreement_id ? parseInt(req.body.agreement_id) : null;
     
+    // DEBUG: Log agreement_id extraction
+    logger.info('Upload endpoint: agreement_id extracted', { 
+      raw_agreement_id: req.body.agreement_id,
+      parsed_agreementId: agreementId,
+      userId: req.user.id
+    });
+    
     // Get replaceFileId if provided (for atomic file replacement)
     const replaceFileId = req.body.replace_file_id || null;
     
@@ -1494,6 +1501,17 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
         });
         
         logger.info('File processing job queued', { fileId, jobId });
+        
+        // DEBUG: Log full job data being sent to worker
+        logger.info('Queue job data', {
+          fileId,
+          jobId,
+          agreementId,
+          projectId,
+          subProjectId,
+          qualityRuleIds,
+          filename: file.originalname
+        });
         
         results.push({
           success: true,
