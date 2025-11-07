@@ -1003,6 +1003,25 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           fileRole: 'source'
         });
         
+        // Fetch vendor agreement file schema data classification if available
+        let dataClassification = null;
+        if (mapping.vendor_agreement_file_schema_id) {
+          try {
+            const fileSchemaResult = await pool.query(
+              'SELECT data_classification FROM vendor_agreement_file_schemas WHERE id = $1',
+              [mapping.vendor_agreement_file_schema_id]
+            );
+            if (fileSchemaResult.rows.length > 0) {
+              dataClassification = fileSchemaResult.rows[0].data_classification;
+            }
+          } catch (schemaError) {
+            systemLogger.error('Error fetching vendor agreement file schema', { 
+              error: schemaError.message,
+              vendor_agreement_file_schema_id: mapping.vendor_agreement_file_schema_id
+            });
+          }
+        }
+        
         // Capture target file audit (output file)
         await captureFileAudit(pool, {
           fileId: `transformed_${jobId}_${file.filename}`,
@@ -1033,7 +1052,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           fileRole: 'target',
           metadata: JSON.stringify({
             pii_columns: mapping.pii_columns || [],
-            transformation_id: mapping.mapping_id
+            transformation_id: mapping.mapping_id,
+            data_classification: dataClassification
           })
         });
         

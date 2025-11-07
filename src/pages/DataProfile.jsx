@@ -509,12 +509,17 @@ function DataProfile() {
     try {
       const response = await axios.get(`/api/files/${fileId}/ownership`);
       setOwnership(response.data);
-      // Set sensitivity from ownership data, default to 'Public' if not set
-      setFileSensitivity(response.data?.sensitivity_level || 'Public');
+      // Only set sensitivity from ownership if not already set from metadata
+      setFileSensitivity(prev => {
+        // If already set from metadata, keep it
+        if (prev && prev !== 'Public') return prev;
+        // Otherwise use ownership data
+        return response.data?.sensitivity_level || 'Public';
+      });
     } catch (err) {
       if (err.response?.status === 404) {
-        // No ownership record exists, use default
-        setFileSensitivity('Public');
+        // No ownership record exists, only set default if not already set from metadata
+        setFileSensitivity(prev => prev || 'Public');
       } else {
         console.error('Error fetching ownership:', err);
       }
@@ -651,6 +656,11 @@ function DataProfile() {
         setFile(fileData);
         setProfile(profileData || {});
         setError(null);
+        
+        // Set file sensitivity from metadata (primary source) or ownership (fallback)
+        if (fileData.metadata && fileData.metadata.data_classification) {
+          setFileSensitivity(fileData.metadata.data_classification);
+        }
         
         // Fetch governance data
         await Promise.all([
@@ -1034,6 +1044,7 @@ function DataProfile() {
             <thead>
               <tr>
                 <th>Column Name</th>
+                <th>PII</th>
                 <th>Data Type</th>
                 <th>Pattern</th>
                 <th>Unique Values</th>
@@ -1047,6 +1058,7 @@ function DataProfile() {
                 const nullCount = column.missing || 0;
                 const missingPercentage = Math.round((nullCount / totalRows) * 100);
                 const columnTag = columnTags.find(tag => tag.column_name === column.name);
+                const isPII = columnTag && columnTag.classification_level === 'PII';
                 
                 // Format patterns for display
                 const formatPatterns = (patterns) => {
@@ -1063,6 +1075,15 @@ function DataProfile() {
                 return (
                   <tr key={column.name}>
                     <td>{column.name}</td>
+                    <td>
+                      {isPII ? (
+                        <span className="pii-badge" title="Contains Personally Identifiable Information">
+                          PII
+                        </span>
+                      ) : (
+                        <span className="no-pii-indicator">—</span>
+                      )}
+                    </td>
                     <td>{column.type}</td>
                     <td className="pattern-cell">{formatPatterns(column.patterns)}</td>
                     <td>{column.unique !== undefined && column.unique !== null ? column.unique.toLocaleString() : '0'}</td>
