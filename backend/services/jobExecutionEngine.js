@@ -1030,8 +1030,37 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           processingDurationMs: 0,
           status: 'success',
           createdBy: null,
-          fileRole: 'target'
+          fileRole: 'target',
+          metadata: JSON.stringify({
+            pii_columns: mapping.pii_columns || [],
+            transformation_id: mapping.mapping_id
+          })
         });
+        
+        // Store PII column tags in column_sensitivity_tags
+        const piiColumns = mapping.pii_columns || [];
+        if (piiColumns && Array.isArray(piiColumns) && piiColumns.length > 0) {
+          const targetFileId = `transformed_${jobId}_${file.filename}`;
+          
+          for (const columnName of piiColumns) {
+            try {
+              await pool.query(`
+                INSERT INTO column_sensitivity_tags (file_id, column_name, classification_level, data_type)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (file_id, column_name) 
+                DO UPDATE SET classification_level = EXCLUDED.classification_level, updated_at = CURRENT_TIMESTAMP
+              `, [targetFileId, columnName, 'PII', 'string']);
+            } catch (tagError) {
+              systemLogger.error('Error creating PII tag', { error: tagError.message, columnName });
+            }
+          }
+          
+          await logJobExecution(pool, jobId, 'info', 
+            `PII column tags created`, {
+            fileId: targetFileId,
+            piiColumns: piiColumns
+          });
+        }
         
         await logJobExecution(pool, jobId, 'info', 
           `File audit captured for transformation`, {
