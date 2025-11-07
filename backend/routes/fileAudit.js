@@ -178,70 +178,9 @@ router.get('/:fileId', async (req, res) => {
 });
 
 /**
- * GET /api/file-audit
- * Get all audit records with filters
- */
-router.get('/', async (req, res) => {
-  // Ensure authentication is present
-  if (!req.user || !req.user.id) {
-    return res.status(401).json({
-      error: 'Authentication required',
-      message: 'User authentication is required to access audit records'
-    });
-  }
-
-  const pool = req.app.locals.pool || req.app.get('db');
-  const {
-    startDate,
-    endDate,
-    status,
-    source,
-    fileType,
-    correlationId,
-    load_type,
-    file_role,
-    search,
-    limit,
-    offset
-  } = req.query;
-
-  try {
-    const result = await getAuditRecords(pool, {
-      startDate,
-      endDate,
-      status,
-      source,
-      fileType,
-      correlationId,
-      loadType: load_type,
-      fileRole: file_role,
-      search,
-      limit: parseInt(limit) || 100,
-      offset: parseInt(offset) || 0,
-      userId: req.user.id, // Pass user info for project filtering (guaranteed to exist)
-      userRoles: req.user.roles || []
-    });
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(500).json({
-        error: 'Failed to fetch audit records',
-        details: result.error
-      });
-    }
-  } catch (error) {
-    console.error('Fetch audit records error:', error);
-    res.status(500).json({
-      error: 'Failed to fetch audit records',
-      details: error.message
-    });
-  }
-});
-
-/**
  * GET /api/file-audit/processed-catalog
  * Get aggregated processed file catalog grouped by mapping
+ * NOTE: This must be defined BEFORE the general GET / route to avoid route conflicts
  */
 router.get('/processed-catalog', async (req, res) => {
   if (!req.user || !req.user.id) {
@@ -341,6 +280,68 @@ router.get('/processed-catalog', async (req, res) => {
     console.error('Fetch processed catalog error:', error);
     res.status(500).json({
       error: 'Failed to fetch processed catalog',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/file-audit
+ * Get all audit records with filters
+ */
+router.get('/', async (req, res) => {
+  // Ensure authentication is present
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({
+      error: 'Authentication required',
+      message: 'User authentication is required to access audit records'
+    });
+  }
+
+  const pool = req.app.locals.pool || req.app.get('db');
+  const {
+    startDate,
+    endDate,
+    status,
+    source,
+    fileType,
+    correlationId,
+    load_type,
+    file_role,
+    search,
+    limit,
+    offset
+  } = req.query;
+
+  try {
+    const result = await getAuditRecords(pool, {
+      startDate,
+      endDate,
+      status,
+      source,
+      fileType,
+      correlationId,
+      loadType: load_type,
+      fileRole: file_role,
+      search,
+      limit: parseInt(limit) || 100,
+      offset: parseInt(offset) || 0,
+      userId: req.user.id, // Pass user info for project filtering (guaranteed to exist)
+      userRoles: req.user.roles || []
+    });
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json({
+        error: 'Failed to fetch audit records',
+        details: result.error
+      });
+    }
+  } catch (error) {
+    console.error('Fetch audit records error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch audit records',
       details: error.message
     });
   }
