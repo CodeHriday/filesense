@@ -178,8 +178,13 @@ function VendorFileUpload() {
       setUploadStatus('error');
       setUploadStage(null);
       
-      // Check if this is a filename pattern validation error
-      if (error.response?.data?.error === 'Filename pattern validation failed' && error.response?.data?.details) {
+      // Check if this is a file pattern validation error (new detailed format)
+      if (error.response?.data?.error === 'File pattern validation failed' && error.response?.data?.details) {
+        setFilenameValidationError(error.response.data.details);
+        addToast('error', 'File Pattern Validation Failed', error.response.data.message || 'The uploaded file does not match the expected pattern for this contract.');
+      }
+      // Check if this is a filename pattern validation error (legacy format)
+      else if (error.response?.data?.error === 'Filename pattern validation failed' && error.response?.data?.details) {
         setFilenameValidationError(error.response.data.details);
         addToast('error', 'Filename Validation Failed', 'The uploaded filename does not match the expected pattern. See details below.');
       }
@@ -249,13 +254,9 @@ function VendorFileUpload() {
             fontSize: '1.1rem',
             fontWeight: 'bold'
           }}>
-            Filename Validation Failed
+            File Pattern Validation Failed
           </h3>
           
-          <p style={{ color: '#742a2a', marginBottom: '1rem', fontWeight: '500' }}>
-            {filenameValidationError.message}
-          </p>
-
           <div style={{ 
             background: 'white', 
             padding: '1rem', 
@@ -263,25 +264,21 @@ function VendorFileUpload() {
             marginBottom: '1rem',
             border: '1px solid #feb2b2'
           }}>
+            {filenameValidationError.contractCode && (
+              <div style={{ marginBottom: '0.75rem' }}>
+                <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.25rem' }}>
+                  Contract:
+                </strong>
+                <span style={{ color: '#4a5568', fontSize: '0.95em' }}>
+                  {filenameValidationError.contractCode}
+                  {filenameValidationError.vendorName && ` (${filenameValidationError.vendorName})`}
+                </span>
+              </div>
+            )}
+
             <div style={{ marginBottom: '0.75rem' }}>
               <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
-                Expected Filename:
-              </strong>
-              <code style={{ 
-                background: '#c6f6d5', 
-                padding: '4px 8px', 
-                borderRadius: '3px',
-                fontSize: '0.95em',
-                color: '#22543d',
-                display: 'inline-block'
-              }}>
-                {filenameValidationError.expectedBase}{filenameValidationError.expectedExt}
-              </code>
-            </div>
-
-            <div>
-              <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
-                Uploaded Filename:
+                Uploaded File:
               </strong>
               <code style={{ 
                 background: '#fed7d7', 
@@ -291,8 +288,45 @@ function VendorFileUpload() {
                 color: '#742a2a',
                 display: 'inline-block'
               }}>
-                {filenameValidationError.actualBase}{filenameValidationError.actualExt}
+                {filenameValidationError.uploadedFile || `${filenameValidationError.actualBase}${filenameValidationError.actualExt}`}
               </code>
+            </div>
+
+            <div>
+              <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.5rem' }}>
+                Expected File Patterns ({filenameValidationError.patternCount || filenameValidationError.expectedPatterns?.length || 0}):
+              </strong>
+              <ul style={{ 
+                margin: '0 0 0 1.5rem', 
+                padding: 0,
+                color: '#4a5568'
+              }}>
+                {filenameValidationError.expectedPatterns?.map((pattern, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                    <code style={{ 
+                      background: '#c6f6d5', 
+                      padding: '2px 6px', 
+                      borderRadius: '3px',
+                      fontSize: '0.9em',
+                      color: '#22543d'
+                    }}>
+                      {pattern}
+                    </code>
+                  </li>
+                )) || (
+                  <li>
+                    <code style={{ 
+                      background: '#c6f6d5', 
+                      padding: '2px 6px', 
+                      borderRadius: '3px',
+                      fontSize: '0.9em',
+                      color: '#22543d'
+                    }}>
+                      {filenameValidationError.expectedBase}{filenameValidationError.expectedExt}
+                    </code>
+                  </li>
+                )}
+              </ul>
             </div>
           </div>
 
@@ -305,8 +339,8 @@ function VendorFileUpload() {
             color: '#744210'
           }}>
             <strong>💡 Tip: </strong>
-            The expected filename (without extension) must be contained in your uploaded filename. 
-            You can add timestamps or other suffixes, but the base name and file extension must match.
+            File patterns may include wildcards: * (matches any characters) and ? (matches single character). 
+            Your filename must match at least one of the patterns listed above for this contract.
           </div>
         </div>
       )}
