@@ -210,9 +210,9 @@ function Mappings() {
               </button>
             </div>
           ) : (
-            <table className="mappings-table" style={{ fontSize: '0.875rem' }}>
+            <table className="mappings-table" style={{ fontSize: '0.8125rem' }}>
               <thead>
-                <tr style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>
+                <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
                   <th>Project</th>
                   <th>Mapping Name</th>
                   <th>Source</th>
@@ -224,7 +224,7 @@ function Mappings() {
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody style={{ fontSize: '0.875rem', fontWeight: 'normal' }}>
+              <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
                 {currentMappings.map(mapping => {
                       const fieldCount = Array.isArray(mapping.field_mappings) 
                         ? mapping.field_mappings.length 
