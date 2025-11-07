@@ -95,8 +95,8 @@ function VendorFileUpload() {
       
       const token = localStorage.getItem('token');
       
-      // Build URL with connection and folder parameters
-      let uploadUrl = `${API_BASE_URL}/api/files/drop?connectionId=${encodeURIComponent(agreement.vendor_connection_id)}`;
+      // Build URL with connection, agreement, and folder parameters
+      let uploadUrl = `${API_BASE_URL}/api/files/drop?connectionId=${encodeURIComponent(agreement.vendor_connection_id)}&agreementId=${encodeURIComponent(agreement.id)}`;
       if (selectedFolder) {
         uploadUrl += `&folder=${encodeURIComponent(selectedFolder)}`;
       } else if (agreement.drop_location_path) {

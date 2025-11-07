@@ -1797,26 +1797,29 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     const userId = req.user.id;
     
     // CRITICAL: Validate filename against vendor agreement patterns BEFORE any processing
-    // Check if vendor uploaded with specific connection
+    // Check if vendor uploaded with specific connection and agreement
     const connectionId = req.query.connectionId;
+    const agreementId = req.query.agreementId;
     
-    if (connectionId) {
-      // Fetch vendor agreement file schemas for this connection
+    if (connectionId && agreementId) {
+      // Fetch vendor agreement file schemas for this SPECIFIC agreement
       const { matchesPattern } = require('./src/utils/patternMatching');
       
       const schemaResult = await dbPool.query(`
         SELECT DISTINCT
           vafs.id as schema_id,
           vafs.file_name_pattern,
-          vafs.file_description
+          vafs.file_description,
+          va.agreement_code,
+          va.vendor_name
         FROM vendor_agreement_file_schemas vafs
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
-        WHERE va.vendor_connection_id = $1
+        WHERE va.id = $1
           AND va.status = 'active'
           AND va.approval_status = 'governance_approved'
           AND va.is_locked = true
         ORDER BY vafs.file_name_pattern
-      `, [connectionId]);
+      `, [agreementId]);
       
       if (schemaResult.rows.length > 0) {
         // Check if filename matches any expected pattern
