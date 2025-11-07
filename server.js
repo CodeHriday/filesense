@@ -1796,6 +1796,74 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     const fileId = `drop_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
     const userId = req.user.id;
     
+    // CRITICAL: Validate filename against vendor agreement patterns BEFORE any processing
+    // Check if vendor uploaded with specific connection
+    const connectionId = req.query.connectionId;
+    
+    if (connectionId) {
+      // Fetch vendor agreement file schemas for this connection
+      const { matchesPattern } = require('./src/utils/patternMatching');
+      
+      const schemaResult = await dbPool.query(`
+        SELECT DISTINCT
+          vafs.id as schema_id,
+          vafs.file_name_pattern,
+          vafs.file_description,
+          va.agreement_name
+        FROM vendor_agreement_file_schemas vafs
+        JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
+        WHERE va.vendor_connection_id = $1
+          AND va.status = 'active'
+          AND va.approval_status = 'governance_approved'
+          AND va.is_locked = true
+        ORDER BY vafs.file_name_pattern
+      `, [connectionId]);
+      
+      if (schemaResult.rows.length > 0) {
+        // Check if filename matches any expected pattern
+        const filename = file.originalname;
+        let matchedPattern = null;
+        
+        for (const schema of schemaResult.rows) {
+          if (matchesPattern(filename, schema.file_name_pattern)) {
+            matchedPattern = schema;
+            break;
+          }
+        }
+        
+        if (!matchedPattern) {
+          // No pattern matched - reject upload immediately
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          
+          const expectedPatterns = schemaResult.rows.map(s => 
+            s.file_description ? `${s.file_name_pattern} (${s.file_description})` : s.file_name_pattern
+          );
+          
+          logger.warn('Vendor file rejected - does not match any expected pattern', {
+            fileId,
+            filename,
+            connectionId,
+            userId,
+            expectedPatterns
+          });
+          
+          return res.status(400).json({
+            error: 'File pattern validation failed',
+            message: `The file "${filename}" does not match any expected file patterns for the selected contract.`,
+            expectedPatterns,
+            hint: 'Please ensure your filename matches one of the expected patterns, or contact your administrator if you believe this is an error.'
+          });
+        }
+        
+        logger.info('Vendor file matched expected pattern', {
+          fileId,
+          filename,
+          matchedPattern: matchedPattern.file_name_pattern,
+          schemaId: matchedPattern.schema_id
+        });
+      }
+    }
+    
     // Virus scan the uploaded file
     const virusScanner = require('./backend/services/VirusScanService');
     let virusScanResult = { scanned: false, clean: false, skipped: false };
@@ -1859,8 +1927,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       });
     }
     
-    // Check if vendor uploaded with specific connection
-    const connectionId = req.query.connectionId;
+    // Check if vendor uploaded with specific connection (already declared earlier)
     const folder = req.query.folder || '';
     
     let dropConfig;
