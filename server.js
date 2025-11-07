@@ -1377,6 +1377,82 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       userId: req.user.id
     });
     
+    // CRITICAL: Validate filenames against vendor agreement patterns BEFORE any processing
+    // This applies when contract validation mode is enabled (agreementId provided)
+    if (agreementId) {
+      const { matchesPattern } = require('./src/utils/patternMatching');
+      
+      const schemaResult = await dbPool.query(`
+        SELECT DISTINCT
+          vafs.id as schema_id,
+          vafs.file_name_pattern,
+          vafs.file_description,
+          va.agreement_code
+        FROM vendor_agreement_file_schemas vafs
+        JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
+        WHERE va.id = $1
+          AND va.status = 'active'
+          AND va.approval_status = 'governance_approved'
+          AND va.is_locked = true
+        ORDER BY vafs.file_name_pattern
+      `, [agreementId]);
+      
+      if (schemaResult.rows.length > 0) {
+        // Validate each uploaded file against expected patterns
+        for (const file of req.files) {
+          const filename = file.originalname;
+          let matchedPattern = null;
+          
+          for (const schema of schemaResult.rows) {
+            if (matchesPattern(filename, schema.file_name_pattern)) {
+              matchedPattern = schema;
+              break;
+            }
+          }
+          
+          if (!matchedPattern) {
+            // No pattern matched - reject upload immediately and clean up all files
+            req.files.forEach(f => {
+              try { fs.unlinkSync(f.path); } catch (e) {}
+            });
+            
+            const agreementInfo = schemaResult.rows[0]; // All rows have same agreement info
+            const expectedPatterns = schemaResult.rows.map(s => 
+              s.file_description ? `${s.file_name_pattern} (${s.file_description})` : s.file_name_pattern
+            );
+            
+            logger.warn('File rejected - does not match contract patterns', {
+              filename,
+              agreementId,
+              agreementCode: agreementInfo.agreement_code,
+              userId: req.user.id,
+              expectedPatterns
+            });
+            
+            return res.status(400).json({
+              error: 'File pattern validation failed',
+              message: `The file "${filename}" does not match any expected file patterns for contract ${agreementInfo.agreement_code}.`,
+              details: {
+                uploadedFile: filename,
+                contractCode: agreementInfo.agreement_code,
+                expectedPatterns: expectedPatterns,
+                patternCount: expectedPatterns.length
+              },
+              hint: 'Please ensure your filename matches one of the expected patterns listed above. File patterns may include wildcards (* for any characters, ? for single character).'
+            });
+          }
+          
+          logger.info('File matched expected contract pattern', {
+            filename,
+            agreementId,
+            matchedPattern: matchedPattern.file_name_pattern,
+            schemaId: matchedPattern.schema_id,
+            userId: req.user.id
+          });
+        }
+      }
+    }
+    
     // Get replaceFileId if provided (for atomic file replacement)
     const replaceFileId = req.body.replace_file_id || null;
     
