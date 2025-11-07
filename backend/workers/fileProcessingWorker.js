@@ -1516,7 +1516,7 @@ print(json.dumps(result))
     }
     
     // Step 3: Match filename against patterns
-    const { matchFilePattern } = require('../utils/filePatternMatcher');
+    const { matchesPattern } = require('../utils/filePatternMatcher');
     let matchedSchema = null;
     
     for (const row of schemaResult.rows) {
@@ -1524,7 +1524,7 @@ print(json.dumps(result))
         continue;
       }
       
-      const isMatch = matchFilePattern(filename, row.file_name_pattern);
+      const isMatch = matchesPattern(filename, row.file_name_pattern);
       
       if (isMatch) {
         matchedSchema = row;
