@@ -200,11 +200,17 @@ router.get('/processed-catalog', async (req, res) => {
     if (!isAdmin) {
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(req.user.id);
+      console.log('[processed-catalog] User projects:', userProjects);
+      console.log('[processed-catalog] First project:', userProjects[0]);
       projectIds = userProjects.map(p => p.id);
+      console.log('[processed-catalog] Project IDs:', projectIds);
       
       if (projectIds.length === 0) {
+        console.log('[processed-catalog] No projects found for user, returning empty');
         return res.json({ mappings: [] });
       }
+    } else {
+      console.log('[processed-catalog] Admin user, skipping project filter');
     }
 
     let query = `
@@ -267,7 +273,10 @@ router.get('/processed-catalog', async (req, res) => {
       ORDER BY tm.created_at DESC
     `;
 
+    console.log('[processed-catalog] Query:', query.substring(0, 200));
+    console.log('[processed-catalog] Params:', params);
     const result = await pool.query(query, params);
+    console.log('[processed-catalog] Result count:', result.rows.length);
 
     res.json({
       success: true,
