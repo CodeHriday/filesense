@@ -627,6 +627,156 @@ async function getMappingConfig(pool, mappingId) {
 }
 
 /**
+ * Fetch governance metadata for mapping job from vendor agreement
+ * Mirrors Contract Validation's applyAgreementGovernance logic for mapping jobs
+ * @param {Pool} pool - Database connection pool
+ * @param {Object} mapping - Mapping configuration
+ * @param {string} sourceFilename - Source filename to match against patterns
+ * @param {number} projectId - Project ID
+ * @returns {Promise<Object>} - Governance metadata {containsPii, dataClassification, piiColumns}
+ */
+async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectId) {
+  // Only fetch governance if mapping uses vendor agreement
+  if (!mapping.vendor_agreement_id) {
+    systemLogger.info('No vendor agreement for mapping, skipping governance fetch');
+    return {
+      containsPii: false,
+      dataClassification: null,
+      piiColumns: []
+    };
+  }
+  
+  try {
+    systemLogger.info('Fetching governance metadata from vendor agreement', {
+      agreementId: mapping.vendor_agreement_id,
+      sourceFilename,
+      projectId
+    });
+    
+    // Fetch vendor agreement with file schemas (same query as Contract Validation)
+    const agreementResult = await pool.query(`
+      SELECT 
+        va.id,
+        va.agreement_code,
+        vafs.id as schema_id,
+        vafs.file_name_pattern,
+        vafs.schema,
+        vafs.contains_pii,
+        vafs.data_classification,
+        vafs.priority
+      FROM vendor_agreements va
+      LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.vendor_agreement_id AND vafs.is_active = true
+      WHERE va.id = $1 AND va.project_id = $2
+      ORDER BY vafs.priority ASC NULLS LAST
+    `, [mapping.vendor_agreement_id, projectId]);
+    
+    if (agreementResult.rows.length === 0) {
+      systemLogger.warn('Vendor agreement not found or no file schemas', {
+        agreementId: mapping.vendor_agreement_id,
+        projectId
+      });
+      return {
+        containsPii: false,
+        dataClassification: null,
+        piiColumns: []
+      };
+    }
+    
+    systemLogger.info('Fetched agreement schemas for governance', {
+      agreementId: mapping.vendor_agreement_id,
+      schemaCount: agreementResult.rows.length,
+      patterns: agreementResult.rows.map(r => r.file_name_pattern)
+    });
+    
+    // Match filename against patterns (same logic as Contract Validation)
+    const { matchesPattern } = require('../utils/filePatternMatcher');
+    let matchedSchema = null;
+    
+    for (const row of agreementResult.rows) {
+      if (row.file_name_pattern && matchesPattern(sourceFilename, row.file_name_pattern)) {
+        matchedSchema = row;
+        systemLogger.info('Matched governance schema by pattern', {
+          sourceFilename,
+          pattern: row.file_name_pattern,
+          schema_id: row.schema_id,
+          contains_pii: row.contains_pii,
+          classification: row.data_classification
+        });
+        break;
+      }
+    }
+    
+    // Fallback to first schema if no pattern match
+    if (!matchedSchema && agreementResult.rows[0].schema) {
+      matchedSchema = agreementResult.rows[0];
+      systemLogger.info('Using fallback governance schema (first schema)', {
+        agreementId: mapping.vendor_agreement_id,
+        sourceFilename,
+        fallback_pattern: matchedSchema.file_name_pattern,
+        fallback_classification: matchedSchema.data_classification
+      });
+    }
+    
+    if (!matchedSchema || !matchedSchema.schema) {
+      systemLogger.warn('No matching schema found for governance', {
+        agreementId: mapping.vendor_agreement_id,
+        sourceFilename
+      });
+      return {
+        containsPii: false,
+        dataClassification: null,
+        piiColumns: []
+      };
+    }
+    
+    // Extract PII columns from schema (same logic as Contract Validation)
+    const schemaObj = typeof matchedSchema.schema === 'string' 
+      ? JSON.parse(matchedSchema.schema) 
+      : matchedSchema.schema;
+    
+    const piiColumns = [];
+    if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+      for (const column of schemaObj) {
+        const isPii = column.is_pii === true || column.is_pii === 'true';
+        if (isPii) {
+          const columnName = column.name || column.column_name;
+          if (columnName) {
+            piiColumns.push(columnName);
+          }
+        }
+      }
+    }
+    
+    systemLogger.info('Extracted governance metadata for mapping', {
+      sourceFilename,
+      containsPii: matchedSchema.contains_pii || false,
+      dataClassification: matchedSchema.data_classification,
+      piiColumnCount: piiColumns.length,
+      piiColumns: piiColumns
+    });
+    
+    return {
+      containsPii: matchedSchema.contains_pii || false,
+      dataClassification: matchedSchema.data_classification || null,
+      piiColumns: piiColumns
+    };
+    
+  } catch (error) {
+    systemLogger.error('Error fetching governance metadata', {
+      agreementId: mapping.vendor_agreement_id,
+      sourceFilename,
+      error: error.message
+    });
+    // Return empty governance on error (don't fail the job)
+    return {
+      containsPii: false,
+      dataClassification: null,
+      piiColumns: []
+    };
+  }
+}
+
+/**
  * Calculate column statistics from transformed rows
  * @param {Array} rows - Array of transformed data rows
  * @param {Array} schema - Schema definition with column names and types
@@ -773,6 +923,35 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     // Step 2: Determine file type from filename
     const fileExtension = file.filename.split('.').pop().toLowerCase();
     
+    // Step 2.5: Fetch governance metadata from vendor agreement (if applicable)
+    let governance = null;
+    if (mapping.vendor_agreement_id && mapping.project_id) {
+      try {
+        governance = await fetchGovernanceForMapping(pool, mapping, file.filename, mapping.project_id);
+        await logJobExecution(pool, jobId, 'info', `Governance metadata fetched for source file`, {
+          filename: file.filename,
+          containsPii: governance.containsPii,
+          dataClassification: governance.dataClassification,
+          piiColumnCount: governance.piiColumns.length
+        });
+      } catch (govError) {
+        await logJobExecution(pool, jobId, 'warn', `Failed to fetch governance metadata: ${govError.message}`);
+        // Continue processing even if governance fetch fails
+        governance = {
+          containsPii: false,
+          dataClassification: null,
+          piiColumns: []
+        };
+      }
+    } else {
+      // No vendor agreement, use empty governance
+      governance = {
+        containsPii: false,
+        dataClassification: null,
+        piiColumns: []
+      };
+    }
+    
     // Step 3: Parse file and apply transformations
     await logJobExecution(pool, jobId, 'info', `Parsing and transforming ${fileExtension.toUpperCase()} file`, {
       filename: file.filename,
@@ -854,6 +1033,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         
         // Profile source file buffer using Python scripts (same as file upload)
         // Pass file.file_id if it exists (from vendor upload), otherwise let it auto-generate from hash
+        // Include governance metadata from vendor agreement
         const sourceProfilingResult = await profileFileBuffer({
           fileBuffer,
           filename: file.filename,
@@ -864,7 +1044,10 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           mappingId: mapping.mapping_id,
           jobId,
           userId,
-          projectId: mapping.project_id
+          projectId: mapping.project_id,
+          containsPii: governance.containsPii,
+          dataClassification: governance.dataClassification,
+          piiColumns: governance.piiColumns
         });
         
         if (sourceProfilingResult.success) {
@@ -1173,6 +1356,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
 
           // Profile the in-memory outputBuffer directly (avoids redundant S3 download)
           // Pass explicit fileId to match audit trail and ensure PII tags use same ID
+          // Propagate governance metadata from source file to target file
           const targetProfilingResult = await profileFileBuffer({
             pool,
             fileBuffer: outputBuffer,
@@ -1184,10 +1368,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             jobId,
             userId,
             projectId: mapping.project_id,
+            containsPii: governance.containsPii,
+            dataClassification: governance.dataClassification,
+            piiColumns: governance.piiColumns,
             metadata: {
-              pii_columns: mapping.pii_columns || [],
+              pii_columns: mapping.pii_columns || governance.piiColumns || [],
               transformation_id: mapping.mapping_id,
-              data_classification: dataClassification
+              data_classification: governance.dataClassification || dataClassification
             }
           });
 

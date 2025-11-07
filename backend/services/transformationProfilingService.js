@@ -162,7 +162,10 @@ async function profileFileBuffer(options) {
     jobId,
     userId,
     projectId,
-    metadata
+    metadata,
+    containsPii,
+    dataClassification,
+    piiColumns
   } = options;
 
   const tempFilePath = path.join(os.tmpdir(), `etl_profile_${Date.now()}_${path.basename(filename)}`);
@@ -202,12 +205,13 @@ async function profileFileBuffer(options) {
     // Step 6: Calculate quality score from file info
     const qualityScore = calculateQualityScore(fileInfo);
 
-    // Step 8: Save to files table with correlation_id, file_role, and metadata for job linking
+    // Step 8: Save to files table with correlation_id, file_role, metadata, and governance fields
     await pool.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
-        quality_score, checksum, correlation_id, file_role, metadata, created_at, updated_at, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), $12)
+        quality_score, checksum, correlation_id, file_role, metadata, created_at, updated_at, project_id,
+        contains_pii, data_classification
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), $12, $13, $14)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         filename = EXCLUDED.filename,
@@ -220,6 +224,8 @@ async function profileFileBuffer(options) {
         correlation_id = EXCLUDED.correlation_id,
         file_role = EXCLUDED.file_role,
         metadata = EXCLUDED.metadata,
+        contains_pii = EXCLUDED.contains_pii,
+        data_classification = EXCLUDED.data_classification,
         updated_at = NOW()
     `, [
       fileId,
@@ -233,7 +239,9 @@ async function profileFileBuffer(options) {
       jobId, // correlation_id to link all files from same job
       fileRole, // 'source' or 'target' for profiling endpoint
       metadata || null, // Store metadata including data_classification and pii_columns (pg handles jsonb conversion)
-      projectId || null
+      projectId || null,
+      containsPii !== undefined ? containsPii : false, // Governance: PII flag
+      dataClassification || null // Governance: data classification level
     ]);
 
     systemLogger.info('File registered in files table', { fileId, fileRole, qualityScore });
@@ -282,6 +290,16 @@ async function profileFileBuffer(options) {
           fileId,
           fileRole,
           columnsWithDistributions: Object.keys(valueDistributions).length
+        });
+      }
+      
+      // Step 11: Save PII column tags if provided (governance metadata from vendor agreement)
+      if (piiColumns && Array.isArray(piiColumns) && piiColumns.length > 0) {
+        await savePIIColumnTags(pool, fileId, piiColumns);
+        systemLogger.info('PII column tags saved', {
+          fileId,
+          fileRole,
+          piiColumnCount: piiColumns.length
         });
       }
     }
@@ -633,6 +651,39 @@ async function saveValueDistributions(pool, fileId, filename, valueDistributions
     JSON.stringify(valueDistributions),
     fileRole
   ]);
+}
+
+/**
+ * Save PII column sensitivity tags
+ * Mirrors the behavior of fileProcessingWorker's applyAgreementGovernance
+ * @param {Pool} pool - Database connection pool
+ * @param {string} fileId - File ID
+ * @param {Array<string>} piiColumns - Array of column names that contain PII
+ */
+async function savePIIColumnTags(pool, fileId, piiColumns) {
+  for (const columnName of piiColumns) {
+    try {
+      await pool.query(`
+        INSERT INTO column_sensitivity_tags (file_id, column_name, sensitivity_level, tagged_by, tagged_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (file_id, column_name) DO UPDATE
+        SET sensitivity_level = EXCLUDED.sensitivity_level,
+            tagged_at = NOW()
+      `, [fileId, columnName, 'PII', 'system']);
+      
+      systemLogger.info('PII tag saved for column', { 
+        fileId, 
+        columnName
+      });
+    } catch (error) {
+      systemLogger.error('Failed to save PII tag for column', {
+        fileId,
+        columnName,
+        error: error.message
+      });
+      // Don't fail entire profiling if one tag fails
+    }
+  }
 }
 
 module.exports = {
