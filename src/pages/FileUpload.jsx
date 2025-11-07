@@ -1697,12 +1697,19 @@ function FileUpload() {
             <h3 style={{ 
               color: '#c53030', 
               marginTop: 0, 
-              marginBottom: '1rem',
+              marginBottom: '0.5rem',
               fontSize: '1.1rem',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
             }}>
-              File Pattern Validation Failed
+              <span>❌</span> Filename Doesn't Match Required Pattern
             </h3>
+            
+            <p style={{ color: '#742a2a', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              You're uploading with contract validation enabled. Your file's name must match one of the expected patterns for {filenameValidationError.contractCode || 'this agreement'}.
+            </p>
             
             <div style={{ 
               background: 'white', 
@@ -1711,61 +1718,60 @@ function FileUpload() {
               marginBottom: '1rem',
               border: '1px solid #feb2b2'
             }}>
-              {filenameValidationError.contractCode && (
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.25rem' }}>
-                    Contract:
-                  </strong>
-                  <span style={{ color: '#4a5568', fontSize: '0.95em' }}>
-                    {filenameValidationError.contractCode}
-                  </span>
-                </div>
-              )}
-
-              <div style={{ marginBottom: '0.75rem' }}>
-                <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
-                  Uploaded File:
+              <div style={{ marginBottom: '1rem' }}>
+                <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem' }}>
+                  Your File:
                 </strong>
-                <code style={{ 
+                <div style={{ 
                   background: '#fed7d7', 
-                  padding: '4px 8px', 
-                  borderRadius: '3px',
-                  fontSize: '0.95em',
+                  padding: '0.75rem', 
+                  borderRadius: '4px',
+                  fontSize: '1rem',
                   color: '#742a2a',
-                  display: 'inline-block'
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold'
                 }}>
                   {filenameValidationError.uploadedFile}
-                </code>
+                </div>
               </div>
 
               <div>
-                <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.5rem' }}>
-                  Expected File Patterns ({filenameValidationError.patternCount || filenameValidationError.expectedPatterns?.length || 0}):
+                <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem' }}>
+                  Allowed Filename Patterns:
                 </strong>
-                <ul style={{ 
-                  margin: '0 0 0 1.5rem', 
-                  padding: 0,
-                  color: '#4a5568'
+                <div style={{ 
+                  background: '#f7fafc', 
+                  padding: '0.75rem', 
+                  borderRadius: '4px',
+                  border: '1px solid #e2e8f0'
                 }}>
                   {filenameValidationError.expectedPatterns?.map((pattern, idx) => (
-                    <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                    <div key={idx} style={{ 
+                      marginBottom: idx < filenameValidationError.expectedPatterns.length - 1 ? '0.5rem' : 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{ color: '#48bb78', fontWeight: 'bold' }}>✓</span>
                       <code style={{ 
                         background: '#c6f6d5', 
-                        padding: '2px 6px', 
+                        padding: '4px 8px', 
                         borderRadius: '3px',
-                        fontSize: '0.9em',
-                        color: '#22543d'
+                        fontSize: '0.95rem',
+                        color: '#22543d',
+                        fontFamily: 'monospace',
+                        fontWeight: 'bold'
                       }}>
                         {pattern}
                       </code>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             </div>
 
             <div style={{ 
-              padding: '0.75rem',
+              padding: '1rem',
               background: '#fffaf0',
               border: '1px solid #f6ad55',
               borderRadius: '4px',
@@ -1773,9 +1779,17 @@ function FileUpload() {
               color: '#744210',
               marginBottom: '1rem'
             }}>
-              <strong>💡 Tip: </strong>
-              File patterns may include wildcards: * (matches any characters) and ? (matches single character). 
-              Your filename must match at least one of the patterns listed above for this contract.
+              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>💡</span> How to fix this:
+              </div>
+              <ol style={{ margin: '0.5rem 0 0 1.5rem', padding: 0 }}>
+                <li style={{ marginBottom: '0.25rem' }}>
+                  Rename your file to match one of the patterns above
+                </li>
+                <li>
+                  Wildcards: <code style={{ background: '#fed7d7', padding: '2px 4px', borderRadius: '2px' }}>*</code> = any characters, <code style={{ background: '#fed7d7', padding: '2px 4px', borderRadius: '2px' }}>?</code> = single character
+                </li>
+              </ol>
             </div>
 
             <button 
@@ -1783,7 +1797,7 @@ function FileUpload() {
               onClick={() => setFilenameValidationError(null)}
               style={{ fontSize: '1rem', padding: '0.75rem 2rem' }}
             >
-              Try Again
+              OK, I'll Rename My File
             </button>
           </div>
         )}
