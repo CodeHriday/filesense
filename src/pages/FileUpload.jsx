@@ -83,6 +83,7 @@ function FileUpload() {
   // Owner dropdown states
   const [availableOwners, setAvailableOwners] = useState([]);
   const [loadingOwners, setLoadingOwners] = useState(false);
+  const [filenameValidationError, setFilenameValidationError] = useState(null);
   
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
@@ -899,6 +900,22 @@ function FileUpload() {
       return result;
     } catch (error) {
       console.error('Error uploading file:', error);
+      
+      // Check for filename pattern validation error
+      if (error.response?.data?.error === 'File pattern validation failed') {
+        const errorDetails = error.response.data.details;
+        setFilenameValidationError({
+          uploadedFile: errorDetails.uploadedFile,
+          contractCode: errorDetails.contractCode,
+          expectedPatterns: errorDetails.expectedPatterns,
+          patternCount: errorDetails.patternCount
+        });
+        setDiagnosticInfo(prev => prev + `Filename validation failed: ${error.response.data.message}\n`);
+        setCurrentStep(null);
+        setIsProcessing(false);
+        return; // Don't set uploadStatus to 'error' or throw - we have a specific error display
+      }
+      
       setDiagnosticInfo(prev => prev + `Upload error: ${error.message}\n`);
       if (error.response) {
         setDiagnosticInfo(prev => prev + `Error response: ${JSON.stringify(error.response.data, null, 2)}\n`);
@@ -1666,6 +1683,109 @@ function FileUpload() {
               </div>
             )}
           </>
+        )}
+        
+        {/* Filename Validation Error Display */}
+        {filenameValidationError && activeTab === 'upload-profile' && (
+          <div style={{
+            margin: '1rem 0',
+            padding: '1.5rem',
+            background: '#fff5f5',
+            border: '2px solid #e53e3e',
+            borderRadius: '8px'
+          }}>
+            <h3 style={{ 
+              color: '#c53030', 
+              marginTop: 0, 
+              marginBottom: '1rem',
+              fontSize: '1.1rem',
+              fontWeight: 'bold'
+            }}>
+              File Pattern Validation Failed
+            </h3>
+            
+            <div style={{ 
+              background: 'white', 
+              padding: '1rem', 
+              borderRadius: '4px',
+              marginBottom: '1rem',
+              border: '1px solid #feb2b2'
+            }}>
+              {filenameValidationError.contractCode && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.25rem' }}>
+                    Contract:
+                  </strong>
+                  <span style={{ color: '#4a5568', fontSize: '0.95em' }}>
+                    {filenameValidationError.contractCode}
+                  </span>
+                </div>
+              )}
+
+              <div style={{ marginBottom: '0.75rem' }}>
+                <strong style={{ color: '#c53030', display: 'block', marginBottom: '0.25rem' }}>
+                  Uploaded File:
+                </strong>
+                <code style={{ 
+                  background: '#fed7d7', 
+                  padding: '4px 8px', 
+                  borderRadius: '3px',
+                  fontSize: '0.95em',
+                  color: '#742a2a',
+                  display: 'inline-block'
+                }}>
+                  {filenameValidationError.uploadedFile}
+                </code>
+              </div>
+
+              <div>
+                <strong style={{ color: '#2d3748', display: 'block', marginBottom: '0.5rem' }}>
+                  Expected File Patterns ({filenameValidationError.patternCount || filenameValidationError.expectedPatterns?.length || 0}):
+                </strong>
+                <ul style={{ 
+                  margin: '0 0 0 1.5rem', 
+                  padding: 0,
+                  color: '#4a5568'
+                }}>
+                  {filenameValidationError.expectedPatterns?.map((pattern, idx) => (
+                    <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                      <code style={{ 
+                        background: '#c6f6d5', 
+                        padding: '2px 6px', 
+                        borderRadius: '3px',
+                        fontSize: '0.9em',
+                        color: '#22543d'
+                      }}>
+                        {pattern}
+                      </code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ 
+              padding: '0.75rem',
+              background: '#fffaf0',
+              border: '1px solid #f6ad55',
+              borderRadius: '4px',
+              fontSize: '0.9rem',
+              color: '#744210',
+              marginBottom: '1rem'
+            }}>
+              <strong>💡 Tip: </strong>
+              File patterns may include wildcards: * (matches any characters) and ? (matches single character). 
+              Your filename must match at least one of the patterns listed above for this contract.
+            </div>
+
+            <button 
+              className="btn btn-primary"
+              onClick={() => setFilenameValidationError(null)}
+              style={{ fontSize: '1rem', padding: '0.75rem 2rem' }}
+            >
+              Try Again
+            </button>
+          </div>
         )}
         
         {/* Show error message with reset button */}
