@@ -1217,6 +1217,21 @@ print(json.dumps(result))
       ORDER BY vafs.priority ASC NULLS LAST
     `, [agreementId, projectId]);
     
+    // DEBUG: Log fetched schemas
+    this.logger.info('Fetched agreement schemas', {
+      fileId,
+      agreementId,
+      projectId,
+      schemaCount: agreementResult.rows.length,
+      schemas: agreementResult.rows.map(r => ({
+        schema_id: r.schema_id,
+        pattern: r.file_name_pattern,
+        contains_pii: r.contains_pii,
+        classification: r.data_classification,
+        has_schema: !!r.schema
+      }))
+    });
+    
     if (agreementResult.rows.length === 0) {
       this.logger.warn('Vendor agreement not found or no file schemas', { agreementId, projectId });
       return;
@@ -1224,13 +1239,36 @@ print(json.dumps(result))
     
     // Find matching schema based on filename pattern
     let matchedSchema = null;
+    this.logger.info('Starting pattern matching', { fileId, filename, patternCount: agreementResult.rows.length });
+    
     for (const row of agreementResult.rows) {
-      if (!row.file_name_pattern) continue;
+      if (!row.file_name_pattern) {
+        this.logger.info('Skipping schema with no pattern', { fileId, schema_id: row.schema_id });
+        continue;
+      }
       
       // Simple wildcard matching (convert * to .* for regex)
       const patternRegex = new RegExp('^' + row.file_name_pattern.replace(/\*/g, '.*') + '$', 'i');
-      if (patternRegex.test(filename)) {
+      const isMatch = patternRegex.test(filename);
+      
+      this.logger.info('Testing pattern', {
+        fileId,
+        schema_id: row.schema_id,
+        pattern: row.file_name_pattern,
+        regex: patternRegex.source,
+        filename,
+        isMatch
+      });
+      
+      if (isMatch) {
         matchedSchema = row;
+        this.logger.info('Pattern matched!', {
+          fileId,
+          schema_id: row.schema_id,
+          pattern: row.file_name_pattern,
+          contains_pii: row.contains_pii,
+          classification: row.data_classification
+        });
         break;
       }
     }
@@ -1238,7 +1276,13 @@ print(json.dumps(result))
     // Fallback to first schema if no pattern match
     if (!matchedSchema && agreementResult.rows[0].schema) {
       matchedSchema = agreementResult.rows[0];
-      this.logger.info('No pattern match, using first schema as default', { agreementId, fileId });
+      this.logger.warn('No pattern match, using first schema as fallback', {
+        fileId,
+        agreementId,
+        filename,
+        fallback_pattern: matchedSchema.file_name_pattern,
+        fallback_classification: matchedSchema.data_classification
+      });
     }
     
     if (!matchedSchema || !matchedSchema.schema) {
@@ -1265,50 +1309,97 @@ print(json.dumps(result))
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
     
+    // DEBUG: Log schema object
+    this.logger.info('Processing agreement schema for PII', {
+      fileId,
+      schemaType: typeof matchedSchema.schema,
+      isArray: Array.isArray(schemaObj),
+      schemaLength: Array.isArray(schemaObj) ? schemaObj.length : 0,
+      schemaColumns: Array.isArray(schemaObj) ? schemaObj.map(c => c.name || c.column_name) : []
+    });
+    
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
       // Find PII columns (those with is_pii: true)
       const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
+      
+      // DEBUG: Log PII column detection
+      this.logger.info('PII columns detected in schema', {
+        fileId,
+        piiColumnCount: piiColumns.length,
+        piiColumns: piiColumns.map(c => ({
+          name: c.name || c.column_name,
+          is_pii: c.is_pii,
+          pii: c.pii
+        })),
+        totalSchemaColumns: schemaObj.length
+      });
       
       if (piiColumns.length > 0) {
         // Map schema column names (case-insensitive) to profiled columns
         const profiledColumnNames = schema.map(c => c.name.toLowerCase());
         
+        // DEBUG: Log profiled column names
+        this.logger.info('Profiled columns for PII matching', {
+          fileId,
+          profiledColumnNames,
+          profiledColumnCount: profiledColumnNames.length
+        });
+        
         for (const piiCol of piiColumns) {
           const columnName = piiCol.name || piiCol.column_name;
           const columnNameLower = columnName.toLowerCase();
+          
+          this.logger.info('Processing PII column for tagging', {
+            fileId,
+            columnName,
+            columnNameLower,
+            existsInProfile: profiledColumnNames.includes(columnNameLower)
+          });
           
           // Check if column exists in profiled schema
           if (!profiledColumnNames.includes(columnNameLower)) {
             this.logger.warn('PII column from schema not found in profiled file', { 
               fileId, 
               columnName,
-              agreementId 
+              agreementId,
+              profiledColumnNames 
             });
             continue;
           }
           
           // Insert sensitivity tag
           try {
-            await this.dbPool.query(`
+            const insertResult = await this.dbPool.query(`
               INSERT INTO column_sensitivity_tags (file_id, column_name, sensitivity_level, tagged_by, tagged_at)
               VALUES ($1, $2, $3, $4, NOW())
               ON CONFLICT (file_id, column_name) DO UPDATE
               SET sensitivity_level = EXCLUDED.sensitivity_level,
                   tagged_at = NOW()
+              RETURNING *
             `, [fileId, columnName, 'PII', 'system']);
             
-            this.logger.info('Applied PII tag to column', { fileId, columnName });
+            this.logger.info('Successfully applied PII tag to column', { 
+              fileId, 
+              columnName,
+              rowsAffected: insertResult.rowCount,
+              inserted: insertResult.rows[0]
+            });
           } catch (tagError) {
             this.logger.error('Failed to insert PII tag', { 
               fileId, 
               columnName, 
-              error: tagError.message 
+              error: tagError.message,
+              stack: tagError.stack 
             });
           }
         }
         
         this.logger.info('PII tags applied', { fileId, piiColumnCount: piiColumns.length });
+      } else {
+        this.logger.info('No PII columns found in schema', { fileId, agreementId });
       }
+    } else {
+      this.logger.info('Schema is not an array or is empty', { fileId, agreementId });
     }
   }
 
