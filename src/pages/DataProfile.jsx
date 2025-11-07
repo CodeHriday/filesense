@@ -56,7 +56,9 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
     try {
       setSaving(true);
       const encodedFileId = encodeURIComponent(fileId);
-      await axios.post(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`, {
+      // Normalize column name to lowercase to handle Parquet case-sensitivity
+      const normalizedColumnName = columnName.toLowerCase();
+      await axios.post(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/sensitivity-tag`, {
         sensitivity_level: sensitivityLevel,
         data_type: dataType
       });
@@ -79,7 +81,9 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
     try {
       setSaving(true);
       const encodedFileId = encodeURIComponent(fileId);
-      await axios.delete(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`);
+      // Normalize column name to lowercase to handle Parquet case-sensitivity
+      const normalizedColumnName = columnName.toLowerCase();
+      await axios.delete(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/sensitivity-tag`);
       onSave();
     } catch (err) {
       console.error('Error deleting sensitivity tag:', err);
@@ -230,10 +234,12 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
       setSaving(true);
       const token = localStorage.getItem('token');
       const encodedFileId = encodeURIComponent(fileId);
+      // Normalize column name to lowercase to handle Parquet case-sensitivity
+      const normalizedColumnName = columnName.toLowerCase();
       
       // Send the selected tag IDs to the backend
       await axios.post(
-        `/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/tags`,
+        `/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/tags`,
         { tag_ids: selectedTags.map(t => t.tag_id) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -307,10 +313,12 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
       setSaving(true);
       const token = localStorage.getItem('token');
       const encodedFileId = encodeURIComponent(fileId);
+      // Normalize column name to lowercase to handle Parquet case-sensitivity
+      const normalizedColumnName = columnName.toLowerCase();
       
       // Send the selected policy IDs to the backend
       await axios.post(
-        `/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/policies`,
+        `/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/policies`,
         { policy_ids: selectedPolicies.map(p => p.policy_id) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -584,7 +592,9 @@ function DataProfile() {
   const fetchColumnGovernanceTags = async (columnName) => {
     try {
       const encodedFileId = encodeURIComponent(fileId);
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`);
+      // Normalize column name to lowercase to handle Parquet case-sensitivity
+      const normalizedColumnName = columnName.toLowerCase();
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/sensitivity-tag`);
       // Return array format for consistency with frontend expectations
       return response.data ? [response.data] : [];
     } catch (err) {
@@ -600,7 +610,9 @@ function DataProfile() {
   const fetchColumnPolicies = async (columnName) => {
     try {
       const encodedFileId = encodeURIComponent(fileId);
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/policies`);
+      // Normalize column name to lowercase to handle Parquet case-sensitivity
+      const normalizedColumnName = columnName.toLowerCase();
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/policies`);
       return response.data;
     } catch (err) {
       console.error('Error fetching column policies:', err);
@@ -675,8 +687,10 @@ function DataProfile() {
         setError(null);
         
         // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
-        if (fileData.data_classification) {
-          setFileSensitivity(fileData.data_classification);
+        // Handle both snake_case and camelCase from API
+        const classification = fileData.data_classification || fileData.dataClassification;
+        if (classification) {
+          setFileSensitivity(classification);
         }
         
         // Fetch governance data
