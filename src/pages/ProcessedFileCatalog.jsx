@@ -31,17 +31,14 @@ const ProcessedFileCatalog = () => {
   const fetchMappings = async () => {
     try {
       setLoading(true);
-      const params = { _t: Date.now() };
+      const params = {};
       if (searchTerm && searchTerm.trim()) {
         params.search = searchTerm.trim();
       }
 
       const response = await axios.get(`${API_BASE_URL}/api/file-audit/processed-catalog`, {
         params,
-        headers: { 
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-          'Cache-Control': 'no-cache'
-        }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       
       setMappings(response.data?.mappings || []);

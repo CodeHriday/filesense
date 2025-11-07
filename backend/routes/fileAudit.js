@@ -178,118 +178,6 @@ router.get('/:fileId', async (req, res) => {
 });
 
 /**
- * GET /api/file-audit/processed-catalog
- * Get aggregated processed file catalog grouped by mapping
- * NOTE: This must be defined BEFORE the general GET / route to avoid route conflicts
- */
-router.get('/processed-catalog', async (req, res) => {
-  if (!req.user || !req.user.id) {
-    return res.status(401).json({
-      error: 'Authentication required',
-      message: 'User authentication is required to access processed catalog'
-    });
-  }
-
-  const pool = req.app.locals.pool || req.app.get('db');
-  const { search } = req.query;
-
-  try {
-    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
-    let projectIds = [];
-    
-    if (!isAdmin) {
-      const { getUserProjects } = require('../middleware/requireProjectAccess');
-      const userProjects = await getUserProjects(req.user.id);
-      projectIds = [
-        ...new Set(
-          userProjects
-            .map(({ id }) => Number(id))
-            .filter(id => Number.isInteger(id))
-        )
-      ];
-      
-      if (projectIds.length === 0) {
-        return res.json({ mappings: [] });
-      }
-    }
-
-    let query = `
-      SELECT 
-        tm.mapping_id,
-        tm.mapping_name,
-        tm.file_path,
-        tm.file_name_pattern,
-        tm.source_file_pattern,
-        tm.field_mappings,
-        tm.anomaly_rules,
-        tm.created_at,
-        p.name as project_name,
-        sc.name as source_connection_name,
-        tc.name as target_connection_name,
-        COUNT(DISTINCT fad.id) as file_count
-      FROM transformation_mappings tm
-      LEFT JOIN projects p ON tm.project_id = p.id
-      LEFT JOIN transform_connections sc ON CAST(tm.source_connection_id AS TEXT) = CAST(sc.id AS TEXT)
-      LEFT JOIN transform_connections tc ON CAST(tm.target_connection_id AS TEXT) = CAST(tc.id AS TEXT)
-      LEFT JOIN file_audit_details fad ON fad.mapping_name = tm.mapping_name 
-        AND fad.load_type = 'etl_transformation' 
-        AND fad.file_role = 'target'
-    `;
-
-    const params = [];
-    const whereClauses = [];
-    let paramIndex = 1;
-
-    if (!isAdmin && projectIds.length > 0) {
-      whereClauses.push(`tm.project_id = ANY($${paramIndex})`);
-      params.push(projectIds);
-      paramIndex++;
-    }
-
-    if (search && search.trim()) {
-      whereClauses.push(`(tm.mapping_name ILIKE $${paramIndex} OR p.name ILIKE $${paramIndex})`);
-      params.push(`%${search.trim()}%`);
-      paramIndex++;
-    }
-
-    if (whereClauses.length > 0) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
-    }
-
-    query += `
-      GROUP BY 
-        tm.mapping_id, 
-        tm.mapping_name, 
-        tm.file_path, 
-        tm.file_name_pattern, 
-        tm.source_file_pattern, 
-        tm.field_mappings, 
-        tm.anomaly_rules, 
-        tm.created_at, 
-        p.name, 
-        sc.name, 
-        tc.name
-      HAVING COUNT(DISTINCT fad.id) > 0
-      ORDER BY tm.created_at DESC
-    `;
-
-    const result = await pool.query(query, params);
-
-    res.json({
-      success: true,
-      mappings: result.rows
-    });
-
-  } catch (error) {
-    console.error('Fetch processed catalog error:', error);
-    res.status(500).json({
-      error: 'Failed to fetch processed catalog',
-      details: error.message
-    });
-  }
-});
-
-/**
  * GET /api/file-audit
  * Get all audit records with filters
  */
@@ -346,6 +234,113 @@ router.get('/', async (req, res) => {
     console.error('Fetch audit records error:', error);
     res.status(500).json({
       error: 'Failed to fetch audit records',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/file-audit/processed-catalog
+ * Get aggregated processed file catalog grouped by mapping
+ */
+router.get('/processed-catalog', async (req, res) => {
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({
+      error: 'Authentication required',
+      message: 'User authentication is required to access processed catalog'
+    });
+  }
+
+  const pool = req.app.locals.pool || req.app.get('db');
+  const { search } = req.query;
+
+  try {
+    const isAdmin = req.user.roles && req.user.roles.includes('Admin');
+    let projectIds = [];
+    
+    if (!isAdmin) {
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(req.user.id);
+      projectIds = userProjects.map(p => p.id);
+      
+      if (projectIds.length === 0) {
+        return res.json({ mappings: [] });
+      }
+    }
+
+    let query = `
+      SELECT 
+        tm.mapping_id,
+        tm.mapping_name,
+        tm.file_path,
+        tm.file_name_pattern,
+        tm.source_file_pattern,
+        tm.field_mappings,
+        tm.anomaly_rules,
+        tm.quality_rule_ids,
+        tm.created_at,
+        p.name as project_name,
+        sc.name as source_connection_name,
+        tc.name as target_connection_name,
+        COUNT(DISTINCT fad.id) as file_count
+      FROM transformation_mappings tm
+      LEFT JOIN projects p ON tm.project_id = p.id
+      LEFT JOIN transform_connections sc ON CAST(tm.source_connection_id AS TEXT) = CAST(sc.id AS TEXT)
+      LEFT JOIN transform_connections tc ON CAST(tm.target_connection_id AS TEXT) = CAST(tc.id AS TEXT)
+      LEFT JOIN file_audit_details fad ON fad.mapping_name = tm.mapping_name 
+        AND fad.load_type = 'etl_transformation' 
+        AND fad.file_role = 'target'
+    `;
+
+    const params = [];
+    const whereClauses = [];
+    let paramIndex = 1;
+
+    if (!isAdmin && projectIds.length > 0) {
+      whereClauses.push(`tm.project_id = ANY($${paramIndex})`);
+      params.push(projectIds);
+      paramIndex++;
+    }
+
+    if (search && search.trim()) {
+      whereClauses.push(`(tm.mapping_name ILIKE $${paramIndex} OR p.name ILIKE $${paramIndex})`);
+      params.push(`%${search.trim()}%`);
+      paramIndex++;
+    }
+
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    query += `
+      GROUP BY 
+        tm.mapping_id, 
+        tm.mapping_name, 
+        tm.file_path, 
+        tm.file_name_pattern, 
+        tm.source_file_pattern, 
+        tm.field_mappings, 
+        tm.anomaly_rules, 
+        tm.quality_rule_ids, 
+        tm.created_at, 
+        p.name, 
+        sc.name, 
+        tc.name
+      HAVING COUNT(DISTINCT fad.id) > 0
+      ORDER BY tm.created_at DESC
+    `;
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      mappings: result.rows
+    });
+
+  } catch (error) {
+    console.error('Fetch processed catalog error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch processed catalog',
       details: error.message
     });
   }
