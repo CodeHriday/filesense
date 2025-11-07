@@ -10,6 +10,7 @@ const path = require('path');
 const { Readable } = require('stream');
 const { decryptCredentials } = require('../utils/encryption');
 const { matchesPattern } = require('../utils/filePatternMatcher');
+const { listAndFilterFiles } = require('../utils/cloudStorageFileList');
 
 /**
  * Validate file schema against vendor agreement schema
@@ -267,12 +268,87 @@ async function performSchemaValidation(
       config: decryptedConfig
     };
     
-    const fullPath = path.join(filePath, fileName).replace(/\\/g, '/');
+    // Check if fileName contains wildcards - if yes, find an actual file
+    let actualFileName = fileName;
+    let isWildcardMatch = false;
+    
+    if (fileName.includes('*') || fileName.includes('?')) {
+      systemLogger.info('File pattern contains wildcards, listing matching files', { 
+        fileName,
+        filePath,
+        vendorConnectionId
+      });
+      
+      try {
+        // Construct the full pattern including path
+        const fullPattern = path.join(filePath, fileName).replace(/\\/g, '/');
+        
+        // List files matching the pattern
+        const matchingFiles = await listAndFilterFiles(pool, vendorConnectionId, fullPattern);
+        
+        if (matchingFiles.length === 0) {
+          systemLogger.warn('No files match the pattern', { 
+            pattern: fullPattern,
+            vendorConnectionId
+          });
+          return {
+            valid: false,
+            schemaDrift: true,
+            message: `No files found matching pattern: ${fileName}`,
+            actualSchema: [],
+            expectedSchema,
+            differences: [`No files found in storage matching pattern: ${fileName}`],
+            matchedPattern,
+            matchedSchemaId
+          };
+        }
+        
+        // Use the first matching file
+        // Note: matchingFiles[0].filename contains the full path from cloud storage
+        // (S3 Key, GCS name, or Azure blob name all include the directory component)
+        const firstMatch = matchingFiles[0];
+        actualFileName = firstMatch.filename;
+        isWildcardMatch = true;
+        systemLogger.info('Found matching file for pattern', { 
+          pattern: fileName,
+          actualFile: actualFileName,
+          fullPath: actualFileName,
+          matchCount: matchingFiles.length
+        });
+      } catch (listError) {
+        systemLogger.error('Failed to list files for pattern', { 
+          error: listError.message,
+          pattern: fileName
+        });
+        return {
+          valid: false,
+          schemaDrift: true,
+          message: `Failed to list files: ${listError.message}`,
+          actualSchema: [],
+          expectedSchema,
+          differences: [`Failed to list files matching pattern: ${listError.message}`],
+          matchedPattern,
+          matchedSchemaId
+        };
+      }
+    }
+    
+    // Build full path: if wildcard match, actualFileName is already the full path
+    // Otherwise, join filePath and fileName
+    const fullPath = isWildcardMatch ? actualFileName : path.join(filePath, actualFileName).replace(/\\/g, '/');
+    
+    systemLogger.info('Schema validation file path resolution', {
+      fileName,
+      filePath,
+      isWildcardMatch,
+      actualFileName,
+      fullPath
+    });
     
     // Extract schema from actual file
     let actualSchema;
     try {
-      actualSchema = await extractSchemaFromFile(connectionWithDecryptedConfig, fullPath, fileName);
+      actualSchema = await extractSchemaFromFile(connectionWithDecryptedConfig, fullPath, path.basename(actualFileName));
     } catch (error) {
       systemLogger.error('Failed to extract schema from file', { error: error.message, filePath: fullPath });
       // Treat file read failures as schema drift - file doesn't exist or can't be read

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight } from 'react-icons/fi';
+import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock } from 'react-icons/fi';
 import './TableBasedMapper.css';
 
 const TRANSFORMATION_OPTIONS = [
@@ -67,7 +67,7 @@ const TRANSFORMATION_OPTIONS = [
   },
 ];
 
-const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables = [], onMappingsChange }) => {
+const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables = [], piiColumns: initialPiiColumns = [], onMappingsChange }) => {
   const [selectedSource, setSelectedSource] = useState(new Set());
   const [mappings, setMappings] = useState([]);
   const [editingExpression, setEditingExpression] = useState(null);
@@ -93,11 +93,19 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   });
   const expressionTextareaRef = useRef(null);
   const editExpressionTextareaRef = useRef(null);
+  
+  // PII tagging state
+  const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
 
   // Sync variables from prop to local state (always sync, including empty arrays)
   useEffect(() => {
     setVariables(initialVariables || []);
   }, [initialVariables]);
+
+  // Sync PII columns from prop
+  useEffect(() => {
+    setPiiColumns(new Set(initialPiiColumns || []));
+  }, [initialPiiColumns]);
 
   useEffect(() => {
     if (fieldMappings && fieldMappings.length > 0) {
@@ -106,6 +114,18 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       setSelectedSource(selectedFields);
     }
   }, [fieldMappings]);
+  
+  // Toggle PII status for a field
+  const togglePII = (targetField) => {
+    const newPiiColumns = new Set(piiColumns);
+    if (newPiiColumns.has(targetField)) {
+      newPiiColumns.delete(targetField);
+    } else {
+      newPiiColumns.add(targetField);
+    }
+    setPiiColumns(newPiiColumns);
+    onMappingsChange(mappings, variables, Array.from(newPiiColumns));
+  };
 
   const buildExpression = (mapping) => {
     if (!mapping.transformation || mapping.transformation === 'none') {
@@ -135,7 +155,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       newSelected.delete(fieldName);
       const newMappings = mappings.filter(m => m.source_field !== fieldName);
       setMappings(newMappings);
-      onMappingsChange(newMappings, variables);
+      onMappingsChange(newMappings, variables, Array.from(piiColumns));
     } else {
       newSelected.add(fieldName);
       const newMapping = {
@@ -146,7 +166,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       };
       const newMappings = [...mappings, newMapping];
       setMappings(newMappings);
-      onMappingsChange(newMappings, variables);
+      onMappingsChange(newMappings, variables, Array.from(piiColumns));
     }
     
     setSelectedSource(newSelected);
@@ -162,13 +182,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     
     setMappings(newMappings);
     setSelectedSource(new Set(schema.map(f => f.name)));
-    onMappingsChange(newMappings, variables);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns));
   };
 
   const handleClearMapping = () => {
     setMappings([]);
     setSelectedSource(new Set());
-    onMappingsChange([], variables);
+    onMappingsChange([], variables, Array.from(piiColumns));
   };
 
   const handleRemoveMapping = (sourceField) => {
@@ -178,7 +198,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     
     setMappings(newMappings);
     setSelectedSource(newSelected);
-    onMappingsChange(newMappings, variables);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns));
   };
 
   const handleTargetNameChange = (sourceField, newTargetName) => {
@@ -186,7 +206,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       m.source_field === sourceField ? { ...m, target_field: newTargetName } : m
     );
     setMappings(newMappings);
-    onMappingsChange(newMappings, variables);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns));
   };
 
   const handleEditExpression = (sourceField) => {
@@ -215,7 +235,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     });
 
     setMappings(newMappings);
-    onMappingsChange(newMappings, variables);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns));
     setEditingExpression(null);
   };
 
@@ -296,7 +316,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     const newMappings = [...mappings, newMapping];
     setMappings(newMappings);
-    onMappingsChange(newMappings, variables);
+    onMappingsChange(newMappings, variables, Array.from(piiColumns));
     setAddingNewColumn(false);
   };
 
@@ -505,7 +525,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     setVariables(newVariables);
     setAddingVariable(false);
     setNewVariable({ name: '', expression: '' });
-    onMappingsChange(mappings, newVariables);
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
   };
 
   const handleEditVariable = (variable) => {
@@ -538,13 +558,13 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
 
     setVariables(updatedVariables);
     setEditingVariable(null);
-    onMappingsChange(mappings, updatedVariables);
+    onMappingsChange(mappings, updatedVariables, Array.from(piiColumns));
   };
 
   const handleDeleteVariable = (variableId) => {
     const newVariables = variables.filter(v => v.id !== variableId);
     setVariables(newVariables);
-    onMappingsChange(mappings, newVariables);
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
   };
 
   const handleMoveVariableUp = (index) => {
@@ -552,7 +572,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const newVariables = [...variables];
     [newVariables[index - 1], newVariables[index]] = [newVariables[index], newVariables[index - 1]];
     setVariables(newVariables);
-    onMappingsChange(mappings, newVariables);
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
   };
 
   const handleMoveVariableDown = (index) => {
@@ -560,7 +580,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
     const newVariables = [...variables];
     [newVariables[index], newVariables[index + 1]] = [newVariables[index + 1], newVariables[index]];
     setVariables(newVariables);
-    onMappingsChange(mappings, newVariables);
+    onMappingsChange(mappings, newVariables, Array.from(piiColumns));
   };
 
   const handleVariableTransformationChange = (value) => {
@@ -783,6 +803,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 <tr>
                   <th style={{ width: '40px' }}>Status</th>
                   <th style={{ width: '200px' }}>Name</th>
+                  <th style={{ width: '60px', textAlign: 'center' }} title="Mark as PII (Personally Identifiable Information)">
+                    <FiLock /> PII
+                  </th>
                   <th style={{ width: '80px' }}>Actions</th>
                   <th>Expression</th>
                 </tr>
@@ -799,6 +822,15 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                         value={mapping.target_field}
                         onChange={(e) => handleTargetNameChange(mapping.source_field, e.target.value)}
                         className="target-name-input"
+                      />
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={piiColumns.has(mapping.target_field)}
+                        onChange={() => togglePII(mapping.target_field)}
+                        title="Mark as PII"
+                        style={{ cursor: 'pointer' }}
                       />
                     </td>
                     <td className="actions-cell">
@@ -828,7 +860,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                 ))}
                 {filteredMappings.length === 0 && (
                   <tr>
-                    <td colSpan="4" className="no-mappings">
+                    <td colSpan="5" className="no-mappings">
                       No field mappings. Select source fields from the left panel or click Automap.
                     </td>
                   </tr>

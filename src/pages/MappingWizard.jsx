@@ -112,6 +112,7 @@ function MappingWizard() {
   const [schema, setSchema] = useState([]);
   const [fieldMappings, setFieldMappings] = useState([]);
   const [variables, setVariables] = useState([]);
+  const [piiColumns, setPiiColumns] = useState([]);
   const [loadingSchema, setLoadingSchema] = useState(false);
 
   // Step 4: Target & Anomaly Rules
@@ -396,6 +397,7 @@ function MappingWizard() {
       setTargetOwner(mapping.target_owner || '');
       setFieldMappings(mapping.field_mappings || []);
       setVariables(mapping.variables || []);
+      setPiiColumns(mapping.pii_columns || []);
       setSchemaDriftHandling(mapping.schema_drift_handling || 'none');
       
       // Convert anomaly rules from object format to array format
@@ -684,6 +686,7 @@ function MappingWizard() {
         target_owner: targetOwner || null,
         field_mappings: fieldMappings,
         variables: variables,
+        pii_columns: piiColumns || [],
         anomaly_rules: anomalyRulesObject,
         schema_drift_handling: schemaDriftHandling,
         source_schema: schema || null,
@@ -1314,10 +1317,14 @@ function MappingWizard() {
                 schema={schema}
                 fieldMappings={fieldMappings}
                 variables={variables}
-                onMappingsChange={(mappings, vars) => {
+                piiColumns={piiColumns}
+                onMappingsChange={(mappings, vars, pii) => {
                   setFieldMappings(mappings);
                   if (vars !== undefined) {
                     setVariables(vars);
+                  }
+                  if (pii !== undefined) {
+                    setPiiColumns(pii);
                   }
                 }}
               />
