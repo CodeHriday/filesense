@@ -370,7 +370,10 @@ async function downloadAndProfileFile(options) {
     jobId,
     userId,
     projectId,
-    metadata
+    metadata,
+    containsPii,
+    dataClassification,
+    piiColumns
   } = options;
 
   try {
@@ -400,7 +403,10 @@ async function downloadAndProfileFile(options) {
       jobId,
       userId,
       projectId,
-      metadata
+      metadata,
+      containsPii,
+      dataClassification,
+      piiColumns
     });
 
   } catch (error) {
