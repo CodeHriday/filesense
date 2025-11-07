@@ -59,7 +59,7 @@ retentionWorker.start();
 
 // Import validation middleware and schemas
 const { validateRequest, loginSchema, userSchema, fileUploadSchema } = require('./backend/src/middleware/validation');
-const { cacheMiddleware, invalidateCache } = require('./backend/middleware/cacheMiddleware');
+const { cacheMiddleware, invalidateCache, invalidate } = require('./backend/middleware/cacheMiddleware');
 const createAuditMiddleware = require('./backend/middleware/auditMiddleware');
 const authorizeProjectResource = require('./backend/middleware/authorizeProjectResource');
 const { requireProjectAccess } = require('./backend/middleware/requireProjectAccess');
@@ -2448,6 +2448,21 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           error: dbError.message 
         });
         // Don't fail the upload if database storage fails
+      }
+    }
+    
+    // Invalidate vendor files cache so new uploads appear immediately
+    if (connectionId) {
+      try {
+        await invalidate('cache:*:/api/vendor-files*');
+        await invalidate('cache:*:/api/files*');
+        logger.info('Invalidated vendor file caches after upload', { fileId });
+      } catch (cacheError) {
+        // Log but don't fail the upload if cache invalidation fails
+        logger.warn('Failed to invalidate cache after vendor file upload', { 
+          fileId, 
+          error: cacheError.message 
+        });
       }
     }
     
