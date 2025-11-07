@@ -293,15 +293,9 @@ async function profileFileBuffer(options) {
         });
       }
       
-      // Step 11: Save PII column tags if provided (governance metadata from vendor agreement)
-      if (piiColumns && Array.isArray(piiColumns) && piiColumns.length > 0) {
-        await savePIIColumnTags(pool, fileId, piiColumns);
-        systemLogger.info('PII column tags saved', {
-          fileId,
-          fileRole,
-          piiColumnCount: piiColumns.length
-        });
-      }
+      // NOTE: PII column tags are now persisted by the unified governanceService.persistGovernanceMetadata()
+      // which is called by the parent code (jobExecutionEngine, fileProcessingWorker) after profiling completes.
+      // This ensures all governance metadata (file flags, file tags, column tags) is saved atomically.
     }
 
     // Clean up temp file
