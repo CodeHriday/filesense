@@ -15,6 +15,7 @@ const {
 const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const { profileETLOutputFile, profileETLFile } = require('./etlProfilingService');
 const { profileFileBuffer, downloadAndProfileFile } = require('./transformationProfilingService');
+const { persistGovernanceMetadata } = require('./governanceService');
 const crypto = require('crypto');
 
 /**
@@ -642,7 +643,8 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
     return {
       containsPii: false,
       dataClassification: null,
-      piiColumns: []
+      piiColumns: [],
+      fileTags: []
     };
   }
   
@@ -653,7 +655,7 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
       projectId
     });
     
-    // Fetch vendor agreement with file schemas (same query as Contract Validation)
+    // Fetch vendor agreement with file schemas (including quality_rule_ids for file tags)
     const agreementResult = await pool.query(`
       SELECT 
         va.id,
@@ -663,6 +665,7 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
         vafs.schema,
         vafs.contains_pii,
         vafs.data_classification,
+        vafs.quality_rule_ids,
         vafs.priority
       FROM vendor_agreements va
       LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.vendor_agreement_id AND vafs.is_active = true
@@ -678,7 +681,8 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
       return {
         containsPii: false,
         dataClassification: null,
-        piiColumns: []
+        piiColumns: [],
+        fileTags: []
       };
     }
     
@@ -700,7 +704,8 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
           pattern: row.file_name_pattern,
           schema_id: row.schema_id,
           contains_pii: row.contains_pii,
-          classification: row.data_classification
+          classification: row.data_classification,
+          quality_rules: row.quality_rule_ids
         });
         break;
       }
@@ -725,7 +730,8 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
       return {
         containsPii: false,
         dataClassification: null,
-        piiColumns: []
+        piiColumns: [],
+        fileTags: []
       };
     }
     
@@ -747,18 +753,46 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
       }
     }
     
+    // Extract file-level tags from quality_rule_ids
+    let fileTags = [];
+    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids)) {
+      try {
+        const rulesResult = await pool.query(`
+          SELECT id, rule_name 
+          FROM quality_rules 
+          WHERE id = ANY($1::int[])
+        `, [matchedSchema.quality_rule_ids]);
+        
+        fileTags = rulesResult.rows.map(r => r.rule_name);
+        
+        systemLogger.info('Extracted file-level tags from quality rules', {
+          sourceFilename,
+          ruleIds: matchedSchema.quality_rule_ids,
+          tags: fileTags
+        });
+      } catch (tagError) {
+        systemLogger.warn('Failed to fetch quality rule names for tags', {
+          sourceFilename,
+          error: tagError.message
+        });
+      }
+    }
+    
     systemLogger.info('Extracted governance metadata for mapping', {
       sourceFilename,
       containsPii: matchedSchema.contains_pii || false,
       dataClassification: matchedSchema.data_classification,
       piiColumnCount: piiColumns.length,
-      piiColumns: piiColumns
+      piiColumns: piiColumns,
+      fileTagCount: fileTags.length,
+      fileTags: fileTags
     });
     
     return {
       containsPii: matchedSchema.contains_pii || false,
       dataClassification: matchedSchema.data_classification || null,
-      piiColumns: piiColumns
+      piiColumns: piiColumns,
+      fileTags: fileTags
     };
     
   } catch (error) {
@@ -771,7 +805,8 @@ async function fetchGovernanceForMapping(pool, mapping, sourceFilename, projectI
     return {
       containsPii: false,
       dataClassification: null,
-      piiColumns: []
+      piiColumns: [],
+      fileTags: []
     };
   }
 }
@@ -940,7 +975,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         governance = {
           containsPii: false,
           dataClassification: null,
-          piiColumns: []
+          piiColumns: [],
+          fileTags: []
         };
       }
     } else {
@@ -948,7 +984,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       governance = {
         containsPii: false,
         dataClassification: null,
-        piiColumns: []
+        piiColumns: [],
+        fileTags: []
       };
     }
     
@@ -1059,6 +1096,36 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             columnCount: sourceProfilingResult.columnCount,
             qualityScore: sourceProfilingResult.qualityScore
           });
+          
+          // Persist governance metadata using unified service (after profiling completes)
+          try {
+            const governanceResult = await persistGovernanceMetadata(pool, {
+              fileId: sourceProfilingResult.fileId,
+              containsPii: governance.containsPii,
+              dataClassification: governance.dataClassification,
+              fileTags: governance.fileTags || [],
+              piiColumns: governance.piiColumns || [],
+              profiledSchema: sourceProfilingResult.schema || []
+            });
+            
+            if (governanceResult.success) {
+              await logJobExecution(pool, jobId, 'info', 
+                `SOURCE file governance metadata persisted`, {
+                fileId: sourceProfilingResult.fileId,
+                governanceApplied: governanceResult.governanceApplied
+              });
+            } else {
+              await logJobExecution(pool, jobId, 'warn', 
+                `Failed to persist SOURCE file governance metadata: ${governanceResult.error}`, {
+                fileId: sourceProfilingResult.fileId
+              });
+            }
+          } catch (govError) {
+            await logJobExecution(pool, jobId, 'warn', 
+              `Error persisting SOURCE file governance metadata: ${govError.message}`, {
+              fileId: sourceProfilingResult.fileId
+            });
+          }
         } else {
           await logJobExecution(pool, jobId, 'warn', 
             `SOURCE file profiling failed: ${sourceProfilingResult.error}`, {
@@ -1388,28 +1455,42 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               qualityScore: targetProfilingResult.qualityScore
             });
             
-            // Store PII column tags using the actual file_id from profiling result
-            const piiColumns = mapping.pii_columns || [];
-            if (piiColumns && Array.isArray(piiColumns) && piiColumns.length > 0) {
-              const actualFileId = targetProfilingResult.fileId;
+            // Persist governance metadata using unified service (after profiling completes)
+            try {
+              // Combine governance from vendor agreement and mapping-specific PII columns
+              const combinedPiiColumns = [
+                ...(governance.piiColumns || []),
+                ...(mapping.pii_columns || [])
+              ];
               
-              for (const columnName of piiColumns) {
-                try {
-                  await pool.query(`
-                    INSERT INTO column_sensitivity_tags (file_id, column_name, classification_level, data_type)
-                    VALUES ($1, $2, $3, $4)
-                    ON CONFLICT (file_id, column_name) 
-                    DO UPDATE SET classification_level = EXCLUDED.classification_level, updated_at = CURRENT_TIMESTAMP
-                  `, [actualFileId, columnName, 'PII', 'string']);
-                } catch (tagError) {
-                  systemLogger.error('Error creating PII tag', { error: tagError.message, columnName });
-                }
+              // Remove duplicates
+              const uniquePiiColumns = [...new Set(combinedPiiColumns)];
+              
+              const governanceResult = await persistGovernanceMetadata(pool, {
+                fileId: targetProfilingResult.fileId,
+                containsPii: governance.containsPii || uniquePiiColumns.length > 0,
+                dataClassification: governance.dataClassification,
+                fileTags: governance.fileTags || [],
+                piiColumns: uniquePiiColumns,
+                profiledSchema: targetProfilingResult.schema || []
+              });
+              
+              if (governanceResult.success) {
+                await logJobExecution(pool, jobId, 'info', 
+                  `TARGET file governance metadata persisted`, {
+                  fileId: targetProfilingResult.fileId,
+                  governanceApplied: governanceResult.governanceApplied
+                });
+              } else {
+                await logJobExecution(pool, jobId, 'warn', 
+                  `Failed to persist TARGET file governance metadata: ${governanceResult.error}`, {
+                  fileId: targetProfilingResult.fileId
+                });
               }
-              
-              await logJobExecution(pool, jobId, 'info', 
-                `PII column tags created for ${piiColumns.length} columns`, {
-                fileId: actualFileId,
-                piiColumns: piiColumns
+            } catch (govError) {
+              await logJobExecution(pool, jobId, 'warn', 
+                `Error persisting TARGET file governance metadata: ${govError.message}`, {
+                fileId: targetProfilingResult.fileId
               });
             }
           } else {
