@@ -1359,7 +1359,7 @@ function FileUpload() {
                       <option value="">Select an agreement...</option>
                       {vendorAgreements.map(agreement => (
                         <option key={agreement.id} value={agreement.id}>
-                          {agreement.vendor_name} - {agreement.file_name}
+                          {agreement.vendor_name} - {agreement.agreement_code}
                         </option>
                       ))}
                     </>
