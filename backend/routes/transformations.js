@@ -206,6 +206,7 @@ router.post('/',
       mapping_name,
       source_connection_id,
       vendor_agreement_id,
+      vendor_agreement_file_schema_id,
       source_type = 'files',
       file_path = '',
       file_name_pattern,
@@ -386,14 +387,14 @@ router.post('/',
     
     const result = await pool.query(`
       INSERT INTO transformation_mappings (
-        mapping_id, mapping_name, source_connection_id, vendor_agreement_id, source_type, file_path,
+        mapping_id, mapping_name, source_connection_id, vendor_agreement_id, vendor_agreement_file_schema_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_path, target_file_name, target_file_format,
         field_mappings, variables, anomaly_rules, schema_drift_handling, source_schema, status, created_by, project_id, sub_project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING *
     `, [
-      mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, source_type, file_path,
+      mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, vendor_agreement_file_schema_id, source_type, file_path,
       actualFilePattern, actualFilePattern, actualTargetConnectionId, target_table_name,
       req.body.target_file_path, target_file_name, target_file_format,
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(anomaly_rules), 
@@ -450,6 +451,7 @@ router.put('/:id',
       mapping_name,
       source_connection_id,
       vendor_agreement_id,
+      vendor_agreement_file_schema_id,
       source_type,
       file_path,
       file_name_pattern,
@@ -621,6 +623,13 @@ router.put('/:id',
       values.push(vendor_agreement_id);
       paramIndex++;
       
+      // Update vendor_agreement_file_schema_id alongside vendor_agreement_id
+      if (req.body.hasOwnProperty('vendor_agreement_file_schema_id')) {
+        updates.push(`vendor_agreement_file_schema_id = $${paramIndex}`);
+        values.push(vendor_agreement_file_schema_id);
+        paramIndex++;
+      }
+      
       // Update source_connection_id only when necessary to maintain exclusivity
       if (vendor_agreement_id) {
         // Vendor is truthy, source must be NULL
@@ -643,6 +652,9 @@ router.put('/:id',
       // If source is truthy, vendor must be NULL
       if (source_connection_id) {
         updates.push(`vendor_agreement_id = $${paramIndex}`);
+        values.push(null);
+        paramIndex++;
+        updates.push(`vendor_agreement_file_schema_id = $${paramIndex}`);
         values.push(null);
         paramIndex++;
       }
