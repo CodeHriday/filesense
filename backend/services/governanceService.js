@@ -136,7 +136,7 @@ async function persistGovernanceMetadata(pool, options) {
     }
 
     // Step 3: Save column-level PII tags to column_sensitivity_tags table
-    // CRITICAL: Use classification_level column (not sensitivity_level)
+    // CRITICAL: Use sensitivity_level column (verified from database schema)
     // Always delete existing column tags first to remove stale entries
     await client.query(`
       DELETE FROM column_sensitivity_tags 
@@ -156,10 +156,10 @@ async function persistGovernanceMetadata(pool, options) {
       for (const columnName of normalizedPiiColumns) {
         try {
           await client.query(`
-            INSERT INTO column_sensitivity_tags (file_id, column_name, classification_level, data_type)
+            INSERT INTO column_sensitivity_tags (file_id, column_name, sensitivity_level, data_type)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (file_id, column_name) DO UPDATE
-            SET classification_level = EXCLUDED.classification_level,
+            SET sensitivity_level = EXCLUDED.sensitivity_level,
                 updated_at = NOW()
           `, [fileId, columnName, 'PII', 'string']);
 
