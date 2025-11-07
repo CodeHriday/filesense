@@ -1204,7 +1204,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
             mappingId: mapping.mapping_id,
             jobId,
             userId,
-            projectId: mapping.project_id
+            projectId: mapping.project_id,
+            metadata: {
+              pii_columns: mapping.pii_columns || [],
+              transformation_id: mapping.mapping_id,
+              data_classification: dataClassification
+            }
           });
 
           if (targetProfilingResult.success) {

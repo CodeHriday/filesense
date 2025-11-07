@@ -161,7 +161,8 @@ async function profileFileBuffer(options) {
     mappingId,
     jobId,
     userId,
-    projectId
+    projectId,
+    metadata
   } = options;
 
   const tempFilePath = path.join(os.tmpdir(), `etl_profile_${Date.now()}_${path.basename(filename)}`);
@@ -200,12 +201,12 @@ async function profileFileBuffer(options) {
     // Step 6: Calculate quality score from file info
     const qualityScore = calculateQualityScore(fileInfo);
 
-    // Step 8: Save to files table with correlation_id and file_role for job linking
+    // Step 8: Save to files table with correlation_id, file_role, and metadata for job linking
     await pool.query(`
       INSERT INTO files (
         file_id, filename, file_type, file_size, row_count, column_count,
-        quality_score, checksum, correlation_id, file_role, created_at, updated_at, project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), $11)
+        quality_score, checksum, correlation_id, file_role, metadata, created_at, updated_at, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), $12)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         filename = EXCLUDED.filename,
@@ -217,6 +218,7 @@ async function profileFileBuffer(options) {
         checksum = EXCLUDED.checksum,
         correlation_id = EXCLUDED.correlation_id,
         file_role = EXCLUDED.file_role,
+        metadata = EXCLUDED.metadata,
         updated_at = NOW()
     `, [
       fileId,
@@ -229,6 +231,7 @@ async function profileFileBuffer(options) {
       fileHash,
       jobId, // correlation_id to link all files from same job
       fileRole, // 'source' or 'target' for profiling endpoint
+      metadata || null, // Store metadata including data_classification and pii_columns (pg handles jsonb conversion)
       projectId || null
     ]);
 
@@ -347,7 +350,8 @@ async function downloadAndProfileFile(options) {
     mappingId,
     jobId,
     userId,
-    projectId
+    projectId,
+    metadata
   } = options;
 
   try {
@@ -376,7 +380,8 @@ async function downloadAndProfileFile(options) {
       mappingId,
       jobId,
       userId,
-      projectId
+      projectId,
+      metadata
     });
 
   } catch (error) {
