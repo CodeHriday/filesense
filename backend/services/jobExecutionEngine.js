@@ -1160,20 +1160,25 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         // Step 6: Profile the TARGET file using Python profilers (same as file upload)
         // Profile in-memory buffer to avoid redundant S3 download (performance optimization)
         try {
+          // Use same file ID as audit/lineage for consistency
+          const targetFileId = `transformed_${jobId}_${file.filename}`;
+          
           await logJobExecution(pool, jobId, 'info', 
             `Profiling TARGET file from in-memory buffer using Python profilers`, {
             filename: outputFilename,
             fileRole: 'target',
-            bufferSize: outputBuffer.length
+            bufferSize: outputBuffer.length,
+            fileId: targetFileId
           });
 
           // Profile the in-memory outputBuffer directly (avoids redundant S3 download)
-          // fileId will be auto-generated from SHA-256 hash of file content (clean, URL-safe)
+          // Pass explicit fileId to match audit trail and ensure PII tags use same ID
           const targetProfilingResult = await profileFileBuffer({
             pool,
             fileBuffer: outputBuffer,
             filename: outputFilename,
             fileType: outputFormat,
+            fileId: targetFileId,
             fileRole: 'target',
             mappingId: mapping.mapping_id,
             jobId,
