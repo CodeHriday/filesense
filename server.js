@@ -347,9 +347,9 @@ app.get('/api/files/:fileId/status',
           `SELECT 1 FROM project_members pm
            WHERE pm.project_id = $1 AND pm.user_id = $2
            UNION
-           SELECT 1 FROM access_group_members agm
-           JOIN project_access_groups pag ON agm.group_id = pag.group_id
-           WHERE pag.project_id = $1 AND agm.user_id = $2
+           SELECT 1 FROM user_groups ug
+           INNER JOIN project_access_groups pag ON ug.group_id = pag.group_id
+           WHERE pag.project_id = $1 AND ug.user_id = $2
            LIMIT 1`,
           [file.project_id, userId]
         );
@@ -1367,6 +1367,9 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       }
     }
     
+    // Get vendor agreement_id if provided (for contract validation)
+    const agreementId = req.body.agreement_id ? parseInt(req.body.agreement_id) : null;
+    
     // Get replaceFileId if provided (for atomic file replacement)
     const replaceFileId = req.body.replace_file_id || null;
     
@@ -1482,7 +1485,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           fileHash,
           projectId,
           subProjectId,
-          qualityRuleIds
+          qualityRuleIds,
+          agreementId
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },

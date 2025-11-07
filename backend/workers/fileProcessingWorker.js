@@ -70,7 +70,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -204,6 +204,20 @@ class FileProcessingWorker {
       // Step 5.5: Save preview data to database (100 rows)
       if (fileInfo.preview_data && fileInfo.preview_data.length > 0) {
         await this.savePreviewData(fileId, fileInfo.preview_data);
+      }
+      
+      // Step 5.7: Apply vendor agreement governance metadata if contract validation mode
+      if (agreementId && fileInfo.schema && fileInfo.schema.length > 0) {
+        try {
+          await this.applyAgreementGovernance(fileId, agreementId, fileInfo.schema, originalName, projectId);
+        } catch (govError) {
+          this.logger.warn('Failed to apply vendor agreement governance', { 
+            fileId, 
+            agreementId, 
+            error: govError.message 
+          });
+          // Don't fail the job - governance is supplementary
+        }
       }
 
       await this.queue.updateProgress(jobId, 90);
@@ -1162,6 +1176,129 @@ print(json.dumps(result))
         stack: error.stack
       });
       // Don't throw - preview data failure shouldn't fail the job
+    }
+  }
+
+  /**
+   * Apply vendor agreement governance metadata (PII tags, classification)
+   * @param {string} fileId - File ID
+   * @param {number} agreementId - Vendor agreement ID
+   * @param {Array} schema - Profiled file schema
+   * @param {string} filename - Original filename
+   * @param {number} projectId - Project ID
+   */
+  async applyAgreementGovernance(fileId, agreementId, schema, filename, projectId) {
+    this.logger.info('Applying vendor agreement governance', { fileId, agreementId, filename });
+    
+    // Fetch vendor agreement with file schemas
+    const agreementResult = await this.dbPool.query(`
+      SELECT 
+        va.id,
+        va.agreement_code,
+        vafs.id as schema_id,
+        vafs.file_name_pattern,
+        vafs.schema,
+        vafs.contains_pii,
+        vafs.data_classification,
+        vafs.priority
+      FROM vendor_agreements va
+      LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.vendor_agreement_id AND vafs.is_active = true
+      WHERE va.id = $1 AND va.project_id = $2
+      ORDER BY vafs.priority ASC NULLS LAST
+    `, [agreementId, projectId]);
+    
+    if (agreementResult.rows.length === 0) {
+      this.logger.warn('Vendor agreement not found or no file schemas', { agreementId, projectId });
+      return;
+    }
+    
+    // Find matching schema based on filename pattern
+    let matchedSchema = null;
+    for (const row of agreementResult.rows) {
+      if (!row.file_name_pattern) continue;
+      
+      // Simple wildcard matching (convert * to .* for regex)
+      const patternRegex = new RegExp('^' + row.file_name_pattern.replace(/\*/g, '.*') + '$', 'i');
+      if (patternRegex.test(filename)) {
+        matchedSchema = row;
+        break;
+      }
+    }
+    
+    // Fallback to first schema if no pattern match
+    if (!matchedSchema && agreementResult.rows[0].schema) {
+      matchedSchema = agreementResult.rows[0];
+      this.logger.info('No pattern match, using first schema as default', { agreementId, fileId });
+    }
+    
+    if (!matchedSchema || !matchedSchema.schema) {
+      this.logger.warn('No matching schema found for filename', { agreementId, filename });
+      return;
+    }
+    
+    // Update files table with governance metadata
+    await this.dbPool.query(`
+      UPDATE files 
+      SET contains_pii = $1,
+          data_classification = $2
+      WHERE file_id = $3
+    `, [matchedSchema.contains_pii || false, matchedSchema.data_classification, fileId]);
+    
+    this.logger.info('Applied governance metadata to file', { 
+      fileId, 
+      contains_pii: matchedSchema.contains_pii,
+      data_classification: matchedSchema.data_classification 
+    });
+    
+    // Extract PII columns from schema and insert into column_sensitivity_tags
+    const schemaObj = typeof matchedSchema.schema === 'string' 
+      ? JSON.parse(matchedSchema.schema) 
+      : matchedSchema.schema;
+    
+    if (Array.isArray(schemaObj) && schemaObj.length > 0) {
+      // Find PII columns (those with is_pii: true)
+      const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
+      
+      if (piiColumns.length > 0) {
+        // Map schema column names (case-insensitive) to profiled columns
+        const profiledColumnNames = schema.map(c => c.name.toLowerCase());
+        
+        for (const piiCol of piiColumns) {
+          const columnName = piiCol.name || piiCol.column_name;
+          const columnNameLower = columnName.toLowerCase();
+          
+          // Check if column exists in profiled schema
+          if (!profiledColumnNames.includes(columnNameLower)) {
+            this.logger.warn('PII column from schema not found in profiled file', { 
+              fileId, 
+              columnName,
+              agreementId 
+            });
+            continue;
+          }
+          
+          // Insert sensitivity tag
+          try {
+            await this.dbPool.query(`
+              INSERT INTO column_sensitivity_tags (file_id, column_name, sensitivity_level, tagged_by, tagged_at)
+              VALUES ($1, $2, $3, $4, NOW())
+              ON CONFLICT (file_id, column_name) DO UPDATE
+              SET sensitivity_level = EXCLUDED.sensitivity_level,
+                  tagged_at = NOW()
+            `, [fileId, columnName, 'PII', 'system']);
+            
+            this.logger.info('Applied PII tag to column', { fileId, columnName });
+          } catch (tagError) {
+            this.logger.error('Failed to insert PII tag', { 
+              fileId, 
+              columnName, 
+              error: tagError.message 
+            });
+          }
+        }
+        
+        this.logger.info('PII tags applied', { fileId, piiColumnCount: piiColumns.length });
+      }
     }
   }
 

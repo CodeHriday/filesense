@@ -79,14 +79,24 @@ function requireProjectAccess(options = {}) {
       const parentProjectId = await resolveToParentProject(projectId);
       
       // Check project membership (allow access if user is member of either the project itself OR its parent)
+      // Includes both direct membership (project_members) and group-based membership (user_groups -> project_access_groups)
       const membershipResult = await db.query(`
         SELECT 
           p.name as project_name,
           p.is_active as project_active
-        FROM project_members pm
-        JOIN projects p ON pm.project_id = p.id
-        WHERE pm.project_id IN ($1, $2)
-          AND pm.user_id = $3
+        FROM projects p
+        WHERE p.id IN ($1, $2)
+          AND (
+            EXISTS (
+              SELECT 1 FROM project_members pm
+              WHERE pm.project_id = p.id AND pm.user_id = $3
+            )
+            OR EXISTS (
+              SELECT 1 FROM user_groups ug
+              INNER JOIN project_access_groups pag ON ug.group_id = pag.group_id
+              WHERE pag.project_id = p.id AND ug.user_id = $3
+            )
+          )
         LIMIT 1
       `, [projectId, parentProjectId, req.user.id]);
 
