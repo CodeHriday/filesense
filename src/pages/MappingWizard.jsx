@@ -671,6 +671,7 @@ function MappingWizard() {
         sub_project_id: subProjectId || null,
         source_connection_id: selectedVendorAgreement ? null : (sourceConnectionId || null),
         vendor_agreement_id: selectedVendorAgreement ? parseInt(selectedVendorAgreement) : null,
+        vendor_agreement_file_schema_id: selectedFileSchema?.id || null,
         source_type: sourceType,
         file_path: filePath,
         file_name_pattern: fileNamePattern,
