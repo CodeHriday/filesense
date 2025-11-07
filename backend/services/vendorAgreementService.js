@@ -86,6 +86,7 @@ class VendorAgreementService {
         vendor_id,
         file_name,
         file_description,
+        description,
         schema,
         frequency,
         frequency_description,
@@ -278,7 +279,7 @@ class VendorAgreementService {
       // Create agreement
       const result = await client.query(
         `INSERT INTO vendor_agreements (
-          vendor_id, agreement_code, file_name, file_description, schema,
+          vendor_id, agreement_code, file_name, file_description, description, schema,
           frequency, frequency_description, vendor_department_team, vendor_department_email, vendor_type, vendor_onboarding_date, file_owner_user_id,
           primary_contact_name, primary_contact_phone, primary_contact_email, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
@@ -287,10 +288,10 @@ class VendorAgreementService {
           manager_contact, governance_manager_user_id,
           contains_pii, file_type, data_classification, domain, retention_days, expected_arrival_time, delivery_method,
           status, contract_start_date, contract_end_date, approval_status, version, created_by, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, 1, $40, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, 1, $41, CURRENT_TIMESTAMP)
         RETURNING *`,
         [
-          vendor_id, agreementCode, file_name, file_description, parsedSchema ? JSON.stringify(parsedSchema) : null,
+          vendor_id, agreementCode, file_name, file_description, description || null, parsedSchema ? JSON.stringify(parsedSchema) : null,
           frequency, frequency_description, vendor_department_team, vendor_department_email, vendor_type, vendor_onboarding_date || null, file_owner_user_id,
           primary_contact_name, primary_contact_phone, finalPrimaryContactEmail, primary_contact_designation,
           secondary_contact_name, secondary_contact_phone, secondary_contact_email, secondary_contact_designation,
@@ -586,6 +587,14 @@ class VendorAgreementService {
         updates.push(`file_description = $${paramIndex}`);
         params.push(file_description);
         changes.file_description = { from: current.file_description, to: file_description };
+        paramIndex++;
+      }
+      
+      const { description } = updateData;
+      if (description !== undefined && description !== current.description) {
+        updates.push(`description = $${paramIndex}`);
+        params.push(description || null);
+        changes.description = { from: current.description, to: description };
         paramIndex++;
       }
       

@@ -7,6 +7,7 @@ class VendorAgreementTemplateService {
     // Agreement-level fields
     this.agreementFields = [
       { field: 'agreement_id', label: 'Agreement ID *', type: 'text', required: true },
+      { field: 'description', label: 'Description', type: 'text', required: false },
       { field: 'vendor_department_team', label: 'Vendor Department/Team *', type: 'text', required: true },
       { field: 'vendor_department_email', label: 'Vendor Department Email *', type: 'text', required: true },
       { field: 'frequency', label: 'Frequency *', type: 'dropdown', required: true, options: ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual', 'Ad-hoc'] },
@@ -146,6 +147,8 @@ class VendorAgreementTemplateService {
     switch (field.field) {
       case 'agreement_id':
         return agreementId;
+      case 'description':
+        return 'Customer data export agreement';
       case 'frequency':
         return 'Daily';
       case 'frequency_description':

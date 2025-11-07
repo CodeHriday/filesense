@@ -84,6 +84,7 @@ const VendorAgreements = () => {
     vendor_code: '',
     file_name: '',
     file_description: '',
+    description: '',
     schema: '',
     frequency: 'Daily',
     frequency_description: '',
@@ -671,6 +672,7 @@ const VendorAgreements = () => {
       vendor_code: agreement.vendor_code || '',
       file_name: agreement.file_name || '',
       file_description: agreement.file_description || '',
+      description: agreement.description || '',
       schema: agreement.schema ? JSON.stringify(agreement.schema, null, 2) : '',
       frequency: agreement.frequency || 'Daily',
       frequency_description: agreement.frequency_description || '',
@@ -1349,7 +1351,8 @@ const VendorAgreements = () => {
       (agreement.file_name || '').toLowerCase().includes(term) ||
       (agreement.vendor_name || '').toLowerCase().includes(term) ||
       (agreement.agreement_code || '').toLowerCase().includes(term) ||
-      (agreement.file_description || '').toLowerCase().includes(term)
+      (agreement.file_description || '').toLowerCase().includes(term) ||
+      (agreement.description || '').toLowerCase().includes(term)
     );
   });
 
@@ -1451,6 +1454,7 @@ const VendorAgreements = () => {
               <thead>
                 <tr>
                   <th>Agreement Code</th>
+                  <th>Description</th>
                   <th>File Name</th>
                   <th>Vendor</th>
                   <th>Frequency</th>
@@ -1463,12 +1467,13 @@ const VendorAgreements = () => {
               <tbody>
                 {paginatedAgreements.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="no-agreements-message">No contracts found</td>
+                    <td colSpan="9" className="no-agreements-message">No contracts found</td>
                   </tr>
                 ) : (
                   paginatedAgreements.map(agreement => (
                     <tr key={agreement.id}>
                       <td>{agreement.agreement_code}</td>
+                      <td>{agreement.description || '-'}</td>
                       <td>
                         {(() => {
                           const fileSchemas = agreement.file_schemas || [];
@@ -1698,7 +1703,7 @@ const VendorAgreements = () => {
                     )}
                   </div>
                   
-                  {/* Row 2: Sub-Project */}
+                  {/* Row 2: Sub-Project and Description */}
                   {formData.vendor_id && formData.project_id && (
                     <div className="form-row-grid">
                       <div className="form-group">
@@ -1722,6 +1727,21 @@ const VendorAgreements = () => {
                         </select>
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
                           {!formData.project_id ? 'Project assignment required' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project for this agreement'}
+                        </small>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="description">Description</label>
+                        <input
+                          type="text"
+                          id="description"
+                          name="description"
+                          value={formData.description || ''}
+                          onChange={handleInputChange}
+                          placeholder="Enter a description for this agreement"
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Optional: Add a description to easily identify this agreement
                         </small>
                       </div>
                     </div>
