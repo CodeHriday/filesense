@@ -10,6 +10,7 @@ import { uploadFile, uploadFilesBatch, testApiConnection, checkDuplicateFile, de
 import { getQualityRules } from '../api/qualityRulesService';
 import { useAuth } from '../context/AuthContext';
 import { isVendorUser } from '../utils/userHelpers';
+import { matchesPattern } from '../utils/patternMatching';
 import { API_BASE_URL } from '../config';
 import axios from 'axios';
 import './FileUpload.css';
@@ -74,9 +75,44 @@ function FileUpload() {
   const [selectedAgreementSchema, setSelectedAgreementSchema] = useState(null);
   const [loadingAgreements, setLoadingAgreements] = useState(false);
   
+  // Multi-file pattern states for contract validation
+  const [agreementFilePatterns, setAgreementFilePatterns] = useState([]); // All patterns from selected agreement
+  const [selectedFilePattern, setSelectedFilePattern] = useState(null); // User-selected or auto-matched pattern
+  const [autoMatchedPattern, setAutoMatchedPattern] = useState(null); // Auto-matched pattern based on filename
+  
   // Owner dropdown states
   const [availableOwners, setAvailableOwners] = useState([]);
   const [loadingOwners, setLoadingOwners] = useState(false);
+  
+  // Auto-match file pattern when file is selected (contract validation mode)
+  const autoMatchFilePattern = (filename) => {
+    if (!filename || agreementFilePatterns.length === 0) {
+      return null;
+    }
+    
+    // Find first matching pattern (patterns are already sorted by priority)
+    for (const pattern of agreementFilePatterns) {
+      if (matchesPattern(filename, pattern.file_name_pattern)) {
+        setAutoMatchedPattern(pattern.id);
+        setSelectedFilePattern(pattern.id);
+        setSelectedAgreementSchema(pattern);
+        
+        // Auto-populate quality rules from matched pattern
+        if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
+          setSelectedQualityRules(pattern.quality_rule_ids);
+        }
+        
+        return pattern;
+      }
+    }
+    
+    // No match found - reset all pattern-related state to prevent using stale selections
+    setAutoMatchedPattern(null);
+    setSelectedFilePattern(null);
+    setSelectedAgreementSchema(null);
+    setSelectedQualityRules([]);
+    return null;
+  };
   
   // Set initial tab based on route or user type
   useEffect(() => {
@@ -238,20 +274,27 @@ function FileUpload() {
     fetchVendorAgreements();
   }, [selectedProject, uploadType]);
   
-  // Auto-populate quality rules and schema when agreement is selected
+  // Load all file patterns when agreement is selected
   useEffect(() => {
     if (!selectedAgreement) {
       setSelectedAgreementSchema(null);
+      setAgreementFilePatterns([]);
+      setSelectedFilePattern(null);
+      setAutoMatchedPattern(null);
       return;
     }
     
     const agreement = vendorAgreements.find(a => a.id === parseInt(selectedAgreement));
     if (agreement && agreement.fileSchemas && agreement.fileSchemas.length > 0) {
-      // For now, use the first file schema (later we can add file pattern matching)
+      // Store all file patterns from the agreement
+      setAgreementFilePatterns(agreement.fileSchemas);
+      
+      // Auto-select first pattern by default if no file is uploaded yet
       const firstSchema = agreement.fileSchemas[0];
+      setSelectedFilePattern(firstSchema.id);
       setSelectedAgreementSchema(firstSchema);
       
-      // Auto-populate quality rules from the schema
+      // Auto-populate quality rules from the first schema
       if (firstSchema.quality_rule_ids && Array.isArray(firstSchema.quality_rule_ids)) {
         setSelectedQualityRules(firstSchema.quality_rule_ids);
       }
@@ -594,6 +637,17 @@ function FileUpload() {
       setDiagnosticInfo(`Checking for duplicate file: ${file.name}...\n`);
       setUploadStatus('checking');
       
+      // Auto-match file pattern in contract validation mode
+      if (uploadType === 'contract' && agreementFilePatterns.length > 0) {
+        const matchedPattern = autoMatchFilePattern(file.name);
+        if (!matchedPattern) {
+          setDiagnosticInfo(prev => prev + `⚠️ Warning: File "${file.name}" does not match any expected patterns from the selected agreement.\n`);
+          // User can still proceed, but show a warning
+        } else {
+          setDiagnosticInfo(prev => prev + `✓ Matched pattern: ${matchedPattern.file_name_pattern}\n`);
+        }
+      }
+      
       // Check for duplicate file first (scoped to selected project)
       const duplicateCheck = await checkDuplicateFile(file, selectedProject);
       
@@ -791,9 +845,25 @@ function FileUpload() {
         throw new Error('Please select a vendor agreement for contract validation');
       }
       
+      // Validate file pattern selection when multiple patterns exist in contract mode
+      if (uploadType === 'contract' && agreementFilePatterns.length > 0 && !selectedFilePattern) {
+        throw new Error('File does not match any expected patterns from the selected agreement. Please manually select a pattern or contact your administrator.');
+      }
+      
       // Upload the file with progress tracking (optionally with atomic replacement)
       const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
-      const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, replaceFileId, selectedSubProject, selectedQualityRules, agreementIdForUpload);
+      const fileSchemaIdForUpload = uploadType === 'contract' ? selectedFilePattern : null;
+      const result = await uploadFile(
+        file, 
+        wrappedProgressHandler, 
+        fileOwner, 
+        selectedProject, 
+        replaceFileId, 
+        selectedSubProject, 
+        selectedQualityRules, 
+        agreementIdForUpload,
+        fileSchemaIdForUpload  // Pass the specific file pattern schema ID for validation
+      );
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
       
@@ -1365,6 +1435,58 @@ function FileUpload() {
                     </>
                   )}
                 </select>
+                
+                {/* File Pattern Selection (Optional - shows after agreement selected) */}
+                {selectedAgreement && agreementFilePatterns.length > 0 && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <label htmlFor="file-pattern-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Expected File Pattern: <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: '#666' }}>(Optional - auto-matches when file is dropped)</span>
+                    </label>
+                    <select 
+                      id="file-pattern-select"
+                      value={selectedFilePattern || ''}
+                      onChange={(e) => {
+                        const patternId = parseInt(e.target.value);
+                        const pattern = agreementFilePatterns.find(p => p.id === patternId);
+                        setSelectedFilePattern(patternId);
+                        if (pattern) {
+                          setSelectedAgreementSchema(pattern);
+                          if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
+                            setSelectedQualityRules(pattern.quality_rule_ids);
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        cursor: 'pointer',
+                        background: autoMatchedPattern ? '#e8f5e9' : '#fff'
+                      }}
+                    >
+                      {agreementFilePatterns.map(pattern => (
+                        <option key={pattern.id} value={pattern.id}>
+                          {pattern.file_name_pattern}
+                          {pattern.file_description ? ` - ${pattern.file_description}` : ''}
+                          {autoMatchedPattern === pattern.id ? ' ✓ (Auto-matched)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      marginTop: '0.25rem',
+                      color: autoMatchedPattern ? '#2e7d32' : (selectedFilePattern ? '#666' : '#d32f2f'),
+                      fontWeight: autoMatchedPattern || !selectedFilePattern ? 'bold' : 'normal'
+                    }}>
+                      {autoMatchedPattern 
+                        ? '✓ Pattern auto-matched based on your file. You can override if needed.' 
+                        : selectedFilePattern
+                          ? 'Pattern selected manually. Drop a file to auto-match.'
+                          : '⚠️ No pattern selected. Drop a file to auto-match, or manually select a pattern above.'}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Schema Preview */}
                 {selectedAgreementSchema && selectedAgreementSchema.schema && (
