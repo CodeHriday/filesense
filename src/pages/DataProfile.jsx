@@ -583,9 +583,14 @@ function DataProfile() {
   const fetchColumnGovernanceTags = async (columnName) => {
     try {
       const encodedFileId = encodeURIComponent(fileId);
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/governance-tags`);
-      return response.data;
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`);
+      // Return array format for consistency with frontend expectations
+      return response.data ? [response.data] : [];
     } catch (err) {
+      // 404 means no sensitivity tag for this column (expected for non-PII columns)
+      if (err.response?.status === 404) {
+        return [];
+      }
       console.error('Error fetching column governance tags:', err);
       return [];
     }
