@@ -17,10 +17,63 @@ const { matchesPattern } = require('../utils/filePatternMatcher');
  * @param {string} vendorConnectionId - Vendor connection ID (UUID)
  * @param {string} filePath - File path (without bucket name)
  * @param {string} fileName - File name
+ * @param {number} vendorAgreementFileSchemaId - Optional specific file schema ID to use
  * @returns {Promise<{valid: boolean, schemaDrift: boolean, message: string, actualSchema: array, expectedSchema: array}>}
  */
-async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePath, fileName) {
+async function validateFileSchema(vendorAgreementId, vendorConnectionId, filePath, fileName, vendorAgreementFileSchemaId = null) {
   try {
+    // If a specific file schema ID is provided, use that directly
+    if (vendorAgreementFileSchemaId) {
+      const specificSchemaResult = await pool.query(
+        `SELECT id, file_name_pattern, schema, priority, file_description 
+         FROM vendor_agreement_file_schemas 
+         WHERE id = $1 AND vendor_agreement_id = $2 AND is_active = TRUE`,
+        [vendorAgreementFileSchemaId, vendorAgreementId]
+      );
+      
+      if (specificSchemaResult.rows.length === 0) {
+        systemLogger.warn('Specified file schema not found', { 
+          vendorAgreementFileSchemaId, 
+          vendorAgreementId 
+        });
+        return {
+          valid: false,
+          schemaDrift: false,
+          message: 'Specified file schema not found or inactive',
+          actualSchema: [],
+          expectedSchema: []
+        };
+      }
+      
+      const matchedSchema = specificSchemaResult.rows[0];
+      const expectedSchema = matchedSchema.schema;
+      
+      if (!expectedSchema || expectedSchema.length === 0) {
+        systemLogger.warn('Empty schema for specified file schema', { 
+          vendorAgreementFileSchemaId 
+        });
+        return {
+          valid: true,
+          schemaDrift: false,
+          message: 'No schema validation required (schema not defined)',
+          actualSchema: [],
+          expectedSchema: [],
+          matchedPattern: matchedSchema.file_name_pattern
+        };
+      }
+      
+      // Perform validation with the specified schema
+      return await performSchemaValidation(
+        expectedSchema,
+        matchedSchema.file_name_pattern,
+        matchedSchema.id,
+        vendorAgreementId,
+        vendorConnectionId,
+        filePath,
+        fileName
+      );
+    }
+    
     // Fetch all active file schemas for this vendor agreement, ordered by priority
     const fileSchemasResult = await pool.query(
       `SELECT id, file_name_pattern, schema, priority, file_description 

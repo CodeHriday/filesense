@@ -300,7 +300,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
             mapping.vendor_agreement_id,
             mapping.source_connection_id,
             filePathPart,
-            fileNamePart
+            fileNamePart,
+            mapping.vendor_agreement_file_schema_id || null
           );
         } else if (mapping.source_schema && mapping.source_schema.length > 0) {
           // Regular connection validation - compare against stored mapping schema
