@@ -1701,7 +1701,7 @@ const VendorAgreements = () => {
                     </div>
                   </div>
                   
-                  {/* Row 2: Project (conditional) */}
+                  {/* Row 2: Project and Sub-Project (conditional) */}
                   {formData.vendor_id && (
                     <div className="form-row-grid">
                       <div className="form-group">
@@ -1718,35 +1718,32 @@ const VendorAgreements = () => {
                           Automatically assigned from the vendor's project
                         </small>
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Row 3: Sub-Project (conditional) */}
-                  {formData.vendor_id && formData.project_id && (
-                    <div className="form-row-grid">
-                      <div className="form-group">
-                        <label htmlFor="sub_project_id">Sub Project</label>
-                        <select
-                          id="sub_project_id"
-                          name="sub_project_id"
-                          value={formData.sub_project_id || ''}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            sub_project_id: e.target.value ? parseInt(e.target.value) : ''
-                          }))}
-                          disabled={!formData.project_id || loadingSubProjects || subProjects.length === 0}
-                        >
-                          <option value="">Select a sub-project (optional)...</option>
-                          {subProjects.map(sp => (
-                            <option key={sp.id} value={sp.id}>
-                              {sp.name}
-                            </option>
-                          ))}
-                        </select>
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          {!formData.project_id ? 'Project assignment required' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project for this agreement'}
-                        </small>
-                      </div>
+                      
+                      {formData.project_id && (
+                        <div className="form-group">
+                          <label htmlFor="sub_project_id">Sub Project</label>
+                          <select
+                            id="sub_project_id"
+                            name="sub_project_id"
+                            value={formData.sub_project_id || ''}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              sub_project_id: e.target.value ? parseInt(e.target.value) : ''
+                            }))}
+                            disabled={!formData.project_id || loadingSubProjects || subProjects.length === 0}
+                          >
+                            <option value="">Select a sub-project (optional)...</option>
+                            {subProjects.map(sp => (
+                              <option key={sp.id} value={sp.id}>
+                                {sp.name}
+                              </option>
+                            ))}
+                          </select>
+                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                            {!formData.project_id ? 'Project assignment required' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project for this agreement'}
+                          </small>
+                        </div>
+                      )}
                     </div>
                   )}
                   
