@@ -842,25 +842,24 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
     
     // Step 3.5: Profile SOURCE file using Python profilers (same as file upload)
     // This downloads and profiles the actual S3 file instead of in-memory data
-    // IMPORTANT: Use the same file_id that will be used in audit records for proper joining
+    // fileId will be auto-generated from file content hash if not already set
     if (!dryRun && fileBuffer && fileBuffer.length > 0) {
-      const sourceFileId = file.file_id || `source_${file.filename}`;
-      
       try {
         await logJobExecution(pool, jobId, 'info', 
           `Profiling SOURCE file using Python profilers (matching file upload flow)`, {
           filename: file.filename,
           fileSize: fileBuffer.length,
-          sourceFileId
+          fileIdProvided: !!file.file_id
         });
         
         // Profile source file buffer using Python scripts (same as file upload)
+        // Pass file.file_id if it exists (from vendor upload), otherwise let it auto-generate from hash
         const sourceProfilingResult = await profileFileBuffer({
           fileBuffer,
           filename: file.filename,
           fileType: fileExtension,
           pool,
-          fileId: sourceFileId,
+          fileId: file.file_id, // Will use hash if undefined
           fileRole: 'source',
           mappingId: mapping.mapping_id,
           jobId,
@@ -871,7 +870,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         if (sourceProfilingResult.success) {
           await logJobExecution(pool, jobId, 'info', 
             `SOURCE file profiling completed`, {
-            fileId: sourceFileId,
+            fileId: sourceProfilingResult.fileId,
             fileRole: 'source',
             rowCount: sourceProfilingResult.rowCount,
             columnCount: sourceProfilingResult.columnCount,
@@ -880,7 +879,7 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         } else {
           await logJobExecution(pool, jobId, 'warn', 
             `SOURCE file profiling failed: ${sourceProfilingResult.error}`, {
-            fileId: sourceFileId,
+            fileId: sourceProfilingResult.fileId,
             fileRole: 'source'
           });
         }
@@ -1169,12 +1168,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           });
 
           // Profile the in-memory outputBuffer directly (avoids redundant S3 download)
+          // fileId will be auto-generated from SHA-256 hash of file content (clean, URL-safe)
           const targetProfilingResult = await profileFileBuffer({
             pool,
             fileBuffer: outputBuffer,
             filename: outputFilename,
             fileType: outputFormat,
-            fileId: `transformed_${jobId}_${file.filename}`,
             fileRole: 'target',
             mappingId: mapping.mapping_id,
             jobId,

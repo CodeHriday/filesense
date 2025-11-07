@@ -54,7 +54,8 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
 
     try {
       setSaving(true);
-      await axios.post(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`, {
+      const encodedFileId = encodeURIComponent(fileId);
+      await axios.post(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`, {
         classification_level: classificationLevel,
         data_type: dataType
       });
@@ -76,7 +77,8 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
 
     try {
       setSaving(true);
-      await axios.delete(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`);
+      const encodedFileId = encodeURIComponent(fileId);
+      await axios.delete(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`);
       onSave();
     } catch (err) {
       console.error('Error deleting sensitivity tag:', err);
@@ -146,7 +148,8 @@ function OwnershipModal({ fileId, currentOwnership, onClose, onSave, setErrorMes
   const handleSave = async () => {
     try {
       setSaving(true);
-      await axios.post(`/api/files/${fileId}/ownership`, {
+      const encodedFileId = encodeURIComponent(fileId);
+      await axios.post(`/api/files/${encodedFileId}/ownership`, {
         owner_name: ownerName,
         owner_email: ownerEmail,
         owner_contact: ownerContact
@@ -225,10 +228,11 @@ function ColumnGovernanceTagModal({ fileId, columnName, currentTags, availableTa
     try {
       setSaving(true);
       const token = localStorage.getItem('token');
+      const encodedFileId = encodeURIComponent(fileId);
       
       // Send the selected tag IDs to the backend
       await axios.post(
-        `/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/tags`,
+        `/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/tags`,
         { tag_ids: selectedTags.map(t => t.tag_id) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -301,10 +305,11 @@ function ColumnPolicyModal({ fileId, columnName, currentPolicies, availablePolic
     try {
       setSaving(true);
       const token = localStorage.getItem('token');
+      const encodedFileId = encodeURIComponent(fileId);
       
       // Send the selected policy IDs to the backend
       await axios.post(
-        `/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/policies`,
+        `/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/policies`,
         { policy_ids: selectedPolicies.map(p => p.policy_id) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -507,7 +512,8 @@ function DataProfile() {
 
   const fetchOwnership = async () => {
     try {
-      const response = await axios.get(`/api/files/${fileId}/ownership`);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.get(`/api/files/${encodedFileId}/ownership`);
       setOwnership(response.data);
       // Only set sensitivity from ownership if not already set from metadata
       setFileSensitivity(prev => {
@@ -528,7 +534,8 @@ function DataProfile() {
 
   const fetchPolicies = async () => {
     try {
-      const response = await axios.get(`/api/files/${fileId}/policies`);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.get(`/api/files/${encodedFileId}/policies`);
       setPolicies(response.data);
     } catch (err) {
       console.error('Error fetching policies:', err);
@@ -537,7 +544,8 @@ function DataProfile() {
 
   const fetchColumnTags = async () => {
     try {
-      const response = await axios.get(`/api/files/${fileId}/columns/sensitivity-tags`);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/sensitivity-tags`);
       setColumnTags(response.data);
     } catch (err) {
       console.error('Error fetching column tags:', err);
@@ -555,7 +563,8 @@ function DataProfile() {
 
   const fetchFileTags = async () => {
     try {
-      const response = await axios.get(`/api/files/${fileId}/tags`);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.get(`/api/files/${encodedFileId}/tags`);
       setFileTags(response.data);
     } catch (err) {
       console.error('Error fetching file tags:', err);
@@ -573,7 +582,8 @@ function DataProfile() {
 
   const fetchColumnGovernanceTags = async (columnName) => {
     try {
-      const response = await axios.get(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/governance-tags`);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/governance-tags`);
       return response.data;
     } catch (err) {
       console.error('Error fetching column governance tags:', err);
@@ -583,7 +593,8 @@ function DataProfile() {
 
   const fetchColumnPolicies = async (columnName) => {
     try {
-      const response = await axios.get(`/api/files/${fileId}/columns/${encodeURIComponent(columnName)}/policies`);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/policies`);
       return response.data;
     } catch (err) {
       console.error('Error fetching column policies:', err);
@@ -700,8 +711,9 @@ function DataProfile() {
       
       try {
         const token = localStorage.getItem('token');
+        const encodedFileId = encodeURIComponent(fileId);
         await axios.put(
-          `/api/files/${fileId}/sensitivity`,
+          `/api/files/${encodedFileId}/sensitivity`,
           { sensitivity_level: newSensitivity },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -714,26 +726,28 @@ function DataProfile() {
     
     const handleTagToggle = async (tagId) => {
       const isSelected = fileTags.some(ft => ft.tag_id === tagId);
+      const encodedFileId = encodeURIComponent(fileId);
       if (isSelected) {
         // Remove tag
-        await axios.delete(`/api/files/${fileId}/tags/${tagId}`);
+        await axios.delete(`/api/files/${encodedFileId}/tags/${tagId}`);
         await fetchFileTags();
       } else {
         // Add tag
-        await axios.post(`/api/files/${fileId}/tags`, { tag_id: tagId });
+        await axios.post(`/api/files/${encodedFileId}/tags`, { tag_id: tagId });
         await fetchFileTags();
       }
     };
     
     const handlePolicyToggle = async (policyId) => {
       const isSelected = policies.some(p => p.policy_id === policyId);
+      const encodedFileId = encodeURIComponent(fileId);
       if (isSelected) {
         // Remove policy
-        await axios.delete(`/api/files/${fileId}/policies/${policyId}`);
+        await axios.delete(`/api/files/${encodedFileId}/policies/${policyId}`);
         await fetchPolicies();
       } else {
         // Add policy
-        await axios.post(`/api/files/${fileId}/policies`, { policy_id: policyId });
+        await axios.post(`/api/files/${encodedFileId}/policies`, { policy_id: policyId });
         await fetchPolicies();
       }
     };

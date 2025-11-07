@@ -156,7 +156,7 @@ async function profileFileBuffer(options) {
     filename,
     fileType,
     pool,
-    fileId,
+    fileId: providedFileId,
     fileRole,
     mappingId,
     jobId,
@@ -197,6 +197,7 @@ async function profileFileBuffer(options) {
 
     // Step 5: Calculate file hash
     const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    const fileId = providedFileId || fileHash;
 
     // Step 6: Calculate quality score from file info
     const qualityScore = calculateQualityScore(fileInfo);
