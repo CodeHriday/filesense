@@ -17,6 +17,7 @@ const { v4: uuidv4 } = require('uuid');
 const { captureFileAudit, captureFileSchema } = require('../services/fileAuditService');
 const { saveSchemaSnapshot } = require('../services/schemaService');
 const QualityValidationEngine = require('../services/qualityValidationEngine');
+const { persistGovernanceMetadata } = require('../services/governanceService');
 
 class FileProcessingWorker {
   constructor(queue, dbPool, logger, auditService = null) {
@@ -1191,6 +1192,7 @@ print(json.dumps(result))
 
   /**
    * Apply vendor agreement governance metadata (PII tags, classification)
+   * Uses unified governance service for consistent metadata persistence
    * @param {string} fileId - File ID
    * @param {number} agreementId - Vendor agreement ID
    * @param {Array} schema - Profiled file schema
@@ -1200,7 +1202,7 @@ print(json.dumps(result))
   async applyAgreementGovernance(fileId, agreementId, schema, filename, projectId) {
     this.logger.info('Applying vendor agreement governance', { fileId, agreementId, filename });
     
-    // Fetch vendor agreement with file schemas
+    // Fetch vendor agreement with file schemas (including quality_rule_ids for file-level tags)
     const agreementResult = await this.dbPool.query(`
       SELECT 
         va.id,
@@ -1210,6 +1212,7 @@ print(json.dumps(result))
         vafs.schema,
         vafs.contains_pii,
         vafs.data_classification,
+        vafs.quality_rule_ids,
         vafs.priority
       FROM vendor_agreements va
       LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.vendor_agreement_id AND vafs.is_active = true
@@ -1217,7 +1220,6 @@ print(json.dumps(result))
       ORDER BY vafs.priority ASC NULLS LAST
     `, [agreementId, projectId]);
     
-    // DEBUG: Log fetched schemas
     this.logger.info('Fetched agreement schemas', {
       fileId,
       agreementId,
@@ -1228,6 +1230,7 @@ print(json.dumps(result))
         pattern: r.file_name_pattern,
         contains_pii: r.contains_pii,
         classification: r.data_classification,
+        quality_rules: r.quality_rule_ids,
         has_schema: !!r.schema
       }))
     });
@@ -1267,7 +1270,8 @@ print(json.dumps(result))
           schema_id: row.schema_id,
           pattern: row.file_name_pattern,
           contains_pii: row.contains_pii,
-          classification: row.data_classification
+          classification: row.data_classification,
+          quality_rules: row.quality_rule_ids
         });
         break;
       }
@@ -1290,26 +1294,11 @@ print(json.dumps(result))
       return;
     }
     
-    // Update files table with governance metadata
-    await this.dbPool.query(`
-      UPDATE files 
-      SET contains_pii = $1,
-          data_classification = $2
-      WHERE file_id = $3
-    `, [matchedSchema.contains_pii || false, matchedSchema.data_classification, fileId]);
-    
-    this.logger.info('Applied governance metadata to file', { 
-      fileId, 
-      contains_pii: matchedSchema.contains_pii,
-      data_classification: matchedSchema.data_classification 
-    });
-    
-    // Extract PII columns from schema and insert into column_sensitivity_tags
+    // Extract PII columns from schema
     const schemaObj = typeof matchedSchema.schema === 'string' 
       ? JSON.parse(matchedSchema.schema) 
       : matchedSchema.schema;
     
-    // DEBUG: Log schema object
     this.logger.info('Processing agreement schema for PII', {
       fileId,
       schemaType: typeof matchedSchema.schema,
@@ -1318,11 +1307,12 @@ print(json.dumps(result))
       schemaColumns: Array.isArray(schemaObj) ? schemaObj.map(c => c.name || c.column_name) : []
     });
     
+    // Extract PII columns
+    let piiColumnNames = [];
     if (Array.isArray(schemaObj) && schemaObj.length > 0) {
       // Find PII columns (those with is_pii: true)
       const piiColumns = schemaObj.filter(col => col.is_pii === true || col.pii === true);
       
-      // DEBUG: Log PII column detection
       this.logger.info('PII columns detected in schema', {
         fileId,
         piiColumnCount: piiColumns.length,
@@ -1334,72 +1324,56 @@ print(json.dumps(result))
         totalSchemaColumns: schemaObj.length
       });
       
-      if (piiColumns.length > 0) {
-        // Map schema column names (case-insensitive) to profiled columns
-        const profiledColumnNames = schema.map(c => c.name.toLowerCase());
+      // Extract column names for governance persistence
+      piiColumnNames = piiColumns.map(col => col.name || col.column_name);
+    }
+    
+    // Extract file-level tags from quality_rule_ids
+    let fileTags = [];
+    if (matchedSchema.quality_rule_ids && Array.isArray(matchedSchema.quality_rule_ids)) {
+      // Fetch quality rule names to use as tags
+      try {
+        const rulesResult = await this.dbPool.query(`
+          SELECT id, rule_name 
+          FROM quality_rules 
+          WHERE id = ANY($1::int[])
+        `, [matchedSchema.quality_rule_ids]);
         
-        // DEBUG: Log profiled column names
-        this.logger.info('Profiled columns for PII matching', {
+        fileTags = rulesResult.rows.map(r => r.rule_name);
+        
+        this.logger.info('Extracted file-level tags from quality rules', {
           fileId,
-          profiledColumnNames,
-          profiledColumnCount: profiledColumnNames.length
+          ruleIds: matchedSchema.quality_rule_ids,
+          tags: fileTags
         });
-        
-        for (const piiCol of piiColumns) {
-          const columnName = piiCol.name || piiCol.column_name;
-          const columnNameLower = columnName.toLowerCase();
-          
-          this.logger.info('Processing PII column for tagging', {
-            fileId,
-            columnName,
-            columnNameLower,
-            existsInProfile: profiledColumnNames.includes(columnNameLower)
-          });
-          
-          // Check if column exists in profiled schema
-          if (!profiledColumnNames.includes(columnNameLower)) {
-            this.logger.warn('PII column from schema not found in profiled file', { 
-              fileId, 
-              columnName,
-              agreementId,
-              profiledColumnNames 
-            });
-            continue;
-          }
-          
-          // Insert sensitivity tag
-          try {
-            const insertResult = await this.dbPool.query(`
-              INSERT INTO column_sensitivity_tags (file_id, column_name, sensitivity_level, tagged_by, tagged_at)
-              VALUES ($1, $2, $3, $4, NOW())
-              ON CONFLICT (file_id, column_name) DO UPDATE
-              SET sensitivity_level = EXCLUDED.sensitivity_level,
-                  tagged_at = NOW()
-              RETURNING *
-            `, [fileId, columnName, 'PII', 'system']);
-            
-            this.logger.info('Successfully applied PII tag to column', { 
-              fileId, 
-              columnName,
-              rowsAffected: insertResult.rowCount,
-              inserted: insertResult.rows[0]
-            });
-          } catch (tagError) {
-            this.logger.error('Failed to insert PII tag', { 
-              fileId, 
-              columnName, 
-              error: tagError.message,
-              stack: tagError.stack 
-            });
-          }
-        }
-        
-        this.logger.info('PII tags applied', { fileId, piiColumnCount: piiColumns.length });
-      } else {
-        this.logger.info('No PII columns found in schema', { fileId, agreementId });
+      } catch (tagError) {
+        this.logger.warn('Failed to fetch quality rule names for tags', {
+          fileId,
+          error: tagError.message
+        });
       }
+    }
+    
+    // Use unified governance service to persist all metadata atomically
+    const result = await persistGovernanceMetadata(this.dbPool, {
+      fileId,
+      containsPii: matchedSchema.contains_pii || false,
+      dataClassification: matchedSchema.data_classification,
+      fileTags,
+      piiColumns: piiColumnNames,
+      profiledSchema: schema
+    });
+    
+    if (result.success) {
+      this.logger.info('Successfully applied all governance metadata via unified service', {
+        fileId,
+        governanceApplied: result.governanceApplied
+      });
     } else {
-      this.logger.info('Schema is not an array or is empty', { fileId, agreementId });
+      this.logger.error('Failed to apply governance metadata', {
+        fileId,
+        error: result.error
+      });
     }
   }
 
