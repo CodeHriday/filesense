@@ -4117,24 +4117,26 @@ app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateT
     }
     
     const { fileId, columnName } = req.params;
-    const { classification_level, data_type } = req.body;
+    // Support both sensitivity_level (correct) and classification_level (legacy) for backwards compatibility
+    const sensitivity_level = req.body.sensitivity_level || req.body.classification_level;
+    const { data_type } = req.body;
     
-    if (!classification_level) {
-      return res.status(400).json({ error: 'classification_level is required' });
+    if (!sensitivity_level) {
+      return res.status(400).json({ error: 'sensitivity_level is required' });
     }
     
-    const validLevels = ['Public', 'Internal', 'Confidential', 'Restricted'];
-    if (!validLevels.includes(classification_level)) {
-      return res.status(400).json({ error: `Invalid classification level. Must be one of: ${validLevels.join(', ')}` });
+    const validLevels = ['Public', 'Internal', 'Confidential', 'Restricted', 'PII'];
+    if (!validLevels.includes(sensitivity_level)) {
+      return res.status(400).json({ error: `Invalid sensitivity level. Must be one of: ${validLevels.join(', ')}` });
     }
     
     const result = await dbPool.query(
-      `INSERT INTO column_sensitivity_tags (file_id, column_name, classification_level, data_type)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO column_sensitivity_tags (file_id, column_name, sensitivity_level, data_type, tagged_by, tagged_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
        ON CONFLICT (file_id, column_name) DO UPDATE
-       SET classification_level = $3, data_type = $4, updated_at = CURRENT_TIMESTAMP
+       SET sensitivity_level = $3, data_type = $4, updated_at = CURRENT_TIMESTAMP, tagged_by = $5, tagged_at = NOW()
        RETURNING *`,
-      [fileId, columnName, classification_level, data_type]
+      [fileId, columnName, sensitivity_level, data_type, req.user.username || 'user']
     );
     
     res.json(result.rows[0]);

@@ -35,7 +35,7 @@ ChartJS.register(
 );
 
 function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, setErrorMessage }) {
-  const [classificationLevel, setClassificationLevel] = useState(currentTag?.classification_level || '');
+  const [sensitivityLevel, setSensitivityLevel] = useState(currentTag?.sensitivity_level || '');
   const [dataType, setDataType] = useState(currentTag?.data_type || '');
   const [saving, setSaving] = useState(false);
 
@@ -43,12 +43,13 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
     { value: 'Public', label: 'Public', color: 'blue', description: 'Data available to everyone' },
     { value: 'Internal', label: 'Internal', color: 'green', description: 'Data for internal use only' },
     { value: 'Confidential', label: 'Confidential', color: 'yellow', description: 'Sensitive business data' },
-    { value: 'Restricted', label: 'Restricted', color: 'red', description: 'Highly sensitive data (PII/PHI/PCI)' }
+    { value: 'Restricted', label: 'Restricted', color: 'red', description: 'Highly sensitive data (PII/PHI/PCI)' },
+    { value: 'PII', label: 'PII', color: 'purple', description: 'Personally Identifiable Information' }
   ];
 
   const handleSave = async () => {
-    if (!classificationLevel) {
-      setErrorMessage('Please select a classification level');
+    if (!sensitivityLevel) {
+      setErrorMessage('Please select a sensitivity level');
       return;
     }
 
@@ -56,7 +57,7 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
       setSaving(true);
       const encodedFileId = encodeURIComponent(fileId);
       await axios.post(`/api/files/${encodedFileId}/columns/${encodeURIComponent(columnName)}/sensitivity-tag`, {
-        classification_level: classificationLevel,
+        sensitivity_level: sensitivityLevel,
         data_type: dataType
       });
       onSave();
@@ -99,8 +100,8 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
             {classificationLevels.map((level) => (
               <div
                 key={level.value}
-                className={`classification-option ${classificationLevel === level.value ? 'selected' : ''}`}
-                onClick={() => setClassificationLevel(level.value)}
+                className={`classification-option ${sensitivityLevel === level.value ? 'selected' : ''}`}
+                onClick={() => setSensitivityLevel(level.value)}
               >
                 <span className={`sensitivity-badge sensitivity-${level.value.toLowerCase()}`}>
                   {level.label}
@@ -673,9 +674,9 @@ function DataProfile() {
         setProfile(profileData || {});
         setError(null);
         
-        // Set file sensitivity from metadata (primary source) or ownership (fallback)
-        if (fileData.metadata && fileData.metadata.data_classification) {
-          setFileSensitivity(fileData.metadata.data_classification);
+        // Set file sensitivity from data_classification field (primary source) or ownership (fallback)
+        if (fileData.data_classification) {
+          setFileSensitivity(fileData.data_classification);
         }
         
         // Fetch governance data
@@ -1077,7 +1078,7 @@ function DataProfile() {
                 const nullCount = column.missing || 0;
                 const missingPercentage = Math.round((nullCount / totalRows) * 100);
                 const columnTag = columnTags.find(tag => tag.column_name === column.name);
-                const isPII = columnTag && columnTag.classification_level === 'PII';
+                const isPII = columnTag && columnTag.sensitivity_level === 'PII';
                 
                 // Format patterns for display
                 const formatPatterns = (patterns) => {
