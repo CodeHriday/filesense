@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiFileText, FiShield, FiCheckCircle } from 'react-icons/fi';
 import axios from 'axios';
+import SchemaFieldEditor from './SchemaFieldEditor';
 import './FileConfigurationsSection.css';
 
 function FileConfigurationsSection({ fileConfigurations, onChange }) {
@@ -348,14 +349,10 @@ function FileConfigurationsSection({ fileConfigurations, onChange }) {
             </div>
 
             <div className="form-group full-width">
-              <label>Schema (JSON)</label>
-              <textarea
+              <SchemaFieldEditor
                 value={formData.schema}
-                onChange={(e) => setFormData({ ...formData, schema: e.target.value })}
-                placeholder='{"fields": [{"name": "column_name", "type": "string"}]}'
-                rows="4"
+                onChange={(value) => setFormData({ ...formData, schema: value })}
               />
-              <small>Optional: Define expected file structure as JSON</small>
             </div>
           </div>
 

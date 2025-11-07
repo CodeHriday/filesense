@@ -274,6 +274,41 @@ function MappingWizard() {
     }
   };
 
+  const extractPiiColumnsFromSchema = (schema) => {
+    if (!schema) {
+      return;
+    }
+
+    try {
+      // Parse schema if it's a string
+      let schemaArray = schema;
+      if (typeof schema === 'string') {
+        schemaArray = JSON.parse(schema);
+      }
+
+      // Ensure it's an array
+      if (!Array.isArray(schemaArray)) {
+        console.log('Schema is not an array, skipping PII extraction');
+        return;
+      }
+
+      // Extract fields marked as PII
+      const piiFields = schemaArray
+        .filter(field => field.pii === true)
+        .map(field => field.name)
+        .filter(name => name);
+
+      if (piiFields.length > 0) {
+        console.log('Auto-populated PII columns from schema:', piiFields);
+        setPiiColumns(piiFields);
+      } else {
+        console.log('No PII fields found in schema');
+      }
+    } catch (err) {
+      console.error('Error extracting PII columns from schema:', err);
+    }
+  };
+
   const fetchAgreementFileSchemas = async (agreementId) => {
     if (!agreementId) {
       setAgreementFileSchemas([]);
@@ -297,6 +332,8 @@ function MappingWizard() {
       if (fileSchemas.length === 1) {
         setSelectedFileSchema(fileSchemas[0]);
         setFileNamePattern(fileSchemas[0].file_name_pattern);
+        // Auto-populate PII columns from schema
+        extractPiiColumnsFromSchema(fileSchemas[0].schema);
       } else if (fileSchemas.length === 0) {
         // Fallback to old agreement.file_name if no file schemas
         setSelectedFileSchema(null);
@@ -1115,6 +1152,8 @@ function MappingWizard() {
                     setSelectedFileSchema(schema);
                     if (schema) {
                       setFileNamePattern(schema.file_name_pattern);
+                      // Auto-populate PII columns from schema
+                      extractPiiColumnsFromSchema(schema.schema);
                     }
                   }}
                   style={{ marginBottom: '0.5rem' }}

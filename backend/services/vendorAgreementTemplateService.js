@@ -179,8 +179,8 @@ class VendorAgreementTemplateService {
         return fileNum === 1 ? 'csv' : 'json';
       case 'schema':
         return fileNum === 1 
-          ? '[{"column_name":"ID","data_type":"integer"},{"column_name":"Name","data_type":"string"},{"column_name":"Email","data_type":"string"}]'
-          : '[{"column_name":"transaction_id","data_type":"string"},{"column_name":"amount","data_type":"decimal"},{"column_name":"timestamp","data_type":"datetime"}]';
+          ? '[{"name":"ID","type":"integer","description":"Customer ID","pii":false},{"name":"Name","type":"string","description":"Customer name","pii":false},{"name":"Email","type":"string","description":"Customer email","pii":true}]'
+          : '[{"name":"transaction_id","type":"string","description":"Transaction ID","pii":false},{"name":"amount","type":"float","description":"Transaction amount","pii":false},{"name":"timestamp","type":"timestamp","description":"Transaction time","pii":false}]';
       case 'priority':
         return fileNum === 1 ? '100' : '200';
       case 'contains_pii':
@@ -271,8 +271,13 @@ class VendorAgreementTemplateService {
       ['File Name Pattern: Base pattern without extension, e.g., customer_data - REQUIRED'],
       ['File Description: What the file contains (optional)'],
       ['File Type: Type of file - REQUIRED. Values: csv, json, xml, xlsx, parquet'],
-      ['Schema: JSON array of column definitions. Format: [{"column_name":"Name","data_type":"string"}]'],
-      ['  Example: [{"column_name":"ID","data_type":"integer"},{"column_name":"Email","data_type":"string"}]'],
+      ['Schema: JSON array of field definitions with PII marking. Format: [{"name":"FieldName","type":"string","description":"...","pii":false}]'],
+      ['  Each field can have:'],
+      ['    - name: Field name (required)'],
+      ['    - type: Data type (required): string, integer, float, boolean, date, timestamp, json'],
+      ['    - description: Field description (optional)'],
+      ['    - pii: TRUE or FALSE to mark as personally identifiable information (optional, defaults to false)'],
+      ['  Example: [{"name":"ID","type":"integer","description":"Customer ID","pii":false},{"name":"Email","type":"string","description":"Email address","pii":true}]'],
       ['Priority: Match priority (lower numbers match first). Default: 100 (optional)'],
       ['Contains PII: Does file contain personally identifiable information? TRUE or FALSE (optional)'],
       ['Data Classification: Security level (optional). Values: Public, Internal, Confidential, Highly Confidential'],
@@ -575,13 +580,31 @@ class VendorAgreementTemplateService {
                 error: 'Schema must be a JSON array'
               };
             }
-            // Check each item has column_name and data_type
+            // Check each item has required fields (support both old and new format)
             for (const col of parsed) {
-              if (!col.column_name || !col.data_type) {
+              // New format: name + type
+              const hasNewFormat = col.name && col.type;
+              // Old format (backwards compatibility): column_name + data_type
+              const hasOldFormat = col.column_name && col.data_type;
+              
+              if (!hasNewFormat && !hasOldFormat) {
                 return {
                   valid: false,
-                  error: 'Each schema column must have column_name and data_type'
+                  error: 'Each schema field must have name+type or column_name+data_type'
                 };
+              }
+              
+              // Normalize to new format
+              if (hasOldFormat && !hasNewFormat) {
+                col.name = col.column_name;
+                col.type = col.data_type;
+                delete col.column_name;
+                delete col.data_type;
+              }
+              
+              // Set default for pii if not provided
+              if (col.pii === undefined || col.pii === null) {
+                col.pii = false;
               }
             }
             return { valid: true, value: parsed };
