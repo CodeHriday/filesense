@@ -271,7 +271,6 @@ function VendorFileUpload() {
                 </strong>
                 <span style={{ color: '#4a5568', fontSize: '0.95em' }}>
                   {filenameValidationError.contractCode}
-                  {filenameValidationError.vendorName && ` (${filenameValidationError.vendorName})`}
                 </span>
               </div>
             )}

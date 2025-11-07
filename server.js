@@ -1810,8 +1810,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           vafs.id as schema_id,
           vafs.file_name_pattern,
           vafs.file_description,
-          va.agreement_code,
-          va.vendor_name
+          va.agreement_code
         FROM vendor_agreement_file_schemas vafs
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
         WHERE va.id = $1
@@ -1847,7 +1846,6 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             filename,
             agreementId,
             agreementCode: agreementInfo.agreement_code,
-            vendorName: agreementInfo.vendor_name,
             userId,
             expectedPatterns
           });
@@ -1858,7 +1856,6 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
             details: {
               uploadedFile: filename,
               contractCode: agreementInfo.agreement_code,
-              vendorName: agreementInfo.vendor_name,
               expectedPatterns: expectedPatterns,
               patternCount: expectedPatterns.length
             },
