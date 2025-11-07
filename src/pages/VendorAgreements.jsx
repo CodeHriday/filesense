@@ -1651,7 +1651,7 @@ const VendorAgreements = () => {
                 <div className="form-section">
                   <h3 className="section-title">Agreement Information</h3>
                   
-                  {/* Row 1: Vendor and Project */}
+                  {/* Row 1: Vendor and Description */}
                   <div className="form-row-grid">
                     <div className="form-group">
                       <label htmlFor="vendor_id">
@@ -1685,7 +1685,25 @@ const VendorAgreements = () => {
                       )}
                     </div>
                     
-                    {formData.vendor_id && (
+                    <div className="form-group">
+                      <label htmlFor="description">Description</label>
+                      <input
+                        type="text"
+                        id="description"
+                        name="description"
+                        value={formData.description || ''}
+                        onChange={handleInputChange}
+                        placeholder="Enter a description for this agreement"
+                      />
+                      <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                        Optional: Add a description to easily identify this agreement
+                      </small>
+                    </div>
+                  </div>
+                  
+                  {/* Row 2: Project (conditional) */}
+                  {formData.vendor_id && (
+                    <div className="form-row-grid">
                       <div className="form-group">
                         <label htmlFor="project_name">Project</label>
                         <input
@@ -1700,10 +1718,10 @@ const VendorAgreements = () => {
                           Automatically assigned from the vendor's project
                         </small>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   
-                  {/* Row 2: Sub-Project and Description */}
+                  {/* Row 3: Sub-Project (conditional) */}
                   {formData.vendor_id && formData.project_id && (
                     <div className="form-row-grid">
                       <div className="form-group">
@@ -1727,21 +1745,6 @@ const VendorAgreements = () => {
                         </select>
                         <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
                           {!formData.project_id ? 'Project assignment required' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project for this agreement'}
-                        </small>
-                      </div>
-                      
-                      <div className="form-group">
-                        <label htmlFor="description">Description</label>
-                        <input
-                          type="text"
-                          id="description"
-                          name="description"
-                          value={formData.description || ''}
-                          onChange={handleInputChange}
-                          placeholder="Enter a description for this agreement"
-                        />
-                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
-                          Optional: Add a description to easily identify this agreement
                         </small>
                       </div>
                     </div>
