@@ -1837,6 +1837,7 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           // No pattern matched - reject upload immediately
           try { fs.unlinkSync(file.path); } catch (e) {}
           
+          const agreementInfo = schemaResult.rows[0]; // All rows have same agreement info
           const expectedPatterns = schemaResult.rows.map(s => 
             s.file_description ? `${s.file_name_pattern} (${s.file_description})` : s.file_name_pattern
           );
@@ -1844,16 +1845,24 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
           logger.warn('Vendor file rejected - does not match any expected pattern', {
             fileId,
             filename,
-            connectionId,
+            agreementId,
+            agreementCode: agreementInfo.agreement_code,
+            vendorName: agreementInfo.vendor_name,
             userId,
             expectedPatterns
           });
           
           return res.status(400).json({
             error: 'File pattern validation failed',
-            message: `The file "${filename}" does not match any expected file patterns for the selected contract.`,
-            expectedPatterns,
-            hint: 'Please ensure your filename matches one of the expected patterns, or contact your administrator if you believe this is an error.'
+            message: `The file "${filename}" does not match any expected file patterns for contract ${agreementInfo.agreement_code}.`,
+            details: {
+              uploadedFile: filename,
+              contractCode: agreementInfo.agreement_code,
+              vendorName: agreementInfo.vendor_name,
+              expectedPatterns: expectedPatterns,
+              patternCount: expectedPatterns.length
+            },
+            hint: 'Please ensure your filename matches one of the expected patterns listed above. File patterns may include wildcards (* for any characters, ? for single character).'
           });
         }
         
