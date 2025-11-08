@@ -1542,7 +1542,7 @@ function DataProfile() {
       <div className="quality-rules-tab">
         {/* Summary Cards */}
         <div className="quality-summary">
-          <Card style={{ flex: '2' }}>
+          <Card>
             <div className="summary-stats">
               <div className="stat">
                 <div className="stat-label" style={{ fontSize: '0.75rem' }}>Total Rules Applied</div>
@@ -1565,7 +1565,7 @@ function DataProfile() {
             </div>
           </Card>
           
-          <Card style={{ flex: '1' }}>
+          <Card>
             <h4 style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>Violations by Severity</h4>
             <div className="severity-breakdown">
               <div className="severity-item critical">
