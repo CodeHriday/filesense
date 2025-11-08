@@ -75,7 +75,10 @@ function SchemaHistoryTab({ fileId }) {
     canonicalName,
     hasSchemaChanged,
     totalUploads,
-    allSnapshots
+    allSnapshots,
+    isContractUpload,
+    contractSchema,
+    contractComparison
   } = historyData;
 
   const getDiffBadgeClass = (type) => {
@@ -142,7 +145,7 @@ function SchemaHistoryTab({ fileId }) {
         </div>
       </div>
 
-      {!hasPrevious ? (
+      {!hasPrevious && !isContractUpload ? (
         <div className="schema-single">
           <div className="schema-section">
             <h3>Current Schema</h3>
@@ -177,6 +180,182 @@ function SchemaHistoryTab({ fileId }) {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      ) : !hasPrevious && isContractUpload && contractSchema ? (
+        <div className="schema-comparison-three-panel">
+          {/* Current Schema (Left Panel) */}
+          <div className="schema-section schema-current">
+            <h3>Current Upload Schema</h3>
+            <div className="schema-info">
+              <p className="capture-date">
+                <FiClock size={14} />
+                {formatDate(current.capturedAt)}
+              </p>
+              <p className="schema-stats">
+                {current.columnCount} columns • {current.rowCount?.toLocaleString() || 'N/A'} rows
+              </p>
+            </div>
+            <div className="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Column Name</th>
+                    <th>Data Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {current.schema.columns.map((col, index) => {
+                    const isAdded = contractComparison?.addedColumns?.some(c => c.name === col.name);
+                    const isModified = contractComparison?.modifiedColumns?.some(c => c.name === col.name);
+                    
+                    let diffClass = '';
+                    let diffBadge = null;
+                    
+                    if (isAdded) {
+                      diffClass = 'row-added';
+                      diffBadge = <span className={getDiffBadgeClass('added')}>Extra Column</span>;
+                    } else if (isModified) {
+                      diffClass = 'row-modified';
+                      const modifiedCol = contractComparison.modifiedColumns.find(c => c.name === col.name);
+                      diffBadge = <span className={getDiffBadgeClass('modified')}>Type Mismatch: Expected {modifiedCol?.previousType}, Got {modifiedCol?.currentType}</span>;
+                    }
+                    
+                    return (
+                      <tr key={index} className={diffClass}>
+                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
+                        <td className="column-name">
+                          {col.name}
+                          {diffBadge}
+                        </td>
+                        <td><span className="type-badge">{col.type}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Contract Expected Schema (Middle Panel) */}
+          <div className="schema-section schema-previous">
+            <h3>
+              Contract Expected Schema
+              <span className="schema-subtitle">{contractSchema.agreementName} - {contractSchema.vendorName}</span>
+            </h3>
+            <div className="schema-info">
+              <p className="schema-stats">
+                {contractSchema.schema.columns.length} expected columns
+              </p>
+            </div>
+            <div className="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Column Name</th>
+                    <th>Data Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contractSchema.schema.columns.map((col, index) => {
+                    const isRemoved = contractComparison?.removedColumns?.some(c => c.name === col.name);
+                    return (
+                      <tr key={index} className={isRemoved ? 'row-removed' : ''}>
+                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
+                        <td className="column-name">
+                          {col.name}
+                          {isRemoved && <span className={getDiffBadgeClass('removed')}>Missing</span>}
+                        </td>
+                        <td><span className="type-badge">{col.type}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Contract Validation Summary (Right Panel) */}
+          <div className="schema-changes-panel">
+            <h3>Contract Validation</h3>
+            
+            {contractComparison?.hasChanges ? (
+              <div className="changes-content">
+                <div className="validation-alert-error">
+                  <FiAlertCircle size={24} />
+                  <p><strong>Schema Mismatch Detected</strong></p>
+                  <p>The uploaded file does not match the expected contract schema.</p>
+                </div>
+                
+                <div className="change-overview">
+                  {contractComparison.removedColumns?.length > 0 && (
+                    <div className="change-category">
+                      <h4>
+                        <span className={getDiffBadgeClass('removed')}>
+                          {contractComparison.removedColumns.length} Missing Column{contractComparison.removedColumns.length !== 1 ? 's' : ''}
+                        </span>
+                      </h4>
+                      <ul className="change-list">
+                        {contractComparison.removedColumns.map((col, idx) => (
+                          <li key={idx} className="change-item-removed">
+                            <strong>{col.name}</strong>
+                            <span className="type-badge-small">{col.previousType}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {contractComparison.addedColumns?.length > 0 && (
+                    <div className="change-category">
+                      <h4>
+                        <span className={getDiffBadgeClass('added')}>
+                          {contractComparison.addedColumns.length} Extra Column{contractComparison.addedColumns.length !== 1 ? 's' : ''}
+                        </span>
+                      </h4>
+                      <ul className="change-list">
+                        {contractComparison.addedColumns.map((col, idx) => (
+                          <li key={idx} className="change-item-added">
+                            <strong>{col.name}</strong>
+                            <span className="type-badge-small">{col.currentType}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {contractComparison.modifiedColumns?.length > 0 && (
+                    <div className="change-category">
+                      <h4>
+                        <span className={getDiffBadgeClass('modified')}>
+                          {contractComparison.modifiedColumns.length} Type Mismatch{contractComparison.modifiedColumns.length !== 1 ? 'es' : ''}
+                        </span>
+                      </h4>
+                      <ul className="change-list">
+                        {contractComparison.modifiedColumns.map((col, idx) => (
+                          <li key={idx} className="change-item-modified">
+                            <strong>{col.name}</strong>
+                            <div className="type-change">
+                              <span className="type-badge-small">Expected: {col.previousType}</span>
+                              <FiArrowRight size={12} />
+                              <span className="type-badge-small">Got: {col.currentType}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="no-changes">
+                <FiCheckCircle size={48} className="no-changes-icon" />
+                <h4>Contract Validated</h4>
+                <p>The uploaded file schema matches the expected contract schema perfectly.</p>
+              </div>
+            )}
           </div>
         </div>
       ) : (
