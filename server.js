@@ -4267,7 +4267,7 @@ app.get('/api/files/:fileId/profile-history',
 // Quality Violations API endpoint
 
 // Get quality rule violations for a specific file
-app.get('/api/files/:fileId/quality-violations', cacheMiddleware(300), async (req, res) => {
+app.get('/api/files/:fileId/quality-violations', async (req, res) => {
   try {
     const { fileId } = req.params;
     
