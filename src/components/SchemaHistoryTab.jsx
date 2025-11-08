@@ -145,44 +145,7 @@ function SchemaHistoryTab({ fileId }) {
         </div>
       </div>
 
-      {!hasPrevious && !isContractUpload ? (
-        <div className="schema-single">
-          <div className="schema-section">
-            <h3>Current Schema</h3>
-            <div className="schema-info">
-              <p className="capture-date">
-                <FiClock size={14} />
-                Captured: {formatDate(current.capturedAt)}
-              </p>
-              <p className="schema-stats">
-                {current.columnCount} columns • {current.rowCount?.toLocaleString() || 'N/A'} rows
-              </p>
-            </div>
-            <div className="schema-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Column Name</th>
-                    <th>Data Type</th>
-                    <th>Nullable</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {current.schema.columns.map((col, index) => (
-                    <tr key={index}>
-                      <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
-                      <td className="column-name">{col.name}</td>
-                      <td><span className="type-badge">{col.type}</span></td>
-                      <td>{col.nullable ? 'Yes' : 'No'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      ) : !hasPrevious && isContractUpload && contractSchema ? (
+      {isContractUpload && contractSchema ? (
         <div className="schema-comparison-three-panel">
           {/* Contract Expected Schema (Left Panel) */}
           <div className="schema-section schema-previous">
@@ -373,7 +336,7 @@ function SchemaHistoryTab({ fileId }) {
             )}
           </div>
         </div>
-      ) : (
+      ) : hasPrevious ? (
         <div className="schema-comparison-three-panel">
           {/* Current Schema (Left Panel) */}
           <div className="schema-section schema-current">
@@ -613,6 +576,43 @@ function SchemaHistoryTab({ fileId }) {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      ) : (
+        <div className="schema-single">
+          <div className="schema-section">
+            <h3>Current Schema</h3>
+            <div className="schema-info">
+              <p className="capture-date">
+                <FiClock size={14} />
+                Captured: {formatDate(current.capturedAt)}
+              </p>
+              <p className="schema-stats">
+                {current.columnCount} columns • {current.rowCount?.toLocaleString() || 'N/A'} rows
+              </p>
+            </div>
+            <div className="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Column Name</th>
+                    <th>Data Type</th>
+                    <th>Nullable</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {current.schema.columns.map((col, index) => (
+                    <tr key={index}>
+                      <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
+                      <td className="column-name">{col.name}</td>
+                      <td><span className="type-badge">{col.type}</span></td>
+                      <td>{col.nullable ? 'Yes' : 'No'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
