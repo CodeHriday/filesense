@@ -4049,10 +4049,8 @@ app.get('/api/user/dashboard-settings', async (req, res) => {
 });
 
 // File profile endpoint (with column-level access control for statistics)
-// NOTE: authenticateToken MUST come before cacheMiddleware so req.user is populated for cache key generation
 app.get('/api/files/:fileId/profile', 
   authenticateToken, 
-  cacheMiddleware(600),
   requireProjectAccess({
     resourceType: 'file'
   }),
@@ -4198,7 +4196,6 @@ app.get('/api/files/:fileId/profile',
 // Historical profiling endpoint - get all profiles for a file over time
 app.get('/api/files/:fileId/profile-history',
   authenticateToken,
-  cacheMiddleware(300),
   requireProjectAccess({
     resourceType: 'file'
   }),
