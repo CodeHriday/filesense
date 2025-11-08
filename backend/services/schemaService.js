@@ -113,6 +113,15 @@ function compareSchemas(schema1, schema2) {
     reorderedColumns: false
   };
   
+  // Safety check: ensure both schemas have columns property
+  if (!schema1 || !schema1.columns || !schema2 || !schema2.columns) {
+    console.error('Invalid schema structure:', { 
+      schema1HasColumns: schema1?.columns !== undefined,
+      schema2HasColumns: schema2?.columns !== undefined 
+    });
+    return differences;
+  }
+  
   // Check column count
   if (schema1.columns.length !== schema2.columns.length) {
     differences.isIdentical = false;
