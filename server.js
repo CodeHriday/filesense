@@ -4291,6 +4291,8 @@ app.get('/api/files/:fileId/quality-violations', cacheMiddleware(300), async (re
         qrv.violation_details,
         qrv.severity,
         qrv.created_at,
+        qrv.primary_key_value,
+        qrv.primary_key_column,
         qr.rule_name,
         qr.rule_type,
         qr.description as rule_description,
