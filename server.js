@@ -2825,14 +2825,14 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         sf.row_count as source_row_count,
         sf.column_count as source_column_count,
         sf.created_at as source_created_at,
-        sf.agreement_id as source_agreement_id,
+        sf.vendor_agreement_id as source_agreement_id,
         tf.filename as target_filename,
         tf.file_type as target_file_type,
         tf.file_size as target_file_size,
         tf.row_count as target_row_count,
         tf.column_count as target_column_count,
         tf.created_at as target_created_at,
-        tf.agreement_id as target_agreement_id,
+        tf.vendor_agreement_id as target_agreement_id,
         sfo.owner as source_owner,
         tfo.owner as target_owner,
         sva.agreement_name as source_agreement_name,
@@ -2846,10 +2846,10 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
       LEFT JOIN files tf ON fl.target_file_id = tf.file_id
       LEFT JOIN file_ownership sfo ON sf.file_id = sfo.file_id
       LEFT JOIN file_ownership tfo ON tf.file_id = tfo.file_id
-      LEFT JOIN vendor_agreements sva ON sf.agreement_id = sva.agreement_id
-      LEFT JOIN vendor_agreements tva ON tf.agreement_id = tva.agreement_id
-      LEFT JOIN vendors sv ON sva.vendor_id = sv.vendor_id
-      LEFT JOIN vendors tv ON tva.vendor_id = tv.vendor_id
+      LEFT JOIN vendor_agreements sva ON sf.vendor_agreement_id = sva.id
+      LEFT JOIN vendor_agreements tva ON tf.vendor_agreement_id = tva.id
+      LEFT JOIN vendors sv ON sva.vendor_id = sv.id
+      LEFT JOIN vendors tv ON tva.vendor_id = tv.id
       WHERE ${isAdmin ? '1=1' : 'sf.project_id = ANY($1::integer[]) AND tf.project_id = ANY($1::integer[])'}
       ORDER BY fl.created_at DESC
     `;
