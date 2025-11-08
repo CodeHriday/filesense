@@ -144,6 +144,15 @@ async function invalidateProjectCache(projectId = null) {
   return await invalidateCachePattern(pattern);
 }
 
+/**
+ * Invalidate cache for a specific file
+ * @param {string} fileId - File ID
+ * @returns {Promise<number>} Number of keys deleted
+ */
+async function invalidateFileCache(fileId) {
+  return await invalidateCachePattern(`GET:/api/files/${fileId}*`);
+}
+
 module.exports = {
   createCacheMiddleware,
   invalidateCachePattern,
@@ -151,5 +160,6 @@ module.exports = {
   invalidateDashboardCache,
   invalidateFileCatalogCache,
   invalidateUserDataCache,
-  invalidateProjectCache
+  invalidateProjectCache,
+  invalidateFileCache
 };
