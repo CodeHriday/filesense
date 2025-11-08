@@ -531,6 +531,59 @@ initBusinessProcessTables(dbPool);
 
 // Jobs API - Replaced by authenticated endpoint below
 
+// Helper function: Get quality rule IDs from vendor agreement schema
+async function getQualityRulesFromAgreement(agreementId, filename) {
+  if (!agreementId || !filename) {
+    return [];
+  }
+  
+  try {
+    const { matchesPattern } = require('./backend/utils/filePatternMatcher');
+    
+    const schemaResult = await dbPool.query(`
+      SELECT quality_rule_ids, file_name_pattern
+      FROM vendor_agreement_file_schemas
+      WHERE vendor_agreement_id = $1
+    `, [agreementId]);
+    
+    if (schemaResult.rows.length === 0) {
+      return [];
+    }
+    
+    for (const schema of schemaResult.rows) {
+      if (matchesPattern(filename, schema.file_name_pattern)) {
+        const qualityRuleIds = schema.quality_rule_ids;
+        
+        if (qualityRuleIds && Array.isArray(qualityRuleIds) && qualityRuleIds.length > 0) {
+          logger.info('Quality rules extracted from vendor agreement schema', {
+            agreementId,
+            filename,
+            pattern: schema.file_name_pattern,
+            ruleCount: qualityRuleIds.length,
+            ruleIds: qualityRuleIds
+          });
+          return qualityRuleIds;
+        }
+      }
+    }
+    
+    logger.info('No quality rules found for file in vendor agreement', {
+      agreementId,
+      filename,
+      schemaCount: schemaResult.rows.length
+    });
+    return [];
+  } catch (error) {
+    logger.error('Error extracting quality rules from vendor agreement', {
+      agreementId,
+      filename,
+      error: error.message,
+      stack: error.stack
+    });
+    return [];
+  }
+}
+
 // API Routes
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -1557,6 +1610,24 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           fileHash: fileHash.substring(0, 16) + '...'
         });
         
+        // Extract quality rules from vendor agreement if contract validation is enabled
+        let mergedQualityRuleIds = [...qualityRuleIds]; // Start with manually provided rules
+        if (agreementId) {
+          const agreementQualityRules = await getQualityRulesFromAgreement(agreementId, file.originalname);
+          if (agreementQualityRules.length > 0) {
+            // Merge and deduplicate quality rule IDs
+            mergedQualityRuleIds = [...new Set([...mergedQualityRuleIds, ...agreementQualityRules])];
+            logger.info('Merged quality rules from agreement with manual rules', {
+              fileId,
+              filename: file.originalname,
+              agreementId,
+              manualRules: qualityRuleIds.length,
+              agreementRules: agreementQualityRules.length,
+              totalRules: mergedQualityRuleIds.length
+            });
+          }
+        }
+        
         // Add job to processing queue (non-blocking)
         const jobId = await queue.addJob('file-processing', {
           fileId,
@@ -1568,7 +1639,7 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           fileHash,
           projectId,
           subProjectId,
-          qualityRuleIds,
+          qualityRuleIds: mergedQualityRuleIds,
           agreementId
         }, {
           attempts: 3,
@@ -2524,6 +2595,24 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       ]
     );
     
+    // Extract quality rules from vendor agreement if this is a vendor upload
+    let mergedQualityRuleIds = [...qualityRuleIds]; // Start with manually provided rules
+    if (agreementId) {
+      const agreementQualityRules = await getQualityRulesFromAgreement(agreementId, file.originalname);
+      if (agreementQualityRules.length > 0) {
+        // Merge and deduplicate quality rule IDs
+        mergedQualityRuleIds = [...new Set([...mergedQualityRuleIds, ...agreementQualityRules])];
+        logger.info('Merged quality rules from vendor agreement with manual rules', {
+          fileId,
+          filename: file.originalname,
+          agreementId,
+          manualRules: qualityRuleIds.length,
+          agreementRules: agreementQualityRules.length,
+          totalRules: mergedQualityRuleIds.length
+        });
+      }
+    }
+    
     // Queue profiling job for async processing
     const fileType = path.extname(file.originalname).substring(1).toLowerCase();
     const jobId = await queue.addJob('file-processing', {
@@ -2537,7 +2626,9 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
       storageLocation,
       storageKey,
       provider,
-      isVendorFile: !!connectionId
+      isVendorFile: !!connectionId,
+      qualityRuleIds: mergedQualityRuleIds,
+      agreementId: agreementId || null
     }, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
