@@ -145,7 +145,7 @@ function SchemaHistoryTab({ fileId }) {
         </div>
       </div>
 
-      {isContractUpload && contractSchema ? (
+      {isContractUpload && contractSchema && contractSchema.schema?.columns ? (
         <div className="schema-comparison-three-panel">
           {/* Contract Expected Schema (Left Panel) */}
           <div className="schema-section schema-previous">
@@ -208,7 +208,7 @@ function SchemaHistoryTab({ fileId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {current.schema.columns.map((col, index) => {
+                  {current.schema?.columns?.map((col, index) => {
                     const isAdded = contractComparison?.addedColumns?.some(c => c.name === col.name);
                     const isModified = contractComparison?.modifiedColumns?.some(c => c.name === col.name);
                     
@@ -365,7 +365,7 @@ function SchemaHistoryTab({ fileId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {current.schema.columns.map((col, index) => {
+                  {current.schema?.columns?.map((col, index) => {
                     const isAdded = comparison?.addedColumns?.some(c => c.name === col.name);
                     const isModified = comparison?.modifiedColumns?.some(c => c.name === col.name);
                     
@@ -424,7 +424,7 @@ function SchemaHistoryTab({ fileId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {previous.schema.columns.map((col, index) => {
+                  {previous.schema?.columns?.map((col, index) => {
                     const isRemoved = comparison?.removedColumns?.some(c => c.name === col.name);
                     return (
                       <tr key={index} className={isRemoved ? 'row-removed' : ''}>
@@ -602,14 +602,14 @@ function SchemaHistoryTab({ fileId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {current.schema.columns.map((col, index) => (
+                  {current.schema?.columns?.map((col, index) => (
                     <tr key={index}>
                       <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
                       <td className="column-name">{col.name}</td>
                       <td><span className="type-badge">{col.type}</span></td>
                       <td>{col.nullable ? 'Yes' : 'No'}</td>
                     </tr>
-                  ))}
+                  )) || []}
                 </tbody>
               </table>
             </div>
