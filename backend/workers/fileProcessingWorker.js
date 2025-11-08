@@ -180,7 +180,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 75);
 
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId);
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId);
       
       // Step 4.1: Save file-quality-rule associations if provided
       if (qualityRuleIds && Array.isArray(qualityRuleIds) && qualityRuleIds.length > 0) {
@@ -464,7 +464,7 @@ class FileProcessingWorker {
 
       // Save file metadata with error to database so user can see what failed
       try {
-        await this.saveFailedFileMetadata(fileId, originalName, fileType, fileSize, error.message, fileHash, projectId);
+        await this.saveFailedFileMetadata(fileId, originalName, fileType, fileSize, error.message, fileHash, projectId, agreementId);
         this.logger.info('Failed file metadata saved to database', { fileId, errorMsg: error.message });
       } catch (saveError) {
         this.logger.error('Failed to save error metadata', {
@@ -844,7 +844,7 @@ print(json.dumps(result))
   /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null) {
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null, agreementId = null) {
     // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
     let existingMetadata = {};
     try {
@@ -897,8 +897,8 @@ print(json.dumps(result))
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
         row_count, column_count, quality_score, metadata, checksum,
-        duplicate_records_count, duplicate_records_percentage, project_id, sub_project_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        duplicate_records_count, duplicate_records_percentage, project_id, sub_project_id, vendor_agreement_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         row_count = EXCLUDED.row_count,
@@ -909,6 +909,7 @@ print(json.dumps(result))
         duplicate_records_count = EXCLUDED.duplicate_records_count,
         duplicate_records_percentage = EXCLUDED.duplicate_records_percentage,
         sub_project_id = EXCLUDED.sub_project_id,
+        vendor_agreement_id = EXCLUDED.vendor_agreement_id,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
@@ -926,7 +927,8 @@ print(json.dumps(result))
       duplicateStats?.duplicate_count || 0,
       duplicateStats?.duplicate_percentage || 0.0,
       projectId,
-      subProjectId
+      subProjectId,
+      agreementId || null
     ];
 
     const result = await this.dbPool.query(query, values);
@@ -936,7 +938,7 @@ print(json.dumps(result))
   /**
    * Save failed file metadata to database with error information
    */
-  async saveFailedFileMetadata(fileId, filename, fileType, fileSize, errorMessage, fileHash, projectId) {
+  async saveFailedFileMetadata(fileId, filename, fileType, fileSize, errorMessage, fileHash, projectId, agreementId = null) {
     // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
     let existingMetadata = {};
     try {
@@ -963,12 +965,13 @@ print(json.dumps(result))
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
         row_count, column_count, quality_score, metadata, checksum,
-        duplicate_records_count, duplicate_records_percentage, project_id, processing_error
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        duplicate_records_count, duplicate_records_percentage, project_id, processing_error, vendor_agreement_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         processing_error = EXCLUDED.processing_error,
         metadata = EXCLUDED.metadata,
+        vendor_agreement_id = EXCLUDED.vendor_agreement_id,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
@@ -986,7 +989,8 @@ print(json.dumps(result))
       0, // duplicate_records_count
       0.0, // duplicate_records_percentage
       projectId,
-      errorMessage
+      errorMessage,
+      agreementId || null
     ];
 
     const result = await this.dbPool.query(query, values);
