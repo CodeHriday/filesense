@@ -1542,31 +1542,31 @@ function DataProfile() {
       <div className="quality-rules-tab">
         {/* Summary Cards */}
         <div className="quality-summary">
-          <Card>
+          <Card style={{ flex: '2' }}>
             <div className="summary-stats">
               <div className="stat">
-                <div className="stat-label">Total Rules Applied</div>
-                <div className="stat-value">{summary.total_rules_applied}</div>
+                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Total Rules Applied</div>
+                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.total_rules_applied}</div>
               </div>
               <div className="stat success">
-                <FiCheckCircle size={24} />
-                <div className="stat-label">Passed</div>
-                <div className="stat-value">{summary.rules_passed}</div>
+                <FiCheckCircle size={20} />
+                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Passed</div>
+                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.rules_passed}</div>
               </div>
               <div className="stat error">
-                <FiXCircle size={24} />
-                <div className="stat-label">Failed</div>
-                <div className="stat-value">{summary.rules_failed}</div>
+                <FiXCircle size={20} />
+                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Failed</div>
+                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.rules_failed}</div>
               </div>
               <div className="stat">
-                <div className="stat-label">Total Violations</div>
-                <div className="stat-value">{summary.total_violations}</div>
+                <div className="stat-label" style={{ fontSize: '0.75rem' }}>Total Violations</div>
+                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{summary.total_violations}</div>
               </div>
             </div>
           </Card>
           
-          <Card>
-            <h4 style={{ marginBottom: '1rem' }}>Violations by Severity</h4>
+          <Card style={{ flex: '1' }}>
+            <h4 style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>Violations by Severity</h4>
             <div className="severity-breakdown">
               <div className="severity-item critical">
                 <FiAlertTriangle size={20} />
@@ -1675,58 +1675,58 @@ function DataProfile() {
             </div>
           ) : (
             <div className="table-responsive">
-              <table className="data-table violations-table" style={{ fontSize: '0.85rem' }}>
+              <table className="data-table violations-table" style={{ fontSize: '0.8rem' }}>
                 <thead>
                   <tr>
-                    <th style={{ fontSize: '0.85rem' }}>Primary Key</th>
-                    <th style={{ fontSize: '0.85rem' }}>Rule Name</th>
-                    <th style={{ fontSize: '0.85rem' }}>Severity</th>
-                    <th style={{ fontSize: '0.85rem' }}>Column</th>
-                    <th style={{ fontSize: '0.85rem' }}>Expected</th>
-                    <th style={{ fontSize: '0.85rem' }}>Actual</th>
-                    <th style={{ fontSize: '0.85rem' }}>Type</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Primary Key</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Rule Name</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Severity</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Column</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Expected</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Actual</th>
+                    <th style={{ fontSize: '0.75rem', fontWeight: '600' }}>Type</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredViolations.map((violation, idx) => (
                     <tr key={idx}>
-                      <td style={{ fontSize: '0.85rem' }}>
+                      <td style={{ fontSize: '0.8rem' }}>
                         {violation.primary_key_value ? (
                           <div>
-                            <code style={{ fontSize: '0.75rem' }}>{violation.primary_key_column}</code>
-                            <div style={{ fontSize: '0.75rem', color: '#666' }}>{violation.primary_key_value}</div>
+                            <code style={{ fontSize: '0.7rem' }}>{violation.primary_key_column}</code>
+                            <div style={{ fontSize: '0.7rem', color: '#666' }}>{violation.primary_key_value}</div>
                           </div>
                         ) : (
-                          <span style={{ fontSize: '0.75rem', color: '#999' }}>Row {violation.row_number || 'N/A'}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#999' }}>Row {violation.row_number || 'N/A'}</span>
                         )}
                       </td>
-                      <td style={{ fontSize: '0.85rem' }}>
+                      <td style={{ fontSize: '0.8rem' }}>
                         <div className="rule-info">
-                          <strong>{violation.rule_name}</strong>
+                          <strong style={{ fontSize: '0.8rem' }}>{violation.rule_name}</strong>
                           {violation.rule_description && (
-                            <div className="rule-description" style={{ fontSize: '0.75rem' }}>{violation.rule_description}</div>
+                            <div className="rule-description" style={{ fontSize: '0.7rem' }}>{violation.rule_description}</div>
                           )}
                         </div>
                       </td>
-                      <td style={{ fontSize: '0.85rem' }}>
-                        <span className={`severity-badge severity-${violation.severity}`} style={{ fontSize: '0.75rem' }}>
-                          {violation.severity === 'critical' && <FiAlertTriangle />}
-                          {violation.severity === 'error' && <FiXCircle />}
-                          {violation.severity === 'warning' && <FiAlertTriangle />}
+                      <td style={{ fontSize: '0.8rem' }}>
+                        <span className={`severity-badge severity-${violation.severity}`} style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem' }}>
+                          {violation.severity === 'critical' && <FiAlertTriangle size={12} />}
+                          {violation.severity === 'error' && <FiXCircle size={12} />}
+                          {violation.severity === 'warning' && <FiAlertTriangle size={12} />}
                           {violation.severity}
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.85rem' }}>
-                        <code style={{ fontSize: '0.75rem' }}>{violation.column_name || 'N/A'}</code>
+                      <td style={{ fontSize: '0.8rem' }}>
+                        <code style={{ fontSize: '0.7rem' }}>{violation.column_name || 'N/A'}</code>
                       </td>
-                      <td style={{ fontSize: '0.85rem' }}>
-                        <span className="expected-value" style={{ fontSize: '0.8rem' }}>{violation.expected_value}</span>
+                      <td style={{ fontSize: '0.8rem' }}>
+                        <span className="expected-value" style={{ fontSize: '0.75rem' }}>{violation.expected_value}</span>
                       </td>
-                      <td style={{ fontSize: '0.85rem' }}>
-                        <span className="actual-value" style={{ fontSize: '0.8rem' }}>{violation.actual_value}</span>
+                      <td style={{ fontSize: '0.8rem' }}>
+                        <span className="actual-value" style={{ fontSize: '0.75rem' }}>{violation.actual_value}</span>
                       </td>
-                      <td style={{ fontSize: '0.85rem' }}>
-                        <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>{violation.rule_type}</span>
+                      <td style={{ fontSize: '0.8rem' }}>
+                        <span className="badge badge-secondary" style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem' }}>{violation.rule_type}</span>
                       </td>
                     </tr>
                   ))}

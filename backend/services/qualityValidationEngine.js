@@ -163,7 +163,11 @@ class QualityValidationEngine {
   async validateCompleteness(rule, data, metadata) {
     const violations = [];
     const config = rule.rule_config;
-    const threshold = config.threshold || 1.0; // Default: 100% completeness
+    // Normalize threshold: if > 1, assume it's a percentage (95) and convert to decimal (0.95)
+    let threshold = config.threshold || 1.0; // Default: 100% completeness
+    if (threshold > 1) {
+      threshold = threshold / 100;
+    }
     const columnsToCheck = config.columns || null; // null = check specific column from rule
     
     // If rule specifies a column, check only that column
@@ -535,7 +539,29 @@ class QualityValidationEngine {
       if (seen.has(key)) {
         const firstOccurrence = seen.get(key);
         const primaryKeyColumn = metadata.primaryKeyColumn;
-        const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+        
+        // Get primary key value - try exact match first, then case-insensitive
+        let primaryKeyValue = '';
+        if (primaryKeyColumn) {
+          primaryKeyValue = String(row[primaryKeyColumn] || '');
+          
+          // If empty, try case-insensitive match as fallback
+          if (!primaryKeyValue && row) {
+            const caseInsensitiveMatch = Object.keys(row).find(
+              k => k.toLowerCase() === primaryKeyColumn.toLowerCase()
+            );
+            if (caseInsensitiveMatch) {
+              primaryKeyValue = String(row[caseInsensitiveMatch] || '');
+            }
+          }
+        }
+        
+        systemLogger.debug('Uniqueness violation primary key', {
+          primaryKeyColumn,
+          primaryKeyValue,
+          rowIndex,
+          rowKeys: Object.keys(row)
+        });
         
         violations.push({
           rule_id: rule.id,
