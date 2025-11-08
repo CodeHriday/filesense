@@ -4300,16 +4300,14 @@ app.get('/api/files/:fileId/quality-violations', cacheMiddleware(300), async (re
       ORDER BY qrv.severity DESC, qrv.created_at DESC
     `, [fileId]);
     
-    // Get all quality rules that were applied to this file
-    // (we'll get the rules from file_quality_rules association or project-level rules)
+    // Get all quality rules that were actually applied to this file
+    // Query from file_quality_rules table which tracks file-specific rule associations
     const appliedRulesResult = await dbPool.query(`
       SELECT DISTINCT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.enabled
-      FROM quality_rules qr
-      WHERE qr.enabled = true
-        AND (
-          qr.project_id = (SELECT project_id FROM files WHERE file_id = $1)
-          OR qr.project_id IS NULL
-        )
+      FROM file_quality_rules fqr
+      JOIN quality_rules qr ON fqr.quality_rule_id = qr.id
+      WHERE fqr.file_id = $1
+      ORDER BY qr.rule_name
     `, [fileId]);
     
     const violations = violationsResult.rows;
