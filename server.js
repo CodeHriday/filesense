@@ -815,7 +815,7 @@ app.get('/api/vendor-files', authenticateToken, attachVendorProfile, cacheMiddle
 app.get('/api/files/:fileId', 
   authenticateToken,
   attachVendorProfile,
-  cacheMiddleware(600),
+  cacheMiddleware(120),
   requireProjectAccess({
     resourceType: 'file'
   }),
