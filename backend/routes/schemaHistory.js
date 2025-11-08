@@ -14,9 +14,9 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
     const { fileId } = req.params;
     const pool = req.app.locals.pool;
 
-    // First, get the logical_file_id for this file
+    // First, get the logical_file_id and vendor_agreement_id for this file
     const fileResult = await pool.query(`
-      SELECT logical_file_id, filename, project_id
+      SELECT logical_file_id, filename, project_id, vendor_agreement_id
       FROM files
       WHERE file_id = $1
     `, [fileId]);
@@ -30,6 +30,50 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
 
     const logicalFileId = fileResult.rows[0].logical_file_id;
     const currentFilename = fileResult.rows[0].filename;
+    const vendorAgreementId = fileResult.rows[0].vendor_agreement_id;
+
+    // For contract validation uploads, fetch the expected schema from vendor_agreement_file_schemas
+    let contractSchema = null;
+    let contractComparison = null;
+    let isContractUpload = false;
+
+    if (vendorAgreementId) {
+      isContractUpload = true;
+      
+      // Find matching file pattern in agreement schema
+      const contractSchemaResult = await pool.query(`
+        SELECT 
+          vafs.id,
+          vafs.file_pattern,
+          vafs.expected_schema,
+          vafs.contains_pii,
+          vafs.data_classification,
+          vafs.file_type,
+          vafs.quality_rule_ids,
+          va.vendor_name,
+          va.agreement_name
+        FROM vendor_agreement_file_schemas vafs
+        JOIN vendor_agreements va ON vafs.agreement_id = va.id
+        WHERE vafs.agreement_id = $1
+        ORDER BY vafs.created_at DESC
+        LIMIT 1
+      `, [vendorAgreementId]);
+
+      if (contractSchemaResult.rows.length > 0) {
+        const schemaRecord = contractSchemaResult.rows[0];
+        contractSchema = {
+          id: schemaRecord.id,
+          filePattern: schemaRecord.file_pattern,
+          schema: schemaRecord.expected_schema,
+          vendorName: schemaRecord.vendor_name,
+          agreementName: schemaRecord.agreement_name,
+          containsPii: schemaRecord.contains_pii,
+          dataClassification: schemaRecord.data_classification,
+          fileType: schemaRecord.file_type,
+          qualityRuleIds: schemaRecord.quality_rule_ids
+        };
+      }
+    }
 
     // Get all schema snapshots for this logical file group (all uploads of same file)
     // This gives us cross-upload schema history
@@ -110,8 +154,17 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
       last_schema_change_at: null
     };
 
-    // If only one schema, return it without comparison
+    // If only one schema, return it without previous upload comparison
+    // BUT still include contract comparison if this is a contract upload
     if (schemas.length === 1) {
+      // For contract uploads, compare current schema with contract schema
+      if (isContractUpload && contractSchema) {
+        contractComparison = compareSchemas(
+          contractSchema.schema,
+          currentSchema.schema_definition
+        );
+      }
+
       return res.json({
         hasHistory: true,
         hasPrevious: false,
@@ -130,6 +183,17 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
         },
         previous: null,
         comparison: null,
+        isContractUpload,
+        contractSchema,
+        contractComparison: contractComparison ? {
+          isIdentical: contractComparison.isIdentical,
+          hasChanges: !contractComparison.isIdentical,
+          addedColumns: contractComparison.addedColumns,
+          removedColumns: contractComparison.removedColumns,
+          modifiedColumns: contractComparison.modifiedColumns,
+          reorderedColumns: contractComparison.reorderedColumns,
+          columnCountMismatch: contractComparison.columnCountMismatch
+        } : null,
         driftAction,
         transformationJobId,
         totalSnapshots: 1,
@@ -150,6 +214,14 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
       previousSchema.schema_definition,
       currentSchema.schema_definition
     );
+
+    // For contract uploads, also compare current schema with contract schema
+    if (isContractUpload && contractSchema) {
+      contractComparison = compareSchemas(
+        contractSchema.schema,
+        currentSchema.schema_definition
+      );
+    }
 
     res.json({
       hasHistory: true,
@@ -189,6 +261,17 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
         reorderedColumns: comparison.reorderedColumns,
         columnCountMismatch: comparison.columnCountMismatch
       },
+      isContractUpload,
+      contractSchema,
+      contractComparison: contractComparison ? {
+        isIdentical: contractComparison.isIdentical,
+        hasChanges: !contractComparison.isIdentical,
+        addedColumns: contractComparison.addedColumns,
+        removedColumns: contractComparison.removedColumns,
+        modifiedColumns: contractComparison.modifiedColumns,
+        reorderedColumns: contractComparison.reorderedColumns,
+        columnCountMismatch: contractComparison.columnCountMismatch
+      } : null,
       driftAction,
       transformationJobId,
       totalSnapshots: schemas.length,
