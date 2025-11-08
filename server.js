@@ -2867,8 +2867,6 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         tl.output_file_id as target_pattern,
         tl.execution_id,
         tl.created_at,
-        tl.source_file_type,
-        tl.target_file_type,
         tm.mapping_name,
         tm.mapping_id,
         tm.field_mappings,
