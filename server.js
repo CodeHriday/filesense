@@ -2879,13 +2879,13 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         tm.description,
         tm.project_id,
         tm.source_connection_id,
-        tm.agreement_id,
+        tm.vendor_agreement_id,
         va.agreement_code as agreement_name,
         va.vendor_id,
         v.vendor_name
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
-      LEFT JOIN vendor_agreements va ON tm.agreement_id = va.id
+      LEFT JOIN vendor_agreements va ON tm.vendor_agreement_id = va.id
       LEFT JOIN vendors v ON va.vendor_id = v.id
       WHERE ${isAdmin ? '1=1' : 'tm.project_id = ANY($1::integer[])'}
       ORDER BY tl.created_at DESC
