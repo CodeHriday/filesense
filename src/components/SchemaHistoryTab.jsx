@@ -184,9 +184,48 @@ function SchemaHistoryTab({ fileId }) {
         </div>
       ) : !hasPrevious && isContractUpload && contractSchema ? (
         <div className="schema-comparison-three-panel">
-          {/* Current Schema (Left Panel) */}
+          {/* Contract Expected Schema (Left Panel) */}
+          <div className="schema-section schema-previous">
+            <h3>
+              Expected Schema
+              <span className="schema-subtitle">{contractSchema.agreementName} - {contractSchema.vendorName}</span>
+            </h3>
+            <div className="schema-info">
+              <p className="schema-stats">
+                {contractSchema.schema.columns.length} expected columns
+              </p>
+            </div>
+            <div className="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Column Name</th>
+                    <th>Data Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contractSchema.schema.columns.map((col, index) => {
+                    const isRemoved = contractComparison?.removedColumns?.some(c => c.name === col.name);
+                    return (
+                      <tr key={index} className={isRemoved ? 'row-removed' : ''}>
+                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
+                        <td className="column-name">
+                          {col.name}
+                          {isRemoved && <span className={getDiffBadgeClass('removed')}>Missing</span>}
+                        </td>
+                        <td><span className="type-badge">{col.type}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Current Schema (Middle Panel) */}
           <div className="schema-section schema-current">
-            <h3>Current Upload Schema</h3>
+            <h3>Current Schema</h3>
             <div className="schema-info">
               <p className="capture-date">
                 <FiClock size={14} />
@@ -238,48 +277,9 @@ function SchemaHistoryTab({ fileId }) {
             </div>
           </div>
 
-          {/* Contract Expected Schema (Middle Panel) */}
-          <div className="schema-section schema-previous">
-            <h3>
-              Contract Expected Schema
-              <span className="schema-subtitle">{contractSchema.agreementName} - {contractSchema.vendorName}</span>
-            </h3>
-            <div className="schema-info">
-              <p className="schema-stats">
-                {contractSchema.schema.columns.length} expected columns
-              </p>
-            </div>
-            <div className="schema-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Column Name</th>
-                    <th>Data Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contractSchema.schema.columns.map((col, index) => {
-                    const isRemoved = contractComparison?.removedColumns?.some(c => c.name === col.name);
-                    return (
-                      <tr key={index} className={isRemoved ? 'row-removed' : ''}>
-                        <td>{col.index !== undefined ? col.index + 1 : index + 1}</td>
-                        <td className="column-name">
-                          {col.name}
-                          {isRemoved && <span className={getDiffBadgeClass('removed')}>Missing</span>}
-                        </td>
-                        <td><span className="type-badge">{col.type}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           {/* Contract Validation Summary (Right Panel) */}
           <div className="schema-changes-panel">
-            <h3>Contract Validation</h3>
+            <h3>Validation Summary</h3>
             
             {!contractSchema?.patternMatched && (
               <div className="validation-alert-warning" style={{
