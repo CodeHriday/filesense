@@ -18,6 +18,7 @@ const { captureFileAudit, captureFileSchema } = require('../services/fileAuditSe
 const { saveSchemaSnapshot } = require('../services/schemaService');
 const QualityValidationEngine = require('../services/qualityValidationEngine');
 const { persistGovernanceMetadata } = require('../services/governanceService');
+const { invalidateFileCache, invalidateFileCatalogCache } = require('../src/middleware/cache');
 
 class FileProcessingWorker {
   constructor(queue, dbPool, logger, auditService = null) {
@@ -181,6 +182,10 @@ class FileProcessingWorker {
 
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
       await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId);
+      
+      // Invalidate file cache after metadata update
+      await invalidateFileCache(fileId);
+      await invalidateFileCatalogCache();
       
       // Step 4.1: Save file-quality-rule associations if provided
       if (qualityRuleIds && Array.isArray(qualityRuleIds) && qualityRuleIds.length > 0) {
@@ -414,6 +419,10 @@ class FileProcessingWorker {
 
       // Mark processing as complete
       await this.updateProcessingStep(fileId, 'complete');
+      
+      // Invalidate file cache after processing completes
+      await invalidateFileCache(fileId);
+      await invalidateFileCatalogCache();
 
       const processingDuration = Date.now() - startTime;
 
