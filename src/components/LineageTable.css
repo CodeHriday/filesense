@@ -40,6 +40,7 @@
 
 .lineage-table td {
   padding: 16px;
+  text-align: left;
 }
 
 .source-cell,
@@ -67,7 +68,7 @@
 
 .arrow-cell {
   width: 40px;
-  text-align: center;
+  text-align: center !important;
 }
 
 .flow-arrow {
@@ -148,7 +149,7 @@
 }
 
 .actions-cell {
-  text-align: center;
+  text-align: center !important;
   width: 120px;
 }
 
