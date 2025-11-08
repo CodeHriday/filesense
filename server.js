@@ -4171,6 +4171,114 @@ app.get('/api/files/:fileId/profile-history',
   }
 });
 
+// Quality Violations API endpoint
+
+// Get quality rule violations for a specific file
+app.get('/api/files/:fileId/quality-violations', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Check if file exists
+    const fileResult = await dbPool.query('SELECT * FROM files WHERE file_id = $1', [fileId]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Get all violations for this file with rule details
+    const violationsResult = await dbPool.query(`
+      SELECT 
+        qrv.id,
+        qrv.rule_id,
+        qrv.file_id,
+        qrv.row_number,
+        qrv.column_name,
+        qrv.expected_value,
+        qrv.actual_value,
+        qrv.violation_details,
+        qrv.severity,
+        qrv.created_at,
+        qr.rule_name,
+        qr.rule_type,
+        qr.description as rule_description,
+        qr.rule_config,
+        qr.enabled as rule_enabled
+      FROM quality_rule_violations qrv
+      JOIN quality_rules qr ON qrv.rule_id = qr.id
+      WHERE qrv.file_id = $1
+      ORDER BY qrv.severity DESC, qrv.created_at DESC
+    `, [fileId]);
+    
+    // Get all quality rules that were applied to this file
+    // (we'll get the rules from file_quality_rules association or project-level rules)
+    const appliedRulesResult = await dbPool.query(`
+      SELECT DISTINCT qr.id, qr.rule_name, qr.rule_type, qr.severity, qr.enabled
+      FROM quality_rules qr
+      WHERE qr.enabled = true
+        AND (
+          qr.project_id = (SELECT project_id FROM files WHERE file_id = $1)
+          OR qr.project_id IS NULL
+        )
+    `, [fileId]);
+    
+    const violations = violationsResult.rows;
+    const appliedRules = appliedRulesResult.rows;
+    
+    // Calculate summary statistics
+    const summary = {
+      total_rules_applied: appliedRules.length,
+      total_violations: violations.length,
+      violations_by_severity: {
+        critical: violations.filter(v => v.severity === 'critical').length,
+        error: violations.filter(v => v.severity === 'error').length,
+        warning: violations.filter(v => v.severity === 'warning').length
+      },
+      violations_by_rule_type: {},
+      violations_by_column: {},
+      rules_passed: 0,
+      rules_failed: 0
+    };
+    
+    // Group violations by rule type
+    violations.forEach(v => {
+      const ruleType = v.rule_type || 'unknown';
+      summary.violations_by_rule_type[ruleType] = (summary.violations_by_rule_type[ruleType] || 0) + 1;
+    });
+    
+    // Group violations by column
+    violations.forEach(v => {
+      if (v.column_name) {
+        summary.violations_by_column[v.column_name] = (summary.violations_by_column[v.column_name] || 0) + 1;
+      }
+    });
+    
+    // Calculate pass/fail for each rule
+    const ruleViolationCounts = {};
+    violations.forEach(v => {
+      ruleViolationCounts[v.rule_id] = (ruleViolationCounts[v.rule_id] || 0) + 1;
+    });
+    
+    appliedRules.forEach(rule => {
+      if (ruleViolationCounts[rule.id]) {
+        summary.rules_failed++;
+      } else {
+        summary.rules_passed++;
+      }
+    });
+    
+    res.json({
+      fileId,
+      filename: fileResult.rows[0].filename,
+      summary,
+      violations,
+      applied_rules: appliedRules
+    });
+  } catch (err) {
+    console.error('Error fetching quality violations:', err);
+    res.status(500).json({ error: 'Failed to fetch quality violations' });
+  }
+});
+
 // File Ownership API endpoints
 
 // Get file ownership

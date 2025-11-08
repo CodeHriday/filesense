@@ -409,6 +409,15 @@ function DataProfile() {
   // Error modal state
   const [errorMessage, setErrorMessage] = useState(null);
 
+  // Quality Rules state
+  const [qualityViolations, setQualityViolations] = useState(null);
+  const [qualityLoading, setQualityLoading] = useState(false);
+  const [qualityFilter, setQualityFilter] = useState({
+    severity: 'all',
+    ruleType: 'all',
+    column: 'all'
+  });
+
   // Helper functions for column type checking
   const isNumericColumn = (column) => {
     const numericTypes = ['integer', 'decimal', 'number', 'float', 'int64', 'float64', 'int32', 'float32'];
@@ -658,6 +667,27 @@ function DataProfile() {
       console.error('Error fetching all column governance data:', err);
     }
   };
+
+  const fetchQualityViolations = async () => {
+    try {
+      setQualityLoading(true);
+      const encodedFileId = encodeURIComponent(fileId);
+      const response = await axios.get(`/api/files/${encodedFileId}/quality-violations`);
+      setQualityViolations(response.data);
+    } catch (err) {
+      console.error('Error fetching quality violations:', err);
+      setErrorMessage('Failed to fetch quality violations');
+    } finally {
+      setQualityLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch quality violations when quality-rules tab is active
+    if (activeTab === 'quality-rules' && !qualityViolations) {
+      fetchQualityViolations();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     console.log('DataProfile component mounted with fileId:', fileId);
@@ -1405,6 +1435,273 @@ function DataProfile() {
     );
   };
 
+  const renderQualityRulesTab = () => {
+    if (qualityLoading) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <LoadingSpinner />
+        </div>
+      );
+    }
+
+    if (!qualityViolations) {
+      return (
+        <div className="empty-state">
+          <FiCheckCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+          <p>Loading quality rule data...</p>
+        </div>
+      );
+    }
+
+    const { summary, violations, applied_rules } = qualityViolations;
+
+    // Get unique values for filters
+    const uniqueColumns = [...new Set(violations.map(v => v.column_name).filter(Boolean))];
+    const uniqueRuleTypes = [...new Set(violations.map(v => v.rule_type).filter(Boolean))];
+
+    // Apply filters
+    let filteredViolations = violations;
+    if (qualityFilter.severity !== 'all') {
+      filteredViolations = filteredViolations.filter(v => v.severity === qualityFilter.severity);
+    }
+    if (qualityFilter.ruleType !== 'all') {
+      filteredViolations = filteredViolations.filter(v => v.rule_type === qualityFilter.ruleType);
+    }
+    if (qualityFilter.column !== 'all') {
+      filteredViolations = filteredViolations.filter(v => v.column_name === qualityFilter.column);
+    }
+
+    // Check if no violations and no rules applied
+    if (applied_rules.length === 0) {
+      return (
+        <div className="empty-state">
+          <FiAlertTriangle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+          <p>No quality rules configured</p>
+          <p className="empty-state-hint">
+            Configure quality rules in the Quality Rules page to validate your data
+          </p>
+        </div>
+      );
+    }
+
+    // Check if all rules passed
+    if (violations.length === 0) {
+      return (
+        <div className="quality-rules-tab">
+          <div className="quality-summary">
+            <Card>
+              <div className="summary-stats">
+                <div className="stat success">
+                  <FiCheckCircle size={32} style={{ color: '#48bb78' }} />
+                  <div className="stat-label">All Quality Rules Passed!</div>
+                  <div className="stat-value">{summary.total_rules_applied} rules applied</div>
+                </div>
+              </div>
+            </Card>
+          </div>
+          
+          <Card>
+            <h3 style={{ marginBottom: '1rem' }}>Applied Quality Rules</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Rule Name</th>
+                  <th>Type</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {applied_rules.map((rule, idx) => (
+                  <tr key={idx}>
+                    <td>{rule.rule_name}</td>
+                    <td>
+                      <span className="badge badge-secondary">{rule.rule_type}</span>
+                    </td>
+                    <td>
+                      <span className={`severity-badge severity-${rule.severity}`}>
+                        {rule.severity}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="status-badge status-success">
+                        <FiCheckCircle /> Passed
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div className="quality-rules-tab">
+        {/* Summary Cards */}
+        <div className="quality-summary">
+          <Card>
+            <div className="summary-stats">
+              <div className="stat">
+                <div className="stat-label">Total Rules Applied</div>
+                <div className="stat-value">{summary.total_rules_applied}</div>
+              </div>
+              <div className="stat success">
+                <FiCheckCircle size={24} />
+                <div className="stat-label">Passed</div>
+                <div className="stat-value">{summary.rules_passed}</div>
+              </div>
+              <div className="stat error">
+                <FiXCircle size={24} />
+                <div className="stat-label">Failed</div>
+                <div className="stat-value">{summary.rules_failed}</div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">Total Violations</div>
+                <div className="stat-value">{summary.total_violations}</div>
+              </div>
+            </div>
+          </Card>
+          
+          <Card>
+            <h4 style={{ marginBottom: '1rem' }}>Violations by Severity</h4>
+            <div className="severity-breakdown">
+              <div className="severity-item critical">
+                <FiAlertTriangle size={20} />
+                <span className="severity-label">Critical</span>
+                <span className="severity-count">{summary.violations_by_severity.critical}</span>
+              </div>
+              <div className="severity-item error">
+                <FiXCircle size={20} />
+                <span className="severity-label">Error</span>
+                <span className="severity-count">{summary.violations_by_severity.error}</span>
+              </div>
+              <div className="severity-item warning">
+                <FiAlertTriangle size={20} />
+                <span className="severity-label">Warning</span>
+                <span className="severity-count">{summary.violations_by_severity.warning}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <Card>
+          <div className="quality-filters">
+            <div className="filter-group">
+              <label>Severity</label>
+              <select 
+                value={qualityFilter.severity} 
+                onChange={(e) => setQualityFilter({...qualityFilter, severity: e.target.value})}
+                className="filter-select"
+              >
+                <option value="all">All Severities</option>
+                <option value="critical">Critical</option>
+                <option value="error">Error</option>
+                <option value="warning">Warning</option>
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <label>Rule Type</label>
+              <select 
+                value={qualityFilter.ruleType} 
+                onChange={(e) => setQualityFilter({...qualityFilter, ruleType: e.target.value})}
+                className="filter-select"
+              >
+                <option value="all">All Types</option>
+                {uniqueRuleTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            
+            {uniqueColumns.length > 0 && (
+              <div className="filter-group">
+                <label>Column</label>
+                <select 
+                  value={qualityFilter.column} 
+                  onChange={(e) => setQualityFilter({...qualityFilter, column: e.target.value})}
+                  className="filter-select"
+                >
+                  <option value="all">All Columns</option>
+                  {uniqueColumns.map(col => (
+                    <option key={col} value={col}>{col}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            <div className="filter-results">
+              Showing {filteredViolations.length} of {violations.length} violations
+            </div>
+          </div>
+        </Card>
+
+        {/* Violations Table */}
+        <Card>
+          <h3 style={{ marginBottom: '1rem' }}>Quality Rule Violations</h3>
+          
+          {filteredViolations.length === 0 ? (
+            <div className="empty-state">
+              <p>No violations match the selected filters</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="data-table violations-table">
+                <thead>
+                  <tr>
+                    <th>Rule Name</th>
+                    <th>Type</th>
+                    <th>Column</th>
+                    <th>Expected</th>
+                    <th>Actual</th>
+                    <th>Severity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredViolations.map((violation, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <div className="rule-info">
+                          <strong>{violation.rule_name}</strong>
+                          {violation.rule_description && (
+                            <div className="rule-description">{violation.rule_description}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-secondary">{violation.rule_type}</span>
+                      </td>
+                      <td>
+                        <code>{violation.column_name || 'N/A'}</code>
+                      </td>
+                      <td>
+                        <span className="expected-value">{violation.expected_value}</span>
+                      </td>
+                      <td>
+                        <span className="actual-value">{violation.actual_value}</span>
+                      </td>
+                      <td>
+                        <span className={`severity-badge severity-${violation.severity}`}>
+                          {violation.severity === 'critical' && <FiAlertTriangle />}
+                          {violation.severity === 'error' && <FiXCircle />}
+                          {violation.severity === 'warning' && <FiAlertTriangle />}
+                          {violation.severity}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  };
+
   const fetchProfileHistory = async () => {
     try {
       setHistoryLoading(true);
@@ -1783,6 +2080,12 @@ function DataProfile() {
             >
               <FiTable className="tab-icon" /> Preview
             </button>
+            <button 
+              className={`tab-button ${activeTab === 'quality-rules' ? 'active' : ''}`}
+              onClick={() => setActiveTab('quality-rules')}
+            >
+              <FiCheckCircle className="tab-icon" /> Quality Rules
+            </button>
           </div>
           
           <div className="profile-content">
@@ -1791,6 +2094,7 @@ function DataProfile() {
             {activeTab === 'distribution' && renderDistributionTab()}
             {activeTab === 'schema-history' && <SchemaHistoryTab fileId={fileId} />}
             {activeTab === 'preview' && renderPreviewTab()}
+            {activeTab === 'quality-rules' && renderQualityRulesTab()}
           </div>
         </>
       ) : (
