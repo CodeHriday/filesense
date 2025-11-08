@@ -2835,10 +2835,10 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         tf.vendor_agreement_id as target_agreement_id,
         sfo.owner_name as source_owner,
         tfo.owner_name as target_owner,
-        sva.agreement_name as source_agreement_name,
+        sva.agreement_code as source_agreement_name,
         sva.vendor_id as source_vendor_id,
         sv.vendor_name as source_vendor_name,
-        tva.agreement_name as target_agreement_name,
+        tva.agreement_code as target_agreement_name,
         tva.vendor_id as target_vendor_id,
         tv.vendor_name as target_vendor_name
       FROM file_lineage fl
@@ -2880,13 +2880,13 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         tm.project_id,
         tm.source_connection_id,
         tm.agreement_id,
-        va.agreement_name,
+        va.agreement_code as agreement_name,
         va.vendor_id,
         v.vendor_name
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
-      LEFT JOIN vendor_agreements va ON tm.agreement_id = va.agreement_id
-      LEFT JOIN vendors v ON va.vendor_id = v.vendor_id
+      LEFT JOIN vendor_agreements va ON tm.agreement_id = va.id
+      LEFT JOIN vendors v ON va.vendor_id = v.id
       WHERE ${isAdmin ? '1=1' : 'tm.project_id = ANY($1::integer[])'}
       ORDER BY tl.created_at DESC
     `;
