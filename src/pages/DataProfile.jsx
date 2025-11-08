@@ -11,6 +11,7 @@ import { formatBytes, formatDate, getTimeSince, formatNumber, formatDecimal } fr
 import { useAuth } from '../context/AuthContext';
 import './DataProfile.css';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -1641,7 +1642,32 @@ function DataProfile() {
 
         {/* Violations Table */}
         <Card>
-          <h3 style={{ marginBottom: '1rem' }}>Quality Rule Violations</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>Quality Rule Violations</h3>
+            {filteredViolations.length > 0 && (
+              <button
+                onClick={() => {
+                  const exportData = filteredViolations.map(v => ({
+                    'Primary Key': v.primary_key_value ? `${v.primary_key_column}: ${v.primary_key_value}` : 'N/A',
+                    'Rule Name': v.rule_name,
+                    'Severity': v.severity,
+                    'Column': v.column_name || 'N/A',
+                    'Expected Value': v.expected_value,
+                    'Actual Value': v.actual_value,
+                    'Violation Details': v.rule_description || ''
+                  }));
+                  const ws = XLSX.utils.json_to_sheet(exportData);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'Quality Violations');
+                  XLSX.writeFile(wb, `quality-violations-${fileId}.xlsx`);
+                }}
+                className="btn btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <FiDownload /> Export to Excel
+              </button>
+            )}
+          </div>
           
           {filteredViolations.length === 0 ? (
             <div className="empty-state">
@@ -1649,47 +1675,58 @@ function DataProfile() {
             </div>
           ) : (
             <div className="table-responsive">
-              <table className="data-table violations-table">
+              <table className="data-table violations-table" style={{ fontSize: '0.85rem' }}>
                 <thead>
                   <tr>
-                    <th>Rule Name</th>
-                    <th>Type</th>
-                    <th>Column</th>
-                    <th>Expected</th>
-                    <th>Actual</th>
-                    <th>Severity</th>
+                    <th style={{ fontSize: '0.85rem' }}>Primary Key</th>
+                    <th style={{ fontSize: '0.85rem' }}>Rule Name</th>
+                    <th style={{ fontSize: '0.85rem' }}>Severity</th>
+                    <th style={{ fontSize: '0.85rem' }}>Column</th>
+                    <th style={{ fontSize: '0.85rem' }}>Expected</th>
+                    <th style={{ fontSize: '0.85rem' }}>Actual</th>
+                    <th style={{ fontSize: '0.85rem' }}>Type</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredViolations.map((violation, idx) => (
                     <tr key={idx}>
-                      <td>
+                      <td style={{ fontSize: '0.85rem' }}>
+                        {violation.primary_key_value ? (
+                          <div>
+                            <code style={{ fontSize: '0.75rem' }}>{violation.primary_key_column}</code>
+                            <div style={{ fontSize: '0.75rem', color: '#666' }}>{violation.primary_key_value}</div>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#999' }}>Row {violation.row_number || 'N/A'}</span>
+                        )}
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>
                         <div className="rule-info">
                           <strong>{violation.rule_name}</strong>
                           {violation.rule_description && (
-                            <div className="rule-description">{violation.rule_description}</div>
+                            <div className="rule-description" style={{ fontSize: '0.75rem' }}>{violation.rule_description}</div>
                           )}
                         </div>
                       </td>
-                      <td>
-                        <span className="badge badge-secondary">{violation.rule_type}</span>
-                      </td>
-                      <td>
-                        <code>{violation.column_name || 'N/A'}</code>
-                      </td>
-                      <td>
-                        <span className="expected-value">{violation.expected_value}</span>
-                      </td>
-                      <td>
-                        <span className="actual-value">{violation.actual_value}</span>
-                      </td>
-                      <td>
-                        <span className={`severity-badge severity-${violation.severity}`}>
+                      <td style={{ fontSize: '0.85rem' }}>
+                        <span className={`severity-badge severity-${violation.severity}`} style={{ fontSize: '0.75rem' }}>
                           {violation.severity === 'critical' && <FiAlertTriangle />}
                           {violation.severity === 'error' && <FiXCircle />}
                           {violation.severity === 'warning' && <FiAlertTriangle />}
                           {violation.severity}
                         </span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>
+                        <code style={{ fontSize: '0.75rem' }}>{violation.column_name || 'N/A'}</code>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>
+                        <span className="expected-value" style={{ fontSize: '0.8rem' }}>{violation.expected_value}</span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>
+                        <span className="actual-value" style={{ fontSize: '0.8rem' }}>{violation.actual_value}</span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>
+                        <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>{violation.rule_type}</span>
                       </td>
                     </tr>
                   ))}

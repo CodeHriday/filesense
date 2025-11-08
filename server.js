@@ -3726,6 +3726,7 @@ const { addSubProjectToTransformationMappings } = require('./backend/migrations/
 const { up: addSubProjectToVendorAgreements } = require('./backend/migrations/addSubProjectToVendorAgreements');
 const { up: createVendorAgreementFileSchemas } = require('./backend/migrations/createVendorAgreementFileSchemas');
 const { up: migrateVendorAgreementSchemasToFileSchemas } = require('./backend/migrations/migrateVendorAgreementSchemasToFileSchemas');
+const { addPrimaryKeyColumnsToQualityRuleViolations } = require('./backend/migrations/addPrimaryKeyColumnsToQualityRuleViolations');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -3767,6 +3768,7 @@ const { up: migrateVendorAgreementSchemasToFileSchemas } = require('./backend/mi
     await migrationTracker.runOnce('addSubProjectToVendorAgreements', () => addSubProjectToVendorAgreements());
     await migrationTracker.runOnce('createVendorAgreementFileSchemas', () => createVendorAgreementFileSchemas());
     await migrationTracker.runOnce('migrateVendorAgreementSchemasToFileSchemas', () => migrateVendorAgreementSchemasToFileSchemas());
+    await migrationTracker.runOnce('addPrimaryKeyColumnsToQualityRuleViolations', () => addPrimaryKeyColumnsToQualityRuleViolations(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {

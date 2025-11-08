@@ -13,6 +13,53 @@ class QualityValidationEngine {
   }
 
   /**
+   * Detect the primary key column from data
+   * Looks for columns with names like *_id, id, *_number, etc.
+   * @param {Array} data - Data rows
+   * @returns {string|null} - Primary key column name or null
+   */
+  detectPrimaryKeyColumn(data) {
+    if (!data || data.length === 0) return null;
+    
+    const firstRow = data[0];
+    const columns = Object.keys(firstRow);
+    
+    // Priority order for primary key detection
+    const idPatterns = [
+      /^id$/i,                    // exact match 'id'
+      /^.*_id$/i,                 // ends with '_id' (order_id, shipment_id, customer_id, etc.)
+      /^.*_number$/i,             // ends with '_number' (order_number, invoice_number, etc.)
+      /^.*_code$/i,               // ends with '_code' (product_code, etc.)
+      /^(order|shipment|invoice|customer|product|transaction|record)$/i  // common entity names
+    ];
+    
+    // Try each pattern in order of priority
+    for (const pattern of idPatterns) {
+      const matchingColumn = columns.find(col => pattern.test(col));
+      if (matchingColumn) {
+        systemLogger.info('Detected primary key column', { column: matchingColumn });
+        return matchingColumn;
+      }
+    }
+    
+    // Fallback: use first column that looks like an ID
+    const fallbackColumn = columns.find(col => 
+      col.toLowerCase().includes('id') || 
+      col.toLowerCase().includes('number') ||
+      col.toLowerCase().includes('code')
+    );
+    
+    if (fallbackColumn) {
+      systemLogger.info('Using fallback primary key column', { column: fallbackColumn });
+      return fallbackColumn;
+    }
+    
+    // Last resort: use first column
+    systemLogger.warn('No obvious primary key found, using first column', { column: columns[0] });
+    return columns[0];
+  }
+
+  /**
    * Validate data against a set of quality rules
    * @param {Array} rules - Array of quality rule objects
    * @param {Array} data - Array of data rows to validate
@@ -44,6 +91,10 @@ class QualityValidationEngine {
         systemLogger.info('No enabled quality rules to apply', metadata);
         return { violations, errors, summary };
       }
+
+      // Detect primary key column once for all validations
+      const primaryKeyColumn = this.detectPrimaryKeyColumn(data);
+      metadata.primaryKeyColumn = primaryKeyColumn;
 
       // Execute each rule
       for (const rule of enabledRules) {
@@ -259,6 +310,9 @@ class QualityValidationEngine {
       }
       
       if (!isValid) {
+        const primaryKeyColumn = metadata.primaryKeyColumn;
+        const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+        
         violations.push({
           rule_id: rule.id,
           file_id: metadata.file_id || null,
@@ -267,6 +321,8 @@ class QualityValidationEngine {
           column_name: rule.column_name,
           expected_value: violationMessage.split(':')[0],
           actual_value: String(value),
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyValue,
           violation_details: {
             rule_type: 'validity',
             validation_type: validationType,
@@ -338,6 +394,9 @@ class QualityValidationEngine {
           const isConsistent = this.evaluateExpression(config.expression, row);
           
           if (!isConsistent) {
+            const primaryKeyColumn = metadata.primaryKeyColumn;
+            const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+            
             violations.push({
               rule_id: rule.id,
               file_id: metadata.file_id || null,
@@ -346,6 +405,8 @@ class QualityValidationEngine {
               column_name: rule.column_name,
               expected_value: config.expression,
               actual_value: JSON.stringify(row),
+              primary_key_column: primaryKeyColumn,
+              primary_key_value: primaryKeyValue,
               violation_details: {
                 rule_type: 'consistency',
                 consistency_type: consistencyType,
@@ -365,6 +426,9 @@ class QualityValidationEngine {
       data.forEach((row, rowIndex) => {
         const value = row[rule.column_name];
         if (value && !this.matchesFormatPattern(value, formatPattern)) {
+          const primaryKeyColumn = metadata.primaryKeyColumn;
+          const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+          
           violations.push({
             rule_id: rule.id,
             file_id: metadata.file_id || null,
@@ -373,6 +437,8 @@ class QualityValidationEngine {
             column_name: rule.column_name,
             expected_value: `Format: ${formatPattern.description}`,
             actual_value: String(value),
+            primary_key_column: primaryKeyColumn,
+            primary_key_value: primaryKeyValue,
             violation_details: {
               rule_type: 'consistency',
               consistency_type: consistencyType,
@@ -468,6 +534,9 @@ class QualityValidationEngine {
       
       if (seen.has(key)) {
         const firstOccurrence = seen.get(key);
+        const primaryKeyColumn = metadata.primaryKeyColumn;
+        const primaryKeyValue = primaryKeyColumn ? String(row[primaryKeyColumn] || '') : '';
+        
         violations.push({
           rule_id: rule.id,
           file_id: metadata.file_id || null,
@@ -476,6 +545,8 @@ class QualityValidationEngine {
           column_name: columnsToCheck.join(', '),
           expected_value: 'Unique value',
           actual_value: key,
+          primary_key_column: primaryKeyColumn,
+          primary_key_value: primaryKeyValue,
           violation_details: {
             rule_type: 'uniqueness',
             duplicate_of_row: firstOccurrence.row,
