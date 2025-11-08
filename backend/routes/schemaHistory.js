@@ -52,8 +52,8 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
             vafs.data_classification,
             vafs.file_type,
             vafs.quality_rule_ids,
-            va.vendor_name,
-            va.agreement_name,
+            v.vendor_name,
+            va.agreement_code as agreement_name,
             CASE 
               WHEN $2 ~ vafs.file_name_pattern THEN 1
               ELSE 0
@@ -61,6 +61,7 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
             vafs.created_at
           FROM vendor_agreement_file_schemas vafs
           JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
+          LEFT JOIN vendors v ON va.vendor_id = v.id
           WHERE vafs.vendor_agreement_id = $1
         )
         SELECT * FROM pattern_matches
