@@ -79,7 +79,9 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
         contractSchema = {
           id: schemaRecord.id,
           filePattern: schemaRecord.file_pattern,
-          schema: schemaRecord.expected_schema,
+          schema: {
+            columns: schemaRecord.expected_schema
+          },
           vendorName: schemaRecord.vendor_name,
           agreementName: schemaRecord.agreement_name,
           containsPii: schemaRecord.contains_pii,
