@@ -136,7 +136,11 @@ function compareSchemas(schema1, schema2) {
   schema2.columns.forEach(col => {
     if (!schema1Map.has(col.name)) {
       differences.isIdentical = false;
-      differences.addedColumns.push(col);
+      differences.addedColumns.push({
+        name: col.name,
+        currentType: col.type,
+        index: col.index
+      });
     }
   });
   
@@ -144,7 +148,11 @@ function compareSchemas(schema1, schema2) {
   schema1.columns.forEach(col => {
     if (!schema2Map.has(col.name)) {
       differences.isIdentical = false;
-      differences.removedColumns.push(col);
+      differences.removedColumns.push({
+        name: col.name,
+        previousType: col.type,
+        index: col.index
+      });
     }
   });
   
