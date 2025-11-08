@@ -136,6 +136,12 @@
   font-size: 0.75rem;
 }
 
+.contract-badge {
+  color: #059669;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
 .no-owner {
   color: #9ca3af;
   font-size: 0.875rem;

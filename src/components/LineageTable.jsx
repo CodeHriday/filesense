@@ -30,6 +30,46 @@ function LineageTable({ lineages }) {
     setSelectedLineage(lineage);
   };
 
+  // Helper function to extract file type from filename
+  const getFileTypeFromFilename = (filename) => {
+    if (!filename) return null;
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const typeMap = {
+      'csv': 'CSV',
+      'json': 'JSON',
+      'xml': 'XML',
+      'xlsx': 'XLSX',
+      'xls': 'XLSX',
+      'parquet': 'Parquet'
+    };
+    return typeMap[ext] || null;
+  };
+
+  // Helper function to get display file type
+  const getDisplayFileType = (lineage, isSource) => {
+    if (lineage.type === 'transformation') {
+      if (isSource) {
+        // For source: use source_file_type from lineage, or infer from pattern
+        if (lineage.source_file_type) return lineage.source_file_type.toUpperCase();
+        const pattern = lineage.source_pattern || lineage.source_file_pattern;
+        const inferredType = getFileTypeFromFilename(pattern);
+        return inferredType || 'PATTERN';
+      } else {
+        // For target: use target_file_type, target_file_format, or infer from pattern
+        if (lineage.target_file_type) return lineage.target_file_type.toUpperCase();
+        if (lineage.target_file_format) return lineage.target_file_format.toUpperCase();
+        const pattern = lineage.target_pattern || lineage.target_file_name;
+        const inferredType = getFileTypeFromFilename(pattern);
+        return inferredType || 'PATTERN';
+      }
+    } else {
+      // Manual lineage - use the file_type directly
+      return isSource 
+        ? (lineage.source_file_type?.toUpperCase() || 'N/A')
+        : (lineage.target_file_type?.toUpperCase() || 'N/A');
+    }
+  };
+
   if (allLineage.length === 0) {
     return (
       <div className="empty-lineage-message">
@@ -64,12 +104,15 @@ function LineageTable({ lineages }) {
                         : lineage.source_filename}
                     </div>
                     <div className="file-meta">
-                      {lineage.type === 'transformation' 
-                        ? (lineage.source_file_pattern ? 'PATTERN' : lineage.source_file_type?.toUpperCase())
-                        : lineage.source_file_type?.toUpperCase()}
+                      {getDisplayFileType(lineage, true)}
                       {lineage.source_owner && (
                         <span className="owner-badge" title="Source Owner">
                           {' • '}{lineage.source_owner}
+                        </span>
+                      )}
+                      {lineage.source_agreement_name && (
+                        <span className="contract-badge" title={`Contract: ${lineage.source_agreement_name}${lineage.source_vendor_name ? ` (${lineage.source_vendor_name})` : ''}`}>
+                          {' • '}{lineage.source_agreement_name}
                         </span>
                       )}
                     </div>
@@ -86,12 +129,20 @@ function LineageTable({ lineages }) {
                         : lineage.target_filename}
                     </div>
                     <div className="file-meta">
-                      {lineage.type === 'transformation' 
-                        ? (lineage.target_file_format?.toUpperCase() || 'PATTERN')
-                        : lineage.target_file_type?.toUpperCase()}
+                      {getDisplayFileType(lineage, false)}
                       {lineage.target_owner && (
                         <span className="owner-badge" title="Target Owner">
                           {' • '}{lineage.target_owner}
+                        </span>
+                      )}
+                      {lineage.target_agreement_name && (
+                        <span className="contract-badge" title={`Contract: ${lineage.target_agreement_name}${lineage.target_vendor_name ? ` (${lineage.target_vendor_name})` : ''}`}>
+                          {' • '}{lineage.target_agreement_name}
+                        </span>
+                      )}
+                      {lineage.type === 'transformation' && lineage.agreement_name && (
+                        <span className="contract-badge" title={`Contract: ${lineage.agreement_name}${lineage.vendor_name ? ` (${lineage.vendor_name})` : ''}`}>
+                          {' • '}{lineage.agreement_name}
                         </span>
                       )}
                     </div>
