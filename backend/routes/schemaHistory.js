@@ -40,27 +40,41 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
     if (vendorAgreementId) {
       isContractUpload = true;
       
-      // Find matching file pattern in agreement schema
+      // Find matching file pattern in agreement schema by filename match
+      // First try exact pattern matching, then fall back to latest if no match
       const contractSchemaResult = await pool.query(`
-        SELECT 
-          vafs.id,
-          vafs.file_pattern,
-          vafs.expected_schema,
-          vafs.contains_pii,
-          vafs.data_classification,
-          vafs.file_type,
-          vafs.quality_rule_ids,
-          va.vendor_name,
-          va.agreement_name
-        FROM vendor_agreement_file_schemas vafs
-        JOIN vendor_agreements va ON vafs.agreement_id = va.id
-        WHERE vafs.agreement_id = $1
-        ORDER BY vafs.created_at DESC
+        WITH pattern_matches AS (
+          SELECT 
+            vafs.id,
+            vafs.file_pattern,
+            vafs.expected_schema,
+            vafs.contains_pii,
+            vafs.data_classification,
+            vafs.file_type,
+            vafs.quality_rule_ids,
+            va.vendor_name,
+            va.agreement_name,
+            CASE 
+              WHEN $2 ~ vafs.file_pattern THEN 1
+              ELSE 0
+            END as pattern_priority,
+            vafs.created_at
+          FROM vendor_agreement_file_schemas vafs
+          JOIN vendor_agreements va ON vafs.agreement_id = va.id
+          WHERE vafs.agreement_id = $1
+        )
+        SELECT * FROM pattern_matches
+        ORDER BY pattern_priority DESC, created_at DESC
         LIMIT 1
-      `, [vendorAgreementId]);
+      `, [vendorAgreementId, currentFilename]);
 
       if (contractSchemaResult.rows.length > 0) {
         const schemaRecord = contractSchemaResult.rows[0];
+        
+        // Only set contract schema if pattern matched (priority=1) or if it's the only schema
+        // This prevents incorrect comparisons against unrelated schemas
+        const patternMatched = schemaRecord.pattern_priority === 1;
+        
         contractSchema = {
           id: schemaRecord.id,
           filePattern: schemaRecord.file_pattern,
@@ -70,8 +84,26 @@ router.get('/:fileId/schema-history', authenticateToken, async (req, res) => {
           containsPii: schemaRecord.contains_pii,
           dataClassification: schemaRecord.data_classification,
           fileType: schemaRecord.file_type,
-          qualityRuleIds: schemaRecord.quality_rule_ids
+          qualityRuleIds: schemaRecord.quality_rule_ids,
+          patternMatched
         };
+        
+        // Log warning if no pattern matched (fallback to latest)
+        if (!patternMatched) {
+          systemLogger.warn('No matching contract schema pattern found, using latest', {
+            fileId,
+            filename: currentFilename,
+            vendorAgreementId,
+            selectedPattern: schemaRecord.file_pattern
+          });
+        }
+      } else {
+        // No contract schema found for this agreement
+        systemLogger.warn('Contract upload detected but no schema found', {
+          fileId,
+          filename: currentFilename,
+          vendorAgreementId
+        });
       }
     }
 

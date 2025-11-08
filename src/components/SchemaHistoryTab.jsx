@@ -281,6 +281,21 @@ function SchemaHistoryTab({ fileId }) {
           <div className="schema-changes-panel">
             <h3>Contract Validation</h3>
             
+            {!contractSchema?.patternMatched && (
+              <div className="validation-alert-warning" style={{
+                background: '#fffbeb',
+                border: '2px solid #f59e0b',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+                color: '#92400e',
+                fontSize: '0.85rem'
+              }}>
+                <FiAlertCircle size={16} style={{ marginRight: '8px', color: '#f59e0b' }} />
+                <span>No exact pattern match found. Comparing against latest contract schema.</span>
+              </div>
+            )}
+            
             {contractComparison?.hasChanges ? (
               <div className="changes-content">
                 <div className="validation-alert-error">
