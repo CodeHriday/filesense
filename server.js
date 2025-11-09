@@ -4536,7 +4536,7 @@ app.get('/api/files/:fileId/columns/:columnName/sensitivity-tag', cacheMiddlewar
 });
 
 // Add or update sensitivity tag for a column
-app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateToken, invalidateCache('cache:*:*sensitivity*'), async (req, res) => {
+app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateToken, async (req, res) => {
   try {
     // Check if user has file_governance:write permission
     if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_governance:write')) {
@@ -4569,6 +4569,10 @@ app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateT
       [fileId, columnName, sensitivity_level, data_type, req.user.username || 'user']
     );
     
+    // Invalidate file-specific cache and sensitivity cache
+    await invalidateFileCache(fileId);
+    await invalidateCachePattern('cache:*:*sensitivity*');
+    
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error setting column sensitivity tag:', err);
@@ -4577,7 +4581,7 @@ app.post('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateT
 });
 
 // Delete sensitivity tag for a column
-app.delete('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateToken, invalidateCache('cache:*:*sensitivity*'), async (req, res) => {
+app.delete('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticateToken, async (req, res) => {
   try {
     const { fileId, columnName } = req.params;
     
@@ -4589,6 +4593,10 @@ app.delete('/api/files/:fileId/columns/:columnName/sensitivity-tag', authenticat
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Sensitivity tag not found' });
     }
+    
+    // Invalidate file-specific cache and sensitivity cache
+    await invalidateFileCache(fileId);
+    await invalidateCachePattern('cache:*:*sensitivity*');
     
     res.json({ message: 'Sensitivity tag deleted successfully', tag: result.rows[0] });
   } catch (err) {
