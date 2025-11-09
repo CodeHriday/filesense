@@ -16,7 +16,7 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  max-width: 90%;
+  max-width: 1200px;
   width: 100%;
   max-height: 90vh;
   display: flex;
@@ -92,8 +92,8 @@
 .file-flow {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 16px;
+  gap: 12px;
+  padding: 8px;
   background: #f7fafc;
   border-radius: 8px;
 }
@@ -111,8 +111,8 @@
 .file-metadata-card {
   flex: 1;
   background: white;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 6px;
+  padding: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -127,9 +127,9 @@
 .file-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #e6e6e6;
 }
 
@@ -152,17 +152,21 @@
 .file-stats {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  text-align: left;
 }
 
 .stat {
   font-size: 0.7rem;
   color: #4a5568;
+  text-align: left;
 }
 
 .stat strong {
   color: #2d3748;
   font-weight: 500;
+  display: inline-block;
+  min-width: 70px;
 }
 
 .arrow-connector {
