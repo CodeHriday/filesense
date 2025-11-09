@@ -1,15 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { FiTag, FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiTag, FiPlus, FiEdit2, FiTrash2, FiAlertCircle, FiX } from 'react-icons/fi';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import './TagManagement.css';
+
+function ConfirmDeleteModal({ tagName, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-content confirm-delete-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-header">
+          <FiAlertCircle className="warning-icon" />
+          <h3>Confirm Delete</h3>
+          <button className="close-btn" onClick={onCancel}>
+            <FiX />
+          </button>
+        </div>
+        <div className="confirm-body">
+          <p>Are you sure you want to delete the tag <strong>"{tagName}"</strong>?</p>
+          <p className="warning-text">This action cannot be undone.</p>
+        </div>
+        <div className="confirm-actions">
+          <button className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-danger" onClick={onConfirm}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TagManagement() {
   const [tags, setTags] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [currentTag, setCurrentTag] = useState(null);
+  const [tagToDelete, setTagToDelete] = useState(null);
   const [formData, setFormData] = useState({
     tag_name: '',
     description: '',
@@ -99,20 +128,24 @@ function TagManagement() {
     }
   };
 
-  const handleDelete = async (tag) => {
-    if (!confirm(`Are you sure you want to delete the tag "${tag.tag_name}"?`)) {
-      return;
-    }
+  const handleDelete = (tag) => {
+    setTagToDelete(tag);
+  };
+
+  const confirmDelete = async () => {
+    if (!tagToDelete) return;
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/governance-tags/${tag.tag_id}`, {
+      await axios.delete(`/api/governance-tags/${tagToDelete.tag_id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setTagToDelete(null);
       fetchTags();
     } catch (error) {
       console.error('Error deleting tag:', error);
       alert(error.response?.data?.error || 'Failed to delete tag');
+      setTagToDelete(null);
     }
   };
 
@@ -308,6 +341,14 @@ function TagManagement() {
             </form>
           </div>
         </div>
+      )}
+
+      {tagToDelete && (
+        <ConfirmDeleteModal
+          tagName={tagToDelete.tag_name}
+          onConfirm={confirmDelete}
+          onCancel={() => setTagToDelete(null)}
+        />
       )}
     </div>
   );

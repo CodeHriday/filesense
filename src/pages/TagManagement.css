@@ -327,3 +327,95 @@
   background-color: #fecaca;
   color: #991b1b;
 }
+
+/* Confirm Delete Modal */
+.confirm-delete-modal {
+  max-width: 450px;
+  min-width: 350px;
+}
+
+.confirm-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.confirm-header .warning-icon {
+  font-size: 24px;
+}
+
+.confirm-header h3 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+}
+
+.confirm-header .close-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: currentColor;
+  opacity: 0.6;
+  transition: opacity var(--transition-base);
+}
+
+.confirm-header .close-btn:hover {
+  opacity: 1;
+}
+
+.confirm-header .close-btn svg {
+  font-size: 20px;
+}
+
+.confirm-body {
+  padding: var(--space-5);
+}
+
+.confirm-body p {
+  margin: 0 0 var(--space-3) 0;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.confirm-body p:last-child {
+  margin-bottom: 0;
+}
+
+.confirm-body .warning-text {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid var(--border-light);
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
