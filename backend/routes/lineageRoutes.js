@@ -257,7 +257,7 @@ router.get('/:fileId/pii-impact', async (req, res) => {
 
 /**
  * GET /api/lineage
- * Get all lineage records (existing endpoint maintained for compatibility)
+ * Get all lineage records with PII summary data
  */
 router.get('/', async (req, res) => {
   try {
@@ -265,7 +265,20 @@ router.get('/', async (req, res) => {
       SELECT 
         tl.*,
         tm.mapping_name,
-        tm.project_id
+        tm.project_id,
+        COALESCE(
+          (SELECT COUNT(*)::int 
+           FROM jsonb_array_elements(tl.column_mappings) AS cm 
+           WHERE (cm->>'contains_pii')::boolean = true),
+          0
+        ) AS pii_column_count,
+        COALESCE(
+          (SELECT array_agg(DISTINCT cm->>'pii_type')
+           FROM jsonb_array_elements(tl.column_mappings) AS cm
+           WHERE (cm->>'contains_pii')::boolean = true
+             AND cm->>'pii_type' IS NOT NULL),
+          ARRAY[]::text[]
+        ) AS pii_types
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.mapping_id = tm.mapping_id
       ORDER BY tl.created_at DESC

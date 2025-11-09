@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiEye, FiArrowRight, FiGitMerge } from 'react-icons/fi';
+import { FiEye, FiArrowRight, FiGitMerge, FiShield } from 'react-icons/fi';
 import TransformationDetailsPanel from './TransformationDetailsPanel';
 import './LineageTable.css';
 
@@ -78,6 +78,25 @@ function LineageTable({ lineages }) {
     }
   };
 
+  // Helper component to render PII badge
+  const PIIBadge = ({ piiColumnCount, piiTypes }) => {
+    if (!piiColumnCount || piiColumnCount === 0) return null;
+    
+    const displayTypes = piiTypes && piiTypes.length > 0 
+      ? piiTypes.join(', ') 
+      : 'PII';
+    
+    return (
+      <span 
+        className="pii-badge"
+        title={`Contains ${piiColumnCount} PII column(s): ${displayTypes}`}
+      >
+        <FiShield className="pii-icon" />
+        {piiColumnCount}
+      </span>
+    );
+  };
+
   if (allLineage.length === 0) {
     return (
       <div className="empty-lineage-message">
@@ -108,10 +127,13 @@ function LineageTable({ lineages }) {
             {allLineage.map((lineage, index) => (
               <tr key={`${lineage.type}-${lineage.id}-${index}`}>
                 <td className="source-cell">
-                  <div className="file-name-compact">
-                    {lineage.type === 'transformation' 
-                      ? (lineage.source_pattern || lineage.source_file_pattern || lineage.source_filename)
-                      : lineage.source_filename}
+                  <div className="file-name-with-pii">
+                    <div className="file-name-compact">
+                      {lineage.type === 'transformation' 
+                        ? (lineage.source_pattern || lineage.source_file_pattern || lineage.source_filename)
+                        : lineage.source_filename}
+                    </div>
+                    <PIIBadge piiColumnCount={lineage.pii_column_count} piiTypes={lineage.pii_types} />
                   </div>
                 </td>
                 <td className="type-cell">
@@ -121,10 +143,13 @@ function LineageTable({ lineages }) {
                   <FiArrowRight className="flow-arrow" />
                 </td>
                 <td className="target-cell">
-                  <div className="file-name-compact">
-                    {lineage.type === 'transformation' 
-                      ? cleanTransformedFilename(lineage.target_pattern || lineage.target_file_name || lineage.target_filename)
-                      : lineage.target_filename}
+                  <div className="file-name-with-pii">
+                    <div className="file-name-compact">
+                      {lineage.type === 'transformation' 
+                        ? cleanTransformedFilename(lineage.target_pattern || lineage.target_file_name || lineage.target_filename)
+                        : lineage.target_filename}
+                    </div>
+                    <PIIBadge piiColumnCount={lineage.pii_column_count} piiTypes={lineage.pii_types} />
                   </div>
                 </td>
                 <td className="type-cell">

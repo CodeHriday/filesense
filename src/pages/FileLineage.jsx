@@ -20,6 +20,7 @@ function FileLineage() {
   const [scanLoading, setScanLoading] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [piiFilter, setPiiFilter] = useState('all'); // 'all', 'pii-only', 'non-pii'
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   
@@ -91,34 +92,49 @@ function FileLineage() {
   // Sort by created_at descending
   allLineage.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  // Filter based on search term
+  // Filter based on search term and PII filter
   const filteredLineage = allLineage.filter(lineage => {
+    // Search filter
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return true; // Show all if search is empty
+    let matchesSearch = true;
     
-    const sourceName = lineage.type === 'transformation'
-      ? (lineage.source_pattern || lineage.source_file_pattern || lineage.source_filename || '')
-      : (lineage.source_filename || '');
-    const targetName = lineage.type === 'transformation'
-      ? (lineage.target_pattern || lineage.target_file_name || lineage.target_filename || '')
-      : (lineage.target_filename || '');
-    const mappingName = lineage.mapping_name || '';
+    if (term) {
+      const sourceName = lineage.type === 'transformation'
+        ? (lineage.source_pattern || lineage.source_file_pattern || lineage.source_filename || '')
+        : (lineage.source_filename || '');
+      const targetName = lineage.type === 'transformation'
+        ? (lineage.target_pattern || lineage.target_file_name || lineage.target_filename || '')
+        : (lineage.target_filename || '');
+      const mappingName = lineage.mapping_name || '';
 
-    return (
-      sourceName.toLowerCase().includes(term) ||
-      targetName.toLowerCase().includes(term) ||
-      mappingName.toLowerCase().includes(term)
-    );
+      matchesSearch = (
+        sourceName.toLowerCase().includes(term) ||
+        targetName.toLowerCase().includes(term) ||
+        mappingName.toLowerCase().includes(term)
+      );
+    }
+    
+    // PII filter
+    let matchesPiiFilter = true;
+    const piiColumnCount = lineage.pii_column_count || 0;
+    
+    if (piiFilter === 'pii-only') {
+      matchesPiiFilter = piiColumnCount > 0;
+    } else if (piiFilter === 'non-pii') {
+      matchesPiiFilter = piiColumnCount === 0;
+    }
+    
+    return matchesSearch && matchesPiiFilter;
   });
 
   // Pagination calculations
   const totalItems = filteredLineage.length;
   const totalPages = Math.ceil(totalItems / pageSize);
 
-  // Reset currentPage when search changes
+  // Reset currentPage when search or PII filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, piiFilter]);
 
   // Clamp currentPage when filtered results change
   useEffect(() => {
@@ -193,6 +209,24 @@ function FileLineage() {
                     }}
                   />
                 </div>
+                <select
+                  value={piiFilter}
+                  onChange={(e) => setPiiFilter(e.target.value)}
+                  style={{
+                    padding: '0.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    marginRight: '1rem',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                  title="Filter by PII status"
+                >
+                  <option value="all">All Lineage</option>
+                  <option value="pii-only">PII Only</option>
+                  <option value="non-pii">Non-PII</option>
+                </select>
                 <button 
                   className="btn btn-secondary scan-btn"
                   onClick={handleScanAndPopulate}

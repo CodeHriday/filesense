@@ -113,3 +113,39 @@ export const scanAndPopulateLineage = async () => {
     throw error;
   }
 };
+
+/**
+ * Get column-level PII tracking through lineage chain for a specific file
+ * @param {string} fileId - The file ID to analyze
+ * @param {string} [direction='both'] - Direction of lineage ('upstream', 'downstream', or 'both')
+ * @returns {Promise<Object>} PII column tracking data
+ */
+export const getPIIColumns = async (fileId, direction = 'both') => {
+  try {
+    const response = await axios.get(`${API_URL}/lineage/${fileId}/pii-columns`, {
+      params: { direction }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching PII columns:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get PII impact analysis for a specific file
+ * @param {string} fileId - The file ID to analyze
+ * @param {number} [maxDepth=10] - Maximum depth of impact analysis
+ * @returns {Promise<Object>} PII impact analysis data
+ */
+export const getPIIImpact = async (fileId, maxDepth = 10) => {
+  try {
+    const response = await axios.get(`${API_URL}/lineage/${fileId}/pii-impact`, {
+      params: { maxDepth }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching PII impact:', error);
+    throw error;
+  }
+};
