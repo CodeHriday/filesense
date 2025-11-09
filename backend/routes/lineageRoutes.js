@@ -266,6 +266,9 @@ router.get('/', async (req, res) => {
         tl.*,
         tm.mapping_name,
         tm.project_id,
+        tm.source_file_pattern,
+        tm.target_file_name,
+        tm.target_file_format,
         COALESCE(
           (SELECT COUNT(*)::int 
            FROM jsonb_array_elements(tl.column_mappings) AS cm 
@@ -285,10 +288,25 @@ router.get('/', async (req, res) => {
       LIMIT 100
     `);
     
+    // Transform the results to include proper source/target metadata
+    const transformedRows = result.rows.map(row => ({
+      ...row,
+      // Use pattern/filenames for display names
+      source_filename: row.source_file_pattern || row.input_file_id,
+      target_filename: row.target_file_name || row.output_file_id,
+      // Include the new metadata fields
+      source_owner: row.source_owner,
+      target_owner: row.target_owner,
+      source_path: row.source_path,
+      target_path: row.target_path,
+      agreement_name: row.source_agreement_name
+    }));
+    
     res.json({
       success: true,
-      lineage: result.rows,
-      total: result.rows.length
+      transformation_lineage: transformedRows,
+      manual_lineage: [], // Placeholder for future manual lineage
+      total: transformedRows.length
     });
     
   } catch (error) {

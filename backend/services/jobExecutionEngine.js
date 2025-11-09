@@ -714,10 +714,17 @@ async function getMappingConfig(pool, mappingId) {
   
   const mapping = result.rows[0];
   
-  // If using vendor agreement, fetch the connection ID from the agreement
+  // If using vendor agreement, fetch the connection ID and metadata from the agreement
   if (mapping.vendor_agreement_id) {
     const agreementResult = await pool.query(
-      'SELECT vendor_connection_id FROM vendor_agreements WHERE id = $1',
+      `SELECT 
+        vendor_connection_id, 
+        primary_contact_name, 
+        primary_contact_email,
+        drop_location_path, 
+        agreement_code 
+      FROM vendor_agreements 
+      WHERE id = $1`,
       [mapping.vendor_agreement_id]
     );
     
@@ -725,8 +732,24 @@ async function getMappingConfig(pool, mappingId) {
       throw new Error(`Vendor agreement not found: ${mapping.vendor_agreement_id}`);
     }
     
+    const agreement = agreementResult.rows[0];
+    
     // Set the source_connection_id to the vendor's connection ID for job execution
-    mapping.source_connection_id = agreementResult.rows[0].vendor_connection_id;
+    mapping.source_connection_id = agreement.vendor_connection_id;
+    
+    // Cache vendor agreement metadata for lineage tracking
+    mapping.vendor_agreement_metadata = {
+      owner: agreement.primary_contact_name || agreement.primary_contact_email || null,
+      path: agreement.drop_location_path || null,
+      agreement_name: agreement.agreement_code || null
+    };
+    
+    systemLogger.info('Vendor agreement metadata loaded for lineage tracking', {
+      agreementId: mapping.vendor_agreement_id,
+      owner: mapping.vendor_agreement_metadata.owner,
+      path: mapping.vendor_agreement_metadata.path,
+      agreementName: mapping.vendor_agreement_metadata.agreement_name
+    });
   }
   
   return mapping;
@@ -1740,6 +1763,33 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               });
             }
             
+            // Prepare source/target metadata based on source type
+            let sourceOwner, sourcePath, sourceAgreementName;
+            
+            if (mapping.vendor_agreement_id && mapping.vendor_agreement_metadata) {
+              // Vendor agreement source
+              sourceOwner = mapping.vendor_agreement_metadata.owner;
+              sourcePath = mapping.vendor_agreement_metadata.path;
+              sourceAgreementName = mapping.vendor_agreement_metadata.agreement_name;
+              
+              if (!sourceOwner) {
+                await logJobExecution(pool, jobId, 'warn', 
+                  'Vendor agreement missing primary contact for lineage tracking', {
+                  agreementId: mapping.vendor_agreement_id
+                });
+              }
+            } else {
+              // Regular connection source
+              sourceOwner = mapping.source_owner || null;
+              // Extract path from filename (everything before last slash)
+              const lastSlash = file.filename.lastIndexOf('/');
+              sourcePath = lastSlash !== -1 ? file.filename.substring(0, lastSlash) : (mapping.file_path || null);
+              sourceAgreementName = null;
+            }
+            
+            const targetOwner = mapping.target_owner || null;
+            const targetPath = mapping.target_file_path || null;
+            
             const lineageQuery = `
               INSERT INTO transformation_lineage (
                 transformation_id, 
@@ -1752,8 +1802,13 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
                 source_schema,
                 target_schema,
                 column_mappings,
+                source_owner,
+                target_owner,
+                source_path,
+                target_path,
+                source_agreement_name,
                 created_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
               RETURNING id
             `;
             
@@ -1767,7 +1822,12 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               'file-specific',
               JSON.stringify(sourceSchema),
               JSON.stringify(outputSchema),
-              JSON.stringify(columnMappings)
+              JSON.stringify(columnMappings),
+              sourceOwner,
+              targetOwner,
+              sourcePath,
+              targetPath,
+              sourceAgreementName
             ]);
             
             await logJobExecution(pool, jobId, 'info', 
