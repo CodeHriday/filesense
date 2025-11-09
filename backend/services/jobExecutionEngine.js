@@ -1544,30 +1544,202 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           `, [mapping.mapping_id, combinedFingerprint]);
           
           if (existingLineageCheck.rows.length > 0) {
-            // Schema unchanged - update existing lineage timestamp to show freshness
+            // Schema unchanged - update existing lineage timestamp and column mappings
+            
+            // Build column-level PII mappings even for updates (in case metadata changed)
+            let columnMappings = [];
+            
+            try {
+              // Fetch column_metadata from vendor agreement file schema if available
+              let columnMetadata = {};
+              
+              if (mapping.vendor_agreement_id && mapping.vendor_agreement_file_schema_id) {
+                const schemaResult = await pool.query(
+                  'SELECT column_metadata FROM vendor_agreement_file_schemas WHERE id = $1',
+                  [mapping.vendor_agreement_file_schema_id]
+                );
+                
+                if (schemaResult.rows.length > 0 && schemaResult.rows[0].column_metadata) {
+                  columnMetadata = schemaResult.rows[0].column_metadata;
+                }
+              }
+              
+              // If no vendor metadata, fetch PII info from upstream lineage (for chained transformations)
+              if (Object.keys(columnMetadata).length === 0 && file.file_id) {
+                const upstreamLineageResult = await pool.query(`
+                  SELECT column_mappings 
+                  FROM transformation_lineage 
+                  WHERE output_file_id = $1 
+                  ORDER BY created_at DESC 
+                  LIMIT 1
+                `, [file.file_id]);
+                
+                if (upstreamLineageResult.rows.length > 0 && upstreamLineageResult.rows[0].column_mappings) {
+                  const upstreamMappings = upstreamLineageResult.rows[0].column_mappings;
+                  // Build columnMetadata from upstream target columns
+                  upstreamMappings.forEach(mapping => {
+                    if (mapping.target_column && mapping.contains_pii) {
+                      columnMetadata[mapping.target_column] = {
+                        contains_pii: mapping.contains_pii,
+                        pii_type: mapping.pii_type
+                      };
+                    }
+                  });
+                  
+                  const piiColumnsFound = Object.keys(columnMetadata).filter(col => columnMetadata[col].contains_pii);
+                  if (piiColumnsFound.length > 0) {
+                    await logJobExecution(pool, jobId, 'info', 
+                      `PII metadata inherited from upstream lineage (chained transformation)`, {
+                      sourceFileId: file.file_id,
+                      piiColumnsInherited: piiColumnsFound.length,
+                      piiColumns: piiColumnsFound
+                    });
+                  }
+                }
+              }
+              
+              // Build column mappings from field_mappings with PII propagation
+              if (mapping.field_mappings && Array.isArray(mapping.field_mappings)) {
+                columnMappings = mapping.field_mappings.map(fieldMapping => {
+                  const sourceColumn = fieldMapping.sourceFields && fieldMapping.sourceFields.length > 0 
+                    ? fieldMapping.sourceFields[0] 
+                    : null;
+                  const targetColumn = fieldMapping.targetField || null;
+                  
+                  // Check if source column has PII metadata
+                  const sourcePiiInfo = sourceColumn && columnMetadata[sourceColumn] 
+                    ? columnMetadata[sourceColumn] 
+                    : null;
+                  
+                  return {
+                    source_column: sourceColumn,
+                    target_column: targetColumn,
+                    contains_pii: sourcePiiInfo?.contains_pii || false,
+                    pii_type: sourcePiiInfo?.pii_type || null,
+                    transformation_applied: fieldMapping.transformations && fieldMapping.transformations.length > 0
+                      ? fieldMapping.transformations.map(t => t.type).join(', ')
+                      : null
+                  };
+                }).filter(cm => cm.source_column && cm.target_column);
+              }
+            } catch (columnMappingError) {
+              await logJobExecution(pool, jobId, 'warn', 
+                `Failed to build column-level PII mappings for update: ${columnMappingError.message}`, {
+                error: columnMappingError.stack
+              });
+            }
+            
             const updateQuery = `
               UPDATE transformation_lineage 
               SET created_at = NOW(),
                   execution_id = $1,
-                  output_file_id = $2
-              WHERE id = $3
+                  output_file_id = $2,
+                  column_mappings = $3
+              WHERE id = $4
               RETURNING id
             `;
             
             await pool.query(updateQuery, [
               transformationJobDbId,
               `transformed_${jobId}_${file.filename}`,
+              JSON.stringify(columnMappings),
               existingLineageCheck.rows[0].id
             ]);
             
             await logJobExecution(pool, jobId, 'info', 
-              `Lineage updated with latest timestamp`, {
+              `Lineage updated with latest timestamp and column mappings`, {
               mappingId: mapping.mapping_id,
               lineageId: existingLineageCheck.rows[0].id,
-              schemaFingerprint: combinedFingerprint
+              schemaFingerprint: combinedFingerprint,
+              columnMappingsCount: columnMappings.length,
+              piiColumnsTracked: columnMappings.filter(cm => cm.contains_pii).length
             });
           } else {
             // Schema changed or first time - create lineage record
+            
+            // Build column-level PII mappings for lineage tracking
+            let columnMappings = [];
+            
+            try {
+              // Fetch column_metadata from vendor agreement file schema if available
+              let columnMetadata = {};
+              
+              if (mapping.vendor_agreement_id && mapping.vendor_agreement_file_schema_id) {
+                const schemaResult = await pool.query(
+                  'SELECT column_metadata FROM vendor_agreement_file_schemas WHERE id = $1',
+                  [mapping.vendor_agreement_file_schema_id]
+                );
+                
+                if (schemaResult.rows.length > 0 && schemaResult.rows[0].column_metadata) {
+                  columnMetadata = schemaResult.rows[0].column_metadata;
+                }
+              }
+              
+              // If no vendor metadata, fetch PII info from upstream lineage (for chained transformations)
+              if (Object.keys(columnMetadata).length === 0 && file.file_id) {
+                const upstreamLineageResult = await pool.query(`
+                  SELECT column_mappings 
+                  FROM transformation_lineage 
+                  WHERE output_file_id = $1 
+                  ORDER BY created_at DESC 
+                  LIMIT 1
+                `, [file.file_id]);
+                
+                if (upstreamLineageResult.rows.length > 0 && upstreamLineageResult.rows[0].column_mappings) {
+                  const upstreamMappings = upstreamLineageResult.rows[0].column_mappings;
+                  // Build columnMetadata from upstream target columns
+                  upstreamMappings.forEach(mapping => {
+                    if (mapping.target_column && mapping.contains_pii) {
+                      columnMetadata[mapping.target_column] = {
+                        contains_pii: mapping.contains_pii,
+                        pii_type: mapping.pii_type
+                      };
+                    }
+                  });
+                  
+                  const piiColumnsFound = Object.keys(columnMetadata).filter(col => columnMetadata[col].contains_pii);
+                  if (piiColumnsFound.length > 0) {
+                    await logJobExecution(pool, jobId, 'info', 
+                      `PII metadata inherited from upstream lineage (chained transformation)`, {
+                      sourceFileId: file.file_id,
+                      piiColumnsInherited: piiColumnsFound.length,
+                      piiColumns: piiColumnsFound
+                    });
+                  }
+                }
+              }
+              
+              // Build column mappings from field_mappings with PII propagation
+              if (mapping.field_mappings && Array.isArray(mapping.field_mappings)) {
+                columnMappings = mapping.field_mappings.map(fieldMapping => {
+                  const sourceColumn = fieldMapping.sourceFields && fieldMapping.sourceFields.length > 0 
+                    ? fieldMapping.sourceFields[0] 
+                    : null;
+                  const targetColumn = fieldMapping.targetField || null;
+                  
+                  // Check if source column has PII metadata
+                  const sourcePiiInfo = sourceColumn && columnMetadata[sourceColumn] 
+                    ? columnMetadata[sourceColumn] 
+                    : null;
+                  
+                  return {
+                    source_column: sourceColumn,
+                    target_column: targetColumn,
+                    contains_pii: sourcePiiInfo?.contains_pii || false,
+                    pii_type: sourcePiiInfo?.pii_type || null,
+                    transformation_applied: fieldMapping.transformations && fieldMapping.transformations.length > 0
+                      ? fieldMapping.transformations.map(t => t.type).join(', ')
+                      : null
+                  };
+                }).filter(cm => cm.source_column && cm.target_column); // Only include mappings with both source and target
+              }
+            } catch (columnMappingError) {
+              await logJobExecution(pool, jobId, 'warn', 
+                `Failed to build column-level PII mappings: ${columnMappingError.message}`, {
+                error: columnMappingError.stack
+              });
+            }
+            
             const lineageQuery = `
               INSERT INTO transformation_lineage (
                 transformation_id, 
@@ -1579,8 +1751,9 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
                 lineage_type,
                 source_schema,
                 target_schema,
+                column_mappings,
                 created_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
               RETURNING id
             `;
             
@@ -1593,7 +1766,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               combinedFingerprint,
               'file-specific',
               JSON.stringify(sourceSchema),
-              JSON.stringify(outputSchema)
+              JSON.stringify(outputSchema),
+              JSON.stringify(columnMappings)
             ]);
             
             await logJobExecution(pool, jobId, 'info', 
@@ -1604,7 +1778,9 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               outputFile: outputFilename,
               schemaFingerprint: combinedFingerprint,
               sourceFieldsCount: sourceSchema.length,
-              targetFieldsCount: outputSchema.length
+              targetFieldsCount: outputSchema.length,
+              columnMappingsCount: columnMappings.length,
+              piiColumnsTracked: columnMappings.filter(cm => cm.contains_pii).length
             });
           }
         } catch (lineageError) {

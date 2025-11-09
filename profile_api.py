@@ -55,6 +55,39 @@ def get_db_connection():
         logger.error(f"Database connection failed: {str(e)}")
         return None
 
+def get_column_pii_metadata(conn, vendor_agreement_file_schema_id):
+    """
+    Fetch column-level PII metadata from vendor agreement file schema
+    
+    Args:
+        conn: Database connection
+        vendor_agreement_file_schema_id: File schema ID
+        
+    Returns:
+        Dictionary mapping column names to PII metadata
+    """
+    if not conn or not vendor_agreement_file_schema_id:
+        return {}
+    
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""
+            SELECT column_metadata 
+            FROM vendor_agreement_file_schemas 
+            WHERE id = %s
+        """, (vendor_agreement_file_schema_id,))
+        
+        result = cursor.fetchone()
+        cursor.close()
+        
+        if result and result['column_metadata']:
+            return result['column_metadata']
+        return {}
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch column PII metadata: {str(e)}")
+        return {}
+
 def store_profiling_metrics_and_detect_anomalies(
     conn,
     file_id,
@@ -449,7 +482,7 @@ def vendor_profile():
             
             logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
             
-            # Run anomaly detection if database is available
+            # Run anomaly detection and fetch PII metadata if database is available
             conn = get_db_connection()
             if conn:
                 try:
@@ -462,6 +495,35 @@ def vendor_profile():
                         mapping_id=data.get('mapping_id')
                     )
                     profile_result['anomaly_detection'] = anomaly_info
+                    
+                    # Fetch and include column-level PII metadata from vendor agreement
+                    vendor_agreement_file_schema_id = data.get('vendor_agreement_file_schema_id')
+                    if vendor_agreement_file_schema_id:
+                        column_pii_metadata = get_column_pii_metadata(conn, vendor_agreement_file_schema_id)
+                        
+                        # Enhance metadata with PII information for each column
+                        if column_pii_metadata and 'metadata' in profile_result:
+                            profile_result['metadata']['column_pii_info'] = {}
+                            for column in profile_result['metadata'].get('columns', []):
+                                if column in column_pii_metadata:
+                                    profile_result['metadata']['column_pii_info'][column] = {
+                                        'contains_pii': column_pii_metadata[column].get('contains_pii', False),
+                                        'pii_type': column_pii_metadata[column].get('pii_type'),
+                                        'data_type': column_pii_metadata[column].get('data_type'),
+                                        'description': column_pii_metadata[column].get('description')
+                                    }
+                            
+                            # Add PII summary
+                            pii_columns = [col for col, info in profile_result['metadata']['column_pii_info'].items() 
+                                          if info.get('contains_pii', False)]
+                            profile_result['metadata']['pii_summary'] = {
+                                'total_pii_columns': len(pii_columns),
+                                'pii_column_names': pii_columns,
+                                'contains_pii': len(pii_columns) > 0
+                            }
+                            
+                            logger.info(f"Included PII metadata for {len(pii_columns)} columns from vendor agreement schema")
+                    
                 finally:
                     conn.close()
             else:

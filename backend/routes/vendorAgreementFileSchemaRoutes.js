@@ -115,7 +115,8 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
       contains_pii = false,
       data_classification = null,
       file_type = null,
-      quality_rule_ids = []
+      quality_rule_ids = [],
+      column_metadata = {}
     } = req.body;
     
     // Validate required fields
@@ -187,9 +188,10 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         data_classification,
         file_type,
         quality_rule_ids,
+        column_metadata,
         created_by,
         updated_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         agreementId,
@@ -202,6 +204,7 @@ router.post('/:agreementId/file-schemas', requirePermission('vendor_agreements:w
         data_classification,
         file_type,
         JSON.stringify(quality_rule_ids),
+        JSON.stringify(column_metadata),
         req.user.id,
         req.user.id
       ]
@@ -284,7 +287,8 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
         contains_pii = false,
         data_classification = null,
         file_type = null,
-        quality_rule_ids = []
+        quality_rule_ids = [],
+        column_metadata = {}
       } = schema;
       
       // Validate required fields
@@ -316,9 +320,10 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
           data_classification,
           file_type,
           quality_rule_ids,
+          column_metadata,
           created_by,
           updated_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *`,
         [
           agreementId,
@@ -331,6 +336,7 @@ router.put('/:agreementId/file-schemas', requirePermission('vendor_agreements:wr
           data_classification,
           file_type,
           JSON.stringify(quality_rule_ids),
+          JSON.stringify(column_metadata),
           req.user.id,
           req.user.id
         ]
@@ -385,7 +391,8 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
       contains_pii,
       data_classification,
       file_type,
-      quality_rule_ids
+      quality_rule_ids,
+      column_metadata
     } = req.body;
     
     // Verify file schema exists and belongs to this agreement
@@ -484,6 +491,11 @@ router.put('/:agreementId/file-schemas/:schemaId', requirePermission('vendor_agr
     if (quality_rule_ids !== undefined) {
       updates.push(`quality_rule_ids = $${paramIndex++}`);
       values.push(JSON.stringify(quality_rule_ids));
+    }
+    
+    if (column_metadata !== undefined) {
+      updates.push(`column_metadata = $${paramIndex++}`);
+      values.push(JSON.stringify(column_metadata));
     }
     
     if (updates.length === 0) {

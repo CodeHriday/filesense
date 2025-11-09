@@ -3205,6 +3205,15 @@ try {
   console.error('✗ Failed to register /api/transformations:', error.message);
 }
 
+// Lineage routes (with PII column tracking)
+try {
+  const lineageRoutes = require('./backend/routes/lineageRoutes');
+  app.use('/api/lineage', authenticateToken, lineageRoutes);
+  console.log('✓ Registered /api/lineage route');
+} catch (error) {
+  console.error('✗ Failed to register /api/lineage:', error.message);
+}
+
 // Job routes
 try {
   const jobRoutes = require('./backend/routes/jobs');
