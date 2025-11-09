@@ -1526,20 +1526,26 @@ function FileUpload() {
                       Expected Schema:
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {Array.isArray(selectedAgreementSchema.schema) && selectedAgreementSchema.schema.map((col, idx) => (
-                        <span 
-                          key={idx}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#fff',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          {col.column_name} <span style={{ color: '#6c757d' }}>({col.data_type})</span>
-                        </span>
-                      ))}
+                      {Array.isArray(selectedAgreementSchema.schema) && selectedAgreementSchema.schema.map((col, idx) => {
+                        // Support both schema formats: {name, type} and {column_name, data_type}
+                        const columnName = col.column_name || col.name;
+                        const dataType = col.data_type || col.type;
+                        
+                        return (
+                          <span 
+                            key={idx}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              background: '#fff',
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {columnName} <span style={{ color: '#6c757d' }}>({dataType})</span>
+                          </span>
+                        );
+                      })}
                     </div>
                     
                     {/* Governance Info */}
