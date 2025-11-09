@@ -2,18 +2,29 @@ import axios from 'axios';
 
 const API_BASE_URL = '/api/error-review';
 
+const cleanParams = (params) => {
+  const cleaned = {};
+  Object.keys(params).forEach(key => {
+    const value = params[key];
+    if (value !== null && value !== undefined && value !== '') {
+      cleaned[key] = value;
+    }
+  });
+  return cleaned;
+};
+
 export const getViolations = async (filters = {}) => {
-  const response = await axios.get(`${API_BASE_URL}/violations`, { params: filters });
+  const response = await axios.get(`${API_BASE_URL}/violations`, { params: cleanParams(filters) });
   return response.data;
 };
 
 export const getFileErrors = async (filters = {}) => {
-  const response = await axios.get(`${API_BASE_URL}/file-errors`, { params: filters });
+  const response = await axios.get(`${API_BASE_URL}/file-errors`, { params: cleanParams(filters) });
   return response.data;
 };
 
 export const getMappingErrors = async (filters = {}) => {
-  const response = await axios.get(`${API_BASE_URL}/mapping-errors`, { params: filters });
+  const response = await axios.get(`${API_BASE_URL}/mapping-errors`, { params: cleanParams(filters) });
   return response.data;
 };
 
