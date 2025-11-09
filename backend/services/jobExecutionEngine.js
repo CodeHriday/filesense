@@ -281,7 +281,10 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     }));
     
     // Step 1.5: Schema Drift Validation (for all source types)
-    if (mapping.schema_drift_handling && mapping.schema_drift_handling !== 'none') {
+    // Always run validation when schema is defined, regardless of handling policy
+    const hasSchemaToValidate = mapping.vendor_agreement_id || (mapping.source_schema && mapping.source_schema.length > 0);
+    
+    if (hasSchemaToValidate && runSchemaValidation) {
       const sourceType = mapping.vendor_agreement_id ? 'vendor agreement' : 'connection';
       await logJobExecution(pool, jobId, 'info', `Validating file schema against ${sourceType}`);
       
