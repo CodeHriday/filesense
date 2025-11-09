@@ -4627,8 +4627,8 @@ app.get('/api/governance-policies/:policyId', cacheMiddleware(300), async (req, 
 // Create new governance policy
 app.post('/api/governance-policies', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
-    // Check if user has policy:create permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policy:create')) {
+    // Check if user has policies:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policies:write')) {
       return res.status(403).json({ 
         error: 'Access denied',
         message: 'You do not have permission to create governance policies. Contact your administrator.'
@@ -4661,8 +4661,8 @@ app.post('/api/governance-policies', authenticateToken, invalidateCache('cache:*
 // Update governance policy
 app.put('/api/governance-policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
-    // Check if user has policy:update permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policy:update')) {
+    // Check if user has policies:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policies:write')) {
       return res.status(403).json({ 
         error: 'Access denied',
         message: 'You do not have permission to update governance policies. Contact your administrator.'
@@ -4694,8 +4694,8 @@ app.put('/api/governance-policies/:policyId', authenticateToken, invalidateCache
 // Delete governance policy
 app.delete('/api/governance-policies/:policyId', authenticateToken, invalidateCache('cache:*:*policies*'), async (req, res) => {
   try {
-    // Check if user has policy:delete permission
-    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policy:delete')) {
+    // Check if user has policies:write permission
+    if (!req.user || !req.user.permissions || !req.user.permissions.includes('policies:write')) {
       return res.status(403).json({ 
         error: 'Access denied',
         message: 'You do not have permission to delete governance policies. Contact your administrator.'
