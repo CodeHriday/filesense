@@ -392,8 +392,9 @@ router.post('/',
         mapping_id, mapping_name, source_connection_id, vendor_agreement_id, vendor_agreement_file_schema_id, source_type, file_path,
         file_name_pattern, source_file_pattern, target_connection_id, target_table_name,
         target_file_path, target_file_name, target_file_format,
-        field_mappings, variables, pii_columns, anomaly_rules, schema_drift_handling, source_schema, status, created_by, project_id, sub_project_id, violation_handling
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+        field_mappings, variables, pii_columns, anomaly_rules, schema_drift_handling, source_schema, status, created_by, project_id, sub_project_id, violation_handling,
+        source_owner, target_owner
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
       RETURNING *
     `, [
       mappingId, mapping_name, sourceConnectionIdForDb, vendor_agreement_id, vendor_agreement_file_schema_id, source_type, file_path,
@@ -402,7 +403,8 @@ router.post('/',
       JSON.stringify(field_mappings), JSON.stringify(variables), JSON.stringify(pii_columns), JSON.stringify(anomaly_rules), 
       schema_drift_handling,
       source_schema ? JSON.stringify(source_schema) : null,
-      status, req.user?.id || null, projectId, sub_project_id, violation_handling
+      status, req.user?.id || null, projectId, sub_project_id, violation_handling,
+      req.body.source_owner || null, req.body.target_owner || null
     ]);
     
     // Insert quality rule associations if provided
@@ -471,7 +473,9 @@ router.put('/:id',
       status,
       quality_rule_ids,
       violation_handling,
-      sub_project_id
+      sub_project_id,
+      source_owner,
+      target_owner
     } = req.body;
     
     const actualFilePattern = file_name_pattern || source_file_pattern;
@@ -750,6 +754,16 @@ router.put('/:id',
     if (violation_handling !== undefined) {
       updates.push(`violation_handling = $${paramIndex}`);
       values.push(violation_handling);
+      paramIndex++;
+    }
+    if (source_owner !== undefined) {
+      updates.push(`source_owner = $${paramIndex}`);
+      values.push(source_owner);
+      paramIndex++;
+    }
+    if (target_owner !== undefined) {
+      updates.push(`target_owner = $${paramIndex}`);
+      values.push(target_owner);
       paramIndex++;
     }
     

@@ -332,7 +332,8 @@ class QualityValidationEngine {
             validation_type: validationType,
             reason: violationMessage
           },
-          severity: rule.severity
+          severity: rule.severity,
+          record_snapshot: row
         });
       }
     });
@@ -416,7 +417,8 @@ class QualityValidationEngine {
                 consistency_type: consistencyType,
                 expression: config.expression
               },
-              severity: rule.severity
+              severity: rule.severity,
+              record_snapshot: row
             });
           }
         } catch (error) {
@@ -448,7 +450,8 @@ class QualityValidationEngine {
               consistency_type: consistencyType,
               expected_format: formatPattern.description
             },
-            severity: rule.severity
+            severity: rule.severity,
+            record_snapshot: row
           });
         }
       });
@@ -579,7 +582,8 @@ class QualityValidationEngine {
             columns_checked: columnsToCheck,
             duplicate_value: keyParts
           },
-          severity: rule.severity
+          severity: rule.severity,
+          record_snapshot: row
         });
       } else {
         seen.set(key, { row: rowIndex + 1, value: keyParts });

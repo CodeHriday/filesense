@@ -677,11 +677,12 @@ function compareSchemas(expectedSchema, actualSchema) {
     }
   });
   
-  // Check for extra columns (WARNING ONLY - does not cause drift)
+  // Check for extra columns (CRITICAL - causes drift/failure)
   actualMap.forEach((originalName, lowerName) => {
     if (!expectedMap.has(lowerName)) {
       extraColumns.push(originalName);
-      warnings.push(`Extra column found: ${originalName} (not in contract schema)`);
+      errors.push(`Extra column found: ${originalName} (not in contract schema)`);
+      drift = true;
     }
   });
   
