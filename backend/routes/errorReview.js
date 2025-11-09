@@ -85,7 +85,11 @@ router.get('/violations', async (req, res) => {
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id::varchar
+      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
+      LEFT JOIN transformation_mappings tm ON (
+        tj.mapping_id = tm.id OR 
+        (tj.mapping_id IS NULL AND qrv.job_id ~ '^[0-9]+$' AND qrv.job_id::integer = tm.id)
+      )
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       ${whereClause}
     `;
@@ -122,7 +126,11 @@ router.get('/violations', async (req, res) => {
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id::varchar
+      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
+      LEFT JOIN transformation_mappings tm ON (
+        tj.mapping_id = tm.id OR 
+        (tj.mapping_id IS NULL AND qrv.job_id ~ '^[0-9]+$' AND qrv.job_id::integer = tm.id)
+      )
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       LEFT JOIN users resolver ON qrv.resolved_by = resolver.id
       ${whereClause}
@@ -434,7 +442,11 @@ router.get('/statistics', async (req, res) => {
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id::varchar
+      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
+      LEFT JOIN transformation_mappings tm ON (
+        tj.mapping_id = tm.id OR 
+        (tj.mapping_id IS NULL AND qrv.job_id ~ '^[0-9]+$' AND qrv.job_id::integer = tm.id)
+      )
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       WHERE 1=1 ${projectFilter}
     `;
