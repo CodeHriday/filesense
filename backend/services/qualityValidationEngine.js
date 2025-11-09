@@ -537,6 +537,13 @@ class QualityValidationEngine {
     data.forEach((row, rowIndex) => {
       // Create composite key
       const keyParts = columnsToCheck.map(col => row[col]);
+      
+      // Skip rows where any column is NULL/undefined/empty - these should be caught by completeness checks
+      const hasNullValue = keyParts.some(val => val === null || val === undefined || val === '');
+      if (hasNullValue) {
+        return; // Skip this row - NULL values are not duplicates
+      }
+      
       const key = JSON.stringify(keyParts);
       
       if (seen.has(key)) {

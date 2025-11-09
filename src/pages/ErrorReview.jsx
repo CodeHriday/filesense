@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload } from 'react-icons/fi';
 import { getProjects } from '../api/qualityRulesService';
 import '../styles/ErrorReview.css';
 
@@ -97,6 +97,48 @@ const ErrorReview = () => {
 
   const handlePageChange = (newPage) => {
     setFilters(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleDownload = async (format) => {
+    try {
+      const endpoint = activeTab === 'file-upload' 
+        ? `${API_BASE}/file-upload-violations/download` 
+        : `${API_BASE}/mapping-job-violations/download`;
+      
+      const params = new URLSearchParams();
+      params.append('format', format);
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== 'all' && value !== '' && key !== 'page' && key !== 'limit') {
+          params.append(key, value);
+        }
+      });
+
+      const response = await fetch(`${endpoint}?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = format === 'excel' 
+        ? `${activeTab}-violations.xlsx` 
+        : `${activeTab}-violations.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error downloading violations:', err);
+      alert(`Failed to download violations: ${err.message}`);
+    }
   };
 
   const toggleRowExpansion = (violationId) => {
@@ -273,12 +315,23 @@ const ErrorReview = () => {
           <FiAlertTriangle className="header-icon" />
           <h1>Data Violations</h1>
         </div>
-        <button 
-          className="filter-toggle-button"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </button>
+        <div className="header-actions">
+          <div className="download-dropdown">
+            <button className="download-button">
+              <FiDownload /> Download
+            </button>
+            <div className="download-menu">
+              <button onClick={() => handleDownload('csv')}>Download as CSV</button>
+              <button onClick={() => handleDownload('excel')}>Download as Excel</button>
+            </div>
+          </div>
+          <button 
+            className="filter-toggle-button"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </button>
+        </div>
       </div>
 
       {showFilters && (
