@@ -60,7 +60,8 @@ const ErrorRecords = () => {
 
   const fetchStatistics = async () => {
     try {
-      const stats = await getErrorStatistics(filters.project_id || null);
+      const projectId = filters.project_id && filters.project_id !== '' ? filters.project_id : null;
+      const stats = await getErrorStatistics(projectId);
       setStatistics(stats);
     } catch (err) {
       console.error('Error fetching statistics:', err);
@@ -684,7 +685,7 @@ const ErrorRecords = () => {
     <div className="error-review-container">
       <div className="error-review-header">
         <div>
-          <h1>Error Records</h1>
+          <h1>Data Violations</h1>
           <p>Monitor and manage data quality violations and errors</p>
         </div>
         <div className="header-actions">
