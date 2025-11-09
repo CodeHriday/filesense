@@ -738,7 +738,13 @@ function createProjectRoutes(dbPool) {
 
       const agreements = result.rows.map(row => ({
         ...row,
-        fileSchemas: row.file_schemas || []
+        fileSchemas: (row.file_schemas || []).map(fileSchema => ({
+          ...fileSchema,
+          // Ensure schema is parsed as JSON array if it's a string
+          schema: typeof fileSchema.schema === 'string' 
+            ? JSON.parse(fileSchema.schema) 
+            : fileSchema.schema
+        }))
       }));
 
       res.json({ agreements });
