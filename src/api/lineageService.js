@@ -8,7 +8,11 @@ const API_URL = '/api'; // Base URL for API calls
  */
 export const getLineages = async () => {
   try {
-    const response = await axios.get(`${API_URL}/lineage`);
+    const response = await axios.get(`${API_URL}/lineage`, {
+      params: {
+        _t: Date.now() // Cache-busting timestamp to force fresh data
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Error fetching lineage data:', error);
