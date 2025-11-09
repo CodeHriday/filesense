@@ -287,12 +287,15 @@ router.get('/', async (req, res) => {
         tm.source_file_pattern,
         tm.target_file_name,
         tm.target_file_format,
-        tm.source_owner,
-        tm.target_owner,
+        tm.source_owner AS tm_source_owner,
+        tm.target_owner AS tm_target_owner,
         tm.target_file_path,
         tm.vendor_agreement_id,
         tm.source_connection_id,
         tm.target_connection_id,
+        tm.field_mappings,
+        tm.variables,
+        tm.description,
         va.drop_location_path AS vendor_drop_path,
         va.agreement_code AS vendor_agreement_code,
         va.primary_contact_name AS vendor_contact_name,
@@ -327,6 +330,7 @@ router.get('/', async (req, res) => {
       // Source metadata: prioritize lineage table's direct fields
       const sourceOwner = row.source_owner || 
         (row.source_connection_config && row.source_connection_config.owner) ||
+        row.tm_source_owner ||
         (row.vendor_agreement_id ? (row.vendor_contact_name || row.vendor_contact_email) : null);
         
       const sourcePath = row.source_path ||
@@ -341,7 +345,8 @@ router.get('/', async (req, res) => {
       
       // Target metadata: prioritize lineage table's direct fields
       const targetOwner = row.target_owner ||
-        (row.target_connection_config && row.target_connection_config.owner) || null;
+        (row.target_connection_config && row.target_connection_config.owner) ||
+        row.tm_target_owner || null;
       
       const targetPath = row.target_path ||
         (row.target_connection_config && row.target_connection_config.path) ||
@@ -364,8 +369,33 @@ router.get('/', async (req, res) => {
         // Target metadata (from target connection)
         target_owner: targetOwner,
         target_path: targetPath,
-        target_file_type: targetFileType
+        target_file_type: targetFileType,
+        // Include field mappings, variables, and description from transformation_mappings
+        field_mappings: row.field_mappings,
+        variables: row.variables,
+        description: row.description,
+        // column_mappings comes from transformation_lineage (already in row)
+        type: 'transformation' // Add explicit type for frontend
       };
+    });
+    
+    // Add another debug log to inspect what's being returned
+    if (transformedRows.length > 0) {
+      console.log('🔍 BACKEND DEBUG - First lineage record:', {
+        source_owner: transformedRows[0].source_owner,
+        source_path: transformedRows[0].source_path,
+        target_owner: transformedRows[0].target_owner,
+        target_path: transformedRows[0].target_path,
+        field_mappings_present: !!transformedRows[0].field_mappings,
+        column_mappings_present: !!transformedRows[0].column_mappings,
+        variables_present: !!transformedRows[0].variables
+      });
+    }
+    
+    // Clean up temporary fields
+    transformedRows.forEach(row => {
+      delete row.tm_source_owner;
+      delete row.tm_target_owner;
     });
     
     // Debug log first record to verify transformation with connection-based metadata
