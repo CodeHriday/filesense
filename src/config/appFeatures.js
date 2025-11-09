@@ -191,7 +191,7 @@ export const APP_FEATURES = [
   { 
     id: 'retention_policies', 
     name: 'Retention & Archival', 
-    category: 'Governance',
+    category: 'Insights',
     icon: FiDatabase,
     route: '/retention-policies',
     showInSidebar: true
@@ -199,7 +199,7 @@ export const APP_FEATURES = [
   { 
     id: 'archived_files', 
     name: 'Archived Files', 
-    category: 'Governance',
+    category: 'Insights',
     icon: FiArchive,
     route: '/archived-files',
     showInSidebar: true
@@ -207,7 +207,7 @@ export const APP_FEATURES = [
   { 
     id: 'anomalies', 
     name: 'Anomaly Detection', 
-    category: 'Governance',
+    category: 'Insights',
     icon: FiAlertTriangle,
     route: '/anomalies',
     showInSidebar: true
