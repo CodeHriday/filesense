@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiX, FiFileText, FiArrowRight, FiDatabase, FiCode } from 'react-icons/fi';
+import { FiX, FiFileText, FiArrowRight, FiDatabase, FiCode, FiShield } from 'react-icons/fi';
 import './TransformationDetailsPanel.css';
 
 /**
@@ -22,6 +22,7 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     source_column_count,
     source_created_at,
     source_owner,
+    source_path,
     target_filename,
     target_file_type,
     target_file_size,
@@ -29,6 +30,7 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     target_column_count,
     target_created_at,
     target_owner,
+    target_path,
     field_mappings,
     variables,
     source_pattern,
@@ -36,7 +38,8 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     source_file_pattern,
     target_file_name,
     target_file_format,
-    agreement_name
+    agreement_name,
+    column_mappings
   } = transformationData;
 
   // Helper function to remove job prefix from transformed filenames
@@ -45,33 +48,25 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     return filename.replace(/^transformed_JOB-[0-9]+-[a-f0-9]+_/, '');
   };
 
-  // Extract path and filename
-  const extractPathAndFilename = (fullPath) => {
-    if (!fullPath) return { path: '', filename: '' };
-    const cleaned = cleanTransformedFilename(fullPath);
-    const lastSlash = cleaned.lastIndexOf('/');
-    if (lastSlash === -1) return { path: '', filename: cleaned };
-    return {
-      path: cleaned.substring(0, lastSlash),
-      filename: cleaned.substring(lastSlash + 1)
-    };
+  // For transformation lineage, use connection-based metadata
+  // Path comes from connection config, filename from pattern/mapping
+  const sourceInfo = {
+    path: source_path || '',
+    filename: isTransformationLineage 
+      ? (source_pattern || source_file_pattern || source_filename)
+      : source_filename
   };
-
-  // For transformation lineage, use patterns instead of filenames
-  const sourceFullPath = isTransformationLineage 
-    ? (source_pattern || source_file_pattern || source_filename)
-    : source_filename;
   
-  const targetFullPath = isTransformationLineage 
-    ? (target_pattern || target_file_name || target_filename)
-    : target_filename;
-
-  const sourceInfo = extractPathAndFilename(sourceFullPath);
-  const targetInfo = extractPathAndFilename(targetFullPath);
+  const targetInfo = {
+    path: target_path || '',
+    filename: isTransformationLineage 
+      ? cleanTransformedFilename(target_file_name || target_filename)
+      : target_filename
+  };
   
-  // Backend query now extracts actual file types from matched files, so use them directly
-  const displaySourceType = source_file_type;
-  const displayTargetType = target_file_type;
+  // Use file types from backend (connection config or mapping)
+  const displaySourceType = source_file_type || 'N/A';
+  const displayTargetType = target_file_type || 'N/A';
 
   const formatBytes = (bytes) => {
     if (!bytes) return 'N/A';
@@ -105,6 +100,24 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
   const parsedVariables = variables
     ? (typeof variables === 'string' ? JSON.parse(variables) : variables)
     : [];
+  
+  // Parse column mappings for PII information
+  const parsedColumnMappings = column_mappings
+    ? (typeof column_mappings === 'string' ? JSON.parse(column_mappings) : column_mappings)
+    : [];
+  
+  // Create a map of target column -> PII info for quick lookup
+  const piiColumnMap = new Map();
+  if (Array.isArray(parsedColumnMappings)) {
+    parsedColumnMappings.forEach(cm => {
+      if (cm.contains_pii && cm.target_column) {
+        piiColumnMap.set(cm.target_column, {
+          pii_type: cm.pii_type || 'PII',
+          transformation_applied: cm.transformation_applied
+        });
+      }
+    });
+  }
 
   // Extract expression from variable
   const getVariableExpression = (variable) => {
@@ -236,6 +249,8 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                     {parsedFieldMappings.map((mapping, index) => {
                       const sourceFields = getMappingSourceFields(mapping);
                       const hasExpression = mapping.expression || (mapping.transformations && mapping.transformations.length > 0);
+                      const targetFieldName = mapping.target_field || mapping.targetField;
+                      const piiInfo = piiColumnMap.get(targetFieldName);
                       
                       return (
                         <div key={index} className="field-mapping-item">
@@ -258,7 +273,18 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                             <FiArrowRight />
                           </div>
                           <div className="mapping-target">
-                            <span className="target-field">{mapping.target_field || mapping.targetField}</span>
+                            <span className="target-field">
+                              {targetFieldName}
+                              {piiInfo && (
+                                <span 
+                                  className="pii-field-badge"
+                                  title={`Contains PII: ${piiInfo.pii_type}${piiInfo.transformation_applied ? ` (${piiInfo.transformation_applied})` : ''}`}
+                                >
+                                  <FiShield className="pii-shield-icon" />
+                                  {piiInfo.pii_type}
+                                </span>
+                              )}
+                            </span>
                             {hasExpression && (
                               <div className="transformation-badge">
                                 <FiCode size={12} />

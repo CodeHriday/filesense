@@ -318,6 +318,24 @@
   font-size: 11px;
 }
 
+.pii-field-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fc8181;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  margin-left: 8px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.pii-shield-icon {
+  font-size: 12px;
+}
+
 /* Scrollbar */
 .panel-content::-webkit-scrollbar {
   width: 8px;

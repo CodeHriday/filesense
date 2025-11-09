@@ -10,6 +10,23 @@ const { systemLogger } = require('../utils/logger');
 const { authenticateToken } = require('../src/middleware/authenticate');
 
 /**
+ * Helper function to infer file type from file pattern or filename
+ */
+function inferFileTypeFromPattern(pattern) {
+  if (!pattern) return null;
+  const ext = pattern.split('.').pop()?.toLowerCase();
+  const typeMap = {
+    'csv': 'CSV',
+    'json': 'JSON',
+    'xml': 'XML',
+    'xlsx': 'XLSX',
+    'xls': 'XLSX',
+    'parquet': 'Parquet'
+  };
+  return typeMap[ext] || null;
+}
+
+/**
  * GET /api/lineage/:fileId/pii-columns
  * Retrieve column-level PII tracking through the lineage chain for a specific file
  * 
@@ -274,10 +291,14 @@ router.get('/', async (req, res) => {
         tm.target_owner,
         tm.target_file_path,
         tm.vendor_agreement_id,
+        tm.source_connection_id,
+        tm.target_connection_id,
         va.drop_location_path AS vendor_drop_path,
         va.agreement_code AS vendor_agreement_code,
         va.primary_contact_name AS vendor_contact_name,
         va.primary_contact_email AS vendor_contact_email,
+        sc.config AS source_connection_config,
+        tc.config AS target_connection_config,
         COALESCE(
           (SELECT COUNT(*)::int 
            FROM jsonb_array_elements(tl.column_mappings) AS cm 
@@ -294,34 +315,54 @@ router.get('/', async (req, res) => {
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.mapping_id = tm.mapping_id
       LEFT JOIN vendor_agreements va ON tm.vendor_agreement_id = va.id
+      LEFT JOIN transform_connections sc ON CAST(tm.source_connection_id AS TEXT) = CAST(sc.id AS TEXT)
+      LEFT JOIN transform_connections tc ON CAST(tm.target_connection_id AS TEXT) = CAST(tc.id AS TEXT)
       ORDER BY tl.created_at DESC
       LIMIT 100
     `);
     
-    // Transform the results to include proper source/target metadata
+    // Transform the results to include proper source/target metadata from connections
     const transformedRows = result.rows.map(row => {
       // Determine source metadata based on whether it's a vendor agreement
       const isVendorSource = !!row.vendor_agreement_id;
       
-      let sourceOwner, sourcePath, agreementName;
+      let sourceOwner, sourcePath, sourceFileType, agreementName;
       
       if (isVendorSource) {
         // Vendor agreement source: use vendor contact and drop location
         sourceOwner = row.vendor_contact_name || row.vendor_contact_email || null;
         sourcePath = row.vendor_drop_path || null;
         agreementName = row.vendor_agreement_code || null;
+        // Infer type from pattern or use mapping default
+        sourceFileType = inferFileTypeFromPattern(row.source_file_pattern) || null;
       } else {
-        // Regular connection source: use mapping source owner and extract path from pattern
-        sourceOwner = row.source_owner || null;
-        // Extract path from source_file_pattern (everything before the filename)
-        if (row.source_file_pattern) {
+        // Regular connection source: extract from connection config with fallbacks
+        const sourceConfig = row.source_connection_config || {};
+        sourceOwner = sourceConfig.owner || row.source_owner || null;
+        
+        // Fallback path extraction: config.path -> extract from pattern
+        sourcePath = sourceConfig.path;
+        if (!sourcePath && row.source_file_pattern) {
           const lastSlash = row.source_file_pattern.lastIndexOf('/');
           sourcePath = lastSlash !== -1 ? row.source_file_pattern.substring(0, lastSlash) : null;
-        } else {
-          sourcePath = null;
         }
+        
+        sourceFileType = sourceConfig.file_type || inferFileTypeFromPattern(row.source_file_pattern) || null;
         agreementName = null;
       }
+      
+      // Target metadata: extract from target connection config with fallbacks
+      const targetConfig = row.target_connection_config || {};
+      const targetOwner = targetConfig.owner || row.target_owner || null;
+      
+      // Fallback path extraction: config.path -> mapping target_file_path
+      const targetPath = targetConfig.path || row.target_file_path || null;
+      
+      // File type fallback: mapping format -> config.file_type -> infer from filename
+      const targetFileType = row.target_file_format 
+        || targetConfig.file_type 
+        || inferFileTypeFromPattern(row.target_file_name) 
+        || null;
       
       return {
         ...row,
@@ -331,22 +372,27 @@ router.get('/', async (req, res) => {
         // Source metadata (vendor agreement OR regular connection)
         source_owner: sourceOwner,
         source_path: sourcePath,
+        source_file_type: sourceFileType,
         agreement_name: agreementName,
-        // Target metadata (always from mapping)
-        target_owner: row.target_owner || null,
-        target_path: row.target_file_path || null
+        // Target metadata (from target connection)
+        target_owner: targetOwner,
+        target_path: targetPath,
+        target_file_type: targetFileType
       };
     });
     
-    // Debug log first record to verify transformation
+    // Debug log first record to verify transformation with connection-based metadata
     if (transformedRows.length > 0) {
-      systemLogger.info('Lineage data sample', {
+      systemLogger.info('Lineage data sample with connection metadata', {
         mapping_name: transformedRows[0].mapping_name,
         source_owner: transformedRows[0].source_owner,
-        target_owner: transformedRows[0].target_owner,
         source_path: transformedRows[0].source_path,
+        source_file_type: transformedRows[0].source_file_type,
+        target_owner: transformedRows[0].target_owner,
         target_path: transformedRows[0].target_path,
-        agreement_name: transformedRows[0].agreement_name
+        target_file_type: transformedRows[0].target_file_type,
+        agreement_name: transformedRows[0].agreement_name,
+        pii_column_count: transformedRows[0].pii_column_count
       });
     }
     
