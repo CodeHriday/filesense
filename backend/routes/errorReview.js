@@ -31,7 +31,8 @@ router.get('/file-upload-violations', async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const userId = parseInt(req.user.id);
-    const isAdmin = req.user.role === 'admin';
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
 
     let whereConditions = ['(qrv.job_id IS NULL OR qrv.job_id = \'\')'];
     let params = [];
@@ -167,7 +168,8 @@ router.get('/mapping-job-violations', async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const userId = parseInt(req.user.id);
-    const isAdmin = req.user.role === 'admin';
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
 
     let whereConditions = ['qrv.job_id IS NOT NULL', 'qrv.job_id != \'\''];
     let params = [];
