@@ -337,12 +337,27 @@ router.get('/', async (req, res) => {
       };
     });
     
+    // Debug log first record to verify transformation
+    if (transformedRows.length > 0) {
+      systemLogger.info('Lineage data sample', {
+        mapping_name: transformedRows[0].mapping_name,
+        source_owner: transformedRows[0].source_owner,
+        target_owner: transformedRows[0].target_owner,
+        source_path: transformedRows[0].source_path,
+        target_path: transformedRows[0].target_path,
+        agreement_name: transformedRows[0].agreement_name
+      });
+    }
+    
     // Prevent browser caching to ensure fresh data
     res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Cache-Control': 'no-cache, no-store, must-revalidate, private, max-age=0',
       'Pragma': 'no-cache',
       'Expires': '0'
     });
+    
+    // Disable ETag to prevent 304 Not Modified responses
+    res.removeHeader('ETag');
     
     res.json({
       success: true,
