@@ -406,7 +406,7 @@ router.get('/statistics', async (req, res) => {
     // Validate and parse project_id using helper function
     const validProjectId = parseProjectId(project_id);
     if (validProjectId) {
-      projectFilter += ` AND p.id = $${params.length + 1}`;
+      projectFilter += ` AND p.id = $${params.length + 1}::integer`;
       params.push(validProjectId);
     }
 
