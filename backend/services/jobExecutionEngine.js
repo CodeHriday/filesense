@@ -177,6 +177,108 @@ async function updateJob(pool, jobId, updates) {
 }
 
 /**
+ * Persist quality rule violations to database
+ * @param {Pool} pool - Database connection pool
+ * @param {string} jobId - Job ID
+ * @param {string} fileId - File ID (can be null)
+ * @param {Array} violations - Array of violation objects from QualityValidationEngine
+ * @returns {Promise<number>} - Number of violations persisted
+ */
+async function persistViolations(pool, jobId, fileId, violations) {
+  if (!violations || violations.length === 0) {
+    return 0;
+  }
+  
+  try {
+    // Build batch insert query using VALUES with multiple rows
+    const values = [];
+    const paramGroups = [];
+    let paramIndex = 1;
+    
+    for (const violation of violations) {
+      const paramGroup = [];
+      
+      // rule_id
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(violation.rule_id);
+      
+      // file_id (can be null)
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(fileId || null);
+      
+      // job_id
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(jobId);
+      
+      // row_number
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(violation.row_number || null);
+      
+      // column_name
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(violation.column_name || null);
+      
+      // expected_value
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(violation.expected_value || null);
+      
+      // actual_value
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(violation.actual_value || null);
+      
+      // violation_details (JSONB)
+      paramGroup.push(`$${paramIndex++}::jsonb`);
+      values.push(JSON.stringify(violation.violation_details || {}));
+      
+      // severity
+      paramGroup.push(`$${paramIndex++}`);
+      values.push(violation.severity || 'warning');
+      
+      // status (default to 'new')
+      paramGroup.push(`$${paramIndex++}`);
+      values.push('new');
+      
+      // processing_action (default to 'logged')
+      paramGroup.push(`$${paramIndex++}`);
+      values.push('logged');
+      
+      // record_snapshot (JSONB)
+      paramGroup.push(`$${paramIndex++}::jsonb`);
+      values.push(JSON.stringify(violation.record_snapshot || {}));
+      
+      paramGroups.push(`(${paramGroup.join(', ')})`);
+    }
+    
+    const query = `
+      INSERT INTO quality_rule_violations (
+        rule_id, file_id, job_id, row_number, column_name,
+        expected_value, actual_value, violation_details, severity,
+        status, processing_action, record_snapshot
+      ) VALUES ${paramGroups.join(', ')}
+    `;
+    
+    await pool.query(query, values);
+    
+    systemLogger.info('Quality violations persisted', {
+      jobId,
+      fileId,
+      violationCount: violations.length
+    });
+    
+    return violations.length;
+    
+  } catch (error) {
+    systemLogger.error('Error persisting quality violations:', {
+      jobId,
+      fileId,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
+/**
  * Execute a transformation mapping
  * @param {Pool} pool - Database connection pool
  * @param {string} mappingId - Mapping ID
@@ -1055,6 +1157,94 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rows_transformed: transformedRows.length,
       rows_failed: rowsFailed
     });
+    
+    // Step 3.3: Run quality validation on transformed data (if quality rules are defined)
+    try {
+      const qualityRulesResult = await pool.query(`
+        SELECT qr.* 
+        FROM transformation_quality_rules tqr
+        INNER JOIN quality_rules qr ON tqr.quality_rule_id = qr.id
+        WHERE tqr.mapping_id = $1 AND qr.enabled = true
+        ORDER BY qr.id
+      `, [mapping.mapping_id]);
+      
+      if (qualityRulesResult.rows.length > 0 && transformedRows.length > 0) {
+        await logJobExecution(pool, jobId, 'info', `Running quality validation with ${qualityRulesResult.rows.length} rules`, {
+          rule_count: qualityRulesResult.rows.length,
+          row_count: transformedRows.length
+        });
+        
+        const QualityValidationEngine = require('./qualityValidationEngine');
+        const qualityEngine = new QualityValidationEngine(pool);
+        
+        const validationMetadata = {
+          job_id: jobId,
+          file_id: file.file_id || null,
+          file_name: file.filename,
+          mapping_id: mapping.mapping_id,
+          upload_date: new Date()
+        };
+        
+        const validationResult = await qualityEngine.validateData(
+          qualityRulesResult.rows,
+          transformedRows,
+          validationMetadata
+        );
+        
+        await logJobExecution(pool, jobId, 'info', `Quality validation complete`, {
+          violations_found: validationResult.summary.violations_found,
+          critical_count: validationResult.summary.critical_count,
+          error_count: validationResult.summary.error_count,
+          warning_count: validationResult.summary.warning_count
+        });
+        
+        // Persist violations to database
+        if (validationResult.violations.length > 0) {
+          const violationsPersisted = await persistViolations(pool, jobId, file.file_id, validationResult.violations);
+          
+          await logJobExecution(pool, jobId, 'info', `Quality violations persisted`, {
+            violations_count: violationsPersisted
+          });
+          
+          // Handle violations based on violation_handling policy
+          const violationHandling = mapping.violation_handling || 'log_continue';
+          
+          if (violationHandling === 'log_abort') {
+            const abortMessage = `Quality violations detected (${validationResult.summary.violations_found} total). Aborting job per violation_handling policy.`;
+            
+            await updateJob(pool, jobId, {
+              status: 'failed',
+              error_message: abortMessage,
+              end_time: new Date()
+            });
+            
+            await logJobExecution(pool, jobId, 'error', abortMessage, {
+              violations_summary: validationResult.summary,
+              violation_handling: violationHandling
+            });
+            
+            throw new Error(abortMessage);
+          } else {
+            // log_continue - just log and proceed
+            await logJobExecution(pool, jobId, 'warn', `Quality violations detected but continuing per violation_handling policy`, {
+              violations_summary: validationResult.summary,
+              violation_handling: violationHandling
+            });
+          }
+        }
+      } else if (qualityRulesResult.rows.length > 0 && transformedRows.length === 0) {
+        await logJobExecution(pool, jobId, 'info', `Skipping quality validation - no data to validate`);
+      }
+    } catch (qualityValidationError) {
+      await logJobExecution(pool, jobId, 'error', `Quality validation failed: ${qualityValidationError.message}`, {
+        error: qualityValidationError.stack
+      });
+      // Re-throw if this was an abort due to violations
+      if (qualityValidationError.message.includes('Aborting job per violation_handling policy')) {
+        throw qualityValidationError;
+      }
+      // Otherwise, log error but continue processing
+    }
     
     // Create execution timestamp for profiling correlation (used for both source and target)
     const executionTimestamp = new Date();
