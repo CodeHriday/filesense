@@ -2882,6 +2882,8 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         va.agreement_code as agreement_name,
         va.vendor_id,
         v.vendor_name,
+        sf.file_type as source_file_type,
+        tf.file_type as target_file_type,
         sfo.owner_name as source_owner,
         tfo.owner_name as target_owner
       FROM transformation_lineage tl
@@ -2889,7 +2891,7 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
       LEFT JOIN vendor_agreements va ON tm.vendor_agreement_id = va.id
       LEFT JOIN vendors v ON va.vendor_id = v.id
       LEFT JOIN LATERAL (
-        SELECT f.file_id, f.project_id
+        SELECT f.file_id, f.project_id, f.file_type, f.filename
         FROM files f
         WHERE f.filename LIKE '%' || REGEXP_REPLACE(REGEXP_REPLACE(tl.input_file_id, '^source_', ''), '^.*/([^/]+)$', '\\1') || '%'
           AND (${isAdmin ? 'TRUE' : 'f.project_id = ANY($1::integer[])'})
@@ -2897,7 +2899,7 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         LIMIT 1
       ) sf ON TRUE
       LEFT JOIN LATERAL (
-        SELECT f.file_id, f.project_id
+        SELECT f.file_id, f.project_id, f.file_type, f.filename
         FROM files f
         WHERE f.filename LIKE '%' || REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-f0-9]+_', ''), '^source_', ''), '^.*/([^/]+)$', '\\1') || '%'
           AND (${isAdmin ? 'TRUE' : 'f.project_id = ANY($1::integer[])'})
