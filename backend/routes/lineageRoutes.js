@@ -349,21 +349,20 @@ router.get('/', async (req, res) => {
       });
     }
     
-    // Prevent browser caching to ensure fresh data
+    // Prevent browser caching AND disable ETag to prevent 304 Not Modified responses
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate, private, max-age=0',
       'Pragma': 'no-cache',
-      'Expires': '0'
+      'Expires': '0',
+      'ETag': 'false'
     });
-    
-    // Disable ETag to prevent 304 Not Modified responses
-    res.removeHeader('ETag');
     
     res.json({
       success: true,
       transformation_lineage: transformedRows,
       manual_lineage: [], // Placeholder for future manual lineage
-      total: transformedRows.length
+      total: transformedRows.length,
+      timestamp: new Date().toISOString() // Force response to change every time
     });
     
   } catch (error) {
