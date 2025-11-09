@@ -28,7 +28,7 @@ router.get('/violations', async (req, res) => {
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);  // Ensure userId is an integer
     const isAdmin = req.user.role === 'admin';
 
     let whereConditions = [];
@@ -38,11 +38,11 @@ router.get('/violations', async (req, res) => {
     if (!isAdmin) {
       whereConditions.push(`(
         p.id IN (
-          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}
+          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}::integer
           UNION
           SELECT pag.project_id FROM project_access_groups pag
           INNER JOIN user_groups ug ON pag.group_id = ug.group_id
-          WHERE ug.user_id = $${paramCount}
+          WHERE ug.user_id = $${paramCount}::integer
         )
       )`);
       params.push(userId);
@@ -172,7 +172,7 @@ router.get('/file-errors', async (req, res) => {
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);  // Ensure userId is an integer
     const isAdmin = req.user.role === 'admin';
 
     let whereConditions = [];
@@ -182,11 +182,11 @@ router.get('/file-errors', async (req, res) => {
     if (!isAdmin) {
       whereConditions.push(`(
         p.id IN (
-          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}
+          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}::integer
           UNION
           SELECT pag.project_id FROM project_access_groups pag
           INNER JOIN user_groups ug ON pag.group_id = ug.group_id
-          WHERE ug.user_id = $${paramCount}
+          WHERE ug.user_id = $${paramCount}::integer
         )
       )`);
       params.push(userId);
@@ -288,7 +288,7 @@ router.get('/mapping-errors', async (req, res) => {
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    const userId = req.user.id;
+    const userId = parseInt(req.user.id);  // Ensure userId is an integer
     const isAdmin = req.user.role === 'admin';
 
     let whereConditions = [];
@@ -298,11 +298,11 @@ router.get('/mapping-errors', async (req, res) => {
     if (!isAdmin) {
       whereConditions.push(`(
         p.id IN (
-          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}
+          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}::integer
           UNION
           SELECT pag.project_id FROM project_access_groups pag
           INNER JOIN user_groups ug ON pag.group_id = ug.group_id
-          WHERE ug.user_id = $${paramCount}
+          WHERE ug.user_id = $${paramCount}::integer
         )
       )`);
       params.push(userId);
