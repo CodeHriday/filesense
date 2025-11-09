@@ -823,16 +823,104 @@
   color: #dc2626;
 }
 
-.pagination {
+/* Project Grouping Styles */
+.project-group {
+  margin-bottom: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.project-header:hover {
+  background: #e9ecef;
+}
+
+.project-expand-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.2rem;
+  transition: color 0.2s;
+}
+
+.project-expand-button:hover {
+  color: #333;
+}
+
+.project-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.project-count {
+  font-size: 0.85rem;
+  color: #666;
+  background: #e0e7ff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+/* Violations Details Table - Smaller Font */
+.violations-details-table {
+  font-size: 0.7rem;
+  margin: 0;
+  border: none;
+}
+
+.violations-details-table th {
+  font-size: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.violations-details-table td {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.7rem;
+}
+
+.violations-details-table .filename-cell {
+  max-width: 150px;
+}
+
+/* Pagination Styles */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   padding: 1rem;
   background: white;
   border: 1px solid #e0e0e0;
   border-top: none;
   border-radius: 0 0 6px 6px;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .pagination-button {
@@ -854,4 +942,21 @@
 .pagination-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.pagination-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.pagination-size-select {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
 }

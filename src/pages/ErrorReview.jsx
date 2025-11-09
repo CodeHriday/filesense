@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload } from 'react-icons/fi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload, FiChevronRight } from 'react-icons/fi';
 import { getProjects } from '../api/qualityRulesService';
 import '../styles/ErrorReview.css';
 
@@ -12,6 +12,7 @@ const ErrorReview = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [expandedProjects, setExpandedProjects] = useState(new Set());
   
   const [showFilters, setShowFilters] = useState(false);
   
@@ -22,13 +23,13 @@ const ErrorReview = () => {
     status: 'all',
     search: '',
     page: 1,
-    limit: 50
+    limit: 10
   });
 
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
-    limit: 50,
+    limit: 10,
     totalPages: 0
   });
 
@@ -141,6 +142,18 @@ const ErrorReview = () => {
     }
   };
 
+  const toggleProjectExpansion = (projectName) => {
+    setExpandedProjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectName)) {
+        newSet.delete(projectName);
+      } else {
+        newSet.add(projectName);
+      }
+      return newSet;
+    });
+  };
+
   const toggleRowExpansion = (violationId) => {
     setExpandedRows(prev => {
       const newSet = new Set(prev);
@@ -175,40 +188,17 @@ const ErrorReview = () => {
     );
   };
 
-  const renderViolationDetails = (violation) => {
-    const details = violation.violation_details || {};
-    
-    return (
-      <div className="violation-details-compact">
-        <div className="detail-item">
-          <span className="detail-label">Rule:</span>
-          <span className="detail-value">{violation.rule_name || '-'}</span>
-        </div>
-        <div className="detail-item">
-          <span className="detail-label">Column:</span>
-          <span className="detail-value">{violation.column_name || '-'}</span>
-        </div>
-        {violation.row_number && (
-          <div className="detail-item">
-            <span className="detail-label">Row #:</span>
-            <span className="detail-value">{violation.row_number}</span>
-          </div>
-        )}
-        {violation.expected_value && (
-          <div className="detail-item">
-            <span className="detail-label">Expected:</span>
-            <span className="detail-value">{violation.expected_value}</span>
-          </div>
-        )}
-        {violation.actual_value && (
-          <div className="detail-item">
-            <span className="detail-label">Actual:</span>
-            <span className="detail-value">{violation.actual_value}</span>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const groupedViolations = useMemo(() => {
+    const groups = {};
+    violations.forEach(violation => {
+      const projectKey = violation.project_name || 'Unknown Project';
+      if (!groups[projectKey]) {
+        groups[projectKey] = [];
+      }
+      groups[projectKey].push(violation);
+    });
+    return groups;
+  }, [violations]);
 
   const renderFullRecord = (recordSnapshot) => {
     if (!recordSnapshot || typeof recordSnapshot !== 'object') {
@@ -243,67 +233,94 @@ const ErrorReview = () => {
       return <div className="empty-state">No violations found</div>;
     }
 
+    const projectNames = Object.keys(groupedViolations).sort();
+
     return (
       <div className="violations-table-container">
-        <table className="violations-table">
-          <thead>
-            <tr>
-              <th style={{ width: '40px' }}></th>
-              <th>Project</th>
-              <th>Sub-Project</th>
-              <th>Filename</th>
-              <th>Violation Details</th>
-              <th>Severity</th>
-              <th>Created Date</th>
-              {activeTab === 'mapping-job' && <th>Executed By</th>}
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {violations.map((violation) => (
-              <React.Fragment key={violation.id}>
-                <tr className="violation-row">
-                  <td>
-                    <button 
-                      className="expand-button"
-                      onClick={() => toggleRowExpansion(violation.id)}
-                      title="View full record"
-                    >
-                      {expandedRows.has(violation.id) ? <FiChevronUp /> : <FiChevronDown />}
-                    </button>
-                  </td>
-                  <td>{violation.project_name || '-'}</td>
-                  <td>{violation.sub_project_name || '-'}</td>
-                  <td className="filename-cell">{violation.filename || '-'}</td>
-                  <td>{renderViolationDetails(violation)}</td>
-                  <td>{getSeverityBadge(violation.severity)}</td>
-                  <td>{formatDate(violation.created_at)}</td>
-                  {activeTab === 'mapping-job' && (
-                    <td>{violation.executed_by_fullname || violation.executed_by_username || '-'}</td>
-                  )}
-                  <td>
-                    <span className={`status-badge status-${violation.status}`}>
-                      {violation.status || 'new'}
-                    </span>
-                  </td>
-                </tr>
-                {expandedRows.has(violation.id) && (
-                  <tr className="expanded-row">
-                    <td></td>
-                    <td colSpan={activeTab === 'mapping-job' ? 8 : 7}>
-                      {renderFullRecord(violation.record_snapshot)}
-                      {activeTab === 'mapping-job' && violation.mapping_name && (
-                        <div className="mapping-info">
-                          <strong>Mapping:</strong> {violation.mapping_name}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+        {projectNames.map((projectName) => {
+          const projectViolations = groupedViolations[projectName];
+          const isExpanded = expandedProjects.has(projectName);
+          
+          return (
+            <div key={projectName} className="project-group">
+              <div className="project-header" onClick={() => toggleProjectExpansion(projectName)}>
+                <button className="project-expand-button">
+                  {isExpanded ? <FiChevronDown /> : <FiChevronRight />}
+                </button>
+                <h3 className="project-name">{projectName}</h3>
+                <span className="project-count">{projectViolations.length} violations</span>
+              </div>
+              
+              {isExpanded && (
+                <table className="violations-table violations-details-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}></th>
+                      <th>Sub-Project</th>
+                      <th>Filename</th>
+                      <th>Rule</th>
+                      <th>Column</th>
+                      <th>Row #</th>
+                      <th>Expected</th>
+                      <th>Actual</th>
+                      <th>Severity</th>
+                      <th>Created Date</th>
+                      {activeTab === 'mapping-job' && <th>Executed By</th>}
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectViolations.map((violation) => (
+                      <React.Fragment key={violation.id}>
+                        <tr className="violation-row">
+                          <td>
+                            <button 
+                              className="expand-button"
+                              onClick={() => toggleRowExpansion(violation.id)}
+                              title="View full record"
+                            >
+                              {expandedRows.has(violation.id) ? <FiChevronUp /> : <FiChevronDown />}
+                            </button>
+                          </td>
+                          <td>{violation.sub_project_name || '-'}</td>
+                          <td className="filename-cell">{violation.filename || '-'}</td>
+                          <td>{violation.rule_name || '-'}</td>
+                          <td>{violation.column_name || '-'}</td>
+                          <td>{violation.row_number || '-'}</td>
+                          <td>{violation.expected_value || '-'}</td>
+                          <td>{violation.actual_value || '-'}</td>
+                          <td>{getSeverityBadge(violation.severity)}</td>
+                          <td>{formatDate(violation.created_at)}</td>
+                          {activeTab === 'mapping-job' && (
+                            <td>{violation.executed_by_fullname || violation.executed_by_username || '-'}</td>
+                          )}
+                          <td>
+                            <span className={`status-badge status-${violation.status}`}>
+                              {violation.status || 'new'}
+                            </span>
+                          </td>
+                        </tr>
+                        {expandedRows.has(violation.id) && (
+                          <tr className="expanded-row">
+                            <td></td>
+                            <td colSpan={activeTab === 'mapping-job' ? 11 : 10}>
+                              {renderFullRecord(violation.record_snapshot)}
+                              {activeTab === 'mapping-job' && violation.mapping_name && (
+                                <div className="mapping-info">
+                                  <strong>Mapping:</strong> {violation.mapping_name}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -414,7 +431,7 @@ const ErrorReview = () => {
               status: 'all',
               search: '',
               page: 1,
-              limit: 50
+              limit: 10
             })}
           >
             <FiX /> Clear Filters
@@ -451,23 +468,39 @@ const ErrorReview = () => {
 
       {violations.length > 0 && (
         <div className="pagination">
-          <button 
-            onClick={() => handlePageChange(filters.page - 1)}
-            disabled={filters.page <= 1}
-            className="pagination-button"
-          >
-            Previous
-          </button>
-          <span className="pagination-info">
-            Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
-          </span>
-          <button 
-            onClick={() => handlePageChange(filters.page + 1)}
-            disabled={filters.page >= pagination.totalPages}
-            className="pagination-button"
-          >
-            Next
-          </button>
+          <div className="pagination-controls">
+            <button 
+              onClick={() => handlePageChange(filters.page - 1)}
+              disabled={filters.page <= 1}
+              className="pagination-button"
+            >
+              Previous
+            </button>
+            <span className="pagination-info">
+              Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+            </span>
+            <button 
+              onClick={() => handlePageChange(filters.page + 1)}
+              disabled={filters.page >= pagination.totalPages}
+              className="pagination-button"
+            >
+              Next
+            </button>
+          </div>
+          <div className="pagination-size-selector">
+            <label>Rows per page:</label>
+            <select 
+              value={filters.limit} 
+              onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
+              className="pagination-size-select"
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
         </div>
       )}
     </div>
