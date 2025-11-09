@@ -2891,7 +2891,7 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
       LEFT JOIN LATERAL (
         SELECT f.file_id, f.project_id
         FROM files f
-        WHERE f.filename LIKE '%' || REGEXP_REPLACE(tl.input_file_id, '^source_', '') || '%'
+        WHERE f.filename LIKE '%' || REGEXP_REPLACE(REGEXP_REPLACE(tl.input_file_id, '^source_', ''), '^.*/([^/]+)$', '\\1') || '%'
           AND (${isAdmin ? 'TRUE' : 'f.project_id = ANY($1::integer[])'})
         ORDER BY f.created_at DESC
         LIMIT 1
@@ -2899,7 +2899,7 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
       LEFT JOIN LATERAL (
         SELECT f.file_id, f.project_id
         FROM files f
-        WHERE f.filename LIKE '%' || REGEXP_REPLACE(REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-f0-9]+_', ''), '^source_', '') || '%'
+        WHERE f.filename LIKE '%' || REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-f0-9]+_', ''), '^source_', ''), '^.*/([^/]+)$', '\\1') || '%'
           AND (${isAdmin ? 'TRUE' : 'f.project_id = ANY($1::integer[])'})
         ORDER BY f.created_at DESC
         LIMIT 1

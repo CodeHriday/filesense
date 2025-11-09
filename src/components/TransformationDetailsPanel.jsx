@@ -21,29 +21,53 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     source_row_count,
     source_column_count,
     source_created_at,
+    source_owner,
     target_filename,
     target_file_type,
     target_file_size,
     target_row_count,
     target_column_count,
     target_created_at,
+    target_owner,
     field_mappings,
     variables,
     source_pattern,
     target_pattern,
     source_file_pattern,
     target_file_name,
-    target_file_format
+    target_file_format,
+    agreement_name
   } = transformationData;
 
+  // Helper function to remove job prefix from transformed filenames
+  const cleanTransformedFilename = (filename) => {
+    if (!filename) return filename;
+    return filename.replace(/^transformed_JOB-[0-9]+-[a-f0-9]+_/, '');
+  };
+
+  // Extract path and filename
+  const extractPathAndFilename = (fullPath) => {
+    if (!fullPath) return { path: '', filename: '' };
+    const cleaned = cleanTransformedFilename(fullPath);
+    const lastSlash = cleaned.lastIndexOf('/');
+    if (lastSlash === -1) return { path: '', filename: cleaned };
+    return {
+      path: cleaned.substring(0, lastSlash),
+      filename: cleaned.substring(lastSlash + 1)
+    };
+  };
+
   // For transformation lineage, use patterns instead of filenames
-  const displaySourceName = isTransformationLineage 
+  const sourceFullPath = isTransformationLineage 
     ? (source_pattern || source_file_pattern || source_filename)
     : source_filename;
   
-  const displayTargetName = isTransformationLineage 
+  const targetFullPath = isTransformationLineage 
     ? (target_pattern || target_file_name || target_filename)
     : target_filename;
+
+  const sourceInfo = extractPathAndFilename(sourceFullPath);
+  const targetInfo = extractPathAndFilename(targetFullPath);
   
   const displaySourceType = isTransformationLineage && source_file_pattern
     ? 'PATTERN'
@@ -145,48 +169,36 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
             <div className="file-flow">
               <div className="file-metadata-card source">
                 <div className="file-header">
-                  <FiFileText size={20} />
+                  <FiFileText size={16} />
                   <span className="file-label">Source File</span>
                 </div>
                 <div className="file-details">
-                  <div className="file-name">{displaySourceName || 'N/A'}</div>
                   <div className="file-stats">
+                    <span className="stat"><strong>Path:</strong> {sourceInfo.path || '-'}</span>
+                    <span className="stat"><strong>Filename:</strong> {sourceInfo.filename || 'N/A'}</span>
                     <span className="stat"><strong>Type:</strong> {displaySourceType?.toUpperCase() || 'N/A'}</span>
-                    {!isTransformationLineage && (
-                      <>
-                        <span className="stat"><strong>Size:</strong> {formatBytes(source_file_size)}</span>
-                        <span className="stat"><strong>Rows:</strong> {formatNumber(source_row_count)}</span>
-                        <span className="stat"><strong>Columns:</strong> {source_column_count || 'N/A'}</span>
-                        <span className="stat"><strong>Created:</strong> {formatDate(source_created_at)}</span>
-                      </>
-                    )}
-                    <span className="stat"><strong>Owner:</strong> <span className="owner-placeholder">-</span></span>
+                    <span className="stat"><strong>Contract:</strong> {agreement_name || '-'}</span>
+                    <span className="stat"><strong>Owner:</strong> {source_owner || '-'}</span>
                   </div>
                 </div>
               </div>
 
               <div className="arrow-connector">
-                <FiArrowRight size={32} />
+                <FiArrowRight size={24} />
               </div>
 
               <div className="file-metadata-card target">
                 <div className="file-header">
-                  <FiDatabase size={20} />
+                  <FiDatabase size={16} />
                   <span className="file-label">Target File</span>
                 </div>
                 <div className="file-details">
-                  <div className="file-name">{displayTargetName || 'N/A'}</div>
                   <div className="file-stats">
+                    <span className="stat"><strong>Path:</strong> {targetInfo.path || '-'}</span>
+                    <span className="stat"><strong>Filename:</strong> {targetInfo.filename || 'N/A'}</span>
                     <span className="stat"><strong>Type:</strong> {displayTargetType?.toUpperCase() || 'N/A'}</span>
-                    {!isTransformationLineage && (
-                      <>
-                        <span className="stat"><strong>Size:</strong> {formatBytes(target_file_size)}</span>
-                        <span className="stat"><strong>Rows:</strong> {formatNumber(target_row_count)}</span>
-                        <span className="stat"><strong>Columns:</strong> {target_column_count || 'N/A'}</span>
-                        <span className="stat"><strong>Created:</strong> {formatDate(target_created_at)}</span>
-                      </>
-                    )}
-                    <span className="stat"><strong>Owner:</strong> <span className="owner-placeholder">-</span></span>
+                    <span className="stat"><strong>Contract:</strong> {agreement_name || '-'}</span>
+                    <span className="stat"><strong>Owner:</strong> {target_owner || '-'}</span>
                   </div>
                 </div>
               </div>
