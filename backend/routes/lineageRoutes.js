@@ -269,6 +269,14 @@ router.get('/', async (req, res) => {
         tm.source_file_pattern,
         tm.target_file_name,
         tm.target_file_format,
+        tm.source_owner,
+        tm.target_owner,
+        tm.target_file_path,
+        tm.vendor_agreement_id,
+        va.drop_location_path AS vendor_drop_path,
+        va.agreement_code AS vendor_agreement_code,
+        va.primary_contact_name AS vendor_contact_name,
+        va.primary_contact_email AS vendor_contact_email,
         COALESCE(
           (SELECT COUNT(*)::int 
            FROM jsonb_array_elements(tl.column_mappings) AS cm 
@@ -284,23 +292,50 @@ router.get('/', async (req, res) => {
         ) AS pii_types
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.mapping_id = tm.mapping_id
+      LEFT JOIN vendor_agreements va ON tm.vendor_agreement_id = va.id
       ORDER BY tl.created_at DESC
       LIMIT 100
     `);
     
     // Transform the results to include proper source/target metadata
-    const transformedRows = result.rows.map(row => ({
-      ...row,
-      // Use pattern/filenames for display names
-      source_filename: row.source_file_pattern || row.input_file_id,
-      target_filename: row.target_file_name || row.output_file_id,
-      // Include the new metadata fields
-      source_owner: row.source_owner,
-      target_owner: row.target_owner,
-      source_path: row.source_path,
-      target_path: row.target_path,
-      agreement_name: row.source_agreement_name
-    }));
+    const transformedRows = result.rows.map(row => {
+      // Determine source metadata based on whether it's a vendor agreement
+      const isVendorSource = !!row.vendor_agreement_id;
+      
+      let sourceOwner, sourcePath, agreementName;
+      
+      if (isVendorSource) {
+        // Vendor agreement source: use vendor contact and drop location
+        sourceOwner = row.vendor_contact_name || row.vendor_contact_email || null;
+        sourcePath = row.vendor_drop_path || null;
+        agreementName = row.vendor_agreement_code || null;
+      } else {
+        // Regular connection source: use mapping source owner and extract path from pattern
+        sourceOwner = row.source_owner || null;
+        // Extract path from source_file_pattern (everything before the filename)
+        if (row.source_file_pattern) {
+          const lastSlash = row.source_file_pattern.lastIndexOf('/');
+          sourcePath = lastSlash !== -1 ? row.source_file_pattern.substring(0, lastSlash) : null;
+        } else {
+          sourcePath = null;
+        }
+        agreementName = null;
+      }
+      
+      return {
+        ...row,
+        // Use pattern/filenames for display names
+        source_filename: row.source_file_pattern || row.input_file_id,
+        target_filename: row.target_file_name || row.output_file_id,
+        // Source metadata (vendor agreement OR regular connection)
+        source_owner: sourceOwner,
+        source_path: sourcePath,
+        agreement_name: agreementName,
+        // Target metadata (always from mapping)
+        target_owner: row.target_owner || null,
+        target_path: row.target_file_path || null
+      };
+    });
     
     res.json({
       success: true,
