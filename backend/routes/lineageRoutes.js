@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
+const { authenticateToken } = require('../src/middleware/authenticate');
 
 /**
  * GET /api/lineage/:fileId/pii-columns
@@ -370,6 +371,84 @@ router.get('/', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch lineage',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/lineage/bulk-delete
+ * Delete multiple lineage records at once
+ * Request body: { lineageIds: [id1, id2, id3, ...] }
+ * Requires authentication and lineage:write or lineage:delete permission
+ */
+router.post('/bulk-delete', 
+  authenticateToken,
+  async (req, res) => {
+  try {
+    // Check for required permissions
+    const userPermissions = req.user?.permissions || [];
+    const hasPermission = userPermissions.includes('lineage:write') || 
+                         userPermissions.includes('lineage:delete');
+    
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions. You need lineage:write or lineage:delete permission to delete lineage records.'
+      });
+    }
+    
+    const { lineageIds } = req.body;
+    
+    // Validate input
+    if (!lineageIds || !Array.isArray(lineageIds) || lineageIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No lineage IDs provided. Please provide an array of lineage IDs to delete.'
+      });
+    }
+    
+    // Validate and sanitize IDs - convert all to integers
+    const sanitizedIds = lineageIds.map(id => {
+      const numId = Number(id);
+      if (isNaN(numId) || !Number.isInteger(numId) || numId <= 0) {
+        throw new Error(`Invalid lineage ID: ${id}`);
+      }
+      return numId;
+    });
+    
+    // Delete the lineage records with sanitized integer IDs
+    const result = await pool.query(
+      'DELETE FROM transformation_lineage WHERE id = ANY($1) RETURNING id',
+      [sanitizedIds]
+    );
+    
+    const deletedCount = result.rowCount;
+    const notFoundCount = lineageIds.length - deletedCount;
+    
+    systemLogger.info('Bulk lineage deletion completed', {
+      requested: lineageIds.length,
+      deleted: deletedCount,
+      notFound: notFoundCount,
+      lineageIds
+    });
+    
+    res.json({
+      success: true,
+      message: `Successfully deleted ${deletedCount} lineage record(s)`,
+      deleted: deletedCount,
+      notFound: notFoundCount,
+      total: lineageIds.length
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error during bulk lineage deletion', { 
+      error: error.message,
+      stack: error.stack 
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete lineage records',
       details: error.message
     });
   }

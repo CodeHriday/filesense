@@ -105,6 +105,23 @@ export const deleteLineage = async (id) => {
 };
 
 /**
+ * Bulk delete multiple lineage records
+ * @param {Array<number>} lineageIds - Array of lineage record IDs to delete
+ * @returns {Promise<Object>} Response data with deletion summary
+ */
+export const bulkDeleteLineage = async (lineageIds) => {
+  try {
+    const response = await axios.post(`${API_URL}/lineage/bulk-delete`, {
+      lineageIds
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error bulk deleting lineage records:', error);
+    throw error;
+  }
+};
+
+/**
  * Scan and populate lineage from existing transformation jobs
  * @returns {Promise<Object>} Summary of created, skipped, and error counts
  */
