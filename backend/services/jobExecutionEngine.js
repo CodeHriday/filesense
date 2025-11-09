@@ -1351,11 +1351,26 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
           `, [mapping.mapping_id, combinedFingerprint]);
           
           if (existingLineageCheck.rows.length > 0) {
-            // Schema unchanged - skip creating duplicate lineage
+            // Schema unchanged - update existing lineage timestamp to show freshness
+            const updateQuery = `
+              UPDATE transformation_lineage 
+              SET created_at = NOW(),
+                  execution_id = $1,
+                  output_file_id = $2
+              WHERE id = $3
+              RETURNING id
+            `;
+            
+            await pool.query(updateQuery, [
+              transformationJobDbId,
+              `transformed_${jobId}_${file.filename}`,
+              existingLineageCheck.rows[0].id
+            ]);
+            
             await logJobExecution(pool, jobId, 'info', 
-              `Lineage skipped - schema unchanged`, {
+              `Lineage updated with latest timestamp`, {
               mappingId: mapping.mapping_id,
-              existingLineageId: existingLineageCheck.rows[0].id,
+              lineageId: existingLineageCheck.rows[0].id,
               schemaFingerprint: combinedFingerprint
             });
           } else {
