@@ -26,6 +26,14 @@ function LineageTable({ lineages }) {
     });
   };
 
+  // Helper function to remove job prefix from transformed filenames
+  const cleanTransformedFilename = (filename) => {
+    if (!filename) return filename;
+    // Remove pattern like "transformed_JOB-1762509569854-06fe5455_"
+    const cleanedName = filename.replace(/^transformed_JOB-[0-9]+-[a-f0-9]+_/, '');
+    return cleanedName;
+  };
+
   const handleViewDetails = (lineage) => {
     setSelectedLineage(lineage);
   };
@@ -115,7 +123,7 @@ function LineageTable({ lineages }) {
                 <td className="target-cell">
                   <div className="file-name-compact">
                     {lineage.type === 'transformation' 
-                      ? (lineage.target_pattern || lineage.target_file_name || lineage.target_filename)
+                      ? cleanTransformedFilename(lineage.target_pattern || lineage.target_file_name || lineage.target_filename)
                       : lineage.target_filename}
                   </div>
                 </td>

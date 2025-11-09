@@ -2859,8 +2859,9 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
       : await dbPool.query(lineageQuery, [projectIds]);
     
     // Also get transformation-based lineage (filtered by project)
+    // Use LATERAL joins to get the most recent matching file for owner information
     const transformLineageQuery = `
-      SELECT
+      SELECT DISTINCT ON (tl.id)
         tl.id,
         tl.transformation_id,
         tl.input_file_id as source_pattern,
@@ -2880,13 +2881,33 @@ app.get('/api/lineage', authenticateToken, async (req, res) => {
         tm.vendor_agreement_id,
         va.agreement_code as agreement_name,
         va.vendor_id,
-        v.vendor_name
+        v.vendor_name,
+        sfo.owner_name as source_owner,
+        tfo.owner_name as target_owner
       FROM transformation_lineage tl
       LEFT JOIN transformation_mappings tm ON tl.transformation_id = CONCAT('transform_', tm.mapping_id)
       LEFT JOIN vendor_agreements va ON tm.vendor_agreement_id = va.id
       LEFT JOIN vendors v ON va.vendor_id = v.id
+      LEFT JOIN LATERAL (
+        SELECT f.file_id, f.project_id
+        FROM files f
+        WHERE f.filename LIKE '%' || REGEXP_REPLACE(tl.input_file_id, '^source_', '') || '%'
+          AND (${isAdmin ? 'TRUE' : 'f.project_id = ANY($1::integer[])'})
+        ORDER BY f.created_at DESC
+        LIMIT 1
+      ) sf ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT f.file_id, f.project_id
+        FROM files f
+        WHERE f.filename LIKE '%' || REGEXP_REPLACE(REGEXP_REPLACE(tl.output_file_id, '^transformed_JOB-[0-9]+-[a-f0-9]+_', ''), '^source_', '') || '%'
+          AND (${isAdmin ? 'TRUE' : 'f.project_id = ANY($1::integer[])'})
+        ORDER BY f.created_at DESC
+        LIMIT 1
+      ) tf ON TRUE
+      LEFT JOIN file_ownership sfo ON sf.file_id = sfo.file_id
+      LEFT JOIN file_ownership tfo ON tf.file_id = tfo.file_id
       WHERE ${isAdmin ? '1=1' : 'tm.project_id = ANY($1::integer[])'}
-      ORDER BY tl.created_at DESC
+      ORDER BY tl.id, tl.created_at DESC
     `;
     
     const transformLineageResult = isAdmin
