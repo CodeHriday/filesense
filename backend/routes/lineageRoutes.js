@@ -337,6 +337,13 @@ router.get('/', async (req, res) => {
       };
     });
     
+    // Prevent browser caching to ensure fresh data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     res.json({
       success: true,
       transformation_lineage: transformedRows,
