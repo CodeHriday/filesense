@@ -134,6 +134,14 @@ export const APP_FEATURES = [
     route: '/mapping-groups',
     showInSidebar: true
   },
+  { 
+    id: 'quality_rules', 
+    name: 'Quality Rules', 
+    category: 'Job Design',
+    icon: FiAlertTriangle,
+    route: '/quality-rules',
+    showInSidebar: true
+  },
   
   // Jobs and Monitoring
   { 
@@ -168,6 +176,14 @@ export const APP_FEATURES = [
     category: 'Jobs and Monitoring',
     icon: FiMonitor,
     route: '/monitor',
+    showInSidebar: true
+  },
+  { 
+    id: 'error_review', 
+    name: 'Error Review', 
+    category: 'Jobs and Monitoring',
+    icon: FiXCircle,
+    route: '/error-review',
     showInSidebar: true
   },
   
@@ -397,22 +413,6 @@ export const APP_FEATURES = [
   },
   
   // Insights
-  { 
-    id: 'quality_rules', 
-    name: 'Quality Rules', 
-    category: 'Insights',
-    icon: FiAlertTriangle,
-    route: '/quality-rules',
-    showInSidebar: true
-  },
-  { 
-    id: 'error_review', 
-    name: 'Error Review', 
-    category: 'Insights',
-    icon: FiXCircle,
-    route: '/error-review',
-    showInSidebar: true
-  },
   { 
     id: 'file_insights', 
     name: 'File Insights', 
