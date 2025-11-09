@@ -1624,10 +1624,10 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               // Build column mappings from field_mappings with PII propagation
               if (mapping.field_mappings && Array.isArray(mapping.field_mappings)) {
                 columnMappings = mapping.field_mappings.map(fieldMapping => {
-                  const sourceColumn = fieldMapping.sourceFields && fieldMapping.sourceFields.length > 0 
-                    ? fieldMapping.sourceFields[0] 
-                    : null;
-                  const targetColumn = fieldMapping.targetField || null;
+                  // Handle both old (sourceFields array) and new (source_field string) formats
+                  const sourceColumn = fieldMapping.source_field || 
+                    (fieldMapping.sourceFields && fieldMapping.sourceFields.length > 0 ? fieldMapping.sourceFields[0] : null);
+                  const targetColumn = fieldMapping.target_field || fieldMapping.targetField || null;
                   
                   // Check if source column has PII metadata
                   const sourcePiiInfo = sourceColumn && columnMetadata[sourceColumn] 
@@ -1639,9 +1639,10 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
                     target_column: targetColumn,
                     contains_pii: sourcePiiInfo?.contains_pii || false,
                     pii_type: sourcePiiInfo?.pii_type || null,
-                    transformation_applied: fieldMapping.transformations && fieldMapping.transformations.length > 0
-                      ? fieldMapping.transformations.map(t => t.type).join(', ')
-                      : null
+                    transformation_applied: fieldMapping.transformation || 
+                      (fieldMapping.transformations && fieldMapping.transformations.length > 0
+                        ? fieldMapping.transformations.map(t => t.type).join(', ')
+                        : null)
                   };
                 }).filter(cm => cm.source_column && cm.target_column);
               }
@@ -1735,10 +1736,10 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
               // Build column mappings from field_mappings with PII propagation
               if (mapping.field_mappings && Array.isArray(mapping.field_mappings)) {
                 columnMappings = mapping.field_mappings.map(fieldMapping => {
-                  const sourceColumn = fieldMapping.sourceFields && fieldMapping.sourceFields.length > 0 
-                    ? fieldMapping.sourceFields[0] 
-                    : null;
-                  const targetColumn = fieldMapping.targetField || null;
+                  // Handle both old (sourceFields array) and new (source_field string) formats
+                  const sourceColumn = fieldMapping.source_field || 
+                    (fieldMapping.sourceFields && fieldMapping.sourceFields.length > 0 ? fieldMapping.sourceFields[0] : null);
+                  const targetColumn = fieldMapping.target_field || fieldMapping.targetField || null;
                   
                   // Check if source column has PII metadata
                   const sourcePiiInfo = sourceColumn && columnMetadata[sourceColumn] 
@@ -1750,9 +1751,10 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
                     target_column: targetColumn,
                     contains_pii: sourcePiiInfo?.contains_pii || false,
                     pii_type: sourcePiiInfo?.pii_type || null,
-                    transformation_applied: fieldMapping.transformations && fieldMapping.transformations.length > 0
-                      ? fieldMapping.transformations.map(t => t.type).join(', ')
-                      : null
+                    transformation_applied: fieldMapping.transformation || 
+                      (fieldMapping.transformations && fieldMapping.transformations.length > 0
+                        ? fieldMapping.transformations.map(t => t.type).join(', ')
+                        : null)
                   };
                 }).filter(cm => cm.source_column && cm.target_column); // Only include mappings with both source and target
               }
