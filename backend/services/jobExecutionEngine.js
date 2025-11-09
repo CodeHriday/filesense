@@ -1733,6 +1733,16 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
                 }
               }
               
+              // Get PII columns array from mapping configuration (user-tagged PII fields)
+              const piiColumnsArray = mapping.pii_columns || [];
+              if (piiColumnsArray.length > 0) {
+                await logJobExecution(pool, jobId, 'info', 
+                  `PII columns defined in mapping configuration`, {
+                  piiColumns: piiColumnsArray,
+                  count: piiColumnsArray.length
+                });
+              }
+              
               // Build column mappings from field_mappings with PII propagation
               if (mapping.field_mappings && Array.isArray(mapping.field_mappings)) {
                 columnMappings = mapping.field_mappings.map(fieldMapping => {
@@ -1741,16 +1751,25 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
                     (fieldMapping.sourceFields && fieldMapping.sourceFields.length > 0 ? fieldMapping.sourceFields[0] : null);
                   const targetColumn = fieldMapping.target_field || fieldMapping.targetField || null;
                   
-                  // Check if source column has PII metadata
+                  // Check if source column has PII metadata from vendor schema or upstream lineage
                   const sourcePiiInfo = sourceColumn && columnMetadata[sourceColumn] 
                     ? columnMetadata[sourceColumn] 
                     : null;
                   
+                  // Check if target column is marked as PII in mapping configuration
+                  const isTargetPii = targetColumn && piiColumnsArray.includes(targetColumn);
+                  
+                  // Target field has PII if either:
+                  // 1. Source field has PII (propagated)
+                  // 2. Target field is explicitly marked as PII in mapping config
+                  const containsPii = sourcePiiInfo?.contains_pii || isTargetPii || false;
+                  const piiType = sourcePiiInfo?.pii_type || (isTargetPii ? 'PII' : null);
+                  
                   return {
                     source_column: sourceColumn,
                     target_column: targetColumn,
-                    contains_pii: sourcePiiInfo?.contains_pii || false,
-                    pii_type: sourcePiiInfo?.pii_type || null,
+                    contains_pii: containsPii,
+                    pii_type: piiType,
                     transformation_applied: fieldMapping.transformation || 
                       (fieldMapping.transformations && fieldMapping.transformations.length > 0
                         ? fieldMapping.transformations.map(t => t.type).join(', ')
