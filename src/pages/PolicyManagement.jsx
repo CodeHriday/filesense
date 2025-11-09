@@ -5,13 +5,31 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
 import './PolicyManagement.css';
 
-function NotificationModal({ message, type = 'error', onClose }) {
+function Toast({ message, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="toast-container">
+      <div className="toast toast-success">
+        <FiCheckCircle className="toast-icon" />
+        <span className="toast-message">{message}</span>
+      </div>
+    </div>
+  );
+}
+
+function NotificationModal({ message, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content notification-modal" onClick={(e) => e.stopPropagation()}>
-        <div className={`notification-header ${type}`}>
-          {type === 'error' ? <FiAlertCircle /> : <FiCheckCircle />}
-          <h3>{type === 'error' ? 'Error' : 'Success'}</h3>
+        <div className="notification-header">
+          <FiAlertCircle className="header-icon" />
+          <h3>Error</h3>
           <button className="close-btn" onClick={onClose}>
             <FiX />
           </button>
@@ -61,7 +79,8 @@ function PolicyManagement() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState(null);
-  const [notification, setNotification] = useState(null);
+  const [successToast, setSuccessToast] = useState(null);
+  const [errorModal, setErrorModal] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => {
@@ -89,11 +108,11 @@ function PolicyManagement() {
       await axios.delete(`/api/governance-policies/${confirmDelete}`);
       await fetchPolicies();
       setConfirmDelete(null);
-      setNotification({ message: 'Policy deleted successfully', type: 'success' });
+      setSuccessToast('Policy deleted successfully');
     } catch (err) {
       console.error('Error deleting policy:', err);
       setConfirmDelete(null);
-      setNotification({ message: err.response?.data?.error || 'Failed to delete policy', type: 'error' });
+      setErrorModal(err.response?.data?.error || 'Failed to delete policy');
     }
   };
 
@@ -204,19 +223,25 @@ function PolicyManagement() {
             fetchPolicies();
             setShowModal(false);
             setSelectedPolicy(null);
-            setNotification({ message, type: 'success' });
+            setSuccessToast(message);
           }}
           onError={(message) => {
-            setNotification({ message, type: 'error' });
+            setErrorModal(message);
           }}
         />
       )}
 
-      {notification && (
+      {successToast && (
+        <Toast
+          message={successToast}
+          onClose={() => setSuccessToast(null)}
+        />
+      )}
+
+      {errorModal && (
         <NotificationModal
-          message={notification.message}
-          type={notification.type}
-          onClose={() => setNotification(null)}
+          message={errorModal}
+          onClose={() => setErrorModal(null)}
         />
       )}
 
