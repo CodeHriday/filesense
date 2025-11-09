@@ -1,15 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiShield } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiShield, FiAlertCircle, FiCheckCircle, FiX } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
 import './PolicyManagement.css';
+
+function NotificationModal({ message, type = 'error', onClose }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content notification-modal" onClick={(e) => e.stopPropagation()}>
+        <div className={`notification-header ${type}`}>
+          {type === 'error' ? <FiAlertCircle /> : <FiCheckCircle />}
+          <h3>{type === 'error' ? 'Error' : 'Success'}</h3>
+          <button className="close-btn" onClick={onClose}>
+            <FiX />
+          </button>
+        </div>
+        <div className="notification-body">
+          <p>{message}</p>
+        </div>
+        <div className="notification-actions">
+          <button className="btn btn-primary" onClick={onClose}>
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({ message, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-content confirmation-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="notification-header warning">
+          <FiAlertCircle />
+          <h3>Confirm Action</h3>
+          <button className="close-btn" onClick={onCancel}>
+            <FiX />
+          </button>
+        </div>
+        <div className="notification-body">
+          <p>{message}</p>
+        </div>
+        <div className="notification-actions">
+          <button className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-danger" onClick={onConfirm}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PolicyManagement() {
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => {
     fetchPolicies();
@@ -28,16 +81,19 @@ function PolicyManagement() {
   };
 
   const handleDelete = async (policyId) => {
-    if (!confirm('Are you sure you want to delete this policy?')) {
-      return;
-    }
+    setConfirmDelete(policyId);
+  };
 
+  const confirmDeletePolicy = async () => {
     try {
-      await axios.delete(`/api/governance-policies/${policyId}`);
+      await axios.delete(`/api/governance-policies/${confirmDelete}`);
       await fetchPolicies();
+      setConfirmDelete(null);
+      setNotification({ message: 'Policy deleted successfully', type: 'success' });
     } catch (err) {
       console.error('Error deleting policy:', err);
-      alert('Failed to delete policy');
+      setConfirmDelete(null);
+      setNotification({ message: err.response?.data?.error || 'Failed to delete policy', type: 'error' });
     }
   };
 
@@ -144,18 +200,38 @@ function PolicyManagement() {
             setShowModal(false);
             setSelectedPolicy(null);
           }}
-          onSave={() => {
+          onSave={(message) => {
             fetchPolicies();
             setShowModal(false);
             setSelectedPolicy(null);
+            setNotification({ message, type: 'success' });
           }}
+          onError={(message) => {
+            setNotification({ message, type: 'error' });
+          }}
+        />
+      )}
+
+      {notification && (
+        <NotificationModal
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          message="Are you sure you want to delete this policy?"
+          onConfirm={confirmDeletePolicy}
+          onCancel={() => setConfirmDelete(null)}
         />
       )}
     </div>
   );
 }
 
-function PolicyModal({ policy, onClose, onSave }) {
+function PolicyModal({ policy, onClose, onSave, onError }) {
   const [policyId, setPolicyId] = useState(policy?.policy_id || '');
   const [policyName, setPolicyName] = useState(policy?.policy_name || '');
   const [description, setDescription] = useState(policy?.description || '');
@@ -166,7 +242,7 @@ function PolicyModal({ policy, onClose, onSave }) {
 
   const handleSave = async () => {
     if (!policyId || !policyName) {
-      alert('Policy ID and Name are required');
+      onError('Policy ID and Name are required');
       return;
     }
 
@@ -184,6 +260,7 @@ function PolicyModal({ policy, onClose, onSave }) {
           description,
           rules
         });
+        onSave('Policy updated successfully');
       } else {
         await axios.post('/api/governance-policies', {
           policy_id: policyId,
@@ -191,11 +268,11 @@ function PolicyModal({ policy, onClose, onSave }) {
           description,
           rules
         });
+        onSave('Policy created successfully');
       }
-      onSave();
     } catch (err) {
       console.error('Error saving policy:', err);
-      alert(err.response?.data?.error || 'Failed to save policy');
+      onError(err.response?.data?.error || 'Failed to save policy');
     } finally {
       setSaving(false);
     }
