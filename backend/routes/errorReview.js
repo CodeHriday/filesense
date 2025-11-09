@@ -84,7 +84,7 @@ router.get('/violations', async (req, res) => {
       SELECT COUNT(*) as total
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN uploaded_files uf ON qrv.file_id = uf.id
+      LEFT JOIN files uf ON qrv.file_id = uf.file_id
       LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       ${whereClause}
@@ -114,7 +114,7 @@ router.get('/violations', async (req, res) => {
         p.project_name
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN uploaded_files uf ON qrv.file_id = uf.id
+      LEFT JOIN files uf ON qrv.file_id = uf.file_id
       LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       ${whereClause}
@@ -206,7 +206,7 @@ router.get('/file-errors', async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) as total
       FROM file_errors fe
-      INNER JOIN uploaded_files uf ON fe.file_id = uf.id
+      INNER JOIN files uf ON fe.file_id = uf.file_id
       LEFT JOIN projects p ON uf.project_id = p.id
       ${whereClause}
     `;
@@ -227,7 +227,7 @@ router.get('/file-errors', async (req, res) => {
         p.id as project_id,
         p.project_name
       FROM file_errors fe
-      INNER JOIN uploaded_files uf ON fe.file_id = uf.id
+      INNER JOIN files uf ON fe.file_id = uf.file_id
       LEFT JOIN projects p ON uf.project_id = p.id
       ${whereClause}
       ORDER BY fe.created_at DESC
@@ -409,7 +409,7 @@ router.get('/statistics', async (req, res) => {
         COUNT(CASE WHEN qr.rule_type = 'freshness' THEN 1 END) as freshness_violations
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN uploaded_files uf ON qrv.file_id = uf.id
+      LEFT JOIN files uf ON qrv.file_id = uf.file_id
       LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       WHERE 1=1 ${projectFilter}
@@ -422,7 +422,7 @@ router.get('/statistics', async (req, res) => {
         COUNT(CASE WHEN fe.severity = 'error' THEN 1 END) as error_file_errors,
         COUNT(CASE WHEN fe.severity = 'warning' THEN 1 END) as warning_file_errors
       FROM file_errors fe
-      INNER JOIN uploaded_files uf ON fe.file_id = uf.id
+      INNER JOIN files uf ON fe.file_id = uf.file_id
       LEFT JOIN projects p ON uf.project_id = p.id
       WHERE 1=1 ${projectFilter}
     `;
