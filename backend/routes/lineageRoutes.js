@@ -321,48 +321,35 @@ router.get('/', async (req, res) => {
       LIMIT 100
     `);
     
-    // Transform the results to include proper source/target metadata from connections
+    // Transform the results to include proper source/target metadata
+    // Priority: transformation_lineage fields > connection config > transformation_mappings
     const transformedRows = result.rows.map(row => {
-      // Determine source metadata based on whether it's a vendor agreement
-      const isVendorSource = !!row.vendor_agreement_id;
-      
-      let sourceOwner, sourcePath, sourceFileType, agreementName;
-      
-      if (isVendorSource) {
-        // Vendor agreement source: use vendor contact and drop location
-        sourceOwner = row.vendor_contact_name || row.vendor_contact_email || null;
-        sourcePath = row.vendor_drop_path || null;
-        agreementName = row.vendor_agreement_code || null;
-        // Infer type from pattern or use mapping default
-        sourceFileType = inferFileTypeFromPattern(row.source_file_pattern) || null;
-      } else {
-        // Regular connection source: extract from connection config with fallbacks
-        const sourceConfig = row.source_connection_config || {};
-        sourceOwner = sourceConfig.owner || row.source_owner || null;
+      // Source metadata: prioritize lineage table's direct fields
+      const sourceOwner = row.source_owner || 
+        (row.source_connection_config && row.source_connection_config.owner) ||
+        (row.vendor_agreement_id ? (row.vendor_contact_name || row.vendor_contact_email) : null);
         
-        // Fallback path extraction: config.path -> extract from pattern
-        sourcePath = sourceConfig.path;
-        if (!sourcePath && row.source_file_pattern) {
-          const lastSlash = row.source_file_pattern.lastIndexOf('/');
-          sourcePath = lastSlash !== -1 ? row.source_file_pattern.substring(0, lastSlash) : null;
-        }
-        
-        sourceFileType = sourceConfig.file_type || inferFileTypeFromPattern(row.source_file_pattern) || null;
-        agreementName = null;
-      }
+      const sourcePath = row.source_path ||
+        (row.source_connection_config && row.source_connection_config.path) ||
+        (row.vendor_agreement_id ? row.vendor_drop_path : null) ||
+        (row.source_file_pattern ? row.source_file_pattern.substring(0, row.source_file_pattern.lastIndexOf('/')) : null);
       
-      // Target metadata: extract from target connection config with fallbacks
-      const targetConfig = row.target_connection_config || {};
-      const targetOwner = targetConfig.owner || row.target_owner || null;
+      const agreementName = row.source_agreement_name || row.vendor_agreement_code || null;
       
-      // Fallback path extraction: config.path -> mapping target_file_path
-      const targetPath = targetConfig.path || row.target_file_path || null;
+      const sourceFileType = (row.source_connection_config && row.source_connection_config.file_type) ||
+        inferFileTypeFromPattern(row.source_file_pattern) || null;
       
-      // File type fallback: mapping format -> config.file_type -> infer from filename
-      const targetFileType = row.target_file_format 
-        || targetConfig.file_type 
-        || inferFileTypeFromPattern(row.target_file_name) 
-        || null;
+      // Target metadata: prioritize lineage table's direct fields
+      const targetOwner = row.target_owner ||
+        (row.target_connection_config && row.target_connection_config.owner) || null;
+      
+      const targetPath = row.target_path ||
+        (row.target_connection_config && row.target_connection_config.path) ||
+        row.target_file_path || null;
+      
+      const targetFileType = row.target_file_format ||
+        (row.target_connection_config && row.target_connection_config.file_type) ||
+        inferFileTypeFromPattern(row.target_file_name) || null;
       
       return {
         ...row,
