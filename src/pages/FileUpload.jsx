@@ -290,15 +290,11 @@ function FileUpload() {
       // Store all file patterns from the agreement
       setAgreementFilePatterns(agreement.fileSchemas);
       
-      // Auto-select first pattern by default if no file is uploaded yet
-      const firstSchema = agreement.fileSchemas[0];
-      setSelectedFilePattern(firstSchema.id);
-      setSelectedAgreementSchema(firstSchema);
-      
-      // Auto-populate quality rules from the first schema
-      if (firstSchema.quality_rule_ids && Array.isArray(firstSchema.quality_rule_ids)) {
-        setSelectedQualityRules(firstSchema.quality_rule_ids);
-      }
+      // Reset selection to null - user must choose pattern manually
+      setSelectedFilePattern(null);
+      setSelectedAgreementSchema(null);
+      setSelectedQualityRules([]);
+      setAutoMatchedPattern(null);
     }
   }, [selectedAgreement, vendorAgreements]);
   
@@ -1463,14 +1459,25 @@ function FileUpload() {
                       id="file-pattern-select"
                       value={selectedFilePattern || ''}
                       onChange={(e) => {
-                        const patternId = parseInt(e.target.value);
-                        const pattern = agreementFilePatterns.find(p => p.id === patternId);
+                        const patternId = e.target.value ? parseInt(e.target.value) : null;
                         setSelectedFilePattern(patternId);
-                        if (pattern) {
-                          setSelectedAgreementSchema(pattern);
-                          if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
-                            setSelectedQualityRules(pattern.quality_rule_ids);
+                        
+                        // Clear auto-match state when user manually changes selection
+                        setAutoMatchedPattern(null);
+                        
+                        if (patternId) {
+                          const pattern = agreementFilePatterns.find(p => p.id === patternId);
+                          if (pattern) {
+                            setSelectedAgreementSchema(pattern);
+                            if (pattern.quality_rule_ids && Array.isArray(pattern.quality_rule_ids)) {
+                              setSelectedQualityRules(pattern.quality_rule_ids);
+                            } else {
+                              setSelectedQualityRules([]);
+                            }
                           }
+                        } else {
+                          setSelectedAgreementSchema(null);
+                          setSelectedQualityRules([]);
                         }
                       }}
                       style={{
@@ -1482,6 +1489,7 @@ function FileUpload() {
                         background: autoMatchedPattern ? '#e8f5e9' : '#fff'
                       }}
                     >
+                      <option value="">Select a file name pattern...</option>
                       {agreementFilePatterns.map(pattern => (
                         <option key={pattern.id} value={pattern.id}>
                           {pattern.file_name_pattern}
