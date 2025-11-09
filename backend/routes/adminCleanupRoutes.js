@@ -168,6 +168,20 @@ router.get('/counts', async (req, res) => {
       user_dashboard_settings: parseInt(userDashboardCount.rows[0].count)
     };
     
+    // Data Violations category
+    const violationsCount = await pool.query('SELECT COUNT(*) FROM quality_rule_violations');
+    
+    counts.violations = {
+      quality_rule_violations: parseInt(violationsCount.rows[0].count)
+    };
+    
+    // Data Lineage category
+    const lineageCount = await pool.query('SELECT COUNT(*) FROM transformation_lineage');
+    
+    counts.lineage = {
+      transformation_lineage: parseInt(lineageCount.rows[0].count)
+    };
+    
     res.json({ counts });
   } catch (error) {
     console.error('Error fetching cleanup counts:', error);
@@ -202,7 +216,7 @@ router.post('/', async (req, res) => {
     });
   }
   
-  const validCategories = ['files', 'transformations', 'workflows', 'governance', 'audits', 'projects', 'connections', 'groups', 'vendors', 'dbt', 'activity'];
+  const validCategories = ['files', 'transformations', 'workflows', 'governance', 'audits', 'projects', 'connections', 'groups', 'vendors', 'dbt', 'activity', 'violations', 'lineage'];
   const invalidCategories = categories.filter(c => !validCategories.includes(c));
   
   if (invalidCategories.length > 0) {
@@ -486,6 +500,24 @@ router.post('/', async (req, res) => {
         user_sessions: userSessionsResult.rowCount,
         user_badges: userBadgesResult.rowCount,
         user_dashboard_settings: userDashboardResult.rowCount
+      };
+    }
+    
+    // Delete Data Violations
+    if (categories.includes('violations')) {
+      const violationsResult = await client.query('DELETE FROM quality_rule_violations RETURNING id');
+      
+      deletedCounts.violations = {
+        quality_rule_violations: violationsResult.rowCount
+      };
+    }
+    
+    // Delete Data Lineage
+    if (categories.includes('lineage')) {
+      const lineageResult = await client.query('DELETE FROM transformation_lineage RETURNING id');
+      
+      deletedCounts.lineage = {
+        transformation_lineage: lineageResult.rowCount
       };
     }
     

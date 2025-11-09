@@ -732,14 +732,17 @@ router.post('/bulk-delete', async (req, res) => {
   try {
     // Check for required permissions
     const userPermissions = req.user?.permissions || [];
-    const hasPermission = userPermissions.includes('quality:write') || 
-                         userPermissions.includes('violations:delete') ||
-                         userPermissions.includes('admin');
+    const userRoles = req.user?.roles || [];
+    const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
+    
+    const hasPermission = isAdmin || 
+                         userPermissions.includes('quality:write') || 
+                         userPermissions.includes('violations:delete');
     
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
-        error: 'Insufficient permissions. You need quality:write or violations:delete permission to delete violations.'
+        error: 'Insufficient permissions. You need admin role, quality:write, or violations:delete permission to delete violations.'
       });
     }
     

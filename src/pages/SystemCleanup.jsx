@@ -67,6 +67,16 @@ const SystemCleanup = () => {
       name: 'Notifications & User Activity',
       description: 'All notifications, user sessions, badges, and dashboard settings',
       tables: ['notifications', 'user_sessions', 'user_badges', 'user_dashboard_settings']
+    },
+    violations: {
+      name: 'Data Violations',
+      description: 'All quality rule violations detected during file uploads and transformation jobs',
+      tables: ['quality_rule_violations']
+    },
+    lineage: {
+      name: 'Data Lineage',
+      description: 'All data lineage records tracking file transformations and data flow',
+      tables: ['transformation_lineage']
     }
   };
 
