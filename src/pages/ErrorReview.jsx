@@ -4,7 +4,7 @@ import { getViolations, getFileErrors, getMappingErrors, getErrorStatistics, upd
 import { getProjects } from '../api/qualityRulesService';
 import '../styles/ErrorReview.css';
 
-const ErrorReview = () => {
+const ErrorRecords = () => {
   const [activeTab, setActiveTab] = useState('violations');
   const [violations, setViolations] = useState([]);
   const [fileErrors, setFileErrors] = useState([]);
@@ -626,7 +626,7 @@ const ErrorReview = () => {
     <div className="error-review-container">
       <div className="error-review-header">
         <div>
-          <h1>Error Review</h1>
+          <h1>Error Records</h1>
           <p>Monitor and manage data quality violations and errors</p>
         </div>
         <div className="header-actions">
@@ -699,4 +699,4 @@ const ErrorReview = () => {
   );
 };
 
-export default ErrorReview;
+export default ErrorRecords;

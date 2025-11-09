@@ -3289,7 +3289,7 @@ try {
   console.error('✗ Failed to register /api/quality-rules:', error.message);
 }
 
-// Error Review routes
+// Error Records routes
 try {
   const errorReviewRoutes = require('./backend/routes/errorReview');
   app.use('/api/error-review', authenticateToken, errorReviewRoutes);

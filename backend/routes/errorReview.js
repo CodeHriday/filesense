@@ -2,6 +2,19 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+/**
+ * Helper function to validate and parse project_id from query params
+ * @param {string|number} projectId - The project ID from query params
+ * @returns {number|null} - Validated integer project ID or null if invalid
+ */
+function parseProjectId(projectId) {
+  if (!projectId || (typeof projectId === 'string' && projectId.trim() === '')) {
+    return null;
+  }
+  const parsed = parseInt(projectId, 10);
+  return (Number.isInteger(parsed) && parsed > 0) ? parsed : null;
+}
+
 router.get('/violations', async (req, res) => {
   try {
     const {
@@ -35,9 +48,10 @@ router.get('/violations', async (req, res) => {
       params.push(userId);
     }
 
-    if (project_id) {
+    const validProjectId = parseProjectId(project_id);
+    if (validProjectId) {
       whereConditions.push(`p.id = $${++paramCount}`);
-      params.push(project_id);
+      params.push(validProjectId);
     }
 
     if (rule_type) {
@@ -162,9 +176,10 @@ router.get('/file-errors', async (req, res) => {
       params.push(userId);
     }
 
-    if (project_id) {
+    const validProjectId = parseProjectId(project_id);
+    if (validProjectId) {
       whereConditions.push(`p.id = $${++paramCount}`);
-      params.push(project_id);
+      params.push(validProjectId);
     }
 
     if (error_type && error_type !== 'all') {
@@ -273,9 +288,10 @@ router.get('/mapping-errors', async (req, res) => {
       params.push(userId);
     }
 
-    if (project_id) {
+    const validProjectId = parseProjectId(project_id);
+    if (validProjectId) {
       whereConditions.push(`p.id = $${++paramCount}`);
-      params.push(project_id);
+      params.push(validProjectId);
     }
 
     if (error_type && error_type !== 'all') {
@@ -371,9 +387,11 @@ router.get('/statistics', async (req, res) => {
       params.push(userId);
     }
 
-    if (project_id) {
+    // Validate and parse project_id using helper function
+    const validProjectId = parseProjectId(project_id);
+    if (validProjectId) {
       projectFilter += ` AND p.id = $${params.length + 1}`;
-      params.push(project_id);
+      params.push(validProjectId);
     }
 
     const violationsQuery = `
