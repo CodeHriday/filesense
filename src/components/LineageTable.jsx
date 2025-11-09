@@ -49,24 +49,24 @@ function LineageTable({ lineages }) {
   const getDisplayFileType = (lineage, isSource) => {
     if (lineage.type === 'transformation') {
       if (isSource) {
-        // For source: use source_file_type from lineage, or infer from pattern
-        if (lineage.source_file_type) return lineage.source_file_type.toUpperCase();
+        // For source: extract from source_pattern or source_file_pattern
         const pattern = lineage.source_pattern || lineage.source_file_pattern;
         const inferredType = getFileTypeFromFilename(pattern);
-        return inferredType || 'PATTERN';
+        return inferredType || getFileTypeFromFilename(lineage.source_filename) || 'N/A';
       } else {
-        // For target: use target_file_type, target_file_format, or infer from pattern
-        if (lineage.target_file_type) return lineage.target_file_type.toUpperCase();
+        // For target: use target_file_format or extract from pattern
         if (lineage.target_file_format) return lineage.target_file_format.toUpperCase();
         const pattern = lineage.target_pattern || lineage.target_file_name;
         const inferredType = getFileTypeFromFilename(pattern);
-        return inferredType || 'PATTERN';
+        return inferredType || getFileTypeFromFilename(lineage.target_filename) || 'N/A';
       }
     } else {
-      // Manual lineage - use the file_type directly
-      return isSource 
-        ? (lineage.source_file_type?.toUpperCase() || 'N/A')
-        : (lineage.target_file_type?.toUpperCase() || 'N/A');
+      // Manual lineage - use the file_type or extract from filename
+      if (isSource) {
+        return lineage.source_file_type?.toUpperCase() || getFileTypeFromFilename(lineage.source_filename) || 'N/A';
+      } else {
+        return lineage.target_file_type?.toUpperCase() || getFileTypeFromFilename(lineage.target_filename) || 'N/A';
+      }
     }
   };
 
@@ -85,10 +85,13 @@ function LineageTable({ lineages }) {
           <thead>
             <tr>
               <th>Source File</th>
+              <th>Type</th>
               <th></th>
               <th>Target File</th>
-              <th>Transformation</th>
+              <th>Type</th>
               <th>Owner</th>
+              <th>Contract ID</th>
+              <th>Transformation Job</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
@@ -97,85 +100,40 @@ function LineageTable({ lineages }) {
             {allLineage.map((lineage, index) => (
               <tr key={`${lineage.type}-${lineage.id}-${index}`}>
                 <td className="source-cell">
-                  <div className="file-info">
-                    <div className="file-name">
-                      {lineage.type === 'transformation' 
-                        ? (lineage.source_pattern || lineage.source_file_pattern || lineage.source_filename)
-                        : lineage.source_filename}
-                    </div>
-                    <div className="file-meta">
-                      {getDisplayFileType(lineage, true)}
-                      {lineage.source_owner && (
-                        <span className="owner-badge" title="Source Owner">
-                          {' • '}{lineage.source_owner}
-                        </span>
-                      )}
-                      {lineage.source_agreement_name && (
-                        <span className="contract-badge" title={`Contract: ${lineage.source_agreement_name}${lineage.source_vendor_name ? ` (${lineage.source_vendor_name})` : ''}`}>
-                          {' • '}{lineage.source_agreement_name}
-                        </span>
-                      )}
-                    </div>
+                  <div className="file-name-compact">
+                    {lineage.type === 'transformation' 
+                      ? (lineage.source_pattern || lineage.source_file_pattern || lineage.source_filename)
+                      : lineage.source_filename}
                   </div>
+                </td>
+                <td className="type-cell">
+                  {getDisplayFileType(lineage, true)}
                 </td>
                 <td className="arrow-cell">
                   <FiArrowRight className="flow-arrow" />
                 </td>
                 <td className="target-cell">
-                  <div className="file-info">
-                    <div className="file-name">
-                      {lineage.type === 'transformation' 
-                        ? (lineage.target_pattern || lineage.target_file_name || lineage.target_filename)
-                        : lineage.target_filename}
-                    </div>
-                    <div className="file-meta">
-                      {getDisplayFileType(lineage, false)}
-                      {lineage.target_owner && (
-                        <span className="owner-badge" title="Target Owner">
-                          {' • '}{lineage.target_owner}
-                        </span>
-                      )}
-                      {lineage.target_agreement_name && (
-                        <span className="contract-badge" title={`Contract: ${lineage.target_agreement_name}${lineage.target_vendor_name ? ` (${lineage.target_vendor_name})` : ''}`}>
-                          {' • '}{lineage.target_agreement_name}
-                        </span>
-                      )}
-                      {lineage.type === 'transformation' && lineage.agreement_name && (
-                        <span className="contract-badge" title={`Contract: ${lineage.agreement_name}${lineage.vendor_name ? ` (${lineage.vendor_name})` : ''}`}>
-                          {' • '}{lineage.agreement_name}
-                        </span>
-                      )}
-                    </div>
+                  <div className="file-name-compact">
+                    {lineage.type === 'transformation' 
+                      ? (lineage.target_pattern || lineage.target_file_name || lineage.target_filename)
+                      : lineage.target_filename}
                   </div>
                 </td>
-                <td className="transformation-cell">
-                  {lineage.type === 'transformation' ? (
-                    <div className="transformation-badge">
-                      <FiGitMerge />
-                      <span>{lineage.mapping_name || 'ETL Transform'}</span>
-                    </div>
-                  ) : (
-                    <span className="no-transformation">Direct</span>
-                  )}
+                <td className="type-cell">
+                  {getDisplayFileType(lineage, false)}
                 </td>
                 <td className="owner-cell">
-                  <div className="owner-info">
-                    {lineage.source_owner && (
-                      <div className="owner-item" title="Source Owner">
-                        <span className="owner-label">Src:</span>
-                        <span className="owner-value">{lineage.source_owner}</span>
-                      </div>
-                    )}
-                    {lineage.target_owner && (
-                      <div className="owner-item" title="Target Owner">
-                        <span className="owner-label">Tgt:</span>
-                        <span className="owner-value">{lineage.target_owner}</span>
-                      </div>
-                    )}
-                    {!lineage.source_owner && !lineage.target_owner && (
-                      <span className="no-owner">N/A</span>
-                    )}
-                  </div>
+                  {lineage.source_owner || lineage.target_owner || '-'}
+                </td>
+                <td className="contract-cell">
+                  {lineage.agreement_name || lineage.source_agreement_name || lineage.target_agreement_name || '-'}
+                </td>
+                <td className="job-cell">
+                  {lineage.type === 'transformation' ? (
+                    lineage.mapping_name || 'ETL Transform'
+                  ) : (
+                    '-'
+                  )}
                 </td>
                 <td className="date-cell">{formatDate(lineage.created_at)}</td>
                 <td className="actions-cell">

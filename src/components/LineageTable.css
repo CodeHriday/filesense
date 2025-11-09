@@ -3,12 +3,14 @@
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-width: 100%;
 }
 
 .lineage-table {
-  width: 100%;
+  width: auto;
   border-collapse: collapse;
-  min-width: 800px;
+  min-width: 900px;
+  font-size: 0.75rem;
 }
 
 .lineage-table thead {
@@ -17,12 +19,13 @@
 }
 
 .lineage-table th {
-  padding: 16px;
+  padding: 8px 10px;
   text-align: left;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
 .lineage-table tbody tr {
@@ -39,136 +42,90 @@
 }
 
 .lineage-table td {
-  padding: 16px;
+  padding: 8px 10px;
   text-align: left;
+  font-size: 0.75rem;
 }
 
 .source-cell,
 .target-cell {
-  min-width: 200px;
+  max-width: 250px;
+  min-width: 150px;
 }
 
-.file-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.file-name {
+.file-name-compact {
   font-weight: 500;
   color: #1f2937;
   word-break: break-word;
+  font-size: 0.75rem;
+  line-height: 1.3;
 }
 
-.file-meta {
-  font-size: 0.75rem;
-  color: #6b7280;
+.type-cell {
   font-weight: 600;
+  color: #4b5563;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  min-width: 50px;
 }
 
 .arrow-cell {
-  width: 40px;
+  width: 30px;
   text-align: center !important;
+  padding: 4px !important;
 }
 
 .flow-arrow {
   color: #9ca3af;
-  font-size: 20px;
-}
-
-.transformation-cell {
-  min-width: 180px;
-}
-
-.transformation-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 20px;
-  font-size: 0.813rem;
-  font-weight: 500;
-}
-
-.transformation-badge svg {
-  font-size: 14px;
-}
-
-.no-transformation {
-  color: #9ca3af;
-  font-size: 0.875rem;
-  font-style: italic;
+  font-size: 16px;
 }
 
 .owner-cell {
-  min-width: 150px;
-}
-
-.owner-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.owner-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.813rem;
-}
-
-.owner-label {
-  color: #6b7280;
-  font-weight: 600;
+  min-width: 80px;
+  max-width: 120px;
+  color: #374151;
   font-size: 0.75rem;
 }
 
-.owner-value {
-  color: #1f2937;
-  font-weight: 500;
-}
-
-.owner-badge {
-  color: #6366f1;
-  font-weight: 500;
-  font-size: 0.75rem;
-}
-
-.contract-badge {
+.contract-cell {
+  min-width: 100px;
+  max-width: 150px;
   color: #059669;
   font-weight: 500;
   font-size: 0.75rem;
 }
 
-.no-owner {
-  color: #9ca3af;
-  font-size: 0.875rem;
-  font-style: italic;
+.job-cell {
+  min-width: 120px;
+  max-width: 180px;
+  color: #4f46e5;
+  font-weight: 500;
+  font-size: 0.75rem;
 }
 
 .date-cell {
   color: #6b7280;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   white-space: nowrap;
+  min-width: 100px;
 }
 
 .actions-cell {
   text-align: center !important;
-  width: 120px;
+  width: 70px;
+  padding: 4px !important;
 }
 
 .view-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 4px;
+  padding: 4px 8px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -176,7 +133,7 @@
 
 .view-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
 .view-btn:active {
@@ -184,7 +141,7 @@
 }
 
 .view-btn svg {
-  font-size: 16px;
+  font-size: 12px;
 }
 
 .empty-lineage-message {
@@ -199,21 +156,20 @@
 /* Responsive design */
 @media (max-width: 1024px) {
   .lineage-table {
-    font-size: 0.875rem;
+    font-size: 0.7rem;
   }
 
   .lineage-table th,
   .lineage-table td {
-    padding: 12px;
-  }
-
-  .transformation-badge {
-    font-size: 0.75rem;
-    padding: 4px 10px;
+    padding: 6px 8px;
   }
 
   .view-btn {
-    padding: 6px 12px;
-    font-size: 0.813rem;
+    padding: 4px 6px;
+    font-size: 0.65rem;
+  }
+  
+  .file-name-compact {
+    font-size: 0.7rem;
   }
 }
