@@ -4,8 +4,6 @@ const db = require('../db');
 
 /**
  * Helper function to validate and parse project_id from query params
- * @param {string|number} projectId - The project ID from query params
- * @returns {number|null} - Validated integer project ID or null if invalid
  */
 function parseProjectId(projectId) {
   if (!projectId || (typeof projectId === 'string' && projectId.trim() === '')) {
@@ -15,7 +13,11 @@ function parseProjectId(projectId) {
   return (Number.isInteger(parsed) && parsed > 0) ? parsed : null;
 }
 
-router.get('/violations', async (req, res) => {
+/**
+ * GET /file-upload-violations
+ * Fetch violations from direct file uploads (not from mapping jobs)
+ */
+router.get('/file-upload-violations', async (req, res) => {
   try {
     const {
       project_id,
@@ -28,13 +30,14 @@ router.get('/violations', async (req, res) => {
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    const userId = parseInt(req.user.id);  // Ensure userId is an integer
+    const userId = parseInt(req.user.id);
     const isAdmin = req.user.role === 'admin';
 
-    let whereConditions = [];
+    let whereConditions = ['(qrv.job_id IS NULL OR qrv.job_id = \'\')'];
     let params = [];
     let paramCount = 0;
 
+    // Access control - only show violations from projects user has access to
     if (!isAdmin) {
       whereConditions.push(`(
         p.id IN (
@@ -54,7 +57,7 @@ router.get('/violations', async (req, res) => {
       params.push(validProjectId);
     }
 
-    if (rule_type) {
+    if (rule_type && rule_type !== 'all') {
       whereConditions.push(`qr.rule_type = $${++paramCount}`);
       params.push(rule_type);
     }
@@ -72,25 +75,22 @@ router.get('/violations', async (req, res) => {
     if (search) {
       whereConditions.push(`(
         qr.rule_name ILIKE $${++paramCount} OR
-        qrv.column_name ILIKE $${paramCount} OR
+        f.filename ILIKE $${paramCount} OR
+        p.name ILIKE $${paramCount} OR
         qrv.violation_details::text ILIKE $${paramCount}
       )`);
       params.push(`%${search}%`);
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
     const countQuery = `
       SELECT COUNT(*) as total
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
-      LEFT JOIN transformation_mappings tm ON (
-        tj.mapping_id = tm.id OR 
-        (tj.mapping_id IS NULL AND qrv.job_id ~ '^[0-9]+$' AND qrv.job_id::integer = tm.id)
-      )
-      LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
+      INNER JOIN files f ON qrv.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
+      LEFT JOIN projects sp ON f.sub_project_id = sp.id
       ${whereClause}
     `;
 
@@ -99,7 +99,6 @@ router.get('/violations', async (req, res) => {
         qrv.id,
         qrv.rule_id,
         qrv.file_id,
-        qrv.job_id,
         qrv.row_number,
         qrv.column_name,
         qrv.expected_value,
@@ -107,46 +106,28 @@ router.get('/violations', async (req, res) => {
         qrv.violation_details,
         qrv.severity,
         qrv.status,
-        qrv.processing_action,
         qrv.record_snapshot,
-        qrv.updated_at,
-        qrv.resolved_by,
-        qrv.resolved_at,
-        qrv.resolution_notes,
         qrv.created_at,
         qr.rule_name,
         qr.rule_type,
         qr.description as rule_description,
-        uf.file_name,
-        uf.original_filename,
-        tm.mapping_name as job_name,
+        f.filename,
+        f.metadata as file_metadata,
         p.id as project_id,
-        p.project_name,
-        resolver.username as resolved_by_username
+        p.name as project_name,
+        sp.id as sub_project_id,
+        sp.name as sub_project_name
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
-      LEFT JOIN transformation_mappings tm ON (
-        tj.mapping_id = tm.id OR 
-        (tj.mapping_id IS NULL AND qrv.job_id ~ '^[0-9]+$' AND qrv.job_id::integer = tm.id)
-      )
-      LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
-      LEFT JOIN users resolver ON qrv.resolved_by = resolver.id
+      INNER JOIN files f ON qrv.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
+      LEFT JOIN projects sp ON f.sub_project_id = sp.id
       ${whereClause}
       ORDER BY qrv.created_at DESC
       LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
 
     params.push(parseInt(limit), offset);
-
-    // DEBUG: Log the exact SQL query and params
-    console.log('=== VIOLATIONS QUERY DEBUG ===');
-    console.log('Count Query:', countQuery);
-    console.log('Count Params:', params.slice(0, -2));
-    console.log('Data Query:', dataQuery);
-    console.log('Data Params:', params);
-    console.log('=============================');
 
     const [countResult, dataResult] = await Promise.all([
       db.query(countQuery, params.slice(0, -2)),
@@ -163,33 +144,39 @@ router.get('/violations', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching violations:', error);
-    res.status(500).json({ error: 'Failed to fetch violations' });
+    console.error('Error fetching file upload violations:', error);
+    res.status(500).json({ error: 'Failed to fetch file upload violations', details: error.message });
   }
 });
 
-router.get('/file-errors', async (req, res) => {
+/**
+ * GET /mapping-job-violations
+ * Fetch violations from ETL mapping jobs
+ */
+router.get('/mapping-job-violations', async (req, res) => {
   try {
     const {
       project_id,
-      error_type,
+      rule_type,
       severity,
+      status = 'all',
       page = 1,
       limit = 50,
       search = ''
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    const userId = parseInt(req.user.id);  // Ensure userId is an integer
+    const userId = parseInt(req.user.id);
     const isAdmin = req.user.role === 'admin';
 
-    let whereConditions = [];
+    let whereConditions = ['qrv.job_id IS NOT NULL', 'qrv.job_id != \'\''];
     let params = [];
     let paramCount = 0;
 
+    // Access control - only show violations from projects user has access to
     if (!isAdmin) {
       whereConditions.push(`(
-        p.id IN (
+        COALESCE(p.id, tj_p.id) IN (
           SELECT project_id FROM project_members WHERE user_id = $${++paramCount}::integer
           UNION
           SELECT pag.project_id FROM project_access_groups pag
@@ -202,296 +189,120 @@ router.get('/file-errors', async (req, res) => {
 
     const validProjectId = parseProjectId(project_id);
     if (validProjectId) {
-      whereConditions.push(`p.id = $${++paramCount}::integer`);
+      whereConditions.push(`COALESCE(p.id, tj_p.id) = $${++paramCount}::integer`);
       params.push(validProjectId);
     }
 
-    if (error_type && error_type !== 'all') {
-      whereConditions.push(`fe.error_type = $${++paramCount}`);
-      params.push(error_type);
+    if (rule_type && rule_type !== 'all') {
+      whereConditions.push(`qr.rule_type = $${++paramCount}`);
+      params.push(rule_type);
     }
 
     if (severity && severity !== 'all') {
-      whereConditions.push(`fe.severity = $${++paramCount}`);
+      whereConditions.push(`qrv.severity = $${++paramCount}`);
       params.push(severity);
+    }
+
+    if (status !== 'all') {
+      whereConditions.push(`qrv.status = $${++paramCount}`);
+      params.push(status);
     }
 
     if (search) {
       whereConditions.push(`(
-        uf.file_name ILIKE $${++paramCount} OR
-        uf.original_filename ILIKE $${paramCount} OR
-        fe.error_message ILIKE $${paramCount}
+        qr.rule_name ILIKE $${++paramCount} OR
+        tj.mapping_name ILIKE $${paramCount} OR
+        f.filename ILIKE $${paramCount} OR
+        p.name ILIKE $${paramCount} OR
+        tj_p.name ILIKE $${paramCount} OR
+        qrv.violation_details::text ILIKE $${paramCount}
       )`);
       params.push(`%${search}%`);
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM file_errors fe
-      INNER JOIN files uf ON fe.file_id = uf.file_id
-      LEFT JOIN projects p ON uf.project_id = p.id
-      ${whereClause}
-    `;
-
-    const dataQuery = `
-      SELECT 
-        fe.id,
-        fe.file_id,
-        fe.error_type,
-        fe.severity,
-        fe.row_number,
-        fe.column_name,
-        fe.error_message,
-        fe.error_details,
-        fe.status,
-        fe.processing_action,
-        fe.record_snapshot,
-        fe.updated_at,
-        fe.created_at,
-        uf.file_name,
-        uf.original_filename,
-        p.id as project_id,
-        p.project_name
-      FROM file_errors fe
-      INNER JOIN files uf ON fe.file_id = uf.file_id
-      LEFT JOIN projects p ON uf.project_id = p.id
-      ${whereClause}
-      ORDER BY fe.created_at DESC
-      LIMIT $${++paramCount} OFFSET $${++paramCount}
-    `;
-
-    params.push(parseInt(limit), offset);
-
-    const [countResult, dataResult] = await Promise.all([
-      db.query(countQuery, params.slice(0, -2)),
-      db.query(dataQuery, params)
-    ]);
-
-    res.json({
-      errors: dataResult.rows,
-      pagination: {
-        total: parseInt(countResult.rows[0].total),
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(countResult.rows[0].total / parseInt(limit))
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching file errors:', error);
-    res.status(500).json({ error: 'Failed to fetch file errors' });
-  }
-});
-
-router.get('/mapping-errors', async (req, res) => {
-  try {
-    const {
-      project_id,
-      error_type,
-      severity,
-      page = 1,
-      limit = 50,
-      search = ''
-    } = req.query;
-
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    const userId = parseInt(req.user.id);  // Ensure userId is an integer
-    const isAdmin = req.user.role === 'admin';
-
-    let whereConditions = [];
-    let params = [];
-    let paramCount = 0;
-
-    if (!isAdmin) {
-      whereConditions.push(`(
-        p.id IN (
-          SELECT project_id FROM project_members WHERE user_id = $${++paramCount}::integer
-          UNION
-          SELECT pag.project_id FROM project_access_groups pag
-          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
-          WHERE ug.user_id = $${paramCount}::integer
-        )
-      )`);
-      params.push(userId);
-    }
-
-    const validProjectId = parseProjectId(project_id);
-    if (validProjectId) {
-      whereConditions.push(`p.id = $${++paramCount}::integer`);
-      params.push(validProjectId);
-    }
-
-    if (error_type && error_type !== 'all') {
-      whereConditions.push(`me.error_type = $${++paramCount}`);
-      params.push(error_type);
-    }
-
-    if (severity && severity !== 'all') {
-      whereConditions.push(`me.severity = $${++paramCount}`);
-      params.push(severity);
-    }
-
-    if (search) {
-      whereConditions.push(`(
-        tm.mapping_name ILIKE $${++paramCount} OR
-        me.error_message ILIKE $${paramCount}
-      )`);
-      params.push(`%${search}%`);
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM mapping_job_errors me
-      INNER JOIN transformation_mappings tm ON me.mapping_id = tm.id::varchar
-      LEFT JOIN projects p ON tm.project_id = p.id
-      ${whereClause}
-    `;
-
-    const dataQuery = `
-      SELECT 
-        me.id,
-        me.job_id,
-        me.mapping_id,
-        me.error_type,
-        me.severity,
-        me.row_number,
-        me.column_name,
-        me.error_message,
-        me.error_details,
-        me.status,
-        me.processing_action,
-        me.record_snapshot,
-        me.updated_at,
-        me.created_at,
-        tm.mapping_name,
-        p.id as project_id,
-        p.project_name
-      FROM mapping_job_errors me
-      INNER JOIN transformation_mappings tm ON me.mapping_id = tm.id::varchar
-      LEFT JOIN projects p ON tm.project_id = p.id
-      ${whereClause}
-      ORDER BY me.created_at DESC
-      LIMIT $${++paramCount} OFFSET $${++paramCount}
-    `;
-
-    params.push(parseInt(limit), offset);
-
-    const [countResult, dataResult] = await Promise.all([
-      db.query(countQuery, params.slice(0, -2)),
-      db.query(dataQuery, params)
-    ]);
-
-    res.json({
-      errors: dataResult.rows,
-      pagination: {
-        total: parseInt(countResult.rows[0].total),
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(countResult.rows[0].total / parseInt(limit))
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching mapping errors:', error);
-    res.status(500).json({ error: 'Failed to fetch mapping errors' });
-  }
-});
-
-router.get('/statistics', async (req, res) => {
-  try {
-    const { project_id } = req.query;
-    const userId = req.user.id;
-    const isAdmin = req.user.role === 'admin';
-
-    let projectFilter = '';
-    let params = [];
-
-    if (!isAdmin) {
-      projectFilter = `AND p.id IN (
-        SELECT project_id FROM project_members WHERE user_id = $1
-        UNION
-        SELECT pag.project_id FROM project_access_groups pag
-        INNER JOIN user_groups ug ON pag.group_id = ug.group_id
-        WHERE ug.user_id = $1
-      )`;
-      params.push(userId);
-    }
-
-    // Validate and parse project_id using helper function
-    const validProjectId = parseProjectId(project_id);
-    if (validProjectId) {
-      projectFilter += ` AND p.id = $${params.length + 1}::integer`;
-      params.push(validProjectId);
-    }
-
-    const violationsQuery = `
-      SELECT 
-        COUNT(*) as total_violations,
-        COUNT(CASE WHEN qrv.severity = 'critical' THEN 1 END) as critical_violations,
-        COUNT(CASE WHEN qrv.severity = 'error' THEN 1 END) as error_violations,
-        COUNT(CASE WHEN qrv.severity = 'warning' THEN 1 END) as warning_violations,
-        COUNT(CASE WHEN qrv.status = 'new' THEN 1 END) as new_violations,
-        COUNT(CASE WHEN qrv.status = 'reviewed' THEN 1 END) as reviewed_violations,
-        COUNT(CASE WHEN qr.rule_type = 'completeness' THEN 1 END) as completeness_violations,
-        COUNT(CASE WHEN qr.rule_type = 'validity' THEN 1 END) as validity_violations,
-        COUNT(CASE WHEN qr.rule_type = 'consistency' THEN 1 END) as consistency_violations,
-        COUNT(CASE WHEN qr.rule_type = 'uniqueness' THEN 1 END) as uniqueness_violations,
-        COUNT(CASE WHEN qr.rule_type = 'freshness' THEN 1 END) as freshness_violations
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
-      LEFT JOIN files uf ON qrv.file_id = uf.file_id
+      LEFT JOIN files f ON qrv.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
+      LEFT JOIN projects sp ON f.sub_project_id = sp.id
       LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
-      LEFT JOIN transformation_mappings tm ON (
-        tj.mapping_id = tm.id OR 
-        (tj.mapping_id IS NULL AND qrv.job_id ~ '^[0-9]+$' AND qrv.job_id::integer = tm.id)
-      )
-      LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
-      WHERE 1=1 ${projectFilter}
+      LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
+      LEFT JOIN users exec_user ON tj.executed_by = exec_user.id
+      ${whereClause}
     `;
 
-    const fileErrorsQuery = `
+    const dataQuery = `
       SELECT 
-        COUNT(*) as total_file_errors,
-        COUNT(CASE WHEN fe.severity = 'critical' THEN 1 END) as critical_file_errors,
-        COUNT(CASE WHEN fe.severity = 'error' THEN 1 END) as error_file_errors,
-        COUNT(CASE WHEN fe.severity = 'warning' THEN 1 END) as warning_file_errors
-      FROM file_errors fe
-      INNER JOIN files uf ON fe.file_id = uf.file_id
-      LEFT JOIN projects p ON uf.project_id = p.id
-      WHERE 1=1 ${projectFilter}
+        qrv.id,
+        qrv.rule_id,
+        qrv.file_id,
+        qrv.job_id,
+        qrv.row_number,
+        qrv.column_name,
+        qrv.expected_value,
+        qrv.actual_value,
+        qrv.violation_details,
+        qrv.severity,
+        qrv.status,
+        qrv.record_snapshot,
+        qrv.created_at,
+        qr.rule_name,
+        qr.rule_type,
+        qr.description as rule_description,
+        f.filename,
+        f.metadata as file_metadata,
+        COALESCE(p.id, tj_p.id) as project_id,
+        COALESCE(p.name, tj_p.name) as project_name,
+        sp.id as sub_project_id,
+        sp.name as sub_project_name,
+        tj.mapping_name,
+        tj.job_id as transformation_job_id,
+        tj.start_time as job_start_time,
+        exec_user.username as executed_by_username,
+        exec_user.full_name as executed_by_fullname
+      FROM quality_rule_violations qrv
+      INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
+      LEFT JOIN files f ON qrv.file_id = f.file_id
+      LEFT JOIN projects p ON f.project_id = p.id
+      LEFT JOIN projects sp ON f.sub_project_id = sp.id
+      LEFT JOIN transformation_jobs tj ON qrv.job_id = tj.job_id
+      LEFT JOIN projects tj_p ON tj.project_id = tj_p.id
+      LEFT JOIN users exec_user ON tj.executed_by = exec_user.id
+      ${whereClause}
+      ORDER BY qrv.created_at DESC
+      LIMIT $${++paramCount} OFFSET $${++paramCount}
     `;
 
-    const mappingErrorsQuery = `
-      SELECT 
-        COUNT(*) as total_mapping_errors,
-        COUNT(CASE WHEN me.severity = 'critical' THEN 1 END) as critical_mapping_errors,
-        COUNT(CASE WHEN me.severity = 'error' THEN 1 END) as error_mapping_errors,
-        COUNT(CASE WHEN me.severity = 'warning' THEN 1 END) as warning_mapping_errors
-      FROM mapping_job_errors me
-      INNER JOIN transformation_mappings tm ON me.mapping_id = tm.id::varchar
-      LEFT JOIN projects p ON tm.project_id = p.id
-      WHERE 1=1 ${projectFilter}
-    `;
+    params.push(parseInt(limit), offset);
 
-    const [violationsResult, fileErrorsResult, mappingErrorsResult] = await Promise.all([
-      db.query(violationsQuery, params),
-      db.query(fileErrorsQuery, params),
-      db.query(mappingErrorsQuery, params)
+    const [countResult, dataResult] = await Promise.all([
+      db.query(countQuery, params.slice(0, -2)),
+      db.query(dataQuery, params)
     ]);
 
     res.json({
-      violations: violationsResult.rows[0],
-      file_errors: fileErrorsResult.rows[0],
-      mapping_errors: mappingErrorsResult.rows[0]
+      violations: dataResult.rows,
+      pagination: {
+        total: parseInt(countResult.rows[0].total),
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(countResult.rows[0].total / parseInt(limit))
+      }
     });
   } catch (error) {
-    console.error('Error fetching error statistics:', error);
-    res.status(500).json({ error: 'Failed to fetch error statistics' });
+    console.error('Error fetching mapping job violations:', error);
+    res.status(500).json({ error: 'Failed to fetch mapping job violations', details: error.message });
   }
 });
 
+/**
+ * PATCH /violations/:id/status
+ * Update violation status
+ */
 router.patch('/violations/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
@@ -502,7 +313,6 @@ router.patch('/violations/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
-    // If marking as resolved, capture resolver info
     let query;
     let params;
     if (status === 'resolved') {
@@ -536,6 +346,10 @@ router.patch('/violations/:id/status', async (req, res) => {
   }
 });
 
+/**
+ * POST /violations/bulk-update
+ * Bulk update violation status
+ */
 router.post('/violations/bulk-update', async (req, res) => {
   try {
     const { violation_ids, status } = req.body;

@@ -351,8 +351,37 @@ function ETLJobDetails() {
                   
                   <dt>Status</dt>
                   <dd>{getStatusBadge(job?.status)}</dd>
+                  
+                  <dt>Schema Validation</dt>
+                  <dd>
+                    {job?.schema_validation === 'Pass' && (
+                      <span className="status-badge status-success">
+                        <FiCheckCircle size={16} /> Pass
+                      </span>
+                    )}
+                    {job?.schema_validation === 'Fail' && (
+                      <span className="status-badge status-error">
+                        <FiXCircle size={16} /> Fail - Schema Drift Detected
+                      </span>
+                    )}
+                    {!job?.schema_validation && (
+                      <span className="status-badge status-warning">
+                        <FiAlertCircle size={16} /> Not Validated
+                      </span>
+                    )}
+                  </dd>
                 </dl>
               </Card>
+
+              {job?.schema_validation === 'Fail' && (
+                <Card className="error-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+                  <h3><FiAlertTriangle /> Schema Drift Detected</h3>
+                  <p>
+                    The uploaded file schema does not match the expected schema. The file may contain extra columns 
+                    or be missing required columns. Check the logs for details about which fields differ.
+                  </p>
+                </Card>
+              )}
 
               {job?.error_message && (
                 <Card className="error-card">
