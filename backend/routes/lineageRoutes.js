@@ -279,6 +279,7 @@ router.get('/:fileId/pii-impact', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
+    console.error('===== LINEAGE API CALLED =====');
     const result = await pool.query(`
       SELECT 
         tl.*,
@@ -323,6 +324,18 @@ router.get('/', async (req, res) => {
       ORDER BY tl.created_at DESC
       LIMIT 100
     `);
+    
+    console.error('===== QUERY RESULT =====', {
+      rowCount: result.rows.length,
+      firstRow: result.rows[0] ? {
+        id: result.rows[0].id,
+        mapping_id: result.rows[0].mapping_id,
+        source_owner: result.rows[0].source_owner,
+        target_owner: result.rows[0].target_owner,
+        column_mappings_length: result.rows[0].column_mappings?.length,
+        field_mappings_length: result.rows[0].field_mappings?.length
+      } : null
+    });
     
     // Transform the results to include proper source/target metadata
     // Priority: transformation_lineage fields > connection config > transformation_mappings
