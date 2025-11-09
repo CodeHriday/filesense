@@ -69,13 +69,9 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
   const sourceInfo = extractPathAndFilename(sourceFullPath);
   const targetInfo = extractPathAndFilename(targetFullPath);
   
-  const displaySourceType = isTransformationLineage && source_file_pattern
-    ? 'PATTERN'
-    : source_file_type;
-  
-  const displayTargetType = isTransformationLineage
-    ? (target_file_format || (target_pattern ? 'PATTERN' : target_file_type))
-    : target_file_type;
+  // Backend query now extracts actual file types from matched files, so use them directly
+  const displaySourceType = source_file_type;
+  const displayTargetType = target_file_type;
 
   const formatBytes = (bytes) => {
     if (!bytes) return 'N/A';
