@@ -23,8 +23,11 @@ export const getErrorStatistics = async (projectId = null) => {
   return response.data;
 };
 
-export const updateViolationStatus = async (violationId, status) => {
-  const response = await axios.patch(`${API_BASE_URL}/violations/${violationId}/status`, { status });
+export const updateViolationStatus = async (violationId, status, resolution_notes = null) => {
+  const response = await axios.patch(`${API_BASE_URL}/violations/${violationId}/status`, { 
+    status,
+    resolution_notes 
+  });
   return response.data;
 };
 

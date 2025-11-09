@@ -16,6 +16,11 @@ const ErrorRecords = () => {
   
   const [selectedViolations, setSelectedViolations] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showSnapshotModal, setShowSnapshotModal] = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState(null);
+  const [showResolutionModal, setShowResolutionModal] = useState(false);
+  const [resolutionTarget, setResolutionTarget] = useState(null);
+  const [resolutionNotes, setResolutionNotes] = useState('');
   
   const [filters, setFilters] = useState({
     project_id: '',
@@ -103,6 +108,13 @@ const ErrorRecords = () => {
   };
 
   const handleStatusUpdate = async (violationId, newStatus) => {
+    // If marking as resolved, show modal for resolution notes
+    if (newStatus === 'resolved') {
+      setResolutionTarget({ id: violationId, status: newStatus });
+      setShowResolutionModal(true);
+      return;
+    }
+    
     try {
       await updateViolationStatus(violationId, newStatus);
       await fetchData();
@@ -110,6 +122,26 @@ const ErrorRecords = () => {
       console.error('Error updating status:', err);
       setError('Failed to update violation status.');
     }
+  };
+
+  const handleResolutionSubmit = async () => {
+    if (!resolutionTarget) return;
+    
+    try {
+      await updateViolationStatus(resolutionTarget.id, resolutionTarget.status, resolutionNotes);
+      setShowResolutionModal(false);
+      setResolutionTarget(null);
+      setResolutionNotes('');
+      await fetchData();
+    } catch (err) {
+      console.error('Error updating status:', err);
+      setError('Failed to update violation status.');
+    }
+  };
+
+  const viewRecordSnapshot = (record) => {
+    setSelectedSnapshot(record);
+    setShowSnapshotModal(true);
   };
 
   const handleBulkStatusUpdate = async (newStatus) => {
@@ -228,6 +260,24 @@ const ErrorRecords = () => {
     };
     
     return <span className={statusClasses[status] || 'status-badge'}>{status}</span>;
+  };
+
+  const getProcessingActionBadge = (action) => {
+    if (!action) return null;
+    
+    const actionConfig = {
+      log_continue: { label: 'Continued', className: 'processing-action continue', icon: '✓' },
+      log_abort: { label: 'Aborted', className: 'processing-action abort', icon: '✗' }
+    };
+    
+    const config = actionConfig[action];
+    if (!config) return null;
+    
+    return (
+      <span className={config.className} title={`Processing ${config.label}`}>
+        {config.icon} {config.label}
+      </span>
+    );
   };
 
   const renderStatistics = () => {
@@ -430,9 +480,11 @@ const ErrorRecords = () => {
               <th>Expected</th>
               <th>Actual</th>
               <th>Status</th>
+              <th>Action</th>
               <th>File/Job</th>
               <th>Project</th>
               <th>Created</th>
+              <th>Details</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -454,9 +506,15 @@ const ErrorRecords = () => {
                 <td className="truncate">{violation.expected_value || '-'}</td>
                 <td className="truncate">{violation.actual_value || '-'}</td>
                 <td>{getStatusBadge(violation.status)}</td>
+                <td>{getProcessingActionBadge(violation.processing_action)}</td>
                 <td className="truncate">{violation.file_name || violation.job_name || '-'}</td>
                 <td>{violation.project_name || '-'}</td>
                 <td>{new Date(violation.created_at).toLocaleDateString()}</td>
+                <td>
+                  {violation.record_snapshot && (
+                    <button onClick={() => viewRecordSnapshot(violation.record_snapshot)} className="btn-sm">View</button>
+                  )}
+                </td>
                 <td>
                   <select
                     value={violation.status}
@@ -694,6 +752,54 @@ const ErrorRecords = () => {
           {activeTab === 'mapping-errors' && renderMappingErrorsTable()}
           {renderPagination()}
         </>
+      )}
+
+      {showResolutionModal && (
+        <div className="modal-overlay" onClick={() => setShowResolutionModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Mark as Resolved</h2>
+              <button className="modal-close" onClick={() => setShowResolutionModal(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>Please provide a reason for marking this violation as resolved:</p>
+              <textarea
+                value={resolutionNotes}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                placeholder="Enter resolution notes..."
+                rows={4}
+                className="resolution-textarea"
+              />
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowResolutionModal(false)} className="btn-secondary">Cancel</button>
+              <button onClick={handleResolutionSubmit} className="btn-primary">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSnapshotModal && (
+        <div className="modal-overlay" onClick={() => setShowSnapshotModal(false)}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Record Snapshot</h2>
+              <button className="modal-close" onClick={() => setShowSnapshotModal(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              <pre className="json-viewer">
+                {JSON.stringify(selectedSnapshot, null, 2)}
+              </pre>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowSnapshotModal(false)} className="btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

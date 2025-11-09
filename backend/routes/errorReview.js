@@ -103,6 +103,12 @@ router.get('/violations', async (req, res) => {
         qrv.violation_details,
         qrv.severity,
         qrv.status,
+        qrv.processing_action,
+        qrv.record_snapshot,
+        qrv.updated_at,
+        qrv.resolved_by,
+        qrv.resolved_at,
+        qrv.resolution_notes,
         qrv.created_at,
         qr.rule_name,
         qr.rule_type,
@@ -111,12 +117,14 @@ router.get('/violations', async (req, res) => {
         uf.original_filename,
         tm.mapping_name as job_name,
         p.id as project_id,
-        p.project_name
+        p.project_name,
+        resolver.username as resolved_by_username
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files uf ON qrv.file_id = uf.file_id
       LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
+      LEFT JOIN users resolver ON qrv.resolved_by = resolver.id
       ${whereClause}
       ORDER BY qrv.created_at DESC
       LIMIT $${++paramCount} OFFSET $${++paramCount}
@@ -221,6 +229,10 @@ router.get('/file-errors', async (req, res) => {
         fe.column_name,
         fe.error_message,
         fe.error_details,
+        fe.status,
+        fe.processing_action,
+        fe.record_snapshot,
+        fe.updated_at,
         fe.created_at,
         uf.file_name,
         uf.original_filename,
@@ -333,6 +345,10 @@ router.get('/mapping-errors', async (req, res) => {
         me.column_name,
         me.error_message,
         me.error_details,
+        me.status,
+        me.processing_action,
+        me.record_snapshot,
+        me.updated_at,
         me.created_at,
         tm.mapping_name,
         p.id as project_id,
@@ -459,19 +475,35 @@ router.get('/statistics', async (req, res) => {
 router.patch('/violations/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, resolution_notes } = req.body;
+    const userId = req.user?.id;
 
     if (!['new', 'reviewed', 'acknowledged', 'resolved'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
-    const result = await db.query(
-      `UPDATE quality_rule_violations 
-       SET status = $1, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $2 
-       RETURNING *`,
-      [status, id]
-    );
+    // If marking as resolved, capture resolver info
+    let query;
+    let params;
+    if (status === 'resolved') {
+      query = `UPDATE quality_rule_violations 
+               SET status = $1, 
+                   resolution_notes = $2,
+                   resolved_by = $3,
+                   resolved_at = CURRENT_TIMESTAMP,
+                   updated_at = CURRENT_TIMESTAMP 
+               WHERE id = $4 
+               RETURNING *`;
+      params = [status, resolution_notes || null, userId, id];
+    } else {
+      query = `UPDATE quality_rule_violations 
+               SET status = $1, updated_at = CURRENT_TIMESTAMP 
+               WHERE id = $2 
+               RETURNING *`;
+      params = [status, id];
+    }
+
+    const result = await db.query(query, params);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Violation not found' });
