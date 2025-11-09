@@ -864,9 +864,9 @@
   color: #333;
 }
 
-.project-name {
+h3.project-name {
   margin: 0;
-  font-size: 0.65rem;
+  font-size: 0.65rem !important;
   font-weight: 600;
   color: #333;
   flex: 1;
