@@ -183,13 +183,13 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                 </div>
                 <div className="file-details">
                   <div className="file-stats">
-                    <span className="stat"><strong>Path:</strong> {transformationData.source_path || sourceInfo.path || '-'}</span>
+                    <span className="stat"><strong>Path:</strong> {sourceInfo.path || '-'}</span>
                     <span className="stat"><strong>Filename:</strong> {sourceInfo.filename || 'N/A'}</span>
                     <span className="stat"><strong>Type:</strong> {displaySourceType?.toUpperCase() || 'N/A'}</span>
-                    {transformationData.agreement_name && (
-                      <span className="stat"><strong>Agreement:</strong> {transformationData.agreement_name}</span>
+                    {agreement_name && (
+                      <span className="stat"><strong>Agreement:</strong> {agreement_name}</span>
                     )}
-                    <span className="stat"><strong>Owner:</strong> {transformationData.source_owner || source_owner || '-'}</span>
+                    <span className="stat"><strong>Owner:</strong> {source_owner || '-'}</span>
                   </div>
                 </div>
               </div>
@@ -205,10 +205,10 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                 </div>
                 <div className="file-details">
                   <div className="file-stats">
-                    <span className="stat"><strong>Path:</strong> {transformationData.target_path || targetInfo.path || '-'}</span>
+                    <span className="stat"><strong>Path:</strong> {targetInfo.path || '-'}</span>
                     <span className="stat"><strong>Filename:</strong> {targetInfo.filename || 'N/A'}</span>
                     <span className="stat"><strong>Type:</strong> {displayTargetType?.toUpperCase() || 'N/A'}</span>
-                    <span className="stat"><strong>Owner:</strong> {transformationData.target_owner || target_owner || '-'}</span>
+                    <span className="stat"><strong>Owner:</strong> {target_owner || '-'}</span>
                   </div>
                 </div>
               </div>
