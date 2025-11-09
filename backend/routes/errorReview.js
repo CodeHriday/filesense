@@ -132,6 +132,14 @@ router.get('/violations', async (req, res) => {
 
     params.push(parseInt(limit), offset);
 
+    // DEBUG: Log the exact SQL query and params
+    console.log('=== VIOLATIONS QUERY DEBUG ===');
+    console.log('Count Query:', countQuery);
+    console.log('Count Params:', params.slice(0, -2));
+    console.log('Data Query:', dataQuery);
+    console.log('Data Params:', params);
+    console.log('=============================');
+
     const [countResult, dataResult] = await Promise.all([
       db.query(countQuery, params.slice(0, -2)),
       db.query(dataQuery, params)
