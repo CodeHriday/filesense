@@ -49,3 +49,20 @@ export const bulkUpdateViolationStatus = async (violationIds, status) => {
   });
   return response.data;
 };
+
+/**
+ * Bulk delete multiple violation records
+ * @param {Array<number>} violationIds - Array of violation IDs to delete
+ * @returns {Promise<Object>} Response data with deletion summary
+ */
+export const bulkDeleteViolations = async (violationIds) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/bulk-delete`, {
+      violationIds
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error bulk deleting violations:', error);
+    throw error;
+  }
+};

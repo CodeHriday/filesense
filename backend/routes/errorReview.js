@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const xlsx = require('xlsx');
+const { systemLogger } = require('../utils/logger');
 
 /**
  * Helper function to validate and parse project_id from query params
@@ -718,6 +719,86 @@ router.get('/mapping-job-violations/download', async (req, res) => {
   } catch (error) {
     console.error('Error downloading mapping job violations:', error);
     res.status(500).json({ error: 'Failed to download violations' });
+  }
+});
+
+/**
+ * POST /bulk-delete
+ * Delete multiple quality rule violations at once
+ * Request body: { violationIds: [id1, id2, id3, ...] }
+ * Requires quality:write or violations:delete permission
+ */
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    // Check for required permissions
+    const userPermissions = req.user?.permissions || [];
+    const hasPermission = userPermissions.includes('quality:write') || 
+                         userPermissions.includes('violations:delete') ||
+                         userPermissions.includes('admin');
+    
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions. You need quality:write or violations:delete permission to delete violations.'
+      });
+    }
+    
+    const { violationIds } = req.body;
+    
+    // Validate input
+    if (!violationIds || !Array.isArray(violationIds) || violationIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No violation IDs provided. Please provide an array of violation IDs to delete.'
+      });
+    }
+    
+    // Validate and sanitize IDs - convert all to integers
+    const sanitizedIds = violationIds.map(id => {
+      const numId = Number(id);
+      if (isNaN(numId) || !Number.isInteger(numId) || numId <= 0) {
+        throw new Error(`Invalid violation ID: ${id}`);
+      }
+      return numId;
+    });
+    
+    // Delete the violation records with sanitized integer IDs
+    const result = await db.query(
+      'DELETE FROM quality_rule_violations WHERE id = ANY($1) RETURNING id',
+      [sanitizedIds]
+    );
+    
+    const deletedCount = result.rowCount;
+    const notFoundCount = violationIds.length - deletedCount;
+    
+    systemLogger.info('Bulk violation deletion completed', {
+      userId: req.user.id,
+      username: req.user.username,
+      requested: violationIds.length,
+      deleted: deletedCount,
+      notFound: notFoundCount,
+      violationIds: sanitizedIds
+    });
+    
+    res.json({
+      success: true,
+      message: `Successfully deleted ${deletedCount} violation record(s)`,
+      deleted: deletedCount,
+      notFound: notFoundCount,
+      total: violationIds.length
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error during bulk violation deletion', { 
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete violation records',
+      details: error.message
+    });
   }
 });
 

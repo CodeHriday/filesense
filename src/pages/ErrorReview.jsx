@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload, FiChevronRight } from 'react-icons/fi';
+import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload, FiChevronRight, FiTrash2 } from 'react-icons/fi';
 import { getProjects } from '../api/qualityRulesService';
+import { bulkDeleteViolations } from '../api/errorReviewService';
 import '../styles/ErrorReview.css';
 
 const API_BASE = '/api/error-review';
@@ -13,6 +14,8 @@ const ErrorReview = () => {
   const [error, setError] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [expandedProjects, setExpandedProjects] = useState(new Set());
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [showFilters, setShowFilters] = useState(false);
   
@@ -39,6 +42,7 @@ const ErrorReview = () => {
 
   useEffect(() => {
     fetchViolations();
+    setSelectedIds([]); // Reset selection when tab changes
   }, [activeTab, filters]);
 
   const fetchProjects = async () => {
@@ -166,6 +170,53 @@ const ErrorReview = () => {
     });
   };
 
+  // Handle checkbox selection
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = violations.map(v => v.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (violationId, e) => {
+    e.stopPropagation();
+    if (selectedIds.includes(violationId)) {
+      setSelectedIds(selectedIds.filter(id => id !== violationId));
+    } else {
+      setSelectedIds([...selectedIds, violationId]);
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    
+    const confirmMessage = `Are you sure you want to delete ${selectedIds.length} violation record(s)? This action cannot be undone.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await bulkDeleteViolations(selectedIds);
+      
+      // Show success message
+      if (result.success) {
+        alert(`Successfully deleted ${result.deleted} violation record(s)`);
+        setSelectedIds([]);
+        
+        // Refresh data
+        fetchViolations();
+      }
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to delete violation records';
+      alert(`Error: ${errorMsg}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -237,6 +288,20 @@ const ErrorReview = () => {
 
     return (
       <div className="violations-table-container">
+        {selectedIds.length > 0 && (
+          <div className="bulk-actions-bar">
+            <span className="selected-count">{selectedIds.length} violation(s) selected</span>
+            <button
+              className="bulk-delete-btn"
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+            >
+              <FiTrash2 />
+              {isDeleting ? 'Deleting...' : `Delete Selected (${selectedIds.length})`}
+            </button>
+          </div>
+        )}
+        
         {projectNames.map((projectName) => {
           const projectViolations = groupedViolations[projectName];
           const isExpanded = expandedProjects.has(projectName);
@@ -255,6 +320,14 @@ const ErrorReview = () => {
                 <table className="violations-table violations-details-table">
                   <thead>
                     <tr>
+                      <th style={{ width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          onChange={handleSelectAll}
+                          checked={violations.length > 0 && selectedIds.length === violations.length}
+                          title="Select all"
+                        />
+                      </th>
                       <th style={{ width: '40px' }}></th>
                       <th>Sub-Project</th>
                       <th>Filename</th>
@@ -272,7 +345,15 @@ const ErrorReview = () => {
                   <tbody>
                     {projectViolations.map((violation) => (
                       <React.Fragment key={violation.id}>
-                        <tr className="violation-row">
+                        <tr className={`violation-row ${selectedIds.includes(violation.id) ? 'selected-row' : ''}`}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(violation.id)}
+                              onChange={(e) => handleSelectRow(violation.id, e)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
                           <td>
                             <button 
                               className="expand-button"
