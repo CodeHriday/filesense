@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { FiEye, FiArrowRight, FiGitMerge, FiShield } from 'react-icons/fi';
+import { FiEye, FiArrowRight, FiGitMerge, FiShield, FiTrash2 } from 'react-icons/fi';
 import TransformationDetailsPanel from './TransformationDetailsPanel';
+import { bulkDeleteLineage } from '../api/lineageService';
 import './LineageTable.css';
 
-function LineageTable({ lineages }) {
+function LineageTable({ lineages, onDataChange }) {
   const [selectedLineage, setSelectedLineage] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Combine manual and transformation lineage into a single list
   const allLineage = [
@@ -36,6 +39,55 @@ function LineageTable({ lineages }) {
 
   const handleViewDetails = (lineage) => {
     setSelectedLineage(lineage);
+  };
+
+  // Handle checkbox selection
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = allLineage.map(l => l.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (lineageId, e) => {
+    e.stopPropagation();
+    if (selectedIds.includes(lineageId)) {
+      setSelectedIds(selectedIds.filter(id => id !== lineageId));
+    } else {
+      setSelectedIds([...selectedIds, lineageId]);
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    
+    const confirmMessage = `Are you sure you want to delete ${selectedIds.length} lineage record(s)? This action cannot be undone.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await bulkDeleteLineage(selectedIds);
+      
+      // Show success message
+      if (result.success) {
+        alert(`Successfully deleted ${result.deleted} lineage record(s)`);
+        setSelectedIds([]);
+        
+        // Notify parent to refresh data
+        if (onDataChange) {
+          onDataChange();
+        }
+      }
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to delete lineage records';
+      alert(`Error: ${errorMsg}`);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Helper function to extract file type from filename
@@ -107,10 +159,32 @@ function LineageTable({ lineages }) {
 
   return (
     <>
+      {selectedIds.length > 0 && (
+        <div className="bulk-actions-bar">
+          <span className="selected-count">{selectedIds.length} record(s) selected</span>
+          <button
+            className="bulk-delete-btn"
+            onClick={handleBulkDelete}
+            disabled={isDeleting}
+          >
+            <FiTrash2 />
+            {isDeleting ? 'Deleting...' : `Delete Selected (${selectedIds.length})`}
+          </button>
+        </div>
+      )}
+      
       <div className="lineage-table-wrapper">
         <table className="lineage-table">
           <thead>
             <tr>
+              <th className="checkbox-column">
+                <input
+                  type="checkbox"
+                  onChange={handleSelectAll}
+                  checked={allLineage.length > 0 && selectedIds.length === allLineage.length}
+                  title="Select all"
+                />
+              </th>
               <th>Source File</th>
               <th>Type</th>
               <th></th>
@@ -125,7 +199,18 @@ function LineageTable({ lineages }) {
           </thead>
           <tbody>
             {allLineage.map((lineage, index) => (
-              <tr key={`${lineage.type}-${lineage.id}-${index}`}>
+              <tr 
+                key={`${lineage.type}-${lineage.id}-${index}`}
+                className={selectedIds.includes(lineage.id) ? 'selected-row' : ''}
+              >
+                <td className="checkbox-cell">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(lineage.id)}
+                    onChange={(e) => handleSelectRow(lineage.id, e)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </td>
                 <td className="source-cell">
                   <div className="file-name-with-pii">
                     <div className="file-name-compact">

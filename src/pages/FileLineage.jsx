@@ -53,6 +53,18 @@ function FileLineage() {
     }
   }, [successMessage]);
   
+  // Refresh lineage data after changes
+  const refreshLineageData = async () => {
+    try {
+      const lineageData = await getLineages();
+      setLineages(lineageData);
+      setCurrentPage(1); // Reset to first page after data change
+    } catch (err) {
+      console.error('Error refreshing lineage data:', err);
+      setError('Failed to refresh lineage data. Please try again.');
+    }
+  };
+
   const handleScanAndPopulate = async () => {
     try {
       setScanLoading(true);
@@ -283,7 +295,7 @@ function FileLineage() {
               </div>
             )}
             
-            <LineageTable lineages={paginatedLineages} />
+            <LineageTable lineages={paginatedLineages} onDataChange={refreshLineageData} />
 
             {!loading && totalPages > 1 && (
               <div style={{ marginTop: '1.5rem' }}>

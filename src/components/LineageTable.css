@@ -178,6 +178,82 @@
   font-size: 1rem;
 }
 
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.selected-count {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.bulk-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bulk-delete-btn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.bulk-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bulk-delete-btn svg {
+  font-size: 14px;
+}
+
+/* Checkbox Column */
+.checkbox-column {
+  width: 40px;
+  text-align: center;
+}
+
+.checkbox-cell {
+  text-align: center;
+  width: 40px;
+}
+
+.checkbox-cell input[type="checkbox"],
+.checkbox-column input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+/* Selected Row Highlight */
+.lineage-table tbody tr.selected-row {
+  background-color: #ede9fe;
+}
+
+.lineage-table tbody tr.selected-row:hover {
+  background-color: #ddd6fe;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
   .lineage-table {
@@ -196,5 +272,18 @@
   
   .file-name-compact {
     font-size: 0.7rem;
+  }
+  
+  .bulk-actions-bar {
+    padding: 10px 12px;
+  }
+  
+  .selected-count {
+    font-size: 0.8rem;
+  }
+  
+  .bulk-delete-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
   }
 }
