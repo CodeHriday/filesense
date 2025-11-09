@@ -85,7 +85,7 @@ router.get('/violations', async (req, res) => {
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id
+      LEFT JOIN transformation_mappings tm ON qrv.job_id::integer = tm.id
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       ${whereClause}
     `;
@@ -122,7 +122,7 @@ router.get('/violations', async (req, res) => {
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id
+      LEFT JOIN transformation_mappings tm ON qrv.job_id::integer = tm.id
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       LEFT JOIN users resolver ON qrv.resolved_by = resolver.id
       ${whereClause}
@@ -337,7 +337,7 @@ router.get('/mapping-errors', async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) as total
       FROM mapping_job_errors me
-      INNER JOIN transformation_mappings tm ON me.mapping_id = tm.id
+      INNER JOIN transformation_mappings tm ON me.mapping_id::integer = tm.id
       LEFT JOIN projects p ON tm.project_id = p.id
       ${whereClause}
     `;
@@ -362,7 +362,7 @@ router.get('/mapping-errors', async (req, res) => {
         p.id as project_id,
         p.project_name
       FROM mapping_job_errors me
-      INNER JOIN transformation_mappings tm ON me.mapping_id = tm.id
+      INNER JOIN transformation_mappings tm ON me.mapping_id::integer = tm.id
       LEFT JOIN projects p ON tm.project_id = p.id
       ${whereClause}
       ORDER BY me.created_at DESC
@@ -434,7 +434,7 @@ router.get('/statistics', async (req, res) => {
       FROM quality_rule_violations qrv
       INNER JOIN quality_rules qr ON qrv.rule_id = qr.id
       LEFT JOIN files uf ON qrv.file_id = uf.file_id
-      LEFT JOIN transformation_mappings tm ON qrv.job_id = tm.id
+      LEFT JOIN transformation_mappings tm ON qrv.job_id::integer = tm.id
       LEFT JOIN projects p ON COALESCE(uf.project_id, tm.project_id) = p.id
       WHERE 1=1 ${projectFilter}
     `;
@@ -458,7 +458,7 @@ router.get('/statistics', async (req, res) => {
         COUNT(CASE WHEN me.severity = 'error' THEN 1 END) as error_mapping_errors,
         COUNT(CASE WHEN me.severity = 'warning' THEN 1 END) as warning_mapping_errors
       FROM mapping_job_errors me
-      INNER JOIN transformation_mappings tm ON me.mapping_id = tm.id
+      INNER JOIN transformation_mappings tm ON me.mapping_id::integer = tm.id
       LEFT JOIN projects p ON tm.project_id = p.id
       WHERE 1=1 ${projectFilter}
     `;
