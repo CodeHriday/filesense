@@ -378,7 +378,11 @@ class FileProcessingWorker {
               
               // Persist violations to database
               if (validationResult.violations.length > 0) {
-                await validationEngine.persistViolations(validationResult.violations);
+                await validationEngine.persistViolations(
+                  validationResult.violations,
+                  dataToValidate,
+                  'file_upload'
+                );
                 this.logger.info('Quality rule violations persisted', {
                   fileId,
                   violationCount: validationResult.violations.length
@@ -406,12 +410,22 @@ class FileProcessingWorker {
             this.logger.info('No enabled quality rules found for validation', { fileId });
           }
         } catch (validationError) {
+          // If quality check abort is triggered, fail the file processing
+          if (validationError.code === 'QUALITY_ABORT') {
+            this.logger.error('File processing aborted due to quality violations', {
+              fileId,
+              violations: validationError.violations
+            });
+            await this.updateProcessingStep(fileId, 'failed');
+            throw validationError;
+          }
+          
           this.logger.error('Quality validation failed', {
             fileId,
             error: validationError.message,
             stack: validationError.stack
           });
-          // Don't fail the whole processing if quality validation fails
+          // Don't fail the whole processing if quality validation fails (but not for QUALITY_ABORT)
         }
       }
 

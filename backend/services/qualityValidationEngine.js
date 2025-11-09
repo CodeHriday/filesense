@@ -663,20 +663,57 @@ class QualityValidationEngine {
   /**
    * Persist violations to database
    * @param {Array} violations - Array of violation objects
+   * @param {Array} data - Original data rows (optional, for record snapshot)
+   * @param {string} context - Context: 'file_upload' or 'etl_job'
    * @returns {Promise<void>}
    */
-  async persistViolations(violations) {
+  async persistViolations(violations, data = null, context = 'file_upload') {
     if (violations.length === 0) return;
     
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       
+      // Fetch quality rule configurations for all unique file_id + rule_id combinations
+      const configMap = new Map();
+      const uniqueCombos = [...new Set(violations.map(v => `${v.file_id || 'null'}:${v.rule_id}`))];
+      
+      for (const combo of uniqueCombos) {
+        const [fileId, ruleId] = combo.split(':');
+        if (fileId !== 'null') {
+          const configResult = await client.query(
+            `SELECT error_action, apply_to FROM quality_rule_configurations 
+             WHERE file_id = $1 AND rule_id = $2 AND enabled = true`,
+            [fileId, parseInt(ruleId)]
+          );
+          if (configResult.rows.length > 0) {
+            const config = configResult.rows[0];
+            // Check if this configuration applies to current context
+            if (config.apply_to === 'both' || config.apply_to === context) {
+              configMap.set(combo, config.error_action);
+            }
+          }
+        }
+      }
+      
+      let shouldAbort = false;
+      const abortReasons = [];
+      
       for (const violation of violations) {
+        const comboKey = `${violation.file_id || 'null'}:${violation.rule_id}`;
+        const errorAction = configMap.get(comboKey) || 'log_continue';
+        
+        // Capture record snapshot if data is provided
+        let recordSnapshot = null;
+        if (data && violation.row_number && violation.row_number <= data.length) {
+          recordSnapshot = data[violation.row_number - 1];
+        }
+        
         await client.query(
           `INSERT INTO quality_rule_violations 
-          (rule_id, file_id, job_id, row_number, column_name, expected_value, actual_value, violation_details, severity)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          (rule_id, file_id, job_id, row_number, column_name, expected_value, actual_value, 
+           violation_details, severity, status, processing_action, record_snapshot)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             violation.rule_id,
             violation.file_id,
@@ -686,15 +723,46 @@ class QualityValidationEngine {
             violation.expected_value,
             violation.actual_value,
             JSON.stringify(violation.violation_details),
-            violation.severity
+            violation.severity,
+            'new', // Default status
+            errorAction,
+            recordSnapshot ? JSON.stringify(recordSnapshot) : null
           ]
         );
+        
+        // Track if we should abort
+        if (errorAction === 'log_abort') {
+          shouldAbort = true;
+          abortReasons.push({
+            rule_id: violation.rule_id,
+            file_id: violation.file_id,
+            row_number: violation.row_number,
+            severity: violation.severity
+          });
+        }
       }
       
       await client.query('COMMIT');
-      systemLogger.info('Quality rule violations persisted', { count: violations.length });
+      systemLogger.info('Quality rule violations persisted', { 
+        count: violations.length,
+        abort_triggered: shouldAbort 
+      });
+      
+      // Throw error if any violation requires aborting
+      if (shouldAbort) {
+        const error = new Error('Quality check failed: One or more violations configured to abort processing');
+        error.code = 'QUALITY_ABORT';
+        error.violations = abortReasons;
+        throw error;
+      }
     } catch (error) {
       await client.query('ROLLBACK');
+      
+      // Re-throw QUALITY_ABORT errors
+      if (error.code === 'QUALITY_ABORT') {
+        throw error;
+      }
+      
       systemLogger.error('Failed to persist violations', { error: error.message });
       throw error;
     } finally {

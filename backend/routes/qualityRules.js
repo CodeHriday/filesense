@@ -550,5 +550,194 @@ module.exports = (dbPool, authenticate) => {
     }
   });
 
+  /**
+   * GET /api/quality-rules/configurations
+   * Get quality rule configurations (error handling strategies)
+   * Query params:
+   *   - file_id: filter by file
+   *   - rule_id: filter by rule
+   *   - enabled: filter by enabled status
+   */
+  router.get('/configurations', authenticate, async (req, res) => {
+    try {
+      const { file_id, rule_id, enabled } = req.query;
+
+      let query = `
+        SELECT 
+          qrc.*,
+          qr.rule_name,
+          qr.rule_type,
+          qr.description as rule_description,
+          u.username as created_by_username
+        FROM quality_rule_configurations qrc
+        LEFT JOIN quality_rules qr ON qrc.rule_id = qr.id
+        LEFT JOIN users u ON qrc.created_by = u.id
+        WHERE 1=1
+      `;
+      const params = [];
+      let paramIndex = 1;
+
+      if (file_id) {
+        query += ` AND qrc.file_id = $${paramIndex}`;
+        params.push(file_id);
+        paramIndex++;
+      }
+
+      if (rule_id) {
+        query += ` AND qrc.rule_id = $${paramIndex}`;
+        params.push(parseInt(rule_id));
+        paramIndex++;
+      }
+
+      if (enabled !== undefined) {
+        query += ` AND qrc.enabled = $${paramIndex}`;
+        params.push(enabled === 'true');
+        paramIndex++;
+      }
+
+      query += ` ORDER BY qrc.created_at DESC`;
+
+      const result = await dbPool.query(query, params);
+
+      res.json({
+        success: true,
+        configurations: result.rows,
+        total: result.rows.length
+      });
+    } catch (error) {
+      systemLogger.error('Error fetching quality rule configurations', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch quality rule configurations'
+      });
+    }
+  });
+
+  /**
+   * POST /api/quality-rules/configurations
+   * Create or update quality rule configuration
+   * Body:
+   *   - file_id: file identifier
+   *   - rule_id: quality rule ID
+   *   - error_action: 'log_continue' or 'log_abort'
+   *   - apply_to: 'file_upload', 'etl_job', or 'both' (default: 'both')
+   *   - enabled: boolean (default: true)
+   */
+  router.post('/configurations', authenticate, async (req, res) => {
+    try {
+      const { file_id, rule_id, error_action, apply_to = 'both', enabled = true } = req.body;
+      const user_id = req.user?.id;
+
+      // Validation
+      if (!file_id || !rule_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'file_id and rule_id are required'
+        });
+      }
+
+      if (!['log_continue', 'log_abort'].includes(error_action)) {
+        return res.status(400).json({
+          success: false,
+          error: 'error_action must be either "log_continue" or "log_abort"'
+        });
+      }
+
+      if (!['file_upload', 'etl_job', 'both'].includes(apply_to)) {
+        return res.status(400).json({
+          success: false,
+          error: 'apply_to must be "file_upload", "etl_job", or "both"'
+        });
+      }
+
+      // Verify rule exists
+      const ruleCheck = await dbPool.query(
+        'SELECT id FROM quality_rules WHERE id = $1',
+        [rule_id]
+      );
+
+      if (ruleCheck.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Quality rule not found'
+        });
+      }
+
+      // Insert or update configuration (upsert)
+      const query = `
+        INSERT INTO quality_rule_configurations 
+          (file_id, rule_id, error_action, apply_to, enabled, created_by, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+        ON CONFLICT (file_id, rule_id) 
+        DO UPDATE SET
+          error_action = EXCLUDED.error_action,
+          apply_to = EXCLUDED.apply_to,
+          enabled = EXCLUDED.enabled,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+      `;
+
+      const result = await dbPool.query(query, [
+        file_id,
+        rule_id,
+        error_action,
+        apply_to,
+        enabled,
+        user_id
+      ]);
+
+      // Invalidate cache for affected files and rules
+      await cacheService.invalidatePattern(`${CACHE_PREFIX}:*`);
+
+      res.status(201).json({
+        success: true,
+        configuration: result.rows[0],
+        message: 'Quality rule configuration saved successfully'
+      });
+    } catch (error) {
+      systemLogger.error('Error saving quality rule configuration', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to save quality rule configuration'
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/quality-rules/configurations/:id
+   * Delete a quality rule configuration
+   */
+  router.delete('/configurations/:id', authenticate, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const result = await dbPool.query(
+        'DELETE FROM quality_rule_configurations WHERE id = $1 RETURNING *',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Configuration not found'
+        });
+      }
+
+      // Invalidate cache
+      await cacheService.invalidatePattern(`${CACHE_PREFIX}:*`);
+
+      res.json({
+        success: true,
+        message: 'Configuration deleted successfully'
+      });
+    } catch (error) {
+      systemLogger.error('Error deleting quality rule configuration', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete configuration'
+      });
+    }
+  });
+
   return router;
 };
