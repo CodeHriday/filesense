@@ -106,11 +106,16 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
     ? (typeof column_mappings === 'string' ? JSON.parse(column_mappings) : column_mappings)
     : [];
   
+  // DEBUG: Log column_mappings data
+  console.log('🔍 DEBUG - Column Mappings Raw:', column_mappings);
+  console.log('🔍 DEBUG - Column Mappings Parsed:', parsedColumnMappings);
+  
   // Create a map of target column -> PII info for quick lookup
   const piiColumnMap = new Map();
   if (Array.isArray(parsedColumnMappings)) {
     parsedColumnMappings.forEach(cm => {
       if (cm.contains_pii && cm.target_column) {
+        console.log('🔍 DEBUG - Adding PII column to map:', cm.target_column, cm);
         piiColumnMap.set(cm.target_column, {
           pii_type: cm.pii_type || 'PII',
           transformation_applied: cm.transformation_applied
@@ -118,6 +123,8 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
       }
     });
   }
+  
+  console.log('🔍 DEBUG - PII Column Map:', Array.from(piiColumnMap.entries()));
 
   // Extract expression from variable
   const getVariableExpression = (variable) => {
@@ -251,6 +258,13 @@ function TransformationDetailsPanel({ transformationData, onClose }) {
                       const hasExpression = mapping.expression || (mapping.transformations && mapping.transformations.length > 0);
                       const targetFieldName = mapping.target_field || mapping.targetField;
                       const piiInfo = piiColumnMap.get(targetFieldName);
+                      
+                      // DEBUG: Log field name lookup
+                      if (index === 0) {
+                        console.log('🔍 DEBUG - First field mapping:', mapping);
+                        console.log('🔍 DEBUG - Target field name:', targetFieldName);
+                        console.log('🔍 DEBUG - PII info found:', piiInfo);
+                      }
                       
                       return (
                         <div key={index} className="field-mapping-item">
