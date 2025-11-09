@@ -411,7 +411,7 @@ const ErrorReview = () => {
       <div className="error-review-header">
         <div className="header-left">
           <FiAlertTriangle className="header-icon" />
-          <h1>Data Violations</h1>
+          <h1>Quality Violations</h1>
         </div>
         <div className="header-actions">
           <div className="download-dropdown">

@@ -69,7 +69,7 @@ const SystemCleanup = () => {
       tables: ['notifications', 'user_sessions', 'user_badges', 'user_dashboard_settings']
     },
     violations: {
-      name: 'Data Violations',
+      name: 'Quality Violations',
       description: 'All quality rule violations detected during file uploads and transformation jobs',
       tables: ['quality_rule_violations']
     },

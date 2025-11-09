@@ -180,7 +180,7 @@ export const APP_FEATURES = [
   },
   { 
     id: 'error_review', 
-    name: 'Data Violations', 
+    name: 'Quality Violations', 
     category: 'Jobs and Monitoring',
     icon: FiXCircle,
     route: '/error-review',

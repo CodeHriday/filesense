@@ -1580,11 +1580,11 @@ function MappingWizard() {
               </small>
             </div>
 
-            {/* Data Violation Handling */}
+            {/* Quality Violation Handling */}
             {selectedQualityRules.length > 0 && (
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FiAlertCircle /> Data Violation Handling
+                  <FiAlertCircle /> Quality Violation Handling
                 </label>
                 <select
                   className="form-control"
@@ -1596,7 +1596,7 @@ function MappingWizard() {
                 </select>
                 <small className="form-help">
                   {violationHandling === 'log_continue' 
-                    ? 'Processing will continue even if quality rule violations are found. All violations will be logged in Data Violations for review.'
+                    ? 'Processing will continue even if quality rule violations are found. All violations will be logged in Quality Violations for review.'
                     : 'Processing will stop immediately if any quality rule violations are detected. The job will be marked as failed and all violations will be logged.'
                   }
                 </small>

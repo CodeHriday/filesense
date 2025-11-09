@@ -168,7 +168,7 @@ router.get('/counts', async (req, res) => {
       user_dashboard_settings: parseInt(userDashboardCount.rows[0].count)
     };
     
-    // Data Violations category
+    // Quality Violations category
     const violationsCount = await pool.query('SELECT COUNT(*) FROM quality_rule_violations');
     
     counts.violations = {
@@ -503,7 +503,7 @@ router.post('/', async (req, res) => {
       };
     }
     
-    // Delete Data Violations
+    // Delete Quality Violations
     if (categories.includes('violations')) {
       const violationsResult = await client.query('DELETE FROM quality_rule_violations RETURNING id');
       
