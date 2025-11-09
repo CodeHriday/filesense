@@ -625,7 +625,7 @@ router.get('/mapping-job-violations/download', async (req, res) => {
       SELECT 
         COALESCE(p.name, tj_p.name) AS project,
         sp.name AS sub_project,
-        COALESCE(f.filename, tj.source_file) AS file_name,
+        COALESCE(f.filename, tj.mapping_name) AS file_name,
         qr.rule_type,
         qr.rule_name,
         qrv.row_number,
