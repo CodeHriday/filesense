@@ -52,6 +52,7 @@ The application features a hybrid architecture designed for scalability, securit
 - **Dual-Layer Caching Middleware:** Created `backend/src/middleware/cache.js` with Redis primary cache and in-memory (NodeCache) fallback. Supports configurable TTL, custom key generation, and conditional caching based on response status.
 - **Dashboard Metrics Caching:** Dashboard endpoint cached for 2 minutes with user-specific cache keys (`dashboard:metrics:user:{userId}:roles:{roles}`) to prevent data leakage. Includes X-Cache headers for monitoring hit/miss ratios.
 - **Cache Invalidation Helpers:** Implemented functions for invalidating dashboard, file catalog, user data, and project caches. Uses safe pattern matching with proper regex escaping to prevent under/over-invalidation.
+- **File-Specific Cache Invalidation:** Fixed sensitivity tag update endpoints to properly invalidate file details cache using `invalidateFileCache(fileId)` after POST/DELETE operations, ensuring File Attributes and File Profile display latest data immediately after sensitivity tag changes.
 
 **Performance Impact:**
 - Authentication overhead reduced from ~130ms to near-zero on cache hits
