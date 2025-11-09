@@ -50,7 +50,7 @@ router.get('/violations', async (req, res) => {
 
     const validProjectId = parseProjectId(project_id);
     if (validProjectId) {
-      whereConditions.push(`p.id = $${++paramCount}`);
+      whereConditions.push(`p.id = $${++paramCount}::integer`);
       params.push(validProjectId);
     }
 
@@ -186,7 +186,7 @@ router.get('/file-errors', async (req, res) => {
 
     const validProjectId = parseProjectId(project_id);
     if (validProjectId) {
-      whereConditions.push(`p.id = $${++paramCount}`);
+      whereConditions.push(`p.id = $${++paramCount}::integer`);
       params.push(validProjectId);
     }
 
@@ -302,7 +302,7 @@ router.get('/mapping-errors', async (req, res) => {
 
     const validProjectId = parseProjectId(project_id);
     if (validProjectId) {
-      whereConditions.push(`p.id = $${++paramCount}`);
+      whereConditions.push(`p.id = $${++paramCount}::integer`);
       params.push(validProjectId);
     }
 
