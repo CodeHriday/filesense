@@ -10,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const session = require('express-session');
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 
 // Initialize dependency injection container
 const { initialize: initializeDI, initializeDatabase } = require('./backend/di/bootstrapper');
@@ -4635,11 +4636,14 @@ app.post('/api/governance-policies', authenticateToken, invalidateCache('cache:*
       });
     }
     
-    const { policy_id, policy_name, description, rules } = req.body;
+    const { policy_name, description, rules } = req.body;
     
-    if (!policy_id || !policy_name) {
-      return res.status(400).json({ error: 'policy_id and policy_name are required' });
+    if (!policy_name) {
+      return res.status(400).json({ error: 'policy_name is required' });
     }
+    
+    // Auto-generate UUID for policy_id
+    const policy_id = uuidv4();
     
     const result = await dbPool.query(
       `INSERT INTO governance_policies (policy_id, policy_name, description, rules, created_by)

@@ -25,19 +25,19 @@ function Toast({ message, onClose }) {
 
 function NotificationModal({ message, onClose }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content notification-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="notification-header">
-          <FiAlertCircle className="header-icon" />
+    <div className="policy-modal-overlay" onClick={onClose}>
+      <div className="policy-modal-content policy-error-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="policy-error-header">
+          <FiAlertCircle className="policy-error-icon" />
           <h3>Error</h3>
-          <button className="close-btn" onClick={onClose}>
+          <button className="policy-close-btn" onClick={onClose}>
             <FiX />
           </button>
         </div>
-        <div className="notification-body">
+        <div className="policy-error-body">
           <p>{message}</p>
         </div>
-        <div className="notification-actions">
+        <div className="policy-error-actions">
           <button className="btn btn-primary" onClick={onClose}>
             OK
           </button>
@@ -49,19 +49,19 @@ function NotificationModal({ message, onClose }) {
 
 function ConfirmModal({ message, onConfirm, onCancel }) {
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content confirmation-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="notification-header warning">
+    <div className="policy-modal-overlay" onClick={onCancel}>
+      <div className="policy-modal-content policy-confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="policy-confirm-header">
           <FiAlertCircle />
           <h3>Confirm Action</h3>
-          <button className="close-btn" onClick={onCancel}>
+          <button className="policy-close-btn" onClick={onCancel}>
             <FiX />
           </button>
         </div>
-        <div className="notification-body">
+        <div className="policy-confirm-body">
           <p>{message}</p>
         </div>
-        <div className="notification-actions">
+        <div className="policy-confirm-actions">
           <button className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
@@ -161,6 +161,7 @@ function PolicyManagement() {
             <table className="policies-table">
               <thead>
                 <tr>
+                  <th>Policy ID</th>
                   <th>Policy Name</th>
                   <th>Description</th>
                   <th>Rules</th>
@@ -171,6 +172,7 @@ function PolicyManagement() {
               <tbody>
                 {policies.map((policy) => (
                   <tr key={policy.policy_id}>
+                    <td className="policy-id-cell">{policy.policy_id}</td>
                     <td className="policy-name-cell">{policy.policy_name}</td>
                     <td className="policy-description-cell">{policy.description || '-'}</td>
                     <td className="policy-rules-cell">
@@ -257,7 +259,6 @@ function PolicyManagement() {
 }
 
 function PolicyModal({ policy, onClose, onSave, onError }) {
-  const [policyId, setPolicyId] = useState(policy?.policy_id || '');
   const [policyName, setPolicyName] = useState(policy?.policy_name || '');
   const [description, setDescription] = useState(policy?.description || '');
   const [retentionDays, setRetentionDays] = useState(policy?.rules?.retention_days || '');
@@ -266,8 +267,8 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!policyId || !policyName) {
-      onError('Policy ID and Name are required');
+    if (!policyName) {
+      onError('Policy Name is required');
       return;
     }
 
@@ -288,7 +289,6 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
         onSave('Policy updated successfully');
       } else {
         await axios.post('/api/governance-policies', {
-          policy_id: policyId,
           policy_name: policyName,
           description,
           rules
@@ -307,17 +307,6 @@ function PolicyModal({ policy, onClose, onSave, onError }) {
     <div className="modal-overlay">
       <div className="modal-content policy-modal">
         <h2>{policy ? 'Edit Policy' : 'Create New Policy'}</h2>
-
-        <div className="form-group">
-          <label>Policy ID</label>
-          <input
-            type="text"
-            value={policyId}
-            onChange={(e) => setPolicyId(e.target.value)}
-            placeholder="e.g., pii-retention-policy"
-            disabled={!!policy}
-          />
-        </div>
 
         <div className="form-group">
           <label>Policy Name</label>
