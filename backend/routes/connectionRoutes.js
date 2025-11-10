@@ -736,15 +736,17 @@ router.get('/:id/dependencies', async (req, res) => {
 
 /**
  * @route   DELETE /api/connections/:id
- * @desc    Delete a connection
+ * @desc    Delete a connection (checks dependencies first)
  * @access  Protected (requires authentication and project membership)
  */
 router.delete('/:id', async (req, res) => {
   try {
+    const connectionId = req.params.id;
+    
     // Check project access before allowing delete
     const isAdmin = req.user?.roles?.includes('Admin');
     if (!isAdmin) {
-      const existingConnection = await connectionService.getConnectionById(req.params.id);
+      const existingConnection = await connectionService.getConnectionById(connectionId);
       const userId = req.user?.id;
       const { getUserProjects } = require('../middleware/requireProjectAccess');
       const userProjects = await getUserProjects(userId);
@@ -758,7 +760,82 @@ router.delete('/:id', async (req, res) => {
       }
     }
     
-    await connectionService.deleteConnection(req.params.id);
+    // Check for dependencies before deletion
+    const dependencies = [];
+    
+    // Check vendor_agreements
+    const vendorAgreements = await pool.query(
+      `SELECT id, vendor_name, file_name 
+       FROM vendor_agreements 
+       WHERE vendor_connection_id = $1 AND status != 'archived'`,
+      [connectionId]
+    );
+    if (vendorAgreements.rows.length > 0) {
+      dependencies.push({
+        type: 'Vendor Agreements',
+        count: vendorAgreements.rows.length,
+        items: vendorAgreements.rows.slice(0, 5).map(row => `${row.vendor_name} - ${row.file_name}`)
+      });
+    }
+
+    // Check vendor_file_profiling_results
+    const vendorProfiling = await pool.query(
+      `SELECT COUNT(DISTINCT file_id) as count 
+       FROM vendor_file_profiling_results 
+       WHERE connection_id = $1`,
+      [connectionId]
+    );
+    if (parseInt(vendorProfiling.rows[0].count) > 0) {
+      dependencies.push({
+        type: 'Vendor File Profiling Results',
+        count: parseInt(vendorProfiling.rows[0].count),
+        items: []
+      });
+    }
+
+    // Check transformation_mappings
+    const transformMappings = await pool.query(
+      `SELECT mapping_id, mapping_name 
+       FROM transformation_mappings 
+       WHERE source_connection_id = $1 OR target_connection_id = $1`,
+      [connectionId]
+    );
+    if (transformMappings.rows.length > 0) {
+      dependencies.push({
+        type: 'Transformation Mappings',
+        count: transformMappings.rows.length,
+        items: transformMappings.rows.slice(0, 5).map(row => row.mapping_name)
+      });
+    }
+
+    // Check mapping_groups
+    const mappingGroups = await pool.query(
+      `SELECT group_id, group_name 
+       FROM mapping_groups 
+       WHERE source_connection_id = $1`,
+      [connectionId]
+    );
+    if (mappingGroups.rows.length > 0) {
+      dependencies.push({
+        type: 'Mapping Groups',
+        count: mappingGroups.rows.length,
+        items: mappingGroups.rows.slice(0, 5).map(row => row.group_name)
+      });
+    }
+
+    // If dependencies exist, prevent deletion
+    if (dependencies.length > 0) {
+      return res.status(409).json({
+        error: 'Connection cannot be deleted',
+        message: 'This connection is currently in use and cannot be deleted.',
+        canDelete: false,
+        inUse: true,
+        dependencies: dependencies
+      });
+    }
+    
+    // No dependencies - safe to delete
+    await connectionService.deleteConnection(connectionId);
     res.json({ success: true, message: 'Connection deleted successfully' });
   } catch (error) {
     if (error.message.includes('not found')) {
