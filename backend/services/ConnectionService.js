@@ -173,7 +173,7 @@ class ConnectionService {
    */
   async getAllConnections(options = {}) {
     try {
-      const { limit, source, userId, isAdmin } = options;
+      const { limit, source, userId, isAdmin, includeDeleted } = options;
       
       // Get user's accessible projects if not admin
       let projectIds = [];
@@ -202,12 +202,20 @@ class ConnectionService {
           sc.path,
           sc.created_at,
           sc.updated_at,
+          sc.is_deleted,
+          sc.deleted_at,
           p.name as project_name,
           TRUE as is_active
         FROM storage_connections sc
         LEFT JOIN projects p ON sc.project_id = p.id
         WHERE sc.status = 'active'
       `;
+      
+      // Filter out soft-deleted connections by default
+      if (!includeDeleted) {
+        query += ' AND (sc.is_deleted = FALSE OR sc.is_deleted IS NULL)';
+      }
+      
       const params = [];
       
       // Filter by project membership (unless admin)

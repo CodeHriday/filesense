@@ -12,7 +12,7 @@ const { pool } = require('../config/database');
 router.get('/', async (req, res) => {
   try {
     // Extract query parameters
-    const { limit, source } = req.query;
+    const { limit, source, include_deleted } = req.query;
     
     // Get user info for project filtering
     const isAdmin = req.user?.roles?.includes('Admin');
@@ -22,7 +22,8 @@ router.get('/', async (req, res) => {
       limit: limit ? parseInt(limit) : undefined,
       source,
       userId,
-      isAdmin
+      isAdmin,
+      includeDeleted: include_deleted === 'true'
     });
     
     // Filter out sensitive information
