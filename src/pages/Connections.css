@@ -284,6 +284,23 @@
   font-size: var(--text-sm);
 }
 
+.usage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background-color: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 12px;
+  border: 1px solid #fbbf24;
+}
+
+.usage-badge svg {
+  font-size: 0.875rem;
+}
+
 .source-app-badge {
   margin-top: var(--space-1);
   font-size: var(--text-xs);

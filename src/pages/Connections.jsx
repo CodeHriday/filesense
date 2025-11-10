@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiAlertCircle, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -34,6 +34,9 @@ const Connections = () => {
   const [isDeletingConnection, setIsDeletingConnection] = useState(false);
   const [connectionDependencies, setConnectionDependencies] = useState(null);
   const [checkingDependencies, setCheckingDependencies] = useState(false);
+  
+  // Connection usage tracking
+  const [connectionUsageMap, setConnectionUsageMap] = useState({});
   
   // Test connection in modal state
   const [testingInModal, setTestingInModal] = useState(false);
@@ -285,6 +288,17 @@ const Connections = () => {
     try {
       const deps = await checkConnectionDependencies(id);
       setConnectionDependencies(deps);
+      
+      // Update usage map for this connection
+      const totalCount = deps.dependencies?.reduce((sum, dep) => sum + dep.count, 0) || 0;
+      setConnectionUsageMap(prev => ({
+        ...prev,
+        [id]: {
+          inUse: deps.inUse,
+          count: totalCount,
+          dependencies: deps.dependencies
+        }
+      }));
     } catch (err) {
       console.error('Error checking connection dependencies:', err);
       setConnectionDependencies({ canDelete: true, inUse: false, dependencies: [] });
@@ -1750,6 +1764,11 @@ const Connections = () => {
                               {(connection.shared || (connection.source_application && connection.source_application !== 'data_observatory')) && (
                                 <span className="shared-badge" title="Shared with Transform">
                                   <FiLink />
+                                </span>
+                              )}
+                              {connectionUsageMap[connection.id]?.inUse && (
+                                <span className="usage-badge" title={`Used in ${connectionUsageMap[connection.id]?.count || 0} places`}>
+                                  <FiActivity /> In Use
                                 </span>
                               )}
                             </div>
