@@ -639,6 +639,102 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
+ * @route   GET /api/connections/:id/dependencies
+ * @desc    Check if connection has dependencies (used in vendor agreements, transformations, etc.)
+ * @access  Protected (requires authentication)
+ */
+router.get('/:id/dependencies', async (req, res) => {
+  try {
+    const connectionId = req.params.id;
+    const dependencies = {
+      canDelete: true,
+      inUse: false,
+      dependencies: []
+    };
+
+    // Check vendor_agreements
+    const vendorAgreements = await pool.query(
+      `SELECT id, vendor_name, file_name 
+       FROM vendor_agreements 
+       WHERE vendor_connection_id = $1 AND status != 'archived'`,
+      [connectionId]
+    );
+    if (vendorAgreements.rows.length > 0) {
+      dependencies.dependencies.push({
+        type: 'vendor_agreements',
+        count: vendorAgreements.rows.length,
+        items: vendorAgreements.rows.map(row => ({
+          id: row.id,
+          name: `${row.vendor_name} - ${row.file_name}`
+        }))
+      });
+    }
+
+    // Check vendor_file_profiling_results
+    const vendorProfiling = await pool.query(
+      `SELECT COUNT(DISTINCT file_id) as count 
+       FROM vendor_file_profiling_results 
+       WHERE connection_id = $1`,
+      [connectionId]
+    );
+    if (vendorProfiling.rows[0].count > 0) {
+      dependencies.dependencies.push({
+        type: 'vendor_file_profiling',
+        count: parseInt(vendorProfiling.rows[0].count),
+        items: []
+      });
+    }
+
+    // Check transformation_mappings (source and target)
+    const transformMappings = await pool.query(
+      `SELECT mapping_id, mapping_name 
+       FROM transformation_mappings 
+       WHERE source_connection_id = $1 OR target_connection_id = $1`,
+      [connectionId]
+    );
+    if (transformMappings.rows.length > 0) {
+      dependencies.dependencies.push({
+        type: 'transformation_mappings',
+        count: transformMappings.rows.length,
+        items: transformMappings.rows.map(row => ({
+          id: row.mapping_id,
+          name: row.mapping_name
+        }))
+      });
+    }
+
+    // Check mapping_groups
+    const mappingGroups = await pool.query(
+      `SELECT group_id, group_name 
+       FROM mapping_groups 
+       WHERE source_connection_id = $1`,
+      [connectionId]
+    );
+    if (mappingGroups.rows.length > 0) {
+      dependencies.dependencies.push({
+        type: 'mapping_groups',
+        count: mappingGroups.rows.length,
+        items: mappingGroups.rows.map(row => ({
+          id: row.group_id,
+          name: row.group_name
+        }))
+      });
+    }
+
+    // Update summary flags
+    if (dependencies.dependencies.length > 0) {
+      dependencies.canDelete = false;
+      dependencies.inUse = true;
+    }
+
+    res.json(dependencies);
+  } catch (error) {
+    console.error('Error checking connection dependencies:', error);
+    res.status(500).json({ error: 'Failed to check connection dependencies' });
+  }
+});
+
+/**
  * @route   DELETE /api/connections/:id
  * @desc    Delete a connection
  * @access  Protected (requires authentication and project membership)
