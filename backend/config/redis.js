@@ -10,16 +10,15 @@ const redis = new Redis({
   password: process.env.REDIS_PASSWORD || undefined,
   db: process.env.REDIS_DB || 0,
   retryStrategy(times) {
-    if (times > 3) {
-      return null;
-    }
-    const delay = Math.min(times * 50, 2000);
+    // Exponential backoff with cap - never give up, keep retrying
+    const delay = Math.min(times * 100, 10000); // Max 10 seconds between retries
     return delay;
   },
-  maxRetriesPerRequest: 3,
+  maxRetriesPerRequest: null, // Don't limit retries per request
   enableReadyCheck: true,
   lazyConnect: false,
-  showFriendlyErrorStack: false
+  showFriendlyErrorStack: false,
+  enableOfflineQueue: false // Don't queue commands when disconnected
 });
 
 let redisAvailable = false;
@@ -37,6 +36,7 @@ redis.on('ready', () => {
 
 redis.on('error', (err) => {
   redisAvailable = false;
+  // Silently handle connection refused (Redis not running)
   if (err.code !== 'ECONNREFUSED') {
     console.error('Redis client error:', err);
   }
@@ -46,21 +46,38 @@ redis.on('close', () => {
   redisAvailable = false;
 });
 
+redis.on('reconnecting', () => {
+  console.log('Redis client reconnecting...');
+});
+
 /**
- * Cache utility functions
+ * Cache utility functions with graceful Redis degradation
  */
 const cache = {
+  /**
+   * Check if Redis is available
+   * @returns {boolean} True if Redis is connected and ready
+   */
+  isAvailable() {
+    return redisAvailable && redis.status === 'ready';
+  },
+
   /**
    * Get cached value
    * @param {string} key - Cache key
    * @returns {Promise<any>} Cached value or null
    */
   async get(key) {
+    if (!this.isAvailable()) {
+      return null;
+    }
     try {
       const value = await redis.get(key);
       return value ? JSON.parse(value) : null;
     } catch (error) {
-      console.error(`Error getting cache key ${key}:`, error);
+      if (error.message !== 'Connection is closed.') {
+        console.error(`Error getting cache key ${key}:`, error);
+      }
       return null;
     }
   },
@@ -73,11 +90,16 @@ const cache = {
    * @returns {Promise<boolean>} Success status
    */
   async set(key, value, ttl = 600) {
+    if (!this.isAvailable()) {
+      return false;
+    }
     try {
       await redis.setex(key, ttl, JSON.stringify(value));
       return true;
     } catch (error) {
-      console.error(`Error setting cache key ${key}:`, error);
+      if (error.message !== 'Connection is closed.') {
+        console.error(`Error setting cache key ${key}:`, error);
+      }
       return false;
     }
   },
@@ -88,11 +110,16 @@ const cache = {
    * @returns {Promise<number>} Number of keys deleted
    */
   async del(keys) {
+    if (!this.isAvailable()) {
+      return 0;
+    }
     try {
       const keysArray = Array.isArray(keys) ? keys : [keys];
       return await redis.del(...keysArray);
     } catch (error) {
-      console.error('Error deleting cache keys:', error);
+      if (error.message !== 'Connection is closed.') {
+        console.error('Error deleting cache keys:', error);
+      }
       return 0;
     }
   },
@@ -103,6 +130,9 @@ const cache = {
    * @returns {Promise<number>} Number of keys deleted
    */
   async delPattern(pattern) {
+    if (!this.isAvailable()) {
+      return 0;
+    }
     try {
       const keys = await redis.keys(pattern);
       if (keys.length > 0) {
@@ -110,7 +140,9 @@ const cache = {
       }
       return 0;
     } catch (error) {
-      console.error(`Error deleting cache pattern ${pattern}:`, error);
+      if (error.message !== 'Connection is closed.') {
+        console.error(`Error deleting cache pattern ${pattern}:`, error);
+      }
       return 0;
     }
   },
@@ -121,11 +153,16 @@ const cache = {
    * @returns {Promise<boolean>} True if key exists
    */
   async exists(key) {
+    if (!this.isAvailable()) {
+      return false;
+    }
     try {
       const result = await redis.exists(key);
       return result === 1;
     } catch (error) {
-      console.error(`Error checking cache key ${key}:`, error);
+      if (error.message !== 'Connection is closed.') {
+        console.error(`Error checking cache key ${key}:`, error);
+      }
       return false;
     }
   },
@@ -136,10 +173,15 @@ const cache = {
    * @returns {Promise<number>} TTL in seconds (-1 if no expiry, -2 if key doesn't exist)
    */
   async ttl(key) {
+    if (!this.isAvailable()) {
+      return -2;
+    }
     try {
       return await redis.ttl(key);
     } catch (error) {
-      console.error(`Error getting TTL for key ${key}:`, error);
+      if (error.message !== 'Connection is closed.') {
+        console.error(`Error getting TTL for key ${key}:`, error);
+      }
       return -2;
     }
   },
