@@ -19,6 +19,20 @@ function VendorFileQuality() {
     fetchVendorFiles();
   }, []);
 
+  // Listen for vendor file uploads from other components/tabs
+  useEffect(() => {
+    const handleFileUploaded = (event) => {
+      console.log('Vendor file uploaded, refreshing catalog...', event.detail);
+      fetchVendorFiles();
+    };
+
+    window.addEventListener('vendorFileUploaded', handleFileUploaded);
+
+    return () => {
+      window.removeEventListener('vendorFileUploaded', handleFileUploaded);
+    };
+  }, []);
+
   const fetchVendorFiles = async () => {
     try {
       setLoading(true);

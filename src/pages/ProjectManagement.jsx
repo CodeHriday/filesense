@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FiEdit2, FiTrash2, FiFolderPlus, FiChevronRight, FiChevronDown, FiFolder } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiFolderPlus, FiChevronRight, FiChevronDown, FiFolder, FiRefreshCw } from 'react-icons/fi';
 import ConfirmModal from '../components/ConfirmModal';
 import SubProjectManagement from '../components/SubProjectManagement';
 import EditSubProjectModal from '../components/EditSubProjectModal';
@@ -63,13 +63,7 @@ function ProjectManagement() {
   const [selectedSubProject, setSelectedSubProject] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
 
-  useEffect(() => {
-    fetchProjects();
-    fetchAvailableUsers();
-    fetchAvailableGroups();
-  }, [searchTerm, showArchived]);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -88,7 +82,13 @@ function ProjectManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, showArchived]);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchAvailableUsers();
+    fetchAvailableGroups();
+  }, [fetchProjects]);
 
   const fetchAvailableUsers = async () => {
     try {
@@ -146,8 +146,10 @@ function ProjectManagement() {
           'Idempotency-Key': idempotencyKey
         }
       });
+      
+      // Refresh project list before closing modal
+      await fetchProjects();
       handleCloseCreateModal();
-      fetchProjects();
     } catch (err) {
       if (err.response?.status === 429) {
         setError(err.response.data.message || 'Rate limit exceeded. Please try again later.');
@@ -164,17 +166,24 @@ function ProjectManagement() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    setIsCreating(true);
+    setError(null);
+    
     try {
       const token = localStorage.getItem('token');
       const projectId = selectedProject.id;
       await axios.put(`${API_BASE_URL}/projects/${projectId}`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      // Refresh project list before closing modal
+      await fetchProjects();
       handleCloseEditModal();
-      fetchProjects();
     } catch (err) {
       setError('Failed to update project');
       console.error(err);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -184,7 +193,9 @@ function ProjectManagement() {
       await axios.delete(`${API_BASE_URL}/projects/${projectId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchProjects();
+      
+      // Refresh project list after deletion
+      await fetchProjects();
       setSelectedProject(null);
     } catch (err) {
       if (err.response?.data?.error) {
@@ -435,9 +446,21 @@ function ProjectManagement() {
     <div className="project-management">
       <div className="page-header">
         <h1>Project Management</h1>
-        <button className="btn-primary btn-create-project" onClick={() => setShowCreateModal(true)}>
-          + Create Project
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className="btn-secondary" 
+            onClick={fetchProjects}
+            disabled={loading}
+            title="Refresh project list"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <FiRefreshCw size={16} className={loading ? 'spinning' : ''} />
+            Refresh
+          </button>
+          <button className="btn-primary btn-create-project" onClick={() => setShowCreateModal(true)}>
+            + Create Project
+          </button>
+        </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiArrowRight, FiTrash2, FiChevronDown, FiChevronRight, FiGitBranch, FiSearch, FiEye } from 'react-icons/fi';
 import axios from 'axios';
@@ -25,9 +25,49 @@ const ProcessedFileCatalog = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
+  const fetchTransformationFiles = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Fetch file audit records for transformation-generated files
+      const params = {
+        load_type: 'etl_transformation',
+        file_role: 'target'
+      };
+
+      // Add search parameter if present
+      if (searchTerm && searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      const response = await axios.get('/api/file-audit', { params });
+      
+      setFiles(response.data.audits || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching transformation files:', err);
+      setError('Failed to load transformation file catalog');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchTransformationFiles();
-  }, []);
+  }, [fetchTransformationFiles]);
+
+  // Listen for vendor file uploads from other components/tabs
+  useEffect(() => {
+    const handleFileUploaded = (event) => {
+      console.log('Vendor file uploaded, refreshing processed catalog...', event.detail);
+      fetchTransformationFiles();
+    };
+
+    window.addEventListener('vendorFileUploaded', handleFileUploaded);
+
+    return () => {
+      window.removeEventListener('vendorFileUploaded', handleFileUploaded);
+    };
+  }, [fetchTransformationFiles]);
 
   useEffect(() => {
     // Debounce search: wait 300ms after user stops typing
@@ -36,7 +76,7 @@ const ProcessedFileCatalog = () => {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, fetchTransformationFiles]);
 
   useEffect(() => {
     // Group files by mapping_name when files change
@@ -63,32 +103,6 @@ const ProcessedFileCatalog = () => {
     });
     setExpandedMappings(initialExpanded);
   }, [files]);
-
-  const fetchTransformationFiles = async () => {
-    try {
-      setLoading(true);
-      // Fetch file audit records for transformation-generated files
-      const params = {
-        load_type: 'etl_transformation',
-        file_role: 'target'
-      };
-
-      // Add search parameter if present
-      if (searchTerm && searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-
-      const response = await axios.get('/api/file-audit', { params });
-      
-      setFiles(response.data.audits || []);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching transformation files:', err);
-      setError('Failed to load transformation file catalog');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDeleteProfiling = async (correlationId, fileName) => {
     setConfirmModal({

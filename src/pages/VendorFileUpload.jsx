@@ -146,6 +146,11 @@ function VendorFileUpload() {
         
         addToast('success', 'Upload Complete', scanMessage);
         
+        // Dispatch event to notify other components/tabs to refresh
+        window.dispatchEvent(new CustomEvent('vendorFileUploaded', { 
+          detail: { fileId: fileDetails.fileId, fileName: fileDetails.fileName }
+        }));
+        
         // Hide notification after 8 seconds
         setTimeout(() => {
           setShowSuccessNotification(false);
@@ -163,6 +168,11 @@ function VendorFileUpload() {
         setUploadStage(null);
         setShowSuccessNotification(true);
         addToast('warning', 'Upload Complete', virusScan?.message || 'File uploaded but virus scan status is unknown.');
+        
+        // Dispatch event to notify other components/tabs to refresh
+        window.dispatchEvent(new CustomEvent('vendorFileUploaded', { 
+          detail: { fileId: fileDetails.fileId, fileName: fileDetails.fileName }
+        }));
         
         setTimeout(() => {
           setShowSuccessNotification(false);
