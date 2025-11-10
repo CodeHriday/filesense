@@ -8550,7 +8550,7 @@ app.delete('/api/groups/:groupId/users/:userId', authenticateToken, async (req, 
 // This ensures all users have at least one group
 (async () => {
   try {
-    const defaultGroupResult = await dbPool.query("SELECT id FROM groups WHERE name = 'Default Group'");
+    const defaultGroupResult = await dbPool.query("SELECT id FROM access_groups WHERE name = 'Default Group'");
     
     if (defaultGroupResult.rows.length > 0) {
       const defaultGroupId = defaultGroupResult.rows[0].id;

@@ -551,7 +551,7 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
         
         // Validate password strength
         const validation = passwordSecurity.validatePasswordStrength(password);
-        if (!validation.isValid) {
+        if (!validation.valid) {
           const error = new Error('Password does not meet security requirements');
           error.statusCode = 400;
           error.details = {
@@ -574,15 +574,15 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
         const currentHistory = historyResult.rows[0]?.password_history || [];
         const updatedHistory = passwordSecurity.addToPasswordHistory(hashedPassword, currentHistory);
         
-        // Update password and password_history - use raw array, NOT JSON.stringify()
+        // Update password and password_history
         await client.query(
           `UPDATE users 
            SET password = $1, 
-               password_history = $2,
+               password_history = $2::jsonb,
                must_change_password = COALESCE($3, must_change_password),
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $4`,
-          [hashedPassword, updatedHistory, must_change_password, userId]
+          [hashedPassword, JSON.stringify(updatedHistory), must_change_password, userId]
         );
       }
     
