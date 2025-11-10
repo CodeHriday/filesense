@@ -75,7 +75,7 @@ async function migrateColumnSensitivityToGovernance(pool) {
       
       // Check if governance tag assignment already exists
       const existingAssignment = await client.query(
-        'SELECT id FROM column_governance_tag_assignments WHERE file_id = $1 AND column_name = $2 AND tag_id = $3',
+        'SELECT assignment_id FROM column_governance_tag_assignments WHERE file_id = $1 AND column_name = $2 AND tag_id = $3',
         [file_id, column_name, governanceTagId]
       );
       
@@ -87,9 +87,9 @@ async function migrateColumnSensitivityToGovernance(pool) {
       // Insert governance tag assignment
       await client.query(
         `INSERT INTO column_governance_tag_assignments 
-         (file_id, column_name, tag_id, assigned_by, assigned_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [file_id, column_name, governanceTagId, tagged_by, tagged_at]
+         (file_id, column_name, tag_id, assigned_at)
+         VALUES ($1, $2, $3, $4)`,
+        [file_id, column_name, governanceTagId, tagged_at]
       );
       
       migratedCount++;

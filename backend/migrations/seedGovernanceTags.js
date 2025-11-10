@@ -14,8 +14,10 @@ async function seedGovernanceTags(pool) {
     console.log('🏷️  Seeding default governance tags...');
     
     // Define default governance tags with their properties
+    // tag_id is generated from tag_name: 'tag_' + lowercase_with_underscores
     const defaultTags = [
       {
+        tag_id: 'tag_pii',
         tag_name: 'PII',
         description: 'Personally Identifiable Information - requires special handling and masking',
         color: '#ef4444',
@@ -26,6 +28,7 @@ async function seedGovernanceTags(pool) {
         requires_edit_permission: true
       },
       {
+        tag_id: 'tag_confidential',
         tag_name: 'Confidential',
         description: 'Confidential business information - restricted access',
         color: '#f59e0b',
@@ -36,6 +39,7 @@ async function seedGovernanceTags(pool) {
         requires_edit_permission: true
       },
       {
+        tag_id: 'tag_internal',
         tag_name: 'Internal',
         description: 'Internal use only - not for external sharing',
         color: '#3b82f6',
@@ -46,6 +50,7 @@ async function seedGovernanceTags(pool) {
         requires_edit_permission: true
       },
       {
+        tag_id: 'tag_public',
         tag_name: 'Public',
         description: 'Public information - no access restrictions',
         color: '#10b981',
@@ -56,6 +61,7 @@ async function seedGovernanceTags(pool) {
         requires_edit_permission: false
       },
       {
+        tag_id: 'tag_restricted',
         tag_name: 'Restricted',
         description: 'Highly restricted information - admin access only',
         color: '#dc2626',
@@ -86,11 +92,12 @@ async function seedGovernanceTags(pool) {
       // Insert new tag
       await client.query(
         `INSERT INTO governance_tags 
-         (tag_name, description, color, badge_style, sensitivity_level, 
+         (tag_id, tag_name, description, color, badge_style, sensitivity_level, 
           permission_required, requires_view_permission, requires_edit_permission, 
           created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [
+          tag.tag_id,
           tag.tag_name,
           tag.description,
           tag.color,
