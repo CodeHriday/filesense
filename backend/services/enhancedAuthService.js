@@ -397,19 +397,32 @@ async function changePassword(userId, currentPassword, newPassword) {
       passwordHistory
     );
     
-    // Update user
-    await db.query(
+    // Update user (password_history is jsonb, pass array directly, not stringified)
+    const updateResult = await db.query(
       `UPDATE users 
        SET password = $1, 
            password_history = $2,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3`,
-      [hashedPassword, JSON.stringify(updatedHistory), userId]
+       WHERE id = $3
+       RETURNING id, username, email`,
+      [hashedPassword, updatedHistory, userId]
     );
+    
+    // Verify the update succeeded
+    if (updateResult.rows.length === 0) {
+      console.error(`Password update failed for user ID ${userId} - no rows updated`);
+      return {
+        success: false,
+        message: 'Failed to update password in database'
+      };
+    }
+    
+    console.log(`Password successfully updated for user: ${updateResult.rows[0].username} (ID: ${userId})`);
     
     return {
       success: true,
-      message: 'Password changed successfully'
+      message: 'Password changed successfully',
+      user: updateResult.rows[0]
     };
     
   } catch (error) {
