@@ -545,8 +545,12 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
       
       // Handle password update if provided (admin changing user password)
       if (password) {
+        const bcrypt = require('bcrypt');
+        const { SECURITY_CONFIG } = require('../src/config/environment');
+        const { passwordSecurity } = require('../src/security/passwordSecurity');
+        
         // Validate password strength
-        const validation = enhancedAuthService.validatePassword(password);
+        const validation = passwordSecurity.validatePasswordStrength(password);
         if (!validation.isValid) {
           const error = new Error('Password does not meet security requirements');
           error.statusCode = 400;
@@ -558,9 +562,6 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
           throw error;
         }
         
-        const bcrypt = require('bcrypt');
-        const { SECURITY_CONFIG } = require('../src/config/environment');
-        const { passwordSecurity } = require('../src/security/passwordSecurity');
         const saltRounds = SECURITY_CONFIG.BCRYPT_SALT_ROUNDS;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         
