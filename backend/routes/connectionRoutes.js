@@ -662,7 +662,7 @@ router.get('/:id/dependencies', async (req, res) => {
     );
     if (vendorAgreements.rows.length > 0) {
       dependencies.dependencies.push({
-        type: 'vendor_agreements',
+        type: 'Vendor Agreements',
         count: vendorAgreements.rows.length,
         items: vendorAgreements.rows.map(row => ({
           id: row.id,
@@ -680,7 +680,7 @@ router.get('/:id/dependencies', async (req, res) => {
     );
     if (vendorProfiling.rows[0].count > 0) {
       dependencies.dependencies.push({
-        type: 'vendor_file_profiling',
+        type: 'Vendor File Profiling Results',
         count: parseInt(vendorProfiling.rows[0].count),
         items: []
       });
@@ -695,7 +695,7 @@ router.get('/:id/dependencies', async (req, res) => {
     );
     if (transformMappings.rows.length > 0) {
       dependencies.dependencies.push({
-        type: 'transformation_mappings',
+        type: 'Transformation Mappings',
         count: transformMappings.rows.length,
         items: transformMappings.rows.map(row => ({
           id: row.mapping_id,
@@ -704,16 +704,18 @@ router.get('/:id/dependencies', async (req, res) => {
       });
     }
 
-    // Check mapping_groups
+    // Check mapping_groups (through mapping_group_members -> transformation_mappings)
     const mappingGroups = await pool.query(
-      `SELECT group_id, group_name 
-       FROM mapping_groups 
-       WHERE source_connection_id = $1`,
+      `SELECT DISTINCT mg.id as group_id, mg.name as group_name 
+       FROM mapping_groups mg
+       INNER JOIN mapping_group_members mgm ON mg.id = mgm.group_id
+       INNER JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
+       WHERE tm.source_connection_id = $1 OR tm.target_connection_id = $1`,
       [connectionId]
     );
     if (mappingGroups.rows.length > 0) {
       dependencies.dependencies.push({
-        type: 'mapping_groups',
+        type: 'Mapping Groups',
         count: mappingGroups.rows.length,
         items: mappingGroups.rows.map(row => ({
           id: row.group_id,
@@ -809,11 +811,13 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // Check mapping_groups
+    // Check mapping_groups (through mapping_group_members -> transformation_mappings)
     const mappingGroups = await pool.query(
-      `SELECT group_id, group_name 
-       FROM mapping_groups 
-       WHERE source_connection_id = $1`,
+      `SELECT DISTINCT mg.id as group_id, mg.name as group_name 
+       FROM mapping_groups mg
+       INNER JOIN mapping_group_members mgm ON mg.id = mgm.group_id
+       INNER JOIN transformation_mappings tm ON mgm.mapping_id = tm.mapping_id
+       WHERE tm.source_connection_id = $1 OR tm.target_connection_id = $1`,
       [connectionId]
     );
     if (mappingGroups.rows.length > 0) {
