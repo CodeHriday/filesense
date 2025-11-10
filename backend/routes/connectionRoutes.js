@@ -848,6 +848,112 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
+ * @route   PATCH /api/connections/:id/soft-delete
+ * @desc    Soft delete a connection (marks as deleted without removing)
+ * @access  Protected (requires authentication)
+ */
+router.patch('/:id/soft-delete', async (req, res) => {
+  try {
+    const connectionId = req.params.id;
+    const userId = req.user?.id;
+    
+    // Check project access before allowing soft delete
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const existingConnection = await connectionService.getConnectionById(connectionId);
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      const userProjectIds = userProjects.map(p => p.id);
+      
+      if (!userProjectIds.includes(existingConnection.project_id)) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have access to delete this connection' 
+        });
+      }
+    }
+    
+    // Perform soft delete
+    const result = await pool.query(
+      `UPDATE storage_connections 
+       SET is_deleted = TRUE, 
+           deleted_at = NOW(), 
+           deleted_by = $2,
+           status = 'inactive'
+       WHERE connection_id = $1
+       RETURNING connection_id, name, is_deleted, deleted_at`,
+      [connectionId, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Connection soft deleted successfully',
+      connection: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error soft deleting connection:', error);
+    res.status(500).json({ error: 'Failed to soft delete connection' });
+  }
+});
+
+/**
+ * @route   PATCH /api/connections/:id/restore
+ * @desc    Restore a soft-deleted connection
+ * @access  Protected (requires authentication)
+ */
+router.patch('/:id/restore', async (req, res) => {
+  try {
+    const connectionId = req.params.id;
+    
+    // Check project access before allowing restore
+    const isAdmin = req.user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const existingConnection = await connectionService.getConnectionById(connectionId);
+      const userId = req.user?.id;
+      const { getUserProjects } = require('../middleware/requireProjectAccess');
+      const userProjects = await getUserProjects(userId);
+      const userProjectIds = userProjects.map(p => p.id);
+      
+      if (!userProjectIds.includes(existingConnection.project_id)) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You do not have access to restore this connection' 
+        });
+      }
+    }
+    
+    // Restore connection
+    const result = await pool.query(
+      `UPDATE storage_connections 
+       SET is_deleted = FALSE, 
+           deleted_at = NULL, 
+           deleted_by = NULL,
+           status = 'active'
+       WHERE connection_id = $1
+       RETURNING connection_id, name, is_deleted`,
+      [connectionId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Connection restored successfully',
+      connection: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error restoring connection:', error);
+    res.status(500).json({ error: 'Failed to restore connection' });
+  }
+});
+
+/**
  * @route   GET /api/connections/:id/test
  * @desc    Test a saved connection by ID (fetches and decrypts credentials)
  * @access  Protected (requires authentication, project membership, and connection:execute permission)
