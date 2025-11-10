@@ -472,7 +472,9 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
     country,
     internal_user,
     user_type,
-    roles
+    roles,
+    password,
+    must_change_password
   } = req.body;
   
   // Check if user has admin permissions
@@ -539,6 +541,48 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
         const error = new Error('User not found');
         error.statusCode = 404;
         throw error;
+      }
+      
+      // Handle password update if provided (admin changing user password)
+      if (password) {
+        // Validate password strength
+        const validation = enhancedAuthService.validatePassword(password);
+        if (!validation.isValid) {
+          const error = new Error('Password does not meet security requirements');
+          error.statusCode = 400;
+          error.details = {
+            error: 'Weak password',
+            message: 'Password does not meet security requirements',
+            errors: validation.errors
+          };
+          throw error;
+        }
+        
+        const bcrypt = require('bcrypt');
+        const { SECURITY_CONFIG } = require('../src/config/environment');
+        const { passwordSecurity } = require('../src/security/passwordSecurity');
+        const saltRounds = SECURITY_CONFIG.BCRYPT_SALT_ROUNDS;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        
+        // Get current password history
+        const historyResult = await client.query(
+          'SELECT password_history FROM users WHERE id = $1',
+          [userId]
+        );
+        
+        const currentHistory = historyResult.rows[0]?.password_history || [];
+        const updatedHistory = passwordSecurity.addToPasswordHistory(hashedPassword, currentHistory);
+        
+        // Update password and password_history - use raw array, NOT JSON.stringify()
+        await client.query(
+          `UPDATE users 
+           SET password = $1, 
+               password_history = $2,
+               must_change_password = COALESCE($3, must_change_password),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $4`,
+          [hashedPassword, updatedHistory, must_change_password, userId]
+        );
       }
     
     // Update roles if provided
@@ -614,6 +658,10 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
         error: 'User not found',
         message: `No user found with ID ${userId}`
       });
+    }
+    // Handle password validation errors
+    if (error.statusCode === 400 && error.details) {
+      return res.status(400).json(error.details);
     }
     // Re-throw other errors to be handled by asyncHandler
     throw error;

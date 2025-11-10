@@ -2697,8 +2697,11 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
     // Invalidate vendor files cache so new uploads appear immediately
     if (connectionId) {
       try {
+        const { invalidateFileCache } = require('./backend/src/middleware/cache');
+        
         await invalidate('cache:*:/api/vendor-files*');
         await invalidate('cache:*:/api/files*');
+        await invalidateFileCache(fileId); // Invalidate file-specific cache for columns, tags, etc.
         logger.info('Invalidated vendor file caches after upload', { fileId });
       } catch (cacheError) {
         // Log but don't fail the upload if cache invalidation fails
