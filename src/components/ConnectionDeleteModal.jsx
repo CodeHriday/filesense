@@ -9,7 +9,8 @@ function ConnectionDeleteModal({
   dependencies,
   onConfirmDelete,
   isDeleting,
-  checkingDependencies
+  checkingDependencies,
+  deleteError
 }) {
   if (!isOpen || !connection) return null;
 
@@ -57,6 +58,13 @@ function ConnectionDeleteModal({
               </div>
             )}
           </div>
+
+          {deleteError && (
+            <div className="delete-error-section">
+              <FiAlertTriangle className="error-icon" />
+              <p className="error-message">{deleteError}</p>
+            </div>
+          )}
 
           {checkingDependencies ? (
             <div className="dependencies-loading">

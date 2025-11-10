@@ -655,9 +655,10 @@ router.get('/:id/dependencies', async (req, res) => {
 
     // Check vendor_agreements
     const vendorAgreements = await pool.query(
-      `SELECT id, vendor_name, file_name 
-       FROM vendor_agreements 
-       WHERE vendor_connection_id = $1 AND status != 'archived'`,
+      `SELECT va.id, v.vendor_name, va.file_name 
+       FROM vendor_agreements va
+       LEFT JOIN vendors v ON va.vendor_id = v.id
+       WHERE va.vendor_connection_id = $1 AND va.status != 'archived'`,
       [connectionId]
     );
     if (vendorAgreements.rows.length > 0) {
@@ -666,7 +667,7 @@ router.get('/:id/dependencies', async (req, res) => {
         count: vendorAgreements.rows.length,
         items: vendorAgreements.rows.map(row => ({
           id: row.id,
-          name: `${row.vendor_name} - ${row.file_name}`
+          name: `${row.vendor_name || 'Unknown Vendor'} - ${row.file_name}`
         }))
       });
     }
@@ -768,16 +769,17 @@ router.delete('/:id', async (req, res) => {
     
     // Check vendor_agreements
     const vendorAgreements = await pool.query(
-      `SELECT id, vendor_name, file_name 
-       FROM vendor_agreements 
-       WHERE vendor_connection_id = $1 AND status != 'archived'`,
+      `SELECT va.id, v.vendor_name, va.file_name 
+       FROM vendor_agreements va
+       LEFT JOIN vendors v ON va.vendor_id = v.id
+       WHERE va.vendor_connection_id = $1 AND va.status != 'archived'`,
       [connectionId]
     );
     if (vendorAgreements.rows.length > 0) {
       dependencies.push({
         type: 'Vendor Agreements',
         count: vendorAgreements.rows.length,
-        items: vendorAgreements.rows.slice(0, 5).map(row => `${row.vendor_name} - ${row.file_name}`)
+        items: vendorAgreements.rows.slice(0, 5).map(row => `${row.vendor_name || 'Unknown Vendor'} - ${row.file_name}`)
       });
     }
 

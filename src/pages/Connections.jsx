@@ -34,6 +34,7 @@ const Connections = () => {
   const [isDeletingConnection, setIsDeletingConnection] = useState(false);
   const [connectionDependencies, setConnectionDependencies] = useState(null);
   const [checkingDependencies, setCheckingDependencies] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   
   // Connection usage tracking
   const [connectionUsageMap, setConnectionUsageMap] = useState({});
@@ -283,6 +284,7 @@ const Connections = () => {
     const connection = connections.find(conn => conn.id === id);
     setConnectionToDelete(connection);
     setCheckingDependencies(true);
+    setDeleteError(null);
     setShowDeleteConnectionModal(true);
     
     try {
@@ -301,7 +303,8 @@ const Connections = () => {
       }));
     } catch (err) {
       console.error('Error checking connection dependencies:', err);
-      setConnectionDependencies({ canDelete: true, inUse: false, dependencies: [] });
+      setDeleteError('Failed to check connection dependencies. Please try again.');
+      setConnectionDependencies({ canDelete: false, inUse: false, dependencies: [] });
     } finally {
       setCheckingDependencies(false);
     }
@@ -311,15 +314,18 @@ const Connections = () => {
     if (!connectionToDelete) return;
     
     setIsDeletingConnection(true);
+    setDeleteError(null);
     try {
       await deleteConnection(connectionToDelete.id);
       // Update local state without refetching
       setConnections(connections.filter(conn => conn.id !== connectionToDelete.id));
       setShowDeleteConnectionModal(false);
       setConnectionToDelete(null);
+      setDeleteError(null);
     } catch (err) {
       console.error('Error deleting connection:', err);
-      setError('Failed to delete connection. Please try again.');
+      const errorMessage = err.response?.data?.message || 'Failed to delete connection. Please try again.';
+      setDeleteError(errorMessage);
     } finally {
       setIsDeletingConnection(false);
     }
@@ -330,6 +336,7 @@ const Connections = () => {
     setConnectionToDelete(null);
     setConnectionDependencies(null);
     setCheckingDependencies(false);
+    setDeleteError(null);
   };
   
   const handleInputChange = (e) => {
@@ -1902,6 +1909,7 @@ const Connections = () => {
         onConfirmDelete={confirmDeleteConnection}
         isDeleting={isDeletingConnection}
         checkingDependencies={checkingDependencies}
+        deleteError={deleteError}
       />
     </div>
   );
