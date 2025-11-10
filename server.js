@@ -3644,6 +3644,8 @@ const { up: addSubProjectToVendorAgreements } = require('./backend/migrations/ad
 const { up: createVendorAgreementFileSchemas } = require('./backend/migrations/createVendorAgreementFileSchemas');
 const { up: migrateVendorAgreementSchemasToFileSchemas } = require('./backend/migrations/migrateVendorAgreementSchemasToFileSchemas');
 const { addPrimaryKeyColumnsToQualityRuleViolations } = require('./backend/migrations/addPrimaryKeyColumnsToQualityRuleViolations');
+const seedGovernanceTags = require('./backend/migrations/seedGovernanceTags');
+const migrateColumnSensitivityToGovernance = require('./backend/migrations/migrateColumnSensitivityToGovernance');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -3686,6 +3688,8 @@ const { addPrimaryKeyColumnsToQualityRuleViolations } = require('./backend/migra
     await migrationTracker.runOnce('createVendorAgreementFileSchemas', () => createVendorAgreementFileSchemas());
     await migrationTracker.runOnce('migrateVendorAgreementSchemasToFileSchemas', () => migrateVendorAgreementSchemasToFileSchemas());
     await migrationTracker.runOnce('addPrimaryKeyColumnsToQualityRuleViolations', () => addPrimaryKeyColumnsToQualityRuleViolations(dbPool));
+    await migrationTracker.runOnce('seedGovernanceTags', () => seedGovernanceTags(dbPool));
+    await migrationTracker.runOnce('migrateColumnSensitivityToGovernance', () => migrateColumnSensitivityToGovernance(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
@@ -4885,7 +4889,7 @@ app.get('/api/files/:fileId/columns/:columnName/tags', cacheMiddleware(300), asy
 });
 
 // Assign governance tags to a column
-app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, invalidateCache('cache:*:*tags*'), async (req, res) => {
+app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, async (req, res) => {
   try {
     const { fileId, columnName } = req.params;
     const { tag_ids } = req.body;
@@ -4957,6 +4961,11 @@ app.post('/api/files/:fileId/columns/:columnName/tags', authenticateToken, inval
         [fileId, decodedColumnName, ...tag_ids]
       );
     }
+    
+    // Invalidate cache for file preview and column tags
+    const { invalidate } = require('./backend/middleware/cacheMiddleware');
+    await invalidate(`cache:*:*${fileId}*`); // File-specific caches
+    await invalidate('cache:*:*tags*'); // Tag-related caches
     
     res.json({ message: 'Column tags updated successfully' });
   } catch (err) {
