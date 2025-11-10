@@ -3,7 +3,7 @@ import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, 
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
-import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import ConnectionDeleteModal from '../components/ConnectionDeleteModal';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -11,7 +11,7 @@ import { API_BASE_URL } from '../config';
 import './Connections.css';
 
 // Import the connection service
-import { getConnections, createConnection, updateConnection, deleteConnection, testConnection, testSavedConnection, testConnectionWithUpdates } from '../api/connectionService';
+import { getConnections, createConnection, updateConnection, deleteConnection, testConnection, testSavedConnection, testConnectionWithUpdates, checkConnectionDependencies } from '../api/connectionService';
 
 const Connections = () => {
   const { hasWritePermission, hasExecutePermission, currentUser } = useAuth();
@@ -32,6 +32,8 @@ const Connections = () => {
   const [showDeleteConnectionModal, setShowDeleteConnectionModal] = useState(false);
   const [connectionToDelete, setConnectionToDelete] = useState(null);
   const [isDeletingConnection, setIsDeletingConnection] = useState(false);
+  const [connectionDependencies, setConnectionDependencies] = useState(null);
+  const [checkingDependencies, setCheckingDependencies] = useState(false);
   
   // Test connection in modal state
   const [testingInModal, setTestingInModal] = useState(false);
@@ -274,10 +276,21 @@ const Connections = () => {
     setShowForm(true);
   };
   
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const connection = connections.find(conn => conn.id === id);
     setConnectionToDelete(connection);
+    setCheckingDependencies(true);
     setShowDeleteConnectionModal(true);
+    
+    try {
+      const deps = await checkConnectionDependencies(id);
+      setConnectionDependencies(deps);
+    } catch (err) {
+      console.error('Error checking connection dependencies:', err);
+      setConnectionDependencies({ canDelete: true, inUse: false, dependencies: [] });
+    } finally {
+      setCheckingDependencies(false);
+    }
   };
   
   const confirmDeleteConnection = async () => {
@@ -301,6 +314,8 @@ const Connections = () => {
   const closeDeleteConnectionModal = () => {
     setShowDeleteConnectionModal(false);
     setConnectionToDelete(null);
+    setConnectionDependencies(null);
+    setCheckingDependencies(false);
   };
   
   const handleInputChange = (e) => {
@@ -1860,12 +1875,14 @@ const Connections = () => {
       )}
       
       {/* Delete Connection Confirmation Modal */}
-      <DeleteConfirmationModal
+      <ConnectionDeleteModal
         isOpen={showDeleteConnectionModal}
         onClose={closeDeleteConnectionModal}
-        onConfirm={confirmDeleteConnection}
-        fileName={connectionToDelete?.connection_name}
+        connection={connectionToDelete}
+        dependencies={connectionDependencies}
+        onConfirmDelete={confirmDeleteConnection}
         isDeleting={isDeletingConnection}
+        checkingDependencies={checkingDependencies}
       />
     </div>
   );

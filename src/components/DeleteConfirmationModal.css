@@ -291,6 +291,69 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+/* Additional styles for Connection Delete Modal */
+.dependency-item-detailed {
+  background-color: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.dependency-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 0.5rem;
+}
+
+.dependency-items-list {
+  margin-top: 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.dependency-item-name {
+  font-size: 0.875rem;
+  color: #78350f;
+  padding: 0.25rem 0;
+}
+
+.dependency-item-name.more-items {
+  font-style: italic;
+  color: #a16207;
+}
+
+.dependencies-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+.dependencies-loading .spinner {
+  animation: spin 1s linear infinite;
+  font-size: 2rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn-delete-confirm:disabled,
+.delete-modal-close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Responsive Design */
 @media (max-width: 640px) {
   .delete-modal-content {

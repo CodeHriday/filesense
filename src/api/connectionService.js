@@ -103,3 +103,14 @@ export const testConnection = async (connectionData) => {
   const response = await axios.post(`${API_URL}/connections/test`, connectionData);
   return response.data;
 };
+
+/**
+ * Check if a connection has dependencies
+ * 
+ * @param {string} id - Connection ID
+ * @returns {Promise<Object>} - Dependency information
+ */
+export const checkConnectionDependencies = async (id) => {
+  const response = await axios.get(`${API_URL}/connections/${id}/dependencies`);
+  return response.data;
+};
