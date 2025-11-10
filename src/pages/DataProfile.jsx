@@ -35,60 +35,35 @@ ChartJS.register(
   Legend
 );
 
-function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, setErrorMessage }) {
-  const [sensitivityLevel, setSensitivityLevel] = useState(currentTag?.sensitivity_level || '');
-  const [dataType, setDataType] = useState(currentTag?.data_type || '');
+function SensitivityTagModal({ fileId, columnName, currentTags, availableTags, onClose, onSave, setErrorMessage }) {
+  const [selectedTagIds, setSelectedTagIds] = useState((currentTags || []).map(t => t.tag_id));
   const [saving, setSaving] = useState(false);
 
-  const classificationLevels = [
-    { value: 'Public', label: 'Public', color: 'blue', description: 'Data available to everyone' },
-    { value: 'Internal', label: 'Internal', color: 'green', description: 'Data for internal use only' },
-    { value: 'Confidential', label: 'Confidential', color: 'yellow', description: 'Sensitive business data' },
-    { value: 'Restricted', label: 'Restricted', color: 'red', description: 'Highly sensitive data (PII/PHI/PCI)' },
-    { value: 'PII', label: 'PII', color: 'purple', description: 'Personally Identifiable Information' }
-  ];
-
-  const handleSave = async () => {
-    if (!sensitivityLevel) {
-      setErrorMessage('Please select a sensitivity level');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const encodedFileId = encodeURIComponent(fileId);
-      // Normalize column name to lowercase to handle Parquet case-sensitivity
-      const normalizedColumnName = columnName.toLowerCase();
-      await axios.post(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/sensitivity-tag`, {
-        sensitivity_level: sensitivityLevel,
-        data_type: dataType
-      });
-      onSave();
-    } catch (err) {
-      console.error('Error saving sensitivity tag:', err);
-      setErrorMessage('Failed to save sensitivity tag');
-    } finally {
-      setSaving(false);
+  const handleToggle = (tagId) => {
+    if (selectedTagIds.includes(tagId)) {
+      setSelectedTagIds(selectedTagIds.filter(id => id !== tagId));
+    } else {
+      setSelectedTagIds([...selectedTagIds, tagId]);
     }
   };
 
-  const handleDelete = async () => {
-    if (!currentTag) return;
-
-    if (!confirm('Are you sure you want to remove this sensitivity tag?')) {
-      return;
-    }
-
+  const handleSave = async () => {
     try {
       setSaving(true);
       const encodedFileId = encodeURIComponent(fileId);
-      // Normalize column name to lowercase to handle Parquet case-sensitivity
       const normalizedColumnName = columnName.toLowerCase();
-      await axios.delete(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/sensitivity-tag`);
+      
+      await axios.post(
+        `/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/tags`,
+        { tag_ids: selectedTagIds },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      
       onSave();
     } catch (err) {
-      console.error('Error deleting sensitivity tag:', err);
-      setErrorMessage('Failed to delete sensitivity tag');
+      console.error('Error saving tags:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to save tags';
+      setErrorMessage(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -100,39 +75,44 @@ function SensitivityTagModal({ fileId, columnName, currentTag, onClose, onSave, 
         <h2>Classify Column: {columnName}</h2>
         
         <div className="form-group">
-          <label>Classification Level</label>
+          <label>Select Governance Tags (multi-select)</label>
           <div className="classification-options">
-            {classificationLevels.map((level) => (
-              <div
-                key={level.value}
-                className={`classification-option ${sensitivityLevel === level.value ? 'selected' : ''}`}
-                onClick={() => setSensitivityLevel(level.value)}
-              >
-                <span className={`sensitivity-badge sensitivity-${level.value.toLowerCase()}`}>
-                  {level.label}
-                </span>
-                <p className="option-description">{level.description}</p>
-              </div>
-            ))}
+            {availableTags && availableTags.length > 0 ? (
+              availableTags.map((tag) => {
+                const isSelected = selectedTagIds.includes(tag.tag_id);
+                return (
+                  <div
+                    key={tag.tag_id}
+                    className={`classification-option ${isSelected ? 'selected' : ''}`}
+                    onClick={() => handleToggle(tag.tag_id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span 
+                      className="sensitivity-badge" 
+                      style={{
+                        backgroundColor: isSelected ? tag.color : '#e2e8f0',
+                        color: isSelected ? 'white' : '#64748b',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {tag.tag_name}
+                    </span>
+                    {tag.description && (
+                      <p className="option-description">{tag.description}</p>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="empty-state">No governance tags available</p>
+            )}
           </div>
         </div>
         
-        <div className="form-group">
-          <label>Data Type (optional)</label>
-          <input
-            type="text"
-            value={dataType}
-            onChange={(e) => setDataType(e.target.value)}
-            placeholder="e.g., PII, PHI, PCI, Email, SSN"
-          />
-        </div>
-        
         <div className="modal-actions">
-          {currentTag && (
-            <button className="btn btn-danger" onClick={handleDelete} disabled={saving}>
-              Remove Tag
-            </button>
-          )}
           <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
             Cancel
           </button>
@@ -386,7 +366,6 @@ function DataProfile() {
   const [ownership, setOwnership] = useState(null);
   const [showOwnershipModal, setShowOwnershipModal] = useState(false);
   const [policies, setPolicies] = useState([]);
-  const [columnTags, setColumnTags] = useState([]);
   const [showTagModal, setShowTagModal] = useState(false);
   const [profileHistory, setProfileHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -561,16 +540,6 @@ function DataProfile() {
     }
   };
 
-  const fetchColumnTags = async () => {
-    try {
-      const encodedFileId = encodeURIComponent(fileId);
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/sensitivity-tags`);
-      setColumnTags(response.data);
-    } catch (err) {
-      console.error('Error fetching column tags:', err);
-    }
-  };
-
   const fetchAvailableTags = async () => {
     try {
       const response = await axios.get('/api/governance-tags');
@@ -602,13 +571,10 @@ function DataProfile() {
   const fetchColumnGovernanceTags = async (columnName) => {
     try {
       const encodedFileId = encodeURIComponent(fileId);
-      // Normalize column name to lowercase to handle Parquet case-sensitivity
       const normalizedColumnName = columnName.toLowerCase();
-      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/sensitivity-tag`);
-      // Return array format for consistency with frontend expectations
-      return response.data ? [response.data] : [];
+      const response = await axios.get(`/api/files/${encodedFileId}/columns/${encodeURIComponent(normalizedColumnName)}/tags`);
+      return response.data || [];
     } catch (err) {
-      // 404 means no sensitivity tag for this column (expected for non-PII columns)
       if (err.response?.status === 404) {
         return [];
       }
@@ -728,7 +694,6 @@ function DataProfile() {
         await Promise.all([
           fetchOwnership(),
           fetchPolicies(),
-          fetchColumnTags(),
           fetchAvailableTags(),
           fetchFileTags(),
           fetchAvailablePolicies()
@@ -1109,7 +1074,7 @@ function DataProfile() {
             <thead>
               <tr>
                 <th>Column Name</th>
-                <th>PII</th>
+                <th>Governance Tags</th>
                 <th>Data Type</th>
                 <th>Pattern</th>
                 <th>Unique Values</th>
@@ -1122,8 +1087,7 @@ function DataProfile() {
               {columns.map((column) => {
                 const nullCount = column.missing || 0;
                 const missingPercentage = Math.round((nullCount / totalRows) * 100);
-                const columnTag = columnTags.find(tag => tag.column_name === column.name);
-                const isPII = columnTag && columnTag.sensitivity_level === 'PII';
+                const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
                 
                 // Format patterns for display
                 const formatPatterns = (patterns) => {
@@ -1141,13 +1105,29 @@ function DataProfile() {
                   <tr key={column.name}>
                     <td>{column.name}</td>
                     <td>
-                      {isPII ? (
-                        <span className="pii-badge" title="Contains Personally Identifiable Information">
-                          PII
-                        </span>
-                      ) : (
-                        <span className="no-pii-indicator">—</span>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                        {columnGovernanceTags.length > 0 ? (
+                          columnGovernanceTags.map(tag => (
+                            <span 
+                              key={tag.tag_id} 
+                              className="tag-badge" 
+                              style={{ 
+                                backgroundColor: tag.tag_color || tag.color || '#3b82f6',
+                                color: 'white',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: '500'
+                              }}
+                              title={tag.tag_name}
+                            >
+                              {tag.tag_name}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="no-pii-indicator">—</span>
+                        )}
+                      </div>
                     </td>
                     <td>{column.type}</td>
                     <td className="pattern-cell">{formatPatterns(column.patterns)}</td>
@@ -2024,15 +2004,18 @@ function DataProfile() {
             <SensitivityTagModal
               fileId={fileId}
               columnName={selectedColumn}
-              currentTag={columnTags.find(tag => tag.column_name === selectedColumn)}
+              currentTags={currentColumnGovernanceTags}
+              availableTags={availableTags}
               onClose={() => {
                 setShowTagModal(false);
                 setSelectedColumn(null);
               }}
               onSave={async () => {
-                await fetchColumnTags();
                 setShowTagModal(false);
                 setSelectedColumn(null);
+                if (profile && profile.columns) {
+                  await fetchAllColumnGovernanceData(profile.columns);
+                }
               }}
               setErrorMessage={setErrorMessage}
             />
