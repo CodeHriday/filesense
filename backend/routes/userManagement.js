@@ -547,7 +547,7 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
       if (password) {
         const bcrypt = require('bcrypt');
         const { SECURITY_CONFIG } = require('../src/config/environment');
-        const { passwordSecurity } = require('../src/security/passwordSecurity');
+        const passwordSecurity = require('../utils/passwordSecurity');
         
         // Validate password strength
         const validation = passwordSecurity.validatePasswordStrength(password);
