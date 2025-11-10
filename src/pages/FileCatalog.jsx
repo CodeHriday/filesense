@@ -131,6 +131,7 @@ export const FileCatalog = ({ onFileSelect }) => {
   };
 
   const handleDelete = (file) => {
+    console.log('[DELETE BUTTON CLICKED] File:', file);
     setFileToDelete(file);
     setShowDeleteModal(true);
   };
@@ -681,7 +682,11 @@ export const FileCatalog = ({ onFileSelect }) => {
                           </button>
                           <button
                             className="action-icon-btn delete-btn"
-                            onClick={() => handleDelete(file)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log('[BUTTON CLICK] Delete button clicked for file:', file.file_id);
+                              handleDelete(file);
+                            }}
                             disabled={deletingFileId === file.file_id}
                             title="Delete"
                           >
@@ -789,7 +794,11 @@ export const FileCatalog = ({ onFileSelect }) => {
                             </button>
                             <button
                               className="action-icon-btn delete-btn"
-                              onClick={() => handleDelete(childFile)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('[BUTTON CLICK] Delete button clicked for child file:', childFile.file_id);
+                                handleDelete(childFile);
+                              }}
                               disabled={deletingFileId === childFile.file_id}
                               title="Delete"
                             >
