@@ -3,7 +3,7 @@ import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
-import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import SimpleSuccessModal from '../components/SimpleSuccessModal';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
@@ -853,12 +853,15 @@ export const FileCatalog = ({ onFileSelect }) => {
         )}
       </div>
 
-      <DeleteConfirmationModal
+      <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={closeDeleteModal}
         onConfirm={confirmDelete}
-        fileName={fileToDelete ? fileToDelete.filename : `${selectedFiles.length} files`}
-        isDeleting={fileToDelete ? (deletingFileId === fileToDelete.file_id) : bulkDeleteMutation.isPending}
+        title="Delete File"
+        message={`Are you sure you want to delete ${fileToDelete ? fileToDelete.filename : `${selectedFiles.length} files`}? This action cannot be undone.`}
+        confirmText={fileToDelete ? (deletingFileId === fileToDelete.file_id ? 'Deleting...' : 'Delete') : (bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete')}
+        cancelText="Cancel"
+        confirmButtonStyle={{ background: '#dc2626' }}
       />
       
       <SimpleSuccessModal
