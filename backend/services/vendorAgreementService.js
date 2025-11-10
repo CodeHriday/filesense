@@ -2518,14 +2518,14 @@ class VendorAgreementService {
         throw new Error('Agreement not found');
       }
       
-      if (checkResult.rows[0].status === 'disabled') {
+      if (checkResult.rows[0].status === 'inactive') {
         throw new Error('Agreement is already disabled');
       }
       
-      // Disable by updating status to 'disabled'
+      // Disable by updating status to 'inactive'
       const result = await client.query(
         `UPDATE vendor_agreements 
-         SET status = 'disabled', 
+         SET status = 'inactive', 
              updated_at = CURRENT_TIMESTAMP,
              updated_by = $2
          WHERE id = $1
@@ -2598,7 +2598,7 @@ class VendorAgreementService {
       for (const agreement of expiredAgreements.rows) {
         await client.query(
           `UPDATE vendor_agreements 
-           SET status = 'disabled', 
+           SET status = 'inactive', 
                updated_at = CURRENT_TIMESTAMP,
                updated_by = 1
            WHERE id = $1`,
