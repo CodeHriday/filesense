@@ -2537,7 +2537,7 @@ class VendorAgreementService {
       await client.query(
         `INSERT INTO vendor_agreement_changes (
           agreement_id, change_type, changes_summary, changed_by, changed_at
-        ) VALUES ($1, 'disabled', 'Agreement disabled', $2, CURRENT_TIMESTAMP)`,
+        ) VALUES ($1, 'updated', 'Agreement disabled (status changed to inactive)', $2, CURRENT_TIMESTAMP)`,
         [agreementId, disabledBy]
       );
       
