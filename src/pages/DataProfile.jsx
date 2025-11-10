@@ -1205,6 +1205,7 @@ function DataProfile() {
         <div className="distribution-cards">
           {columns.map((column) => {
             const anomalyBadges = getAnomalyBadges(column);
+            const columnGovernanceTags = allColumnGovernanceTags[column.name] || [];
             
             return (
               <Card 
@@ -1214,6 +1215,27 @@ function DataProfile() {
                 <div className="distribution-card-header">
                   <h3>
                     <span>{column.name}</span>
+                    {columnGovernanceTags.length > 0 && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                        {columnGovernanceTags.map(tag => (
+                          <span 
+                            key={tag.tag_id} 
+                            className="tag-badge" 
+                            style={{ 
+                              backgroundColor: tag.tag_color || tag.color || '#3b82f6',
+                              color: 'white',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '500'
+                            }}
+                            title={tag.tag_name}
+                          >
+                            {tag.tag_name}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                     {anomalyBadges}
                   </h3>
                 </div>
