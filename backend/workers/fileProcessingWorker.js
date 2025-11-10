@@ -1413,6 +1413,57 @@ print(json.dumps(result))
       
       // Extract column names for governance persistence
       piiColumnNames = piiColumns.map(col => col.name || col.column_name);
+      
+      // CRITICAL FIX: Create column_governance_tag_assignments for PII columns
+      // This was accidentally removed during file processing worker refactor
+      if (piiColumnNames.length > 0) {
+        try {
+          // Get the PII governance tag_id
+          const piiTagResult = await this.dbPool.query(`
+            SELECT tag_id 
+            FROM governance_tags 
+            WHERE tag_name = 'PII'
+            LIMIT 1
+          `);
+          
+          if (piiTagResult.rows.length > 0) {
+            const piiTagId = piiTagResult.rows[0].tag_id;
+            
+            // Delete existing tag assignments for this file (clean slate)
+            await this.dbPool.query(`
+              DELETE FROM column_governance_tag_assignments
+              WHERE file_id = $1
+            `, [fileId]);
+            
+            // Bulk insert PII tag assignments for all PII columns
+            const insertPromises = piiColumnNames.map(columnName =>
+              this.dbPool.query(`
+                INSERT INTO column_governance_tag_assignments (file_id, column_name, tag_id)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (file_id, column_name, tag_id) DO NOTHING
+              `, [fileId, columnName, piiTagId])
+            );
+            
+            await Promise.all(insertPromises);
+            
+            this.logger.info('Created column governance tag assignments for PII columns', {
+              fileId,
+              piiTagId,
+              columnCount: piiColumnNames.length,
+              columns: piiColumnNames
+            });
+          } else {
+            this.logger.warn('PII governance tag not found in database', { fileId });
+          }
+        } catch (tagAssignError) {
+          this.logger.error('Failed to create column governance tag assignments', {
+            fileId,
+            error: tagAssignError.message,
+            stack: tagAssignError.stack
+          });
+          // Don't throw - allow file processing to continue
+        }
+      }
     }
     
     // Extract file-level tags from quality_rule_ids
