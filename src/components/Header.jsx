@@ -14,9 +14,8 @@ function Header({ showAIInsights }) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // HashRouter uses hash-based routing, so check location.hash instead of pathname
-  const currentPath = location.hash?.replace(/^#/, '') || location.pathname;
-  const isOnDashboard = currentPath === '/' || currentPath === '/dashboard' || currentPath === '';
+  // Check if user is on dashboard page
+  const isOnDashboard = location.pathname === '/' || location.pathname === '/dashboard';
   
   // Handle click outside to close dropdown
   useEffect(() => {

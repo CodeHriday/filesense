@@ -897,19 +897,19 @@ function FileUpload() {
     } catch (error) {
       console.error('Error uploading file:', error);
       
-      // Check for filename pattern validation error (contract validation mode)
-      // Error can come as either 'details' or 'validationDetails' depending on the backend response
-      const validationDetails = error.response?.data?.validationDetails || error.response?.data?.details;
+      // Normalize error payload (axios errors may be unwrapped by interceptor)
+      const errorPayload = error?.response?.data || error;
       
-      if (error.response?.data?.error === 'File pattern validation failed' || 
-          (error.response?.status === 400 && validationDetails)) {
+      // Check for filename pattern validation error (contract validation mode)
+      if (errorPayload?.error === 'File pattern validation failed' && errorPayload?.details) {
+        const details = errorPayload.details;
         setFilenameValidationError({
-          uploadedFile: validationDetails.uploadedFile || validationDetails.actualFilename,
-          contractCode: validationDetails.contractCode || validationDetails.agreementCode,
-          expectedPatterns: validationDetails.expectedPatterns || validationDetails.patterns,
-          patternCount: validationDetails.patternCount || validationDetails.expectedPatterns?.length
+          uploadedFile: details.uploadedFile,
+          contractCode: details.contractCode,
+          expectedPatterns: details.expectedPatterns,
+          patternCount: details.patternCount
         });
-        setDiagnosticInfo(prev => prev + `Filename validation failed: ${error.response.data.message || 'File does not match expected contract patterns'}\n`);
+        setDiagnosticInfo(prev => prev + `Filename validation failed: ${errorPayload.message || 'File does not match expected contract patterns'}\n`);
         setCurrentStep(null);
         setIsProcessing(false);
         return; // Don't set uploadStatus to 'error' or throw - we have a specific error display
