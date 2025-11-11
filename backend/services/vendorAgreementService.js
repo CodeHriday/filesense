@@ -883,7 +883,7 @@ class VendorAgreementService {
       if (current.is_locked && isAdmin) {
         updates.push(`is_locked = false`);
         updates.push(`locked_at = NULL`);
-        updates.push(`approval_status = 'changes_pending'`);
+        updates.push(`approval_status = 'pending_vendor_acceptance'`);
         updates.push(`vendor_approved_at = NULL`);
         updates.push(`vendor_approved_by = NULL`);
         updates.push(`owner_approved_at = NULL`);
