@@ -13,7 +13,10 @@ function Header({ showAIInsights }) {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const isOnDashboard = location.pathname === '/';
+  
+  // HashRouter uses hash-based routing, so check location.hash instead of pathname
+  const currentPath = location.hash?.replace(/^#/, '') || location.pathname;
+  const isOnDashboard = currentPath === '/' || currentPath === '/dashboard' || currentPath === '';
   
   // Handle click outside to close dropdown
   useEffect(() => {
