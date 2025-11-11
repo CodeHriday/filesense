@@ -307,8 +307,8 @@ export const FileCatalog = ({ onFileSelect }) => {
         // Auto-expand sections with search matches
         setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
       } else if (!initialized) {
-        // Initialize with all sections expanded by default (first load)
-        setExpansionState(initializeExpansionState(groupedProjects, true));
+        // Initialize with all sections collapsed by default (first load)
+        setExpansionState(initializeExpansionState(groupedProjects, false));
         setInitialized(true);
       }
     }
@@ -354,10 +354,6 @@ export const FileCatalog = ({ onFileSelect }) => {
           />
         </td>
         <td className="file-name-cell">
-          <span className="file-icon">
-            {file.file_type === 'csv' ? '📄' : 
-             file.file_type === 'json' ? '🔠' : '📊'}
-          </span>
           <span className="file-name">{file.filename}</span>
           {file.has_schema_changes && (
             <span 

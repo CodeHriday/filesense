@@ -166,8 +166,8 @@ function Mappings() {
         // Auto-expand sections with search matches
         setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
       } else if (!initialized) {
-        // Initialize with all sections expanded by default (first load)
-        setExpansionState(initializeExpansionState(groupedProjects, true));
+        // Initialize with all sections collapsed by default (first load)
+        setExpansionState(initializeExpansionState(groupedProjects, false));
         setInitialized(true);
       }
     }
