@@ -730,7 +730,7 @@ function createProjectRoutes(dbPool) {
         LEFT JOIN vendor_agreement_file_schemas vafs ON va.id = vafs.vendor_agreement_id AND vafs.is_active = true
         WHERE va.project_id = $1 
           AND va.approval_status IN ('manager_approved', 'governance_approved')
-          AND (va.status IS NULL OR va.status != 'archived')
+          AND va.status = 'active'
         GROUP BY va.id, va.vendor_id, va.project_id, va.agreement_code, va.file_name, va.file_description, va.primary_contact_email, va.secondary_contact_email, v.vendor_name, v.vendor_code
         ORDER BY v.vendor_name, va.file_name
       `, [projectId]);
