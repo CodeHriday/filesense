@@ -658,7 +658,7 @@ function createProjectRoutes(dbPool) {
     }
   });
 
-  // Get project members (all users assigned to a project)
+  // Get project members (all users assigned to a project - direct and group-based)
   router.get('/:projectId/members', async (req, res) => {
     try {
       const { projectId } = req.params;
@@ -668,7 +668,7 @@ function createProjectRoutes(dbPool) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Fetch all users who are members of this project
+      // Fetch all users who are members of this project (direct + group-based)
       const result = await dbPool.query(`
         SELECT DISTINCT
           u.id,
@@ -677,8 +677,16 @@ function createProjectRoutes(dbPool) {
           u.last_name,
           u.full_name
         FROM users u
-        INNER JOIN project_members pm ON u.id = pm.user_id
-        WHERE pm.project_id = $1
+        WHERE u.id IN (
+          -- Direct project members
+          SELECT user_id FROM project_members WHERE project_id = $1
+          UNION
+          -- Group-based project members
+          SELECT ug.user_id 
+          FROM project_access_groups pag
+          INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+          WHERE pag.project_id = $1
+        )
         ORDER BY u.full_name, u.email
       `, [projectId]);
 

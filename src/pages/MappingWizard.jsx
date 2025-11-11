@@ -365,7 +365,7 @@ function MappingWizard() {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       
-      const members = (response.data || []).map(member => ({
+      const members = (response.data.members || []).map(member => ({
         email: member.email,
         label: member.full_name ? `${member.full_name} (${member.email})` : member.email,
         type: 'member'
@@ -1279,7 +1279,7 @@ function MappingWizard() {
                 className="form-control"
                 value={sourceOwner}
                 onChange={(e) => setSourceOwner(e.target.value)}
-                disabled={loadingSourceOwners || availableSourceOwners.length === 0}
+                disabled={loadingSourceOwners}
               >
                 <option value="">Select source file owner (optional)...</option>
                 {availableSourceOwners.map((owner, idx) => (
