@@ -46,9 +46,13 @@ module.exports = (dbPool, authenticate) => {
       let query = `
         SELECT 
           qr.*,
-          u.username as created_by_username
+          u.username as created_by_username,
+          p.name as project_name,
+          sp.name as sub_project_name
         FROM quality_rules qr
         LEFT JOIN users u ON qr.created_by = u.id
+        LEFT JOIN projects p ON qr.project_id = p.id
+        LEFT JOIN projects sp ON qr.sub_project_id = sp.id
         WHERE 1=1
       `;
       const params = [];
