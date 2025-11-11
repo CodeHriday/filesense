@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { FiHome } from 'react-icons/fi';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeAuditInterceptor } from './utils/auditInterceptor';
 
@@ -196,6 +197,50 @@ function App() {
   );
 }
 
+// Home Button Component
+function HomeButton() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/';
+
+  if (isOnDashboard) {
+    return null;
+  }
+
+  return (
+    <button 
+      className="home-icon-button" 
+      onClick={() => navigate('/')}
+      title="Go to Dashboard"
+      aria-label="Go to Dashboard"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        padding: '0.5rem',
+        fontSize: '1.4rem',
+        color: '#666',
+        transition: 'all 0.2s ease',
+        borderRadius: '6px',
+        marginBottom: '1rem'
+      }}
+      onMouseOver={(e) => {
+        e.currentTarget.style.color = '#1890ff';
+        e.currentTarget.style.backgroundColor = '#f0f0f0';
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.color = '#666';
+        e.currentTarget.style.backgroundColor = 'transparent';
+      }}
+    >
+      <FiHome />
+    </button>
+  );
+}
+
 // Separate component to use useAuth() hook inside Router context
 function AppContent({ showOnboarding, setShowOnboarding }) {
   const { currentUser } = useAuth();
@@ -221,6 +266,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
           <div className="main-container">
             <Sidebar />
             <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''}`} tabIndex="-1">
+              <HomeButton />
               <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
