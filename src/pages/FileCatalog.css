@@ -394,6 +394,14 @@
   background-color: #fce8e6;
 }
 
+.action-icon-btn.password-btn {
+  color: #f59e0b;
+}
+
+.action-icon-btn.password-btn:hover {
+  background-color: #fef3c7;
+}
+
 .action-icon-btn.project-btn {
   color: #137333;
 }

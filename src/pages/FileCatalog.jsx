@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiChevronDown, FiChevronRight, FiLock } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -8,7 +8,9 @@ import SimpleSuccessModal from '../components/SimpleSuccessModal';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
-import { bulkDeleteFiles } from '../api/fileService';
+import { DLQBadge } from '../components/DLQBadge';
+import { PasswordInputModal } from '../components/PasswordInputModal';
+import { bulkDeleteFiles, submitFilePassword } from '../api/fileService';
 import { groupFilesByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/fileGrouping';
 import './FileCatalog.css';
 
@@ -34,6 +36,9 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [expansionState, setExpansionState] = useState({});
   const [initialized, setInitialized] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordModalFile, setPasswordModalFile] = useState(null);
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   
   // Using React Query to fetch file catalog
   const { 
@@ -181,6 +186,44 @@ export const FileCatalog = ({ onFileSelect }) => {
     if (selectedFiles.length > 0) {
       setShowDeleteModal(true);
     }
+  };
+
+  // Password modal handlers
+  const handleProvidePassword = (file) => {
+    setPasswordModalFile(file);
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordModalFile(null);
+    setIsSubmittingPassword(false);
+  };
+
+  // Password submission mutation
+  const passwordSubmissionMutation = useMutation({
+    mutationFn: ({ fileId, password }) => submitFilePassword(fileId, password),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QueryKeys.files.all });
+      closePasswordModal();
+      setSuccessMessage('Password submitted successfully. File processing has been requeued.');
+      setShowSuccessModal(true);
+    },
+    onError: (error) => {
+      setErrorMessage(`Failed to submit password: ${error.message}`);
+      setShowErrorModal(true);
+      setIsSubmittingPassword(false);
+    }
+  });
+
+  const handleSubmitPassword = (password) => {
+    if (!passwordModalFile) return;
+    
+    setIsSubmittingPassword(true);
+    passwordSubmissionMutation.mutate({
+      fileId: passwordModalFile.file_id,
+      password
+    });
   };
 
   const formatBytes = (bytes, decimals = 2) => {
@@ -378,14 +421,22 @@ export const FileCatalog = ({ onFileSelect }) => {
         <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
         <td>
           {file.processing_error ? (
-            <span className="error-text" title={file.processing_error}>Failed</span>
+            <DLQBadge 
+              reasonCode={file.failure_reason_code} 
+              errorMessage={file.processing_error}
+              compact={true}
+            />
           ) : (
             file.row_count != null ? file.row_count.toLocaleString() : '-'
           )}
         </td>
         <td>
           {file.processing_error ? (
-            <span className="error-text" title={file.processing_error}>Failed</span>
+            <DLQBadge 
+              reasonCode={file.failure_reason_code} 
+              errorMessage={file.processing_error}
+              compact={false}
+            />
           ) : (
             file.column_count || '-'
           )}
@@ -422,6 +473,18 @@ export const FileCatalog = ({ onFileSelect }) => {
           </div>
         </td>
         <td className="actions-cell">
+          {file.failure_reason_code === 'password_missing' && (
+            <button
+              className="action-icon-btn password-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleProvidePassword(file);
+              }}
+              title="Provide Password"
+            >
+              <FiLock />
+            </button>
+          )}
           <button
             className="action-icon-btn view-btn"
             onClick={() => handleViewDetails(file)}
@@ -917,6 +980,14 @@ export const FileCatalog = ({ onFileSelect }) => {
         onClose={() => setShowErrorModal(false)}
         title="Error"
         message={errorMessage}
+      />
+      
+      <PasswordInputModal
+        isOpen={showPasswordModal}
+        onClose={closePasswordModal}
+        onSubmit={handleSubmitPassword}
+        fileName={passwordModalFile?.filename}
+        isSubmitting={isSubmittingPassword}
       />
     </div>
   );

@@ -2855,6 +2855,143 @@ app.post('/api/files/drop', authenticateToken, uploadLimiter, upload.single('fil
   }
 });
 
+/**
+ * Submit password for password-protected archive and retry processing
+ */
+app.post('/api/files/:fileId/password', authenticateToken, async (req, res) => {
+  const { fileId } = req.params;
+  const { password } = req.body;
+  const userId = req.user.id;
+
+  try {
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    const fileService = diContainer.get('fileService');
+    
+    // Verify file exists and user has access to it
+    const file = await fileService.getFileById(fileId);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check file ownership - user must have access to the project
+    const projectAccessQuery = `
+      SELECT 1 FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+      UNION
+      SELECT 1 FROM project_access_groups pag
+      INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+      WHERE pag.project_id = $1 AND ug.user_id = $2
+    `;
+    const accessResult = await pool.query(projectAccessQuery, [file.project_id, userId]);
+    
+    if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
+      return res.status(403).json({ error: 'Unauthorized to access this file' });
+    }
+
+    const passwordVaultService = diContainer.get('passwordVaultService');
+
+    // Store password in vault
+    await passwordVaultService.storePassword('file', fileId, password, userId);
+    logger.info('Password stored for archive file', { fileId, userId });
+
+    // Re-queue the file for processing
+    const queue = diContainer.get('queue');
+    await queue.addJob(`process_file_${fileId}`, {
+      fileId,
+      userId,
+      filePath: null, // Will be retrieved from DB
+      retryWithPassword: true
+    });
+
+    // Update file status to processing
+    await pool.query(
+      'UPDATE files SET processing_step = $1, failure_reason_code = NULL, processing_error = NULL WHERE file_id = $2',
+      ['processing', fileId]
+    );
+
+    logger.info('File requeued for processing with password', { fileId });
+
+    res.json({
+      success: true,
+      message: 'Password submitted successfully. File processing has been requeued.',
+      fileId
+    });
+
+  } catch (error) {
+    logger.error('Error submitting password for file', { fileId, error: error.message });
+    res.status(500).json({ 
+      error: 'Failed to submit password', 
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * Retry processing a failed file
+ */
+app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
+  const { fileId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const fileService = diContainer.get('fileService');
+    
+    // Check if file exists
+    const file = await fileService.getFileById(fileId);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check file ownership - user must have access to the project
+    const projectAccessQuery = `
+      SELECT 1 FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+      UNION
+      SELECT 1 FROM project_access_groups pag
+      INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+      WHERE pag.project_id = $1 AND ug.user_id = $2
+    `;
+    const accessResult = await pool.query(projectAccessQuery, [file.project_id, userId]);
+    
+    if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
+      return res.status(403).json({ error: 'Unauthorized to access this file' });
+    }
+
+    // Re-queue the file for processing
+    const queue = diContainer.get('queue');
+    await queue.addJob(`process_file_${fileId}`, {
+      fileId,
+      userId,
+      filePath: null, // Will be retrieved from DB
+      retry: true
+    });
+
+    // Update file status to processing
+    await pool.query(
+      'UPDATE files SET processing_step = $1, failure_reason_code = NULL, processing_error = NULL WHERE file_id = $2',
+      ['processing', fileId]
+    );
+
+    logger.info('File requeued for processing (retry)', { fileId });
+
+    res.json({
+      success: true,
+      message: 'File processing has been requeued.',
+      fileId
+    });
+
+  } catch (error) {
+    logger.error('Error retrying file processing', { fileId, error: error.message });
+    res.status(500).json({ 
+      error: 'Failed to retry file processing', 
+      details: error.message 
+    });
+  }
+});
+
 // Multer error handling for drop file endpoint
 app.use('/api/files/drop', (error, req, res, next) => {
   if (error instanceof multer.MulterError) {

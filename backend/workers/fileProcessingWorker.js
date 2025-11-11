@@ -63,6 +63,85 @@ class FileProcessingWorker {
   }
 
   /**
+   * Categorize error and determine failure reason code
+   * @param {Error} error - Error object
+   * @returns {Object} - {reasonCode, actionableMessage}
+   */
+  categorizeError(error) {
+    const message = error.message.toLowerCase();
+    
+    // Virus detection
+    if (message.includes('virus') || message.includes('malware') || message.includes('infected')) {
+      return {
+        reasonCode: 'virus_detected',
+        actionableMessage: 'File contains malware or virus. Upload was rejected for security reasons.'
+      };
+    }
+    
+    // Password missing
+    if (message.includes('password') && (message.includes('required') || message.includes('protected') || message.includes('encrypted'))) {
+      return {
+        reasonCode: 'password_missing',
+        actionableMessage: 'Archive is password-protected. Please provide the password to extract contents.'
+      };
+    }
+    
+    // ClamAV unavailable
+    if (message.includes('clamav') || message.includes('virus scan') && message.includes('unavailable')) {
+      return {
+        reasonCode: 'clamav_unavailable',
+        actionableMessage: 'Virus scanning service is temporarily unavailable. File upload rejected as a security precaution.'
+      };
+    }
+    
+    // Encoding issues
+    if (message.includes('encoding') || message.includes('decode') || message.includes('utf') || message.includes('ascii')) {
+      return {
+        reasonCode: 'unsupported_encoding',
+        actionableMessage: 'File contains unsupported character encoding. Try converting to UTF-8 before uploading.'
+      };
+    }
+    
+    // Archive extraction failed
+    if (message.includes('extract') || message.includes('unzip') || message.includes('decompress') || message.includes('corrupt')) {
+      return {
+        reasonCode: 'extraction_failed',
+        actionableMessage: 'Unable to extract archive contents. File may be corrupted or use an unsupported compression format.'
+      };
+    }
+    
+    // Schema validation failed
+    if (message.includes('schema') && (message.includes('mismatch') || message.includes('validation') || message.includes('drift'))) {
+      return {
+        reasonCode: 'schema_validation_failed',
+        actionableMessage: 'File structure does not match expected vendor agreement schema. Check column names and data types.'
+      };
+    }
+    
+    // Format conversion failed
+    if (message.includes('conversion') || message.includes('transform') || message.includes('format')) {
+      return {
+        reasonCode: 'conversion_failed',
+        actionableMessage: 'Unable to convert file to internal format. File may contain invalid data or unsupported features.'
+      };
+    }
+    
+    // Malformed file (catch-all for parsing/structure issues)
+    if (message.includes('parse') || message.includes('invalid') || message.includes('malformed') || message.includes('corrupt')) {
+      return {
+        reasonCode: 'malformed_file',
+        actionableMessage: 'File structure is invalid or corrupted. Verify file integrity and format before re-uploading.'
+      };
+    }
+    
+    // Default: conversion_failed with original error message
+    return {
+      reasonCode: 'conversion_failed',
+      actionableMessage: `Processing failed: ${error.message}`
+    };
+  }
+
+  /**
    * Update the processing step in the database
    */
   async updateProcessingStep(fileId, step) {
@@ -603,10 +682,17 @@ class FileProcessingWorker {
 
       const processingDuration = Date.now() - startTime;
 
+      // Categorize error and get failure reason code
+      const { reasonCode, actionableMessage } = this.categorizeError(error);
+
       // Save file metadata with error to database so user can see what failed
       try {
-        await this.saveFailedFileMetadata(fileId, originalName, fileType, fileSize, error.message, fileHash, projectId, agreementId);
-        this.logger.info('Failed file metadata saved to database', { fileId, errorMsg: error.message });
+        await this.saveFailedFileMetadata(fileId, originalName, fileType, fileSize, actionableMessage, fileHash, projectId, agreementId, reasonCode);
+        this.logger.info('Failed file metadata saved to database', { 
+          fileId, 
+          failureReason: reasonCode,
+          errorMsg: actionableMessage 
+        });
       } catch (saveError) {
         this.logger.error('Failed to save error metadata', {
           fileId,
@@ -623,11 +709,13 @@ class FileProcessingWorker {
           entityName: originalName,
           previousStatus: 'processing',
           newStatus: 'failed',
-          statusReason: error.message,
+          statusReason: actionableMessage,
           triggeredByUser: userId,
           triggerType: 'upload',
           executionDurationMs: processingDuration,
           metadata: {
+            failureReasonCode: reasonCode,
+            originalError: error.message,
             errorStack: error.stack
           },
           context: null
@@ -1162,7 +1250,7 @@ print(json.dumps(result))
   /**
    * Save failed file metadata to database with error information
    */
-  async saveFailedFileMetadata(fileId, filename, fileType, fileSize, errorMessage, fileHash, projectId, agreementId = null) {
+  async saveFailedFileMetadata(fileId, filename, fileType, fileSize, errorMessage, fileHash, projectId, agreementId = null, failureReasonCode = null) {
     // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
     let existingMetadata = {};
     try {
@@ -1189,11 +1277,12 @@ print(json.dumps(result))
       INSERT INTO files (
         file_id, filename, file_type, file_size, 
         row_count, column_count, quality_score, metadata, checksum,
-        duplicate_records_count, duplicate_records_percentage, project_id, processing_error, vendor_agreement_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        duplicate_records_count, duplicate_records_percentage, project_id, processing_error, vendor_agreement_id, failure_reason_code
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       ON CONFLICT (file_id) 
       DO UPDATE SET
         processing_error = EXCLUDED.processing_error,
+        failure_reason_code = EXCLUDED.failure_reason_code,
         metadata = EXCLUDED.metadata,
         vendor_agreement_id = EXCLUDED.vendor_agreement_id,
         updated_at = CURRENT_TIMESTAMP
@@ -1214,7 +1303,8 @@ print(json.dumps(result))
       0.0, // duplicate_records_percentage
       projectId,
       errorMessage,
-      agreementId || null
+      agreementId || null,
+      failureReasonCode || null
     ];
 
     const result = await this.dbPool.query(query, values);

@@ -296,3 +296,39 @@ export const getFilePreview = async (fileId, limit = 100) => {
     throw new Error(error.response?.data?.message || 'Failed to fetch file preview');
   }
 };
+
+/**
+ * Submit password for a password-protected archive and retry processing
+ */
+export const submitFilePassword = async (fileId, password) => {
+  if (!fileId || !password) {
+    throw new Error('File ID and password are required');
+  }
+  
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.post(`${API_URL}/files/${encodedFileId}/password`, { password });
+    return response.data;
+  } catch (error) {
+    console.error(`Error submitting password for ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to submit password');
+  }
+};
+
+/**
+ * Retry processing a failed file
+ */
+export const retryFileProcessing = async (fileId) => {
+  if (!fileId) {
+    throw new Error('File ID is required');
+  }
+  
+  try {
+    const encodedFileId = encodeURIComponent(fileId);
+    const response = await axios.post(`${API_URL}/files/${encodedFileId}/retry`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error retrying file processing for ${fileId}:`, error);
+    throw new Error(error.response?.data?.message || 'Failed to retry file processing');
+  }
+};

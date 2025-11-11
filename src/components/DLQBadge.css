@@ -1,0 +1,42 @@
+.dlq-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+  transition: all 0.2s ease;
+}
+
+.dlq-badge-compact {
+  padding: 2px 4px;
+  font-size: 14px;
+}
+
+.dlq-badge-text {
+  white-space: nowrap;
+}
+
+.dlq-badge-default {
+  color: #dc2626;
+  background-color: #fee2e2;
+  border-color: #dc2626;
+}
+
+.dlq-badge:hover {
+  opacity: 0.8;
+  transform: scale(1.02);
+}
+
+.dlq-reason-text {
+  color: #dc2626;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.dlq-reason-text:hover {
+  text-decoration: underline;
+  cursor: help;
+}
