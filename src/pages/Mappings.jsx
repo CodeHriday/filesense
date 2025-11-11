@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FiPlus, 
@@ -11,7 +11,10 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiAlertCircle,
-  FiSearch
+  FiSearch,
+  FiChevronDown,
+  FiChevronRight,
+  FiFolder
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -20,6 +23,11 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import { 
+  groupMappingsByProject, 
+  initializeExpansionState, 
+  autoExpandMatchingSections 
+} from '../utils/mappingGrouping';
 import './Mappings.css';
 
 function Mappings() {
@@ -35,6 +43,7 @@ function Mappings() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
+  const [expansionState, setExpansionState] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -138,6 +147,7 @@ function Mappings() {
     return (
       (mapping.mapping_name || '').toLowerCase().includes(searchLower) ||
       (mapping.project_name || '').toLowerCase().includes(searchLower) ||
+      (mapping.sub_project_name || '').toLowerCase().includes(searchLower) ||
       (mapping.source_connection_name || '').toLowerCase().includes(searchLower) ||
       (mapping.target_connection_name || '').toLowerCase().includes(searchLower) ||
       (mapping.file_name_pattern || '').toLowerCase().includes(searchLower) ||
@@ -150,6 +160,102 @@ function Mappings() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentMappings = filteredMappings.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredMappings.length / itemsPerPage);
+
+  // Group mappings by project and subproject hierarchy
+  const groupedProjects = useMemo(() => {
+    return groupMappingsByProject(currentMappings);
+  }, [currentMappings]);
+
+  // Initialize expansion state when grouped data changes or search term changes
+  useEffect(() => {
+    if (groupedProjects.length > 0) {
+      if (searchTerm) {
+        // Auto-expand sections with search matches
+        setExpansionState(autoExpandMatchingSections(groupedProjects, expansionState));
+      } else if (Object.keys(expansionState).length === 0) {
+        // Initialize with all sections expanded by default (first load)
+        setExpansionState(initializeExpansionState(groupedProjects, true));
+      }
+    }
+  }, [groupedProjects, searchTerm]);
+
+  // Toggle expansion for a project or subproject
+  const toggleExpansion = (key) => {
+    setExpansionState(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  // Render a table row for a mapping
+  const renderMappingRow = (mapping) => {
+    const fieldCount = Array.isArray(mapping.field_mappings) 
+      ? mapping.field_mappings.length 
+      : (typeof mapping.field_mappings === 'string' ? JSON.parse(mapping.field_mappings).length : 0);
+    const rulesCount = mapping.anomaly_rules 
+      ? (typeof mapping.anomaly_rules === 'object' ? Object.keys(mapping.anomaly_rules).length : 0) 
+      : 0;
+    
+    return (
+      <tr key={mapping.id}>
+        <td className="mapping-name-cell">
+          <strong>{mapping.mapping_name}</strong>
+        </td>
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiServer size={14} style={{ color: '#64748b' }} />
+            {mapping.source_connection_name || 'Local'}
+          </div>
+        </td>
+        <td>
+          <code style={{ fontSize: '0.85em', background: '#f1f5f9', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>
+            {mapping.file_path && mapping.file_path !== '' ? `${mapping.file_path}` : ''}
+            {mapping.file_name_pattern || mapping.source_file_pattern}
+          </code>
+        </td>
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiTarget size={14} style={{ color: '#64748b' }} />
+            {mapping.target_connection_name || 'Local'}
+          </div>
+        </td>
+        <td style={{ textAlign: 'center' }}>{fieldCount}</td>
+        <td style={{ textAlign: 'center' }}>{rulesCount}</td>
+        <td>{formatDate(mapping.created_at)}</td>
+        <td>
+          <div className="table-actions">
+            {hasExecutePermission('transformation') && (
+              <button
+                className="action-icon-btn execute-btn"
+                onClick={() => handleExecuteMapping(mapping.mapping_id)}
+                title="Execute mapping"
+              >
+                <FiPlay />
+              </button>
+            )}
+            {hasWritePermission('transformation') && (
+              <>
+                <button
+                  className="action-icon-btn edit-btn"
+                  onClick={() => handleEditMapping(mapping.mapping_id)}
+                  title="Edit mapping"
+                >
+                  <FiEdit2 />
+                </button>
+                <button
+                  className="action-icon-btn delete-btn"
+                  onClick={() => handleDeleteMapping(mapping.mapping_id, mapping.mapping_name)}
+                  title="Delete mapping"
+                >
+                  <FiTrash2 />
+                </button>
+              </>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   return (
     <div className="page-container">
@@ -209,93 +315,218 @@ function Mappings() {
                 <FiPlus /> Create Mapping Job
               </button>
             </div>
+          ) : filteredMappings.length === 0 ? (
+            <div className="empty-state">
+              <FiSearch size={48} />
+              <h3>No matching mappings</h3>
+              <p>Try adjusting your search term</p>
+            </div>
           ) : (
-            <table className="mappings-table" style={{ fontSize: '0.8125rem' }}>
-              <thead>
-                <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
-                  <th>Project</th>
-                  <th>Mapping Name</th>
-                  <th>Source</th>
-                  <th>File Pattern</th>
-                  <th>Target</th>
-                  <th>Fields</th>
-                  <th>Quality Rules</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
-                {currentMappings.map(mapping => {
-                      const fieldCount = Array.isArray(mapping.field_mappings) 
-                        ? mapping.field_mappings.length 
-                        : (typeof mapping.field_mappings === 'string' ? JSON.parse(mapping.field_mappings).length : 0);
-                      const rulesCount = mapping.anomaly_rules 
-                        ? (typeof mapping.anomaly_rules === 'object' ? Object.keys(mapping.anomaly_rules).length : 0) 
-                        : 0;
-                      
-                      return (
-                        <tr key={mapping.id}>
-                          <td>{mapping.project_name || 'Default Project'}</td>
-                          <td className="mapping-name-cell">
-                            <strong>{mapping.mapping_name}</strong>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <FiServer size={14} style={{ color: '#64748b' }} />
-                              {mapping.source_connection_name || 'Local'}
-                            </div>
-                          </td>
-                          <td>
-                            <code style={{ fontSize: '0.85em', background: '#f1f5f9', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>
-                              {mapping.file_path && mapping.file_path !== '' ? `${mapping.file_path}` : ''}
-                              {mapping.file_name_pattern || mapping.source_file_pattern}
-                            </code>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <FiTarget size={14} style={{ color: '#64748b' }} />
-                              {mapping.target_connection_name || 'Local'}
-                            </div>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>{fieldCount}</td>
-                          <td style={{ textAlign: 'center' }}>{rulesCount}</td>
-                          <td>{formatDate(mapping.created_at)}</td>
-                          <td>
-                            <div className="table-actions">
-                              {hasExecutePermission('transformation') && (
-                                <button
-                                  className="action-icon-btn execute-btn"
-                                  onClick={() => handleExecuteMapping(mapping.mapping_id)}
-                                  title="Execute mapping"
+            <div>
+              {groupedProjects.map(project => {
+                const projectKey = `project-${project.projectId}`;
+                const isProjectExpanded = expansionState[projectKey];
+
+                return (
+                  <div key={project.projectId} style={{ marginBottom: '1rem' }}>
+                    {/* Project Header */}
+                    <div
+                      onClick={() => toggleExpansion(projectKey)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.875rem 1rem',
+                        background: 'linear-gradient(135deg, #037c6e 0%, #025f54 100%)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        borderRadius: '6px',
+                        fontWeight: '600',
+                        fontSize: '1rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <FiFolder size={20} />
+                      <span style={{ flex: 1 }}>{project.projectName}</span>
+                      <span
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '12px',
+                          fontSize: '0.875rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {project.mappingsCount} {project.mappingsCount === 1 ? 'mapping' : 'mappings'}
+                      </span>
+                      {isProjectExpanded ? (
+                        <FiChevronDown size={20} />
+                      ) : (
+                        <FiChevronRight size={20} />
+                      )}
+                    </div>
+
+                    {/* Project Content */}
+                    {isProjectExpanded && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        {/* Subprojects */}
+                        {project.subprojects.map(subproject => {
+                          const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
+                          const isSubprojectExpanded = expansionState[subprojectKey];
+
+                          return (
+                            <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
+                              {/* Subproject Header */}
+                              <div
+                                onClick={() => toggleExpansion(subprojectKey)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.625rem',
+                                  padding: '0.75rem 1rem',
+                                  background: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderLeft: '4px solid #037c6e',
+                                  cursor: 'pointer',
+                                  userSelect: 'none',
+                                  borderRadius: '4px',
+                                  marginLeft: '1.5rem',
+                                  fontWeight: '500',
+                                  fontSize: '0.9375rem',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {isSubprojectExpanded ? (
+                                  <FiChevronDown size={16} style={{ color: '#037c6e' }} />
+                                ) : (
+                                  <FiChevronRight size={16} style={{ color: '#037c6e' }} />
+                                )}
+                                <FiLayers size={16} style={{ color: '#64748b' }} />
+                                <span style={{ flex: 1, color: '#1e293b' }}>{subproject.subProjectName}</span>
+                                <span
+                                  style={{
+                                    background: '#e0f2fe',
+                                    color: '#0369a1',
+                                    padding: '0.125rem 0.625rem',
+                                    borderRadius: '10px',
+                                    fontSize: '0.8125rem',
+                                    fontWeight: '500'
+                                  }}
                                 >
-                                  <FiPlay />
-                                </button>
-                              )}
-                              {hasWritePermission('transformation') && (
-                                <>
-                                  <button
-                                    className="action-icon-btn edit-btn"
-                                    onClick={() => handleEditMapping(mapping.mapping_id)}
-                                    title="Edit mapping"
-                                  >
-                                    <FiEdit2 />
-                                  </button>
-                                  <button
-                                    className="action-icon-btn delete-btn"
-                                    onClick={() => handleDeleteMapping(mapping.mapping_id, mapping.mapping_name)}
-                                    title="Delete mapping"
-                                  >
-                                    <FiTrash2 />
-                                  </button>
-                                </>
+                                  {subproject.mappingsCount}
+                                </span>
+                              </div>
+
+                              {/* Subproject Mappings Table */}
+                              {isSubprojectExpanded && subproject.items.length > 0 && (
+                                <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                  <table className="mappings-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                    <thead>
+                                      <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
+                                        <th>Mapping Name</th>
+                                        <th>Source</th>
+                                        <th>File Pattern</th>
+                                        <th>Target</th>
+                                        <th>Fields</th>
+                                        <th>Quality Rules</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
+                                      {subproject.items.map(mapping => renderMappingRow(mapping))}
+                                    </tbody>
+                                  </table>
+                                </div>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                })}
-              </tbody>
-            </table>
+                          );
+                        })}
+
+                        {/* Unassigned Mappings (no subproject) */}
+                        {project.unassignedMappings.length > 0 && (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            {(() => {
+                              const unassignedKey = `subproject-${project.projectId}-unassigned`;
+                              const isUnassignedExpanded = expansionState[unassignedKey];
+
+                              return (
+                                <>
+                                  {/* Unassigned Header */}
+                                  <div
+                                    onClick={() => toggleExpansion(unassignedKey)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.625rem',
+                                      padding: '0.75rem 1rem',
+                                      background: '#fef3c7',
+                                      border: '1px solid #fbbf24',
+                                      borderLeft: '4px solid #d97706',
+                                      cursor: 'pointer',
+                                      userSelect: 'none',
+                                      borderRadius: '4px',
+                                      marginLeft: '1.5rem',
+                                      fontWeight: '500',
+                                      fontSize: '0.9375rem',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    {isUnassignedExpanded ? (
+                                      <FiChevronDown size={16} style={{ color: '#d97706' }} />
+                                    ) : (
+                                      <FiChevronRight size={16} style={{ color: '#d97706' }} />
+                                    )}
+                                    <FiAlertCircle size={16} style={{ color: '#d97706' }} />
+                                    <span style={{ flex: 1, color: '#78350f' }}>No Subproject</span>
+                                    <span
+                                      style={{
+                                        background: '#fff7ed',
+                                        color: '#d97706',
+                                        padding: '0.125rem 0.625rem',
+                                        borderRadius: '10px',
+                                        fontSize: '0.8125rem',
+                                        fontWeight: '500'
+                                      }}
+                                    >
+                                      {project.unassignedMappings.length}
+                                    </span>
+                                  </div>
+
+                                  {/* Unassigned Mappings Table */}
+                                  {isUnassignedExpanded && (
+                                    <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                      <table className="mappings-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                        <thead>
+                                          <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
+                                            <th>Mapping Name</th>
+                                            <th>Source</th>
+                                            <th>File Pattern</th>
+                                            <th>Target</th>
+                                            <th>Fields</th>
+                                            <th>Quality Rules</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
+                                          {project.unassignedMappings.map(mapping => renderMappingRow(mapping))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
           
           {mappings.length > 0 && (
