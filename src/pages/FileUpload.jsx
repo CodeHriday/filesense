@@ -2036,7 +2036,7 @@ function FileUpload() {
                 key={`profile-${dropzoneKey}`}
                 onFileDrop={handleFileDrop}
                 onBatchFileDrop={handleBatchFileDrop}
-                acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+                acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml', '.zip', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.sas7bdat', '.xpt', '.avro', '.dat']}
                 maxSizeMB={25}
                 multiple={true}
                 externalStatus={uploadStatus}
@@ -2299,7 +2299,7 @@ function FileUpload() {
                     key={`drop-${dropzoneKey}`}
                     onFileDrop={handleDropFile}
                     onBatchFileDrop={handleBatchFileDrop}
-                    acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml']}
+                    acceptedFileTypes={['.csv', '.json', '.parquet', '.xlsx', '.xml', '.zip', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.sas7bdat', '.xpt', '.avro', '.dat']}
                     maxSizeMB={25}
                     multiple={true}
                     virusScan={uploadedFile?.virusScan}

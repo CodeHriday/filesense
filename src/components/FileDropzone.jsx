@@ -60,8 +60,17 @@ function FileDropzone({ onFileDrop, onBatchFileDrop, acceptedFileTypes = ['.csv'
       return `File size exceeds maximum allowed size (${maxSizeMB}MB)`;
     }
     
-    // Check file type
-    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    // Check file type - handle compound extensions (.tar.gz, .tar.bz2)
+    const filename = file.name.toLowerCase();
+    let fileExtension = '.' + filename.split('.').pop();
+    
+    // Check for compound extensions
+    if (filename.endsWith('.tar.gz') || filename.endsWith('.tgz')) {
+      fileExtension = '.tar.gz';
+    } else if (filename.endsWith('.tar.bz2') || filename.endsWith('.tbz2')) {
+      fileExtension = '.tar.bz2';
+    }
+    
     if (!acceptedFileTypes.includes(fileExtension)) {
       return `File type ${fileExtension} is not supported. Please upload ${acceptedFileTypes.join(', ')}`;
     }
