@@ -255,7 +255,8 @@ function MappingWizard() {
   const fetchVendorAgreements = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/vendor-agreements`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        params: { status: 'active' } // Only show active contracts in Mapping Wizard
       });
       
       // Extract hasApprovePermission flag from response (indicates user can see all agreements)
@@ -267,7 +268,7 @@ function MappingWizard() {
         agreement => (agreement.approval_status === 'fully_approved' || agreement.approval_status === 'governance_approved') && agreement.is_locked
       );
       
-      console.log(`Fetched ${approvedAgreements.length} approved vendor agreements (hasApprovePermission: ${hasApprovePermission})`);
+      console.log(`Fetched ${approvedAgreements.length} active approved vendor agreements (hasApprovePermission: ${hasApprovePermission})`);
       setVendorAgreements(approvedAgreements);
     } catch (err) {
       console.error('Error fetching vendor agreements:', err);
