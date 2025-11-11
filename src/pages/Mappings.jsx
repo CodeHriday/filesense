@@ -338,36 +338,32 @@ function Mappings() {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.75rem',
-                        padding: '0.875rem 1rem',
-                        background: 'linear-gradient(135deg, #037c6e 0%, #025f54 100%)',
-                        color: 'white',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        background: 'white',
+                        color: '#6b7280',
                         cursor: 'pointer',
                         userSelect: 'none',
-                        borderRadius: '6px',
-                        fontWeight: '600',
-                        fontSize: '1rem',
+                        fontWeight: '500',
+                        fontSize: '0.8125rem',
                         transition: 'all 0.2s ease'
                       }}
                     >
-                      <FiFolder size={20} />
+                      {isProjectExpanded ? (
+                        <FiChevronDown size={14} style={{ color: '#6b7280' }} />
+                      ) : (
+                        <FiChevronRight size={14} style={{ color: '#6b7280' }} />
+                      )}
                       <span style={{ flex: 1 }}>{project.projectName}</span>
                       <span
                         style={{
-                          background: 'rgba(255, 255, 255, 0.2)',
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '12px',
-                          fontSize: '0.875rem',
-                          fontWeight: '500'
+                          color: '#9ca3af',
+                          fontSize: '0.75rem',
+                          fontWeight: '400'
                         }}
                       >
                         {project.mappingsCount} {project.mappingsCount === 1 ? 'mapping' : 'mappings'}
                       </span>
-                      {isProjectExpanded ? (
-                        <FiChevronDown size={20} />
-                      ) : (
-                        <FiChevronRight size={20} />
-                      )}
                     </div>
 
                     {/* Project Content */}
@@ -386,35 +382,28 @@ function Mappings() {
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '0.625rem',
-                                  padding: '0.75rem 1rem',
-                                  background: '#f8fafc',
-                                  border: '1px solid #e2e8f0',
-                                  borderLeft: '4px solid #037c6e',
+                                  gap: '0.5rem',
+                                  padding: '0.4rem 0.75rem',
+                                  background: 'white',
                                   cursor: 'pointer',
                                   userSelect: 'none',
-                                  borderRadius: '4px',
                                   marginLeft: '1.5rem',
-                                  fontWeight: '500',
-                                  fontSize: '0.9375rem',
+                                  fontWeight: '400',
+                                  fontSize: '0.75rem',
                                   transition: 'all 0.2s ease'
                                 }}
                               >
                                 {isSubprojectExpanded ? (
-                                  <FiChevronDown size={16} style={{ color: '#037c6e' }} />
+                                  <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
                                 ) : (
-                                  <FiChevronRight size={16} style={{ color: '#037c6e' }} />
+                                  <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
                                 )}
-                                <FiLayers size={16} style={{ color: '#64748b' }} />
-                                <span style={{ flex: 1, color: '#1e293b' }}>{subproject.subProjectName}</span>
+                                <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
                                 <span
                                   style={{
-                                    background: '#e0f2fe',
-                                    color: '#0369a1',
-                                    padding: '0.125rem 0.625rem',
-                                    borderRadius: '10px',
-                                    fontSize: '0.8125rem',
-                                    fontWeight: '500'
+                                    color: '#d1d5db',
+                                    fontSize: '0.6875rem',
+                                    fontWeight: '400'
                                   }}
                                 >
                                   {subproject.mappingsCount}
@@ -462,35 +451,29 @@ function Mappings() {
                                     style={{
                                       display: 'flex',
                                       alignItems: 'center',
-                                      gap: '0.625rem',
-                                      padding: '0.75rem 1rem',
-                                      background: '#fef3c7',
-                                      border: '1px solid #fbbf24',
-                                      borderLeft: '4px solid #d97706',
+                                      gap: '0.5rem',
+                                      padding: '0.4rem 0.75rem',
+                                      background: 'white',
                                       cursor: 'pointer',
                                       userSelect: 'none',
-                                      borderRadius: '4px',
                                       marginLeft: '1.5rem',
-                                      fontWeight: '500',
-                                      fontSize: '0.9375rem',
+                                      fontWeight: '400',
+                                      fontSize: '0.75rem',
                                       transition: 'all 0.2s ease'
                                     }}
                                   >
                                     {isUnassignedExpanded ? (
-                                      <FiChevronDown size={16} style={{ color: '#d97706' }} />
+                                      <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
                                     ) : (
-                                      <FiChevronRight size={16} style={{ color: '#d97706' }} />
+                                      <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
                                     )}
-                                    <FiAlertCircle size={16} style={{ color: '#d97706' }} />
-                                    <span style={{ flex: 1, color: '#78350f' }}>No Subproject</span>
+                                    <FiAlertCircle size={12} style={{ color: '#d1d5db' }} />
+                                    <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
                                     <span
                                       style={{
-                                        background: '#fff7ed',
-                                        color: '#d97706',
-                                        padding: '0.125rem 0.625rem',
-                                        borderRadius: '10px',
-                                        fontSize: '0.8125rem',
-                                        fontWeight: '500'
+                                        color: '#d1d5db',
+                                        fontSize: '0.6875rem',
+                                        fontWeight: '400'
                                       }}
                                     >
                                       {project.unassignedMappings.length}

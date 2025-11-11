@@ -651,32 +651,28 @@ export const FileCatalog = ({ onFileSelect }) => {
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.75rem',
-                          padding: '1rem 1.25rem',
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          color: 'white',
+                          gap: '0.5rem',
+                          padding: '0.5rem 0.75rem',
+                          background: 'white',
+                          color: '#6b7280',
                           cursor: 'pointer',
                           userSelect: 'none',
-                          borderRadius: '6px',
-                          fontWeight: '600',
-                          fontSize: '1.0625rem',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          fontWeight: '500',
+                          fontSize: '0.8125rem',
                           transition: 'all 0.2s ease'
                         }}
                       >
                         {isProjectExpanded ? (
-                          <FiChevronDown size={20} style={{ color: 'white' }} />
+                          <FiChevronDown size={14} style={{ color: '#6b7280' }} />
                         ) : (
-                          <FiChevronRight size={20} style={{ color: 'white' }} />
+                          <FiChevronRight size={14} style={{ color: '#6b7280' }} />
                         )}
                         <span style={{ flex: 1 }}>{project.projectName}</span>
                         <span
                           style={{
-                            background: 'rgba(255,255,255,0.25)',
-                            padding: '0.25rem 0.75rem',
-                            borderRadius: '12px',
-                            fontSize: '0.875rem',
-                            fontWeight: '500'
+                            color: '#9ca3af',
+                            fontSize: '0.75rem',
+                            fontWeight: '400'
                           }}
                         >
                           {project.filesCount} {project.filesCount === 1 ? 'file' : 'files'}
@@ -699,34 +695,28 @@ export const FileCatalog = ({ onFileSelect }) => {
                                   style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.625rem',
-                                    padding: '0.75rem 1rem',
-                                    background: '#f8fafc',
-                                    border: '1px solid #e2e8f0',
-                                    borderLeft: '4px solid #667eea',
+                                    gap: '0.5rem',
+                                    padding: '0.4rem 0.75rem',
+                                    background: 'white',
                                     cursor: 'pointer',
                                     userSelect: 'none',
-                                    borderRadius: '4px',
                                     marginLeft: '1.5rem',
-                                    fontWeight: '500',
-                                    fontSize: '0.9375rem',
+                                    fontWeight: '400',
+                                    fontSize: '0.75rem',
                                     transition: 'all 0.2s ease'
                                   }}
                                 >
                                   {isSubprojectExpanded ? (
-                                    <FiChevronDown size={16} style={{ color: '#667eea' }} />
+                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
                                   ) : (
-                                    <FiChevronRight size={16} style={{ color: '#667eea' }} />
+                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
                                   )}
-                                  <span style={{ flex: 1, color: '#1e293b' }}>{subproject.subProjectName}</span>
+                                  <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
                                   <span
                                     style={{
-                                      background: '#ede9fe',
-                                      color: '#6d28d9',
-                                      padding: '0.125rem 0.625rem',
-                                      borderRadius: '10px',
-                                      fontSize: '0.8125rem',
-                                      fontWeight: '500'
+                                      color: '#d1d5db',
+                                      fontSize: '0.6875rem',
+                                      fontWeight: '400'
                                     }}
                                   >
                                     {subproject.filesCount}
@@ -790,35 +780,29 @@ export const FileCatalog = ({ onFileSelect }) => {
                                       style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.625rem',
-                                        padding: '0.75rem 1rem',
-                                        background: '#fef3c7',
-                                        border: '1px solid #fbbf24',
-                                        borderLeft: '4px solid #d97706',
+                                        gap: '0.5rem',
+                                        padding: '0.4rem 0.75rem',
+                                        background: 'white',
                                         cursor: 'pointer',
                                         userSelect: 'none',
-                                        borderRadius: '4px',
                                         marginLeft: '1.5rem',
-                                        fontWeight: '500',
-                                        fontSize: '0.9375rem',
+                                        fontWeight: '400',
+                                        fontSize: '0.75rem',
                                         transition: 'all 0.2s ease'
                                       }}
                                     >
                                       {isUnassignedExpanded ? (
-                                        <FiChevronDown size={16} style={{ color: '#d97706' }} />
+                                        <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
                                       ) : (
-                                        <FiChevronRight size={16} style={{ color: '#d97706' }} />
+                                        <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
                                       )}
-                                      <FiAlertTriangle size={16} style={{ color: '#d97706' }} />
-                                      <span style={{ flex: 1, color: '#78350f' }}>No Subproject</span>
+                                      <FiAlertTriangle size={12} style={{ color: '#d1d5db' }} />
+                                      <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
                                       <span
                                         style={{
-                                          background: '#fff7ed',
-                                          color: '#d97706',
-                                          padding: '0.125rem 0.625rem',
-                                          borderRadius: '10px',
-                                          fontSize: '0.8125rem',
-                                          fontWeight: '500'
+                                          color: '#d1d5db',
+                                          fontSize: '0.6875rem',
+                                          fontWeight: '400'
                                         }}
                                       >
                                         {project.unassignedFiles.length}
