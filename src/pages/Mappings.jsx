@@ -44,6 +44,7 @@ function Mappings() {
   const [itemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [expansionState, setExpansionState] = useState({});
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -171,13 +172,14 @@ function Mappings() {
     if (groupedProjects.length > 0) {
       if (searchTerm) {
         // Auto-expand sections with search matches
-        setExpansionState(autoExpandMatchingSections(groupedProjects, expansionState));
-      } else if (Object.keys(expansionState).length === 0) {
+        setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
+      } else if (!initialized) {
         // Initialize with all sections expanded by default (first load)
         setExpansionState(initializeExpansionState(groupedProjects, true));
+        setInitialized(true);
       }
     }
-  }, [groupedProjects, searchTerm]);
+  }, [groupedProjects, searchTerm, initialized]);
 
   // Toggle expansion for a project or subproject
   const toggleExpansion = (key) => {
