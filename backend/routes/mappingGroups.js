@@ -179,7 +179,7 @@ router.put('/:id',
   async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, max_concurrency, status } = req.body;
+    const { name, description, max_concurrency, status, sub_project_id } = req.body;
     
     const updates = [];
     const values = [];
@@ -200,6 +200,11 @@ router.put('/:id',
     if (status !== undefined) {
       updates.push(`status = $${paramIndex++}`);
       values.push(status);
+    }
+    // Note: project_id cannot be changed after creation for security
+    if (sub_project_id !== undefined) {
+      updates.push(`sub_project_id = $${paramIndex++}`);
+      values.push(sub_project_id || null);
     }
     
     if (updates.length === 0) {

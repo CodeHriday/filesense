@@ -243,7 +243,7 @@ router.post('/',
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, project_id, sub_project_id } = req.body;
     const { getUserProjects } = require('../middleware/requireProjectAccess');
     
     // Get workflow to check project_id
@@ -274,12 +274,40 @@ router.put('/:id', async (req, res) => {
       }
     }
     
+    // Build dynamic update query
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(name);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(description);
+    }
+    // Note: project_id cannot be changed after creation for security
+    if (sub_project_id !== undefined) {
+      updates.push(`sub_project_id = $${paramIndex++}`);
+      values.push(sub_project_id || null);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No fields to update'
+      });
+    }
+    
+    values.push(id);
+    
     const result = await pool.query(`
       UPDATE n_step_workflows
-      SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3
+      SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramIndex}
       RETURNING *
-    `, [name, description, id]);
+    `, values);
     
     res.json({
       success: true,

@@ -49,6 +49,23 @@ const WorkflowForm = () => {
       setProjects(allProjects.filter(p => !p.parent_project_id));
 
       if (isEdit) {
+        // Fetch workflow metadata to get project and subproject
+        const workflowsData = await axios.get('/api/n-step-workflows');
+        const workflows = workflowsData.data.workflows || [];
+        const workflow = workflows.find(w => w.name === name);
+        
+        if (workflow) {
+          setProjectId(workflow.project_id || '');
+          setSubProjectId(workflow.sub_project_id || '');
+          setDescription(workflow.description || '');
+          
+          // Fetch subprojects if project is set
+          if (workflow.project_id) {
+            await fetchSubProjects(workflow.project_id);
+          }
+        }
+        
+        // Fetch workflow steps
         const stepsData = await axios.get(`/api/workflow-steps?workflow_name=${encodeURIComponent(name)}`);
         const steps = stepsData.data.steps || [];
         setSteps(steps.sort((a, b) => a.step_order - b.step_order));
@@ -174,43 +191,55 @@ const WorkflowForm = () => {
         )}
 
         <div className="form-container">
+          <div className="form-group">
+            <label>Project *</label>
+            <select
+              value={projectId}
+              onChange={e => handleProjectChange(e.target.value)}
+              required
+              disabled={isEdit}
+              className="form-input"
+            >
+              <option value="">Select a project...</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            {isEdit && (
+              <small style={{ display: 'block', marginTop: '0.25rem', color: '#64748b' }}>
+                Project cannot be changed after creation
+              </small>
+            )}
+          </div>
+
+          {projectId && (
+            <div className="form-group">
+              <label>Sub-Project (Optional)</label>
+              <select
+                value={subProjectId}
+                onChange={e => setSubProjectId(e.target.value)}
+                disabled={isEdit}
+                className="form-input"
+              >
+                <option value="">None (Parent Project Level)</option>
+                {subProjects.map(subProject => (
+                  <option key={subProject.id} value={subProject.id}>
+                    {subProject.name}
+                  </option>
+                ))}
+              </select>
+              {isEdit && (
+                <small style={{ display: 'block', marginTop: '0.25rem', color: '#64748b' }}>
+                  Sub-project cannot be changed after creation
+                </small>
+              )}
+            </div>
+          )}
+
           {!isEdit && (
             <>
-              <div className="form-group">
-                <label>Project *</label>
-                <select
-                  value={projectId}
-                  onChange={e => handleProjectChange(e.target.value)}
-                  required
-                  className="form-input"
-                >
-                  <option value="">Select a project...</option>
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {projectId && (
-                <div className="form-group">
-                  <label>Sub-Project (Optional)</label>
-                  <select
-                    value={subProjectId}
-                    onChange={e => setSubProjectId(e.target.value)}
-                    className="form-input"
-                  >
-                    <option value="">None (Parent Project Level)</option>
-                    {subProjects.map(subProject => (
-                      <option key={subProject.id} value={subProject.id}>
-                        {subProject.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               <div className="form-group">
                 <label>Workflow Name *</label>
                 <input

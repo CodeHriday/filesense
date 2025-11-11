@@ -131,11 +131,13 @@ const MappingGroupForm = () => {
 
     try {
       if (isEdit) {
-        // Backend expects: name, description, max_concurrency
+        // Backend expects: name, description, max_concurrency, sub_project_id
+        // Note: project_id cannot be changed after creation for security
         await axios.put(`/api/mapping-groups/${groupId}`, {
           name: formData.group_name,
           description: formData.description,
-          max_concurrency: formData.concurrency_limit
+          max_concurrency: formData.concurrency_limit,
+          sub_project_id: formData.sub_project_id || null
         });
 
         // Sync members using atomic PUT endpoint
