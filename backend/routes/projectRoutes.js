@@ -679,7 +679,6 @@ function createProjectRoutes(dbPool) {
         FROM users u
         INNER JOIN project_members pm ON u.id = pm.user_id
         WHERE pm.project_id = $1
-          AND u.is_active = true
         ORDER BY u.full_name, u.email
       `, [projectId]);
 
