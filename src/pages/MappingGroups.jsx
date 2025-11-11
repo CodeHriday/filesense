@@ -91,25 +91,26 @@ const MappingGroups = () => {
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner message="Loading mapping groups..." />;
-  }
-
   // Filter groups based on search term
-  const filteredGroups = groups.filter(group => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (group.name || '').toLowerCase().includes(searchLower) ||
-      (group.description || '').toLowerCase().includes(searchLower) ||
-      (group.project_name || '').toLowerCase().includes(searchLower) ||
-      (group.created_by_name || '').toLowerCase().includes(searchLower)
-    );
-  });
+  const filteredGroups = useMemo(() => {
+    return groups.filter(group => {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        (group.name || '').toLowerCase().includes(searchLower) ||
+        (group.description || '').toLowerCase().includes(searchLower) ||
+        (group.project_name || '').toLowerCase().includes(searchLower) ||
+        (group.created_by_name || '').toLowerCase().includes(searchLower)
+      );
+    });
+  }, [groups, searchTerm]);
 
   // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentGroups = filteredGroups.slice(indexOfFirstItem, indexOfLastItem);
+  const currentGroups = useMemo(() => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    return filteredGroups.slice(indexOfFirstItem, indexOfLastItem);
+  }, [filteredGroups, currentPage, itemsPerPage]);
+  
   const totalPages = Math.ceil(filteredGroups.length / itemsPerPage);
 
   // Group mapping groups by project and subproject hierarchy
@@ -130,6 +131,10 @@ const MappingGroups = () => {
       }
     }
   }, [groupedProjects, searchTerm, initialized]);
+
+  if (loading) {
+    return <LoadingSpinner message="Loading mapping groups..." />;
+  }
 
   // Toggle expansion for a project or subproject
   const toggleExpansion = (key) => {

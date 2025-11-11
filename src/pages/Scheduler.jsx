@@ -70,11 +70,14 @@ const Scheduler = () => {
   }, [searchTerm]);
 
   // Apply pagination to filtered schedules
+  const paginatedSchedules = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredSchedules.slice(startIndex, endIndex);
+  }, [filteredSchedules, currentPage, pageSize]);
+
   const totalItems = filteredSchedules.length;
   const totalPages = Math.ceil(totalItems / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedSchedules = filteredSchedules.slice(startIndex, endIndex);
 
   // Clamp currentPage when filtered results change
   useEffect(() => {

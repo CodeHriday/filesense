@@ -116,14 +116,13 @@ const Workflows = () => {
     });
   };
 
-  if (loading) {
-    return <LoadingSpinner message="Loading workflows..." />;
-  }
-
   // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentWorkflows = workflows.slice(indexOfFirstItem, indexOfLastItem);
+  const currentWorkflows = useMemo(() => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    return workflows.slice(indexOfFirstItem, indexOfLastItem);
+  }, [workflows, currentPage, itemsPerPage]);
+
   const totalPages = Math.ceil(workflows.length / itemsPerPage);
 
   // Group workflows by project and subproject hierarchy
@@ -139,6 +138,10 @@ const Workflows = () => {
       setInitialized(true);
     }
   }, [groupedProjects, initialized]);
+
+  if (loading) {
+    return <LoadingSpinner message="Loading workflows..." />;
+  }
 
   // Toggle expansion for a project or subproject
   const toggleExpansion = (key) => {

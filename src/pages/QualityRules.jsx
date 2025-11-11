@@ -59,6 +59,20 @@ function QualityRules() {
     fetchData();
   }, [currentPage, filterProjectId, filterRuleType, filterEnabled]);
 
+  // Group quality rules by project and subproject hierarchy
+  const groupedProjects = useMemo(() => {
+    return groupQualityRulesByProject(rules);
+  }, [rules]);
+
+  // Initialize expansion state when grouped data changes
+  useEffect(() => {
+    if (groupedProjects.length > 0 && !initialized) {
+      // Initialize with all sections collapsed by default (first load)
+      setExpansionState(initializeExpansionState(groupedProjects, false));
+      setInitialized(true);
+    }
+  }, [groupedProjects, initialized]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -647,20 +661,6 @@ function QualityRules() {
   };
 
   const totalPages = Math.ceil((pagination.total || 0) / itemsPerPage);
-
-  // Group quality rules by project and subproject hierarchy
-  const groupedProjects = useMemo(() => {
-    return groupQualityRulesByProject(rules);
-  }, [rules]);
-
-  // Initialize expansion state when grouped data changes
-  useEffect(() => {
-    if (groupedProjects.length > 0 && !initialized) {
-      // Initialize with all sections collapsed by default (first load)
-      setExpansionState(initializeExpansionState(groupedProjects, false));
-      setInitialized(true);
-    }
-  }, [groupedProjects, initialized]);
 
   // Toggle expansion for a project or subproject
   const toggleExpansion = (key) => {
