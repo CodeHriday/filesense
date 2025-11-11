@@ -199,7 +199,7 @@ router.post('/',
   }),
   async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, sub_project_id } = req.body;
     const userId = req.user?.id || 1;
     const assignedProjectId = req.projectId; // Set by authorization middleware, no fallback allowed
     
@@ -211,10 +211,10 @@ router.post('/',
     }
     
     const result = await pool.query(`
-      INSERT INTO n_step_workflows (name, description, created_by, project_id)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO n_step_workflows (name, description, created_by, project_id, sub_project_id)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [name, description, userId, assignedProjectId]);
+    `, [name, description, userId, assignedProjectId, sub_project_id || null]);
     
     const workflow = result.rows[0];
     

@@ -111,6 +111,7 @@ router.post('/', async (req, res) => {
       interval_unit,
       timezone = 'UTC',
       project_id,
+      sub_project_id,
       created_by,
       enabled
     } = req.body;
@@ -176,6 +177,7 @@ router.post('/', async (req, res) => {
       interval_unit,
       timezone,
       project_id: entityProjectId,
+      sub_project_id: sub_project_id || null,
       created_by: created_by || (req.user ? req.user.id : null), // Use authenticated user ID
       is_active
     });

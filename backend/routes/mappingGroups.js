@@ -139,7 +139,7 @@ router.post('/',
   }),
   async (req, res) => {
     try {
-      const { name, description, max_concurrency = 10, created_by } = req.body;
+      const { name, description, max_concurrency = 10, created_by, sub_project_id } = req.body;
       const projectId = req.projectId; // Set by authorization middleware, no fallback allowed
       
       if (!name) {
@@ -150,10 +150,10 @@ router.post('/',
       }
       
       const result = await pool.query(`
-        INSERT INTO mapping_groups (name, description, max_concurrency, created_by, project_id)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO mapping_groups (name, description, max_concurrency, created_by, project_id, sub_project_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
-      `, [name, description, max_concurrency, created_by, projectId]);
+      `, [name, description, max_concurrency, created_by, projectId, sub_project_id || null]);
     
     systemLogger.info('Mapping group created', { groupId: result.rows[0].id });
     
