@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch } from 'react-icons/fi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -9,6 +9,7 @@ import { useFileCatalog, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
 import { bulkDeleteFiles } from '../api/fileService';
+import { groupFilesByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/fileGrouping';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
@@ -31,7 +32,8 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const [expansionState, setExpansionState] = useState({});
+  const [initialized, setInitialized] = useState(false);
   
   // Using React Query to fetch file catalog
   const { 
@@ -238,12 +240,14 @@ export const FileCatalog = ({ onFileSelect }) => {
     };
   };
 
-  // Filter and sort the files
+  // Filter and sort the files (MUST be before any conditional returns)
   const filteredAndSortedFiles = files
     .filter(file => {
       // Filter by search term
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = file.filename.toLowerCase().includes(searchLower);
+      const matchesSearch = file.filename.toLowerCase().includes(searchLower) ||
+        (file.project_name || '').toLowerCase().includes(searchLower) ||
+        (file.sub_project_name || '').toLowerCase().includes(searchLower);
       
       // Filter by file type
       const matchesType = selectedType === 'all' || file.file_type === selectedType;
@@ -284,44 +288,31 @@ export const FileCatalog = ({ onFileSelect }) => {
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-  // Group files by filename
-  const groupedFiles = filteredAndSortedFiles.reduce((groups, file) => {
-    const filename = file.filename;
-    if (!groups[filename]) {
-      groups[filename] = [];
-    }
-    groups[filename].push(file);
-    return groups;
-  }, {});
-
-  // Sort files within each group by date (newest first)
-  Object.keys(groupedFiles).forEach(filename => {
-    groupedFiles[filename].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  });
-
-  // Convert to array of groups for easier handling
-  const fileGroups = Object.entries(groupedFiles).map(([filename, files]) => {
-    // Create a unique group ID based on the first file's ID to avoid cross-page conflicts
-    const groupId = `group_${files[0].file_id}`;
-    return {
-      filename,
-      groupId, // Unique identifier for this group
-      files,
-      count: files.length,
-      // Use the most recent file for display data
-      representativeFile: files[0]
-    };
-  });
-
-  // Pagination calculations (based on groups)
-  const totalItems = fileGroups.length;
+  // Pagination calculations
+  const totalItems = filteredAndSortedFiles.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedGroups = fileGroups.slice(startIndex, endIndex);
-  
-  // For backwards compatibility - get all files from paginated groups for selection
-  const paginatedFiles = paginatedGroups.flatMap(group => group.files);
+  const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
+
+  // Group files by project and subproject hierarchy
+  const groupedProjects = useMemo(() => {
+    return groupFilesByProject(paginatedFiles);
+  }, [paginatedFiles]);
+
+  // Initialize expansion state when grouped data changes or search term changes
+  useEffect(() => {
+    if (groupedProjects.length > 0) {
+      if (searchTerm) {
+        // Auto-expand sections with search matches
+        setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
+      } else if (!initialized) {
+        // Initialize with all sections expanded by default (first load)
+        setExpansionState(initializeExpansionState(groupedProjects, true));
+        setInitialized(true);
+      }
+    }
+  }, [groupedProjects, searchTerm, initialized]);
 
   // Reset to page 1 when filters change
   React.useEffect(() => {
@@ -340,11 +331,122 @@ export const FileCatalog = ({ onFileSelect }) => {
     setSelectedFiles([]);
   };
 
-  const toggleGroup = (groupId) => {
-    setExpandedGroups(prev => ({
+  // Toggle expansion for a project or subproject
+  const toggleExpansion = (key) => {
+    setExpansionState(prev => ({
       ...prev,
-      [groupId]: !prev[groupId]
+      [key]: !prev[key]
     }));
+  };
+
+  // Render individual file row
+  const renderFileRow = (file) => {
+    const headerInfo = getHeaderValidationInfo(file);
+    
+    return (
+      <tr key={file.file_id}>
+        <td className="checkbox-cell">
+          <input
+            type="checkbox"
+            checked={selectedFiles.includes(file.file_id)}
+            onChange={() => handleSelectFile(file.file_id)}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </td>
+        <td className="file-name-cell">
+          <span className="file-icon">
+            {file.file_type === 'csv' ? '📄' : 
+             file.file_type === 'json' ? '🔠' : '📊'}
+          </span>
+          <span className="file-name">{file.filename}</span>
+          {file.has_schema_changes && (
+            <span 
+              className="schema-changed-indicator" 
+              title="Schema has changed from previous upload"
+            >
+              <FiGitBranch /> Schema Changed
+            </span>
+          )}
+          {file.processing_error && (
+            <span 
+              className="file-error-indicator" 
+              title={`Processing failed: ${file.processing_error}`}
+            >
+              ⚠️
+            </span>
+          )}
+        </td>
+        <td>
+          <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
+        </td>
+        <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
+        <td>
+          {file.processing_error ? (
+            <span className="error-text" title={file.processing_error}>Failed</span>
+          ) : (
+            file.row_count != null ? file.row_count.toLocaleString() : '-'
+          )}
+        </td>
+        <td>
+          {file.processing_error ? (
+            <span className="error-text" title={file.processing_error}>Failed</span>
+          ) : (
+            file.column_count || '-'
+          )}
+        </td>
+        <td title={file.created_at ? formatDate(file.created_at) : ''}>
+          {file.created_at ? getTimeSince(file.created_at) : '-'}
+        </td>
+        <td>
+          <div className="quality-cell">
+            <QualityTooltip 
+              score={parseFloat(file.quality_score)}
+              components={{
+                completeness: file.quality_components?.completeness || 95,
+                consistency: file.quality_components?.consistency || 85,
+                validity: file.quality_components?.validity || 80,
+                uniqueness: file.quality_components?.uniqueness || 75,
+                timeliness: file.quality_components?.timeliness || 90
+              }}
+              position="top"
+              animated={true}
+            >
+              <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
+                {parseFloat(file.quality_score).toFixed(1)}%
+              </span>
+            </QualityTooltip>
+            {headerInfo && (
+              <span 
+                className={`header-validation-badge ${headerInfo.status === 'critical' ? 'critical' : 'warning'}`}
+                title={headerInfo.issues.map(issue => issue.message).join('; ')}
+              >
+                <FiAlertTriangle /> {headerInfo.issuesCount}
+              </span>
+            )}
+          </div>
+        </td>
+        <td className="actions-cell">
+          <button
+            className="action-icon-btn view-btn"
+            onClick={() => handleViewDetails(file)}
+            title="View Details"
+          >
+            <FiEye />
+          </button>
+          <button
+            className="action-icon-btn delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(file);
+            }}
+            disabled={deletingFileId === file.file_id}
+            title="Delete"
+          >
+            <FiTrash2 />
+          </button>
+        </td>
+      </tr>
+    );
   };
 
   const getPageNumbers = () => {
@@ -512,7 +614,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           <>
             <div className="pagination-info">
               <span>
-                Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} file groups ({filteredAndSortedFiles.length} total files)
+                Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} files
               </span>
               <div className="items-per-page">
                 <label htmlFor="itemsPerPage">Items per page:</label>
@@ -531,324 +633,284 @@ export const FileCatalog = ({ onFileSelect }) => {
               </div>
             </div>
             
-            <div style={{ overflowX: 'auto', width: '100%' }}>
-              <table className="file-catalog-table">
-              <thead>
-                <tr>
-                  <th className="checkbox-cell">
-                    <input
-                      type="checkbox"
-                      checked={paginatedFiles.length > 0 && paginatedFiles.every(file => selectedFiles.includes(file.file_id))}
-                      onChange={handleSelectAll}
-                      title="Select all files on this page"
-                    />
-                  </th>
-                  <th>Project</th>
-                  <th>Sub-Project</th>
-                  <th>File Name</th>
-                  <th>Type</th>
-                  <th>Size</th>
-                  <th>Rows</th>
-                  <th>Columns</th>
-                  <th>Uploaded</th>
-                  <th>Quality</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedGroups.map(group => {
-                  const isExpanded = expandedGroups[group.groupId];
-                  const file = group.representativeFile;
-                  
+            {groupedProjects.length === 0 ? (
+              <div className="no-results">
+                <p>No files found on this page.</p>
+              </div>
+            ) : (
+              <div style={{ marginTop: '1rem' }}>
+                {groupedProjects.map(project => {
+                  const projectKey = `project-${project.projectId}`;
+                  const isProjectExpanded = expansionState[projectKey];
+
                   return (
-                    <React.Fragment key={group.groupId}>
-                      {/* Group Header Row */}
-                      <tr className={`group-header-row ${isExpanded ? 'expanded' : ''}`}>
-                        <td className="checkbox-cell">
-                          <input
-                            type="checkbox"
-                            checked={group.files.every(f => selectedFiles.includes(f.file_id))}
-                            onChange={() => {
-                              const allSelected = group.files.every(f => selectedFiles.includes(f.file_id));
-                              if (allSelected) {
-                                setSelectedFiles(prev => prev.filter(id => !group.files.some(f => f.file_id === id)));
-                              } else {
-                                const newIds = group.files.map(f => f.file_id);
-                                setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
-                              }
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </td>
-                        <td>
-                          {file.project_name || 'Default Project'}
-                        </td>
-                        <td>
-                          {file.sub_project_name || '-'}
-                        </td>
-                        <td className="file-name-cell" onClick={() => toggleGroup(group.groupId)} style={{cursor: 'pointer'}}>
-                          <span className="expand-icon">
-                            {isExpanded ? '▼' : '▶'}
-                          </span>
-                          <span className="file-icon">
-                            {file.file_type === 'csv' ? '📄' : 
-                             file.file_type === 'json' ? '🔠' : '📊'}
-                          </span>
-                          <span className="file-name">{file.filename}</span>
-                          {group.count > 1 && (
-                            <span className="file-count-badge">×{group.count}</span>
-                          )}
-                          {file.has_schema_changes && (
-                            <span 
-                              className="schema-changed-indicator" 
-                              title="Schema has changed from previous upload"
-                            >
-                              <FiGitBranch /> Schema Changed
-                            </span>
-                          )}
-                          {file.processing_error && (
-                            <span 
-                              className="file-error-indicator" 
-                              title={`Processing failed: ${file.processing_error}`}
-                            >
-                              ⚠️
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
-                        </td>
-                        <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
-                        <td>
-                          {file.processing_error ? (
-                            <span className="error-text" title={file.processing_error}>Failed</span>
-                          ) : (
-                            file.row_count != null ? file.row_count.toLocaleString() : '-'
-                          )}
-                        </td>
-                        <td>
-                          {file.processing_error ? (
-                            <span className="error-text" title={file.processing_error}>Failed</span>
-                          ) : (
-                            file.column_count || '-'
-                          )}
-                        </td>
-                        <td title={file.created_at ? formatDate(file.created_at) : ''}>
-                          {file.created_at ? getTimeSince(file.created_at) : '-'}
-                        </td>
-                        <td>
-                          <div className="quality-cell">
-                            <QualityTooltip 
-                              score={parseFloat(file.quality_score)}
-                              components={{
-                                completeness: file.quality_components?.completeness || 95,
-                                consistency: file.quality_components?.consistency || 85,
-                                validity: file.quality_components?.validity || 80,
-                                uniqueness: file.quality_components?.uniqueness || 75,
-                                timeliness: file.quality_components?.timeliness || 90
-                              }}
-                              position="top"
-                              animated={true}
-                            >
-                              <span className={`quality-score ${getQualityClass(parseFloat(file.quality_score))}`}>
-                                {parseFloat(file.quality_score).toFixed(1)}%
-                              </span>
-                            </QualityTooltip>
-                            {(() => {
-                              const headerInfo = getHeaderValidationInfo(file);
-                              if (headerInfo) {
-                                const severityClass = headerInfo.status === 'critical' ? 'critical' : 'warning';
-                                const tooltip = headerInfo.issues.map(issue => issue.message).join('; ');
-                                return (
-                                  <span 
-                                    className={`header-validation-badge ${severityClass}`}
-                                    title={tooltip}
+                    <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
+                      {/* Project Header */}
+                      <div
+                        onClick={() => toggleExpansion(projectKey)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '1rem 1.25rem',
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          color: 'white',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          borderRadius: '6px',
+                          fontWeight: '600',
+                          fontSize: '1.0625rem',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {isProjectExpanded ? (
+                          <FiChevronDown size={20} style={{ color: 'white' }} />
+                        ) : (
+                          <FiChevronRight size={20} style={{ color: 'white' }} />
+                        )}
+                        <span style={{ flex: 1 }}>{project.projectName}</span>
+                        <span
+                          style={{
+                            background: 'rgba(255,255,255,0.25)',
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '12px',
+                            fontSize: '0.875rem',
+                            fontWeight: '500'
+                          }}
+                        >
+                          {project.filesCount} {project.filesCount === 1 ? 'file' : 'files'}
+                        </span>
+                      </div>
+
+                      {/* Project Content - Subprojects */}
+                      {isProjectExpanded && (
+                        <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
+                          {/* Subprojects */}
+                          {project.subprojects.map(subproject => {
+                            const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
+                            const isSubprojectExpanded = expansionState[subprojectKey];
+
+                            return (
+                              <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
+                                {/* Subproject Header */}
+                                <div
+                                  onClick={() => toggleExpansion(subprojectKey)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.625rem',
+                                    padding: '0.75rem 1rem',
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderLeft: '4px solid #667eea',
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    borderRadius: '4px',
+                                    marginLeft: '1.5rem',
+                                    fontWeight: '500',
+                                    fontSize: '0.9375rem',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  {isSubprojectExpanded ? (
+                                    <FiChevronDown size={16} style={{ color: '#667eea' }} />
+                                  ) : (
+                                    <FiChevronRight size={16} style={{ color: '#667eea' }} />
+                                  )}
+                                  <span style={{ flex: 1, color: '#1e293b' }}>{subproject.subProjectName}</span>
+                                  <span
+                                    style={{
+                                      background: '#ede9fe',
+                                      color: '#6d28d9',
+                                      padding: '0.125rem 0.625rem',
+                                      borderRadius: '10px',
+                                      fontSize: '0.8125rem',
+                                      fontWeight: '500'
+                                    }}
                                   >
-                                    <FiAlertTriangle /> {headerInfo.issuesCount}
+                                    {subproject.filesCount}
                                   </span>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-                        </td>
-                        <td className="actions-cell">
-                          <button
-                            className="action-icon-btn view-btn"
-                            onClick={() => handleViewDetails(file)}
-                            title="View Details"
-                          >
-                            <FiEye />
-                          </button>
-                          <button
-                            className="action-icon-btn delete-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              console.log('[BUTTON CLICK] Delete button clicked for file:', file.file_id);
-                              handleDelete(file);
-                            }}
-                            disabled={deletingFileId === file.file_id}
-                            title="Delete"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </td>
-                      </tr>
-                      
-                      {/* Expanded Child Rows */}
-                      {isExpanded && group.files.length > 1 && group.files.slice(1).map((childFile, index) => (
-                        <tr key={childFile.file_id} className="child-file-row">
-                          <td className="checkbox-cell">
-                            <input
-                              type="checkbox"
-                              checked={selectedFiles.includes(childFile.file_id)}
-                              onChange={() => handleSelectFile(childFile.file_id)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </td>
-                          <td>
-                            {childFile.project_name || 'Default Project'}
-                          </td>
-                          <td>
-                            {childFile.sub_project_name || '-'}
-                          </td>
-                          <td className="file-name-cell" style={{paddingLeft: '3rem'}}>
-                            <span className="file-icon">
-                              {childFile.file_type === 'csv' ? '📄' : 
-                               childFile.file_type === 'json' ? '🔠' : '📊'}
-                            </span>
-                            <span className="file-name">{childFile.filename}</span>
-                            {childFile.processing_error && (
-                              <span 
-                                className="file-error-indicator" 
-                                title={`Processing failed: ${childFile.processing_error}`}
-                              >
-                                ⚠️
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            <span className="file-type-badge">{childFile.file_type?.toUpperCase() || 'N/A'}</span>
-                          </td>
-                          <td>{childFile.file_size ? formatBytes(parseInt(childFile.file_size)) : '-'}</td>
-                          <td>
-                            {childFile.processing_error ? (
-                              <span className="error-text" title={childFile.processing_error}>Failed</span>
-                            ) : (
-                              childFile.row_count != null ? childFile.row_count.toLocaleString() : '-'
-                            )}
-                          </td>
-                          <td>
-                            {childFile.processing_error ? (
-                              <span className="error-text" title={childFile.processing_error}>Failed</span>
-                            ) : (
-                              childFile.column_count || '-'
-                            )}
-                          </td>
-                          <td title={childFile.created_at ? formatDate(childFile.created_at) : ''}>
-                            {childFile.created_at ? getTimeSince(childFile.created_at) : '-'}
-                          </td>
-                          <td>
-                            <div className="quality-cell">
-                              <QualityTooltip 
-                                score={parseFloat(childFile.quality_score)}
-                                components={{
-                                  completeness: childFile.quality_components?.completeness || 95,
-                                  consistency: childFile.quality_components?.consistency || 85,
-                                  validity: childFile.quality_components?.validity || 80,
-                                  uniqueness: childFile.quality_components?.uniqueness || 75,
-                                  timeliness: childFile.quality_components?.timeliness || 90
-                                }}
-                                position="top"
-                                animated={true}
-                              >
-                                <span className={`quality-score ${getQualityClass(parseFloat(childFile.quality_score))}`}>
-                                  {parseFloat(childFile.quality_score).toFixed(1)}%
-                                </span>
-                              </QualityTooltip>
+                                </div>
+
+                                {/* Subproject Files Table */}
+                                {isSubprojectExpanded && subproject.items.length > 0 && (
+                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                    <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                      <thead>
+                                        <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
+                                          <th className="checkbox-cell">
+                                            <input
+                                              type="checkbox"
+                                              checked={subproject.items.every(f => selectedFiles.includes(f.file_id))}
+                                              onChange={() => {
+                                                const allSelected = subproject.items.every(f => selectedFiles.includes(f.file_id));
+                                                if (allSelected) {
+                                                  setSelectedFiles(prev => prev.filter(id => !subproject.items.some(f => f.file_id === id)));
+                                                } else {
+                                                  const newIds = subproject.items.map(f => f.file_id);
+                                                  setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
+                                                }
+                                              }}
+                                              title="Select all files in this subproject"
+                                            />
+                                          </th>
+                                          <th>File Name</th>
+                                          <th>Type</th>
+                                          <th>Size</th>
+                                          <th>Rows</th>
+                                          <th>Columns</th>
+                                          <th>Uploaded</th>
+                                          <th>Quality</th>
+                                          <th>Actions</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
+                                        {subproject.items.map(file => renderFileRow(file))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {/* Unassigned Files (no subproject) */}
+                          {project.unassignedFiles.length > 0 && (
+                            <div style={{ marginBottom: '0.75rem' }}>
                               {(() => {
-                                const headerInfo = getHeaderValidationInfo(childFile);
-                                if (headerInfo) {
-                                  const severityClass = headerInfo.status === 'critical' ? 'critical' : 'warning';
-                                  const tooltip = headerInfo.issues.map(issue => issue.message).join('; ');
-                                  return (
-                                    <span 
-                                      className={`header-validation-badge ${severityClass}`}
-                                      title={tooltip}
+                                const unassignedKey = `subproject-${project.projectId}-unassigned`;
+                                const isUnassignedExpanded = expansionState[unassignedKey];
+
+                                return (
+                                  <>
+                                    {/* Unassigned Header */}
+                                    <div
+                                      onClick={() => toggleExpansion(unassignedKey)}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.625rem',
+                                        padding: '0.75rem 1rem',
+                                        background: '#fef3c7',
+                                        border: '1px solid #fbbf24',
+                                        borderLeft: '4px solid #d97706',
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        borderRadius: '4px',
+                                        marginLeft: '1.5rem',
+                                        fontWeight: '500',
+                                        fontSize: '0.9375rem',
+                                        transition: 'all 0.2s ease'
+                                      }}
                                     >
-                                      <FiAlertTriangle /> {headerInfo.issuesCount}
-                                    </span>
-                                  );
-                                }
-                                return null;
+                                      {isUnassignedExpanded ? (
+                                        <FiChevronDown size={16} style={{ color: '#d97706' }} />
+                                      ) : (
+                                        <FiChevronRight size={16} style={{ color: '#d97706' }} />
+                                      )}
+                                      <FiAlertTriangle size={16} style={{ color: '#d97706' }} />
+                                      <span style={{ flex: 1, color: '#78350f' }}>No Subproject</span>
+                                      <span
+                                        style={{
+                                          background: '#fff7ed',
+                                          color: '#d97706',
+                                          padding: '0.125rem 0.625rem',
+                                          borderRadius: '10px',
+                                          fontSize: '0.8125rem',
+                                          fontWeight: '500'
+                                        }}
+                                      >
+                                        {project.unassignedFiles.length}
+                                      </span>
+                                    </div>
+
+                                    {/* Unassigned Files Table */}
+                                    {isUnassignedExpanded && (
+                                      <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                        <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                          <thead>
+                                            <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
+                                              <th className="checkbox-cell">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={project.unassignedFiles.every(f => selectedFiles.includes(f.file_id))}
+                                                  onChange={() => {
+                                                    const allSelected = project.unassignedFiles.every(f => selectedFiles.includes(f.file_id));
+                                                    if (allSelected) {
+                                                      setSelectedFiles(prev => prev.filter(id => !project.unassignedFiles.some(f => f.file_id === id)));
+                                                    } else {
+                                                      const newIds = project.unassignedFiles.map(f => f.file_id);
+                                                      setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
+                                                    }
+                                                  }}
+                                                  title="Select all unassigned files"
+                                                />
+                                              </th>
+                                              <th>File Name</th>
+                                              <th>Type</th>
+                                              <th>Size</th>
+                                              <th>Rows</th>
+                                              <th>Columns</th>
+                                              <th>Uploaded</th>
+                                              <th>Quality</th>
+                                              <th>Actions</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
+                                            {project.unassignedFiles.map(file => renderFileRow(file))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </>
+                                );
                               })()}
                             </div>
-                          </td>
-                          <td className="actions-cell">
-                            <button
-                              className="action-icon-btn view-btn"
-                              onClick={() => handleViewDetails(childFile)}
-                              title="View Details"
-                            >
-                              <FiEye />
-                            </button>
-                            <button
-                              className="action-icon-btn delete-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                console.log('[BUTTON CLICK] Delete button clicked for child file:', childFile.file_id);
-                                handleDelete(childFile);
-                              }}
-                              disabled={deletingFileId === childFile.file_id}
-                              title="Delete"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
-              </tbody>
-          </table>
-            </div>
-          
-          {totalPages > 1 && (
-            <div className="pagination-controls">
-              <button
-                className="pagination-button"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </button>
-              
-              <div className="pagination-numbers">
-                {getPageNumbers().map((page, index) => (
-                  page === '...' ? (
-                    <span key={`ellipsis-${index}`} className="pagination-ellipsis">...</span>
-                  ) : (
-                    <button
-                      key={page}
-                      className={`pagination-number ${currentPage === page ? 'active' : ''}`}
-                      onClick={() => handlePageChange(page)}
-                    >
-                      {page}
-                    </button>
-                  )
-                ))}
               </div>
-              
-              <button
-                className="pagination-button"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </button>
-            </div>
-          )}
+            )}
+          
+            {totalPages > 1 && (
+              <div className="pagination-controls">
+                <button
+                  className="pagination-button"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+                
+                <div className="pagination-numbers">
+                  {getPageNumbers().map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="pagination-ellipsis">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        className={`pagination-number ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+                </div>
+                
+                <button
+                  className="pagination-button"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
