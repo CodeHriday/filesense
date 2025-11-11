@@ -47,6 +47,28 @@
   align-items: center;
 }
 
+/* Home button */
+.header-home-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white-alpha-10);
+  border: 1px solid var(--white-alpha-20);
+  border-radius: var(--radius-md);
+  color: var(--text-on-primary);
+  padding: var(--space-2);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-size: var(--text-lg);
+  width: 40px;
+  height: 40px;
+}
+
+.header-home-btn:hover {
+  background-color: var(--white-alpha-15);
+  transform: translateY(-1px);
+}
+
 /* AI Insights button */
 .ai-insights-btn {
   display: flex;

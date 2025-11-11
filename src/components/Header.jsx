@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { THEME } from '../config';
 import { FaUser, FaCog, FaSignOutAlt, FaChartBar, FaLightbulb, FaUsers } from 'react-icons/fa';
+import { FiHome } from 'react-icons/fi';
 import NotificationBell from './NotificationBell';
 import './Header.css';
 
@@ -11,6 +12,8 @@ function Header({ showAIInsights }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === '/';
   
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -52,6 +55,16 @@ function Header({ showAIInsights }) {
         </Link>
       </div>
       <div className="header-actions">
+        {currentUser && !isOnDashboard && (
+          <button 
+            className="header-home-btn" 
+            onClick={() => navigate('/')}
+            title="Go to Dashboard"
+            aria-label="Go to Dashboard"
+          >
+            <FiHome />
+          </button>
+        )}
         {currentUser && <NotificationBell />}
         
         {currentUser && (
