@@ -663,7 +663,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                         ) : (
                           <FiChevronRight size={14} style={{ color: '#6b7280' }} />
                         )}
-                        <span style={{ flex: 1 }}>{project.projectName}</span>
+                        <span style={{ flex: 1 }}>Project : {project.projectName}</span>
                         <span
                           style={{
                             color: '#9ca3af',
