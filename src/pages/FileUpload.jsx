@@ -843,12 +843,8 @@ function FileUpload() {
         throw new Error('Please select a vendor agreement for contract validation');
       }
       
-      // Validate file pattern selection when multiple patterns exist in contract mode
-      if (uploadType === 'contract' && agreementFilePatterns.length > 0 && !selectedFilePattern) {
-        throw new Error('File does not match any expected patterns from the selected agreement. Please manually select a pattern or contact your administrator.');
-      }
-      
       // Upload the file with progress tracking (optionally with atomic replacement)
+      // Note: Pattern validation is done by backend, which returns detailed error messages
       const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
       const fileSchemaIdForUpload = uploadType === 'contract' ? selectedFilePattern : null;
       const result = await uploadFile(
