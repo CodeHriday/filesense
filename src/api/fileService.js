@@ -211,7 +211,8 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
     return response.data;
   } catch (error) {
     console.error('Error uploading file:', error);
-    throw new Error(error.response?.data?.message || 'Failed to upload file');
+    // Preserve the full error structure from backend (validation errors contain error, message, details, hint)
+    throw error;
   }
 };
 
@@ -257,7 +258,8 @@ export const uploadFilesBatch = async (files, progressCallback, owner = null, pr
     return response.data;
   } catch (error) {
     console.error('Error uploading files:', error);
-    throw new Error(error.response?.data?.message || 'Failed to upload files');
+    // Preserve the full error structure from backend (validation errors contain error, message, details, hint)
+    throw error;
   }
 };
 
