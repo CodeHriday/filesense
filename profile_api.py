@@ -18,6 +18,13 @@ import json
 import psycopg2
 import psycopg2.extras
 from datetime import datetime
+import tarfile
+import pyzipper
+import pyreadstat
+import fastavro
+import struct
+import io
+from pathlib import Path
 
 # Import existing profiling modules
 import quality_checks
@@ -274,35 +281,373 @@ def download_file_from_storage(storage_location, provider, storage_key, credenti
         raise Exception(f"Failed to download file from {provider}: {str(e)}")
 
 
-def profile_vendor_file(file_path, filename):
+# ============================================================================
+# Security: ClamAV Virus Scanning
+# ============================================================================
+
+def scan_file_with_clamav(file_path):
+    """
+    Scan a file for viruses using ClamAV before processing
+    Returns tuple: (is_clean, scan_result_message)
+    """
+    try:
+        import subprocess
+        
+        # Check if ClamAV is disabled via env variable
+        if os.environ.get('DISABLE_VIRUS_SCAN') == 'true':
+            logger.warning('Virus scanning is disabled (DISABLE_VIRUS_SCAN=true)')
+            return True, 'Scan disabled'
+        
+        # Try to find clamscan binary
+        try:
+            clamscan_path = subprocess.check_output(['which', 'clamscan'], text=True).strip()
+        except subprocess.CalledProcessError:
+            logger.error('ClamAV (clamscan) not found in PATH')
+            raise FileNotFoundError('ClamAV is not installed or not in PATH')
+        
+        # Run ClamAV scan
+        logger.info(f'Running ClamAV scan on {file_path}')
+        result = subprocess.run(
+            [clamscan_path, '--no-summary', file_path],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout for large files
+        )
+        
+        # ClamAV exit codes:
+        # 0 = No virus found
+        # 1 = Virus found
+        # 2+ = Error
+        
+        if result.returncode == 0:
+            logger.info(f'ClamAV scan passed: {file_path}')
+            return True, 'Clean'
+        elif result.returncode == 1:
+            virus_info = result.stdout.strip()
+            logger.error(f'Virus detected by ClamAV: {virus_info}')
+            return False, f'Virus detected: {virus_info}'
+        else:
+            logger.error(f'ClamAV scan error (exit code {result.returncode}): {result.stderr}')
+            raise Exception(f'ClamAV scan failed: {result.stderr}')
+            
+    except FileNotFoundError as e:
+        logger.error(f'ClamAV not available: {str(e)}')
+        raise Exception('Virus scanning failed: ClamAV not available')
+    except subprocess.TimeoutExpired:
+        logger.error(f'ClamAV scan timeout for {file_path}')
+        raise Exception('Virus scanning failed: Scan timeout')
+    except Exception as e:
+        logger.error(f'ClamAV scan error: {str(e)}')
+        raise Exception(f'Virus scanning failed: {str(e)}')
+
+# ============================================================================
+# Format-Specific File Loaders
+# ============================================================================
+
+def load_csv(file_path):
+    """Load CSV file into DataFrame"""
+    df = pd.read_csv(file_path, low_memory=False)
+    raw_headers = list(pd.read_csv(file_path, nrows=0).columns)
+    return df, raw_headers, {}
+
+def load_excel(file_path):
+    """Load Excel file into DataFrame"""
+    df = pd.read_excel(file_path)
+    raw_headers = list(pd.read_excel(file_path, nrows=0).columns)
+    return df, raw_headers, {}
+
+def load_json(file_path):
+    """Load JSON file into DataFrame"""
+    df = pd.read_json(file_path)
+    raw_headers = list(df.columns)
+    return df, raw_headers, {}
+
+def load_parquet(file_path):
+    """Load Parquet file into DataFrame"""
+    df = pd.read_parquet(file_path)
+    raw_headers = list(df.columns)
+    return df, raw_headers, {}
+
+def load_sas(file_path, file_ext):
+    """
+    Load SAS dataset (.sas7bdat or .xpt) into DataFrame
+    Preserves labels and formats as metadata
+    """
+    try:
+        if file_ext == '.sas7bdat':
+            df, meta = pyreadstat.read_sas7bdat(file_path)
+        elif file_ext == '.xpt':
+            df, meta = pyreadstat.read_xport(file_path)
+        else:
+            raise ValueError(f"Unsupported SAS format: {file_ext}")
+        
+        # Extract SAS metadata
+        sas_metadata = {
+            'sas_format': file_ext.lstrip('.'),
+            'column_labels': meta.column_labels if hasattr(meta, 'column_labels') else {},
+            'variable_value_labels': meta.variable_value_labels if hasattr(meta, 'variable_value_labels') else {},
+            'column_formats': {col: meta.original_variable_types.get(col, '') for col in df.columns} if hasattr(meta, 'original_variable_types') else {}
+        }
+        
+        raw_headers = list(df.columns)
+        return df, raw_headers, sas_metadata
+        
+    except Exception as e:
+        raise Exception(f"Failed to load SAS file: {str(e)}")
+
+def load_avro(file_path):
+    """
+    Load Avro file into DataFrame
+    Extracts schema as metadata
+    """
+    try:
+        records = []
+        avro_schema = None
+        
+        with open(file_path, 'rb') as f:
+            reader = fastavro.reader(f)
+            avro_schema = reader.writer_schema
+            
+            # Read records into list
+            for record in reader:
+                records.append(record)
+        
+        if not records:
+            raise ValueError("Avro file contains no records")
+        
+        df = pd.DataFrame(records)
+        raw_headers = list(df.columns)
+        
+        # Store Avro schema metadata
+        avro_metadata = {
+            'avro_schema': avro_schema,
+            'schema_name': avro_schema.get('name', 'unknown') if isinstance(avro_schema, dict) else 'unknown'
+        }
+        
+        return df, raw_headers, avro_metadata
+        
+    except Exception as e:
+        raise Exception(f"Failed to load Avro file: {str(e)}")
+
+def load_dat(file_path):
+    """
+    Load .dat file with heuristic detection
+    Tries: delimiter detection → fixed-width → binary (requires schema)
+    """
+    try:
+        # Strategy 1: Try delimiter detection with pandas
+        try:
+            df = pd.read_csv(file_path, sep=None, engine='python', low_memory=False)
+            if len(df.columns) > 1 and len(df) > 0:
+                logger.info(f"Successfully loaded DAT file using delimiter detection")
+                raw_headers = list(df.columns)
+                return df, raw_headers, {'dat_load_method': 'delimiter_detection'}
+        except Exception as delim_error:
+            logger.debug(f"Delimiter detection failed: {str(delim_error)}")
+        
+        # Strategy 2: Try fixed-width format (use pandas default widths)
+        try:
+            df = pd.read_fwf(file_path)
+            if len(df.columns) > 0 and len(df) > 0:
+                logger.info(f"Successfully loaded DAT file using fixed-width format")
+                raw_headers = list(df.columns)
+                return df, raw_headers, {'dat_load_method': 'fixed_width'}
+        except Exception as fwf_error:
+            logger.debug(f"Fixed-width detection failed: {str(fwf_error)}")
+        
+        # Strategy 3: Binary format requires schema - return structured error
+        raise ValueError(
+            "DAT file could not be parsed using delimiter or fixed-width detection. "
+            "Binary DAT files require a schema definition. Please provide column specifications."
+        )
+        
+    except Exception as e:
+        raise Exception(f"Failed to load DAT file: {str(e)}")
+
+def load_archive(file_path, file_ext, password=None):
+    """
+    Extract and profile archive contents (.zip, .tar, .tar.gz, .tar.bz2)
+    Returns DataFrame from first viable tabular file + metadata about all members
+    
+    SECURITY: Scans archive with ClamAV before extraction
+    """
+    try:
+        # CRITICAL: Scan archive with ClamAV BEFORE extraction
+        is_clean, scan_message = scan_file_with_clamav(file_path)
+        if not is_clean:
+            raise ValueError(f'Archive failed virus scan: {scan_message}')
+        
+        logger.info(f'Archive passed virus scan: {file_path}')
+        
+        extracted_members = []
+        profiled_df = None
+        profiled_headers = None
+        profiled_member = None
+        
+        # Create secure temp directory for extraction
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Extract based on archive type
+            if file_ext == '.zip':
+                # Use pyzipper for password-protected ZIPs
+                try:
+                    with pyzipper.AESZipFile(file_path, 'r') as archive:
+                        # Check if password protected
+                        is_encrypted = any(info.flag_bits & 0x1 for info in archive.infolist())
+                        
+                        if is_encrypted and not password:
+                            raise ValueError("Archive is password-protected but no password provided")
+                        
+                        # Extract all members
+                        for member_info in archive.infolist():
+                            # Prevent path traversal attacks
+                            member_name = os.path.basename(member_info.filename)
+                            if not member_name or member_info.is_dir():
+                                continue
+                            
+                            # Extract to temp directory
+                            safe_path = os.path.join(temp_dir, member_name)
+                            with archive.open(member_info, pwd=password.encode() if password else None) as source:
+                                with open(safe_path, 'wb') as target:
+                                    target.write(source.read())
+                            
+                            extracted_members.append({
+                                'name': member_name,
+                                'size': member_info.file_size,
+                                'path': safe_path
+                            })
+                except Exception as zip_error:
+                    raise Exception(f"ZIP extraction failed: {str(zip_error)}")
+            
+            elif file_ext in ['.tar', '.tar.gz', '.tar.bz2', '.tgz']:
+                # Use tarfile for tar archives
+                try:
+                    mode = 'r:gz' if file_ext in ['.tar.gz', '.tgz'] else 'r:bz2' if file_ext == '.tar.bz2' else 'r'
+                    with tarfile.open(file_path, mode) as archive:
+                        for member in archive.getmembers():
+                            if member.isfile():
+                                # Prevent path traversal
+                                member_name = os.path.basename(member.name)
+                                if not member_name:
+                                    continue
+                                
+                                # Extract to temp directory
+                                safe_path = os.path.join(temp_dir, member_name)
+                                source_file = archive.extractfile(member)
+                                if source_file is None:
+                                    continue
+                                with source_file as source:
+                                    with open(safe_path, 'wb') as target:
+                                        target.write(source.read())
+                                
+                                extracted_members.append({
+                                    'name': member_name,
+                                    'size': member.size,
+                                    'path': safe_path
+                                })
+                except Exception as tar_error:
+                    raise Exception(f"TAR extraction failed: {str(tar_error)}")
+            
+            # Try to profile first supported tabular file
+            for member in extracted_members:
+                member_ext = os.path.splitext(member['name'])[1].lower()
+                
+                try:
+                    # Try to load based on member extension
+                    if member_ext == '.csv':
+                        profiled_df, profiled_headers, _ = load_csv(member['path'])
+                    elif member_ext in ['.xlsx', '.xls']:
+                        profiled_df, profiled_headers, _ = load_excel(member['path'])
+                    elif member_ext == '.json':
+                        profiled_df, profiled_headers, _ = load_json(member['path'])
+                    elif member_ext == '.parquet':
+                        profiled_df, profiled_headers, _ = load_parquet(member['path'])
+                    elif member_ext in ['.sas7bdat', '.xpt']:
+                        profiled_df, profiled_headers, _ = load_sas(member['path'], member_ext)
+                    elif member_ext == '.avro':
+                        profiled_df, profiled_headers, _ = load_avro(member['path'])
+                    elif member_ext == '.dat':
+                        profiled_df, profiled_headers, _ = load_dat(member['path'])
+                    else:
+                        member['status'] = 'unsupported'
+                        continue
+                    
+                    # Successfully loaded first tabular file
+                    member['status'] = 'profiled'
+                    profiled_member = member['name']
+                    break
+                    
+                except Exception as member_error:
+                    member['status'] = 'failed'
+                    member['error'] = str(member_error)
+                    logger.warning(f"Failed to load archive member {member['name']}: {str(member_error)}")
+            
+            # Archive metadata
+            archive_metadata = {
+                'archive_format': file_ext.lstrip('.'),
+                'total_members': len(extracted_members),
+                'profiled_member': profiled_member,
+                'member_manifest': extracted_members
+            }
+            
+            if profiled_df is None:
+                raise ValueError(f"No supported tabular files found in archive (extracted {len(extracted_members)} members)")
+            
+            return profiled_df, profiled_headers, archive_metadata
+            
+    except Exception as e:
+        raise Exception(f"Failed to process archive: {str(e)}")
+
+
+def profile_vendor_file(file_path, filename, password=None):
     """
     Run comprehensive quality profiling on a vendor file
+    Supports: CSV, JSON, XLSX, Parquet, XML, SAS (.sas7bdat, .xpt), Avro, DAT, Archives (.zip, .tar, .tar.gz, .tar.bz2)
     
     Args:
         file_path: Path to the file
         filename: Original filename
+        password: Optional password for encrypted archives
     
     Returns:
         Dictionary with profiling results
     """
     file_ext = os.path.splitext(filename)[1].lower()
     
-    # Read file based on type
+    # Dispatch to format-specific loader
     df = None
-    if file_ext == '.csv':
-        df = pd.read_csv(file_path, low_memory=False)
-        raw_headers = list(pd.read_csv(file_path, nrows=0).columns)
-    elif file_ext in ['.xlsx', '.xls']:
-        df = pd.read_excel(file_path)
-        raw_headers = list(pd.read_excel(file_path, nrows=0).columns)
-    elif file_ext == '.json':
-        df = pd.read_json(file_path)
-        raw_headers = list(df.columns)
-    elif file_ext == '.parquet':
-        df = pd.read_parquet(file_path)
-        raw_headers = list(df.columns)
-    else:
-        raise ValueError(f"Unsupported file type: {file_ext}")
+    raw_headers = []
+    format_metadata = {}
+    
+    try:
+        if file_ext == '.csv':
+            df, raw_headers, format_metadata = load_csv(file_path)
+        elif file_ext in ['.xlsx', '.xls']:
+            df, raw_headers, format_metadata = load_excel(file_path)
+        elif file_ext == '.json':
+            df, raw_headers, format_metadata = load_json(file_path)
+        elif file_ext == '.parquet':
+            df, raw_headers, format_metadata = load_parquet(file_path)
+        elif file_ext in ['.sas7bdat', '.xpt']:
+            df, raw_headers, format_metadata = load_sas(file_path, file_ext)
+        elif file_ext == '.avro':
+            df, raw_headers, format_metadata = load_avro(file_path)
+        elif file_ext == '.dat':
+            df, raw_headers, format_metadata = load_dat(file_path)
+        elif file_ext in ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz']:
+            df, raw_headers, format_metadata = load_archive(file_path, file_ext, password)
+        else:
+            raise ValueError(f"Unsupported file type: {file_ext}")
+    except Exception as load_error:
+        logger.error(f"Failed to load file {filename}: {str(load_error)}")
+        return {
+            'quality_score': {'overall_score': 0, 'components': {}},
+            'issues': [{'type': 'error', 'message': f'Failed to load file: {str(load_error)}'}],
+            'header_issues': {},
+            'null_value_summary': {},
+            'date_format_issues': {},
+            'duplicate_data': {},
+            'metadata': {'row_count': 0, 'column_count': 0, 'load_error': str(load_error)}
+        }
     
     if df is None or df.empty:
         return {
@@ -348,7 +693,7 @@ def profile_vendor_file(file_path, filename):
     
     # Collect NULL value summary
     null_value_summary = {}
-    if 'completeness' in quality_results:
+    if 'completeness' in quality_results and isinstance(quality_results.get('completeness'), dict):
         for col, data in quality_results['completeness'].items():
             if data['missing_count'] > 0:
                 null_value_summary[col] = {
@@ -428,7 +773,8 @@ def profile_vendor_file(file_path, filename):
             'row_count': len(df),
             'column_count': len(df.columns),
             'file_size_mb': os.path.getsize(file_path) / (1024 * 1024),
-            'columns': list(df.columns)
+            'columns': list(df.columns),
+            'format_specific': format_metadata  # SAS labels, Avro schema, archive manifest, etc.
         }
     }
     
