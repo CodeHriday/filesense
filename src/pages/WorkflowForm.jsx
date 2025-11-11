@@ -12,9 +12,14 @@ const WorkflowForm = () => {
   const isEdit = !!workflowName;
 
   const [name, setName] = useState(workflowName ? decodeURIComponent(workflowName) : '');
+  const [projectId, setProjectId] = useState('');
+  const [subProjectId, setSubProjectId] = useState('');
+  const [description, setDescription] = useState('');
   const [steps, setSteps] = useState([]);
   const [transformations, setTransformations] = useState([]);
   const [mappingGroups, setMappingGroups] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [subProjects, setSubProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -33,12 +38,15 @@ const WorkflowForm = () => {
 
   const fetchData = async () => {
     try {
-      const [transformationsData, groupsData] = await Promise.all([
+      const [transformationsData, groupsData, projectsData] = await Promise.all([
         axios.get('/api/transformations'),
-        axios.get('/api/mapping-groups')
+        axios.get('/api/mapping-groups'),
+        axios.get('/api/projects')
       ]);
       setTransformations(transformationsData.data.mappings || []);
       setMappingGroups(groupsData.data.groups || []);
+      const allProjects = projectsData.data || [];
+      setProjects(allProjects.filter(p => !p.parent_project_id));
 
       if (isEdit) {
         const stepsData = await axios.get(`/api/workflow-steps?workflow_name=${encodeURIComponent(name)}`);
@@ -51,14 +59,53 @@ const WorkflowForm = () => {
     }
   };
 
+  const fetchSubProjects = async (parentProjectId) => {
+    if (!parentProjectId) {
+      setSubProjects([]);
+      return;
+    }
+    
+    try {
+      const response = await axios.get('/api/projects');
+      const allProjects = response.data || [];
+      const filteredSubProjects = allProjects.filter(p => p.parent_project_id === parseInt(parentProjectId));
+      setSubProjects(filteredSubProjects);
+    } catch (err) {
+      console.error('Error fetching sub-projects:', err);
+      setSubProjects([]);
+    }
+  };
+
+  const handleProjectChange = async (newProjectId) => {
+    setProjectId(newProjectId);
+    setSubProjectId('');
+    await fetchSubProjects(newProjectId);
+  };
+
   const handleAddStep = async () => {
     if (!name || !newStep.step_name || !newStep.entity_id) {
       alert('Please fill in all required fields');
       return;
     }
 
+    if (!isEdit && !projectId) {
+      alert('Please select a project');
+      return;
+    }
+
     try {
       setLoading(true);
+      
+      // Create workflow first if this is the first step
+      if (!isEdit && steps.length === 0) {
+        await axios.post('/api/n-step-workflows', {
+          name: name,
+          description: description,
+          project_id: projectId,
+          sub_project_id: subProjectId || null
+        });
+      }
+      
       const response = await axios.post('/api/workflow-steps', {
         workflow_name: name,
         step_name: newStep.step_name,
@@ -128,16 +175,63 @@ const WorkflowForm = () => {
 
         <div className="form-container">
           {!isEdit && (
-            <div className="form-group">
-              <label>Workflow Name *</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-                className="form-input"
-              />
-            </div>
+            <>
+              <div className="form-group">
+                <label>Project *</label>
+                <select
+                  value={projectId}
+                  onChange={e => handleProjectChange(e.target.value)}
+                  required
+                  className="form-input"
+                >
+                  <option value="">Select a project...</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {projectId && (
+                <div className="form-group">
+                  <label>Sub-Project (Optional)</label>
+                  <select
+                    value={subProjectId}
+                    onChange={e => setSubProjectId(e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="">None (Parent Project Level)</option>
+                    {subProjects.map(subProject => (
+                      <option key={subProject.id} value={subProject.id}>
+                        {subProject.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Workflow Name *</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description (Optional)</label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  rows={3}
+                  className="form-input"
+                />
+              </div>
+            </>
           )}
 
           <div className="workflow-steps-section">
