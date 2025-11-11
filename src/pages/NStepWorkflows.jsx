@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft, FiCalendar, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiPlay, FiChevronLeft, FiChevronRight, FiSave, FiX, FiEye, FiEdit, FiArrowLeft, FiCalendar, FiSearch, FiChevronDown, FiAlertCircle } from 'react-icons/fi';
 import axios from 'axios';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
 import { PageTransition } from '../components/MicroAnimations';
 import ConfirmModal from '../components/ConfirmModal';
+import { groupWorkflowsByProject, initializeExpansionState } from '../utils/workflowGrouping';
 import '../styles/NStepWorkflows.css';
 
 const NStepWorkflows = () => {
@@ -57,6 +58,10 @@ const NStepWorkflows = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
+
+  // Hierarchical state
+  const [expansionState, setExpansionState] = useState({});
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -562,6 +567,27 @@ const NStepWorkflows = () => {
     );
   });
 
+  // Group workflows by project and subproject hierarchy
+  const groupedProjects = useMemo(() => {
+    return groupWorkflowsByProject(filteredWorkflows);
+  }, [filteredWorkflows]);
+
+  // Initialize expansion state when grouped data changes
+  useEffect(() => {
+    if (groupedProjects.length > 0 && !initialized) {
+      setExpansionState(initializeExpansionState(groupedProjects, false));
+      setInitialized(true);
+    }
+  }, [groupedProjects, initialized]);
+
+  // Toggle expansion state for project or subproject
+  const toggleExpansion = (key) => {
+    setExpansionState(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
   // Apply pagination to filtered workflows
   const totalItems = filteredWorkflows.length;
   const totalPages = Math.ceil(totalItems / pageSize);
@@ -612,6 +638,7 @@ const NStepWorkflows = () => {
         <PageHeader
           title="Workflows"
           subtitle="Build N-step workflows with sequential execution"
+          hideHomeButton={true}
         />
 
         {mode === 'list' && (
@@ -642,82 +669,294 @@ const NStepWorkflows = () => {
             </div>
           
           <div className="workflow-table-container">
-            <table className="workflow-table">
-              <thead>
-                <tr>
-                  <th>Project</th>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Steps</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedWorkflows.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="empty-message">
-                      {searchTerm ? 'No workflows match your search.' : 'No workflows found. Create one to get started.'}
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedWorkflows.map(w => (
-                    <tr 
-                      key={w.id}
-                      className={selectedWorkflow === w.id ? 'selected-row' : ''}
-                    >
-                      <td>{w.project_name || 'Default Project'}</td>
-                      <td>
-                        <strong>{w.name}</strong>
-                      </td>
-                      <td>{w.description || '-'}</td>
-                      <td>{w.step_count || 0}</td>
-                      <td>
-                        <span className={`status-badge ${w.is_active ? 'status-active' : 'status-inactive'}`}>
-                          {w.is_active ? 'Active' : 'Inactive'}
+            {filteredWorkflows.length === 0 ? (
+              <div className="empty-message" style={{ textAlign: 'center', padding: '2rem' }}>
+                {searchTerm ? 'No workflows match your search.' : 'No workflows found. Create one to get started.'}
+              </div>
+            ) : (
+              <div>
+                {groupedProjects.map(project => {
+                  const projectKey = `project-${project.projectId}`;
+                  const isProjectExpanded = expansionState[projectKey];
+
+                  return (
+                    <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
+                      {/* Project Header */}
+                      <div
+                        onClick={() => toggleExpansion(projectKey)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.5rem 0.75rem',
+                          background: 'white',
+                          color: '#6b7280',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          fontWeight: '500',
+                          fontSize: '0.8125rem',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {isProjectExpanded ? (
+                          <FiChevronDown size={14} style={{ color: '#6b7280' }} />
+                        ) : (
+                          <FiChevronRight size={14} style={{ color: '#6b7280' }} />
+                        )}
+                        <span style={{ flex: 1 }}>Project : {project.projectName}</span>
+                        <span
+                          style={{
+                            color: '#9ca3af',
+                            fontSize: '0.75rem',
+                            fontWeight: '400'
+                          }}
+                        >
+                          {project.workflowsCount} {project.workflowsCount === 1 ? 'workflow' : 'workflows'}
                         </span>
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          <button
-                            className="action-icon-btn execute-btn"
-                            onClick={() => handleQuickExecute(w.id)}
-                            title="Execute workflow"
-                            disabled={executing}
-                          >
-                            <FiPlay />
-                          </button>
-                          <button
-                            className="action-icon-btn view-btn"
-                            onClick={() => handleViewWorkflow(w.id)}
-                            title="View workflow (read-only)"
-                          >
-                            <FiEye />
-                          </button>
-                          <button
-                            className="action-icon-btn edit-btn"
-                            onClick={() => handleEditWorkflow(w.id)}
-                            title="Edit workflow"
-                          >
-                            <FiEdit />
-                          </button>
-                          <button
-                            className="action-icon-btn delete-btn"
-                            onClick={() => {
-                              setWorkflowToDelete(w.id);
-                              setDeleteWorkflowModalOpen(true);
-                            }}
-                            title="Delete workflow"
-                          >
-                            <FiTrash2 />
-                          </button>
+                      </div>
+
+                      {/* Project Content - Subprojects */}
+                      {isProjectExpanded && (
+                        <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
+                          {/* Subprojects */}
+                          {project.subprojects.map(subproject => {
+                            const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
+                            const isSubprojectExpanded = expansionState[subprojectKey];
+
+                            return (
+                              <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
+                                {/* Subproject Header */}
+                                <div
+                                  onClick={() => toggleExpansion(subprojectKey)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.4rem 0.75rem',
+                                    background: 'white',
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    marginLeft: '1.5rem',
+                                    fontWeight: '400',
+                                    fontSize: '0.75rem',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  {isSubprojectExpanded ? (
+                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
+                                  ) : (
+                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
+                                  )}
+                                  <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
+                                  <span
+                                    style={{
+                                      color: '#d1d5db',
+                                      fontSize: '0.6875rem',
+                                      fontWeight: '400'
+                                    }}
+                                  >
+                                    {subproject.workflowsCount}
+                                  </span>
+                                </div>
+
+                                {/* Subproject Workflows Table */}
+                                {isSubprojectExpanded && subproject.items.length > 0 && (
+                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                    <table className="data-table">
+                                      <thead>
+                                        <tr>
+                                          <th>Name</th>
+                                          <th>Description</th>
+                                          <th>Steps</th>
+                                          <th>Status</th>
+                                          <th>Actions</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {subproject.items.map(w => (
+                                          <tr 
+                                            key={w.id}
+                                            className={selectedWorkflow === w.id ? 'selected-row' : ''}
+                                          >
+                                            <td>
+                                              <strong>{w.name}</strong>
+                                            </td>
+                                            <td>{w.description || '-'}</td>
+                                            <td>{w.step_count || 0}</td>
+                                            <td>
+                                              <span className={`status-badge ${w.is_active ? 'status-active' : 'status-inactive'}`}>
+                                                {w.is_active ? 'Active' : 'Inactive'}
+                                              </span>
+                                            </td>
+                                            <td>
+                                              <div className="action-buttons">
+                                                <button
+                                                  className="action-icon-btn execute-btn"
+                                                  onClick={() => handleQuickExecute(w.id)}
+                                                  title="Execute workflow"
+                                                  disabled={executing}
+                                                >
+                                                  <FiPlay />
+                                                </button>
+                                                <button
+                                                  className="action-icon-btn view-btn"
+                                                  onClick={() => handleViewWorkflow(w.id)}
+                                                  title="View workflow (read-only)"
+                                                >
+                                                  <FiEye />
+                                                </button>
+                                                <button
+                                                  className="action-icon-btn edit-btn"
+                                                  onClick={() => handleEditWorkflow(w.id)}
+                                                  title="Edit workflow"
+                                                >
+                                                  <FiEdit />
+                                                </button>
+                                                <button
+                                                  className="action-icon-btn delete-btn"
+                                                  onClick={() => {
+                                                    setWorkflowToDelete(w.id);
+                                                    setDeleteWorkflowModalOpen(true);
+                                                  }}
+                                                  title="Delete workflow"
+                                                >
+                                                  <FiTrash2 />
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {/* Unassigned Workflows (no subproject) */}
+                          {project.unassignedWorkflows.length > 0 && (() => {
+                            const unassignedKey = `subproject-${project.projectId}-unassigned`;
+                            const isUnassignedExpanded = expansionState[unassignedKey];
+
+                            return (
+                              <>
+                                {/* Unassigned Header */}
+                                <div
+                                  onClick={() => toggleExpansion(unassignedKey)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.4rem 0.75rem',
+                                    background: 'white',
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    marginLeft: '1.5rem',
+                                    fontWeight: '400',
+                                    fontSize: '0.75rem',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  {isUnassignedExpanded ? (
+                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
+                                  ) : (
+                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
+                                  )}
+                                  <FiAlertCircle size={12} style={{ color: '#d1d5db' }} />
+                                  <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
+                                  <span
+                                    style={{
+                                      color: '#d1d5db',
+                                      fontSize: '0.6875rem',
+                                      fontWeight: '400'
+                                    }}
+                                  >
+                                    {project.unassignedWorkflows.length}
+                                  </span>
+                                </div>
+
+                                {/* Unassigned Workflows Table */}
+                                {isUnassignedExpanded && (
+                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                    <table className="data-table">
+                                      <thead>
+                                        <tr>
+                                          <th>Name</th>
+                                          <th>Description</th>
+                                          <th>Steps</th>
+                                          <th>Status</th>
+                                          <th>Actions</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {project.unassignedWorkflows.map(w => (
+                                          <tr 
+                                            key={w.id}
+                                            className={selectedWorkflow === w.id ? 'selected-row' : ''}
+                                          >
+                                            <td>
+                                              <strong>{w.name}</strong>
+                                            </td>
+                                            <td>{w.description || '-'}</td>
+                                            <td>{w.step_count || 0}</td>
+                                            <td>
+                                              <span className={`status-badge ${w.is_active ? 'status-active' : 'status-inactive'}`}>
+                                                {w.is_active ? 'Active' : 'Inactive'}
+                                              </span>
+                                            </td>
+                                            <td>
+                                              <div className="action-buttons">
+                                                <button
+                                                  className="action-icon-btn execute-btn"
+                                                  onClick={() => handleQuickExecute(w.id)}
+                                                  title="Execute workflow"
+                                                  disabled={executing}
+                                                >
+                                                  <FiPlay />
+                                                </button>
+                                                <button
+                                                  className="action-icon-btn view-btn"
+                                                  onClick={() => handleViewWorkflow(w.id)}
+                                                  title="View workflow (read-only)"
+                                                >
+                                                  <FiEye />
+                                                </button>
+                                                <button
+                                                  className="action-icon-btn edit-btn"
+                                                  onClick={() => handleEditWorkflow(w.id)}
+                                                  title="Edit workflow"
+                                                >
+                                                  <FiEdit />
+                                                </button>
+                                                <button
+                                                  className="action-icon-btn delete-btn"
+                                                  onClick={() => {
+                                                    setWorkflowToDelete(w.id);
+                                                    setDeleteWorkflowModalOpen(true);
+                                                  }}
+                                                  title="Delete workflow"
+                                                >
+                                                  <FiTrash2 />
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           
           {totalPages > 1 && (

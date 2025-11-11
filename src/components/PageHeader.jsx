@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FiHome } from 'react-icons/fi';
 import './styles/PageHeader.css';
 
-const PageHeader = ({ title, subtitle, icon, actions }) => {
+const PageHeader = ({ title, subtitle, icon, actions, hideHomeButton = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isOnDashboard = location.pathname === '/';
@@ -12,7 +12,7 @@ const PageHeader = ({ title, subtitle, icon, actions }) => {
     <div className="page-header">
       <div className="page-header-content">
         <div className="page-header-title-row">
-          {!isOnDashboard && (
+          {!isOnDashboard && !hideHomeButton && (
             <button 
               className="home-icon-button" 
               onClick={() => navigate('/')}
