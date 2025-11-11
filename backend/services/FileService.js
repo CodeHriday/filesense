@@ -40,7 +40,20 @@ class FileService extends ServiceBase {
       json: this.validateJson.bind(this),
       parquet: this.validateParquet.bind(this),
       xlsx: this.validateExcel.bind(this),
-      xml: this.validateXml.bind(this)
+      xml: this.validateXml.bind(this),
+      // Archive formats
+      zip: this.validateArchive.bind(this),
+      tar: this.validateArchive.bind(this),
+      gz: this.validateArchive.bind(this),
+      tgz: this.validateArchive.bind(this),
+      bz2: this.validateArchive.bind(this),
+      // SAS datasets
+      sas7bdat: this.validateBinary.bind(this),
+      xpt: this.validateBinary.bind(this),
+      // Avro
+      avro: this.validateBinary.bind(this),
+      // DAT files
+      dat: this.validateGeneric.bind(this)
     };
     
     // MIME type mappings for file type validation
@@ -49,7 +62,20 @@ class FileService extends ServiceBase {
       'json': ['application/json', 'text/json', 'text/plain'],
       'parquet': ['application/octet-stream', 'application/vnd.apache.parquet', 'application/x-parquet'],
       'xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
-      'xml': ['application/xml', 'text/xml']
+      'xml': ['application/xml', 'text/xml'],
+      // Archive formats
+      'zip': ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+      'tar': ['application/x-tar', 'application/octet-stream'],
+      'gz': ['application/gzip', 'application/x-gzip', 'application/octet-stream'],
+      'tgz': ['application/x-tar', 'application/gzip', 'application/octet-stream'],
+      'bz2': ['application/x-bzip2', 'application/octet-stream'],
+      // SAS datasets
+      'sas7bdat': ['application/octet-stream', 'application/x-sas-data'],
+      'xpt': ['application/octet-stream', 'application/x-sas-xport'],
+      // Avro
+      'avro': ['application/octet-stream', 'application/avro'],
+      // DAT files (various possible types)
+      'dat': ['application/octet-stream', 'text/plain', 'application/x-dat']
     };
     
     // File size limits per file type (in bytes)
@@ -58,7 +84,20 @@ class FileService extends ServiceBase {
       'json': 500 * 1024 * 1024,   // 500 MB
       'parquet': 1024 * 1024 * 1024, // 1 GB
       'xlsx': 100 * 1024 * 1024,   // 100 MB
-      'xml': 100 * 1024 * 1024     // 100 MB
+      'xml': 100 * 1024 * 1024,    // 100 MB
+      // Archive formats (larger limits for compressed data)
+      'zip': 2 * 1024 * 1024 * 1024,    // 2 GB
+      'tar': 2 * 1024 * 1024 * 1024,    // 2 GB
+      'gz': 2 * 1024 * 1024 * 1024,     // 2 GB
+      'tgz': 2 * 1024 * 1024 * 1024,    // 2 GB
+      'bz2': 2 * 1024 * 1024 * 1024,    // 2 GB
+      // SAS datasets
+      'sas7bdat': 1024 * 1024 * 1024,   // 1 GB
+      'xpt': 1024 * 1024 * 1024,        // 1 GB
+      // Avro
+      'avro': 1024 * 1024 * 1024,       // 1 GB
+      // DAT files
+      'dat': 500 * 1024 * 1024          // 500 MB
     };
   }
   
@@ -716,6 +755,90 @@ class FileService extends ServiceBase {
       return true;
     } catch (error) {
       throw new Error(`Invalid XML file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate archive files (ZIP, TAR, GZ, etc.)
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateArchive(filePath) {
+    try {
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      
+      // Read first 4 bytes for quick signature checks
+      const headerBuffer = Buffer.alloc(4);
+      await fileHandle.read(headerBuffer, 0, 4, 0);
+      
+      // Check for common archive signatures
+      // ZIP: PK\x03\x04 (50 4B 03 04)
+      // GZIP/TAR.GZ: 1F 8B (gzip magic number)
+      // BZIP2/TAR.BZ2: 42 5A (bzip2 magic number)
+      const isZip = (headerBuffer[0] === 0x50 && headerBuffer[1] === 0x4B);
+      const isGzip = (headerBuffer[0] === 0x1F && headerBuffer[1] === 0x8B);
+      const isBzip2 = (headerBuffer[0] === 0x42 && headerBuffer[1] === 0x5A);
+      
+      if (isZip || isGzip || isBzip2) {
+        await fileHandle.close();
+        return true;
+      }
+      
+      // Check for TAR file signature at offset 257: "ustar" (POSIX tar format)
+      const tarBuffer = Buffer.alloc(262); // Read 257 + 5 bytes for "ustar"
+      await fileHandle.read(tarBuffer, 0, 262, 0);
+      await fileHandle.close();
+      
+      const tarSignature = tarBuffer.slice(257, 262).toString('ascii');
+      const isTar = tarSignature === 'ustar';
+      
+      if (isTar) {
+        return true;
+      }
+      
+      // If none of the known archive signatures match, still allow the file
+      // Python processors will determine if it's a valid archive during processing
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid archive file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate binary files (SAS, Avro, etc.)
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateBinary(filePath) {
+    try {
+      // Basic validation: ensure file exists and is readable
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      await fileHandle.close();
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid binary file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate generic files (DAT, etc.)
+   * 
+   * @private
+   * @param {string} filePath - Path to the file
+   * @returns {Promise<boolean>} - Validation result
+   */
+  async validateGeneric(filePath) {
+    try {
+      // Basic validation: ensure file exists and is readable
+      const fileHandle = await fs.promises.open(filePath, 'r');
+      await fileHandle.close();
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid file: ${error.message}`);
     }
   }
 
