@@ -31,10 +31,14 @@ const NStepWorkflows = () => {
   const [newWorkflowName, setNewWorkflowName] = useState('');
   const [newWorkflowDescription, setNewWorkflowDescription] = useState('');
   const [newWorkflowProjectId, setNewWorkflowProjectId] = useState('');
+  const [newWorkflowSubProjectId, setNewWorkflowSubProjectId] = useState('');
+  const [newWorkflowSubProjects, setNewWorkflowSubProjects] = useState([]);
   
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editWorkflowName, setEditWorkflowName] = useState('');
   const [editWorkflowDescription, setEditWorkflowDescription] = useState('');
+  const [editWorkflowSubProjectId, setEditWorkflowSubProjectId] = useState('');
+  const [editWorkflowSubProjects, setEditWorkflowSubProjects] = useState([]);
   
   const [executeModalOpen, setExecuteModalOpen] = useState(false);
   const [deleteStepModalOpen, setDeleteStepModalOpen] = useState(false);
@@ -97,6 +101,34 @@ const NStepWorkflows = () => {
     }
   };
 
+  const fetchSubProjectsForCreate = async (projectId) => {
+    if (!projectId) {
+      setNewWorkflowSubProjects([]);
+      return;
+    }
+    try {
+      const allProjects = projects || [];
+      const subProjects = allProjects.filter(p => p.parent_project_id === parseInt(projectId));
+      setNewWorkflowSubProjects(subProjects);
+    } catch (err) {
+      console.error('Error fetching subprojects:', err);
+    }
+  };
+
+  const fetchSubProjectsForEdit = async (projectId) => {
+    if (!projectId) {
+      setEditWorkflowSubProjects([]);
+      return;
+    }
+    try {
+      const allProjects = projects || [];
+      const subProjects = allProjects.filter(p => p.parent_project_id === parseInt(projectId));
+      setEditWorkflowSubProjects(subProjects);
+    } catch (err) {
+      console.error('Error fetching subprojects:', err);
+    }
+  };
+
   const handleCreateWorkflow = async () => {
     if (!newWorkflowName.trim()) {
       alert('Please enter a workflow name');
@@ -112,7 +144,8 @@ const NStepWorkflows = () => {
       const response = await axios.post('/api/n-step-workflows', {
         name: newWorkflowName,
         description: newWorkflowDescription,
-        project_id: newWorkflowProjectId
+        project_id: newWorkflowProjectId,
+        sub_project_id: newWorkflowSubProjectId || null
       });
       
       setWorkflows([response.data.workflow, ...workflows]);
@@ -121,6 +154,8 @@ const NStepWorkflows = () => {
       setNewWorkflowName('');
       setNewWorkflowDescription('');
       setNewWorkflowProjectId('');
+      setNewWorkflowSubProjectId('');
+      setNewWorkflowSubProjects([]);
       // Automatically open in edit mode
       setMode('edit');
       const detailsResponse = await axios.get(`/api/n-step-workflows/${response.data.workflow.id}`);
@@ -230,23 +265,49 @@ const NStepWorkflows = () => {
     }
   };
 
-  const handleOpenEditModal = () => {
+  const handleOpenEditModal = async () => {
     if (workflowData) {
       setEditWorkflowName(workflowData.name);
       setEditWorkflowDescription(workflowData.description || '');
+      setEditWorkflowSubProjectId(workflowData.sub_project_id || '');
+      
+      // Load subprojects for the workflow's project
+      if (workflowData.project_id) {
+        await fetchSubProjectsForEdit(workflowData.project_id);
+      }
+      
       setEditModalOpen(true);
     }
   };
 
   const handleSaveWorkflow = async () => {
     try {
-      await axios.put(`/api/n-step-workflows/${selectedWorkflow}`, {
-        name: workflowData.name,
-        description: workflowData.description
-      });
+      let updateData;
+      
+      if (editModalOpen) {
+        // Saving from edit modal - use modal state values
+        updateData = {
+          name: editWorkflowName,
+          description: editWorkflowDescription,
+          sub_project_id: editWorkflowSubProjectId || null
+        };
+      } else {
+        // Saving from workflow builder - use workflowData values
+        updateData = {
+          name: workflowData.name,
+          description: workflowData.description
+        };
+      }
+      
+      await axios.put(`/api/n-step-workflows/${selectedWorkflow}`, updateData);
       
       await fetchData();
       await fetchWorkflowDetails();
+      
+      if (editModalOpen) {
+        setEditModalOpen(false);
+      }
+      
       setSaveSuccessModalOpen(true);
       setIsWorkflowSaved(true);
     } catch (err) {
@@ -857,18 +918,40 @@ const NStepWorkflows = () => {
                   <label>Project *</label>
                   <select
                     value={newWorkflowProjectId}
-                    onChange={(e) => setNewWorkflowProjectId(e.target.value)}
+                    onChange={(e) => {
+                      const projectId = e.target.value;
+                      setNewWorkflowProjectId(projectId);
+                      setNewWorkflowSubProjectId('');
+                      fetchSubProjectsForCreate(projectId);
+                    }}
                     required
                     className="form-input"
                   >
                     <option value="">Select a project...</option>
-                    {projects.map(project => (
+                    {projects.filter(p => !p.parent_project_id).map(project => (
                       <option key={project.id} value={project.id}>
                         {project.name}
                       </option>
                     ))}
                   </select>
                 </div>
+                {newWorkflowProjectId && (
+                  <div className="form-group">
+                    <label>Sub-Project (Optional)</label>
+                    <select
+                      value={newWorkflowSubProjectId}
+                      onChange={(e) => setNewWorkflowSubProjectId(e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="">None (Parent Project Level)</option>
+                      {newWorkflowSubProjects.map(subProject => (
+                        <option key={subProject.id} value={subProject.id}>
+                          {subProject.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Workflow Name *</label>
                   <input
@@ -912,6 +995,41 @@ const NStepWorkflows = () => {
                 </button>
               </div>
               <div className="modal-body">
+                <div className="form-group">
+                  <label>Project *</label>
+                  <select
+                    value={workflowData?.project_id || ''}
+                    disabled
+                    className="form-input"
+                  >
+                    <option value="">Select a project...</option>
+                    {projects.filter(p => !p.parent_project_id).map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small style={{ display: 'block', marginTop: '0.25rem', color: '#64748b' }}>
+                    Project cannot be changed after creation
+                  </small>
+                </div>
+                {workflowData?.project_id && (
+                  <div className="form-group">
+                    <label>Sub-Project (Optional)</label>
+                    <select
+                      value={editWorkflowSubProjectId}
+                      onChange={(e) => setEditWorkflowSubProjectId(e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="">None (Parent Project Level)</option>
+                      {editWorkflowSubProjects.map(subProject => (
+                        <option key={subProject.id} value={subProject.id}>
+                          {subProject.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Workflow Name *</label>
                   <input
