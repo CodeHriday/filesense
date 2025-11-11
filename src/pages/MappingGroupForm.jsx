@@ -14,6 +14,7 @@ const MappingGroupForm = () => {
 
   const [formData, setFormData] = useState({
     project_id: '',
+    sub_project_id: '',
     group_name: '',
     description: '',
     concurrency_limit: 5
@@ -21,6 +22,7 @@ const MappingGroupForm = () => {
   const [members, setMembers] = useState([]);
   const [transformations, setTransformations] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [subProjects, setSubProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [error, setError] = useState(null);
@@ -38,13 +40,41 @@ const MappingGroupForm = () => {
     try {
       setLoadingProjects(true);
       const response = await axios.get('/api/projects');
-      setProjects(response.data || []);
+      const allProjects = response.data || [];
+      // Filter to show only parent projects (no parent_project_id)
+      setProjects(allProjects.filter(p => !p.parent_project_id));
     } catch (err) {
       console.error('Error fetching projects:', err);
       setProjects([]);
     } finally {
       setLoadingProjects(false);
     }
+  };
+
+  const fetchSubProjects = async (parentProjectId) => {
+    if (!parentProjectId) {
+      setSubProjects([]);
+      return;
+    }
+    
+    try {
+      const response = await axios.get('/api/projects');
+      const allProjects = response.data || [];
+      const filteredSubProjects = allProjects.filter(p => p.parent_project_id === parseInt(parentProjectId));
+      setSubProjects(filteredSubProjects);
+    } catch (err) {
+      console.error('Error fetching sub-projects:', err);
+      setSubProjects([]);
+    }
+  };
+
+  const handleProjectChange = async (projectId) => {
+    setFormData({
+      ...formData,
+      project_id: projectId,
+      sub_project_id: ''
+    });
+    await fetchSubProjects(projectId);
   };
 
   const fetchTransformations = async () => {
@@ -63,12 +93,19 @@ const MappingGroupForm = () => {
   const fetchMappingGroup = async () => {
     try {
       const response = await axios.get(`/api/mapping-groups/${groupId}`);
+      const projectId = response.data.project_id || '';
       setFormData({
-        project_id: response.data.project_id || '',
+        project_id: projectId,
+        sub_project_id: response.data.sub_project_id || '',
         group_name: response.data.group_name,
         description: response.data.description || '',
         concurrency_limit: response.data.concurrency_limit
       });
+      
+      // Fetch subprojects if project is set
+      if (projectId) {
+        await fetchSubProjects(projectId);
+      }
     } catch (err) {
       console.error('Error fetching mapping group:', err);
       setError('Failed to load mapping group');
@@ -112,12 +149,13 @@ const MappingGroupForm = () => {
           members: membersPayload
         });
       } else {
-        // Backend expects: name, description, max_concurrency, project_id
+        // Backend expects: name, description, max_concurrency, project_id, sub_project_id
         const response = await axios.post('/api/mapping-groups', {
           name: formData.group_name,
           description: formData.description,
           max_concurrency: formData.concurrency_limit,
-          project_id: formData.project_id
+          project_id: formData.project_id,
+          sub_project_id: formData.sub_project_id || null
         });
         const newGroupId = response.data.group?.id || response.data.id;
         
@@ -162,7 +200,7 @@ const MappingGroupForm = () => {
               <label>Project *</label>
               <select
                 value={formData.project_id}
-                onChange={e => setFormData({ ...formData, project_id: e.target.value })}
+                onChange={e => handleProjectChange(e.target.value)}
                 required
                 disabled={isEdit || loadingProjects}
                 className="form-input"
@@ -180,6 +218,30 @@ const MappingGroupForm = () => {
                 </small>
               )}
             </div>
+
+            {formData.project_id && (
+              <div className="form-group">
+                <label>Sub-Project (Optional)</label>
+                <select
+                  value={formData.sub_project_id}
+                  onChange={e => setFormData({ ...formData, sub_project_id: e.target.value })}
+                  disabled={isEdit}
+                  className="form-input"
+                >
+                  <option value="">None (Parent Project Level)</option>
+                  {subProjects.map(subProject => (
+                    <option key={subProject.id} value={subProject.id}>
+                      {subProject.name}
+                    </option>
+                  ))}
+                </select>
+                {isEdit && (
+                  <small style={{ display: 'block', marginTop: '0.25rem', color: '#64748b' }}>
+                    Sub-project cannot be changed after creation
+                  </small>
+                )}
+              </div>
+            )}
 
             <div className="form-group">
               <label>Group Name *</label>
