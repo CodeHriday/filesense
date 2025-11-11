@@ -14,11 +14,18 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 const { captureFileAudit, captureFileSchema } = require('../services/fileAuditService');
 const { saveSchemaSnapshot } = require('../services/schemaService');
 const QualityValidationEngine = require('../services/qualityValidationEngine');
 const { persistGovernanceMetadata } = require('../services/governanceService');
 const { invalidateFileCache, invalidateFileCatalogCache } = require('../src/middleware/cache');
+const PasswordVaultService = require('../services/passwordVaultService');
+
+// Archive and special format file extensions
+const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz'];
+const SPECIAL_FORMAT_EXTENSIONS = ['.sas7bdat', '.xpt', '.avro', '.dat'];
+const LEGACY_EXTENSIONS = ['.csv', '.json', '.xlsx', '.xls', '.parquet', '.xml'];
 
 class FileProcessingWorker {
   constructor(queue, dbPool, logger, auditService = null) {
@@ -26,6 +33,33 @@ class FileProcessingWorker {
     this.dbPool = dbPool;
     this.logger = logger;
     this.auditService = auditService;
+    
+    // Initialize password vault service
+    try {
+      this.passwordVaultService = new PasswordVaultService(dbPool, auditService, logger);
+    } catch (error) {
+      this.logger.error('Failed to initialize password vault service', { error: error.message });
+      throw error;
+    }
+  }
+  
+  /**
+   * Detect if file is an archive or special format requiring Python API
+   */
+  isArchiveOrSpecialFormat(filePath) {
+    const ext = this.getFileExtension(filePath);
+    return ARCHIVE_EXTENSIONS.includes(ext) || SPECIAL_FORMAT_EXTENSIONS.includes(ext);
+  }
+  
+  /**
+   * Get file extension for processing
+   */
+  getFileExtension(filePath) {
+    const name = filePath.toLowerCase();
+    // Handle compound extensions
+    if (name.endsWith('.tar.gz')) return '.tar.gz';
+    if (name.endsWith('.tar.bz2')) return '.tar.bz2';
+    return path.extname(filePath).toLowerCase();
   }
 
   /**
@@ -119,12 +153,48 @@ class FileProcessingWorker {
       // Update progress: Starting
       await this.queue.updateProgress(jobId, 10);
 
-      // Step 1: Process file using Python streaming processors
+      // Step 0.5: Check if file is an archive and retrieve password if needed
+      let archivePassword = null;
+      const fileExtension = this.getFileExtension(filePath);
+      const isArchive = ARCHIVE_EXTENSIONS.includes(fileExtension);
+      
+      if (isArchive) {
+        this.logger.info('Archive file detected, checking for password', { fileId, fileExtension });
+        try {
+          archivePassword = await this.passwordVaultService.retrievePassword('file', fileId, userId);
+          if (archivePassword) {
+            this.logger.info('Archive password retrieved from vault', { fileId });
+          } else {
+            this.logger.info('No password found for archive (processing without password)', { fileId });
+          }
+        } catch (passwordError) {
+          this.logger.warn('Failed to retrieve archive password', { 
+            fileId, 
+            error: passwordError.message 
+          });
+          // Continue without password - file might not be encrypted
+        }
+      }
+
+      // Step 1: Process file using Python streaming processors or Flask API
       await this.updateProcessingStep(fileId, 'analyzing');
       this.logger.info('Calling Python processor for file analysis', { fileId });
       await this.queue.updateProgress(jobId, 30);
 
-      const fileInfo = await this.callPythonProcessor(filePath, fileType);
+      let fileInfo;
+      
+      // Use Flask API for archives and special formats (supports passwords, SAS, Avro, DAT)
+      if (this.isArchiveOrSpecialFormat(filePath)) {
+        this.logger.info('Using Flask profile API for archive/special format', { 
+          fileId, 
+          fileExtension,
+          hasPassword: !!archivePassword
+        });
+        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, archivePassword);
+      } else {
+        // Use legacy process_file.py for standard formats
+        fileInfo = await this.callPythonProcessor(filePath, fileType);
+      }
 
       this.logger.info('Python processing completed', {
         fileId,
@@ -134,54 +204,102 @@ class FileProcessingWorker {
 
       await this.queue.updateProgress(jobId, 50);
 
-      // Step 2: Generate detailed column profiling (min/max, frequency values)
-      await this.updateProcessingStep(fileId, 'profiling');
-      this.logger.info('Generating column profiling statistics', { fileId });
-      const profilingData = await this.callProfilingScript(filePath, fileType);
+      // Skip legacy profiling/validation for archives & special formats (Flask API handles it)
+      let profilingData = { columns: [] };
+      let headerValidation = { success: true, status: 'healthy', health_score: 100, issues: [] };
+      let duplicateStats = { total_rows: 0, unique_rows: 0, duplicate_count: 0, duplicate_percentage: 0.0 };
       
-      // Merge profiling data with schema (preserve original column type)
-      if (fileInfo.schema && profilingData.columns) {
-        fileInfo.schema = fileInfo.schema.map(col => {
-          const profiling = profilingData.columns.find(p => p.name === col.name);
-          if (profiling) {
-            // Preserve original type, merge other profiling fields
-            const { type, ...profilingData } = profiling;
-            return { ...col, ...profilingData };
-          }
-          return col;
+      if (!this.isArchiveOrSpecialFormat(filePath)) {
+        // Legacy processing path for CSV/JSON/XLSX/Parquet/XML
+        
+        // Step 2: Generate detailed column profiling (min/max, frequency values)
+        await this.updateProcessingStep(fileId, 'profiling');
+        this.logger.info('Generating column profiling statistics', { fileId });
+        profilingData = await this.callProfilingScript(filePath, fileType);
+        
+        // Merge profiling data with schema (preserve original column type)
+        if (fileInfo.schema && profilingData.columns) {
+          fileInfo.schema = fileInfo.schema.map(col => {
+            const profiling = profilingData.columns.find(p => p.name === col.name);
+            if (profiling) {
+              // Preserve original type, merge other profiling fields
+              const { type, ...profilingData } = profiling;
+              return { ...col, ...profilingData };
+            }
+            return col;
+          });
+        }
+
+        await this.queue.updateProgress(jobId, 65);
+
+        // Step 2.5: Validate file headers for common issues
+        await this.updateProcessingStep(fileId, 'header_validation');
+        this.logger.info('Validating file headers', { fileId });
+        headerValidation = await this.callHeaderValidator(filePath, fileType);
+        
+        this.logger.info('Header validation completed', {
+          fileId,
+          status: headerValidation.status,
+          issuesFound: headerValidation.issues_found || 0
+        });
+
+        await this.queue.updateProgress(jobId, 70);
+
+        // Step 3: Detect duplicate rows
+        await this.updateProcessingStep(fileId, 'duplicates');
+        this.logger.info('Detecting duplicate rows', { fileId });
+        duplicateStats = await this.detectDuplicates(filePath, fileType);
+        
+        this.logger.info('Duplicate detection completed', {
+          fileId,
+          duplicateCount: duplicateStats.duplicate_count,
+          duplicatePercentage: duplicateStats.duplicate_percentage
+        });
+      } else {
+        // Archives/special formats - skip legacy processors
+        this.logger.info('Skipping legacy profiling/validation for archive/special format', { 
+          fileId, 
+          fileExtension 
         });
       }
-
-      await this.queue.updateProgress(jobId, 65);
-
-      // Step 2.5: Validate file headers for common issues
-      await this.updateProcessingStep(fileId, 'header_validation');
-      this.logger.info('Validating file headers', { fileId });
-      const headerValidation = await this.callHeaderValidator(filePath, fileType);
-      
-      this.logger.info('Header validation completed', {
-        fileId,
-        status: headerValidation.status,
-        issuesFound: headerValidation.issues_found || 0
-      });
-
-      await this.queue.updateProgress(jobId, 70);
-
-      // Step 3: Detect duplicate rows
-      await this.updateProcessingStep(fileId, 'duplicates');
-      this.logger.info('Detecting duplicate rows', { fileId });
-      const duplicateStats = await this.detectDuplicates(filePath, fileType);
-      
-      this.logger.info('Duplicate detection completed', {
-        fileId,
-        duplicateCount: duplicateStats.duplicate_count,
-        duplicatePercentage: duplicateStats.duplicate_percentage
-      });
 
       await this.queue.updateProgress(jobId, 75);
 
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
       await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId);
+      
+      // Step 4.2: Track file processing artifacts and archive members (for archives/special formats)
+      if (fileInfo.format_specific) {
+        try {
+          // Track archive members if present
+          if (fileInfo.format_specific.archive_members) {
+            await this.trackArchiveMembers(fileId, fileInfo.format_specific.archive_members);
+            this.logger.info('Archive members tracked', { 
+              fileId, 
+              memberCount: fileInfo.format_specific.archive_members.length 
+            });
+          }
+          
+          // Track processing artifacts (CSV/Parquet outputs from archives)
+          if (fileInfo.format_specific.profiled_member) {
+            await this.trackProcessingArtifact(
+              fileId, 
+              fileInfo.format_specific.profiled_member,
+              'primary_extraction'
+            );
+            this.logger.info('Processing artifact tracked', { 
+              fileId, 
+              artifact: fileInfo.format_specific.profiled_member 
+            });
+          }
+        } catch (trackingError) {
+          this.logger.warn('Failed to track artifacts/members', { 
+            fileId, 
+            error: trackingError.message 
+          });
+          // Don't fail the job - tracking is supplementary
+        }
+      }
       
       // Invalidate file cache after metadata update
       await invalidateFileCache(fileId);
@@ -622,6 +740,89 @@ class FileProcessingWorker {
   }
 
   /**
+   * Call Flask profile API for archives and special formats
+   * Supports password-protected archives, SAS, Avro, DAT files
+   */
+  async callFlaskProfileAPI(filePath, originalName, password = null) {
+    try {
+      const profileAPIUrl = process.env.PROFILE_API_URL || 'http://localhost:8000';
+      
+      // Read file and encode to base64 for API transmission
+      const fileBuffer = fs.readFileSync(filePath);
+      const fileBase64 = fileBuffer.toString('base64');
+      
+      const requestBody = {
+        file_path: filePath,
+        filename: originalName,
+        file_data: fileBase64
+      };
+      
+      // Add password if provided
+      if (password) {
+        requestBody.password = password;
+      }
+      
+      this.logger.info('Calling Flask profile API', { 
+        url: `${profileAPIUrl}/api/vendor-profile`,
+        filename: originalName,
+        hasPassword: !!password,
+        fileSize: fileBuffer.length
+      });
+      
+      const response = await axios.post(
+        `${profileAPIUrl}/api/vendor-profile`,
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          timeout: 300000, // 5 minute timeout for large archives
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity
+        }
+      );
+      
+      // Transform Flask response to match process_file.py format
+      const flaskResult = response.data;
+      const metadata = flaskResult.metadata || {};
+      
+      return {
+        row_count: metadata.row_count || 0,
+        column_count: metadata.column_count || 0,
+        schema: (metadata.columns || []).map(colName => ({
+          name: colName,
+          type: 'string', // Flask API doesn't provide detailed types in initial response
+          nullable: true
+        })),
+        processing_time_seconds: 0,
+        size_bytes: metadata.file_size_mb ? Math.round(metadata.file_size_mb * 1024 * 1024) : 0,
+        encoding: null,
+        delimiter: null,
+        preview_data: [],
+        format_specific: metadata.format_specific || {} // SAS labels, Avro schema, archive manifest
+      };
+      
+    } catch (error) {
+      this.logger.error('Flask profile API call failed', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Handle specific error cases
+      if (error.response?.status === 400 && error.response?.data?.error?.includes('password')) {
+        throw new Error('Archive requires password. Please provide a password and retry.');
+      }
+      
+      if (error.response?.status === 400 && error.response?.data?.error?.includes('Virus detected')) {
+        throw new Error('File failed virus scan. Cannot process infected archive.');
+      }
+      
+      throw new Error(`Failed to profile file via Flask API: ${error.message}`);
+    }
+  }
+
+  /**
    * Call Python profiling script to get detailed column statistics
    */
   async callProfilingScript(filePath, fileType) {
@@ -1018,6 +1219,96 @@ print(json.dumps(result))
 
     const result = await this.dbPool.query(query, values);
     return result.rows[0];
+  }
+
+  /**
+   * Track processing artifacts (CSV/Parquet outputs from archive extraction)
+   */
+  async trackProcessingArtifact(fileId, artifactName, artifactType) {
+    try {
+      const artifactId = uuidv4();
+      const query = `
+        INSERT INTO file_processing_artifacts (
+          artifact_id, file_id, artifact_type, artifact_name, created_at
+        ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+        RETURNING *
+      `;
+      
+      const values = [artifactId, fileId, artifactType, artifactName];
+      const result = await this.dbPool.query(query, values);
+      
+      this.logger.info('Processing artifact tracked', {
+        artifactId,
+        fileId,
+        artifactType,
+        artifactName
+      });
+      
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to track processing artifact', {
+        fileId,
+        artifactName,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Track archive members (nested files within archives)
+   */
+  async trackArchiveMembers(fileId, members) {
+    try {
+      if (!Array.isArray(members) || members.length === 0) {
+        this.logger.warn('No archive members to track', { fileId });
+        return;
+      }
+      
+      const values = [];
+      const placeholders = [];
+      
+      members.forEach((member, index) => {
+        const memberId = uuidv4();
+        const baseIndex = index * 6;
+        
+        placeholders.push(
+          `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5}, $${baseIndex + 6})`
+        );
+        
+        values.push(
+          memberId,
+          fileId,
+          member.name || member.member_name || 'unknown',
+          member.size || member.member_size || 0,
+          member.is_directory || member.is_dir || false,
+          member.extracted || false
+        );
+      });
+      
+      const query = `
+        INSERT INTO archive_members (
+          member_id, file_id, member_name, member_size, is_directory, extracted
+        ) VALUES ${placeholders.join(', ')}
+        RETURNING *
+      `;
+      
+      const result = await this.dbPool.query(query, values);
+      
+      this.logger.info('Archive members tracked', {
+        fileId,
+        memberCount: result.rows.length
+      });
+      
+      return result.rows;
+    } catch (error) {
+      this.logger.error('Failed to track archive members', {
+        fileId,
+        memberCount: members?.length,
+        error: error.message
+      });
+      throw error;
+    }
   }
 
   /**
