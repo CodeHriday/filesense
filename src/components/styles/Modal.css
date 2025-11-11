@@ -31,6 +31,12 @@
 
 .modal-small {
   width: 400px;
+  min-height: auto;
+}
+
+.modal-small .modal-content {
+  padding: 1rem;
+  min-height: auto;
 }
 
 .modal-medium {

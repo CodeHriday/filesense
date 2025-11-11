@@ -427,22 +427,24 @@ const ETLScheduler = () => {
           onClose={() => setDeleteModal({ show: false, scheduleId: null })}
           title="Confirm Delete"
           size="small"
+          footer={
+            <>
+              <button 
+                onClick={() => setDeleteModal({ show: false, scheduleId: null })} 
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteConfirm} 
+                className="btn btn-danger"
+              >
+                Delete
+              </button>
+            </>
+          }
         >
-          <p style={{ margin: '0 0 1rem 0' }}>Are you sure you want to delete this schedule?</p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <button 
-              onClick={() => setDeleteModal({ show: false, scheduleId: null })} 
-              className="btn btn-secondary"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleDeleteConfirm} 
-              className="btn btn-danger"
-            >
-              Delete
-            </button>
-          </div>
+          <p style={{ margin: '0' }}>Are you sure you want to delete this schedule?</p>
         </Modal>
 
       </div>
