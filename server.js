@@ -1448,7 +1448,6 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           AND va.status = 'active'
           AND va.approval_status = 'governance_approved'
           AND va.is_locked = true
-          AND va.is_active = true
         ORDER BY vafs.file_name_pattern
       `, [agreementId]);
       
