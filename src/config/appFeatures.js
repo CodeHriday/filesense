@@ -36,7 +36,7 @@ export const APP_FEATURES = [
     category: 'Project & File Management',
     icon: FiHome,
     route: '/',
-    showInSidebar: true
+    showInSidebar: false
   },
   { 
     id: 'projects', 
