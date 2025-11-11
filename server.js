@@ -1431,16 +1431,18 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       userId: req.user.id
     });
     
-    // CRITICAL: Validate filenames against vendor agreement patterns BEFORE any processing
+    // CRITICAL: Validate filenames and schemas against vendor agreement BEFORE any processing
     // This applies when contract validation mode is enabled (agreementId provided)
     if (agreementId) {
       const { matchesPattern } = require('./src/utils/patternMatching');
+      const { extractSchema, compareSchemas } = require('./backend/utils/schemaExtractor');
       
       const schemaResult = await dbPool.query(`
         SELECT DISTINCT
           vafs.id as schema_id,
           vafs.file_name_pattern,
           vafs.file_description,
+          vafs.schema,
           va.agreement_code
         FROM vendor_agreement_file_schemas vafs
         JOIN vendor_agreements va ON vafs.vendor_agreement_id = va.id
@@ -1452,19 +1454,20 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       `, [agreementId]);
       
       if (schemaResult.rows.length > 0) {
-        // Validate each uploaded file against expected patterns
+        // Validate each uploaded file against expected patterns and schemas
         for (const file of req.files) {
           const filename = file.originalname;
-          let matchedPattern = null;
+          let matchedSchema = null;
           
+          // Step 1: Filename pattern validation
           for (const schema of schemaResult.rows) {
             if (matchesPattern(filename, schema.file_name_pattern)) {
-              matchedPattern = schema;
+              matchedSchema = schema;
               break;
             }
           }
           
-          if (!matchedPattern) {
+          if (!matchedSchema) {
             // No pattern matched - reject upload immediately and clean up all files
             req.files.forEach(f => {
               try { fs.unlinkSync(f.path); } catch (e) {}
@@ -1499,10 +1502,120 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           logger.info('File matched expected contract pattern', {
             filename,
             agreementId,
-            matchedPattern: matchedPattern.file_name_pattern,
-            schemaId: matchedPattern.schema_id,
+            matchedPattern: matchedSchema.file_name_pattern,
+            schemaId: matchedSchema.schema_id,
             userId: req.user.id
           });
+          
+          // Step 2: Schema validation (if schema is defined in agreement)
+          if (matchedSchema.schema) {
+            try {
+              // Parse agreement schema (it's stored as JSON/JSONB in database)
+              const expectedSchema = typeof matchedSchema.schema === 'string' 
+                ? JSON.parse(matchedSchema.schema) 
+                : matchedSchema.schema;
+              
+              // Only validate if schema has actual column definitions
+              if (expectedSchema && Array.isArray(expectedSchema) && expectedSchema.length > 0) {
+                logger.info('Starting schema validation for contract validation upload', { 
+                  fileId: `pre_${filename}`,
+                  filename,
+                  agreementId,
+                  schemaId: matchedSchema.schema_id,
+                  userId: req.user.id,
+                  expectedColumnCount: expectedSchema.length
+                });
+                
+                // Extract schema from uploaded file
+                const uploadedSchema = await extractSchema(file.path, file.mimetype);
+                
+                // Compare schemas
+                const validationResult = compareSchemas(uploadedSchema, expectedSchema);
+                
+                if (!validationResult.valid) {
+                  // Schema validation failed - reject upload and clean up all files
+                  req.files.forEach(f => {
+                    try { fs.unlinkSync(f.path); } catch (e) {}
+                  });
+                  
+                  logger.warn('Schema validation failed for contract validation upload', {
+                    filename,
+                    agreementId,
+                    schemaId: matchedSchema.schema_id,
+                    userId: req.user.id,
+                    errors: validationResult.errors,
+                    missingColumns: validationResult.missingColumns,
+                    extraColumns: validationResult.extraColumns
+                  });
+                  
+                  return res.status(400).json({
+                    error: 'Schema validation failed',
+                    message: `The file "${filename}" does not match the expected schema defined in contract ${schemaResult.rows[0].agreement_code}.`,
+                    details: {
+                      uploadedFile: filename,
+                      contractCode: schemaResult.rows[0].agreement_code,
+                      filePattern: matchedSchema.file_name_pattern,
+                      errors: validationResult.errors || [],
+                      missingColumns: validationResult.missingColumns || [],
+                      extraColumns: validationResult.extraColumns || [],
+                      warnings: validationResult.warnings || []
+                    },
+                    hint: 'The uploaded file must contain all required columns with matching data types as defined in the vendor agreement schema.'
+                  });
+                }
+                
+                // Schema validation passed
+                if (validationResult.warnings && validationResult.warnings.length > 0) {
+                  logger.info('Schema validation passed with warnings', {
+                    filename,
+                    agreementId,
+                    warnings: validationResult.warnings
+                  });
+                } else {
+                  logger.info('Schema validation passed', { 
+                    filename,
+                    agreementId,
+                    schemaId: matchedSchema.schema_id
+                  });
+                }
+              } else {
+                logger.info('No schema columns defined for this file pattern - skipping schema validation', {
+                  filename,
+                  agreementId,
+                  schemaId: matchedSchema.schema_id
+                });
+              }
+              
+            } catch (schemaError) {
+              // Schema extraction/validation error - reject upload
+              req.files.forEach(f => {
+                try { fs.unlinkSync(f.path); } catch (e) {}
+              });
+              
+              logger.error('Schema validation error for contract validation upload', {
+                filename,
+                agreementId,
+                error: schemaError.message,
+                stack: schemaError.stack
+              });
+              
+              return res.status(500).json({
+                error: 'Schema validation error',
+                message: `Failed to validate file schema: ${schemaError.message}`,
+                details: {
+                  uploadedFile: filename,
+                  contractCode: schemaResult.rows[0].agreement_code,
+                  errorMessage: schemaError.message
+                }
+              });
+            }
+          } else {
+            logger.info('No schema defined for this file pattern - skipping schema validation', {
+              filename,
+              agreementId,
+              schemaId: matchedSchema.schema_id
+            });
+          }
         }
       }
     }
