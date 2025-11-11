@@ -256,7 +256,7 @@ module.exports = (dbPool, authenticate) => {
       );
 
       // Invalidate cache
-      await cacheService.invalidate(`${CACHE_PREFIX}:*`);
+      await cacheService.delPattern(`${CACHE_PREFIX}:*`);
 
       systemLogger.info('Quality rule created', { 
         id: result.rows[0].id,
@@ -409,7 +409,7 @@ module.exports = (dbPool, authenticate) => {
       const result = await dbPool.query(query, params);
 
       // Invalidate cache
-      await cacheService.invalidate(`${CACHE_PREFIX}:*`);
+      await cacheService.delPattern(`${CACHE_PREFIX}:*`);
 
       systemLogger.info('Quality rule updated', { 
         id,
@@ -450,7 +450,7 @@ module.exports = (dbPool, authenticate) => {
       await dbPool.query('DELETE FROM quality_rules WHERE id = $1', [id]);
 
       // Invalidate cache
-      await cacheService.invalidate(`${CACHE_PREFIX}:*`);
+      await cacheService.delPattern(`${CACHE_PREFIX}:*`);
 
       systemLogger.info('Quality rule deleted', { 
         id,
@@ -687,7 +687,7 @@ module.exports = (dbPool, authenticate) => {
       ]);
 
       // Invalidate cache for affected files and rules
-      await cacheService.invalidatePattern(`${CACHE_PREFIX}:*`);
+      await cacheService.delPattern(`${CACHE_PREFIX}:*`);
 
       res.status(201).json({
         success: true,
