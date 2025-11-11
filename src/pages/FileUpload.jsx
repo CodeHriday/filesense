@@ -897,16 +897,19 @@ function FileUpload() {
     } catch (error) {
       console.error('Error uploading file:', error);
       
-      // Check for filename pattern validation error
-      if (error.response?.data?.error === 'File pattern validation failed') {
-        const errorDetails = error.response.data.details;
+      // Check for filename pattern validation error (contract validation mode)
+      // Error can come as either 'details' or 'validationDetails' depending on the backend response
+      const validationDetails = error.response?.data?.validationDetails || error.response?.data?.details;
+      
+      if (error.response?.data?.error === 'File pattern validation failed' || 
+          (error.response?.status === 400 && validationDetails)) {
         setFilenameValidationError({
-          uploadedFile: errorDetails.uploadedFile,
-          contractCode: errorDetails.contractCode,
-          expectedPatterns: errorDetails.expectedPatterns,
-          patternCount: errorDetails.patternCount
+          uploadedFile: validationDetails.uploadedFile || validationDetails.actualFilename,
+          contractCode: validationDetails.contractCode || validationDetails.agreementCode,
+          expectedPatterns: validationDetails.expectedPatterns || validationDetails.patterns,
+          patternCount: validationDetails.patternCount || validationDetails.expectedPatterns?.length
         });
-        setDiagnosticInfo(prev => prev + `Filename validation failed: ${error.response.data.message}\n`);
+        setDiagnosticInfo(prev => prev + `Filename validation failed: ${error.response.data.message || 'File does not match expected contract patterns'}\n`);
         setCurrentStep(null);
         setIsProcessing(false);
         return; // Don't set uploadStatus to 'error' or throw - we have a specific error display
