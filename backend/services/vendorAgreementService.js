@@ -1239,7 +1239,7 @@ class VendorAgreementService {
       const agreement = agreementResult.rows[0];
       
       // Check if in correct state for vendor action
-      if (!['draft', 'pending_vendor_acceptance', 'manager_rejected'].includes(agreement.approval_status)) {
+      if (!['draft', 'pending_vendor_acceptance', 'manager_rejected', 'changes_pending'].includes(agreement.approval_status)) {
         throw new Error(`Cannot perform vendor action in current status: ${agreement.approval_status}`);
       }
       
