@@ -7,6 +7,8 @@ const fs = require('fs');
 const csv = require('csv-parser');
 const XLSX = require('xlsx');
 const { XMLParser } = require('fast-xml-parser');
+const axios = require('axios');
+const path = require('path');
 
 /**
  * Infer type from a value
@@ -289,7 +291,44 @@ async function extractSchemaFromParquet(filePath) {
 }
 
 /**
+ * Extract schema from special formats (archives, SAS, Avro, DAT) via Python profiling service
+ * These formats are first converted to temporary CSV/Parquet, then schema is extracted
+ */
+async function extractSchemaViaConversion(filePath, ext) {
+  try {
+    // Call Python profiling service to convert file to temporary CSV/Parquet
+    const fileId = `schema_extract_${Date.now()}`;
+    const filename = path.basename(filePath);
+    
+    const response = await axios.post('http://localhost:8000/api/vendor-profile', {
+      file_id: fileId,
+      local_file_path: filePath,
+      filename: filename
+    }, {
+      timeout: 120000
+    });
+    
+    if (!response.data || !response.data.metadata || !response.data.metadata.columns) {
+      throw new Error(`Python profiling service did not return column metadata for ${ext} file`);
+    }
+    
+    // Convert metadata.columns to schema format
+    const schema = response.data.metadata.columns.map(col => ({
+      name: col.name,
+      type: col.data_type || 'string'
+    }));
+    
+    return schema;
+    
+  } catch (error) {
+    throw new Error(`Failed to extract schema from ${ext} file via conversion: ${error.message}`);
+  }
+}
+
+/**
  * Map MIME types to file extensions
+ * Note: application/octet-stream is intentionally NOT mapped here because it's a generic
+ * MIME type used by browsers/storage for many file types. Let it fall back to filename extension.
  */
 function mimeTypeToExtension(mimeType) {
   const mimeMap = {
@@ -300,7 +339,13 @@ function mimeTypeToExtension(mimeType) {
     'text/json': 'json',
     'application/xml': 'xml',
     'text/xml': 'xml',
-    'application/x-parquet': 'parquet'
+    'application/x-parquet': 'parquet',
+    'application/zip': 'zip',
+    'application/x-zip-compressed': 'zip',
+    'application/x-tar': 'tar',
+    'application/x-gzip': 'gz',
+    'application/x-bzip2': 'bz2',
+    'application/avro': 'avro'
   };
   
   return mimeMap[mimeType] || null;
@@ -311,6 +356,7 @@ function mimeTypeToExtension(mimeType) {
  */
 async function extractSchema(filePath, fileType) {
   let ext;
+  const filename = path.basename(filePath);
   
   // If fileType is a MIME type, convert it to extension
   if (fileType && fileType.includes('/')) {
@@ -322,6 +368,17 @@ async function extractSchema(filePath, fileType) {
   } else {
     // Use provided extension or extract from path
     ext = fileType || filePath.split('.').pop().toLowerCase();
+  }
+  
+  // Handle compound extensions for archives (tar.gz, tar.bz2)
+  if (filename.endsWith('.tar.gz') || filename.endsWith('.tgz')) {
+    ext = 'tar.gz';
+  } else if (filename.endsWith('.tar.bz2') || filename.endsWith('.tbz2')) {
+    ext = 'tar.bz2';
+  } else if (filename.endsWith('.sas7bdat')) {
+    ext = 'sas7bdat';
+  } else if (filename.endsWith('.xpt')) {
+    ext = 'xpt';
   }
   
   switch (ext) {
@@ -340,6 +397,19 @@ async function extractSchema(filePath, fileType) {
     
     case 'parquet':
       return await extractSchemaFromParquet(filePath);
+    
+    // New formats: delegate to Python profiling service for conversion
+    case 'zip':
+    case 'tar':
+    case 'tar.gz':
+    case 'tgz':
+    case 'tar.bz2':
+    case 'tbz2':
+    case 'sas7bdat':
+    case 'xpt':
+    case 'avro':
+    case 'dat':
+      return await extractSchemaViaConversion(filePath, ext);
     
     default:
       throw new Error(`Unsupported file type: ${ext}`);
