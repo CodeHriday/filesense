@@ -134,15 +134,7 @@ function Mappings() {
     setExecutionResult(null);
   };
 
-  if (loading) {
-    return (
-      <div className="page-container">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  // Filter mappings based on search term
+  // Filter mappings based on search term (MUST be before any conditional returns)
   const filteredMappings = mappings.filter(mapping => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -180,6 +172,15 @@ function Mappings() {
       }
     }
   }, [groupedProjects, searchTerm, initialized]);
+
+  // Conditional render AFTER all hooks
+  if (loading) {
+    return (
+      <div className="page-container">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   // Toggle expansion for a project or subproject
   const toggleExpansion = (key) => {
