@@ -29,6 +29,10 @@ async function getEntityProjectId(entity_type, entity_id) {
       table = 'n_step_workflows';
       query = 'SELECT project_id FROM n_step_workflows WHERE id = $1';
       break;
+    case 'vendor_agreement_expiration':
+      return null;
+    case 'bulk_profiling':
+      return null;
     default:
       throw new Error(`Unsupported entity_type: ${entity_type}`);
   }
@@ -52,6 +56,17 @@ async function validateEntityProjectAccess(entity_type, entity_id, user) {
   
   // Get entity's project_id
   const entityProjectId = await getEntityProjectId(entity_type, entity_id);
+  
+  // System-level schedules (project_id = null) require admin access
+  if (entityProjectId === null) {
+    const isAdmin = user?.roles?.includes('Admin');
+    if (!isAdmin) {
+      const error = new Error('Only administrators can manage system-level schedules');
+      error.status = 403;
+      throw error;
+    }
+    return null;
+  }
   
   // Check access (admins bypass)
   const isAdmin = user?.roles?.includes('Admin');
