@@ -23,7 +23,7 @@ const { invalidateFileCache, invalidateFileCatalogCache } = require('../src/midd
 const PasswordVaultService = require('../services/passwordVaultService');
 
 // Archive and special format file extensions
-const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz'];
+const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
 const SPECIAL_FORMAT_EXTENSIONS = ['.sas7bdat', '.xpt', '.avro', '.dat'];
 const LEGACY_EXTENSIONS = ['.csv', '.json', '.xlsx', '.xls', '.parquet', '.xml'];
 
@@ -53,12 +53,13 @@ class FileProcessingWorker {
   
   /**
    * Get file extension for processing
+   * Normalizes short-form extensions (.tgz, .tbz2) to long-form (.tar.gz, .tar.bz2)
    */
   getFileExtension(filePath) {
     const name = filePath.toLowerCase();
-    // Handle compound extensions
-    if (name.endsWith('.tar.gz')) return '.tar.gz';
-    if (name.endsWith('.tar.bz2')) return '.tar.bz2';
+    // Handle compound extensions and short-form aliases
+    if (name.endsWith('.tar.gz') || name.endsWith('.tgz')) return '.tar.gz';
+    if (name.endsWith('.tar.bz2') || name.endsWith('.tbz2')) return '.tar.bz2';
     return path.extname(filePath).toLowerCase();
   }
 
