@@ -2394,11 +2394,6 @@ const VendorAgreements = () => {
                         </div>
                       </div>
                       
-                      <div className="schema-section">
-                        <h3>Schema</h3>
-                        {renderSchemaTable(selectedAgreement.schema)}
-                      </div>
-                      
                       <ThreeStageApprovalPanel
                         agreement={selectedAgreement}
                         currentUser={currentUser}
