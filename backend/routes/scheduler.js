@@ -429,6 +429,15 @@ router.put('/:id', async (req, res) => {
     delete updates.updated_at;
     delete updates.schedule_id;
     
+    // If entity_type or entity_id is being updated, auto-populate project_id from the new entity
+    if (updates.entity_type && updates.entity_id) {
+      const entityProjectId = await getEntityProjectId(updates.entity_type, updates.entity_id);
+      updates.project_id = entityProjectId;
+    } else {
+      // Don't allow manual project_id updates - project should always match the entity
+      delete updates.project_id;
+    }
+    
     // Map 'enabled' to 'is_active' if present
     if ('enabled' in updates) {
       updates.is_active = updates.enabled;

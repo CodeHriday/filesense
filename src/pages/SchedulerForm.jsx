@@ -176,6 +176,7 @@ const SchedulerForm = () => {
         <PageHeader
           title={isEdit ? 'Edit Schedule' : 'Create New Schedule'}
           subtitle={isEdit ? 'Update schedule configuration' : 'Configure a new automated schedule'}
+          hideHomeButton={true}
         />
 
         <div className="form-container">
