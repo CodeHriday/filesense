@@ -14,6 +14,29 @@
   gap: 1rem;
 }
 
+.home-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  font-size: 1.4rem;
+  color: #666;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+}
+
+.home-icon-button:hover {
+  color: #1890ff;
+  background-color: #f0f0f0;
+}
+
+.home-icon-button:active {
+  transform: scale(0.95);
+}
+
 .page-header-icon {
   font-size: 1.6rem;
   color: #1890ff;
