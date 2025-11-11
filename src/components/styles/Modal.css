@@ -34,9 +34,17 @@
   min-height: auto;
 }
 
+.modal-small .modal-header {
+  padding: 0.625rem 1rem;
+}
+
 .modal-small .modal-content {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   min-height: auto;
+}
+
+.modal-small .modal-footer {
+  padding: 0.625rem 1rem;
 }
 
 .modal-medium {
