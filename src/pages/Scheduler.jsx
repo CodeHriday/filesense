@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FiCalendar, FiClock, FiPlusCircle, FiEdit2, FiTrash2, FiPlay, FiSearch } from 'react-icons/fi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FiCalendar, FiClock, FiPlusCircle, FiEdit2, FiTrash2, FiPlay, FiSearch, FiChevronDown, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
 import { PageTransition } from '../components/MicroAnimations';
 import PageHeader from '../components/PageHeader';
 import Modal from '../components/Modal';
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import '../components/styles/Scheduler.css';
 import '../components/styles/PageActions.css';
 import { formatRelativeTime } from '../utils/formatters';
+import { groupSchedulesByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/schedulerGrouping';
 
 const Scheduler = () => {
   const { hasWritePermission, hasExecutePermission } = useAuth();
@@ -37,6 +38,10 @@ const Scheduler = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
+  
+  // Hierarchical state
+  const [expansionState, setExpansionState] = useState({});
+  const [initialized, setInitialized] = useState(false);
 
   // Load schedules on component mount
   useEffect(() => {
@@ -77,6 +82,33 @@ const Scheduler = () => {
       setCurrentPage(totalPages);
     }
   }, [totalPages, currentPage]);
+
+  // Group schedules by project and subproject hierarchy
+  const groupedProjects = useMemo(() => {
+    return groupSchedulesByProject(paginatedSchedules);
+  }, [paginatedSchedules]);
+
+  // Initialize expansion state when grouped data changes or search term changes
+  useEffect(() => {
+    if (groupedProjects.length > 0) {
+      if (searchTerm) {
+        // Auto-expand sections with search matches
+        setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
+      } else if (!initialized) {
+        // Initialize with all sections collapsed by default (first load)
+        setExpansionState(initializeExpansionState(groupedProjects, false));
+        setInitialized(true);
+      }
+    }
+  }, [groupedProjects, searchTerm, initialized]);
+
+  // Toggle expansion for a project or subproject
+  const toggleExpansion = (key) => {
+    setExpansionState(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   // Fetch all schedules
   const fetchSchedules = async () => {
@@ -483,7 +515,7 @@ const Scheduler = () => {
               <div className="error-message">{error}</div>
               <AnimatedButton onClick={fetchSchedules}>Retry</AnimatedButton>
             </div>
-          ) : paginatedSchedules.length === 0 ? (
+          ) : groupedProjects.length === 0 ? (
             <div className="empty-state">
               <FiClock className="empty-state-icon" />
               <h3 className="empty-state-title">No schedules found</h3>
@@ -500,66 +532,277 @@ const Scheduler = () => {
               )}
             </div>
           ) : (
-            <div className="schedules-grid">
-              <div className="schedules-header">
-                <div className="schedule-cell">File ID</div>
-                <div className="schedule-cell">Frequency</div>
-                <div className="schedule-cell">Last Run</div>
-                <div className="schedule-cell">Next Run</div>
-                <div className="schedule-cell">Status</div>
-                <div className="schedule-cell">Actions</div>
-              </div>
-              <div className="schedules-body">
-                {paginatedSchedules.map(schedule => (
-                  <div className="schedule-row" key={schedule.id}>
-                    <div className="schedule-cell">{schedule.file_id}</div>
-                    <div className="schedule-cell">{renderFrequency(schedule)}</div>
-                    <div className="schedule-cell">
-                      {schedule.last_run ? formatRelativeTime(new Date(schedule.last_run)) : 'Never'}
-                    </div>
-                    <div className="schedule-cell">
-                      {schedule.next_run ? formatRelativeTime(new Date(schedule.next_run)) : 'Not scheduled'}
-                    </div>
-                    <div className="schedule-cell">
-                      <span className={`status-badge ${schedule.is_active ? 'status-active' : 'status-inactive'}`}>
-                        {schedule.is_active ? 'Active' : 'Inactive'}
+            <div>
+              {groupedProjects.map(project => {
+                const projectKey = `project-${project.projectId}`;
+                const isProjectExpanded = expansionState[projectKey];
+
+                return (
+                  <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
+                    {/* Project Header */}
+                    <div
+                      onClick={() => toggleExpansion(projectKey)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        background: 'white',
+                        color: '#6b7280',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        fontWeight: '500',
+                        fontSize: '0.8125rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {isProjectExpanded ? (
+                        <FiChevronDown size={14} style={{ color: '#6b7280' }} />
+                      ) : (
+                        <FiChevronRight size={14} style={{ color: '#6b7280' }} />
+                      )}
+                      <span style={{ flex: 1 }}>Project : {project.projectName}</span>
+                      <span
+                        style={{
+                          color: '#9ca3af',
+                          fontSize: '0.75rem',
+                          fontWeight: '400'
+                        }}
+                      >
+                        {project.schedulesCount} {project.schedulesCount === 1 ? 'schedule' : 'schedules'}
                       </span>
                     </div>
-                    <div className="schedule-cell actions-cell">
-                      {hasExecutePermission('schedule') && (
-                        <button
-                          className="action-button"
-                          onClick={() => handleRunNow(schedule.id)}
-                          title="Run now"
-                        >
-                          <FiPlay />
-                        </button>
-                      )}
-                      {hasWritePermission('schedule') && (
-                        <>
-                          <button
-                            className="action-button"
-                            onClick={() => openEditModal(schedule)}
-                            title="Edit"
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button
-                            className="action-button"
-                            onClick={() => openDeleteModal(schedule)}
-                            title="Delete"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </>
-                      )}
-                      {!hasExecutePermission('schedule') && !hasWritePermission('schedule') && (
-                        <span className="action-restricted">No actions available</span>
-                      )}
-                    </div>
+
+                    {/* Project Content - Subprojects */}
+                    {isProjectExpanded && (
+                      <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
+                        {/* Subprojects */}
+                        {project.subprojects.map(subproject => {
+                          const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
+                          const isSubprojectExpanded = expansionState[subprojectKey];
+
+                          return (
+                            <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
+                              {/* Subproject Header */}
+                              <div
+                                onClick={() => toggleExpansion(subprojectKey)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.4rem 0.75rem',
+                                  background: 'white',
+                                  cursor: 'pointer',
+                                  userSelect: 'none',
+                                  marginLeft: '1.5rem',
+                                  fontWeight: '400',
+                                  fontSize: '0.75rem',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {isSubprojectExpanded ? (
+                                  <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
+                                ) : (
+                                  <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
+                                )}
+                                <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
+                                <span
+                                  style={{
+                                    color: '#d1d5db',
+                                    fontSize: '0.6875rem',
+                                    fontWeight: '400'
+                                  }}
+                                >
+                                  {subproject.schedulesCount}
+                                </span>
+                              </div>
+
+                              {/* Subproject Schedules Grid */}
+                              {isSubprojectExpanded && subproject.items.length > 0 && (
+                                <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                  <div className="schedules-grid">
+                                    <div className="schedules-header">
+                                      <div className="schedule-cell">Entity</div>
+                                      <div className="schedule-cell">Frequency</div>
+                                      <div className="schedule-cell">Last Run</div>
+                                      <div className="schedule-cell">Next Run</div>
+                                      <div className="schedule-cell">Status</div>
+                                      <div className="schedule-cell">Actions</div>
+                                    </div>
+                                    <div className="schedules-body">
+                                      {subproject.items.map(schedule => (
+                                        <div className="schedule-row" key={schedule.id || schedule.schedule_id}>
+                                          <div className="schedule-cell">{schedule.entity_name || schedule.schedule_name || schedule.file_id || 'N/A'}</div>
+                                          <div className="schedule-cell">{renderFrequency(schedule)}</div>
+                                          <div className="schedule-cell">
+                                            {schedule.last_run ? formatRelativeTime(new Date(schedule.last_run)) : 'Never'}
+                                          </div>
+                                          <div className="schedule-cell">
+                                            {schedule.next_run ? formatRelativeTime(new Date(schedule.next_run)) : 'Not scheduled'}
+                                          </div>
+                                          <div className="schedule-cell">
+                                            <span className={`status-badge ${(schedule.is_active || schedule.enabled) ? 'status-active' : 'status-inactive'}`}>
+                                              {(schedule.is_active || schedule.enabled) ? 'Active' : 'Inactive'}
+                                            </span>
+                                          </div>
+                                          <div className="schedule-cell actions-cell">
+                                            {hasExecutePermission('schedule') && (
+                                              <button
+                                                className="action-button"
+                                                onClick={() => handleRunNow(schedule.id || schedule.schedule_id)}
+                                                title="Run now"
+                                              >
+                                                <FiPlay />
+                                              </button>
+                                            )}
+                                            {hasWritePermission('schedule') && (
+                                              <>
+                                                <button
+                                                  className="action-button"
+                                                  onClick={() => openEditModal(schedule)}
+                                                  title="Edit"
+                                                >
+                                                  <FiEdit2 />
+                                                </button>
+                                                <button
+                                                  className="action-button"
+                                                  onClick={() => openDeleteModal(schedule)}
+                                                  title="Delete"
+                                                >
+                                                  <FiTrash2 />
+                                                </button>
+                                              </>
+                                            )}
+                                            {!hasExecutePermission('schedule') && !hasWritePermission('schedule') && (
+                                              <span className="action-restricted">No actions available</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Unassigned Schedules (no subproject) */}
+                        {project.unassignedSchedules.length > 0 && (() => {
+                          const unassignedKey = `subproject-${project.projectId}-unassigned`;
+                          const isUnassignedExpanded = expansionState[unassignedKey];
+
+                          return (
+                            <>
+                              {/* Unassigned Header */}
+                              <div
+                                onClick={() => toggleExpansion(unassignedKey)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.4rem 0.75rem',
+                                  background: 'white',
+                                  cursor: 'pointer',
+                                  userSelect: 'none',
+                                  marginLeft: '1.5rem',
+                                  fontWeight: '400',
+                                  fontSize: '0.75rem',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {isUnassignedExpanded ? (
+                                  <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
+                                ) : (
+                                  <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
+                                )}
+                                <FiAlertCircle size={12} style={{ color: '#d1d5db' }} />
+                                <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
+                                <span
+                                  style={{
+                                    color: '#d1d5db',
+                                    fontSize: '0.6875rem',
+                                    fontWeight: '400'
+                                  }}
+                                >
+                                  {project.unassignedSchedules.length}
+                                </span>
+                              </div>
+
+                              {/* Unassigned Schedules Grid */}
+                              {isUnassignedExpanded && (
+                                <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                  <div className="schedules-grid">
+                                    <div className="schedules-header">
+                                      <div className="schedule-cell">Entity</div>
+                                      <div className="schedule-cell">Frequency</div>
+                                      <div className="schedule-cell">Last Run</div>
+                                      <div className="schedule-cell">Next Run</div>
+                                      <div className="schedule-cell">Status</div>
+                                      <div className="schedule-cell">Actions</div>
+                                    </div>
+                                    <div className="schedules-body">
+                                      {project.unassignedSchedules.map(schedule => (
+                                        <div className="schedule-row" key={schedule.id || schedule.schedule_id}>
+                                          <div className="schedule-cell">{schedule.entity_name || schedule.schedule_name || schedule.file_id || 'N/A'}</div>
+                                          <div className="schedule-cell">{renderFrequency(schedule)}</div>
+                                          <div className="schedule-cell">
+                                            {schedule.last_run ? formatRelativeTime(new Date(schedule.last_run)) : 'Never'}
+                                          </div>
+                                          <div className="schedule-cell">
+                                            {schedule.next_run ? formatRelativeTime(new Date(schedule.next_run)) : 'Not scheduled'}
+                                          </div>
+                                          <div className="schedule-cell">
+                                            <span className={`status-badge ${(schedule.is_active || schedule.enabled) ? 'status-active' : 'status-inactive'}`}>
+                                              {(schedule.is_active || schedule.enabled) ? 'Active' : 'Inactive'}
+                                            </span>
+                                          </div>
+                                          <div className="schedule-cell actions-cell">
+                                            {hasExecutePermission('schedule') && (
+                                              <button
+                                                className="action-button"
+                                                onClick={() => handleRunNow(schedule.id || schedule.schedule_id)}
+                                                title="Run now"
+                                              >
+                                                <FiPlay />
+                                              </button>
+                                            )}
+                                            {hasWritePermission('schedule') && (
+                                              <>
+                                                <button
+                                                  className="action-button"
+                                                  onClick={() => openEditModal(schedule)}
+                                                  title="Edit"
+                                                >
+                                                  <FiEdit2 />
+                                                </button>
+                                                <button
+                                                  className="action-button"
+                                                  onClick={() => openDeleteModal(schedule)}
+                                                  title="Delete"
+                                                >
+                                                  <FiTrash2 />
+                                                </button>
+                                              </>
+                                            )}
+                                            {!hasExecutePermission('schedule') && !hasWritePermission('schedule') && (
+                                              <span className="action-restricted">No actions available</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           )}
           
