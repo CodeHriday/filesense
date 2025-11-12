@@ -63,20 +63,20 @@
   border: 1px solid #dadce0;
 }
 
-/* Standard Table Styling */
-.page-layout-container table {
+/* Standard Table Styling - Only applies to tables with .page-layout-table class */
+table.page-layout-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.page-layout-container table th,
-.page-layout-container table td {
+table.page-layout-table th,
+table.page-layout-table td {
   padding: 12px 16px;
   text-align: left;
   border-bottom: 1px solid #dadce0;
 }
 
-.page-layout-container table th {
+table.page-layout-table th {
   background: #f8f9fa;
   font-weight: 600;
   color: var(--text-primary, #333);
@@ -85,12 +85,11 @@
   z-index: 10;
 }
 
-.page-layout-container table tbody tr:hover {
+table.page-layout-table tbody tr:hover {
   background: #f8f9fa;
-  cursor: pointer;
 }
 
-.page-layout-container table tbody tr:last-child td {
+table.page-layout-table tbody tr:last-child td {
   border-bottom: none;
 }
 

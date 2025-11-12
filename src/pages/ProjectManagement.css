@@ -1,28 +1,8 @@
-.project-management {
-  padding: 10px 20px 20px 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h1 {
-  font-size: 2rem;
-  color: #025043;
-  margin: 0;
-}
-
-.filters {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 20px;
-  align-items: center;
-}
+/* Removed - now handled by PageLayout component:
+   .project-management (container)
+   .page-header (header layout)
+   .filters (filters layout)
+*/
 
 .search-input {
   flex: 1;
@@ -414,83 +394,57 @@
   font-size: 1.1rem;
 }
 
-.table-container {
-  overflow-x: auto;
-  background: var(--bg-primary);
-  border-radius: var(--border-radius);
-  border: 1px solid #dadce0;
-}
+/* Removed - now handled by PageLayout.TableWrapper and .page-layout-table class:
+   .table-container
+   .projects-table base styles (width, border-collapse, padding, borders)
+*/
 
-.projects-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.projects-table th,
-.projects-table td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid #dadce0;
-}
-
-/* Column width control */
-.projects-table th:nth-child(1),
-.projects-table td:nth-child(1) {
+/* Column width control - page-specific, scoped to main table only */
+table.page-layout-table.projects-table th:nth-child(1),
+table.page-layout-table.projects-table td:nth-child(1) {
   width: 16%;  /* Project Name */
 }
 
-.projects-table th:nth-child(2),
-.projects-table td:nth-child(2) {
+table.page-layout-table.projects-table th:nth-child(2),
+table.page-layout-table.projects-table td:nth-child(2) {
   width: 10%;  /* Project Type */
 }
 
-.projects-table th:nth-child(3),
-.projects-table td:nth-child(3) {
+table.page-layout-table.projects-table th:nth-child(3),
+table.page-layout-table.projects-table td:nth-child(3) {
   width: 18%;  /* Description */
 }
 
-.projects-table th:nth-child(4),
-.projects-table td:nth-child(4) {
+table.page-layout-table.projects-table th:nth-child(4),
+table.page-layout-table.projects-table td:nth-child(4) {
   width: 13%;  /* Members */
 }
 
-.projects-table th:nth-child(5),
-.projects-table td:nth-child(5) {
+table.page-layout-table.projects-table th:nth-child(5),
+table.page-layout-table.projects-table td:nth-child(5) {
   width: 11%;  /* Access Groups */
 }
 
-.projects-table th:nth-child(6),
-.projects-table td:nth-child(6) {
+table.page-layout-table.projects-table th:nth-child(6),
+table.page-layout-table.projects-table td:nth-child(6) {
   width: 9%;  /* Status */
 }
 
-.projects-table th:nth-child(7),
-.projects-table td:nth-child(7) {
+table.page-layout-table.projects-table th:nth-child(7),
+table.page-layout-table.projects-table td:nth-child(7) {
   width: 10%;  /* Created */
 }
 
-.projects-table th:nth-child(8),
-.projects-table td:nth-child(8) {
+table.page-layout-table.projects-table th:nth-child(8),
+table.page-layout-table.projects-table td:nth-child(8) {
   width: 13%;  /* Actions */
 }
 
-.projects-table th {
-  background: #f8f9fa;
-  font-weight: 600;
-  color: var(--text-primary);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.projects-table tbody tr:hover {
-  background: #f8f9fa;
-  cursor: pointer;
-}
-
-.projects-table tbody tr:last-child td {
-  border-bottom: none;
-}
+/* Removed - now handled by .page-layout-table class:
+   .projects-table th (background, sticky positioning)
+   .projects-table tbody tr:hover
+   .projects-table tbody tr:last-child td
+*/
 
 .project-name {
   display: flex;

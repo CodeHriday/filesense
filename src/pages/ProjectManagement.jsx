@@ -5,6 +5,7 @@ import { FiEdit2, FiTrash2, FiFolderPlus, FiChevronRight, FiChevronDown, FiFolde
 import ConfirmModal from '../components/ConfirmModal';
 import SubProjectManagement from '../components/SubProjectManagement';
 import EditSubProjectModal from '../components/EditSubProjectModal';
+import PageLayout from '../components/PageLayout';
 import './ProjectManagement.css';
 
 const API_BASE_URL = '/api';
@@ -443,10 +444,11 @@ function ProjectManagement() {
   const displayedProjects = projects.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className="project-management">
-      <div className="page-header">
-        <h1>Project Management</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+    <>
+    <PageLayout
+      title="Project Management"
+      headerActions={
+        <>
           <button 
             className="btn-secondary" 
             onClick={fetchProjects}
@@ -460,34 +462,35 @@ function ProjectManagement() {
           <button className="btn-primary btn-create-project" onClick={() => setShowCreateModal(true)}>
             + Create Project
           </button>
-        </div>
-      </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
-
-      <div className="filters">
-        <input
-          type="text"
-          placeholder="Search projects..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
-        <label className="checkbox-label">
+        </>
+      }
+      filters={
+        <PageLayout.Filters>
           <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
+            type="text"
+            placeholder="Search projects..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
           />
-          Show Archived
-        </label>
-      </div>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+            Show Archived
+          </label>
+        </PageLayout.Filters>
+      }
+    >
+      {error && <div className="alert alert-error">{error}</div>}
 
       {loading ? (
         <div className="loading">Loading projects...</div>
       ) : (
-        <div style={{ overflowX: 'auto', width: '100%' }}>
-          <table className="projects-table">
+        <PageLayout.TableWrapper>
+          <table className="projects-table page-layout-table">
             <thead>
               <tr>
                 <th>Project Name</th>
@@ -702,8 +705,9 @@ function ProjectManagement() {
               </button>
             </div>
           )}
-        </div>
+        </PageLayout.TableWrapper>
       )}
+    </PageLayout>
 
       {showCreateModal && (
         <div className="modal-overlay">
@@ -1100,8 +1104,7 @@ function ProjectManagement() {
         subProject={selectedSubProject}
         onUpdate={handleSubProjectUpdate}
       />
-
-    </div>
+    </>
   );
 }
 
