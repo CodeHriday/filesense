@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FiAlertTriangle, FiFilter, FiX, FiChevronDown, FiChevronUp, FiDownload, FiChevronRight, FiTrash2 } from 'react-icons/fi';
 import { getProjects } from '../api/qualityRulesService';
 import { bulkDeleteViolations } from '../api/errorReviewService';
+import PageLayout from '../components/PageLayout';
 import '../styles/ErrorReview.css';
 
 const API_BASE = '/api/error-review';
@@ -287,7 +288,7 @@ const ErrorReview = () => {
     const projectNames = Object.keys(groupedViolations).sort();
 
     return (
-      <div className="violations-table-container">
+      <>
         {selectedIds.length > 0 && (
           <div className="bulk-actions-bar">
             <span className="selected-count">{selectedIds.length} violation(s) selected</span>
@@ -307,8 +308,8 @@ const ErrorReview = () => {
           const isExpanded = expandedProjects.has(projectName);
           
           return (
-            <div key={projectName} className="project-group">
-              <div className="project-header" onClick={() => toggleProjectExpansion(projectName)}>
+            <div key={projectName} className="quality-violations-project-group">
+              <div className="quality-violations-project-header" onClick={() => toggleProjectExpansion(projectName)}>
                 <button className="project-expand-button">
                   {isExpanded ? <FiChevronDown /> : <FiChevronRight />}
                 </button>
@@ -317,7 +318,8 @@ const ErrorReview = () => {
               </div>
               
               {isExpanded && (
-                <table className="violations-table violations-details-table">
+                <PageLayout.TableWrapper>
+                  <table className="violations-table page-layout-table violations-details-table">
                   <thead>
                     <tr>
                       <th style={{ width: '40px' }}>
@@ -398,22 +400,20 @@ const ErrorReview = () => {
                     ))}
                   </tbody>
                 </table>
+                </PageLayout.TableWrapper>
               )}
             </div>
           );
         })}
-      </div>
+      </>
     );
   };
 
   return (
-    <div className="error-review-container">
-      <div className="error-review-header">
-        <div className="header-left">
-          <FiAlertTriangle className="header-icon" />
-          <h1>Quality Violations</h1>
-        </div>
-        <div className="header-actions">
+    <PageLayout
+      title="Quality Violations"
+      headerActions={
+        <>
           <div className="download-dropdown">
             <button className="download-button">
               <FiDownload /> Download
@@ -424,128 +424,129 @@ const ErrorReview = () => {
             </div>
           </div>
           <button 
-            className="filter-toggle-button"
+            className={`btn-secondary ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
             <FiFilter /> {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
-        </div>
-      </div>
-
-      {showFilters && (
-        <div className="filters-panel">
-          <div className="filter-group">
-            <label>Project</label>
-            <select 
-              value={filters.project_id} 
-              onChange={(e) => handleFilterChange('project_id', e.target.value)}
-            >
-              <option value="">All Projects</option>
-              {projects.map(project => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+        </>
+      }
+      filters={
+        <PageLayout.Filters>
+          <div className="tabs-container">
+            <div className="tabs">
+              <button 
+                className={`tab ${activeTab === 'file-upload' ? 'active' : ''}`}
+                onClick={() => setActiveTab('file-upload')}
+              >
+                File Upload Violations
+                {activeTab === 'file-upload' && (
+                  <span className="tab-count">{pagination.total}</span>
+                )}
+              </button>
+              <button 
+                className={`tab ${activeTab === 'mapping-job' ? 'active' : ''}`}
+                onClick={() => setActiveTab('mapping-job')}
+              >
+                Mapping Job Violations
+                {activeTab === 'mapping-job' && (
+                  <span className="tab-count">{pagination.total}</span>
+                )}
+              </button>
+            </div>
           </div>
+          
+          {showFilters && (
+            <>
+              <div className="filter-group">
+                <label>Project</label>
+                <select 
+                  value={filters.project_id} 
+                  onChange={(e) => handleFilterChange('project_id', e.target.value)}
+                >
+                  <option value="">All Projects</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="filter-group">
-            <label>Rule Type</label>
-            <select 
-              value={filters.rule_type} 
-              onChange={(e) => handleFilterChange('rule_type', e.target.value)}
-            >
-              <option value="all">All Types</option>
-              <option value="completeness">Completeness</option>
-              <option value="validity">Validity</option>
-              <option value="consistency">Consistency</option>
-              <option value="uniqueness">Uniqueness</option>
-              <option value="freshness">Freshness</option>
-            </select>
-          </div>
+              <div className="filter-group">
+                <label>Rule Type</label>
+                <select 
+                  value={filters.rule_type} 
+                  onChange={(e) => handleFilterChange('rule_type', e.target.value)}
+                >
+                  <option value="all">All Types</option>
+                  <option value="completeness">Completeness</option>
+                  <option value="validity">Validity</option>
+                  <option value="consistency">Consistency</option>
+                  <option value="uniqueness">Uniqueness</option>
+                  <option value="freshness">Freshness</option>
+                </select>
+              </div>
 
-          <div className="filter-group">
-            <label>Severity</label>
-            <select 
-              value={filters.severity} 
-              onChange={(e) => handleFilterChange('severity', e.target.value)}
-            >
-              <option value="all">All Severities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="error">Error</option>
-              <option value="warning">Warning</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
+              <div className="filter-group">
+                <label>Severity</label>
+                <select 
+                  value={filters.severity} 
+                  onChange={(e) => handleFilterChange('severity', e.target.value)}
+                >
+                  <option value="all">All Severities</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="error">Error</option>
+                  <option value="warning">Warning</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
 
-          <div className="filter-group">
-            <label>Status</label>
-            <select 
-              value={filters.status} 
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="all">All Statuses</option>
-              <option value="new">New</option>
-              <option value="reviewed">Reviewed</option>
-              <option value="acknowledged">Acknowledged</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </div>
+              <div className="filter-group">
+                <label>Status</label>
+                <select 
+                  value={filters.status} 
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="new">New</option>
+                  <option value="reviewed">Reviewed</option>
+                  <option value="acknowledged">Acknowledged</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
 
-          <div className="filter-group filter-search">
-            <label>Search</label>
-            <input
-              type="text"
-              placeholder="Search violations..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
-          </div>
+              <div className="filter-group filter-search">
+                <label>Search</label>
+                <input
+                  type="text"
+                  placeholder="Search violations..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                />
+              </div>
 
-          <button 
-            className="clear-filters-button"
-            onClick={() => setFilters({
-              project_id: '',
-              rule_type: 'all',
-              severity: 'all',
-              status: 'all',
-              search: '',
-              page: 1,
-              limit: 10
-            })}
-          >
-            <FiX /> Clear Filters
-          </button>
-        </div>
-      )}
-
-      <div className="tabs-container">
-        <div className="tabs">
-          <button 
-            className={`tab ${activeTab === 'file-upload' ? 'active' : ''}`}
-            onClick={() => setActiveTab('file-upload')}
-          >
-            File Upload Violations
-            {activeTab === 'file-upload' && (
-              <span className="tab-count">{pagination.total}</span>
-            )}
-          </button>
-          <button 
-            className={`tab ${activeTab === 'mapping-job' ? 'active' : ''}`}
-            onClick={() => setActiveTab('mapping-job')}
-          >
-            Mapping Job Violations
-            {activeTab === 'mapping-job' && (
-              <span className="tab-count">{pagination.total}</span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div className="violations-content">
-        {renderViolationsTable()}
-      </div>
+              <button 
+                className="clear-filters-button"
+                onClick={() => setFilters({
+                  project_id: '',
+                  rule_type: 'all',
+                  severity: 'all',
+                  status: 'all',
+                  search: '',
+                  page: 1,
+                  limit: 10
+                })}
+              >
+                <FiX /> Clear Filters
+              </button>
+            </>
+          )}
+        </PageLayout.Filters>
+      }
+    >
+      {renderViolationsTable()}
 
       {violations.length > 0 && (
         <div className="pagination">
@@ -584,7 +585,7 @@ const ErrorReview = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 };
 
