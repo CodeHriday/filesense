@@ -118,6 +118,8 @@ function MappingWizard() {
   
   // RDM Lookup toggle and configuration
   const [rdmLookupEnabled, setRdmLookupEnabled] = useState(false);
+  const [rdmDatasetEnabled, setRdmDatasetEnabled] = useState(false);
+  const [rdmCrosswalkEnabled, setRdmCrosswalkEnabled] = useState(false);
   const [rdmDatasetConfig, setRdmDatasetConfig] = useState(null);
   const [rdmCrosswalkConfig, setRdmCrosswalkConfig] = useState(null);
 
@@ -1531,8 +1533,12 @@ function MappingWizard() {
               datasetConfig={rdmDatasetConfig}
               crosswalkConfig={rdmCrosswalkConfig}
               schema={schema}
+              datasetEnabled={rdmDatasetEnabled}
+              crosswalkEnabled={rdmCrosswalkEnabled}
               onDatasetConfigChange={setRdmDatasetConfig}
               onCrosswalkConfigChange={setRdmCrosswalkConfig}
+              onDatasetEnabledChange={setRdmDatasetEnabled}
+              onCrosswalkEnabledChange={setRdmCrosswalkEnabled}
             />
           </div>
         )}
