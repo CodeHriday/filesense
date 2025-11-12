@@ -394,18 +394,21 @@ async function processDueSchedules() {
         if (schedule.entity_type === 'mapping') {
           executionResult = await executeTransformationJob(
             parseInt(schedule.entity_id),
-            userId
+            userId,
+            { scheduleId: schedule.id }
           );
         } else if (schedule.entity_type === 'mapping_group') {
           executionResult = await executeMappingGroup(
             parseInt(schedule.entity_id),
             null,
-            userId
+            userId,
+            { scheduleId: schedule.id }
           );
         } else if (schedule.entity_type === 'workflow') {
           executionResult = await executeNStepWorkflow(
             parseInt(schedule.entity_id),
-            userId
+            userId,
+            { scheduleId: schedule.id }
           );
         } else if (schedule.entity_type === 'bulk_profiling_job') {
           // Start the bulk profiling job
