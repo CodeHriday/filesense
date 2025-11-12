@@ -1,85 +1,85 @@
 /**
- * Design Tokens - Bridge Layer to Modern Minimal Theme
- * Maps legacy design tokens to new theme variables for backwards compatibility
+ * Design Tokens - Bridge Layer to Modern Blue Theme
+ * Maps legacy design tokens to new HSL-based theme variables for backwards compatibility
  */
 
 :root {
-  /* === COLOR PALETTE - Mapped to Modern Minimal Theme === */
+  /* === COLOR PALETTE - Mapped to Modern Blue Theme === */
   
   /* Primary Colors */
-  --color-primary: var(--primary);
-  --color-primary-dark: var(--primary);
-  --color-primary-light: var(--accent);
-  --color-primary-50: var(--muted);
-  --color-primary-100: var(--accent);
+  --color-primary: hsl(var(--primary));
+  --color-primary-dark: hsl(var(--primary));
+  --color-primary-light: hsl(var(--accent));
+  --color-primary-50: hsl(var(--muted));
+  --color-primary-100: hsl(var(--accent));
   
   /* Secondary Colors */
-  --color-secondary: var(--secondary);
-  --color-secondary-light: var(--secondary-foreground);
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-light: hsl(var(--secondary-foreground));
   
   /* Neutral Colors */
-  --color-white: var(--card);
-  --color-gray-50: var(--muted);
-  --color-gray-100: var(--accent);
-  --color-gray-200: var(--border);
-  --color-gray-300: var(--border);
-  --color-gray-400: var(--muted-foreground);
-  --color-gray-500: var(--muted-foreground);
-  --color-gray-600: var(--foreground);
-  --color-gray-700: var(--foreground);
-  --color-gray-800: var(--card-foreground);
-  --color-gray-900: var(--foreground);
+  --color-white: hsl(var(--card));
+  --color-gray-50: hsl(var(--muted));
+  --color-gray-100: hsl(var(--accent));
+  --color-gray-200: hsl(var(--border));
+  --color-gray-300: hsl(var(--border));
+  --color-gray-400: hsl(var(--muted-foreground));
+  --color-gray-500: hsl(var(--muted-foreground));
+  --color-gray-600: hsl(var(--foreground));
+  --color-gray-700: hsl(var(--foreground));
+  --color-gray-800: hsl(var(--card-foreground));
+  --color-gray-900: hsl(var(--foreground));
   
   /* Accent Colors */
-  --color-teal: var(--primary);
-  --color-teal-light: var(--accent);
-  --color-teal-dark: var(--primary);
+  --color-teal: hsl(var(--primary));
+  --color-teal-light: hsl(var(--accent));
+  --color-teal-dark: hsl(var(--primary));
   
-  --color-amber: var(--accent-foreground);
-  --color-amber-light: var(--accent);
-  --color-amber-dark: var(--accent-foreground);
+  --color-amber: hsl(var(--accent-foreground));
+  --color-amber-light: hsl(var(--accent));
+  --color-amber-dark: hsl(var(--accent-foreground));
   
-  --color-purple: var(--primary);
-  --color-purple-light: var(--accent);
-  --color-purple-dark: var(--accent-foreground);
+  --color-purple: hsl(var(--primary));
+  --color-purple-light: hsl(var(--accent));
+  --color-purple-dark: hsl(var(--accent-foreground));
   
   /* Status Colors */
-  --color-success: var(--primary);
-  --color-success-light: var(--accent);
-  --color-success-dark: var(--primary);
+  --color-success: hsl(var(--primary));
+  --color-success-light: hsl(var(--accent));
+  --color-success-dark: hsl(var(--primary));
   
-  --color-warning: var(--accent-foreground);
-  --color-warning-light: var(--accent);
-  --color-warning-dark: var(--accent-foreground);
+  --color-warning: hsl(var(--accent-foreground));
+  --color-warning-light: hsl(var(--accent));
+  --color-warning-dark: hsl(var(--accent-foreground));
   
-  --color-error: var(--destructive);
-  --color-error-light: var(--accent);
-  --color-error-dark: var(--destructive);
+  --color-error: hsl(var(--destructive));
+  --color-error-light: hsl(var(--accent));
+  --color-error-dark: hsl(var(--destructive));
   
-  --color-info: var(--primary);
-  --color-info-light: var(--accent);
-  --color-info-dark: var(--primary);
+  --color-info: hsl(var(--primary));
+  --color-info-light: hsl(var(--accent));
+  --color-info-dark: hsl(var(--primary));
   
   /* Text Colors */
-  --text-primary: var(--foreground);
-  --text-secondary: var(--muted-foreground);
-  --text-tertiary: var(--muted-foreground);
-  --text-on-primary: var(--primary-foreground);
+  --text-primary: hsl(var(--foreground));
+  --text-secondary: hsl(var(--muted-foreground));
+  --text-tertiary: hsl(var(--muted-foreground));
+  --text-on-primary: hsl(var(--primary-foreground));
   
   /* Background Colors */
-  --bg-page: var(--background);
-  --bg-surface: var(--card);
-  --bg-header: var(--primary);
-  --bg-sidebar: var(--sidebar);
-  --bg-card: var(--card);
-  --bg-secondary: var(--muted);
-  --bg-hover: var(--accent);
+  --bg-page: hsl(var(--background));
+  --bg-surface: hsl(var(--card));
+  --bg-header: hsl(var(--primary));
+  --bg-sidebar: hsl(var(--sidebar));
+  --bg-card: hsl(var(--card));
+  --bg-secondary: hsl(var(--muted));
+  --bg-hover: hsl(var(--accent));
   
   /* Border Colors */
-  --border-light: var(--border);
-  --border-medium: var(--border);
-  --border-dark: var(--border);
-  --border-color: var(--border);
+  --border-light: hsl(var(--border));
+  --border-medium: hsl(var(--border));
+  --border-dark: hsl(var(--border));
+  --border-color: hsl(var(--border));
   
   /* === TYPOGRAPHY === */
   
