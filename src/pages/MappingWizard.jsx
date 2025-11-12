@@ -170,7 +170,7 @@ function MappingWizard() {
     }
   }, [projectId]);
   
-  // Handle RDM toggle changes - normalize currentStep and clear configs when disabling
+  // Handle RDM toggle changes - normalize currentStep (preserve configs for better UX)
   useEffect(() => {
     if (!rdmLookupEnabled) {
       // If RDM is disabled and we're on Step 4 (RDM step), skip to Step 5
@@ -178,9 +178,7 @@ function MappingWizard() {
         setCurrentStep(5);
         setMaxCompletedStep(Math.max(maxCompletedStep, 5));
       }
-      // Clear RDM configurations when disabling
-      setRdmDatasetConfig(null);
-      setRdmCrosswalkConfig(null);
+      // Note: We preserve RDM configs even when disabled, so users don't lose data if they accidentally toggle off
     }
   }, [rdmLookupEnabled, currentStep, maxCompletedStep]);
 
@@ -793,8 +791,8 @@ function MappingWizard() {
         quality_rule_ids: selectedQualityRules && selectedQualityRules.length > 0 ? selectedQualityRules : null,
         violation_handling: selectedQualityRules && selectedQualityRules.length > 0 ? violationHandling : null,
         rdm_lookup_enabled: rdmLookupEnabled,
-        rdm_dataset_config: rdmLookupEnabled && rdmDatasetConfig ? rdmDatasetConfig : null,
-        rdm_crosswalk_config: rdmLookupEnabled && rdmCrosswalkConfig ? rdmCrosswalkConfig : null
+        rdm_dataset_config: rdmDatasetConfig || null,
+        rdm_crosswalk_config: rdmCrosswalkConfig || null
       };
 
       let response;
