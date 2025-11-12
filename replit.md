@@ -21,13 +21,14 @@ The application is a modern single-page application built with React (TypeScript
 -   **Audit System:** Comprehensive, enterprise-grade audit logging across five tables with a full-featured UI.
 
 ### Feature Specifications
--   **ETL Transformation System:** Provides comprehensive ETL capabilities including file pattern matching, schema validation, 25+ field transformations, schema drift detection, profiling with anomaly detection, job execution tracking, and format conversion.
+-   **ETL Transformation System:** Provides comprehensive ETL capabilities including file pattern matching, schema validation, 27+ field transformations, schema drift detection, profiling with anomaly detection, job execution tracking, and format conversion. Includes RDM integration for reference data lookups and crosswalk transformations.
 -   **Workflow Orchestration:** Manages data pipelines through Mapping Groups, Workflows with dependency management, and a Cron-based and interval-based Scheduler. Includes fixes for schedule persistence and next_run recalculation.
 -   **File Insights Dashboard:** Offers time-series metric tracking, smart file pattern extraction, ID field detection, alert integration, and configurable granularity.
 -   **Vendor Onboarding Module:** A comprehensive vendor management system that allows admins to manage vendor connections at the agreement level. It integrates into the ETL workflow, provides file browsing, and supports file-level data governance (PII detection, data classification, file type, quality rules). Contract validation mode enforces agreement schemas and propagates governance tags to uploaded files.
 -   **Project Type Categorization:** Differentiates between internal and external projects, automatically creating external projects for vendors.
 -   **Vendor Agreement Schema Validation:** Full-stack system for ETL transformations with schema drift handling policies.
 -   **DBT Integration:** Configured for DBT Core and dbt-postgres for data transformations, with a UI for model discovery, execution, and monitoring.
+-   **RDM Integration:** External Reference Data Management system integration at rdm.blumetra.com for looking up reference datasets and crosswalks during ETL transformations. Supports two transformation types: `rdm_crosswalk_lookup` (maps source values to target values) and `rdm_dataset_join` (enriches records with reference data). RDM resources are pre-fetched once per job and cached in memory for O(1) lookups. API credentials stored in Replit Secrets (RDM_API_KEY, RDM_BASE_URL).
 
 ### Performance Optimizations
 Optimizations include Redis-based permission caching, database indexing on key tables, reduced default audit trail records, an optimized PostgreSQL function for project access, reduced API polling intervals, and a dual-layer response caching middleware with Redis and in-memory fallback.
