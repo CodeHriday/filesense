@@ -68,12 +68,19 @@ const RdmLookupStep = ({
   };
 
   useEffect(() => {
+    console.log('[RDM] datasetConfig.dataset_id changed to:', datasetConfig?.dataset_id);
     if (datasetConfig?.dataset_id) {
       fetchDatasetSchema(datasetConfig.dataset_id);
     } else {
+      console.log('[RDM] No dataset_id, clearing schema');
       setDatasetSchema([]);
     }
   }, [datasetConfig?.dataset_id]);
+
+  useEffect(() => {
+    console.log('[RDM] datasetSchema state changed:', datasetSchema);
+    console.log('[RDM] datasetSchema length:', datasetSchema.length);
+  }, [datasetSchema]);
 
   const fetchDatasetSchema = async (datasetId) => {
     try {
@@ -81,14 +88,25 @@ const RdmLookupStep = ({
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       
+      console.log('[RDM] Fetching schema for dataset:', datasetId);
+      
       const response = await axios.get(
         `${API_BASE_URL}/api/rdm/datasets/${datasetId}/schema`,
         { headers }
       );
       
-      setDatasetSchema(response.data.data || []);
+      console.log('[RDM] Full response:', response);
+      console.log('[RDM] response.data:', response.data);
+      console.log('[RDM] response.data.data:', response.data.data);
+      console.log('[RDM] Extracted schema length:', (response.data.data || []).length);
+      
+      const schema = response.data.data || [];
+      setDatasetSchema(schema);
+      
+      console.log('[RDM] Set datasetSchema to:', schema);
     } catch (err) {
-      console.error('Failed to fetch dataset schema:', err);
+      console.error('[RDM] Failed to fetch dataset schema:', err);
+      console.error('[RDM] Error response:', err.response);
       setDatasetSchema([]);
     } finally {
       setLoadingDatasetSchema(false);
