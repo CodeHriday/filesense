@@ -290,10 +290,10 @@ const ErrorReview = () => {
     return (
       <>
         {selectedIds.length > 0 && (
-          <div className="bulk-actions-bar">
-            <span className="selected-count">{selectedIds.length} violation(s) selected</span>
+          <div className="quality-violations-bulk-actions-bar">
+            <span className="quality-violations-selected-count">{selectedIds.length} violation(s) selected</span>
             <button
-              className="bulk-delete-btn"
+              className="quality-violations-bulk-delete-btn"
               onClick={handleBulkDelete}
               disabled={isDeleting}
             >
@@ -378,7 +378,7 @@ const ErrorReview = () => {
                             <td>{violation.executed_by_fullname || violation.executed_by_username || '-'}</td>
                           )}
                           <td>
-                            <span className={`status-badge status-${violation.status}`}>
+                            <span className={`quality-violations-status-badge quality-violations-status-${violation.status || 'new'}`}>
                               {violation.status || 'new'}
                             </span>
                           </td>
