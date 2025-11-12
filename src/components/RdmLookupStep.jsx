@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiDatabase, FiGitBranch, FiInfo, FiPlus, FiTrash2 } from 'react-icons/fi';
 import LoadingSpinner from './LoadingSpinner';
+import ColumnMapper from './ColumnMapper';
 import { API_BASE_URL } from '../config';
 
 const RdmLookupStep = ({ 
@@ -19,6 +20,8 @@ const RdmLookupStep = ({
   const [crosswalks, setCrosswalks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [datasetSchema, setDatasetSchema] = useState([]);
+  const [loadingDatasetSchema, setLoadingDatasetSchema] = useState(false);
 
   useEffect(() => {
     fetchRdmResources();
@@ -56,10 +59,45 @@ const RdmLookupStep = ({
     }
   };
 
+  useEffect(() => {
+    if (datasetConfig?.dataset_id) {
+      fetchDatasetSchema(datasetConfig.dataset_id);
+    } else {
+      setDatasetSchema([]);
+    }
+  }, [datasetConfig?.dataset_id]);
+
+  const fetchDatasetSchema = async (datasetId) => {
+    try {
+      setLoadingDatasetSchema(true);
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const response = await axios.get(
+        `${API_BASE_URL}/api/rdm/datasets/${datasetId}/schema`,
+        { headers }
+      );
+      
+      setDatasetSchema(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch dataset schema:', err);
+      setDatasetSchema([]);
+    } finally {
+      setLoadingDatasetSchema(false);
+    }
+  };
+
   const handleDatasetChange = (field, value) => {
     onDatasetConfigChange({
       ...datasetConfig,
       [field]: value
+    });
+  };
+
+  const handleDatasetMappingsChange = (mappings) => {
+    onDatasetConfigChange({
+      ...datasetConfig,
+      column_mappings: mappings
     });
   };
 
@@ -443,22 +481,54 @@ const RdmLookupStep = ({
         </div>
 
         {datasetConfig?.dataset_id && (
-          <div style={{ 
-            marginTop: '1rem', 
-            padding: '0.75rem', 
-            backgroundColor: '#e0f2fe', 
-            border: '1px solid #bae6fd', 
-            borderRadius: '6px',
-            fontSize: '0.875rem',
-            color: '#0c4a6e'
-          }}>
-            <strong>Join Preview:</strong> Your records will be enriched with data from the selected dataset 
-            where <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
-              {datasetConfig.source_column || '[source column]'}
-            </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
-              {datasetConfig.dataset_column || '[dataset column]'}
-            </code>
-          </div>
+          <>
+            <div style={{ 
+              marginTop: '1rem', 
+              padding: '0.75rem', 
+              backgroundColor: '#e0f2fe', 
+              border: '1px solid #bae6fd', 
+              borderRadius: '6px',
+              fontSize: '0.875rem',
+              color: '#0c4a6e'
+            }}>
+              <strong>Join Preview:</strong> Your records will be enriched with data from the selected dataset 
+              where <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                {datasetConfig.source_column || '[source column]'}
+              </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                {datasetConfig.dataset_column || '[dataset column]'}
+              </code>
+            </div>
+
+            <div style={{ marginTop: '1.5rem' }}>
+              <h4 style={{ 
+                margin: 0, 
+                marginBottom: '1rem', 
+                fontSize: '1rem', 
+                fontWeight: '600',
+                color: '#111827'
+              }}>
+                Select Columns to Add from Reference Dataset
+              </h4>
+              {loadingDatasetSchema ? (
+                <div style={{ padding: '2rem', textAlign: 'center' }}>
+                  <LoadingSpinner size="small" />
+                  <p style={{ marginTop: '0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                    Loading dataset columns...
+                  </p>
+                </div>
+              ) : (
+                <ColumnMapper
+                  sourceColumns={datasetSchema}
+                  existingTargetColumns={schema || []}
+                  mappings={datasetConfig?.column_mappings || []}
+                  onMappingsChange={handleDatasetMappingsChange}
+                  sourceLabel="Dataset Columns"
+                  targetLabel="Your Target Schema"
+                  allowRename={true}
+                />
+              )}
+            </div>
+          </>
         )}
       </div>
       )}

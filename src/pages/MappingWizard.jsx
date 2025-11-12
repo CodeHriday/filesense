@@ -18,7 +18,8 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiFolder,
-  FiShield
+  FiShield,
+  FiGitBranch
 } from 'react-icons/fi';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -26,6 +27,7 @@ import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TableBasedMapper from '../components/TableBasedMapper';
 import RdmLookupStep from '../components/RdmLookupStep';
+import CrosswalkLookupStep from '../components/CrosswalkLookupStep';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import { getQualityRules } from '../api/qualityRulesService';
 import './MappingWizard.css';
@@ -120,8 +122,11 @@ function MappingWizard() {
   const [rdmLookupEnabled, setRdmLookupEnabled] = useState(false);
   const [rdmDatasetEnabled, setRdmDatasetEnabled] = useState(false);
   const [rdmCrosswalkEnabled, setRdmCrosswalkEnabled] = useState(false);
-  const [rdmDatasetConfig, setRdmDatasetConfig] = useState(null);
-  const [rdmCrosswalkConfig, setRdmCrosswalkConfig] = useState(null);
+  const [rdmDatasetConfig, setRdmDatasetConfig] = useState({});
+  const [rdmCrosswalkConfig, setRdmCrosswalkConfig] = useState({});
+
+  // Cumulative schema tracking
+  const [cumulativeSchema, setCumulativeSchema] = useState([]);
 
   // Step 4: Target & Anomaly Rules
   const [targetConnectionId, setTargetConnectionId] = useState('');
@@ -152,6 +157,35 @@ function MappingWizard() {
   // Schema validation modal
   const [showSchemaValidationModal, setShowSchemaValidationModal] = useState(false);
   const [schemaValidationResult, setSchemaValidationResult] = useState(null);
+
+  // Recompute cumulative schema when mappings change
+  useEffect(() => {
+    const expressionsSchema = fieldMappings
+      .filter(m => m.target_field)
+      .map(m => ({ name: m.target_field, type: 'string' }));
+    
+    let cumulative = [...expressionsSchema];
+    
+    // Add dataset columns if enabled
+    if (rdmDatasetEnabled && rdmDatasetConfig?.column_mappings) {
+      const datasetCols = rdmDatasetConfig.column_mappings.map(m => ({
+        name: m.targetColumn,
+        type: m.dataType || 'string'
+      }));
+      cumulative = [...cumulative, ...datasetCols];
+    }
+    
+    // Add crosswalk columns if enabled
+    if (rdmCrosswalkEnabled && rdmCrosswalkConfig?.column_mappings) {
+      const crosswalkCols = rdmCrosswalkConfig.column_mappings.map(m => ({
+        name: m.targetColumn,
+        type: m.dataType || 'string'
+      }));
+      cumulative = [...cumulative, ...crosswalkCols];
+    }
+    
+    setCumulativeSchema(cumulative);
+  }, [fieldMappings, rdmDatasetEnabled, rdmDatasetConfig, rdmCrosswalkEnabled, rdmCrosswalkConfig]);
 
   useEffect(() => {
     fetchConnections();
@@ -651,7 +685,10 @@ function MappingWizard() {
   };
 
   const handleNext = async () => {
-    if (currentStep === 1) {
+    const steps = getWizardSteps();
+    const currentStepConfig = steps[currentStep - 1];
+
+    if (currentStepConfig?.id === 'config') {
       // Step 1 validation: Basic info
       if (!mappingName.trim()) {
         setError('Please enter a mapping name');
@@ -670,9 +707,7 @@ function MappingWizard() {
         return;
       }
       setError(null);
-      setCurrentStep(2);
-      setMaxCompletedStep(Math.max(maxCompletedStep, 2));
-    } else if (currentStep === 2) {
+    } else if (currentStepConfig?.id === 'source') {
       // Step 2 validation: Source configuration - both filePath and fileNamePattern required
       if (!filePath || !filePath.trim()) {
         setError('Please enter a file path. Use "/" for root directory or specify a folder path (e.g., /data/input/)');
@@ -690,10 +725,7 @@ function MappingWizard() {
         // Error already set by extractSchema
         return;
       }
-      
-      setCurrentStep(3);
-      setMaxCompletedStep(Math.max(maxCompletedStep, 3));
-    } else if (currentStep === 3) {
+    } else if (currentStepConfig?.id === 'expressions') {
       // Step 3 validation: Field mappings required
       if (!fieldMappings || fieldMappings.length === 0) {
         setError('Please configure at least one field mapping');
@@ -708,27 +740,20 @@ function MappingWizard() {
       }
       
       setError(null);
-      // If RDM is enabled, go to Step 4 (RDM Lookup), otherwise skip to Step 5 (Target & Rules)
-      const nextStep = rdmLookupEnabled ? 4 : 5;
-      setCurrentStep(nextStep);
-      setMaxCompletedStep(Math.max(maxCompletedStep, nextStep));
-    } else if (currentStep === 4) {
-      // Step 4 (RDM Lookup): Optional validation
+    } else if (currentStepConfig?.id === 'rdm' || currentStepConfig?.id === 'crosswalk') {
+      // RDM and Crosswalk steps: Optional validation
       setError(null);
-      setCurrentStep(5);
-      setMaxCompletedStep(Math.max(maxCompletedStep, 5));
+    }
+
+    // Move to next step
+    if (currentStep < steps.length) {
+      setCurrentStep(currentStep + 1);
+      setMaxCompletedStep(Math.max(maxCompletedStep, currentStep + 1));
     }
   };
 
   const handleBack = () => {
-    let previousStep = currentStep - 1;
-    
-    // Skip Step 4 (RDM) if it's disabled and we're going back from Step 5
-    if (currentStep === 5 && !rdmLookupEnabled) {
-      previousStep = 3;
-    }
-    
-    setCurrentStep(Math.max(1, previousStep));
+    setCurrentStep(Math.max(1, currentStep - 1));
     setError(null);
   };
 
@@ -881,20 +906,35 @@ function MappingWizard() {
     navigate('/mappings');
   };
 
-  const renderStepIndicator = () => {
+  // Dynamic step configuration based on RDM toggles
+  const getWizardSteps = () => {
     const steps = [
-      { num: 1, label: 'Mapping Configuration' },
-      { num: 2, label: 'Source Configuration' },
-      { num: 3, label: 'Expressions' },
-      { num: 4, label: 'RDM Lookup', skipped: !rdmLookupEnabled },
-      { num: 5, label: 'Target & Rules' }
+      { id: 'config', label: 'Mapping Configuration', component: 'config' },
+      { id: 'source', label: 'Source Configuration', component: 'source' },
+      { id: 'expressions', label: 'Expressions', component: 'expressions' },
     ];
+    
+    if (rdmLookupEnabled) {
+      steps.push({ id: 'rdm', label: 'RDM Lookup', component: 'rdm' });
+    }
+    
+    if (rdmLookupEnabled && rdmCrosswalkEnabled) {
+      steps.push({ id: 'crosswalk', label: 'Crosswalk Lookup', component: 'crosswalk' });
+    }
+    
+    steps.push({ id: 'target', label: 'Target & Rules', component: 'target' });
+    
+    return steps;
+  };
+
+  const renderStepIndicator = () => {
+    const steps = getWizardSteps().map((step, idx) => ({
+      num: idx + 1,
+      id: step.id,
+      label: step.label
+    }));
 
     const handleStepClick = (stepNum) => {
-      // Don't allow clicking skipped steps
-      const step = steps.find(s => s.num === stepNum);
-      if (step?.skipped) return;
-      
       // Only allow navigation to completed steps in edit mode
       if (isEditMode && stepNum <= maxCompletedStep) {
         setCurrentStep(stepNum);
@@ -905,25 +945,23 @@ function MappingWizard() {
     return (
       <div className="wizard-steps">
         {steps.map((step, idx) => {
-          const isClickable = isEditMode && step.num <= maxCompletedStep && !step.skipped;
-          const isSkipped = step.skipped;
+          const isClickable = isEditMode && step.num <= maxCompletedStep;
           
           return (
             <React.Fragment key={step.num}>
               <div 
-                className={`wizard-step ${currentStep === step.num ? 'active' : ''} ${currentStep > step.num && !isSkipped ? 'completed' : ''} ${isClickable ? 'clickable' : ''} ${isSkipped ? 'skipped' : ''}`}
+                className={`wizard-step ${currentStep === step.num ? 'active' : ''} ${currentStep > step.num ? 'completed' : ''} ${isClickable ? 'clickable' : ''}`}
                 onClick={() => handleStepClick(step.num)}
                 style={{ 
-                  cursor: isClickable ? 'pointer' : 'default',
-                  opacity: isSkipped ? 0.4 : 1
+                  cursor: isClickable ? 'pointer' : 'default'
                 }}
               >
                 <div className="step-number">
-                  {isSkipped ? '⊝' : (currentStep > step.num ? <FiCheckCircle /> : step.num)}
+                  {currentStep > step.num ? <FiCheckCircle /> : step.num}
                 </div>
-                <div className="step-label">{step.label}{isSkipped ? ' (Skipped)' : ''}</div>
+                <div className="step-label">{step.label}</div>
               </div>
-              {idx < steps.length - 1 && <div className="step-connector" style={{ opacity: isSkipped ? 0.4 : 1 }}></div>}
+              {idx < steps.length - 1 && <div className="step-connector"></div>}
             </React.Fragment>
           );
         })}
@@ -1525,8 +1563,8 @@ function MappingWizard() {
           </div>
         )}
 
-        {/* Step 4: RDM Lookup (always at step 4, skipped if disabled) */}
-        {currentStep === 4 && (
+        {/* Step 4: RDM Lookup */}
+        {getWizardSteps()[currentStep - 1]?.id === 'rdm' && (
           <div className="wizard-step-content">
             <h2><FiServer /> RDM Lookup</h2>
             <RdmLookupStep
@@ -1543,8 +1581,20 @@ function MappingWizard() {
           </div>
         )}
 
-        {/* Step 5: Target & Anomaly Rules */}
-        {currentStep === 5 && (
+        {/* Step 5: Crosswalk Lookup (conditional) */}
+        {getWizardSteps()[currentStep - 1]?.id === 'crosswalk' && (
+          <div className="wizard-step-content">
+            <h2><FiGitBranch /> Crosswalk Lookup</h2>
+            <CrosswalkLookupStep
+              crosswalkConfig={rdmCrosswalkConfig}
+              schema={cumulativeSchema}
+              onCrosswalkConfigChange={setRdmCrosswalkConfig}
+            />
+          </div>
+        )}
+
+        {/* Target & Rules Step */}
+        {getWizardSteps()[currentStep - 1]?.id === 'target' && (
           <div className="wizard-step-content">
             <h2><FiTarget /> Target Connection & Quality Rules</h2>
             
