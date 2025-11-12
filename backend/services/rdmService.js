@@ -126,6 +126,16 @@ class RDMService {
     }
   }
 
+  async getDatasetSchema(datasetId) {
+    try {
+      const response = await this.makeRequest(`/api/external/datasets/${datasetId}/schema`);
+      return response.data || [];
+    } catch (error) {
+      systemLogger.error('Failed to fetch RDM dataset schema', { datasetId, error: error.message });
+      throw error;
+    }
+  }
+
   async getCrosswalks() {
     try {
       const response = await this.makeRequest('/api/external/crosswalks');
@@ -163,6 +173,16 @@ class RDMService {
       return response.data || [];
     } catch (error) {
       systemLogger.error('Failed to fetch RDM crosswalk data', { crosswalkId, error: error.message });
+      throw error;
+    }
+  }
+
+  async getCrosswalkSchema(crosswalkId) {
+    try {
+      const response = await this.makeRequest(`/api/external/crosswalks/${crosswalkId}/schema`);
+      return response.data || [];
+    } catch (error) {
+      systemLogger.error('Failed to fetch RDM crosswalk schema', { crosswalkId, error: error.message });
       throw error;
     }
   }

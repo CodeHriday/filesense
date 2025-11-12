@@ -57,6 +57,31 @@ router.get('/datasets/:id', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/datasets/:id/schema', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schema = await rdmService.getDatasetSchema(id);
+    res.json({ success: true, data: schema });
+  } catch (error) {
+    systemLogger.error('Failed to fetch RDM dataset schema:', error);
+    
+    const statusCode = error.status || 500;
+    const errorResponse = {
+      success: false,
+      error: error.message || 'Failed to fetch dataset schema from RDM',
+      details: error.isRDMError ? {
+        status: error.status,
+        statusText: error.statusText,
+        endpoint: error.endpoint,
+        responseBody: error.responseData,
+        timestamp: new Date().toISOString()
+      } : undefined
+    };
+    
+    res.status(statusCode).json(errorResponse);
+  }
+});
+
 router.get('/datasets/:id/data', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -122,6 +147,31 @@ router.get('/crosswalks/:id', authenticateToken, async (req, res) => {
       success: false, 
       error: error.message || 'Failed to fetch crosswalk from RDM' 
     });
+  }
+});
+
+router.get('/crosswalks/:id/schema', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const schema = await rdmService.getCrosswalkSchema(id);
+    res.json({ success: true, data: schema });
+  } catch (error) {
+    systemLogger.error('Failed to fetch RDM crosswalk schema:', error);
+    
+    const statusCode = error.status || 500;
+    const errorResponse = {
+      success: false,
+      error: error.message || 'Failed to fetch crosswalk schema from RDM',
+      details: error.isRDMError ? {
+        status: error.status,
+        statusText: error.statusText,
+        endpoint: error.endpoint,
+        responseBody: error.responseData,
+        timestamp: new Date().toISOString()
+      } : undefined
+    };
+    
+    res.status(statusCode).json(errorResponse);
   }
 });
 
