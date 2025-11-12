@@ -218,11 +218,10 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       {currentUser && (
         <>
           <Header showAIInsights={toggleAIInsights} />
-          <div className="app-container">
-            <div className="app-layout">
-              <Sidebar />
-              <main id="main-content" className={`main ${isCollapsed ? 'sidebar-collapsed' : ''}`} tabIndex="-1">
-                <Routes>
+          <div className="main-container">
+            <Sidebar />
+            <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''}`} tabIndex="-1">
+              <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
                 <Route path="/drop" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
@@ -329,9 +328,8 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/performance-optimizations" element={<ProtectedRoute><PerformanceOptimizations /></ProtectedRoute>} />
                 <Route path="/login" element={currentUser ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </main>
-            </div>
+              </Routes>
+            </main>
           </div>
           
           {/* AI Insights Sidebar - only show when toggled */}

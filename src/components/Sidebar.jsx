@@ -38,11 +38,11 @@ function Sidebar() {
   if (!currentUser) {
     return (
       <div>
-        <aside className="sidebar app-sidebar">
+        <aside className="sidebar">
           <nav className="sidebar-nav">
             <ul>
               <li>
-                <NavLink to="/login" className={({ isActive }) => isActive ? 'sidebar-item active' : 'sidebar-item'}>
+                <NavLink to="/login" className={({ isActive }) => isActive ? 'active' : ''}>
                   <span>Login</span>
                 </NavLink>
               </li>
@@ -131,7 +131,7 @@ function Sidebar() {
     
     return (
       <React.Fragment key={category}>
-        <li className="nav-divider sidebar-section" onClick={() => toggleCategory(category)}>
+        <li className="nav-divider" onClick={() => toggleCategory(category)}>
           <span>{getSidebarCategoryName(category)}</span>
           {!isCollapsed && (
             isCategoryExpanded ? 
@@ -169,7 +169,7 @@ function Sidebar() {
                 </li>
                 {isExpanded && visibleChildren.map(child => (
                   <li key={child.id} className="submenu-item">
-                    <NavLink to={child.route} className={({ isActive }) => isActive ? 'sidebar-item active' : 'sidebar-item'}>
+                    <NavLink to={child.route} className={({ isActive }) => isActive ? 'active' : ''}>
                       <span>{child.name}</span>
                     </NavLink>
                   </li>
@@ -181,7 +181,7 @@ function Sidebar() {
           // Regular menu items
           return (
             <li key={feature.id}>
-              <NavLink to={feature.route} className={({ isActive }) => isActive ? 'sidebar-item active' : 'sidebar-item'}>
+              <NavLink to={feature.route} className={({ isActive }) => isActive ? 'active' : ''}>
                 {IconComponent && <IconComponent className="icon" />}
                 <span>{feature.name}</span>
               </NavLink>
@@ -194,7 +194,7 @@ function Sidebar() {
 
   return (
     <div>
-      <aside className={`sidebar app-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-toggle" onClick={toggleSidebar} title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           {isCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
         </div>

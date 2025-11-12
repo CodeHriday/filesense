@@ -269,12 +269,6 @@ export const FileCatalog = ({ onFileSelect }) => {
     return 'low';
   };
 
-  const getQualityBadgeClass = (score) => {
-    if (score > 80) return 'badge badge--success';
-    if (score >= 50) return 'badge badge--warning';
-    return 'badge badge--danger';
-  };
-
   const getHeaderValidationInfo = (file) => {
     const headerValidation = file.metadata?.header_validation;
     if (!headerValidation) return null;
@@ -422,7 +416,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           )}
         </td>
         <td>
-          <span className="badge badge--muted file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
+          <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
         </td>
         <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
         <td>
@@ -480,41 +474,35 @@ export const FileCatalog = ({ onFileSelect }) => {
         </td>
         <td className="actions-cell">
           {file.failure_reason_code === 'password_missing' && (
-            <div className="action-icon">
-              <button
-                className="action-icon-btn password-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleProvidePassword(file);
-                }}
-                title="Provide Password"
-              >
-                <FiLock />
-              </button>
-            </div>
-          )}
-          <div className="action-icon">
             <button
-              className="action-icon-btn view-btn"
-              onClick={() => handleViewDetails(file)}
-              title="View Details"
-            >
-              <FiEye />
-            </button>
-          </div>
-          <div className="action-icon">
-            <button
-              className="action-icon-btn delete-btn"
+              className="action-icon-btn password-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDelete(file);
+                handleProvidePassword(file);
               }}
-              disabled={deletingFileId === file.file_id}
-              title="Delete"
+              title="Provide Password"
             >
-              <FiTrash2 />
+              <FiLock />
             </button>
-          </div>
+          )}
+          <button
+            className="action-icon-btn view-btn"
+            onClick={() => handleViewDetails(file)}
+            title="View Details"
+          >
+            <FiEye />
+          </button>
+          <button
+            className="action-icon-btn delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(file);
+            }}
+            disabled={deletingFileId === file.file_id}
+            title="Delete"
+          >
+            <FiTrash2 />
+          </button>
         </td>
       </tr>
     );
@@ -551,8 +539,8 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   if (isLoading) {
     return (
-      <div className="app-container file-catalog-container">
-        <div className="page-title"><h1>File Catalog</h1></div>
+      <div className="file-catalog-container">
+        <h1 className="page-title">File Catalog</h1>
         <LoadingSpinner />
       </div>
     );
@@ -560,8 +548,8 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   if (error) {
     return (
-      <div className="app-container file-catalog-container">
-        <div className="page-title"><h1>File Catalog</h1></div>
+      <div className="file-catalog-container">
+        <h1 className="page-title">File Catalog</h1>
         <div className="alert alert-error">
           <p>Failed to fetch file catalog: {error.message}</p>
           <button 
@@ -576,11 +564,11 @@ export const FileCatalog = ({ onFileSelect }) => {
   }
 
   return (
-    <div className="app-container file-catalog-container">
-      <div className="page-title"><h1>File Catalog</h1></div>
+    <div className="file-catalog-container">
+      <h1 className="page-title">File Catalog</h1>
       
-      <div className="toolbar catalog-controls">
-        <div className="search search-container">
+      <div className="catalog-controls">
+        <div className="search-container">
           <input
             type="text"
             placeholder="Search files..."
@@ -591,14 +579,29 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
         
         {selectedProject && (
-          <div className="badge badge--primary active-filter-badge">
+          <div className="active-filter-badge" style={{ 
+            padding: '0.5rem 1rem', 
+            background: '#e3f2fd', 
+            borderRadius: '4px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            fontSize: '0.9rem'
+          }}>
             <span>Project Filter: {files.find(f => f.project_id === selectedProject)?.project_name || `ID ${selectedProject}`}</span>
             <button 
               onClick={() => {
                 setSearchParams({});
                 setSelectedProject(null);
               }}
-              className="filter-close-btn"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                padding: '0 0.25rem',
+                color: '#666'
+              }}
               title="Clear project filter"
             >
               ×
@@ -661,7 +664,7 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
       </div>
       
-      <div className="card file-catalog-card">
+      <div className="file-catalog-table-container">
         {filteredAndSortedFiles.length === 0 ? (
           <div className="no-results">
             <p>No files found matching your criteria.</p>
@@ -694,61 +697,97 @@ export const FileCatalog = ({ onFileSelect }) => {
                 <p>No files found on this page.</p>
               </div>
             ) : (
-              <div className="projects-wrapper">
+              <div style={{ marginTop: '1rem' }}>
                 {groupedProjects.map(project => {
                   const projectKey = `project-${project.projectId}`;
                   const isProjectExpanded = expansionState[projectKey];
 
                   return (
-                    <div key={project.projectId} className="project-group">
+                    <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
                       {/* Project Header */}
                       <div
                         onClick={() => toggleExpansion(projectKey)}
-                        className="project-header"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.5rem 0.75rem',
+                          background: 'white',
+                          color: '#6b7280',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          fontWeight: '500',
+                          fontSize: '0.8125rem',
+                          transition: 'all 0.2s ease'
+                        }}
                       >
                         {isProjectExpanded ? (
-                          <FiChevronDown size={14} />
+                          <FiChevronDown size={14} style={{ color: '#6b7280' }} />
                         ) : (
-                          <FiChevronRight size={14} />
+                          <FiChevronRight size={14} style={{ color: '#6b7280' }} />
                         )}
-                        <span className="header-title">Project : {project.projectName}</span>
-                        <span className="header-count">
+                        <span style={{ flex: 1 }}>Project : {project.projectName}</span>
+                        <span
+                          style={{
+                            color: '#9ca3af',
+                            fontSize: '0.75rem',
+                            fontWeight: '400'
+                          }}
+                        >
                           {project.filesCount} {project.filesCount === 1 ? 'file' : 'files'}
                         </span>
                       </div>
 
                       {/* Project Content - Subprojects */}
                       {isProjectExpanded && (
-                        <div className="project-content">
+                        <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
                           {/* Subprojects */}
                           {project.subprojects.map(subproject => {
                             const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
                             const isSubprojectExpanded = expansionState[subprojectKey];
 
                             return (
-                              <div key={subproject.subProjectId} className="subproject-group">
+                              <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
                                 {/* Subproject Header */}
                                 <div
                                   onClick={() => toggleExpansion(subprojectKey)}
-                                  className="subproject-header"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.4rem 0.75rem',
+                                    background: 'white',
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    marginLeft: '1.5rem',
+                                    fontWeight: '400',
+                                    fontSize: '0.75rem',
+                                    transition: 'all 0.2s ease'
+                                  }}
                                 >
                                   {isSubprojectExpanded ? (
-                                    <FiChevronDown size={12} />
+                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
                                   ) : (
-                                    <FiChevronRight size={12} />
+                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
                                   )}
-                                  <span className="header-title">{subproject.subProjectName}</span>
-                                  <span className="header-count">
+                                  <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
+                                  <span
+                                    style={{
+                                      color: '#d1d5db',
+                                      fontSize: '0.6875rem',
+                                      fontWeight: '400'
+                                    }}
+                                  >
                                     {subproject.filesCount}
                                   </span>
                                 </div>
 
                                 {/* Subproject Files Table */}
                                 {isSubprojectExpanded && subproject.items.length > 0 && (
-                                  <div className="table-wrapper">
-                                    <table className="table">
+                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                    <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
                                       <thead>
-                                        <tr>
+                                        <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
                                           <th className="checkbox-cell">
                                             <input
                                               type="checkbox"
@@ -775,7 +814,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                                           <th>Actions</th>
                                         </tr>
                                       </thead>
-                                      <tbody>
+                                      <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
                                         {subproject.items.map(file => renderFileRow(file))}
                                       </tbody>
                                     </table>
@@ -787,7 +826,7 @@ export const FileCatalog = ({ onFileSelect }) => {
 
                           {/* Unassigned Files (no subproject) */}
                           {project.unassignedFiles.length > 0 && (
-                            <div className="subproject-group">
+                            <div style={{ marginBottom: '0.75rem' }}>
                               {(() => {
                                 const unassignedKey = `subproject-${project.projectId}-unassigned`;
                                 const isUnassignedExpanded = expansionState[unassignedKey];
@@ -797,26 +836,44 @@ export const FileCatalog = ({ onFileSelect }) => {
                                     {/* Unassigned Header */}
                                     <div
                                       onClick={() => toggleExpansion(unassignedKey)}
-                                      className="subproject-header unassigned-header"
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.4rem 0.75rem',
+                                        background: 'white',
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        marginLeft: '1.5rem',
+                                        fontWeight: '400',
+                                        fontSize: '0.75rem',
+                                        transition: 'all 0.2s ease'
+                                      }}
                                     >
                                       {isUnassignedExpanded ? (
-                                        <FiChevronDown size={12} />
+                                        <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
                                       ) : (
-                                        <FiChevronRight size={12} />
+                                        <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
                                       )}
-                                      <FiAlertTriangle size={12} />
-                                      <span className="header-title">No Subproject</span>
-                                      <span className="header-count">
+                                      <FiAlertTriangle size={12} style={{ color: '#d1d5db' }} />
+                                      <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
+                                      <span
+                                        style={{
+                                          color: '#d1d5db',
+                                          fontSize: '0.6875rem',
+                                          fontWeight: '400'
+                                        }}
+                                      >
                                         {project.unassignedFiles.length}
                                       </span>
                                     </div>
 
                                     {/* Unassigned Files Table */}
                                     {isUnassignedExpanded && (
-                                      <div className="table-wrapper">
-                                        <table className="table">
+                                      <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
+                                        <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
                                           <thead>
-                                            <tr>
+                                            <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
                                               <th className="checkbox-cell">
                                                 <input
                                                   type="checkbox"
@@ -843,7 +900,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                                               <th>Actions</th>
                                             </tr>
                                           </thead>
-                                          <tbody>
+                                          <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
                                             {project.unassignedFiles.map(file => renderFileRow(file))}
                                           </tbody>
                                         </table>
@@ -909,6 +966,7 @@ export const FileCatalog = ({ onFileSelect }) => {
         message={`Are you sure you want to delete ${fileToDelete ? fileToDelete.filename : `${selectedFiles.length} files`}? This action cannot be undone.`}
         confirmText={fileToDelete ? (deletingFileId === fileToDelete.file_id ? 'Deleting...' : 'Delete') : (bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete')}
         cancelText="Cancel"
+        confirmButtonStyle={{ background: '#dc2626' }}
       />
       
       <SimpleSuccessModal
