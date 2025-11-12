@@ -150,6 +150,7 @@ const MappingGroups = () => {
         <PageHeader
           title="Mapping Job Groups"
           subtitle="Batch execution of transformations with concurrency control"
+          hideHomeButton={true}
         />
         
         <div className="page-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

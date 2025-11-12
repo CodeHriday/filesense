@@ -484,7 +484,7 @@
 }
 
 .projects-table tbody tr:hover {
-  background: var(--bg-secondary);
+  background: #f3f4f6;
   cursor: pointer;
 }
 

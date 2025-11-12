@@ -163,6 +163,7 @@ const ProcessedFileCatalog = () => {
           <PageHeader
             title="Processed File Catalog"
             subtitle="Files created by ETL transformations"
+            hideHomeButton={true}
           />
           <LoadingSpinner />
         </div>
@@ -178,6 +179,7 @@ const ProcessedFileCatalog = () => {
         <PageHeader
           title="Processed File Catalog"
           subtitle="Files created by ETL transformations with profiling history"
+          hideHomeButton={true}
           actions={
             <div className="catalog-file-count">
               <strong>{getTotalFiles()}</strong>
