@@ -73,7 +73,7 @@
   --bg-sidebar: hsl(var(--sidebar));
   --bg-card: hsl(var(--card));
   --bg-secondary: hsl(var(--muted));
-  --bg-hover: hsl(var(--accent));
+  --bg-hover: #fafafa;
   
   /* Border Colors */
   --border-light: hsl(var(--border));
