@@ -214,7 +214,59 @@ async function getSchedulesByType(entityType) {
  * @returns {Promise<Object>} Updated schedule
  */
 async function updateSchedule(scheduleId, updates) {
+  const client = await pool.connect();
+  
   try {
+    await client.query('BEGIN');
+    
+    // Fetch current schedule with row lock
+    const currentResult = await client.query(
+      'SELECT * FROM schedules WHERE id = $1 FOR UPDATE',
+      [scheduleId]
+    );
+    
+    if (currentResult.rows.length === 0) {
+      throw new Error(`Schedule ${scheduleId} not found`);
+    }
+    
+    const currentSchedule = currentResult.rows[0];
+    
+    // Detect if scheduling fields changed
+    const schedulingFieldsChanged = 
+      (updates.cron_expression && updates.cron_expression !== currentSchedule.cron_expression) ||
+      (updates.interval_value !== undefined && updates.interval_value !== currentSchedule.interval_value) ||
+      (updates.interval_unit && updates.interval_unit !== currentSchedule.interval_unit) ||
+      (updates.schedule_type && updates.schedule_type !== currentSchedule.schedule_type) ||
+      (updates.timezone && updates.timezone !== currentSchedule.timezone);
+    
+    // Recalculate next_run if scheduling fields changed
+    if (schedulingFieldsChanged) {
+      const scheduleType = updates.schedule_type || currentSchedule.schedule_type;
+      
+      if (scheduleType === 'cron') {
+        const cronExpression = updates.cron_expression || currentSchedule.cron_expression;
+        if (!cronExpression) {
+          throw new Error('cron_expression is required for cron-type schedules');
+        }
+        updates.next_run = parseAndCalculateNextRun(cronExpression);
+      } else if (scheduleType === 'interval') {
+        const intervalValue = updates.interval_value !== undefined ? updates.interval_value : currentSchedule.interval_value;
+        const intervalUnit = updates.interval_unit || currentSchedule.interval_unit;
+        
+        if (!intervalValue || !intervalUnit) {
+          throw new Error('interval_value and interval_unit are required for interval-type schedules');
+        }
+        updates.next_run = calculateIntervalNextRun(intervalValue, intervalUnit);
+      }
+      
+      systemLogger.info('Recalculated next_run due to scheduling field changes', {
+        scheduleId,
+        scheduleType,
+        nextRun: updates.next_run
+      });
+    }
+    
+    // Build UPDATE query
     const setClauses = [];
     const values = [];
     let paramIndex = 1;
@@ -233,16 +285,14 @@ async function updateSchedule(scheduleId, updates) {
     
     values.push(scheduleId);
     
-    const result = await pool.query(`
+    const result = await client.query(`
       UPDATE schedules
       SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramIndex}
       RETURNING *
     `, values);
     
-    if (result.rows.length === 0) {
-      throw new Error(`Schedule ${scheduleId} not found`);
-    }
+    await client.query('COMMIT');
     
     systemLogger.info('Schedule updated', {
       scheduleId,
@@ -254,12 +304,15 @@ async function updateSchedule(scheduleId, updates) {
       schedule: result.rows[0]
     };
   } catch (error) {
+    await client.query('ROLLBACK');
     systemLogger.error('Error updating schedule', {
       scheduleId,
       updates,
       error: error.message
     });
     throw error;
+  } finally {
+    client.release();
   }
 }
 
