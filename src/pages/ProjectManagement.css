@@ -1,5 +1,5 @@
 .project-management {
-  padding: 20px;
+  padding: 10px 20px 20px 20px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -20,7 +20,7 @@
 .filters {
   display: flex;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 20px;
   align-items: center;
 }
 
