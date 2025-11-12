@@ -36,6 +36,9 @@ function applyRDMDatasetJoin(transformedRows, datasetConfig, rdmContext) {
   let matchedCount = 0;
   let unmatchedCount = 0;
 
+  // Track matched dataset keys for right/full outer joins (only successful matches)
+  const matchedKeys = new Set();
+
   for (const row of transformedRows) {
     const sourceValue = row[source_column];
     
@@ -62,6 +65,9 @@ function applyRDMDatasetJoin(transformedRows, datasetConfig, rdmContext) {
         ...datasetRecord
       });
       matchedCount++;
+      
+      // Track this key as matched for right/full outer joins
+      matchedKeys.add(joinKey);
     } else {
       // No match found
       if (join_type === 'inner') {
@@ -80,17 +86,6 @@ function applyRDMDatasetJoin(transformedRows, datasetConfig, rdmContext) {
 
   // For right/full outer joins, add unmatched dataset records
   if (join_type === 'right' || join_type === 'full') {
-    const matchedKeys = new Set();
-    
-    // Track which dataset records were matched
-    for (const row of transformedRows) {
-      const sourceValue = row[source_column];
-      if (sourceValue) {
-        const joinKey = String(sourceValue).toLowerCase();
-        matchedKeys.add(joinKey);
-      }
-    }
-
     // Add unmatched dataset records using Map.entries()
     for (const [key, datasetRecord] of datasetData.map.entries()) {
       if (!matchedKeys.has(key)) {
