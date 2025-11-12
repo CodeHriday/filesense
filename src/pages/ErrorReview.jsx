@@ -258,13 +258,13 @@ const ErrorReview = () => {
     }
 
     return (
-      <div className="record-snapshot">
-        <div className="record-snapshot-header">Full Record Data:</div>
-        <div className="record-snapshot-content">
+      <div className="quality-violations-record-snapshot">
+        <div className="quality-violations-record-header">Full Record Data:</div>
+        <div className="quality-violations-record-content">
           {Object.entries(recordSnapshot).map(([key, value]) => (
-            <div key={key} className="record-field">
-              <span className="record-field-key">{key}:</span>
-              <span className="record-field-value">{value !== null && value !== undefined ? String(value) : 'null'}</span>
+            <div key={key} className="quality-violations-record-field">
+              <span className="quality-violations-record-field-key">{key}:</span>
+              <span className="quality-violations-record-field-value">{value !== null && value !== undefined ? String(value) : 'null'}</span>
             </div>
           ))}
         </div>
@@ -389,7 +389,7 @@ const ErrorReview = () => {
                             <td colSpan={activeTab === 'mapping-job' ? 11 : 10}>
                               {renderFullRecord(violation.record_snapshot)}
                               {activeTab === 'mapping-job' && violation.mapping_name && (
-                                <div className="mapping-info">
+                                <div className="quality-violations-mapping-info">
                                   <strong>Mapping:</strong> {violation.mapping_name}
                                 </div>
                               )}
