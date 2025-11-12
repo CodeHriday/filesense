@@ -269,6 +269,12 @@ export const FileCatalog = ({ onFileSelect }) => {
     return 'low';
   };
 
+  const getQualityBadgeClass = (score) => {
+    if (score > 80) return 'badge badge--success';
+    if (score >= 50) return 'badge badge--warning';
+    return 'badge badge--danger';
+  };
+
   const getHeaderValidationInfo = (file) => {
     const headerValidation = file.metadata?.header_validation;
     if (!headerValidation) return null;
@@ -416,7 +422,7 @@ export const FileCatalog = ({ onFileSelect }) => {
           )}
         </td>
         <td>
-          <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
+          <span className="badge badge--muted file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
         </td>
         <td>{file.file_size ? formatBytes(parseInt(file.file_size)) : '-'}</td>
         <td>
@@ -474,35 +480,41 @@ export const FileCatalog = ({ onFileSelect }) => {
         </td>
         <td className="actions-cell">
           {file.failure_reason_code === 'password_missing' && (
+            <div className="action-icon">
+              <button
+                className="action-icon-btn password-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleProvidePassword(file);
+                }}
+                title="Provide Password"
+              >
+                <FiLock />
+              </button>
+            </div>
+          )}
+          <div className="action-icon">
             <button
-              className="action-icon-btn password-btn"
+              className="action-icon-btn view-btn"
+              onClick={() => handleViewDetails(file)}
+              title="View Details"
+            >
+              <FiEye />
+            </button>
+          </div>
+          <div className="action-icon">
+            <button
+              className="action-icon-btn delete-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                handleProvidePassword(file);
+                handleDelete(file);
               }}
-              title="Provide Password"
+              disabled={deletingFileId === file.file_id}
+              title="Delete"
             >
-              <FiLock />
+              <FiTrash2 />
             </button>
-          )}
-          <button
-            className="action-icon-btn view-btn"
-            onClick={() => handleViewDetails(file)}
-            title="View Details"
-          >
-            <FiEye />
-          </button>
-          <button
-            className="action-icon-btn delete-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(file);
-            }}
-            disabled={deletingFileId === file.file_id}
-            title="Delete"
-          >
-            <FiTrash2 />
-          </button>
+          </div>
         </td>
       </tr>
     );
@@ -539,8 +551,8 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   if (isLoading) {
     return (
-      <div className="file-catalog-container">
-        <h1 className="page-title">File Catalog</h1>
+      <div className="app-container file-catalog-container">
+        <div className="page-title"><h1>File Catalog</h1></div>
         <LoadingSpinner />
       </div>
     );
@@ -548,8 +560,8 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   if (error) {
     return (
-      <div className="file-catalog-container">
-        <h1 className="page-title">File Catalog</h1>
+      <div className="app-container file-catalog-container">
+        <div className="page-title"><h1>File Catalog</h1></div>
         <div className="alert alert-error">
           <p>Failed to fetch file catalog: {error.message}</p>
           <button 
@@ -564,11 +576,11 @@ export const FileCatalog = ({ onFileSelect }) => {
   }
 
   return (
-    <div className="file-catalog-container">
-      <h1 className="page-title">File Catalog</h1>
+    <div className="app-container file-catalog-container">
+      <div className="page-title"><h1>File Catalog</h1></div>
       
-      <div className="catalog-controls">
-        <div className="search-container">
+      <div className="toolbar catalog-controls">
+        <div className="search search-container">
           <input
             type="text"
             placeholder="Search files..."
@@ -664,7 +676,7 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
       </div>
       
-      <div className="file-catalog-table-container">
+      <div className="card file-catalog-table-container">
         {filteredAndSortedFiles.length === 0 ? (
           <div className="no-results">
             <p>No files found matching your criteria.</p>
@@ -785,7 +797,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                                 {/* Subproject Files Table */}
                                 {isSubprojectExpanded && subproject.items.length > 0 && (
                                   <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                    <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                    <table className="file-catalog-table table" style={{ fontSize: '0.8125rem', width: '100%' }}>
                                       <thead>
                                         <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
                                           <th className="checkbox-cell">
@@ -871,7 +883,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                                     {/* Unassigned Files Table */}
                                     {isUnassignedExpanded && (
                                       <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                        <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                        <table className="file-catalog-table table" style={{ fontSize: '0.8125rem', width: '100%' }}>
                                           <thead>
                                             <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
                                               <th className="checkbox-cell">
