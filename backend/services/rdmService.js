@@ -55,6 +55,18 @@ class RDMService {
 
       const response = await axios(config);
 
+      // Debug logging for schema endpoint
+      if (endpoint.includes('/schema')) {
+        systemLogger.info('RDM API schema response', {
+          endpoint,
+          status: response.status,
+          dataType: typeof response.data,
+          dataKeys: response.data ? Object.keys(response.data) : 'null',
+          dataLength: Array.isArray(response.data) ? response.data.length : 'not-array',
+          data: response.data
+        });
+      }
+
       if (method === 'GET') {
         rdmCache.set(cacheKey, response.data);
       }
