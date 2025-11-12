@@ -14,13 +14,13 @@
 
 .catalog-file-count strong {
   font-size: 1.35rem;
-  color: hsl(38 92% 50%);
+  color: hsl(var(--warning));
   font-weight: 700;
 }
 
 .catalog-file-count span {
   font-size: 0.75rem;
-  color: hsl(38 92% 50%);
+  color: hsl(var(--warning));
 }
 
 .empty-state-card {
@@ -111,7 +111,7 @@
 }
 
 .view-lineage-link {
-  background: hsl(142 71% 45%);
+  background: hsl(var(--success));
 }
 
 .view-mapping-link:hover {
@@ -121,9 +121,9 @@
 }
 
 .view-lineage-link:hover {
-  background: hsl(142 71% 40%);
+  background: hsl(var(--success) / 0.9);
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px hsl(142 71% 45% / 0.3);
+  box-shadow: 0 4px 6px hsl(var(--success) / 0.3);
 }
 
 .mapping-header-right {

@@ -477,11 +477,11 @@
 }
 
 .action-icon-btn.project-btn {
-  color: hsl(142 71% 45%);
+  color: hsl(var(--success));
 }
 
 .action-icon-btn.project-btn:hover {
-  background-color: hsl(142 71% 45% / 0.1);
+  background-color: hsl(var(--success) / 0.1);
 }
 
 .action-icon-btn:disabled {
