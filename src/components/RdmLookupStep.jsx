@@ -101,6 +101,10 @@ const RdmLookupStep = ({
       console.log('[RDM] Extracted schema length:', (response.data.data || []).length);
       
       const schema = response.data.data || [];
+      
+      // Temporary debug - will remove after fixing
+      alert(`Schema loaded: ${schema.length} columns. First column: ${schema[0]?.name || 'N/A'}`);
+      
       setDatasetSchema(schema);
       
       console.log('[RDM] Set datasetSchema to:', schema);
