@@ -242,6 +242,7 @@ router.get('/', async (req, res) => {
       SELECT s.id as schedule_id,
              s.entity_type,
              s.entity_id,
+             s.project_id,
              s.schedule_name,
              s.schedule_type,
              s.cron_expression,
