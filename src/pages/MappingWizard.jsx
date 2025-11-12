@@ -25,6 +25,7 @@ import { API_BASE_URL } from '../config';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TableBasedMapper from '../components/TableBasedMapper';
+import RdmLookupStep from '../components/RdmLookupStep';
 import S3FolderBrowser from '../components/S3FolderBrowser';
 import { getQualityRules } from '../api/qualityRulesService';
 import './MappingWizard.css';
@@ -486,6 +487,27 @@ function MappingWizard() {
         setViolationHandling('log_continue');
       }
       
+      // Load RDM lookup configuration
+      if (mapping.rdm_lookup_enabled !== undefined) {
+        setRdmLookupEnabled(mapping.rdm_lookup_enabled);
+      }
+      
+      if (mapping.rdm_dataset_config) {
+        // Parse if string, otherwise use as-is
+        const datasetConfig = typeof mapping.rdm_dataset_config === 'string' 
+          ? JSON.parse(mapping.rdm_dataset_config) 
+          : mapping.rdm_dataset_config;
+        setRdmDatasetConfig(datasetConfig);
+      }
+      
+      if (mapping.rdm_crosswalk_config) {
+        // Parse if string, otherwise use as-is
+        const crosswalkConfig = typeof mapping.rdm_crosswalk_config === 'string'
+          ? JSON.parse(mapping.rdm_crosswalk_config)
+          : mapping.rdm_crosswalk_config;
+        setRdmCrosswalkConfig(crosswalkConfig);
+      }
+      
       // Determine max completed step based on available data (5-step model)
       let maxStep = 1; // Step 1 always completed if mapping exists
       if (mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern) {
@@ -769,7 +791,10 @@ function MappingWizard() {
         schema_drift_handling: schemaDriftHandling,
         source_schema: schema || null,
         quality_rule_ids: selectedQualityRules && selectedQualityRules.length > 0 ? selectedQualityRules : null,
-        violation_handling: selectedQualityRules && selectedQualityRules.length > 0 ? violationHandling : null
+        violation_handling: selectedQualityRules && selectedQualityRules.length > 0 ? violationHandling : null,
+        rdm_lookup_enabled: rdmLookupEnabled,
+        rdm_dataset_config: rdmLookupEnabled && rdmDatasetConfig ? rdmDatasetConfig : null,
+        rdm_crosswalk_config: rdmLookupEnabled && rdmCrosswalkConfig ? rdmCrosswalkConfig : null
       };
 
       let response;
@@ -1504,7 +1529,13 @@ function MappingWizard() {
         {currentStep === 4 && (
           <div className="wizard-step-content">
             <h2><FiServer /> RDM Lookup</h2>
-            <p>RDM Lookup step content will go here</p>
+            <RdmLookupStep
+              datasetConfig={rdmDatasetConfig}
+              crosswalkConfig={rdmCrosswalkConfig}
+              schema={schema}
+              onDatasetConfigChange={setRdmDatasetConfig}
+              onCrosswalkConfigChange={setRdmCrosswalkConfig}
+            />
           </div>
         )}
 
