@@ -158,8 +158,35 @@ const Jobs = () => {
     
     const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
     
+    // Every minute: * * * * *
+    if (minute === '*' && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+      return 'Every minute';
+    }
+    
+    // Every N minutes: */N * * * *
+    if (minute.startsWith('*/') && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+      const interval = minute.substring(2);
+      return `Every ${interval} minute${interval !== '1' ? 's' : ''}`;
+    }
+    
+    // Every hour: 0 * * * *
+    if (hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && minute === '0') {
+      return 'Every hour';
+    }
+    
+    // Every N hours: 0 */N * * *
+    if (hour.startsWith('*/') && dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && minute === '0') {
+      const interval = hour.substring(2);
+      return `Every ${interval} hour${interval !== '1' ? 's' : ''}`;
+    }
+    
+    // Daily at midnight: 0 0 * * *
+    if (minute === '0' && hour === '0' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+      return 'Daily at midnight';
+    }
+    
     // Daily at specific time
-    if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && hour !== '*' && minute !== '*') {
+    if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && hour !== '*' && minute !== '*' && !hour.includes('*') && !minute.includes('*')) {
       const hourNum = parseInt(hour);
       const minuteNum = parseInt(minute);
       const ampm = hourNum >= 12 ? 'PM' : 'AM';
@@ -168,7 +195,7 @@ const Jobs = () => {
     }
     
     // Weekly on specific day
-    if (dayOfMonth === '*' && month === '*' && dayOfWeek !== '*' && hour !== '*' && minute !== '*') {
+    if (dayOfMonth === '*' && month === '*' && dayOfWeek !== '*' && hour !== '*' && minute !== '*' && !dayOfWeek.includes('*')) {
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const dayName = days[parseInt(dayOfWeek)] || dayOfWeek;
       const hourNum = parseInt(hour);
@@ -179,7 +206,7 @@ const Jobs = () => {
     }
     
     // Monthly on specific day
-    if (dayOfMonth !== '*' && month === '*' && dayOfWeek === '*' && hour !== '*' && minute !== '*') {
+    if (dayOfMonth !== '*' && month === '*' && dayOfWeek === '*' && hour !== '*' && minute !== '*' && !dayOfMonth.includes('*')) {
       const hourNum = parseInt(hour);
       const minuteNum = parseInt(minute);
       const ampm = hourNum >= 12 ? 'PM' : 'AM';
@@ -187,8 +214,8 @@ const Jobs = () => {
       return `Monthly on day ${dayOfMonth} at ${displayHour}:${minuteNum.toString().padStart(2, '0')} ${ampm}`;
     }
     
-    // Hourly
-    if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && hour === '*' && minute !== '*') {
+    // Hourly at specific minute
+    if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && hour === '*' && minute !== '*' && minute !== '0') {
       return `Hourly at minute ${minute}`;
     }
     
