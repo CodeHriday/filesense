@@ -7,8 +7,12 @@ const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 /**
  * Execute an N-step workflow
  * Steps run sequentially, assets within each step run in parallel
+ * @param {number} workflowId - The workflow ID to execute
+ * @param {string} triggeredBy - User ID who triggered the execution
+ * @param {Object} options - Optional execution metadata
+ * @param {number} options.scheduleId - Schedule ID if triggered by a schedule
  */
-async function executeNStepWorkflow(workflowId, triggeredBy) {
+async function executeNStepWorkflow(workflowId, triggeredBy, options = {}) {
   const runId = `WFRUN-${Date.now()}-${uuidv4().substring(0, 8)}`;
   const startTime = new Date();
   
@@ -107,7 +111,10 @@ async function executeNStepWorkflow(workflowId, triggeredBy) {
               pool,
               asset.asset_id,
               triggeredBy,
-              { workflowExecutionId: runRecordId }
+              { 
+                workflowExecutionId: runRecordId,
+                scheduleId: options.scheduleId || null
+              }
             );
             return { success: true, asset, jobResult };
           } else if (asset.asset_type === 'mapping_group') {
@@ -115,7 +122,10 @@ async function executeNStepWorkflow(workflowId, triggeredBy) {
               asset.asset_id,
               10, // default concurrency
               triggeredBy,
-              { workflowExecutionId: runRecordId }
+              { 
+                workflowExecutionId: runRecordId,
+                scheduleId: options.scheduleId || null
+              }
             );
             return { success: true, asset, groupResult };
           }
