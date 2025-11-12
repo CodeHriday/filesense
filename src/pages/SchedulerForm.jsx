@@ -35,10 +35,13 @@ const SchedulerForm = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchData();
-    if (isEdit) {
-      fetchSchedule();
-    }
+    const loadData = async () => {
+      const entityData = await fetchData();
+      if (isEdit && entityData) {
+        await fetchSchedule(entityData);
+      }
+    };
+    loadData();
   }, [scheduleId]);
 
   const fetchData = async () => {
@@ -71,19 +74,46 @@ const SchedulerForm = () => {
       if (mappings.length === 0 && groups.length === 0 && workflows.length === 0) {
         setError('No entities available. Please create a transformation, mapping group, or workflow first.');
       }
+      
+      // Return the loaded data for immediate use
+      return {
+        mappings,
+        groups,
+        workflows,
+        projects
+      };
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(`Failed to load data: ${err.response?.data?.error || err.message}`);
+      return null;
     }
   };
 
-  const fetchSchedule = async () => {
+  const fetchSchedule = async (entityData) => {
     try {
       const response = await axios.get(`/api/schedules/${scheduleId}`);
+      
+      // Auto-populate project_id from the entity if not set
+      let projectId = response.data.project_id || '';
+      
+      // If project_id is missing, derive it from the entity using the provided entityData
+      if (!projectId && response.data.entity_id && response.data.entity_type && entityData) {
+        if (response.data.entity_type === 'mapping') {
+          const mapping = entityData.mappings.find(t => String(t.mapping_id) === String(response.data.entity_id));
+          projectId = mapping?.project_id || '';
+        } else if (response.data.entity_type === 'mapping_group') {
+          const group = entityData.groups.find(g => String(g.id) === String(response.data.entity_id));
+          projectId = group?.project_id || '';
+        } else if (response.data.entity_type === 'workflow') {
+          const workflow = entityData.workflows.find(w => String(w.id) === String(response.data.entity_id));
+          projectId = workflow?.project_id || '';
+        }
+      }
+      
       setFormData({
         entity_type: response.data.entity_type,
         entity_id: response.data.entity_id,
-        project_id: response.data.project_id || '',
+        project_id: projectId,
         schedule_type: response.data.schedule_type,
         cron_expression: response.data.cron_expression || '0 0 * * *',
         interval_value: response.data.interval_value || 1,
