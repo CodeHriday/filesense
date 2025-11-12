@@ -16,6 +16,7 @@ const { captureFileAudit, captureFileSchema } = require('./fileAuditService');
 const { profileETLOutputFile, profileETLFile } = require('./etlProfilingService');
 const { profileFileBuffer, downloadAndProfileFile } = require('./transformationProfilingService');
 const { persistGovernanceMetadata } = require('./governanceService');
+const { loadRDMContext } = require('./rdmContextLoader');
 const crypto = require('crypto');
 
 /**
@@ -316,6 +317,35 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Get mapping configuration
     const mapping = await getMappingConfig(pool, mappingId);
     
+    // Load RDM context once for this job (before processing any files)
+    let rdmContext = {};
+    try {
+      rdmContext = await loadRDMContext(mapping.field_mappings || [], mapping.variables || []);
+      
+      const hasRDMData = Object.keys(rdmContext.rdm?.crosswalks || {}).length > 0 || 
+                         Object.keys(rdmContext.rdm?.datasets || {}).length > 0;
+      
+      if (hasRDMData) {
+        await logJobExecution(pool, jobId, 'info', 'RDM context loaded successfully', {
+          crosswalkCount: Object.keys(rdmContext.rdm.crosswalks).length,
+          datasetCount: Object.keys(rdmContext.rdm.datasets).length
+        });
+      }
+    } catch (rdmError) {
+      // Fatal error if RDM resources were required but failed to load
+      await logJobExecution(pool, jobId, 'error', 'Failed to load required RDM resources', {
+        error: rdmError.message
+      });
+      
+      await updateJob(pool, jobId, {
+        status: 'failed',
+        error_message: `RDM context loading failed: ${rdmError.message}`,
+        end_time: new Date()
+      });
+      
+      throw rdmError;
+    }
+    
     // Step 1: Build full file path and find matching files from cloud storage
     const filePath = mapping.file_path || '';
     const fileNamePattern = mapping.file_name_pattern || mapping.source_file_pattern;
@@ -593,7 +623,8 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
         const fileResult = await processFile(pool, file, mapping, jobId, { 
           dryRun, 
           transformationJobDbId, 
-          userId 
+          userId,
+          rdmContext
         });
         
         totalRowsRead += fileResult.rowsRead;
@@ -1056,7 +1087,7 @@ function calculateColumnStatistics(rows, schema) {
  * @returns {Promise<Object>} - Processing result
  */
 async function processFile(pool, file, mapping, jobId, options = {}) {
-  const { dryRun = false, transformationJobDbId = null, userId = null } = options;
+  const { dryRun = false, transformationJobDbId = null, userId = null, rdmContext = {} } = options;
   
   let rowsRead = 0;
   let rowsWritten = 0;
@@ -1131,7 +1162,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         mapping.field_mappings,
         mapping.variables,
         jobId, 
-        pool
+        pool,
+        rdmContext
       );
     } else if (fileExtension === 'json') {
       parseResult = await parseAndTransformJSON(
@@ -1139,7 +1171,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         mapping.field_mappings,
         mapping.variables,
         jobId, 
-        pool
+        pool,
+        rdmContext
       );
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
       parseResult = await parseAndTransformXLSX(
@@ -1147,7 +1180,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         mapping.field_mappings,
         mapping.variables,
         jobId, 
-        pool
+        pool,
+        rdmContext
       );
     } else if (fileExtension === 'parquet') {
       parseResult = await parseAndTransformParquet(
@@ -1155,7 +1189,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         mapping.field_mappings,
         mapping.variables,
         jobId, 
-        pool
+        pool,
+        rdmContext
       );
     } else if (fileExtension === 'xml') {
       parseResult = await parseAndTransformXML(
@@ -1163,7 +1198,8 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
         mapping.field_mappings,
         mapping.variables,
         jobId, 
-        pool
+        pool,
+        rdmContext
       );
     } else {
       throw new Error(`Unsupported file type: ${fileExtension}. Supported types: CSV, JSON, XLSX, XLS, Parquet, XML`);
@@ -2162,7 +2198,7 @@ function convertVariables(dbVariables) {
 /**
  * Parse CSV and apply transformations
  */
-async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, pool) {
+async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, pool, rdmContext = {}) {
   return new Promise((resolve, reject) => {
     const transformedRows = [];
     const sourceRows = []; // Capture source rows for profiling
@@ -2201,7 +2237,7 @@ async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, poo
         }
         
         try {
-          const transformedRow = transformRow(row, convertedMappings, convertedVariables);
+          const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
           
           // Debug first transformed row
           if (rowsRead === 1) {
@@ -2259,7 +2295,7 @@ async function parseAndTransformCSV(buffer, fieldMappings, variables, jobId, poo
 /**
  * Parse JSON and apply transformations
  */
-async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, pool) {
+async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, pool, rdmContext = {}) {
   try {
     const jsonData = JSON.parse(buffer.toString());
     const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
@@ -2284,7 +2320,7 @@ async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, po
       }
       
       try {
-        const transformedRow = transformRow(row, convertedMappings, convertedVariables);
+        const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
@@ -2312,7 +2348,7 @@ async function parseAndTransformJSON(buffer, fieldMappings, variables, jobId, po
 /**
  * Parse XLSX (Excel) and apply transformations
  */
-async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, pool) {
+async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, pool, rdmContext = {}) {
   try {
     // Parse XLSX file
     const workbook = xlsx.read(buffer, { type: 'buffer' });
@@ -2340,7 +2376,7 @@ async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, po
       }
       
       try {
-        const transformedRow = transformRow(row, convertedMappings, convertedVariables);
+        const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
@@ -2368,7 +2404,7 @@ async function parseAndTransformXLSX(buffer, fieldMappings, variables, jobId, po
 /**
  * Parse Parquet and apply transformations
  */
-async function parseAndTransformParquet(buffer, fieldMappings, variables, jobId, pool) {
+async function parseAndTransformParquet(buffer, fieldMappings, variables, jobId, pool, rdmContext = {}) {
   try {
     // Dynamic import for hyparquet (ES module)
     const { parquetReadObjects } = await import('hyparquet');
@@ -2413,7 +2449,7 @@ async function parseAndTransformParquet(buffer, fieldMappings, variables, jobId,
           });
         }
         
-        const transformedRow = transformRow(row, convertedMappings, convertedVariables);
+        const transformedRow = transformRow(row, convertedMappings, convertedVariables, rdmContext);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
@@ -2495,7 +2531,7 @@ function flattenObject(obj, prefix = '') {
  * Parse XML and apply transformations
  * Enhanced to handle multiple XML structures similar to file upload feature
  */
-async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, pool) {
+async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, pool, rdmContext = {}) {
   try {
     const parser = new XMLParser({
       ignoreAttributes: false,
@@ -2623,7 +2659,7 @@ async function parseAndTransformXML(buffer, fieldMappings, variables, jobId, poo
           });
         }
         
-        const transformedRow = transformRow(flattenedRow, convertedMappings, convertedVariables);
+        const transformedRow = transformRow(flattenedRow, convertedMappings, convertedVariables, rdmContext);
         transformedRows.push(transformedRow);
         rowsWritten++;
       } catch (error) {
