@@ -243,6 +243,14 @@
 .policy-description-cell {
   color: var(--text-secondary);
   max-width: 300px;
+  cursor: help;
+}
+
+.policy-description-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
 }
 
 .policy-rules-cell {

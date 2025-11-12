@@ -150,24 +150,72 @@ const Jobs = () => {
     setJobLogs([]);
   };
 
+  const parseCronExpression = (cronExpr) => {
+    if (!cronExpr) return null;
+    
+    const parts = cronExpr.trim().split(' ');
+    if (parts.length < 5) return cronExpr;
+    
+    const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+    
+    // Daily at specific time
+    if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && hour !== '*' && minute !== '*') {
+      const hourNum = parseInt(hour);
+      const minuteNum = parseInt(minute);
+      const ampm = hourNum >= 12 ? 'PM' : 'AM';
+      const displayHour = hourNum > 12 ? hourNum - 12 : (hourNum === 0 ? 12 : hourNum);
+      return `Daily at ${displayHour}:${minuteNum.toString().padStart(2, '0')} ${ampm}`;
+    }
+    
+    // Weekly on specific day
+    if (dayOfMonth === '*' && month === '*' && dayOfWeek !== '*' && hour !== '*' && minute !== '*') {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayName = days[parseInt(dayOfWeek)] || dayOfWeek;
+      const hourNum = parseInt(hour);
+      const minuteNum = parseInt(minute);
+      const ampm = hourNum >= 12 ? 'PM' : 'AM';
+      const displayHour = hourNum > 12 ? hourNum - 12 : (hourNum === 0 ? 12 : hourNum);
+      return `Weekly on ${dayName} at ${displayHour}:${minuteNum.toString().padStart(2, '0')} ${ampm}`;
+    }
+    
+    // Monthly on specific day
+    if (dayOfMonth !== '*' && month === '*' && dayOfWeek === '*' && hour !== '*' && minute !== '*') {
+      const hourNum = parseInt(hour);
+      const minuteNum = parseInt(minute);
+      const ampm = hourNum >= 12 ? 'PM' : 'AM';
+      const displayHour = hourNum > 12 ? hourNum - 12 : (hourNum === 0 ? 12 : hourNum);
+      return `Monthly on day ${dayOfMonth} at ${displayHour}:${minuteNum.toString().padStart(2, '0')} ${ampm}`;
+    }
+    
+    // Hourly
+    if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && hour === '*' && minute !== '*') {
+      return `Hourly at minute ${minute}`;
+    }
+    
+    // Return original if no pattern matches
+    return cronExpr;
+  };
+
   const formatScheduleInfo = (job) => {
     if (!job.schedule_id) return '-';
     
     let frequency = '';
-    if (job.schedule_type === 'cron') {
-      frequency = job.cron_expression;
+    if (job.schedule_type === 'cron' && job.cron_expression) {
+      frequency = parseCronExpression(job.cron_expression);
     } else if (job.schedule_type === 'interval') {
       frequency = `Every ${job.interval_value} ${job.interval_unit}${job.interval_value > 1 ? 's' : ''}`;
     }
     
     return (
       <div style={{ fontSize: '0.85rem' }}>
-        <div style={{ fontWeight: '500' }}>
-          {job.schedule_name || `Schedule #${job.schedule_id}`}
-        </div>
         {frequency && (
-          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+          <div style={{ fontWeight: '500', color: '#334155' }}>
             {frequency}
+          </div>
+        )}
+        {job.schedule_name && (
+          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+            {job.schedule_name}
           </div>
         )}
       </div>

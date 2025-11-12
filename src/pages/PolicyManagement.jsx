@@ -174,7 +174,9 @@ function PolicyManagement() {
                   <tr key={policy.policy_id}>
                     <td className="policy-id-cell">{policy.policy_id}</td>
                     <td className="policy-name-cell">{policy.policy_name}</td>
-                    <td className="policy-description-cell">{policy.description || '-'}</td>
+                    <td className="policy-description-cell" title={policy.description || ''}>
+                      <div className="policy-description-truncate">{policy.description || '-'}</div>
+                    </td>
                     <td className="policy-rules-cell">
                       {policy.rules && typeof policy.rules === 'string' ? (
                         <pre className="rules-json">{JSON.stringify(JSON.parse(policy.rules), null, 2)}</pre>
