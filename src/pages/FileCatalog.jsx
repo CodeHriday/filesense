@@ -661,7 +661,7 @@ export const FileCatalog = ({ onFileSelect }) => {
         </div>
       </div>
       
-      <div className="card file-catalog-table-container">
+      <div className="card file-catalog-card">
         {filteredAndSortedFiles.length === 0 ? (
           <div className="no-results">
             <p>No files found matching your criteria.</p>
@@ -746,7 +746,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                                 {/* Subproject Files Table */}
                                 {isSubprojectExpanded && subproject.items.length > 0 && (
                                   <div className="table-wrapper">
-                                    <table className="file-catalog-table table">
+                                    <table className="table">
                                       <thead>
                                         <tr>
                                           <th className="checkbox-cell">
@@ -814,7 +814,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                                     {/* Unassigned Files Table */}
                                     {isUnassignedExpanded && (
                                       <div className="table-wrapper">
-                                        <table className="file-catalog-table table">
+                                        <table className="table">
                                           <thead>
                                             <tr>
                                               <th className="checkbox-cell">

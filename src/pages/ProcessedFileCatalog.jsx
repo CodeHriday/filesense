@@ -186,15 +186,16 @@ const ProcessedFileCatalog = () => {
           }
         />
 
-        <div className="search-input-container">
-          <FiSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by mapping or file name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
+        <div className="toolbar">
+          <div className="search">
+            <FiSearch />
+            <input
+              type="text"
+              placeholder="Search by mapping or file name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
         {error && (
@@ -252,8 +253,8 @@ const ProcessedFileCatalog = () => {
 
                   {isExpanded && (
                     <div className="mapping-group-body">
-                      <div style={{ overflowX: 'auto', width: '100%' }}>
-                        <table className="files-table">
+                      <div className="card processed-catalog-card">
+                        <table className="table">
                         <thead>
                           <tr>
                             <th>Source File</th>
@@ -271,20 +272,8 @@ const ProcessedFileCatalog = () => {
                                   {file.source_path || '-'}
                                   {file.has_schema_changes && (
                                     <span 
-                                      className="schema-changed-badge" 
+                                      className="badge badge--warning schema-changed-badge" 
                                       title="Schema has changed from previous upload"
-                                      style={{
-                                        marginLeft: '8px',
-                                        padding: '2px 8px',
-                                        backgroundColor: '#ff9800',
-                                        color: 'white',
-                                        borderRadius: '4px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: '500',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                      }}
                                     >
                                       <FiGitBranch size={12} /> Schema Changed
                                     </span>
@@ -299,7 +288,7 @@ const ProcessedFileCatalog = () => {
                               <td>
                                 <div className="action-buttons">
                                   <button 
-                                    className="btn-view-profiling"
+                                    className="btn btn--primary btn-view-profiling"
                                     onClick={() => {
                                       setSelectedJobId(file.job_id);
                                       setShowProfilingModal(true);
@@ -310,28 +299,15 @@ const ProcessedFileCatalog = () => {
                                     Source File Profile
                                   </button>
                                   <button 
-                                    className="btn-view-profile"
+                                    className="btn btn--primary"
                                     onClick={() => navigate(`/profile/${encodeURIComponent(file.file_id)}`)}
                                     disabled={!file.file_id}
                                     title="View target file profile and schema history"
-                                    style={{
-                                      padding: '6px 12px',
-                                      backgroundColor: '#3b82f6',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: file.file_id ? 'pointer' : 'not-allowed',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      fontSize: '0.875rem',
-                                      marginLeft: '8px'
-                                    }}
                                   >
                                     <FiEye size={16} /> Target File Profile
                                   </button>
                                   <button 
-                                    className="btn-delete-profiling"
+                                    className="action-icon btn-delete-profiling"
                                     onClick={() => handleDeleteProfiling(file.correlation_id, file.file_name)}
                                     disabled={!file.correlation_id}
                                     title="Delete profiling results"
