@@ -231,32 +231,35 @@ async function updateSchedule(scheduleId, updates) {
     
     const currentSchedule = currentResult.rows[0];
     
-    // Detect if scheduling fields changed
+    // Detect if scheduling fields changed (using hasOwnProperty to catch null/empty values)
     const schedulingFieldsChanged = 
-      (updates.cron_expression && updates.cron_expression !== currentSchedule.cron_expression) ||
-      (updates.interval_value !== undefined && updates.interval_value !== currentSchedule.interval_value) ||
-      (updates.interval_unit && updates.interval_unit !== currentSchedule.interval_unit) ||
-      (updates.schedule_type && updates.schedule_type !== currentSchedule.schedule_type) ||
-      (updates.timezone && updates.timezone !== currentSchedule.timezone);
+      ('cron_expression' in updates && updates.cron_expression !== currentSchedule.cron_expression) ||
+      ('interval_value' in updates && updates.interval_value !== currentSchedule.interval_value) ||
+      ('interval_unit' in updates && updates.interval_unit !== currentSchedule.interval_unit) ||
+      ('schedule_type' in updates && updates.schedule_type !== currentSchedule.schedule_type) ||
+      ('timezone' in updates && updates.timezone !== currentSchedule.timezone);
     
     // Recalculate next_run if scheduling fields changed
     if (schedulingFieldsChanged) {
-      const scheduleType = updates.schedule_type || currentSchedule.schedule_type;
+      const scheduleType = 'schedule_type' in updates ? updates.schedule_type : currentSchedule.schedule_type;
       
       if (scheduleType === 'cron') {
-        const cronExpression = updates.cron_expression || currentSchedule.cron_expression;
+        const cronExpression = 'cron_expression' in updates ? updates.cron_expression : currentSchedule.cron_expression;
         if (!cronExpression) {
           throw new Error('cron_expression is required for cron-type schedules');
         }
         updates.next_run = parseAndCalculateNextRun(cronExpression);
       } else if (scheduleType === 'interval') {
-        const intervalValue = updates.interval_value !== undefined ? updates.interval_value : currentSchedule.interval_value;
-        const intervalUnit = updates.interval_unit || currentSchedule.interval_unit;
+        const intervalValue = 'interval_value' in updates ? updates.interval_value : currentSchedule.interval_value;
+        const intervalUnit = 'interval_unit' in updates ? updates.interval_unit : currentSchedule.interval_unit;
         
-        if (!intervalValue || !intervalUnit) {
+        // Normalize interval_value to Number to avoid string concatenation issues
+        const normalizedIntervalValue = intervalValue !== null && intervalValue !== undefined ? Number(intervalValue) : null;
+        
+        if (!normalizedIntervalValue || !intervalUnit) {
           throw new Error('interval_value and interval_unit are required for interval-type schedules');
         }
-        updates.next_run = calculateIntervalNextRun(intervalValue, intervalUnit);
+        updates.next_run = calculateIntervalNextRun(normalizedIntervalValue, intervalUnit);
       }
       
       systemLogger.info('Recalculated next_run due to scheduling field changes', {
