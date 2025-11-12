@@ -114,6 +114,11 @@ function MappingWizard() {
   const [variables, setVariables] = useState([]);
   const [piiColumns, setPiiColumns] = useState([]);
   const [loadingSchema, setLoadingSchema] = useState(false);
+  
+  // RDM Lookup toggle and configuration
+  const [rdmLookupEnabled, setRdmLookupEnabled] = useState(false);
+  const [rdmDatasetConfig, setRdmDatasetConfig] = useState(null);
+  const [rdmCrosswalkConfig, setRdmCrosswalkConfig] = useState(null);
 
   // Step 4: Target & Anomaly Rules
   const [targetConnectionId, setTargetConnectionId] = useState('');
@@ -163,6 +168,20 @@ function MappingWizard() {
       setQualityRules([]);
     }
   }, [projectId]);
+  
+  // Handle RDM toggle changes - normalize currentStep and clear configs when disabling
+  useEffect(() => {
+    if (!rdmLookupEnabled) {
+      // If RDM is disabled and we're on Step 4 (RDM step), skip to Step 5
+      if (currentStep === 4) {
+        setCurrentStep(5);
+        setMaxCompletedStep(Math.max(maxCompletedStep, 5));
+      }
+      // Clear RDM configurations when disabling
+      setRdmDatasetConfig(null);
+      setRdmCrosswalkConfig(null);
+    }
+  }, [rdmLookupEnabled, currentStep, maxCompletedStep]);
 
   // Fetch sub-projects when projectId changes
   useEffect(() => {
@@ -467,7 +486,7 @@ function MappingWizard() {
         setViolationHandling('log_continue');
       }
       
-      // Determine max completed step based on available data
+      // Determine max completed step based on available data (5-step model)
       let maxStep = 1; // Step 1 always completed if mapping exists
       if (mapping.file_name_pattern || mapping.source_file_pattern || mapping.file_pattern) {
         maxStep = 2; // Step 2 completed if file pattern exists
@@ -475,9 +494,11 @@ function MappingWizard() {
       if (mapping.field_mappings && mapping.field_mappings.length > 0) {
         maxStep = 3; // Step 3 completed if field mappings exist
       }
+      // Note: Step 4 is RDM Lookup (optional/skippable)
+      // For backward compatibility, if target settings exist, mark Step 5 as completed
       if (mapping.target_connection_id || mapping.target_file_name || mapping.target_file_format || 
           (mapping.anomaly_rules && Object.keys(mapping.anomaly_rules).length > 0)) {
-        maxStep = 4; // Step 4 completed if target settings or anomaly rules exist
+        maxStep = 5; // Step 5 completed if target settings or anomaly rules exist
       }
       setMaxCompletedStep(maxStep);
       
@@ -668,13 +689,27 @@ function MappingWizard() {
       }
       
       setError(null);
-      setCurrentStep(4);
-      setMaxCompletedStep(Math.max(maxCompletedStep, 4));
+      // If RDM is enabled, go to Step 4 (RDM Lookup), otherwise skip to Step 5 (Target & Rules)
+      const nextStep = rdmLookupEnabled ? 4 : 5;
+      setCurrentStep(nextStep);
+      setMaxCompletedStep(Math.max(maxCompletedStep, nextStep));
+    } else if (currentStep === 4) {
+      // Step 4 (RDM Lookup): Optional validation
+      setError(null);
+      setCurrentStep(5);
+      setMaxCompletedStep(Math.max(maxCompletedStep, 5));
     }
   };
 
   const handleBack = () => {
-    setCurrentStep(Math.max(1, currentStep - 1));
+    let previousStep = currentStep - 1;
+    
+    // Skip Step 4 (RDM) if it's disabled and we're going back from Step 5
+    if (currentStep === 5 && !rdmLookupEnabled) {
+      previousStep = 3;
+    }
+    
+    setCurrentStep(Math.max(1, previousStep));
     setError(null);
   };
 
@@ -829,10 +864,15 @@ function MappingWizard() {
       { num: 1, label: 'Mapping Configuration' },
       { num: 2, label: 'Source Configuration' },
       { num: 3, label: 'Expressions' },
-      { num: 4, label: 'Target & Rules' }
+      { num: 4, label: 'RDM Lookup', skipped: !rdmLookupEnabled },
+      { num: 5, label: 'Target & Rules' }
     ];
 
     const handleStepClick = (stepNum) => {
+      // Don't allow clicking skipped steps
+      const step = steps.find(s => s.num === stepNum);
+      if (step?.skipped) return;
+      
       // Only allow navigation to completed steps in edit mode
       if (isEditMode && stepNum <= maxCompletedStep) {
         setCurrentStep(stepNum);
@@ -843,21 +883,25 @@ function MappingWizard() {
     return (
       <div className="wizard-steps">
         {steps.map((step, idx) => {
-          const isClickable = isEditMode && step.num <= maxCompletedStep;
+          const isClickable = isEditMode && step.num <= maxCompletedStep && !step.skipped;
+          const isSkipped = step.skipped;
           
           return (
             <React.Fragment key={step.num}>
               <div 
-                className={`wizard-step ${currentStep === step.num ? 'active' : ''} ${currentStep > step.num ? 'completed' : ''} ${isClickable ? 'clickable' : ''}`}
+                className={`wizard-step ${currentStep === step.num ? 'active' : ''} ${currentStep > step.num && !isSkipped ? 'completed' : ''} ${isClickable ? 'clickable' : ''} ${isSkipped ? 'skipped' : ''}`}
                 onClick={() => handleStepClick(step.num)}
-                style={{ cursor: isClickable ? 'pointer' : 'default' }}
+                style={{ 
+                  cursor: isClickable ? 'pointer' : 'default',
+                  opacity: isSkipped ? 0.4 : 1
+                }}
               >
                 <div className="step-number">
-                  {currentStep > step.num ? <FiCheckCircle /> : step.num}
+                  {isSkipped ? '⊝' : (currentStep > step.num ? <FiCheckCircle /> : step.num)}
                 </div>
-                <div className="step-label">{step.label}</div>
+                <div className="step-label">{step.label}{isSkipped ? ' (Skipped)' : ''}</div>
               </div>
-              {idx < steps.length - 1 && <div className="step-connector"></div>}
+              {idx < steps.length - 1 && <div className="step-connector" style={{ opacity: isSkipped ? 0.4 : 1 }}></div>}
             </React.Fragment>
           );
         })}
@@ -1362,21 +1406,95 @@ function MappingWizard() {
             {loadingSchema ? (
               <LoadingSpinner size="small" />
             ) : schema && schema.length > 0 ? (
-              <TableBasedMapper
-                schema={schema}
-                fieldMappings={fieldMappings}
-                variables={variables}
-                piiColumns={piiColumns}
-                onMappingsChange={(mappings, vars, pii) => {
-                  setFieldMappings(mappings);
-                  if (vars !== undefined) {
-                    setVariables(vars);
-                  }
-                  if (pii !== undefined) {
-                    setPiiColumns(pii);
-                  }
-                }}
-              />
+              <>
+                <TableBasedMapper
+                  schema={schema}
+                  fieldMappings={fieldMappings}
+                  variables={variables}
+                  piiColumns={piiColumns}
+                  onMappingsChange={(mappings, vars, pii) => {
+                    setFieldMappings(mappings);
+                    if (vars !== undefined) {
+                      setVariables(vars);
+                    }
+                    if (pii !== undefined) {
+                      setPiiColumns(pii);
+                    }
+                  }}
+                />
+                
+                {/* RDM Lookup Toggle */}
+                <div style={{ 
+                  marginTop: '2rem', 
+                  padding: '1.5rem', 
+                  backgroundColor: '#f9fafb', 
+                  border: '1px solid #e5e7eb', 
+                  borderRadius: '8px' 
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.125rem', fontWeight: '600' }}>
+                        <FiServer style={{ marginRight: '0.5rem' }} />
+                        Enable RDM Lookup
+                      </h3>
+                      <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem' }}>
+                        Enrich your data with Reference Data Management lookups. Join datasets and apply crosswalk mappings after field transformations.
+                      </p>
+                    </div>
+                    <label style={{ 
+                      position: 'relative', 
+                      display: 'inline-block', 
+                      width: '60px', 
+                      height: '34px',
+                      cursor: 'pointer'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={rdmLookupEnabled}
+                        onChange={(e) => setRdmLookupEnabled(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span style={{
+                        position: 'absolute',
+                        cursor: 'pointer',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: rdmLookupEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                        transition: '0.4s',
+                        borderRadius: '34px'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          content: '""',
+                          height: '26px',
+                          width: '26px',
+                          left: rdmLookupEnabled ? '30px' : '4px',
+                          bottom: '4px',
+                          backgroundColor: 'white',
+                          transition: '0.4s',
+                          borderRadius: '50%'
+                        }}></span>
+                      </span>
+                    </label>
+                  </div>
+                  {rdmLookupEnabled && (
+                    <div style={{ 
+                      marginTop: '1rem', 
+                      padding: '1rem', 
+                      backgroundColor: '#e0f2fe', 
+                      border: '1px solid #bae6fd', 
+                      borderRadius: '6px',
+                      fontSize: '0.875rem',
+                      color: '#0c4a6e'
+                    }}>
+                      <FiCheckCircle style={{ marginRight: '0.5rem' }} />
+                      RDM Lookup step will be added after this step. You'll be able to configure dataset joins and crosswalk mappings.
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <div className="alert alert-warning">
                 <FiAlertCircle /> No schema available. Please go back and validate the file pattern first.
@@ -1385,8 +1503,16 @@ function MappingWizard() {
           </div>
         )}
 
-        {/* Step 4: Target & Anomaly Rules */}
+        {/* Step 4: RDM Lookup (always at step 4, skipped if disabled) */}
         {currentStep === 4 && (
+          <div className="wizard-step-content">
+            <h2><FiServer /> RDM Lookup</h2>
+            <p>RDM Lookup step content will go here</p>
+          </div>
+        )}
+
+        {/* Step 5: Target & Anomaly Rules */}
+        {currentStep === 5 && (
           <div className="wizard-step-content">
             <h2><FiTarget /> Target Connection & Quality Rules</h2>
             

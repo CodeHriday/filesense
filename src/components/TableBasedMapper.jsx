@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiCheck, FiArrowRight, FiTrash2, FiEdit2, FiX, FiPlus, FiChevronDown, FiChevronUp, FiChevronRight, FiLock } from 'react-icons/fi';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
 import './TableBasedMapper.css';
 
 const TRANSFORMATION_OPTIONS = [
@@ -66,38 +64,6 @@ const TRANSFORMATION_OPTIONS = [
       { name: 'defaultValue', type: 'text', placeholder: 'Default value (else)' }
     ],
     description: 'Use operators: =, !=, >, <, >=, <= in expressions (e.g., case_when(qty, \'>\', 100, \'High\', \'Default\'))'
-  },
-  { 
-    value: 'rdm_crosswalk_lookup', 
-    label: 'RDM Crosswalk Lookup', 
-    group: 'Reference Data', 
-    params: [
-      { name: 'rdmCrosswalkId', type: 'rdm-crosswalk-select', placeholder: 'Select crosswalk' },
-      { name: 'sourceField', type: 'text', placeholder: 'Source field name (default: source_code)' },
-      { name: 'targetField', type: 'text', placeholder: 'Target field name (default: target_code)' },
-      { name: 'defaultValue', type: 'text', placeholder: 'Default value if not found' },
-      { name: 'caseInsensitive', type: 'select', placeholder: 'Case sensitivity', options: [
-        { value: 'true', label: 'Case Insensitive' },
-        { value: 'false', label: 'Case Sensitive' }
-      ]}
-    ],
-    description: 'Look up values in an RDM crosswalk table to map source codes to target codes'
-  },
-  { 
-    value: 'rdm_dataset_join', 
-    label: 'RDM Dataset Join', 
-    group: 'Reference Data', 
-    params: [
-      { name: 'rdmDatasetId', type: 'rdm-dataset-select', placeholder: 'Select dataset' },
-      { name: 'sourceField', type: 'text', placeholder: 'Source join field' },
-      { name: 'datasetField', type: 'text', placeholder: 'Dataset join field' },
-      { name: 'joinType', type: 'select', placeholder: 'Join type', options: [
-        { value: 'left', label: 'Left Join (keep all records)' },
-        { value: 'inner', label: 'Inner Join (only matching records)' }
-      ]},
-      { name: 'prefix', type: 'text', placeholder: 'Field prefix (default: rdm_)' }
-    ],
-    description: 'Enrich records by joining with an RDM reference dataset'
   }
 ];
 
@@ -130,12 +96,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   
   // PII tagging state
   const [piiColumns, setPiiColumns] = useState(new Set(initialPiiColumns || []));
-  
-  // RDM resources state
-  const [rdmCrosswalks, setRdmCrosswalks] = useState([]);
-  const [rdmDatasets, setRdmDatasets] = useState([]);
-  const [loadingRdmResources, setLoadingRdmResources] = useState(false);
-  const [rdmLoadError, setRdmLoadError] = useState(false);
 
   // Sync variables from prop to local state (always sync, including empty arrays)
   useEffect(() => {
@@ -146,42 +106,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   useEffect(() => {
     setPiiColumns(new Set(initialPiiColumns || []));
   }, [initialPiiColumns]);
-  
-  // Fetch RDM resources on mount
-  useEffect(() => {
-    const fetchRdmResources = async () => {
-      setLoadingRdmResources(true);
-      setRdmLoadError(false);
-      try {
-        const token = localStorage.getItem('token');
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        
-        // Fetch crosswalks and datasets in parallel
-        const [crosswalksRes, datasetsRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/rdm/crosswalks`, { headers }).catch(() => ({ data: null, error: true })),
-          axios.get(`${API_BASE_URL}/api/rdm/datasets`, { headers }).catch(() => ({ data: null, error: true }))
-        ]);
-        
-        const crosswalks = crosswalksRes.data || [];
-        const datasets = datasetsRes.data || [];
-        
-        setRdmCrosswalks(crosswalks);
-        setRdmDatasets(datasets);
-        
-        // Set error if either endpoint failed
-        if (crosswalksRes.error || datasetsRes.error) {
-          setRdmLoadError(true);
-        }
-      } catch (error) {
-        console.error('Failed to fetch RDM resources:', error);
-        setRdmLoadError(true);
-      } finally {
-        setLoadingRdmResources(false);
-      }
-    };
-    
-    fetchRdmResources();
-  }, []);
 
   useEffect(() => {
     if (fieldMappings && fieldMappings.length > 0) {
@@ -288,16 +212,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleEditExpression = (sourceField) => {
     const mapping = mappings.find(m => m.source_field === sourceField);
     if (mapping) {
-      // Normalize boolean caseInsensitive to string for select control
-      const params = { ...mapping.transformation_params };
-      if (params.caseInsensitive !== undefined && typeof params.caseInsensitive === 'boolean') {
-        params.caseInsensitive = params.caseInsensitive.toString();
-      }
-      
       setEditingExpression({
         sourceField,
         transformation: mapping.transformation || 'none',
-        params
+        params: mapping.transformation_params || {}
       });
     }
   };
@@ -305,35 +223,12 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleSaveExpression = () => {
     if (!editingExpression) return;
 
-    // Validate RDM transformations have required resource IDs
-    if (editingExpression.transformation === 'rdm_crosswalk_lookup') {
-      if (!editingExpression.params.rdmCrosswalkId) {
-        alert('Please select a crosswalk before saving this transformation.');
-        return;
-      }
-    }
-    
-    if (editingExpression.transformation === 'rdm_dataset_join') {
-      if (!editingExpression.params.rdmDatasetId) {
-        alert('Please select a dataset before saving this transformation.');
-        return;
-      }
-    }
-
-    // Normalize params before saving
-    const params = { ...editingExpression.params };
-    
-    // Convert caseInsensitive back to boolean if it's a string
-    if (params.caseInsensitive !== undefined && typeof params.caseInsensitive === 'string') {
-      params.caseInsensitive = params.caseInsensitive === 'true';
-    }
-
     const newMappings = mappings.map(m => {
       if (m.source_field === editingExpression.sourceField) {
         return {
           ...m,
           transformation: editingExpression.transformation,
-          transformation_params: params
+          transformation_params: editingExpression.params
         };
       }
       return m;
@@ -354,18 +249,11 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   };
 
   const handleParamChange = (paramName, paramValue) => {
-    let normalizedValue = paramValue;
-    
-    // Convert string 'true'/'false' to boolean for caseInsensitive parameter
-    if (paramName === 'caseInsensitive') {
-      normalizedValue = paramValue === 'true';
-    }
-    
     setEditingExpression({
       ...editingExpression,
       params: {
         ...editingExpression.params,
-        [paramName]: normalizedValue
+        [paramName]: paramValue
       }
     });
   };
@@ -1030,19 +918,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   ))}
                 </select>
               </div>
-              
-              {rdmLoadError && (editingExpression.transformation === 'rdm_crosswalk_lookup' || editingExpression.transformation === 'rdm_dataset_join') && (
-                <div style={{ 
-                  padding: '12px', 
-                  backgroundColor: '#fff3cd', 
-                  border: '1px solid #ffc107', 
-                  borderRadius: '4px', 
-                  marginBottom: '15px',
-                  color: '#856404'
-                }}>
-                  <strong>Warning:</strong> Failed to load RDM resources. Reference Data transformations may not work correctly. Please check your RDM connection.
-                </div>
-              )}
 
               {TRANSFORMATION_OPTIONS.find(t => t.value === editingExpression.transformation)?.params.map(param => (
                 <div key={param.name} className="form-group">
@@ -1057,34 +932,6 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                       {param.options?.map(opt => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : param.type === 'rdm-crosswalk-select' ? (
-                    <select
-                      className="form-control"
-                      value={editingExpression.params[param.name] || ''}
-                      onChange={(e) => handleParamChange(param.name, parseInt(e.target.value))}
-                      disabled={loadingRdmResources}
-                    >
-                      <option value="">{loadingRdmResources ? 'Loading...' : (rdmCrosswalks.length > 0 ? 'Select crosswalk...' : 'No crosswalks available')}</option>
-                      {rdmCrosswalks.map(crosswalk => (
-                        <option key={crosswalk.id} value={crosswalk.id}>
-                          {crosswalk.name || `Crosswalk ${crosswalk.id}`}
-                        </option>
-                      ))}
-                    </select>
-                  ) : param.type === 'rdm-dataset-select' ? (
-                    <select
-                      className="form-control"
-                      value={editingExpression.params[param.name] || ''}
-                      onChange={(e) => handleParamChange(param.name, parseInt(e.target.value))}
-                      disabled={loadingRdmResources}
-                    >
-                      <option value="">{loadingRdmResources ? 'Loading...' : (rdmDatasets.length > 0 ? 'Select dataset...' : 'No datasets available')}</option>
-                      {rdmDatasets.map(dataset => (
-                        <option key={dataset.id} value={dataset.id}>
-                          {dataset.name || `Dataset ${dataset.id}`}
                         </option>
                       ))}
                     </select>
