@@ -6,6 +6,17 @@ Data File Observatory is a platform for monitoring and analyzing data files, com
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## UI/UX Layout Standards
+
+**Global PageLayout Template** (November 2025): Created standardized page layout component (`src/components/PageLayout`) for consistent spacing and structure across all admin pages. **Layout Specifications:**
+- Container: `padding: 10px 20px 20px 20px` (tighter top spacing), `max-width: 1200px`, centered with `margin: 0 auto`
+- Header section: Title (2rem, #025043), optional subtitle, action buttons on right, `margin-bottom: 20px`
+- Filters section: Optional, flex-wrap enabled for responsive wrapping, `margin-bottom: 20px`
+- Table styling: `#f8f9fa` header background, `#dadce0` borders, `12px 16px` cell padding, `#f8f9fa` hover
+- **Responsive**: Flex-wrap on header actions and filters for mobile/tablet support
+
+**Applied to pages**: User Management, Project Management, File Catalog pages, Role Management, Access Groups, Vendor Management, Audit Trail, Dashboard Settings. **Not applied to**: Dashboard (custom layout), specialized wizards.
+
 ## System Architecture
 The application features a hybrid architecture designed for scalability, security, and performance.
 
