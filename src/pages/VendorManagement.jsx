@@ -364,13 +364,13 @@ const VendorManagement = () => {
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'active':
-        return 'status-badge status-active';
+        return 'badge badge--success';
       case 'inactive':
-        return 'status-badge status-inactive';
+        return 'badge badge--muted';
       case 'suspended':
-        return 'status-badge status-suspended';
+        return 'badge badge--warning';
       default:
-        return 'status-badge';
+        return 'badge';
     }
   };
 
@@ -411,32 +411,26 @@ const VendorManagement = () => {
         <LoadingSpinner />
       ) : (
         <>
-          <div className="vendor-management-header">
+          <div className="page-title">
             <h1>Vendor Management</h1>
-            <div className="header-actions">
-              <div style={{ position: 'relative', marginRight: '1rem' }}>
-                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-                <input
-                  type="text"
-                  placeholder="Search vendors..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ 
-                    padding: '0.5rem 0.5rem 0.5rem 2.5rem', 
-                    border: '1px solid #ddd', 
-                    borderRadius: '4px',
-                    fontSize: '0.875rem',
-                    width: '300px'
-                  }}
-                />
-              </div>
-              <button 
-                className="create-vendor-btn"
-                onClick={openCreateModal}
-              >
-                Add New Vendor
-              </button>
+          </div>
+          
+          <div className="toolbar">
+            <div className="search">
+              <FiSearch />
+              <input
+                type="text"
+                placeholder="Search vendors..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
+            <button 
+              className="btn btn--primary"
+              onClick={openCreateModal}
+            >
+              Add New Vendor
+            </button>
           </div>
           
           {error && (
@@ -451,8 +445,8 @@ const VendorManagement = () => {
             </div>
           )}
       
-      <div className="vendors-table-container">
-        <table className="vendors-table">
+      <div className="card">
+        <table className="table">
           <thead>
             <tr>
               <th>Vendor Code</th>
@@ -485,21 +479,21 @@ const VendorManagement = () => {
                   <td>
                     <div className="vendor-actions">
                       <button 
-                        className="icon-btn edit-icon-btn" 
+                        className="action-icon" 
                         onClick={() => openEditModal(vendor)}
                         title="Edit Vendor"
                       >
                         <FiEdit2 />
                       </button>
                       <button 
-                        className="icon-btn project-icon-btn" 
+                        className="action-icon" 
                         onClick={() => navigate('/projects')}
                         title="Go to Projects"
                       >
                         <FiFolderPlus />
                       </button>
                       <button 
-                        className="icon-btn delete-icon-btn" 
+                        className="action-icon" 
                         onClick={() => openDeleteConfirmation(vendor.id, vendor.vendor_name)}
                         title="Delete Vendor"
                       >
@@ -635,7 +629,7 @@ const VendorManagement = () => {
                   value={formData.contact_name}
                   readOnly
                   disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
+                  className="input--disabled"
                 />
               </div>
               
@@ -648,7 +642,7 @@ const VendorManagement = () => {
                   value={formData.contact_phone}
                   readOnly
                   disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
+                  className="input--disabled"
                 />
               </div>
             </div>
@@ -665,7 +659,7 @@ const VendorManagement = () => {
                 readOnly
                 disabled
                 required
-                style={{ backgroundColor: '#f3f4f6' }}
+                className="input--disabled"
               />
             </div>
             
@@ -708,7 +702,7 @@ const VendorManagement = () => {
                   value={formData.backup_contact_name}
                   readOnly
                   disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
+                  className="input--disabled"
                   placeholder="Alternate contact person"
                 />
               </div>
@@ -722,7 +716,7 @@ const VendorManagement = () => {
                   value={formData.backup_contact_phone}
                   readOnly
                   disabled
-                  style={{ backgroundColor: '#f3f4f6' }}
+                  className="input--disabled"
                   placeholder="Alternate contact phone number"
                 />
               </div>
@@ -737,7 +731,7 @@ const VendorManagement = () => {
                 value={formData.backup_contact_email}
                 readOnly
                 disabled
-                style={{ backgroundColor: '#f3f4f6' }}
+                className="input--disabled"
                 placeholder="Alternate contact email"
               />
             </div>
@@ -763,39 +757,38 @@ const VendorManagement = () => {
       {/* Vendor Creation Success Modal */}
       {showSuccessModal && createdVendorInfo && (
         <div className="modal-overlay" onClick={() => setShowSuccessModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header" style={{ backgroundColor: '#10b981', color: 'white' }}>
-              <h2 style={{ color: 'white' }}>Vendor Created Successfully!</h2>
-              <button className="close-btn" onClick={() => setShowSuccessModal(false)} style={{ color: 'white' }}>×</button>
+          <div className="modal success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header modal-header--success">
+              <h2>Vendor Created Successfully!</h2>
+              <button className="close-btn" onClick={() => setShowSuccessModal(false)}>×</button>
             </div>
-            <div className="modal-body" style={{ padding: '2rem' }}>
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '3rem', color: '#10b981', marginBottom: '1rem' }}>✓</div>
-                <h3 style={{ marginBottom: '0.5rem' }}>Vendor "{createdVendorInfo.vendorName}" has been created.</h3>
-                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+            <div className="modal-body">
+              <div className="success-modal-content">
+                <div className="success-icon">✓</div>
+                <h3>Vendor "{createdVendorInfo.vendorName}" has been created.</h3>
+                <p className="success-description">
                   A default project <strong>"{createdVendorInfo.projectName}"</strong> has been created.
                 </p>
-                <p style={{ color: '#374151', padding: '1rem', backgroundColor: '#fef3c7', borderRadius: '8px', border: '1px solid #fbbf24' }}>
+                <p className="success-warning">
                   Please go to the project management page and add respective dev teams or users to provide them access to the project.
                 </p>
               </div>
             </div>
-            <div className="modal-actions" style={{ justifyContent: 'center', gap: '1rem' }}>
+            <div className="modal-actions modal-actions--centered">
               <button 
                 type="button" 
-                className="btn-secondary" 
+                className="btn btn--secondary" 
                 onClick={() => setShowSuccessModal(false)}
               >
                 Close
               </button>
               <button 
                 type="button" 
-                className="btn-primary" 
+                className="btn btn--success" 
                 onClick={() => {
                   setShowSuccessModal(false);
                   navigate('/project-management');
                 }}
-                style={{ backgroundColor: '#10b981' }}
               >
                 Go to Project Management
               </button>
