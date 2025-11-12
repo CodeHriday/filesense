@@ -37,7 +37,16 @@ const RdmLookupStep = ({
       setCrosswalks(crosswalksRes.data.data || []);
     } catch (err) {
       console.error('Failed to fetch RDM resources:', err);
-      setError(err.response?.data?.error || 'Failed to fetch RDM resources');
+      
+      const errorDetails = {
+        message: err.response?.data?.error || err.message || 'Failed to fetch RDM resources',
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        details: err.response?.data?.details,
+        rawError: err
+      };
+      
+      setError(errorDetails);
     } finally {
       setLoading(false);
     }
@@ -66,10 +75,184 @@ const RdmLookupStep = ({
     );
   }
 
+  const getTroubleshootingHint = (status) => {
+    switch (status) {
+      case 401:
+        return {
+          title: 'Authentication Failed',
+          message: 'The RDM API key is missing or invalid.',
+          actions: [
+            'Verify that RDM_API_KEY is set in your Replit Secrets',
+            'Check that the API key has not expired',
+            'Ensure you have the correct permissions on the RDM system'
+          ]
+        };
+      case 403:
+        return {
+          title: 'Access Denied',
+          message: 'Your API key does not have permission to access this resource.',
+          actions: [
+            'Contact your RDM administrator to verify your access level',
+            'Ensure your API key has the required permissions'
+          ]
+        };
+      case 404:
+        return {
+          title: 'Resource Not Found',
+          message: 'The RDM API endpoint was not found.',
+          actions: [
+            'Check that RDM_BASE_URL is correctly configured',
+            'Verify the RDM service is running and accessible'
+          ]
+        };
+      case 500:
+      case 502:
+      case 503:
+        return {
+          title: 'RDM Service Error',
+          message: 'The RDM service encountered an internal error.',
+          actions: [
+            'Wait a few moments and try again',
+            'Check the RDM service status',
+            'Contact your system administrator if the problem persists'
+          ]
+        };
+      default:
+        return {
+          title: 'Connection Error',
+          message: 'Unable to connect to the RDM service.',
+          actions: [
+            'Check your network connection',
+            'Verify that RDM_BASE_URL is correctly configured',
+            'Ensure the RDM service is accessible from your network'
+          ]
+        };
+    }
+  };
+
   if (error) {
+    const hint = getTroubleshootingHint(error.status);
+    
     return (
-      <div className="alert alert-danger">
-        <FiInfo /> {error}
+      <div style={{ padding: '2rem' }}>
+        <div style={{ 
+          padding: '1.5rem',
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px',
+          marginBottom: '1rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <FiInfo style={{ color: '#dc2626', fontSize: '1.25rem' }} />
+            <h3 style={{ margin: 0, color: '#dc2626', fontSize: '1.125rem', fontWeight: '600' }}>
+              {hint.title}
+            </h3>
+          </div>
+          
+          <p style={{ margin: 0, marginBottom: '1rem', color: '#991b1b' }}>
+            {error.message}
+          </p>
+
+          {error.status && (
+            <div style={{ 
+              padding: '1rem',
+              backgroundColor: 'white',
+              border: '1px solid #fecaca',
+              borderRadius: '6px',
+              marginBottom: '1rem'
+            }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <strong style={{ color: '#991b1b' }}>Status:</strong>{' '}
+                <span style={{ 
+                  padding: '0.25rem 0.5rem',
+                  backgroundColor: '#fee2e2',
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.875rem',
+                  color: '#991b1b'
+                }}>
+                  {error.status} {error.statusText}
+                </span>
+              </div>
+
+              {error.details?.endpoint && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <strong style={{ color: '#991b1b' }}>Endpoint:</strong>{' '}
+                  <code style={{ 
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: '#f3f4f6',
+                    borderRadius: '4px',
+                    fontSize: '0.875rem'
+                  }}>
+                    {error.details.endpoint}
+                  </code>
+                </div>
+              )}
+
+              {error.details?.responseBody && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <strong style={{ color: '#991b1b', display: 'block', marginBottom: '0.5rem' }}>
+                    Response Details:
+                  </strong>
+                  <pre style={{ 
+                    padding: '0.75rem',
+                    backgroundColor: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '4px',
+                    fontSize: '0.8125rem',
+                    margin: 0,
+                    overflow: 'auto',
+                    maxHeight: '200px',
+                    color: '#374151'
+                  }}>
+                    {JSON.stringify(error.details.responseBody, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {error.details?.timestamp && (
+                <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
+                  <strong>Time:</strong> {new Date(error.details.timestamp).toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ 
+            padding: '1rem',
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '6px',
+            marginBottom: '1rem'
+          }}>
+            <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#92400e' }}>
+              Troubleshooting Steps:
+            </strong>
+            <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#78350f' }}>
+              {hint.actions.map((action, idx) => (
+                <li key={idx} style={{ marginBottom: '0.25rem' }}>{action}</li>
+              ))}
+            </ul>
+          </div>
+
+          <button
+            onClick={fetchRdmResources}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'hsl(210, 100%, 50%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              fontSize: '0.875rem'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
+            onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+          >
+            Retry Connection
+          </button>
+        </div>
       </div>
     );
   }

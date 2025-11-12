@@ -25,10 +25,21 @@ router.get('/datasets', authenticateToken, async (req, res) => {
     res.json({ success: true, data: datasets });
   } catch (error) {
     systemLogger.error('Failed to fetch RDM datasets:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Failed to fetch datasets from RDM' 
-    });
+    
+    const statusCode = error.status || 500;
+    const errorResponse = {
+      success: false,
+      error: error.message || 'Failed to fetch datasets from RDM',
+      details: error.isRDMError ? {
+        status: error.status,
+        statusText: error.statusText,
+        endpoint: error.endpoint,
+        responseBody: error.responseData,
+        timestamp: new Date().toISOString()
+      } : undefined
+    };
+    
+    res.status(statusCode).json(errorResponse);
   }
 });
 
@@ -82,10 +93,21 @@ router.get('/crosswalks', authenticateToken, async (req, res) => {
     res.json({ success: true, data: crosswalks });
   } catch (error) {
     systemLogger.error('Failed to fetch RDM crosswalks:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Failed to fetch crosswalks from RDM' 
-    });
+    
+    const statusCode = error.status || 500;
+    const errorResponse = {
+      success: false,
+      error: error.message || 'Failed to fetch crosswalks from RDM',
+      details: error.isRDMError ? {
+        status: error.status,
+        statusText: error.statusText,
+        endpoint: error.endpoint,
+        responseBody: error.responseData,
+        timestamp: new Date().toISOString()
+      } : undefined
+    };
+    
+    res.status(statusCode).json(errorResponse);
   }
 });
 

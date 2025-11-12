@@ -61,14 +61,26 @@ class RDMService {
 
       return response.data;
     } catch (error) {
-      systemLogger.error('RDM API request failed', {
+      const errorDetails = {
         endpoint,
         method,
         error: error.message,
         status: error.response?.status,
-        data: error.response?.data
-      });
-      throw new Error(`RDM API request failed: ${error.response?.data?.message || error.message}`);
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers
+      };
+      
+      systemLogger.error('RDM API request failed', errorDetails);
+      
+      const enrichedError = new Error(`RDM API request failed: ${error.response?.data?.message || error.message}`);
+      enrichedError.status = error.response?.status;
+      enrichedError.statusText = error.response?.statusText;
+      enrichedError.responseData = error.response?.data;
+      enrichedError.endpoint = endpoint;
+      enrichedError.isRDMError = true;
+      
+      throw enrichedError;
     }
   }
 
