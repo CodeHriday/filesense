@@ -492,14 +492,11 @@ function MappingWizard() {
         maxStep = 2; // Step 2 completed if file pattern exists
       }
       if (mapping.field_mappings && mapping.field_mappings.length > 0) {
-        maxStep = 3; // Step 3 completed if field mappings exist
+        // If field mappings exist, allow access to Step 5 (Target & Rules)
+        // This ensures backward compatibility and lets users complete the wizard
+        maxStep = 5; 
       }
-      // Note: Step 4 is RDM Lookup (optional/skippable)
-      // For backward compatibility, if target settings exist, mark Step 5 as completed
-      if (mapping.target_connection_id || mapping.target_file_name || mapping.target_file_format || 
-          (mapping.anomaly_rules && Object.keys(mapping.anomaly_rules).length > 0)) {
-        maxStep = 5; // Step 5 completed if target settings or anomaly rules exist
-      }
+      // Note: Step 4 is RDM Lookup (optional/skippable) - will be marked complete when RDM config exists
       setMaxCompletedStep(maxStep);
       
       // Always start at Step 1 in edit mode for consistent user experience
