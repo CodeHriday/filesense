@@ -9182,6 +9182,11 @@ const notificationRoutes = require('./backend/routes/notifications');
 app.use('/api/notifications', notificationRoutes);
 console.log('Added notifications routes');
 
+// RDM routes
+const rdmRoutes = require('./backend/routes/rdm');
+app.use('/api/rdm', authenticateToken, rdmRoutes);
+console.log('Added RDM integration routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 
