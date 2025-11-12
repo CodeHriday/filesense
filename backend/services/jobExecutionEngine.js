@@ -320,7 +320,23 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
     // Load RDM context once for this job (before processing any files)
     let rdmContext = {};
     try {
-      rdmContext = await loadRDMContext(mapping.field_mappings || [], mapping.variables || []);
+      // Parse RDM configs if they're stored as JSON strings
+      let rdmDatasetConfig = mapping.rdm_dataset_config;
+      let rdmCrosswalkConfig = mapping.rdm_crosswalk_config;
+      
+      if (typeof rdmDatasetConfig === 'string') {
+        rdmDatasetConfig = JSON.parse(rdmDatasetConfig);
+      }
+      if (typeof rdmCrosswalkConfig === 'string') {
+        rdmCrosswalkConfig = JSON.parse(rdmCrosswalkConfig);
+      }
+      
+      rdmContext = await loadRDMContext(
+        mapping.field_mappings || [], 
+        mapping.variables || [],
+        rdmDatasetConfig,
+        rdmCrosswalkConfig
+      );
       
       const hasRDMData = Object.keys(rdmContext.rdm?.crosswalks || {}).length > 0 || 
                          Object.keys(rdmContext.rdm?.datasets || {}).length > 0;
@@ -1216,6 +1232,33 @@ async function processFile(pool, file, mapping, jobId, options = {}) {
       rows_transformed: transformedRows.length,
       rows_failed: rowsFailed
     });
+    
+    // Step 3.2: Apply RDM lookups (dataset join + crosswalk) if enabled
+    if (mapping.rdm_lookup_enabled) {
+      await logJobExecution(pool, jobId, 'info', `Applying RDM enrichment phase`, {
+        inputRows: transformedRows.length,
+        hasDatasetJoin: !!mapping.rdm_dataset_config,
+        hasCrosswalkLookup: !!mapping.rdm_crosswalk_config
+      });
+      
+      try {
+        const { applyRDMLookups } = require('./rdmLookupProcessor');
+        const enrichedRows = applyRDMLookups(transformedRows, mapping, rdmContext);
+        
+        // Replace transformedRows with enriched data
+        transformedRows.length = 0; // Clear array
+        transformedRows.push(...enrichedRows);
+        
+        await logJobExecution(pool, jobId, 'info', `RDM enrichment complete`, {
+          outputRows: transformedRows.length
+        });
+      } catch (rdmError) {
+        await logJobExecution(pool, jobId, 'error', `RDM enrichment failed: ${rdmError.message}`, {
+          error: rdmError.stack
+        });
+        throw new Error(`RDM enrichment failed: ${rdmError.message}`);
+      }
+    }
     
     // Step 3.3: Run quality validation on transformed data (if quality rules are defined)
     try {

@@ -3,10 +3,10 @@ const { systemLogger } = require('../utils/logger');
 
 /**
  * Load RDM context for a transformation job
- * Analyzes field mappings and variables to determine which RDM resources are needed,
+ * Analyzes field mappings, variables, and dedicated RDM configs to determine which RDM resources are needed,
  * then pre-fetches and prepares them for use during transformation
  */
-async function loadRDMContext(fieldMappings = [], variables = []) {
+async function loadRDMContext(fieldMappings = [], variables = [], rdmDatasetConfig = null, rdmCrosswalkConfig = null) {
   const context = {
     rdm: {
       crosswalks: {},
@@ -20,7 +20,7 @@ async function loadRDMContext(fieldMappings = [], variables = []) {
   }
   
   try {
-    const rdmRequirements = analyzeRDMRequirements(fieldMappings, variables);
+    const rdmRequirements = analyzeRDMRequirements(fieldMappings, variables, rdmDatasetConfig, rdmCrosswalkConfig);
     
     if (rdmRequirements.crosswalkIds.length === 0 && rdmRequirements.datasetIds.length === 0) {
       return context; // No RDM resources needed
@@ -116,13 +116,13 @@ async function loadRDMContext(fieldMappings = [], variables = []) {
 }
 
 /**
- * Analyze field mappings and variables to determine which RDM resources are needed
+ * Analyze field mappings, variables, and dedicated RDM configs to determine which RDM resources are needed
  */
-function analyzeRDMRequirements(fieldMappings = [], variables = []) {
+function analyzeRDMRequirements(fieldMappings = [], variables = [], rdmDatasetConfig = null, rdmCrosswalkConfig = null) {
   const crosswalkIds = new Set();
   const datasetIds = new Set();
   
-  // Helper to extract RDM IDs from transformations
+  // Helper to extract RDM IDs from legacy transformations (backward compatibility)
   const extractRDMIds = (transformations = []) => {
     transformations.forEach(transform => {
       if (transform.type === 'rdm_crosswalk_lookup' && transform.params?.rdmCrosswalkId) {
@@ -134,19 +134,29 @@ function analyzeRDMRequirements(fieldMappings = [], variables = []) {
     });
   };
   
-  // Check field mappings
+  // Check field mappings (legacy rdm_ transformations)
   fieldMappings.forEach(mapping => {
     if (mapping.transformations) {
       extractRDMIds(mapping.transformations);
     }
   });
   
-  // Check variables
+  // Check variables (legacy rdm_ transformations)
   variables.forEach(variable => {
     if (variable.transformations) {
       extractRDMIds(variable.transformations);
     }
   });
+  
+  // Check dedicated RDM dataset config (new dedicated step)
+  if (rdmDatasetConfig && rdmDatasetConfig.dataset_id) {
+    datasetIds.add(rdmDatasetConfig.dataset_id);
+  }
+  
+  // Check dedicated RDM crosswalk config (new dedicated step)
+  if (rdmCrosswalkConfig && rdmCrosswalkConfig.crosswalk_id) {
+    crosswalkIds.add(rdmCrosswalkConfig.crosswalk_id);
+  }
   
   return {
     crosswalkIds: Array.from(crosswalkIds),
