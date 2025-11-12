@@ -42,8 +42,8 @@ function Header({ showAIInsights }) {
   };
   
   return (
-    <header className="header">
-      <div className="logo">
+    <header className="header app-header">
+      <div className="logo header-left">
         <Link to="/">
           <img 
             src="/images/blumetra-logo.png" 
@@ -54,7 +54,7 @@ function Header({ showAIInsights }) {
               e.target.style.display = 'none';
             }}
           />
-          <h1>Data File Observatory</h1>
+          <h1 className="brand">Data File Observatory</h1>
         </Link>
       </div>
       <div className="header-actions">
