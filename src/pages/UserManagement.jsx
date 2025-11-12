@@ -616,42 +616,49 @@ const UserManagement = () => {
     }
   }, [filteredUsers.length, currentPage]);
 
+  const getRoleBadgeClass = (role) => {
+    const adminRoles = ['Admin', 'Super Admin', 'Power User'];
+    if (adminRoles.includes(role)) {
+      return 'badge badge--primary';
+    }
+    return 'badge badge--secondary';
+  };
+
+  const getStatusBadgeClass = (isActive) => {
+    return isActive ? 'badge badge--success' : 'badge badge--muted';
+  };
+
   return (
     <div className="user-management-container">
       {loading ? (
         <LoadingSpinner />
       ) : (
         <>
-          <div className="user-management-header">
+          <div className="page-title">
             <h1>User Management</h1>
-            <div className="header-actions">
-              <div style={{ position: 'relative', minWidth: '300px' }}>
-                <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem 0.75rem 0.5rem 2.5rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-              <Link to="/roles" className="role-management-link">
+          </div>
+          
+          <div className="toolbar">
+            <div className="search">
+              <FiSearch />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <div className="control-row">
+              <Link to="/roles" className="btn btn--secondary">
                 Role Management
               </Link>
               {hasRole && hasRole('Admin') && (
                 <button
                   onClick={handleOpenResetRequestsModal}
-                  className="reset-requests-btn"
+                  className="btn btn--secondary"
                 >
                   Password Reset Requests
                   {pendingResetCount > 0 && (
@@ -661,14 +668,14 @@ const UserManagement = () => {
               )}
               {selectedUserIds.length > 0 && (
                 <button 
-                  className="bulk-delete-btn"
+                  className="btn btn--destructive"
                   onClick={openBulkDeleteModal}
                 >
                   Delete Selected ({selectedUserIds.length})
                 </button>
               )}
               <button 
-                className="create-user-btn"
+                className="btn btn--primary"
                 onClick={openCreateModal}
               >
                 Add New User
@@ -683,11 +690,11 @@ const UserManagement = () => {
           )}
       
       
-      <div className="users-table-container">
-        <table className="users-table">
+      <div className="card">
+        <table className="table">
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>
+              <th>
                 <input
                   type="checkbox"
                   onChange={handleSelectAll}
@@ -732,7 +739,7 @@ const UserManagement = () => {
                     <td>{user.full_name || '-'}</td>
                     <td>{user.email || '-'}</td>
                     <td>
-                      <span className={`auth-provider-badge ${user.auth_provider || 'local'}`}>
+                      <span className={user.auth_provider === 'okta' ? 'badge badge--primary' : 'badge badge--secondary'}>
                         {user.auth_provider === 'okta' ? 'Okta SSO' : 'Local'}
                       </span>
                     </td>
@@ -740,7 +747,7 @@ const UserManagement = () => {
                       <div className="user-roles">
                         {user.roles && user.roles.length > 0 ? 
                           user.roles.map(role => (
-                            <span key={role} className="role-badge">
+                            <span key={role} className={getRoleBadgeClass(role)}>
                               {role}
                             </span>
                           )) : 
@@ -750,15 +757,15 @@ const UserManagement = () => {
                     </td>
                     <td>
                       {isLocked ? (
-                        <span className="account-status locked" title={`Locked until ${new Date(user.locked_until).toLocaleString()}`}>
-                          🔒 Locked ({failedAttempts} failed attempts)
+                        <span className="badge badge--danger">
+                          🔒 Locked ({failedAttempts} failed)
                         </span>
                       ) : failedAttempts > 0 ? (
-                        <span className="account-status warning" title={`${failedAttempts} failed login attempts`}>
+                        <span className="badge badge--warning">
                           ⚠️ {failedAttempts} failed attempt{failedAttempts !== 1 ? 's' : ''}
                         </span>
                       ) : (
-                        <span className="account-status active">✓ Active</span>
+                        <span className="badge badge--success">✓ Active</span>
                       )}
                     </td>
                     <td>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
@@ -766,7 +773,7 @@ const UserManagement = () => {
                       <div className="user-actions">
                         {isLocked && hasRole && hasRole('Admin') && (
                           <button 
-                            className="unlock-user-btn" 
+                            className="btn btn--secondary btn-small" 
                             onClick={() => handleUnlockUser(user.id)}
                             title="Unlock this account"
                           >
@@ -774,7 +781,7 @@ const UserManagement = () => {
                           </button>
                         )}
                         <button 
-                          className="action-icon-btn edit-btn" 
+                          className="action-icon" 
                           onClick={() => openEditModal(user)}
                           title="Edit user"
                         >
@@ -783,7 +790,7 @@ const UserManagement = () => {
                         
                         {user.id !== currentUser?.id && (
                           <button 
-                            className="action-icon-btn delete-btn" 
+                            className="action-icon" 
                             onClick={() => openDeleteModal(user)}
                             title="Delete user"
                           >
@@ -941,7 +948,7 @@ const UserManagement = () => {
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="internal_user" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label htmlFor="internal_user" className="checkbox-label">
                     <input
                       type="checkbox"
                       id="internal_user"
@@ -949,7 +956,6 @@ const UserManagement = () => {
                       checked={formData.internal_user}
                       onChange={(e) => setFormData(prev => ({ ...prev, internal_user: e.target.checked }))}
                       disabled={formData.user_type === 'Vendor'}
-                      style={{ width: 'auto', margin: 0 }}
                     />
                     Internal User
                   </label>
@@ -990,10 +996,10 @@ const UserManagement = () => {
             
             {/* Static Footer */}
             <div className="modal-footer">
-              <button type="button" className="cancel-btn" onClick={closeModal}>
+              <button type="button" className="btn btn--secondary" onClick={closeModal}>
                 Cancel
               </button>
-              <button type="submit" className="save-btn" onClick={handleSubmit}>
+              <button type="submit" className="btn btn--primary" onClick={handleSubmit}>
                 {modalMode === 'create' ? 'Create User' : 'Update User'}
               </button>
             </div>

@@ -1,35 +1,9 @@
+/* UserManagement.css - Updated to use global.css design system */
+
 .user-management-container {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.user-management-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.user-management-container h1 {
-  margin-bottom: 0;
-  font-size: 2rem;
-  color: #025043;
-}
-
-.role-management-link {
-  display: inline-block;
-  padding: 8px 15px;
-  background-color: #34a853;
-  color: white;
-  border-radius: 4px;
-  text-decoration: none;
-  font-weight: 500;
-  transition: background-color 0.3s;
-}
-
-.role-management-link:hover {
-  background-color: #2d964a;
 }
 
 .user-management-loading {
@@ -38,60 +12,21 @@
   align-items: center;
   height: 200px;
   font-size: 18px;
-  color: #5f6368;
+  color: hsl(var(--muted-foreground));
 }
 
 .error-message {
-  background-color: #feeceb;
-  color: #d93025;
+  background-color: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
   padding: 12px 16px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   margin-bottom: 20px;
   font-size: 14px;
+  border: 1px solid hsl(var(--destructive) / 0.2);
 }
 
-.user-management-actions {
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.create-user-btn {
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.create-user-btn:hover {
-  background-color: #0d62cb;
-}
-
-.reset-requests-btn {
-  background-color: #34a853;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.reset-requests-btn:hover {
-  background-color: #2d964a;
-}
-
-.reset-requests-btn .badge-count {
-  background-color: #dc2626;
+.badge-count {
+  background-color: hsl(var(--destructive));
   color: white;
   border-radius: 10px;
   padding: 2px 6px;
@@ -101,48 +36,57 @@
   text-align: center;
 }
 
-.bulk-delete-btn {
-  background-color: #dc2626;
-  color: white;
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* Button styles matching global design system */
+.btn--primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.12s;
+}
+
+.btn--primary:hover {
+  background-color: hsl(var(--primary) / 0.9);
+  transform: translateY(-1px);
+}
+
+.btn--secondary {
+  background-color: transparent;
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-sm);
   padding: 10px 16px;
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.bulk-delete-btn:hover {
-  background-color: #b91c1c;
+.btn--secondary:hover {
+  background-color: hsl(var(--muted));
 }
 
-/* Table styles */
-.users-table-container {
-  overflow-x: auto;
-  margin-bottom: 20px;
+.btn--destructive {
+  background-color: hsl(var(--destructive));
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.12s;
 }
 
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-  border: 1px solid #dadce0;
-}
-
-.users-table th,
-.users-table td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid #dadce0;
-}
-
-.users-table th {
-  background-color: #f8f9fa;
-  font-weight: 500;
-  color: #5f6368;
-}
-
-.users-table tbody tr:hover {
-  background-color: #f8f9fa;
+.btn--destructive:hover {
+  background-color: hsl(var(--destructive) / 0.9);
+  transform: translateY(-1px);
 }
 
 .user-roles {
@@ -151,131 +95,16 @@
   gap: 4px;
 }
 
-.users-table .role-badge {
-  background-color: #e8f0fe;
-  color: #1a73e8;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 500;
-}
-
-.account-status {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.account-status.active {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.account-status.warning {
-  background-color: #fff3e0;
-  color: #ef6c00;
-}
-
-.account-status.locked {
-  background-color: #ffebee;
-  color: #c62828;
-}
-
 .user-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
-}
-
-/* Icon-based action buttons */
-.action-icon-btn {
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  padding: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary, #6c757d);
-}
-
-.action-icon-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.action-icon-btn:hover {
-  background-color: rgba(0, 0, 0, 0.04);
-  transform: translateY(-2px);
-}
-
-.action-icon-btn.view-btn {
-  color: #6c757d;
-}
-
-.action-icon-btn.view-btn:hover {
-  background-color: #e9ecef;
-}
-
-.action-icon-btn.edit-btn {
-  color: #1a73e8;
-}
-
-.action-icon-btn.edit-btn:hover {
-  background-color: #e8f0fe;
-}
-
-.action-icon-btn.delete-btn {
-  color: #d93025;
-}
-
-.action-icon-btn.delete-btn:hover {
-  background-color: #fce8e6;
-}
-
-.action-icon-btn.project-btn {
-  color: #137333;
-}
-
-.action-icon-btn.project-btn:hover {
-  background-color: #e6f4ea;
-}
-
-.action-icon-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  color: var(--text-disabled, #9ca3af) !important;
-}
-
-.action-icon-btn:disabled:hover {
-  background-color: transparent !important;
-  transform: none !important;
-}
-
-.unlock-user-btn {
-  background-color: #fff3e0;
-  color: #ef6c00;
-  font-weight: 500;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.unlock-user-btn:hover {
-  background-color: #ffe0b2;
 }
 
 .no-users-message {
   text-align: center;
   padding: 30px;
-  color: #5f6368;
+  color: hsl(var(--muted-foreground));
 }
 
 /* Modal styles */
@@ -285,7 +114,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: hsl(0 0% 0% / 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -293,9 +122,9 @@
 }
 
 .user-modal {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background-color: hsl(var(--card));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
   width: 100%;
   max-width: 700px;
   height: 85vh;
@@ -309,7 +138,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  border-bottom: 1px solid #dadce0;
+  border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
   height: 10%;
   min-height: 60px;
@@ -318,7 +147,7 @@
 .modal-header h2 {
   margin: 0;
   font-size: 20px;
-  color: #202124;
+  color: hsl(var(--foreground));
   font-weight: 500;
 }
 
@@ -326,8 +155,13 @@
   background: none;
   border: none;
   font-size: 24px;
-  color: #5f6368;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
+  transition: color 0.2s;
+}
+
+.close-modal-btn:hover {
+  color: hsl(var(--foreground));
 }
 
 .modal-content-scrollable {
@@ -347,12 +181,12 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid #dadce0;
+  border-top: 1px solid hsl(var(--border));
   flex-shrink: 0;
   height: 10%;
   min-height: 60px;
   align-items: center;
-  background-color: #f8f9fa;
+  background-color: hsl(var(--muted) / 0.1);
 }
 
 .form-group {
@@ -363,7 +197,7 @@
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: #5f6368;
+  color: hsl(var(--muted-foreground));
 }
 
 .form-group input[type="text"],
@@ -373,32 +207,46 @@
 .form-group select {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
+  border: 1px solid hsl(var(--input));
+  border-radius: var(--radius-sm);
   font-size: 14px;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
 }
 
 .required-field {
-  color: #d93025;
+  color: hsl(var(--destructive));
   margin-left: 4px;
 }
 
 .roles-info {
   margin-bottom: 10px;
-  color: #5f6368;
+  color: hsl(var(--muted-foreground));
   font-size: 13px;
 }
 
 .no-roles-warning {
   margin-top: 8px;
-  color: #d93025;
+  color: hsl(var(--destructive));
   font-weight: 500;
 }
 
@@ -414,12 +262,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-radius: 4px;
-  background-color: #f8f9fa;
+  border-radius: var(--radius-sm);
+  background-color: hsl(var(--muted) / 0.1);
+  transition: background-color 0.2s;
 }
 
 .role-checkbox:hover {
-  background-color: #e8f0fe;
+  background-color: hsl(var(--accent) / 0.1);
 }
 
 .role-checkbox input {
@@ -431,124 +280,6 @@
   margin-bottom: 0;
   font-weight: normal;
   cursor: pointer;
-}
-
-
-.cancel-btn,
-.save-btn {
-  padding: 10px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.cancel-btn {
-  background-color: transparent;
-  color: #5f6368;
-  border: 1px solid #dadce0;
-}
-
-.cancel-btn:hover {
-  background-color: #f8f9fa;
-}
-
-.save-btn {
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-}
-
-.save-btn:hover {
-  background-color: #0d62cb;
-}
-
-/* Accessibility high contrast mode */
-body.high-contrast .user-management-container h1,
-body.high-contrast .users-table .role-badge {
-  color: #fff;
-}
-
-body.high-contrast .users-table {
-  border-color: #fff;
-}
-
-body.high-contrast .users-table th,
-body.high-contrast .users-table td {
-  border-color: #fff;
-}
-
-body.high-contrast .users-table th {
-  background-color: #000;
-  color: #fff;
-}
-
-body.high-contrast .users-table tbody tr:hover {
-  background-color: #333;
-}
-
-body.high-contrast .users-table .role-badge {
-  background-color: #fff;
-  color: #000;
-}
-
-body.high-contrast .edit-user-icon-btn {
-  color: #64b5f6;
-}
-
-body.high-contrast .delete-user-icon-btn {
-  color: #ff6b6b;
-}
-
-body.high-contrast .user-modal {
-  background-color: #000;
-  border: 2px solid #fff;
-}
-
-body.high-contrast .modal-header {
-  border-color: #fff;
-}
-
-body.high-contrast .modal-header h2 {
-  color: #fff;
-}
-
-body.high-contrast .form-group label {
-  color: #fff;
-}
-
-body.high-contrast .form-group input {
-  background-color: #000;
-  color: #fff;
-  border-color: #fff;
-}
-
-body.high-contrast .save-btn {
-  background-color: #fff;
-  color: #000;
-}
-
-/* Auth Provider Badge */
-.auth-provider-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 9px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.auth-provider-badge.local {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #2e7d32;
-}
-
-.auth-provider-badge.okta {
-  background-color: #e3f2fd;
-  color: #1565c0;
-  border: 1px solid #1565c0;
 }
 
 /* Form Row for Side-by-Side Fields */
@@ -570,24 +301,11 @@ body.high-contrast .save-btn {
   }
 }
 
-/* High contrast support for new elements */
-body.high-contrast .auth-provider-badge.local {
-  background-color: #fff;
-  color: #000;
-  border-color: #fff;
-}
-
-body.high-contrast .auth-provider-badge.okta {
-  background-color: #fff;
-  color: #000;
-  border-color: #fff;
-}
-
 /* Delete Confirmation Modal */
 .delete-confirmation-modal {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background-color: hsl(var(--card));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
   width: 100%;
   max-width: 500px;
   display: flex;
@@ -602,72 +320,46 @@ body.high-contrast .auth-provider-badge.okta {
 .delete-warning-icon {
   font-size: 48px;
   margin-bottom: 16px;
+  color: hsl(var(--destructive));
 }
 
 .delete-confirmation-text {
   font-size: 16px;
-  color: #202124;
+  color: hsl(var(--foreground));
   margin-bottom: 16px;
   line-height: 1.5;
 }
 
 .delete-confirmation-text strong {
-  color: #d93025;
+  color: hsl(var(--destructive));
 }
 
 .user-detail {
   font-size: 14px;
-  color: #5f6368;
+  color: hsl(var(--muted-foreground));
   margin: 8px 0;
 }
 
 .delete-warning-text {
   font-size: 13px;
-  color: #d93025;
+  color: hsl(var(--destructive));
   margin-top: 16px;
   font-weight: 500;
 }
 
 .delete-confirm-btn {
-  background-color: #d93025;
+  background-color: hsl(var(--destructive));
   color: white;
   border: none;
   padding: 10px 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .delete-confirm-btn:hover {
-  background-color: #c5221f;
-}
-
-/* High contrast mode for delete modal */
-body.high-contrast .delete-confirmation-modal {
-  background-color: #000;
-  border: 2px solid #fff;
-}
-
-body.high-contrast .delete-confirmation-text {
-  color: #fff;
-}
-
-body.high-contrast .delete-confirmation-text strong {
-  color: #ff6b6b;
-}
-
-body.high-contrast .user-detail {
-  color: #fff;
-}
-
-body.high-contrast .delete-warning-text {
-  color: #ff6b6b;
-}
-
-body.high-contrast .delete-confirm-btn {
-  background-color: #ff6b6b;
-  color: #000;
+  background-color: hsl(var(--destructive) / 0.9);
 }
 
 /* Vendor User Management icon button styles */
@@ -681,26 +373,37 @@ body.high-contrast .delete-confirm-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  color: hsl(var(--muted-foreground));
 }
 
 .icon-button:hover {
   transform: translateY(-2px);
+  background-color: hsl(var(--accent) / 0.1);
 }
 
 .edit-button {
-  color: #1a73e8;
+  color: hsl(var(--primary));
 }
 
 .edit-button:hover {
-  background-color: #e8f0fe;
+  background-color: hsl(var(--primary) / 0.1);
 }
 
-/* High contrast mode for icon buttons */
+/* Accessibility high contrast mode */
+body.high-contrast .user-modal {
+  border: 2px solid hsl(var(--border));
+}
+
+body.high-contrast .modal-header {
+  border-color: hsl(var(--border));
+}
+
+body.high-contrast .form-group input,
+body.high-contrast .form-group select {
+  border-width: 2px;
+}
+
 body.high-contrast .icon-button {
-  border: 1px solid #fff;
-}
-
-body.high-contrast .edit-button {
-  color: #64b5f6;
+  border: 1px solid hsl(var(--border));
 }
