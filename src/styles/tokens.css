@@ -1,98 +1,101 @@
 /**
- * Design Tokens - Global Design System
- * Professional color palette, typography, spacing, and effects
+ * Design Tokens - Bridge Layer to Modern Minimal Theme
+ * Maps legacy design tokens to new theme variables for backwards compatibility
  */
 
 :root {
-  /* === COLOR PALETTE === */
+  /* === COLOR PALETTE - Mapped to Modern Minimal Theme === */
   
-  /* Primary Colors - Muted Slate/Blue */
-  --color-primary: #6D8196;
-  --color-primary-dark: #5B7C99;
-  --color-primary-light: #849baa;
-  --color-primary-50: #F0F4F8;
-  --color-primary-100: #D8E3ED;
+  /* Primary Colors */
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary);
+  --color-primary-light: var(--accent);
+  --color-primary-50: var(--muted);
+  --color-primary-100: var(--accent);
   
-  /* Secondary Colors - Soft Slate */
-  --color-secondary: #435274;
-  --color-secondary-light: #5A6B88;
+  /* Secondary Colors */
+  --color-secondary: var(--secondary);
+  --color-secondary-light: var(--secondary-foreground);
   
-  /* Neutral Colors - Softer Grays */
-  --color-white: #FFFFFF;
-  --color-gray-50: #F7F9FB;
-  --color-gray-100: #EDF2F7;
-  --color-gray-200: #E2E8F0;
-  --color-gray-300: #CBD5E1;
-  --color-gray-400: #94A3B8;
-  --color-gray-500: #6D7A8C;
-  --color-gray-600: #556379;
-  --color-gray-700: #435274;
-  --color-gray-800: #2E3B52;
-  --color-gray-900: #1F2937;
+  /* Neutral Colors */
+  --color-white: var(--card);
+  --color-gray-50: var(--muted);
+  --color-gray-100: var(--accent);
+  --color-gray-200: var(--border);
+  --color-gray-300: var(--border);
+  --color-gray-400: var(--muted-foreground);
+  --color-gray-500: var(--muted-foreground);
+  --color-gray-600: var(--foreground);
+  --color-gray-700: var(--foreground);
+  --color-gray-800: var(--card-foreground);
+  --color-gray-900: var(--foreground);
   
-  /* Accent Colors - Muted Tones */
-  --color-teal: #6B9B88;
-  --color-teal-light: #8FB5A3;
-  --color-teal-dark: #557D6D;
+  /* Accent Colors */
+  --color-teal: var(--primary);
+  --color-teal-light: var(--accent);
+  --color-teal-dark: var(--primary);
   
-  --color-amber: #D4A574;
-  --color-amber-light: #E8C9A0;
-  --color-amber-dark: #B88A5B;
+  --color-amber: var(--accent-foreground);
+  --color-amber-light: var(--accent);
+  --color-amber-dark: var(--accent-foreground);
   
-  --color-purple: #9B8AAF;
-  --color-purple-light: #B5A6C7;
-  --color-purple-dark: #7D6D8E;
+  --color-purple: var(--primary);
+  --color-purple-light: var(--accent);
+  --color-purple-dark: var(--accent-foreground);
   
-  /* Status Colors - Softer Muted Tones */
-  --color-success: #6B9B88;
-  --color-success-light: #D4E8E1;
-  --color-success-dark: #557D6D;
+  /* Status Colors */
+  --color-success: var(--primary);
+  --color-success-light: var(--accent);
+  --color-success-dark: var(--primary);
   
-  --color-warning: #D4A574;
-  --color-warning-light: #F5E6D3;
-  --color-warning-dark: #B88A5B;
+  --color-warning: var(--accent-foreground);
+  --color-warning-light: var(--accent);
+  --color-warning-dark: var(--accent-foreground);
   
-  --color-error: #D47E7E;
-  --color-error-light: #F5E0E0;
-  --color-error-dark: #B85E5E;
+  --color-error: var(--destructive);
+  --color-error-light: var(--accent);
+  --color-error-dark: var(--destructive);
   
-  --color-info: #6D8196;
-  --color-info-light: #D8E3ED;
-  --color-info-dark: #5B7C99;
+  --color-info: var(--primary);
+  --color-info-light: var(--accent);
+  --color-info-dark: var(--primary);
   
-  /* Text Colors - Softer Contrast */
-  --text-primary: #2E3B52;
-  --text-secondary: #556379;
-  --text-tertiary: #94A3B8;
-  --text-on-primary: #FFFFFF;
+  /* Text Colors */
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-tertiary: var(--muted-foreground);
+  --text-on-primary: var(--primary-foreground);
   
-  /* Background Colors - Off-White for Softer Look */
-  --bg-page: #F7F9FB;
-  --bg-surface: #FAFBFC;
-  --bg-header: #6D8196;
-  --bg-sidebar: #FFFFFF;
-  --bg-card: #FFFFFF;
+  /* Background Colors */
+  --bg-page: var(--background);
+  --bg-surface: var(--card);
+  --bg-header: var(--primary);
+  --bg-sidebar: var(--sidebar);
+  --bg-card: var(--card);
+  --bg-secondary: var(--muted);
+  --bg-hover: var(--accent);
   
   /* Border Colors */
-  --border-light: #E2E8F0;
-  --border-medium: #CBD5E1;
-  --border-dark: #94A3B8;
+  --border-light: var(--border);
+  --border-medium: var(--border);
+  --border-dark: var(--border);
+  --border-color: var(--border);
   
   /* === TYPOGRAPHY === */
   
-  /* Font Families */
-  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  --font-mono: 'Monaco', 'Courier New', monospace;
+  /* Font Families - Use Modern Minimal Fonts */
+  --font-primary: var(--font-sans);
+  --font-mono: var(--font-mono);
   
-  /* Font Sizes */
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-base: 16px;
-  --text-lg: 18px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 28px;
-  --text-4xl: 32px;
+  /* Font Sizes - Keep existing scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.75rem;
+  --text-4xl: 2rem;
   
   /* Font Weights */
   --font-light: 300;
@@ -107,38 +110,38 @@
   --leading-relaxed: 1.75;
   
   /* === SPACING SCALE === */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
   
-  /* === BORDER RADIUS === */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* === BORDER RADIUS - Map to theme === */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
   --radius-full: 9999px;
   
-  /* === SHADOWS - Softer, More Subtle === */
-  --shadow-sm: 0 1px 2px 0 rgba(67, 82, 116, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(67, 82, 116, 0.06), 0 2px 4px -1px rgba(67, 82, 116, 0.03);
-  --shadow-lg: 0 10px 15px -3px rgba(67, 82, 116, 0.08), 0 4px 6px -2px rgba(67, 82, 116, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(67, 82, 116, 0.1), 0 10px 10px -5px rgba(67, 82, 116, 0.03);
+  /* === SHADOWS - Use theme shadows === */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
   
   /* === LAYOUT === */
   --container-max-width: 1200px;
   --header-height: 64px;
   --sidebar-width: 260px;
   
-  /* === OPACITY / OVERLAY - More Translucent === */
-  --overlay-backdrop: rgba(67, 82, 116, 0.4);
-  --overlay-dark: rgba(67, 82, 116, 0.6);
+  /* === OPACITY / OVERLAY === */
+  --overlay-backdrop: rgba(0, 0, 0, 0.4);
+  --overlay-dark: rgba(0, 0, 0, 0.6);
   --white-alpha-10: rgba(255, 255, 255, 0.1);
   --white-alpha-15: rgba(255, 255, 255, 0.15);
   --white-alpha-20: rgba(255, 255, 255, 0.2);
@@ -162,4 +165,10 @@
   --z-modal-backdrop: 300;
   --z-modal: 400;
   --z-toast: 500;
+}
+
+/* Dark Mode - Override mappings for dark theme */
+.dark {
+  /* No need to override mappings - theme.css handles dark mode values */
+  /* The bridge layer automatically uses dark mode values from theme variables */
 }
