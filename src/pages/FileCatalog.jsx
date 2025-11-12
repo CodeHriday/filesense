@@ -5,6 +5,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SimpleSuccessModal from '../components/SimpleSuccessModal';
+import PageHeader from '../components/PageHeader';
 import { useFileCatalog, useFileDelete } from '../hooks';
 import { QueryKeys } from '../lib/react-query';
 import { QualityTooltip } from '../components/QualityTooltip';
@@ -540,7 +541,11 @@ export const FileCatalog = ({ onFileSelect }) => {
   if (isLoading) {
     return (
       <div className="file-catalog-container">
-        <h1 className="page-title">File Catalog</h1>
+        <PageHeader
+          title="File Catalog"
+          subtitle="All uploaded files with quality metrics and metadata"
+          hideHomeButton={true}
+        />
         <LoadingSpinner />
       </div>
     );
@@ -549,7 +554,11 @@ export const FileCatalog = ({ onFileSelect }) => {
   if (error) {
     return (
       <div className="file-catalog-container">
-        <h1 className="page-title">File Catalog</h1>
+        <PageHeader
+          title="File Catalog"
+          subtitle="All uploaded files with quality metrics and metadata"
+          hideHomeButton={true}
+        />
         <div className="alert alert-error">
           <p>Failed to fetch file catalog: {error.message}</p>
           <button 
@@ -565,7 +574,17 @@ export const FileCatalog = ({ onFileSelect }) => {
 
   return (
     <div className="file-catalog-container">
-      <h1 className="page-title">File Catalog</h1>
+      <PageHeader
+        title="File Catalog"
+        subtitle="All uploaded files with quality metrics and metadata"
+        hideHomeButton={true}
+        actions={
+          <div className="catalog-file-count">
+            <strong>{files.length}</strong>
+            <span>Total Files</span>
+          </div>
+        }
+      />
       
       <div className="catalog-controls">
         <div className="search-container">

@@ -65,6 +65,24 @@
   gap: 0.8rem;
 }
 
+/* Catalog file count display in header actions */
+.catalog-file-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.catalog-file-count strong {
+  font-size: 1.35rem;
+  color: var(--color-warning, #fbbf24);
+  font-weight: 700;
+}
+
+.catalog-file-count span {
+  font-size: 0.75rem;
+  color: var(--color-warning, #fbbf24);
+}
+
 @media (max-width: 768px) {
   .page-header-content {
     flex-direction: column;

@@ -41,22 +41,7 @@
   color: #94a3b8;
 }
 
-.catalog-file-count {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-
-.catalog-file-count strong {
-  font-size: 1.35rem;
-  color: #fbbf24;
-  font-weight: 700;
-}
-
-.catalog-file-count span {
-  font-size: 0.75rem;
-  color: #fbbf24;
-}
+/* catalog-file-count styles moved to shared PageHeader.css */
 
 .empty-state-card {
   background: white;
