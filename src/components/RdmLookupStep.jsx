@@ -22,6 +22,14 @@ const RdmLookupStep = ({
   const [error, setError] = useState(null);
   const [datasetSchema, setDatasetSchema] = useState([]);
   const [loadingDatasetSchema, setLoadingDatasetSchema] = useState(false);
+  
+  const [joinConditions, setJoinConditions] = useState(
+    datasetConfig?.join_conditions || 
+    (datasetConfig?.dataset_column ? [{
+      dataset_column: datasetConfig.dataset_column,
+      source_column: datasetConfig.source_column
+    }] : [{dataset_column: '', source_column: ''}])
+  );
 
   useEffect(() => {
     fetchRdmResources();
@@ -106,6 +114,25 @@ const RdmLookupStep = ({
       ...crosswalkConfig,
       [field]: value
     });
+  };
+
+  const addJoinCondition = () => {
+    const updated = [...joinConditions, {dataset_column: '', source_column: ''}];
+    setJoinConditions(updated);
+    handleDatasetChange('join_conditions', updated);
+  };
+
+  const removeJoinCondition = (index) => {
+    const updated = joinConditions.filter((_, i) => i !== index);
+    setJoinConditions(updated);
+    handleDatasetChange('join_conditions', updated);
+  };
+
+  const updateJoinCondition = (index, field, value) => {
+    const updated = [...joinConditions];
+    updated[index] = {...updated[index], [field]: value};
+    setJoinConditions(updated);
+    handleDatasetChange('join_conditions', updated);
   };
 
   if (loading) {
@@ -451,33 +478,98 @@ const RdmLookupStep = ({
               <option value="full">Full Outer Join - All records</option>
             </select>
           </div>
+        </div>
 
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Source Column (Your Data)</label>
-            <select
-              className="form-control"
-              value={datasetConfig?.source_column || ''}
-              onChange={(e) => handleDatasetChange('source_column', e.target.value)}
-              disabled={!datasetConfig?.dataset_id}
-            >
-              <option value="">Select column to join on</option>
-              {schema && schema.map(col => (
-                <option key={col.name} value={col.name}>{col.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Dataset Column (Reference Data)</label>
-            <input
-              type="text"
-              className="form-control"
-              value={datasetConfig?.dataset_column || ''}
-              onChange={(e) => handleDatasetChange('dataset_column', e.target.value)}
-              disabled={!datasetConfig?.dataset_id}
-              placeholder="e.g., id, code, identifier"
-            />
-          </div>
+        <div style={{ marginTop: '1.5rem' }}>
+          <h4 style={{ 
+            margin: 0, 
+            marginBottom: '1rem', 
+            fontSize: '1rem', 
+            fontWeight: '600',
+            color: '#111827'
+          }}>
+            Join Conditions
+          </h4>
+          {joinConditions.map((condition, idx) => (
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.75rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Dataset Column (Reference Data)</label>
+                <select
+                  className="form-control"
+                  value={condition.dataset_column}
+                  onChange={(e) => updateJoinCondition(idx, 'dataset_column', e.target.value)}
+                  disabled={!datasetConfig?.dataset_id || loadingDatasetSchema}
+                >
+                  <option value="">Select column</option>
+                  {datasetSchema.map(col => (
+                    <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Source Column (Your Data)</label>
+                <select
+                  className="form-control"
+                  value={condition.source_column}
+                  onChange={(e) => updateJoinCondition(idx, 'source_column', e.target.value)}
+                  disabled={!datasetConfig?.dataset_id}
+                >
+                  <option value="">Select column</option>
+                  {schema && schema.map(col => (
+                    <option key={col.name} value={col.name}>{col.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
+                {joinConditions.length > 1 && (
+                  <button 
+                    onClick={() => removeJoinCondition(idx)} 
+                    style={{
+                      padding: '0.5rem',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '36px',
+                      height: '36px'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
+                  >
+                    <FiTrash2 />
+                  </button>
+                )}
+                {idx === joinConditions.length - 1 && (
+                  <button 
+                    onClick={addJoinCondition} 
+                    style={{
+                      padding: '0.5rem',
+                      backgroundColor: 'hsl(210, 100%, 50%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '36px',
+                      height: '36px'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
+                  >
+                    <FiPlus />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
         {datasetConfig?.dataset_id && (
@@ -492,11 +584,30 @@ const RdmLookupStep = ({
               color: '#0c4a6e'
             }}>
               <strong>Join Preview:</strong> Your records will be enriched with data from the selected dataset 
-              where <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
-                {datasetConfig.source_column || '[source column]'}
-              </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
-                {datasetConfig.dataset_column || '[dataset column]'}
-              </code>
+              {joinConditions.length === 1 ? (
+                <>
+                  {' '}where <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                    {joinConditions[0].source_column || '[source column]'}
+                  </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                    {joinConditions[0].dataset_column || '[dataset column]'}
+                  </code>
+                </>
+              ) : (
+                <>
+                  {' '}where:
+                  <ul style={{ margin: '0.5rem 0 0 0', paddingLeft: '1.5rem' }}>
+                    {joinConditions.map((condition, idx) => (
+                      <li key={idx}>
+                        <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                          {condition.source_column || '[source column]'}
+                        </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                          {condition.dataset_column || '[dataset column]'}
+                        </code>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
 
             <div style={{ marginTop: '1.5rem' }}>
