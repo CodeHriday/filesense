@@ -2,7 +2,7 @@ const axios = require('axios');
 const { systemLogger } = require('../utils/logger');
 const NodeCache = require('node-cache');
 
-const rdmCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
+const rdmCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
 const RDM_API_KEY = process.env.RDM_API_KEY;
 const RDM_BASE_URL = process.env.RDM_BASE_URL;
