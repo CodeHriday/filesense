@@ -135,6 +135,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const [rdmCrosswalks, setRdmCrosswalks] = useState([]);
   const [rdmDatasets, setRdmDatasets] = useState([]);
   const [loadingRdmResources, setLoadingRdmResources] = useState(false);
+  const [rdmLoadError, setRdmLoadError] = useState(false);
 
   // Sync variables from prop to local state (always sync, including empty arrays)
   useEffect(() => {
@@ -150,21 +151,30 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   useEffect(() => {
     const fetchRdmResources = async () => {
       setLoadingRdmResources(true);
+      setRdmLoadError(false);
       try {
         const token = localStorage.getItem('token');
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         
         // Fetch crosswalks and datasets in parallel
         const [crosswalksRes, datasetsRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/rdm/crosswalks`, { headers }).catch(() => ({ data: [] })),
-          axios.get(`${API_BASE_URL}/api/rdm/datasets`, { headers }).catch(() => ({ data: [] }))
+          axios.get(`${API_BASE_URL}/api/rdm/crosswalks`, { headers }).catch(() => ({ data: null, error: true })),
+          axios.get(`${API_BASE_URL}/api/rdm/datasets`, { headers }).catch(() => ({ data: null, error: true }))
         ]);
         
-        setRdmCrosswalks(crosswalksRes.data || []);
-        setRdmDatasets(datasetsRes.data || []);
+        const crosswalks = crosswalksRes.data || [];
+        const datasets = datasetsRes.data || [];
+        
+        setRdmCrosswalks(crosswalks);
+        setRdmDatasets(datasets);
+        
+        // Set error if either endpoint failed
+        if (crosswalksRes.error || datasetsRes.error) {
+          setRdmLoadError(true);
+        }
       } catch (error) {
         console.error('Failed to fetch RDM resources:', error);
-        // Silently fail - RDM is optional
+        setRdmLoadError(true);
       } finally {
         setLoadingRdmResources(false);
       }
@@ -278,10 +288,16 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleEditExpression = (sourceField) => {
     const mapping = mappings.find(m => m.source_field === sourceField);
     if (mapping) {
+      // Normalize boolean caseInsensitive to string for select control
+      const params = { ...mapping.transformation_params };
+      if (params.caseInsensitive !== undefined && typeof params.caseInsensitive === 'boolean') {
+        params.caseInsensitive = params.caseInsensitive.toString();
+      }
+      
       setEditingExpression({
         sourceField,
         transformation: mapping.transformation || 'none',
-        params: mapping.transformation_params || {}
+        params
       });
     }
   };
@@ -289,12 +305,35 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   const handleSaveExpression = () => {
     if (!editingExpression) return;
 
+    // Validate RDM transformations have required resource IDs
+    if (editingExpression.transformation === 'rdm_crosswalk_lookup') {
+      if (!editingExpression.params.rdmCrosswalkId) {
+        alert('Please select a crosswalk before saving this transformation.');
+        return;
+      }
+    }
+    
+    if (editingExpression.transformation === 'rdm_dataset_join') {
+      if (!editingExpression.params.rdmDatasetId) {
+        alert('Please select a dataset before saving this transformation.');
+        return;
+      }
+    }
+
+    // Normalize params before saving
+    const params = { ...editingExpression.params };
+    
+    // Convert caseInsensitive back to boolean if it's a string
+    if (params.caseInsensitive !== undefined && typeof params.caseInsensitive === 'string') {
+      params.caseInsensitive = params.caseInsensitive === 'true';
+    }
+
     const newMappings = mappings.map(m => {
       if (m.source_field === editingExpression.sourceField) {
         return {
           ...m,
           transformation: editingExpression.transformation,
-          transformation_params: editingExpression.params
+          transformation_params: params
         };
       }
       return m;
@@ -315,11 +354,18 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
   };
 
   const handleParamChange = (paramName, paramValue) => {
+    let normalizedValue = paramValue;
+    
+    // Convert string 'true'/'false' to boolean for caseInsensitive parameter
+    if (paramName === 'caseInsensitive') {
+      normalizedValue = paramValue === 'true';
+    }
+    
     setEditingExpression({
       ...editingExpression,
       params: {
         ...editingExpression.params,
-        [paramName]: paramValue
+        [paramName]: normalizedValue
       }
     });
   };
@@ -984,6 +1030,19 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
                   ))}
                 </select>
               </div>
+              
+              {rdmLoadError && (editingExpression.transformation === 'rdm_crosswalk_lookup' || editingExpression.transformation === 'rdm_dataset_join') && (
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: '#fff3cd', 
+                  border: '1px solid #ffc107', 
+                  borderRadius: '4px', 
+                  marginBottom: '15px',
+                  color: '#856404'
+                }}>
+                  <strong>Warning:</strong> Failed to load RDM resources. Reference Data transformations may not work correctly. Please check your RDM connection.
+                </div>
+              )}
 
               {TRANSFORMATION_OPTIONS.find(t => t.value === editingExpression.transformation)?.params.map(param => (
                 <div key={param.name} className="form-group">
