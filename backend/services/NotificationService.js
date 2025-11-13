@@ -13,6 +13,7 @@ const { pool, query } = require('../config/database');
 const EmailProviderFactory = require('./email/EmailProviderFactory');
 const ConnectionService = require('./ConnectionService');
 const { systemLogger } = require('../utils/logger');
+const { createCredentialsSummary } = require('../utils/credentialSanitizer');
 
 class NotificationService {
   constructor() {
@@ -223,11 +224,11 @@ class NotificationService {
         config: updatedCredentials
       });
 
+      // Log sanitized summary (SAFE - no secrets)
+      const summary = createCredentialsSummary(updatedCredentials);
       systemLogger?.info('OAuth2 credentials persisted successfully', {
         connectionId,
-        hasAccessToken: !!updatedCredentials.access_token,
-        hasRefreshToken: !!updatedCredentials.refresh_token,
-        expiresAt: updatedCredentials.expires_at
+        ...summary
       });
 
       return true;
@@ -266,9 +267,13 @@ class NotificationService {
         }
       }
 
+      // SECURITY: Remove full credentials from result before returning
+      // Only keep sanitized summary for logging
+      const { updatedCredentials, ...safeResult } = result;
+
       // Include credential persistence status in result
       return {
-        ...result,
+        ...safeResult,
         credentialsPersisted,
         credentialsRefreshed: result.credentialsUpdated || false
       };

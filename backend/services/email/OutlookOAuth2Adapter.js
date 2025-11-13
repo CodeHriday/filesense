@@ -17,6 +17,7 @@ const EmailProviderAdapter = require('./EmailProviderAdapter');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 const { systemLogger } = require('../../utils/logger');
+const { createCredentialsSummary } = require('../../utils/credentialSanitizer');
 
 class OutlookOAuth2Adapter extends EmailProviderAdapter {
   constructor(config) {
@@ -192,6 +193,8 @@ class OutlookOAuth2Adapter extends EmailProviderAdapter {
       // Include updated credentials if they were refreshed
       if (this.accessToken !== originalAccessToken || this.refreshToken !== originalRefreshToken) {
         result.credentialsUpdated = true;
+        
+        // Full credentials for secure persistence (DO NOT LOG - encrypt before storage)
         result.updatedCredentials = {
           access_token: this.accessToken,
           refresh_token: this.refreshToken,
@@ -201,6 +204,13 @@ class OutlookOAuth2Adapter extends EmailProviderAdapter {
           tenant_id: this.tenantId,
           expires_at: this.expiresAt ? this.expiresAt.toISOString() : null
         };
+        
+        // Sanitized summary for logging (SAFE TO LOG - no secrets)
+        result.credentialsSummary = createCredentialsSummary({
+          access_token: this.accessToken,
+          refresh_token: this.refreshToken,
+          expires_at: this.expiresAt ? this.expiresAt.toISOString() : null
+        });
       }
 
       return result;
