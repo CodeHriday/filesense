@@ -308,6 +308,27 @@ class EmailComposer {
       text: textTemplate(templateData)
     };
   }
+
+  /**
+   * Compose alert email based on entity type
+   * @param {string} entityType - 'job', 'workflow', 'mapping_group', 'schedule'
+   * @param {Object} entityData - Entity-specific data
+   * @returns {Promise<Object>} - { subject, html, text }
+   */
+  async composeAlert(entityType, entityData) {
+    switch (entityType) {
+      case 'job':
+        return await this.composeJobAlert(entityData);
+      case 'workflow':
+        return await this.composeWorkflowAlert(entityData);
+      case 'mapping_group':
+        return await this.composeMappingGroupAlert(entityData);
+      case 'schedule':
+        return await this.composeScheduleAlert(entityData);
+      default:
+        throw new Error(`Unsupported entity type for alert composition: ${entityType}`);
+    }
+  }
 }
 
-module.exports = EmailComposer;
+module.exports = new EmailComposer();
