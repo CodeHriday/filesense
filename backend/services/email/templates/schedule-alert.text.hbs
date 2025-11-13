@@ -1,0 +1,31 @@
+========================================
+SCHEDULE EXECUTION {{#if (isSuccess status)}}COMPLETED{{else}}FAILED{{/if}}
+========================================
+
+Schedule Name: {{scheduleName}}
+Schedule ID: {{scheduleId}}
+Target Type: {{targetType}}
+Target Name: {{targetName}}
+
+Status: {{status}}
+Execution Time: {{formatDate executionTime}}
+
+Schedule Configuration:
+-----------------------
+Cron Expression: {{cronExpression}}
+{{#if nextRun}}
+Next Run: {{formatDate nextRun}}
+{{/if}}
+
+Execution Metrics:
+------------------
+Duration: {{formatDuration duration}}
+
+{{#if error}}
+Error Details:
+--------------
+{{error}}
+{{/if}}
+
+========================================
+This is an automated alert from Data File Observatory

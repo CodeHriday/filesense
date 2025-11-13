@@ -1,0 +1,30 @@
+========================================
+WORKFLOW {{#if (isSuccess status)}}COMPLETED{{else}}FAILED{{/if}}
+========================================
+
+Workflow Name: {{workflowName}}
+Workflow ID: {{workflowId}}
+Project: {{projectName}}
+
+Status: {{status}}
+Execution Time: {{formatDate executionTime}}
+
+Progress:
+---------
+Steps Completed: {{stepsCompleted}} of {{totalSteps}}
+{{#if failedStep}}
+Failed Step: {{failedStep}}
+{{/if}}
+
+Execution Metrics:
+------------------
+Duration: {{formatDuration duration}}
+
+{{#if error}}
+Error Details:
+--------------
+{{error}}
+{{/if}}
+
+========================================
+This is an automated alert from Data File Observatory

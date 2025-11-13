@@ -1,0 +1,32 @@
+========================================
+ALERT SUMMARY
+Activity Report for the Last {{timeWindow}}
+========================================
+
+Summary:
+--------
+Total Events: {{formatNumber summary.totalEvents}}
+Successful: {{formatNumber summary.successCount}}
+Failed: {{formatNumber summary.failureCount}}
+{{#if summary.qualityViolations}}
+Quality Violations: {{formatNumber summary.qualityViolations}}
+{{/if}}
+
+Recent Events:
+--------------
+{{#each events}}
+
+{{type}}: {{name}}
+Status: {{status}}
+Time: {{formatDate timestamp}}
+Duration: {{formatDuration duration}}
+{{#if error}}
+Error: {{error}}
+{{/if}}
+----------------------------------------
+{{/each}}
+
+Generated: {{formatDate generatedAt}}
+
+========================================
+This is an automated alert from Data File Observatory

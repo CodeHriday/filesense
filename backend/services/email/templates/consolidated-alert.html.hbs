@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px; }
+    .header { background: #3b82f6; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .summary-card { background: white; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; text-align: center; }
+    .summary-value { font-size: 32px; font-weight: 700; color: #111827; }
+    .summary-label { font-size: 14px; color: #6b7280; margin-top: 4px; }
+    .events-list { background: white; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; }
+    .event-item { padding: 12px; margin-bottom: 10px; border-left: 4px solid; border-radius: 4px; }
+    .event-success { background: #f0fdf4; border-color: #10b981; }
+    .event-error { background: #fef2f2; border-color: #ef4444; }
+    .event-title { font-weight: 600; color: #111827; }
+    .event-meta { font-size: 14px; color: #6b7280; margin-top: 4px; }
+    .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 style="margin: 0; font-size: 24px;">Alert Summary</h1>
+    <p style="margin: 8px 0 0 0; opacity: 0.9;">Activity Report for the Last {{timeWindow}}</p>
+  </div>
+  
+  <div class="content">
+    <div class="summary">
+      <div class="summary-card">
+        <div class="summary-value">{{formatNumber summary.totalEvents}}</div>
+        <div class="summary-label">Total Events</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" style="color: #10b981;">{{formatNumber summary.successCount}}</div>
+        <div class="summary-label">Successful</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" style="color: #ef4444;">{{formatNumber summary.failureCount}}</div>
+        <div class="summary-label">Failed</div>
+      </div>
+      {{#if summary.qualityViolations}}
+      <div class="summary-card">
+        <div class="summary-value" style="color: #f59e0b;">{{formatNumber summary.qualityViolations}}</div>
+        <div class="summary-label">Quality Violations</div>
+      </div>
+      {{/if}}
+    </div>
+
+    <div class="events-list">
+      <h3 style="margin-top: 0; color: #111827;">Recent Events</h3>
+      {{#each events}}
+      <div class="event-item {{#if (isSuccess status)}}event-success{{else}}event-error{{/if}}">
+        <div class="event-title">{{type}}: {{name}}</div>
+        <div class="event-meta">
+          <strong>Status:</strong> {{status}} | 
+          <strong>Time:</strong> {{formatDate timestamp}} |
+          <strong>Duration:</strong> {{formatDuration duration}}
+        </div>
+        {{#if error}}
+        <div class="event-meta" style="color: #ef4444; margin-top: 4px;">
+          <strong>Error:</strong> {{error}}
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Generated: {{formatDate generatedAt}}</p>
+    <p>This is an automated alert from Data File Observatory</p>
+  </div>
+</body>
+</html>
