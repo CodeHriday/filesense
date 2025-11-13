@@ -12,6 +12,7 @@ const AwsSesAdapter = require('./AwsSesAdapter');
 const AzureEmailAdapter = require('./AzureEmailAdapter');
 const GcpEmailAdapter = require('./GcpEmailAdapter');
 const GmailOAuth2Adapter = require('./GmailOAuth2Adapter');
+const OutlookOAuth2Adapter = require('./OutlookOAuth2Adapter');
 const { systemLogger } = require('../../utils/logger');
 
 class EmailProviderFactory {
@@ -42,8 +43,7 @@ class EmailProviderFactory {
         return new GmailOAuth2Adapter(config);
       
       case 'outlook_oauth2':
-        // Outlook OAuth2 adapter will be implemented in task 7
-        throw new Error('Outlook OAuth2 adapter not yet implemented');
+        return new OutlookOAuth2Adapter(config);
       
       default:
         throw new Error(`Unsupported email provider type: ${type}`);

@@ -29,6 +29,7 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
     this.refreshToken = config.refresh_token;
     this.accessToken = config.access_token;
     this.fromEmail = config.from_email;
+    this.expiresAt = config.expires_at ? new Date(config.expires_at) : null;
     
     this.tokenEndpoint = 'https://oauth2.googleapis.com/token';
     this.revokeEndpoint = 'https://oauth2.googleapis.com/revoke';
@@ -60,15 +61,21 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
         this.refreshToken = response.data.refresh_token;
       }
       
+      // Calculate and store token expiry time
+      const expiresIn = response.data.expires_in || 3600;
+      this.expiresAt = new Date(Date.now() + (expiresIn * 1000));
+      
       systemLogger?.info('Gmail OAuth2 access token refreshed successfully', {
         expiresIn: response.data.expires_in,
+        expiresAt: this.expiresAt.toISOString(),
         refreshTokenRotated: !!response.data.refresh_token
       });
       
       return {
         access_token: this.accessToken,
         refresh_token: this.refreshToken,
-        expires_in: response.data.expires_in
+        expires_in: expiresIn,
+        expires_at: this.expiresAt.toISOString()
       };
     } catch (error) {
       systemLogger?.error('Failed to refresh Gmail OAuth2 access token', {
@@ -103,13 +110,24 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
   }
 
   /**
+   * Check if access token is expired or will expire soon (within 5 minutes)
+   * @returns {boolean}
+   */
+  isTokenExpired() {
+    if (!this.expiresAt) {
+      return !this.accessToken; // If no expiry info, check if token exists
+    }
+    const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+    return Date.now() >= (this.expiresAt.getTime() - bufferTime);
+  }
+
+  /**
    * Create nodemailer transporter with OAuth2
    */
   async createTransporter() {
-    // Ensure we have a valid access token
-    if (!this.accessToken) {
+    // Refresh token if missing or expired
+    if (!this.accessToken || this.isTokenExpired()) {
       const tokenData = await this.refreshAccessToken();
-      // Update instance with potentially rotated refresh token
       this.accessToken = tokenData.access_token;
       if (tokenData.refresh_token) {
         this.refreshToken = tokenData.refresh_token;
@@ -186,7 +204,8 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
           refresh_token: this.refreshToken,
           client_id: this.clientId,
           client_secret: this.clientSecret,
-          from_email: this.fromEmail
+          from_email: this.fromEmail,
+          expires_at: this.expiresAt ? this.expiresAt.toISOString() : null
         };
       }
 
@@ -242,7 +261,8 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
               refresh_token: this.refreshToken,
               client_id: this.clientId,
               client_secret: this.clientSecret,
-              from_email: this.fromEmail
+              from_email: this.fromEmail,
+              expires_at: this.expiresAt ? this.expiresAt.toISOString() : null
             }
           };
         } catch (retryError) {
@@ -340,7 +360,8 @@ class GmailOAuth2Adapter extends EmailProviderAdapter {
       refresh_token: this.refreshToken,
       client_id: this.clientId,
       client_secret: this.clientSecret,
-      from_email: this.fromEmail
+      from_email: this.fromEmail,
+      expires_at: this.expiresAt ? this.expiresAt.toISOString() : null
     };
   }
 
