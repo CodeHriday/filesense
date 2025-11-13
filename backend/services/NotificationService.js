@@ -215,6 +215,7 @@ class NotificationService {
    * Persist updated OAuth2 credentials to database
    * @param {number} connectionId - Storage connection ID
    * @param {Object} updatedCredentials - Updated credential object
+   * @returns {Promise<boolean>} - True if persistence succeeded
    */
   async persistCredentials(connectionId, updatedCredentials) {
     try {
@@ -228,12 +229,15 @@ class NotificationService {
         hasRefreshToken: !!updatedCredentials.refresh_token,
         expiresAt: updatedCredentials.expires_at
       });
+
+      return true;
     } catch (error) {
       systemLogger?.error('Failed to persist OAuth2 credentials', {
         connectionId,
         error: error.message
       });
       // Don't throw - credential persistence failure shouldn't fail the email send
+      return false;
     }
   }
 
@@ -241,7 +245,7 @@ class NotificationService {
    * Send email with a specific provider
    * @param {Object} provider - Provider connection object
    * @param {Object} emailData - Email data (to, subject, html, text, attachments)
-   * @returns {Promise<Object>} - Send result
+   * @returns {Promise<Object>} - Send result with credential persistence metadata
    */
   async sendWithProvider(provider, emailData) {
     try {
@@ -252,11 +256,22 @@ class NotificationService {
       const result = await adapter.send(emailData);
 
       // Persist updated credentials if OAuth2 token was refreshed
+      let credentialsPersisted = false;
       if (result.credentialsUpdated && result.updatedCredentials) {
-        await this.persistCredentials(provider.id, result.updatedCredentials);
+        credentialsPersisted = await this.persistCredentials(provider.id, result.updatedCredentials);
+        if (!credentialsPersisted) {
+          systemLogger?.warn('Credential persistence failed but email sent successfully', {
+            providerId: provider.id
+          });
+        }
       }
 
-      return result;
+      // Include credential persistence status in result
+      return {
+        ...result,
+        credentialsPersisted,
+        credentialsRefreshed: result.credentialsUpdated || false
+      };
     } catch (error) {
       systemLogger?.error('Provider send failed', {
         providerId: provider.id,
@@ -290,7 +305,10 @@ class NotificationService {
           providerId: provider.id,
           providerType: provider.type,
           status: 'skipped',
-          reason: 'circuit_breaker_open'
+          reason: 'circuit_breaker_open',
+          retries: 0,
+          credentialsRefreshed: false,
+          credentialsPersisted: false
         });
         continue;
       }
@@ -305,16 +323,21 @@ class NotificationService {
           providerId: provider.id,
           providerType: provider.type,
           status: 'skipped',
-          reason: 'rate_limit_exceeded'
+          reason: 'rate_limit_exceeded',
+          retries: 0,
+          credentialsRefreshed: false,
+          credentialsPersisted: false
         });
         continue;
       }
 
       // Try sending with retries
       let lastError = null;
+      let lastResult = null;
       for (let retry = 0; retry <= maxRetries; retry++) {
         try {
           const result = await this.sendWithProvider(provider, emailData);
+          lastResult = result; // Capture last result for credential metadata
 
           if (result.success) {
             this.recordSuccess(provider.id);
@@ -334,7 +357,9 @@ class NotificationService {
               providerType: provider.type,
               status: 'success',
               messageId: result.messageId,
-              retries: retry
+              retries: retry,
+              credentialsRefreshed: result.credentialsRefreshed,
+              credentialsPersisted: result.credentialsPersisted
             });
 
             return {
@@ -343,7 +368,9 @@ class NotificationService {
               providerType: provider.type,
               messageId: result.messageId,
               duration,
-              attempts
+              attempts,
+              credentialsRefreshed: result.credentialsRefreshed,
+              credentialsPersisted: result.credentialsPersisted
             };
           }
 
@@ -367,13 +394,16 @@ class NotificationService {
       }
 
       // All retries failed for this provider
+      // Use credential metadata from last attempt if available
       this.recordFailure(provider.id);
       attempts.push({
         providerId: provider.id,
         providerType: provider.type,
         status: 'failed',
         error: lastError,
-        retries: maxRetries
+        retries: maxRetries,
+        credentialsRefreshed: lastResult?.credentialsRefreshed || false,
+        credentialsPersisted: lastResult?.credentialsPersisted || false
       });
     }
 
@@ -429,7 +459,9 @@ class NotificationService {
           JSON.stringify({
             duration: sendResult.duration,
             attempts: sendResult.attempts,
-            providerType: sendResult.providerType
+            providerType: sendResult.providerType,
+            credentialsRefreshed: sendResult.credentialsRefreshed || false,
+            credentialsPersisted: sendResult.credentialsPersisted || false
           })
         ]
       );
