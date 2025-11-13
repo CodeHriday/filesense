@@ -4,6 +4,7 @@ const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
 const { executeNStepWorkflow } = require('./nStepWorkflowExecutionEngine');
 const parser = require('cron-parser');
+const alertAggregationWorker = require('./AlertAggregationWorker');
 
 /**
  * Cron Scheduler Service
@@ -443,6 +444,23 @@ async function processDueSchedules() {
           WHERE id = $3
         `, [now, nextRun, schedule.id]);
         
+        // Emit alert event for successful schedule execution (fire-and-forget, non-blocking)
+        setImmediate(() => {
+          try {
+            alertAggregationWorker.onScheduleExecuted(schedule.id, 'completed').catch(err => {
+              systemLogger.warn('Failed to emit schedule execution success alert event', {
+                scheduleId: schedule.id,
+                error: err.message
+              });
+            });
+          } catch (err) {
+            systemLogger.warn('Error emitting schedule execution success alert event', {
+              scheduleId: schedule.id,
+              error: err.message
+            });
+          }
+        });
+        
         results.push({
           scheduleId: schedule.id,
           entityType: schedule.entity_type,
@@ -457,6 +475,23 @@ async function processDueSchedules() {
           entityType: schedule.entity_type,
           entityId: schedule.entity_id,
           error: error.message
+        });
+        
+        // Emit alert event for failed schedule execution (fire-and-forget, non-blocking)
+        setImmediate(() => {
+          try {
+            alertAggregationWorker.onScheduleExecuted(schedule.id, 'failed').catch(err => {
+              systemLogger.warn('Failed to emit schedule execution failure alert event', {
+                scheduleId: schedule.id,
+                error: err.message
+              });
+            });
+          } catch (err) {
+            systemLogger.warn('Error emitting schedule execution failure alert event', {
+              scheduleId: schedule.id,
+              error: err.message
+            });
+          }
         });
         
         results.push({

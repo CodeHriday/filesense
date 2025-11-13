@@ -3,6 +3,7 @@ const pool = require('../db');
 const { systemLogger } = require('../utils/logger');
 const { executeTransformationJob } = require('./jobExecutionEngine');
 const { executeMappingGroup } = require('./mappingGroupExecutionEngine');
+const alertAggregationWorker = require('./AlertAggregationWorker');
 
 /**
  * Workflow Orchestration Engine
@@ -269,6 +270,25 @@ async function executeWorkflow(workflowId, triggeredBy = null) {
           WHERE id = $3
         `, [endTime, durationMs, executionRecordId]);
         
+        // Emit alert event (fire-and-forget, non-blocking)
+        setImmediate(() => {
+          try {
+            alertAggregationWorker.onWorkflowCompleted(workflowId, executionId, 'failed').catch(err => {
+              systemLogger.warn('Failed to emit workflow failure alert event (step failure)', {
+                workflowId,
+                executionId,
+                error: err.message
+              });
+            });
+          } catch (err) {
+            systemLogger.warn('Error emitting workflow failure alert event (step failure)', {
+              workflowId,
+              executionId,
+              error: err.message
+            });
+          }
+        });
+        
         return {
           success: false,
           executionId,
@@ -324,6 +344,25 @@ async function executeWorkflow(workflowId, triggeredBy = null) {
       durationMs
     });
     
+    // Emit alert event (fire-and-forget, non-blocking)
+    setImmediate(() => {
+      try {
+        alertAggregationWorker.onWorkflowCompleted(workflowId, executionId, 'completed').catch(err => {
+          systemLogger.warn('Failed to emit workflow completion alert event', {
+            workflowId,
+            executionId,
+            error: err.message
+          });
+        });
+      } catch (err) {
+        systemLogger.warn('Error emitting workflow completion alert event', {
+          workflowId,
+          executionId,
+          error: err.message
+        });
+      }
+    });
+    
     return {
       success: true,
       executionId,
@@ -359,6 +398,25 @@ async function executeWorkflow(workflowId, triggeredBy = null) {
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $4
       `, [error.message, endTime, durationMs, executionRecordId]);
+      
+      // Emit alert event (fire-and-forget, non-blocking)
+      setImmediate(() => {
+        try {
+          alertAggregationWorker.onWorkflowCompleted(workflowId, executionId, 'failed').catch(err => {
+            systemLogger.warn('Failed to emit workflow failure alert event (exception)', {
+              workflowId,
+              executionId,
+              error: err.message
+            });
+          });
+        } catch (err) {
+          systemLogger.warn('Error emitting workflow failure alert event (exception)', {
+            workflowId,
+            executionId,
+            error: err.message
+          });
+        }
+      });
     }
     
     throw error;

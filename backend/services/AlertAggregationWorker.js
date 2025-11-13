@@ -108,39 +108,64 @@ class AlertAggregationWorker {
 
   /**
    * Handle workflow completion event
-   * Triggers immediate flush of aggregated alerts for the workflow's policies
+   * Adds workflow event to aggregation queue and triggers flush for completed workflows
    * @param {string} workflowId - Workflow ID
-   * @param {string} workflowRunId - Workflow run ID
+   * @param {string} executionId - Workflow execution ID
+   * @param {string} status - Workflow status ('completed', 'failed')
    */
-  async onWorkflowCompleted(workflowId, workflowRunId) {
+  async onWorkflowCompleted(workflowId, executionId, status = 'completed') {
     try {
-      systemLogger.info('Workflow completed, checking for pending alerts', {
+      systemLogger.info('Workflow execution event', {
         workflowId,
-        workflowRunId
+        executionId,
+        status
       });
 
       // Get all alert policies that match this workflow
       const policies = await this.getMatchingPolicies('workflow', workflowId);
       
       for (const policy of policies) {
-        const status = await alertAggregator.getAggregationStatus(policy.id);
-        
-        if (status.eventCount > 0) {
-          systemLogger.info('Flushing aggregated alerts on workflow completion', {
-            workflowId,
-            policyId: policy.id,
-            eventCount: status.eventCount
-          });
+        // Add event to aggregation queue
+        await alertAggregator.addEvent({
+          policyId: policy.id,
+          eventType: 'workflow_execution',
+          entityId: workflowId,
+          entityType: 'workflow',
+          status,
+          metadata: { 
+            executionId,
+            completedAt: new Date().toISOString() 
+          }
+        });
 
-          // Flush and send consolidated alert
-          const events = await alertAggregator.flushEvents(policy.id, 'workflow_completed');
+        // If policy has immediate delivery (no consolidation), flush immediately
+        if (policy.consolidate_alerts === false) {
+          const events = await alertAggregator.flushEvents(policy.id, 'immediate_delivery');
           await this.sendConsolidatedAlert(policy, events);
+        }
+        
+        // If workflow completed successfully, also flush any pending aggregated alerts
+        // This ensures alerts are sent when the workflow finishes its execution
+        if (status === 'completed') {
+          const aggregationStatus = await alertAggregator.getAggregationStatus(policy.id);
+          
+          if (aggregationStatus.eventCount > 0) {
+            systemLogger.info('Flushing aggregated alerts on workflow completion', {
+              workflowId,
+              policyId: policy.id,
+              eventCount: aggregationStatus.eventCount
+            });
+
+            const events = await alertAggregator.flushEvents(policy.id, 'workflow_completed');
+            await this.sendConsolidatedAlert(policy, events);
+          }
         }
       }
     } catch (error) {
-      systemLogger.error('Error handling workflow completion', {
+      systemLogger.error('Error handling workflow execution', {
         workflowId,
-        workflowRunId,
+        executionId,
+        status,
         error: error.message
       });
     }

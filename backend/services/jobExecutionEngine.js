@@ -17,6 +17,7 @@ const { profileETLOutputFile, profileETLFile } = require('./etlProfilingService'
 const { profileFileBuffer, downloadAndProfileFile } = require('./transformationProfilingService');
 const { persistGovernanceMetadata } = require('./governanceService');
 const { loadRDMContext } = require('./rdmContextLoader');
+const alertAggregationWorker = require('./AlertAggregationWorker');
 const crypto = require('crypto');
 
 /**
@@ -714,6 +715,23 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       rowsFailed: totalRowsFailed
     });
     
+    // Emit alert event (fire-and-forget, non-blocking)
+    setImmediate(() => {
+      try {
+        alertAggregationWorker.onJobCompleted(jobId, 'completed').catch(err => {
+          systemLogger.warn('Failed to emit job completion alert event', {
+            jobId,
+            error: err.message
+          });
+        });
+      } catch (err) {
+        systemLogger.warn('Error emitting job completion alert event', {
+          jobId,
+          error: err.message
+        });
+      }
+    });
+    
     return {
       jobId,
       status: 'completed',
@@ -736,6 +754,23 @@ async function executeTransformationJob(pool, mappingId, userId, options = {}) {
       await logJobExecution(pool, job.job_id, 'error', 'Job execution failed', {
         error: error.message,
         stack: error.stack
+      });
+      
+      // Emit alert event (fire-and-forget, non-blocking)
+      setImmediate(() => {
+        try {
+          alertAggregationWorker.onJobCompleted(job.job_id, 'failed').catch(err => {
+            systemLogger.warn('Failed to emit job failure alert event', {
+              jobId: job.job_id,
+              error: err.message
+            });
+          });
+        } catch (err) {
+          systemLogger.warn('Error emitting job failure alert event', {
+            jobId: job.job_id,
+            error: err.message
+          });
+        }
       });
     }
     
