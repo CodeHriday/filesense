@@ -9197,6 +9197,11 @@ const emailConnectionRoutes = require('./backend/routes/emailConnectionRoutes');
 app.use('/api/email-connections', authenticateToken, emailConnectionRoutes);
 console.log('Added email connection routes');
 
+// Alert history routes
+const alertHistoryRoutes = require('./backend/routes/alertHistoryRoutes');
+app.use('/api/alert-history', authenticateToken, alertHistoryRoutes);
+console.log('Added alert history routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 

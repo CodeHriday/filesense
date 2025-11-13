@@ -73,6 +73,7 @@ import ArchivedFiles from './pages/ArchivedFiles';
 import Anomalies from './pages/Anomalies';
 import { AlertsConfig } from './pages/AlertsConfig';
 import { EmailProvidersConfig } from './pages/EmailProvidersConfig';
+import AlertHistory from './pages/AlertHistory';
 import { OAuth2Callback } from './pages/OAuth2Callback';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
@@ -325,6 +326,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/group-management" element={<ProtectedRoute><GroupManagement /></ProtectedRoute>} />
                 <Route path="/system-cleanup" element={<ProtectedRoute><SystemCleanup /></ProtectedRoute>} />
                 <Route path="/alerts-config" element={<ProtectedRoute><AlertsConfig /></ProtectedRoute>} />
+                <Route path="/alert-history" element={<ProtectedRoute><AlertHistory /></ProtectedRoute>} />
                 <Route path="/email-providers" element={<ProtectedRoute><EmailProvidersConfig /></ProtectedRoute>} />
                 <Route path="/oauth2-callback" element={<OAuth2Callback />} />
                 <Route path="/workflow-canvas" element={<ProtectedRoute><WorkflowCanvasStandalone /></ProtectedRoute>} />
