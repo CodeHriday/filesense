@@ -20,14 +20,14 @@ class AttachmentBuilder {
    * Generate quality violations attachment for a job
    * @param {string} jobId - Job ID to fetch violations for
    * @param {string} format - 'csv' or 'xlsx'
-   * @param {Object} options - { limit, includeRecordSnapshot }
+   * @param {Object} options - { limit, includeRecordSnapshot, keepBufferForUpload }
    * @returns {Promise<Object>} - { buffer, filename, mimeType, size, rowCount, truncated, exceedsLimit, requiresCloudUpload, downloadHint? }
-   *   - buffer: Buffer or null (null if exceeds limit)
+   *   - buffer: Buffer or null (null if exceeds limit, unless keepBufferForUpload=true)
    *   - requiresCloudUpload: true if buffer is null due to size limit
    */
   async generateJobViolationsAttachment(jobId, format = 'csv', options = {}) {
     try {
-      const { limit, includeRecordSnapshot = false } = options;
+      const { limit, includeRecordSnapshot = false, keepBufferForUpload = false } = options;
 
       // Enforce row limit (clamp to MAX_CSV_ROWS, guard against negative/zero)
       const effectiveLimit = Math.max(1, Math.min(limit || this.MAX_CSV_ROWS, this.MAX_CSV_ROWS));
@@ -65,9 +65,9 @@ class AttachmentBuilder {
           sizeFormatted: this.formatSize(size)
         });
 
-        // Return metadata without buffer - caller must upload to cloud storage
+        // Return metadata - with or without buffer depending on keepBufferForUpload flag
         return {
-          buffer: null,
+          buffer: keepBufferForUpload ? buffer : null,
           filename,
           mimeType,
           size,
@@ -112,14 +112,14 @@ class AttachmentBuilder {
    * Generate quality violations attachment for multiple jobs (consolidated)
    * @param {Array<string>} jobIds - Array of job IDs
    * @param {string} format - 'csv' or 'xlsx'
-   * @param {Object} options - { limit, includeRecordSnapshot }
+   * @param {Object} options - { limit, includeRecordSnapshot, keepBufferForUpload }
    * @returns {Promise<Object>} - { buffer, filename, mimeType, size, rowCount, truncated, exceedsLimit, requiresCloudUpload, downloadHint? }
-   *   - buffer: Buffer or null (null if exceeds limit)
+   *   - buffer: Buffer or null (null if exceeds limit, unless keepBufferForUpload=true)
    *   - requiresCloudUpload: true if buffer is null due to size limit
    */
   async generateConsolidatedViolationsAttachment(jobIds, format = 'csv', options = {}) {
     try {
-      const { limit, includeRecordSnapshot = false } = options;
+      const { limit, includeRecordSnapshot = false, keepBufferForUpload = false } = options;
 
       if (!jobIds || jobIds.length === 0) {
         return null;
@@ -161,9 +161,9 @@ class AttachmentBuilder {
           sizeFormatted: this.formatSize(size)
         });
 
-        // Return metadata without buffer - caller must upload to cloud storage
+        // Return metadata - with or without buffer depending on keepBufferForUpload flag
         return {
-          buffer: null,
+          buffer: keepBufferForUpload ? buffer : null,
           filename,
           mimeType,
           size,
