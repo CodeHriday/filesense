@@ -23,7 +23,7 @@ export const AlertsConfig = () => {
     description: '',
     entity_type: 'job',
     trigger_events: ['failure'],
-    consolidation_window_minutes: 10,
+    consolidation_window_minutes: 60,
     consolidate_alerts: true,
     enabled: true,
     project_id: ''
@@ -170,7 +170,7 @@ export const AlertsConfig = () => {
       description: '',
       entity_type: 'job',
       trigger_events: ['failure'],
-      consolidation_window_minutes: 10,
+      consolidation_window_minutes: 60,
       consolidate_alerts: true,
       enabled: true,
       project_id: ''
@@ -184,9 +184,9 @@ export const AlertsConfig = () => {
       description: policy.description || '',
       entity_type: policy.entity_type,
       trigger_events: Array.isArray(policy.trigger_events) ? policy.trigger_events : [policy.trigger_events],
-      consolidation_window_minutes: policy.consolidation_window_minutes,
+      consolidation_window_minutes: policy.consolidation_window_minutes || 60,
       consolidate_alerts: policy.consolidate_alerts !== false,
-      enabled: policy.enabled,
+      enabled: policy.enabled !== false,
       project_id: policy.project_id
     });
     setShowEditModal(true);
@@ -198,7 +198,7 @@ export const AlertsConfig = () => {
     setShowRecipientsModal(true);
   };
 
-  const getTriggerTypeBadge = (type) => {
+  const getEntityTypeBadge = (type) => {
     const colors = {
       job: 'bg-blue-100 text-blue-800',
       workflow: 'bg-purple-100 text-purple-800',
@@ -213,18 +213,32 @@ export const AlertsConfig = () => {
     );
   };
 
-  const getTriggerOnBadge = (trigger) => {
+  const getTriggerEventsBadge = (events) => {
+    if (!events || events.length === 0) return null;
+    
+    const eventList = Array.isArray(events) ? events : [events];
+    const displayText = eventList.join(', ');
+    
     const colors = {
       failure: 'bg-red-100 text-red-800',
       success: 'bg-green-100 text-green-800',
-      both: 'bg-yellow-100 text-yellow-800'
+      completed: 'bg-green-100 text-green-800'
     };
 
+    const color = eventList.includes('failure') ? colors.failure : 
+                  (eventList.includes('success') || eventList.includes('completed')) ? colors.success : 
+                  'bg-yellow-100 text-yellow-800';
+
     return (
-      <span className={`trigger-badge ${colors[trigger] || 'bg-gray-100 text-gray-800'}`}>
-        {trigger}
+      <span className={`trigger-badge ${color}`}>
+        {displayText}
       </span>
     );
+  };
+
+  const handleTriggerEventsChange = (event) => {
+    const value = event.target.value;
+    setFormData({ ...formData, trigger_events: [value] });
   };
 
   if (loading) {
@@ -285,8 +299,8 @@ export const AlertsConfig = () => {
                   <div className="policy-title-row">
                     <h3 className="policy-name">{policy.name}</h3>
                     <div className="policy-badges">
-                      {getTriggerTypeBadge(policy.trigger_type)}
-                      {getTriggerOnBadge(policy.trigger_on)}
+                      {getEntityTypeBadge(policy.entity_type)}
+                      {getTriggerEventsBadge(policy.trigger_events)}
                       {!policy.enabled && (
                         <span className="trigger-badge bg-gray-100 text-gray-500">
                           Disabled
@@ -302,11 +316,11 @@ export const AlertsConfig = () => {
                   <div className="policy-meta">
                     <div className="meta-item">
                       <FiClock />
-                      <span>Group: {policy.grouping_window_minutes} min</span>
+                      <span>Group: {policy.consolidation_window_minutes || 60} min</span>
                     </div>
                     <div className="meta-item">
                       <FiUsers />
-                      <span>{policy.recipientCount || 0} recipients</span>
+                      <span>{policy.recipient_count || 0} recipients</span>
                     </div>
                   </div>
                 </div>
@@ -390,10 +404,10 @@ export const AlertsConfig = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Trigger Type *</label>
+              <label className="form-label">Entity Type *</label>
               <select
-                value={formData.trigger_type}
-                onChange={(e) => setFormData({ ...formData, trigger_type: e.target.value })}
+                value={formData.entity_type}
+                onChange={(e) => setFormData({ ...formData, entity_type: e.target.value })}
                 className="form-select"
               >
                 <option value="job">Job</option>
@@ -404,25 +418,25 @@ export const AlertsConfig = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Trigger On *</label>
+              <label className="form-label">Trigger Event *</label>
               <select
-                value={formData.trigger_on}
-                onChange={(e) => setFormData({ ...formData, trigger_on: e.target.value })}
+                value={formData.trigger_events[0] || 'failure'}
+                onChange={handleTriggerEventsChange}
                 className="form-select"
               >
                 <option value="failure">Failure</option>
                 <option value="success">Success</option>
-                <option value="both">Both</option>
+                <option value="completed">Completed</option>
               </select>
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Grouping Window (minutes) *</label>
+            <label className="form-label">Consolidation Window (minutes) *</label>
             <input
               type="number"
-              value={formData.grouping_window_minutes}
-              onChange={(e) => setFormData({ ...formData, grouping_window_minutes: parseInt(e.target.value) || 10 })}
+              value={formData.consolidation_window_minutes}
+              onChange={(e) => setFormData({ ...formData, consolidation_window_minutes: parseInt(e.target.value) || 60 })}
               className="form-input"
               min="1"
               max="1440"
@@ -430,6 +444,16 @@ export const AlertsConfig = () => {
             <p className="form-hint">
               Events within this window will be grouped into a single email
             </p>
+          </div>
+
+          <div className="form-checkbox">
+            <input
+              type="checkbox"
+              checked={formData.consolidate_alerts}
+              onChange={(e) => setFormData({ ...formData, consolidate_alerts: e.target.checked })}
+              id="consolidate-checkbox"
+            />
+            <label htmlFor="consolidate-checkbox">Consolidate multiple alerts</label>
           </div>
 
           <div className="form-checkbox">
@@ -494,12 +518,28 @@ export const AlertsConfig = () => {
             />
           </div>
 
+          <div className="form-group">
+            <label className="form-label">Project *</label>
+            <select
+              value={formData.project_id}
+              onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+              className="form-select"
+            >
+              <option value="">Select a project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Trigger Type *</label>
+              <label className="form-label">Entity Type *</label>
               <select
-                value={formData.trigger_type}
-                onChange={(e) => setFormData({ ...formData, trigger_type: e.target.value })}
+                value={formData.entity_type}
+                onChange={(e) => setFormData({ ...formData, entity_type: e.target.value })}
                 className="form-select"
               >
                 <option value="job">Job</option>
@@ -510,29 +550,39 @@ export const AlertsConfig = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Trigger On *</label>
+              <label className="form-label">Trigger Event *</label>
               <select
-                value={formData.trigger_on}
-                onChange={(e) => setFormData({ ...formData, trigger_on: e.target.value })}
+                value={formData.trigger_events[0] || 'failure'}
+                onChange={handleTriggerEventsChange}
                 className="form-select"
               >
                 <option value="failure">Failure</option>
                 <option value="success">Success</option>
-                <option value="both">Both</option>
+                <option value="completed">Completed</option>
               </select>
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Grouping Window (minutes) *</label>
+            <label className="form-label">Consolidation Window (minutes) *</label>
             <input
               type="number"
-              value={formData.grouping_window_minutes}
-              onChange={(e) => setFormData({ ...formData, grouping_window_minutes: parseInt(e.target.value) || 10 })}
+              value={formData.consolidation_window_minutes}
+              onChange={(e) => setFormData({ ...formData, consolidation_window_minutes: parseInt(e.target.value) || 60 })}
               className="form-input"
               min="1"
               max="1440"
             />
+          </div>
+
+          <div className="form-checkbox">
+            <input
+              type="checkbox"
+              checked={formData.consolidate_alerts}
+              onChange={(e) => setFormData({ ...formData, consolidate_alerts: e.target.checked })}
+              id="consolidate-checkbox-edit"
+            />
+            <label htmlFor="consolidate-checkbox-edit">Consolidate multiple alerts</label>
           </div>
 
           <div className="form-checkbox">
@@ -559,6 +609,7 @@ export const AlertsConfig = () => {
             <button
               onClick={handleUpdatePolicy}
               className="btn-primary"
+              disabled={!formData.name || !formData.project_id}
             >
               Save Changes
             </button>
