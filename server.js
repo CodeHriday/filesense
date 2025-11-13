@@ -9187,6 +9187,16 @@ const rdmRoutes = require('./backend/routes/rdm');
 app.use('/api/rdm', authenticateToken, rdmRoutes);
 console.log('Added RDM integration routes');
 
+// Alert policy routes
+const alertPolicyRoutes = require('./backend/routes/alertPolicyRoutes');
+app.use('/api/alert-policies', authenticateToken, alertPolicyRoutes);
+console.log('Added alert policy routes');
+
+// Email connection routes
+const emailConnectionRoutes = require('./backend/routes/emailConnectionRoutes');
+app.use('/api/email-connections', authenticateToken, emailConnectionRoutes);
+console.log('Added email connection routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 
