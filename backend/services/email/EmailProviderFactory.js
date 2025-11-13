@@ -11,6 +11,7 @@ const SendGridAdapter = require('./SendGridAdapter');
 const AwsSesAdapter = require('./AwsSesAdapter');
 const AzureEmailAdapter = require('./AzureEmailAdapter');
 const GcpEmailAdapter = require('./GcpEmailAdapter');
+const GmailOAuth2Adapter = require('./GmailOAuth2Adapter');
 const { systemLogger } = require('../../utils/logger');
 
 class EmailProviderFactory {
@@ -38,8 +39,7 @@ class EmailProviderFactory {
         return new GcpEmailAdapter(config);
       
       case 'gmail_oauth2':
-        // Gmail OAuth2 adapter will be implemented in task 6
-        throw new Error('Gmail OAuth2 adapter not yet implemented');
+        return new GmailOAuth2Adapter(config);
       
       case 'outlook_oauth2':
         // Outlook OAuth2 adapter will be implemented in task 7
