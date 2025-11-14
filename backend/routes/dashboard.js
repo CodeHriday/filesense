@@ -7,7 +7,9 @@ const dashboardCacheMiddleware = createCacheMiddleware({
   keyGenerator: (req) => {
     const userId = req.user?.id || 'anonymous';
     const roles = req.user?.roles?.sort().join(':') || 'no-roles';
-    return `dashboard:metrics:user:${userId}:roles:${roles}`;
+    const path = req.path || req.route?.path || 'unknown';
+    const days = req.query?.days || '';
+    return `dashboard:${path}:user:${userId}:roles:${roles}:days:${days}`;
   },
   shouldCache: (req, res) => res.statusCode === 200
 });
