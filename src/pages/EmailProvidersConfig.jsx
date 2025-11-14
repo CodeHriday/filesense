@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiMail, FiPlus, FiTrash2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
-import { Card } from '../components/Card';
+import Card from '../components/Card';
 import Modal from '../components/Modal';
 import './EmailProvidersConfig.css';
 import * as alertService from '../api/alertService';
