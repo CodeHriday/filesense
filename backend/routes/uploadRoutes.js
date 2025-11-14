@@ -9,9 +9,10 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { authenticate } = require('../middleware/authenticate');
+const authenticate = require('../middleware/authenticate');
 const UploadBatchService = require('../services/UploadBatchService');
 const FileService = require('../services/FileService');
+const BatchRecordProcessor = require('../services/BatchRecordProcessor');
 const { systemLogger } = require('../utils/logger');
 const { query } = require('../config/database');
 
@@ -19,6 +20,7 @@ const { query } = require('../config/database');
 const uploadBatchService = new UploadBatchService();
 const fileService = new FileService(null, systemLogger);
 const virusScanService = require('../services/VirusScanService');
+const batchRecordProcessor = new BatchRecordProcessor();
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -397,23 +399,38 @@ async function processUploadedFile(uploadFile, filePath, options) {
       return;
     }
 
-    // TODO: Phase 2 - Implement full file processing pipeline
-    // - Cloud storage upload
-    // - File catalog registration
-    // - Governance tag application
-    // - ETL job triggering
-    // - Record-level batch processing
+    // Process file with batch record processor
+    await uploadBatchService.updateFileStatus(uploadFile.file_id, {
+      phase: 'processing_records'
+    });
 
-    // For now, mark as completed
+    const processingResult = await batchRecordProcessor.processFile(uploadFile, filePath, {
+      userId,
+      projectId,
+      agreementId,
+      governanceTags,
+      triggerETL
+    });
+
+    // Mark as completed
     await uploadBatchService.updateFileStatus(uploadFile.file_id, {
       status: 'completed',
-      phase: 'completed'
+      phase: 'completed',
+      totalRecords: processingResult.totalRecords,
+      processedRecords: processingResult.processedRecords
     });
 
     systemLogger.info('File processing completed', {
       fileId: uploadFile.file_id,
-      filename: uploadFile.original_filename
+      filename: uploadFile.original_filename,
+      totalRecords: processingResult.totalRecords,
+      processedRecords: processingResult.processedRecords
     });
+
+    // TODO: Phase 2 enhancements
+    // - Cloud storage upload
+    // - File catalog registration
+    // - ETL job triggering
   } catch (error) {
     systemLogger.error('File processing error', {
       fileId: uploadFile.file_id,
