@@ -114,7 +114,7 @@ const HeroKPICard = ({
         <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wide">
           {title}
         </h3>
-        {delta !== undefined && (
+        {delta !== undefined && delta !== null && (
           <div className={`flex items-center gap-1 text-sm font-semibold ${
             trend === 'up' ? 'text-green-600' : 'text-red-600'
           }`}>
