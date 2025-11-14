@@ -204,20 +204,14 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const projectParams = isAdmin ? [] : [userId];
 
     // ========== 1. DATA HEALTH INDEX ==========
-    // Weighted average of quality dimensions (completeness, accuracy, validity, consistency, timeliness)
+    // Average quality score from files table
     const healthQuery = `
       SELECT 
-        ROUND(AVG(
-          COALESCE(completeness_score, 0) * 0.25 +
-          COALESCE(accuracy_score, 0) * 0.20 +
-          COALESCE(validity_score, 0) * 0.20 +
-          COALESCE(consistency_score, 0) * 0.20 +
-          COALESCE(timeliness_score, 0) * 0.15
-        )::numeric, 1) as health_index,
+        ROUND(AVG(COALESCE(quality_score, 0))::numeric, 1) as health_index,
         COUNT(*) as sample_size
-      FROM file_quality_metrics fqm
-      INNER JOIN files f ON fqm.file_id = f.id
+      FROM files f
       WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+      AND f.quality_score IS NOT NULL
       ${projectFilter}
     `;
     const healthParams = isAdmin ? [rangeStart] : [userId, rangeStart];
@@ -375,16 +369,10 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       daily_health AS (
         SELECT 
           f.created_at::date as date,
-          ROUND(AVG(
-            COALESCE(fqm.completeness_score, 0) * 0.25 +
-            COALESCE(fqm.accuracy_score, 0) * 0.20 +
-            COALESCE(fqm.validity_score, 0) * 0.20 +
-            COALESCE(fqm.consistency_score, 0) * 0.20 +
-            COALESCE(fqm.timeliness_score, 0) * 0.15
-          )::numeric, 1) as health_score
-        FROM file_quality_metrics fqm
-        INNER JOIN files f ON fqm.file_id = f.id
+          ROUND(AVG(COALESCE(f.quality_score, 0))::numeric, 1) as health_score
+        FROM files f
         WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+        AND f.quality_score IS NOT NULL
         ${projectFilter}
         GROUP BY f.created_at::date
       ),
