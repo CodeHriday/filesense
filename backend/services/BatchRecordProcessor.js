@@ -331,20 +331,134 @@ class BatchRecordProcessor {
    * @param {Object} options - Processing options
    */
   async insertRecordBatch(uploadFile, records, options) {
-    const { projectId, governanceTags = [] } = options;
+    if (!records || records.length === 0) {
+      return { inserted: 0 };
+    }
 
-    // For now, just log the batch
-    // TODO: Implement actual database insertion into file_data table
-    systemLogger.info('Inserting record batch', {
-      fileId: uploadFile.file_id,
-      batchSize: records.length,
-      projectId
+    const { projectId, agreementId, governanceTags = [] } = options;
+    const fileType = path.extname(uploadFile.original_filename).toLowerCase().substring(1);
+
+    try {
+      // Create staging table if not exists (one-time per deployment)
+      await this.ensureStagingTable();
+
+      let inserted = 0;
+
+      // Use different insertion strategies based on file type
+      if (fileType === 'csv') {
+        // Use PostgreSQL COPY for CSV (most efficient)
+        inserted = await this.insertViaCSV(uploadFile, records, options);
+      } else {
+        // Use multi-row INSERT for other formats
+        inserted = await this.insertViaMultiRow(uploadFile, records, options);
+      }
+
+      systemLogger.info('Record batch inserted', {
+        fileId: uploadFile.file_id,
+        batchSize: records.length,
+        inserted,
+        projectId,
+        fileType
+      });
+
+      return { inserted };
+    } catch (error) {
+      systemLogger.error('Failed to insert record batch', {
+        fileId: uploadFile.file_id,
+        error: error.message,
+        batchSize: records.length
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure upload_staging table exists
+   */
+  async ensureStagingTable() {
+    // Create table
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS upload_staging (
+        id SERIAL PRIMARY KEY,
+        upload_file_id INTEGER REFERENCES upload_files(id) ON DELETE CASCADE,
+        record_number BIGINT NOT NULL,
+        record_data JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+
+    // Create index separately (PostgreSQL syntax)
+    const createIndexSQL = `
+      CREATE INDEX IF NOT EXISTS idx_upload_staging_file 
+      ON upload_staging(upload_file_id)
+    `;
+
+    try {
+      await query(createTableSQL);
+      await query(createIndexSQL);
+    } catch (error) {
+      // Ignore if table already exists
+      if (!error.message.includes('already exists')) {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Insert records using PostgreSQL COPY (CSV optimization)
+   */
+  async insertViaCSV(uploadFile, records, options) {
+    // For CSV files, use COPY command for maximum efficiency
+    // Create CSV string from records
+    const csvRows = records.map((record, index) => {
+      const recordNumber = options.startRecordNumber || 0 + index;
+      return `${uploadFile.id}\t${recordNumber}\t${JSON.stringify(record)}`;
     });
 
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 100));
+    const csvData = csvRows.join('\n');
 
-    return { inserted: records.length };
+    // Use COPY command
+    const copySQL = `
+      COPY upload_staging (upload_file_id, record_number, record_data)
+      FROM STDIN WITH (FORMAT text, DELIMITER E'\\t')
+    `;
+
+    // NOTE: PostgreSQL COPY requires special handling via pg-copy-streams
+    // For now, fall back to multi-row insert
+    // TODO: Implement proper COPY streaming with pg-copy-streams
+
+    return await this.insertViaMultiRow(uploadFile, records, options);
+  }
+
+  /**
+   * Insert records using multi-row INSERT
+   */
+  async insertViaMultiRow(uploadFile, records, options) {
+    const { startRecordNumber = 0 } = options;
+
+    // Build multi-row INSERT statement
+    const values = [];
+    const placeholders = [];
+
+    for (let i = 0; i < records.length; i++) {
+      const recordNumber = startRecordNumber + i;
+      const paramOffset = i * 3;
+
+      placeholders.push(
+        `($${paramOffset + 1}, $${paramOffset + 2}, $${paramOffset + 3})`
+      );
+      values.push(uploadFile.id, recordNumber, JSON.stringify(records[i]));
+    }
+
+    const insertSQL = `
+      INSERT INTO upload_staging (upload_file_id, record_number, record_data)
+      VALUES ${placeholders.join(', ')}
+      ON CONFLICT DO NOTHING
+    `;
+
+    const result = await query(insertSQL, values);
+
+    return result.rowCount || records.length;
   }
 
   /**

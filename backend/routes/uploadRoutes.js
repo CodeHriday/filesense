@@ -80,6 +80,15 @@ router.post('/vendor/:agreementId',
 
       const agreement = agreementResult.rows[0];
 
+      // Verify token project association
+      if (req.apiToken.project_id && req.apiToken.project_id !== agreement.project_id) {
+        fs.unlinkSync(uploadedFile.path);
+        return res.status(403).json({ 
+          error: 'Token not authorized for this project',
+          message: `API token is scoped to project ${req.apiToken.project_id} but vendor agreement belongs to project ${agreement.project_id}`
+        });
+      }
+
       // Create batch
       const batch = await uploadBatchService.createBatch({
         userId: req.apiToken.user_id,
@@ -162,6 +171,15 @@ router.post('/internal/:projectId',
       if (projectResult.rows.length === 0) {
         fs.unlinkSync(uploadedFile.path);
         return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // Verify token project association
+      if (req.apiToken.project_id && req.apiToken.project_id !== parseInt(projectId)) {
+        fs.unlinkSync(uploadedFile.path);
+        return res.status(403).json({ 
+          error: 'Token not authorized for this project',
+          message: `API token is scoped to project ${req.apiToken.project_id} but upload targets project ${projectId}`
+        });
       }
 
       // Create batch
@@ -265,6 +283,14 @@ router.post('/bulk',
         return res.status(400).json({ error: 'Invalid target project' });
       }
 
+      // Verify token project association
+      if (req.apiToken.project_id && req.apiToken.project_id !== projectId) {
+        return res.status(403).json({ 
+          error: 'Token not authorized for this project',
+          message: `API token is scoped to project ${req.apiToken.project_id} but bulk upload targets project ${projectId}`
+        });
+      }
+
       // Create batch
       const batch = await uploadBatchService.createBatch({
         userId: req.apiToken.user_id,
@@ -337,7 +363,7 @@ router.post('/bulk',
  * GET /api/uploads/batch/:batchId
  * Get batch status with file details
  */
-router.get('/batch/:batchId', authenticate, async (req, res) => {
+router.get('/batch/:batchId', authenticateAPIToken, async (req, res) => {
   try {
     const { batchId } = req.params;
     const batchStatus = await uploadBatchService.getBatchStatus(batchId);
@@ -358,7 +384,7 @@ router.get('/batch/:batchId', authenticate, async (req, res) => {
  * GET /api/uploads/:fileId/status
  * Get individual file status
  */
-router.get('/:fileId/status', authenticate, async (req, res) => {
+router.get('/:fileId/status', authenticateAPIToken, async (req, res) => {
   try {
     const { fileId } = req.params;
     const fileStatus = await uploadBatchService.getFileStatus(fileId);
