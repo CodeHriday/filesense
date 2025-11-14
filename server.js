@@ -9249,6 +9249,8 @@ const errorHandler = require('./backend/middleware/errorHandler');
 app.use(errorHandler);
 
 // Initialize database and start the server
+let uploadWorker = null;
+
 async function startServer() {
   try {
     logger.info('Starting server initialization...');
@@ -9272,6 +9274,19 @@ async function startServer() {
       console.warn('⚠️  WARNING: ENCRYPTION_KEY environment variable is not set!');
       console.warn('   Cloud storage credentials cannot be encrypted/decrypted without this key.');
       console.warn('   Please add ENCRYPTION_KEY to your Replit Secrets.');
+    }
+    
+    // Start upload worker for BullMQ file processing (requires Redis)
+    try {
+      const UploadWorker = require('./backend/workers/uploadWorker');
+      uploadWorker = new UploadWorker();
+      uploadWorker.start(5);
+      logger.info('Upload worker initialized with 5 concurrent workers');
+    } catch (error) {
+      logger.warn('Upload worker not started - Redis unavailable', {
+        error: error.message,
+        note: 'File uploads will still work but may process slower without queue-based parallelization'
+      });
     }
     
     // Start the HTTP server - bind to 0.0.0.0 for Replit
@@ -9325,6 +9340,11 @@ const gracefulShutdown = async (signal) => {
     
     // Stop file processing worker
     await fileWorker.stop();
+    
+    // Stop upload worker
+    if (uploadWorker) {
+      await uploadWorker.stop();
+    }
     
     // Close database connections
     const database = diContainer.get('database');

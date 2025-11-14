@@ -15,6 +15,7 @@ const FileService = require('../services/FileService');
 const BatchRecordProcessor = require('../services/BatchRecordProcessor');
 const { systemLogger } = require('../utils/logger');
 const { query } = require('../config/database');
+const { getUploadQueue } = require('../queues/uploadQueue');
 
 // Initialize services
 const uploadBatchService = new UploadBatchService();
@@ -110,21 +111,20 @@ router.post('/vendor/:agreementId',
         targetId: parseInt(agreementId)
       });
 
-      // Start async processing
-      setImmediate(async () => {
-        try {
-          await processUploadedFile(uploadFile, uploadedFile.path, {
-            userId: req.apiToken.user_id,
-            projectId: agreement.project_id,
-            agreementId: parseInt(agreementId),
-            triggerETL: triggerETL === 'true' || triggerETL === true
-          });
-        } catch (error) {
-          systemLogger.error('File processing failed', {
-            fileId: uploadFile.file_id,
-            error: error.message
-          });
+      // Queue async processing with BullMQ
+      const queue = getUploadQueue();
+      await queue.add('process-upload', {
+        uploadFile,
+        filePath: uploadedFile.path,
+        options: {
+          userId: req.apiToken.user_id,
+          projectId: agreement.project_id,
+          agreementId: parseInt(agreementId),
+          triggerETL: triggerETL === 'true' || triggerETL === true
         }
+      }, {
+        jobId: `upload-${uploadFile.file_id}`,
+        priority: 1
       });
 
       res.status(202).json({
@@ -203,21 +203,20 @@ router.post('/internal/:projectId',
         targetId: parseInt(projectId)
       });
 
-      // Start async processing
-      setImmediate(async () => {
-        try {
-          await processUploadedFile(uploadFile, uploadedFile.path, {
-            userId: req.apiToken.user_id,
-            projectId: parseInt(projectId),
-            governanceTags: governanceTags ? JSON.parse(governanceTags) : [],
-            triggerETL: triggerETL === 'true' || triggerETL === true
-          });
-        } catch (error) {
-          systemLogger.error('File processing failed', {
-            fileId: uploadFile.file_id,
-            error: error.message
-          });
+      // Queue async processing with BullMQ
+      const queue = getUploadQueue();
+      await queue.add('process-upload', {
+        uploadFile,
+        filePath: uploadedFile.path,
+        options: {
+          userId: req.apiToken.user_id,
+          projectId: parseInt(projectId),
+          governanceTags: governanceTags ? JSON.parse(governanceTags) : [],
+          triggerETL: triggerETL === 'true' || triggerETL === true
         }
+      }, {
+        jobId: `upload-${uploadFile.file_id}`,
+        priority: 1
       });
 
       res.status(202).json({
@@ -324,22 +323,21 @@ router.post('/bulk',
           status: 'pending'
         });
 
-        // Start async processing
-        setImmediate(async () => {
-          try {
-            await processUploadedFile(uploadFile, uploadedFile.path, {
-              userId: req.apiToken.user_id,
-              projectId: projectId,
-              agreementId: fileManifest.targetType === 'vendor' ? fileManifest.targetId : null,
-              governanceTags: fileManifest.governanceTags || [],
-              triggerETL: fileManifest.triggerETL || false
-            });
-          } catch (error) {
-            systemLogger.error('Bulk file processing failed', {
-              fileId: uploadFile.file_id,
-              error: error.message
-            });
+        // Queue async processing with BullMQ
+        const queue = getUploadQueue();
+        await queue.add('process-upload', {
+          uploadFile,
+          filePath: uploadedFile.path,
+          options: {
+            userId: req.apiToken.user_id,
+            projectId: projectId,
+            agreementId: fileManifest.targetType === 'vendor' ? fileManifest.targetId : null,
+            governanceTags: fileManifest.governanceTags || [],
+            triggerETL: fileManifest.triggerETL || false
           }
+        }, {
+          jobId: `upload-${uploadFile.file_id}`,
+          priority: fileManifest.priority || 5
         });
       }
 
@@ -400,83 +398,5 @@ router.get('/:fileId/status', authenticateAPIToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to get file status' });
   }
 });
-
-/**
- * Async file processing function
- * Handles virus scan, cloud upload, governance tagging, and ETL triggering
- */
-async function processUploadedFile(uploadFile, filePath, options) {
-  try {
-    const { userId, projectId, agreementId, governanceTags, triggerETL } = options;
-
-    // Update status to processing
-    await uploadBatchService.updateFileStatus(uploadFile.file_id, {
-      status: 'processing',
-      phase: 'virus_scanning'
-    });
-
-    // Virus scan
-    const scanResult = await virusScanService.scanFile(filePath);
-
-    await uploadBatchService.updateFileStatus(uploadFile.file_id, {
-      virusScanStatus: scanResult.isClean ? 'clean' : 'infected',
-      virusScanResult: scanResult.isClean ? 'No threats detected' : scanResult.threats.join(', ')
-    });
-
-    if (!scanResult.isClean) {
-      await uploadBatchService.updateFileStatus(uploadFile.file_id, {
-        status: 'failed',
-        errorMessage: `Virus detected: ${scanResult.threats.join(', ')}`
-      });
-      fs.unlinkSync(filePath);
-      return;
-    }
-
-    // Process file with batch record processor
-    // Note: batchRecordProcessor.processFile handles status updates internally
-    await uploadBatchService.updateFileStatus(uploadFile.file_id, {
-      phase: 'processing_records'
-    });
-
-    const processingResult = await batchRecordProcessor.processFile(uploadFile, filePath, {
-      userId,
-      projectId,
-      agreementId,
-      governanceTags,
-      triggerETL
-    });
-
-    // batchRecordProcessor already marked file as completed
-    systemLogger.info('Upload pipeline completed', {
-      fileId: uploadFile.file_id,
-      filename: uploadFile.original_filename,
-      totalRecords: processingResult.totalRecords,
-      processedRecords: processingResult.processedRecords
-    });
-
-    // TODO: Phase 2 enhancements
-    // - Cloud storage upload
-    // - File catalog registration
-    // - ETL job triggering
-  } catch (error) {
-    systemLogger.error('Upload pipeline error', {
-      fileId: uploadFile.file_id,
-      error: error.message,
-      stack: error.stack
-    });
-
-    // Only update status if error occurred before batchRecordProcessor
-    // (batchRecordProcessor sets status:'failed' internally if it encounters an error)
-    // This catch handles virus scan failures or other pre-processing errors
-    const currentStatus = await uploadBatchService.getFileStatus(uploadFile.file_id);
-    if (currentStatus.status === 'processing') {
-      await uploadBatchService.updateFileStatus(uploadFile.file_id, {
-        status: 'failed',
-        errorMessage: error.message,
-        errorDetails: { stack: error.stack, phase: currentStatus.phase }
-      });
-    }
-  }
-}
 
 module.exports = router;
