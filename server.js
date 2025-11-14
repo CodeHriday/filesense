@@ -23,6 +23,7 @@ const { setupEnhancedFeatures } = require('./backend/integration');
 const { getQueue } = require('./backend/queue/queueFactory');
 const FileProcessingWorker = require('./backend/workers/fileProcessingWorker');
 const SchedulerWorker = require('./backend/workers/schedulerWorker');
+const SLAMonitorWorker = require('./backend/workers/slaMonitorWorker');
 const InsightsAggregationWorker = require('./backend/workers/insightsAggregationWorker');
 const RetentionPolicyWorker = require('./backend/workers/retentionPolicyWorker');
 
@@ -42,6 +43,13 @@ const schedulerWorker = new SchedulerWorker(
   60000 // Check every 60 seconds
 );
 schedulerWorker.start();
+
+// Initialize SLA monitor worker (checks vendor file arrival SLAs every 15 minutes)
+const slaMonitorWorker = new SLAMonitorWorker(
+  diContainer.get('logger'),
+  900000 // Check every 15 minutes
+);
+slaMonitorWorker.start();
 
 // Initialize insights aggregation worker (runs daily at 2 AM)
 const insightsWorker = new InsightsAggregationWorker(
@@ -9334,6 +9342,9 @@ const gracefulShutdown = async (signal) => {
   try {
     // Stop scheduler worker
     await schedulerWorker.stop();
+    
+    // Stop SLA monitor worker
+    await slaMonitorWorker.stop();
     
     // Stop insights aggregation worker
     if (insightsWorker) {
