@@ -9,7 +9,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const authenticate = require('../middleware/authenticate');
+const { authenticateAPIToken, requireScope } = require('../middleware/apiTokenAuth');
 const UploadBatchService = require('../services/UploadBatchService');
 const FileService = require('../services/FileService');
 const BatchRecordProcessor = require('../services/BatchRecordProcessor');
@@ -48,9 +48,11 @@ const upload = multer({
 /**
  * POST /api/uploads/vendor/:agreementId
  * Upload single file to vendor agreement
+ * Requires API token with 'vendor_agreements:upload' scope
  */
 router.post('/vendor/:agreementId', 
-  authenticate,
+  authenticateAPIToken,
+  requireScope('vendor_agreements:upload'),
   upload.single('file'),
   async (req, res) => {
     try {
@@ -80,7 +82,8 @@ router.post('/vendor/:agreementId',
 
       // Create batch
       const batch = await uploadBatchService.createBatch({
-        userId: req.user.id,
+        userId: req.apiToken.user_id,
+        apiTokenId: req.apiToken.id,
         projectId: agreement.project_id,
         targetType: 'vendor',
         targetId: parseInt(agreementId),
@@ -102,7 +105,7 @@ router.post('/vendor/:agreementId',
       setImmediate(async () => {
         try {
           await processUploadedFile(uploadFile, uploadedFile.path, {
-            userId: req.user.id,
+            userId: req.apiToken.user_id,
             projectId: agreement.project_id,
             agreementId: parseInt(agreementId),
             triggerETL: triggerETL === 'true' || triggerETL === true
@@ -137,7 +140,8 @@ router.post('/vendor/:agreementId',
  * Upload single file to internal project
  */
 router.post('/internal/:projectId',
-  authenticate,
+  authenticateAPIToken,
+  requireScope('projects:upload'),
   upload.single('file'),
   async (req, res) => {
     try {
@@ -162,7 +166,8 @@ router.post('/internal/:projectId',
 
       // Create batch
       const batch = await uploadBatchService.createBatch({
-        userId: req.user.id,
+        userId: req.apiToken.user_id,
+        apiTokenId: req.apiToken.id,
         projectId: parseInt(projectId),
         targetType: 'internal',
         targetId: parseInt(projectId),
@@ -184,7 +189,7 @@ router.post('/internal/:projectId',
       setImmediate(async () => {
         try {
           await processUploadedFile(uploadFile, uploadedFile.path, {
-            userId: req.user.id,
+            userId: req.apiToken.user_id,
             projectId: parseInt(projectId),
             governanceTags: governanceTags ? JSON.parse(governanceTags) : [],
             triggerETL: triggerETL === 'true' || triggerETL === true
@@ -219,7 +224,8 @@ router.post('/internal/:projectId',
  * Bulk upload multiple files with manifest
  */
 router.post('/bulk',
-  authenticate,
+  authenticateAPIToken,
+  requireScope('bulk:upload'),
   upload.array('files', 50),
   async (req, res) => {
     try {
@@ -261,7 +267,8 @@ router.post('/bulk',
 
       // Create batch
       const batch = await uploadBatchService.createBatch({
-        userId: req.user.id,
+        userId: req.apiToken.user_id,
+        apiTokenId: req.apiToken.id,
         projectId: projectId,
         targetType: 'bulk',
         targetId: null,
@@ -295,7 +302,7 @@ router.post('/bulk',
         setImmediate(async () => {
           try {
             await processUploadedFile(uploadFile, uploadedFile.path, {
-              userId: req.user.id,
+              userId: req.apiToken.user_id,
               projectId: projectId,
               agreementId: fileManifest.targetType === 'vendor' ? fileManifest.targetId : null,
               governanceTags: fileManifest.governanceTags || [],
