@@ -15,6 +15,7 @@ import Sidebar from './components/Sidebar';
 import NotificationList from './components/Notifications/NotificationList';
 import PerformanceOptimizations from './pages/PerformanceOptimizations';
 import Dashboard from './pages/Dashboard';
+import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import FileUpload from './pages/FileUpload';
 import { FileCatalog } from './pages/FileCatalog';
 import DataProfile from './pages/DataProfile';
@@ -229,6 +230,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
             <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''}`} tabIndex="-1">
               <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
+                <Route path="/executive-dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
                 <Route path="/drop" element={<ProtectedRoute><FileUploadOrRedirect /></ProtectedRoute>} />
                 <Route path="/file-catalog" element={<ProtectedRoute><FileCatalog /></ProtectedRoute>} />
