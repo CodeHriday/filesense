@@ -402,6 +402,17 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
     const throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
 
+    // Log calculated values for debugging
+    console.log('=== EXECUTIVE METRICS DEBUG ===');
+    console.log('Time Range:', timeRange, 'days');
+    console.log('Range Start:', rangeStart);
+    console.log('User ID:', userId, 'Is Admin:', isAdmin);
+    console.log('Data Health Index:', healthIndex);
+    console.log('File Count (current):', currentCount);
+    console.log('ETL Jobs (completed/total):', completedJobs, '/', totalJobs);
+    console.log('Vendor Compliance:', vendorCompliance, '(', compliantVendors, '/', totalVendors, ')');
+    console.log('================================');
+
     // Return all metrics with sparklines
     res.json({
       success: true,
