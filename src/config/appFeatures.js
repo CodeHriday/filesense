@@ -431,6 +431,14 @@ export const APP_FEATURES = [
   
   // Insights
   { 
+    id: 'executive_dashboard', 
+    name: 'Executive Dashboard', 
+    category: 'Insights',
+    icon: FiTrendingUp,
+    route: '/executive-dashboard',
+    showInSidebar: true
+  },
+  { 
     id: 'file_insights', 
     name: 'File Insights', 
     category: 'Insights',
