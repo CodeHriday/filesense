@@ -310,7 +310,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           )
         ) as compliant_vendors
       FROM vendor_agreements va
-      WHERE va.is_active = true
+      WHERE va.status = 'active'
       ${isAdmin ? '' : 'AND va.project_id IN (SELECT project_id FROM get_user_projects($1))'}
     `;
     const vendorResult = await pool.query(vendorQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
