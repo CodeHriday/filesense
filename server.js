@@ -9202,6 +9202,11 @@ const alertHistoryRoutes = require('./backend/routes/alertHistoryRoutes');
 app.use('/api/alert-history', authenticateToken, alertHistoryRoutes);
 console.log('Added alert history routes');
 
+// Programmatic upload routes
+const uploadRoutes = require('./backend/routes/uploadRoutes');
+app.use('/api/uploads', uploadRoutes);
+console.log('Added programmatic upload routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 
