@@ -266,13 +266,13 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const jobSuccessRate = totalJobs > 0 ? (completedJobs / totalJobs * 100) : 100;
 
     // ========== 4. ACTIVE CRITICAL ALERTS ==========
-    // Count of open SEV1/critical severity alerts
+    // Count of open/active alert events
     const alertsQuery = `
-      SELECT COUNT(*) as count
+      SELECT COUNT(DISTINCT ae.id) as count
       FROM alert_events ae
-      INNER JOIN alert_policies ap ON ae.policy_id = ap.id
-      WHERE ae.status = 'OPEN'
-      AND ap.severity IN ('critical', 'SEV1', 'high')
+      INNER JOIN alert_runs ar ON ae.run_id = ar.id
+      INNER JOIN alert_policies ap ON ar.policy_id = ap.id
+      WHERE ae.status IN ('OPEN', 'ACTIVE', 'TRIGGERED')
       ${isAdmin ? '' : 'AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))'}
     `;
     const alertsResult = await pool.query(alertsQuery, isAdmin ? [] : [userId]);
