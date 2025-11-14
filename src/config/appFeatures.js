@@ -25,7 +25,8 @@ import {
   FiBriefcase,
   FiTruck,
   FiCheckCircle,
-  FiArchive
+  FiArchive,
+  FiKey
 } from 'react-icons/fi';
 
 export const APP_FEATURES = [
@@ -277,6 +278,14 @@ export const APP_FEATURES = [
     category: 'Administration',
     icon: FiUsers,
     route: '/group-management',
+    showInSidebar: true
+  },
+  { 
+    id: 'api_tokens', 
+    name: 'API Tokens', 
+    category: 'Administration',
+    icon: FiKey,
+    route: '/api-tokens',
     showInSidebar: true
   },
   { 
