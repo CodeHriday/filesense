@@ -1,11 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
 import { API_BASE_URL } from '../config';
 import HeroKPICard from '../components/HeroKPICard';
-import { PILLAR_GRADIENTS } from '../config/colors';
+import { COLORS, PILLAR_GRADIENTS } from '../config/colors';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { FiRefreshCw } from 'react-icons/fi';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 const ExecutiveDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -196,8 +218,8 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">High-Risk PII Exposure</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics?.highRiskPII?.status === 'excellent' ? '#16A34A' : 
-                         metrics?.highRiskPII?.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.highRiskPII?.status === 'excellent' ? COLORS.success : 
+                         metrics?.highRiskPII?.status === 'warning' ? COLORS.warning : COLORS.danger 
                 }}>
                   {metrics?.highRiskPII?.count || 0}
                 </p>
@@ -207,9 +229,9 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Governance Coverage</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics?.governanceCoverage?.status === 'excellent' ? '#16A34A' : 
-                         metrics?.governanceCoverage?.status === 'good' ? '#2563EB' :
-                         metrics?.governanceCoverage?.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.governanceCoverage?.status === 'excellent' ? COLORS.success : 
+                         metrics?.governanceCoverage?.status === 'good' ? COLORS.primary :
+                         metrics?.governanceCoverage?.status === 'warning' ? COLORS.warning : COLORS.danger 
                 }}>
                   {metrics?.governanceCoverage?.rate || 0}%
                 </p>
@@ -223,9 +245,9 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Vendor SLA Compliance</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics?.vendorCompliance?.status === 'excellent' ? '#16A34A' : 
-                         metrics?.vendorCompliance?.status === 'good' ? '#2563EB' :
-                         metrics?.vendorCompliance?.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.vendorCompliance?.status === 'excellent' ? COLORS.success : 
+                         metrics?.vendorCompliance?.status === 'good' ? COLORS.primary :
+                         metrics?.vendorCompliance?.status === 'warning' ? COLORS.warning : COLORS.danger 
                 }}>
                   {metrics?.vendorCompliance?.rate || 0}%
                 </p>
@@ -248,7 +270,7 @@ const ExecutiveDashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Active API Tokens</p>
-                <p className="text-3xl font-bold text-blue-600">
+                <p className="text-3xl font-bold" style={{ color: COLORS.primary }}>
                   {metrics?.apiUsage?.activeTokens || 0}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">tokens</p>
@@ -256,7 +278,7 @@ const ExecutiveDashboard = () => {
 
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">API Requests</p>
-                <p className="text-3xl font-bold text-blue-600">
+                <p className="text-3xl font-bold" style={{ color: COLORS.primary }}>
                   {(metrics?.apiUsage?.totalRequests || 0).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -269,9 +291,9 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Pipeline Performance</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics?.jobSuccessRate?.status === 'excellent' ? '#16A34A' : 
-                         metrics?.jobSuccessRate?.status === 'good' ? '#2563EB' :
-                         metrics?.jobSuccessRate?.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.jobSuccessRate?.status === 'excellent' ? COLORS.success : 
+                         metrics?.jobSuccessRate?.status === 'good' ? COLORS.primary :
+                         metrics?.jobSuccessRate?.status === 'warning' ? COLORS.warning : COLORS.danger 
                 }}>
                   {metrics?.jobSuccessRate?.completedJobs || 0} / {metrics?.jobSuccessRate?.totalJobs || 0}
                 </p>
