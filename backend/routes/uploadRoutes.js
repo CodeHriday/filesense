@@ -16,6 +16,7 @@ const BatchRecordProcessor = require('../services/BatchRecordProcessor');
 const { systemLogger } = require('../utils/logger');
 const { query } = require('../config/database');
 const { getUploadQueue } = require('../queues/uploadQueue');
+const uploadProcessor = require('../services/UploadProcessor');
 
 // Initialize services
 const uploadBatchService = new UploadBatchService();
@@ -111,21 +112,43 @@ router.post('/vendor/:agreementId',
         targetId: parseInt(agreementId)
       });
 
-      // Queue async processing with BullMQ
-      const queue = getUploadQueue();
-      await queue.add('process-upload', {
-        uploadFile,
-        filePath: uploadedFile.path,
-        options: {
-          userId: req.apiToken.user_id,
-          projectId: agreement.project_id,
-          agreementId: parseInt(agreementId),
-          triggerETL: triggerETL === 'true' || triggerETL === true
-        }
-      }, {
-        jobId: `upload-${uploadFile.file_id}`,
-        priority: 1
-      });
+      // Queue async processing with BullMQ (fallback to sync if Redis unavailable)
+      try {
+        const queue = getUploadQueue();
+        await queue.add('process-upload', {
+          uploadFile,
+          filePath: uploadedFile.path,
+          options: {
+            userId: req.apiToken.user_id,
+            projectId: agreement.project_id,
+            agreementId: parseInt(agreementId),
+            triggerETL: triggerETL === 'true' || triggerETL === true
+          }
+        }, {
+          jobId: `upload-${uploadFile.file_id}`,
+          priority: 1
+        });
+      } catch (queueError) {
+        systemLogger.warn('Queue unavailable, processing synchronously', {
+          fileId: uploadFile.file_id,
+          error: queueError.message
+        });
+        setImmediate(async () => {
+          try {
+            await uploadProcessor.processUploadFile(uploadFile, uploadedFile.path, {
+              userId: req.apiToken.user_id,
+              projectId: agreement.project_id,
+              agreementId: parseInt(agreementId),
+              triggerETL: triggerETL === 'true' || triggerETL === true
+            });
+          } catch (error) {
+            systemLogger.error('Sync file processing failed', {
+              fileId: uploadFile.file_id,
+              error: error.message
+            });
+          }
+        });
+      }
 
       res.status(202).json({
         message: 'File upload accepted for processing',
@@ -203,21 +226,43 @@ router.post('/internal/:projectId',
         targetId: parseInt(projectId)
       });
 
-      // Queue async processing with BullMQ
-      const queue = getUploadQueue();
-      await queue.add('process-upload', {
-        uploadFile,
-        filePath: uploadedFile.path,
-        options: {
-          userId: req.apiToken.user_id,
-          projectId: parseInt(projectId),
-          governanceTags: governanceTags ? JSON.parse(governanceTags) : [],
-          triggerETL: triggerETL === 'true' || triggerETL === true
-        }
-      }, {
-        jobId: `upload-${uploadFile.file_id}`,
-        priority: 1
-      });
+      // Queue async processing with BullMQ (fallback to sync if Redis unavailable)
+      try {
+        const queue = getUploadQueue();
+        await queue.add('process-upload', {
+          uploadFile,
+          filePath: uploadedFile.path,
+          options: {
+            userId: req.apiToken.user_id,
+            projectId: parseInt(projectId),
+            governanceTags: governanceTags ? JSON.parse(governanceTags) : [],
+            triggerETL: triggerETL === 'true' || triggerETL === true
+          }
+        }, {
+          jobId: `upload-${uploadFile.file_id}`,
+          priority: 1
+        });
+      } catch (queueError) {
+        systemLogger.warn('Queue unavailable, processing synchronously', {
+          fileId: uploadFile.file_id,
+          error: queueError.message
+        });
+        setImmediate(async () => {
+          try {
+            await uploadProcessor.processUploadFile(uploadFile, uploadedFile.path, {
+              userId: req.apiToken.user_id,
+              projectId: parseInt(projectId),
+              governanceTags: governanceTags ? JSON.parse(governanceTags) : [],
+              triggerETL: triggerETL === 'true' || triggerETL === true
+            });
+          } catch (error) {
+            systemLogger.error('Sync file processing failed', {
+              fileId: uploadFile.file_id,
+              error: error.message
+            });
+          }
+        });
+      }
 
       res.status(202).json({
         message: 'File upload accepted for processing',
@@ -323,22 +368,45 @@ router.post('/bulk',
           status: 'pending'
         });
 
-        // Queue async processing with BullMQ
-        const queue = getUploadQueue();
-        await queue.add('process-upload', {
-          uploadFile,
-          filePath: uploadedFile.path,
-          options: {
-            userId: req.apiToken.user_id,
-            projectId: projectId,
-            agreementId: fileManifest.targetType === 'vendor' ? fileManifest.targetId : null,
-            governanceTags: fileManifest.governanceTags || [],
-            triggerETL: fileManifest.triggerETL || false
-          }
-        }, {
-          jobId: `upload-${uploadFile.file_id}`,
-          priority: fileManifest.priority || 5
-        });
+        // Queue async processing with BullMQ (fallback to sync if Redis unavailable)
+        try {
+          const queue = getUploadQueue();
+          await queue.add('process-upload', {
+            uploadFile,
+            filePath: uploadedFile.path,
+            options: {
+              userId: req.apiToken.user_id,
+              projectId: projectId,
+              agreementId: fileManifest.targetType === 'vendor' ? fileManifest.targetId : null,
+              governanceTags: fileManifest.governanceTags || [],
+              triggerETL: fileManifest.triggerETL || false
+            }
+          }, {
+            jobId: `upload-${uploadFile.file_id}`,
+            priority: fileManifest.priority || 5
+          });
+        } catch (queueError) {
+          systemLogger.warn('Queue unavailable, processing synchronously', {
+            fileId: uploadFile.file_id,
+            error: queueError.message
+          });
+          setImmediate(async () => {
+            try {
+              await uploadProcessor.processUploadFile(uploadFile, uploadedFile.path, {
+                userId: req.apiToken.user_id,
+                projectId: projectId,
+                agreementId: fileManifest.targetType === 'vendor' ? fileManifest.targetId : null,
+                governanceTags: fileManifest.governanceTags || [],
+                triggerETL: fileManifest.triggerETL || false
+              });
+            } catch (error) {
+              systemLogger.error('Sync file processing failed', {
+                fileId: uploadFile.file_id,
+                error: error.message
+              });
+            }
+          });
+        }
       }
 
       res.status(202).json({
