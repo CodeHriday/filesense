@@ -131,12 +131,12 @@ const ExecutiveDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <HeroKPICard
             title="Data Health Index"
-            value={metrics.dataHealth.index}
+            value={metrics?.dataHealth?.index || 0}
             unit="%"
-            delta={metrics.dataHealth.delta}
-            trend={metrics.dataHealth.trend}
-            status={metrics.dataHealth.status}
-            sparklineData={metrics.dataHealth.sparkline || []}
+            delta={metrics?.dataHealth?.delta || 0}
+            trend={metrics?.dataHealth?.trend || 'neutral'}
+            status={metrics?.dataHealth?.status || 'unknown'}
+            sparklineData={metrics?.dataHealth?.sparkline || []}
             pillarGradient={PILLAR_GRADIENTS.dataHealth}
             isPercentage={true}
             delay={0}
@@ -144,12 +144,12 @@ const ExecutiveDashboard = () => {
 
           <HeroKPICard
             title="File Throughput"
-            value={metrics.fileThroughput.count}
+            value={metrics?.fileThroughput?.count || 0}
             unit=" files"
-            delta={metrics.fileThroughput.delta}
-            trend={metrics.fileThroughput.trend}
+            delta={metrics?.fileThroughput?.delta || 0}
+            trend={metrics?.fileThroughput?.trend || 'neutral'}
             status="good"
-            sparklineData={metrics.fileThroughput.sparkline || []}
+            sparklineData={metrics?.fileThroughput?.sparkline || []}
             pillarGradient={PILLAR_GRADIENTS.pipelineReliability}
             isPercentage={false}
             delay={0.1}
@@ -157,11 +157,11 @@ const ExecutiveDashboard = () => {
 
           <HeroKPICard
             title="ETL Job Success Rate"
-            value={metrics.jobSuccessRate.rate}
+            value={metrics?.jobSuccessRate?.rate || 0}
             unit="%"
-            delta={((metrics.jobSuccessRate.completedJobs - metrics.jobSuccessRate.failedJobs) / Math.max(1, metrics.jobSuccessRate.totalJobs) * 100).toFixed(1)}
-            trend={metrics.jobSuccessRate.failedJobs === 0 ? 'up' : metrics.jobSuccessRate.completedJobs > metrics.jobSuccessRate.failedJobs ? 'up' : 'down'}
-            status={metrics.jobSuccessRate.status}
+            delta={metrics?.jobSuccessRate?.completedJobs > 0 ? parseFloat((metrics.jobSuccessRate.completedJobs / metrics.jobSuccessRate.totalJobs * 100 - 100).toFixed(1)) : 0}
+            trend={metrics?.jobSuccessRate?.failedJobs === 0 ? 'up' : metrics?.jobSuccessRate?.completedJobs > metrics?.jobSuccessRate?.failedJobs ? 'up' : 'down'}
+            status={metrics?.jobSuccessRate?.status || 'unknown'}
             sparklineData={[]}
             pillarGradient={PILLAR_GRADIENTS.pipelineReliability}
             isPercentage={true}
@@ -170,11 +170,11 @@ const ExecutiveDashboard = () => {
 
           <HeroKPICard
             title="Critical Alerts"
-            value={metrics.criticalAlerts.count}
+            value={metrics?.criticalAlerts?.count || 0}
             unit=""
             delta={null}
             trend="down"
-            status={metrics.criticalAlerts.status}
+            status={metrics?.criticalAlerts?.status || 'unknown'}
             sparklineData={[]}
             pillarGradient={PILLAR_GRADIENTS.governance}
             isPercentage={false}
@@ -196,10 +196,10 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">High-Risk PII Exposure</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics.highRiskPII.status === 'excellent' ? '#16A34A' : 
-                         metrics.highRiskPII.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.highRiskPII?.status === 'excellent' ? '#16A34A' : 
+                         metrics?.highRiskPII?.status === 'warning' ? '#F59E0B' : '#DC2626' 
                 }}>
-                  {metrics.highRiskPII.count}
+                  {metrics?.highRiskPII?.count || 0}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">files</p>
               </div>
@@ -207,14 +207,14 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Governance Coverage</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics.governanceCoverage.status === 'excellent' ? '#16A34A' : 
-                         metrics.governanceCoverage.status === 'good' ? '#2563EB' :
-                         metrics.governanceCoverage.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.governanceCoverage?.status === 'excellent' ? '#16A34A' : 
+                         metrics?.governanceCoverage?.status === 'good' ? '#2563EB' :
+                         metrics?.governanceCoverage?.status === 'warning' ? '#F59E0B' : '#DC2626' 
                 }}>
-                  {metrics.governanceCoverage.rate}%
+                  {metrics?.governanceCoverage?.rate || 0}%
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {metrics.governanceCoverage.taggedFiles} / {metrics.governanceCoverage.totalFiles} files
+                  {metrics?.governanceCoverage?.taggedFiles || 0} / {metrics?.governanceCoverage?.totalFiles || 0} files
                 </p>
               </div>
             </div>
@@ -223,14 +223,14 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Vendor SLA Compliance</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics.vendorCompliance.status === 'excellent' ? '#16A34A' : 
-                         metrics.vendorCompliance.status === 'good' ? '#2563EB' :
-                         metrics.vendorCompliance.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.vendorCompliance?.status === 'excellent' ? '#16A34A' : 
+                         metrics?.vendorCompliance?.status === 'good' ? '#2563EB' :
+                         metrics?.vendorCompliance?.status === 'warning' ? '#F59E0B' : '#DC2626' 
                 }}>
-                  {metrics.vendorCompliance.rate}%
+                  {metrics?.vendorCompliance?.rate || 0}%
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {metrics.vendorCompliance.compliantVendors} / {metrics.vendorCompliance.totalVendors} vendors
+                  {metrics?.vendorCompliance?.compliantVendors || 0} / {metrics?.vendorCompliance?.totalVendors || 0} vendors
                 </p>
               </div>
             </div>
@@ -249,7 +249,7 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Active API Tokens</p>
                 <p className="text-3xl font-bold text-blue-600">
-                  {metrics.apiUsage.activeTokens}
+                  {metrics?.apiUsage?.activeTokens || 0}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">tokens</p>
               </div>
@@ -257,10 +257,10 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">API Requests</p>
                 <p className="text-3xl font-bold text-blue-600">
-                  {metrics.apiUsage.totalRequests.toLocaleString()}
+                  {(metrics?.apiUsage?.totalRequests || 0).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {metrics.apiUsage.avgRequestsPerToken} avg/token
+                  {metrics?.apiUsage?.avgRequestsPerToken || 0} avg/token
                 </p>
               </div>
             </div>
@@ -269,11 +269,11 @@ const ExecutiveDashboard = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">Pipeline Performance</p>
                 <p className="text-3xl font-bold" style={{ 
-                  color: metrics.jobSuccessRate.status === 'excellent' ? '#16A34A' : 
-                         metrics.jobSuccessRate.status === 'good' ? '#2563EB' :
-                         metrics.jobSuccessRate.status === 'warning' ? '#F59E0B' : '#DC2626' 
+                  color: metrics?.jobSuccessRate?.status === 'excellent' ? '#16A34A' : 
+                         metrics?.jobSuccessRate?.status === 'good' ? '#2563EB' :
+                         metrics?.jobSuccessRate?.status === 'warning' ? '#F59E0B' : '#DC2626' 
                 }}>
-                  {metrics.jobSuccessRate.completedJobs} / {metrics.jobSuccessRate.totalJobs}
+                  {metrics?.jobSuccessRate?.completedJobs || 0} / {metrics?.jobSuccessRate?.totalJobs || 0}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">jobs completed</p>
               </div>
