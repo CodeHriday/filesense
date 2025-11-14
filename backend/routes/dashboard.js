@@ -220,18 +220,22 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       WHERE f.created_at >= $${isAdmin ? '1' : '2'}
       ${projectFilter}
     `;
-    const healthParams = isAdmin ? [rangeStart] : [rangeStart, userId];
+    const healthParams = isAdmin ? [rangeStart] : [userId, rangeStart];
     const healthResult = await pool.query(healthQuery, healthParams);
-    const healthIndex = parseFloat(healthResult.rows[0]?.health_index || 85);
+    const healthIndex = healthResult.rows[0]?.sample_size > 0 
+      ? parseFloat(healthResult.rows[0]?.health_index || 0) 
+      : null;
 
     // Get previous period for comparison
-    const prevHealthQuery = healthQuery.replace('$' + (isAdmin ? '1' : '2'), '$' + (isAdmin ? '1' : '2'));
-    const prevHealthParams = isAdmin ? [comparisonStart] : [comparisonStart, userId];
     const prevHealthResult = await pool.query(healthQuery.replace('>= $' + (isAdmin ? '1' : '2'), 
       `>= $${isAdmin ? '1' : '2'} AND f.created_at < $${isAdmin ? '2' : '3'}`), 
-      isAdmin ? [comparisonStart, rangeStart] : [comparisonStart, rangeStart, userId]);
-    const prevHealthIndex = parseFloat(prevHealthResult.rows[0]?.health_index || healthIndex);
-    const healthDelta = healthIndex - prevHealthIndex;
+      isAdmin ? [comparisonStart, rangeStart] : [userId, comparisonStart, rangeStart]);
+    const prevHealthIndex = prevHealthResult.rows[0]?.sample_size > 0
+      ? parseFloat(prevHealthResult.rows[0]?.health_index || 0)
+      : null;
+    const healthDelta = (healthIndex !== null && prevHealthIndex !== null) 
+      ? healthIndex - prevHealthIndex 
+      : 0;
 
     // ========== 2. FILE THROUGHPUT ==========
     // Count of files uploaded in current period vs previous period
@@ -241,13 +245,13 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       WHERE f.created_at >= $${isAdmin ? '1' : '2'}
       ${projectFilter}
     `;
-    const currentThroughput = await pool.query(throughputQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
+    const currentThroughput = await pool.query(throughputQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
     const currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
 
     const prevThroughputQuery = throughputQuery.replace('>= $' + (isAdmin ? '1' : '2'), 
       `>= $${isAdmin ? '1' : '2'} AND f.created_at < $${isAdmin ? '2' : '3'}`);
     const prevThroughput = await pool.query(prevThroughputQuery, 
-      isAdmin ? [comparisonStart, rangeStart] : [comparisonStart, rangeStart, userId]);
+      isAdmin ? [comparisonStart, rangeStart] : [userId, comparisonStart, rangeStart]);
     const prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
     const throughputDelta = prevCount > 0 ? ((currentCount - prevCount) / prevCount * 100) : 0;
 
@@ -300,7 +304,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
 
     // ========== 6. VENDOR SLA COMPLIANCE ==========
-    // Percentage of vendors meeting upload SLA
+    // Percentage of vendors meeting upload SLA (using current timeRange)
     const vendorQuery = `
       SELECT 
         COUNT(DISTINCT va.id) as total_vendors,
@@ -308,14 +312,14 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           WHERE EXISTS (
             SELECT 1 FROM files f 
             WHERE f.project_id = va.project_id 
-            AND f.created_at >= NOW() - INTERVAL '30 days'
+            AND f.created_at >= $${isAdmin ? '1' : '2'}
           )
         ) as compliant_vendors
       FROM vendor_agreements va
       WHERE va.is_active = true
       ${isAdmin ? '' : 'AND va.project_id IN (SELECT project_id FROM get_user_projects($1))'}
     `;
-    const vendorResult = await pool.query(vendorQuery, isAdmin ? [] : [userId]);
+    const vendorResult = await pool.query(vendorQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
     const totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
     const compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
     const vendorCompliance = totalVendors > 0 ? (compliantVendors / totalVendors * 100) : 100;
@@ -336,7 +340,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       WHERE f.created_at >= $${isAdmin ? '1' : '2'}
       ${projectFilter}
     `;
-    const govResult = await pool.query(govQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
+    const govResult = await pool.query(govQuery, isAdmin ? [rangeStart] : [userId, rangeStart]);
     const totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
     const taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
     const tagCoverage = totalFiles > 0 ? (taggedFiles / totalFiles * 100) : 0;
@@ -404,7 +408,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     `;
     const sparklineStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const sparklineResult = await pool.query(sparklineQuery, 
-      isAdmin ? [sparklineStart] : [sparklineStart, userId]);
+      isAdmin ? [sparklineStart] : [userId, sparklineStart]);
     
     const healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
     const throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
@@ -415,11 +419,12 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
       timeRange: timeRange,
       metrics: {
         dataHealth: {
-          index: healthIndex,
+          index: healthIndex || 0,
           delta: parseFloat(healthDelta.toFixed(1)),
           trend: healthDelta >= 0 ? 'up' : 'down',
-          status: healthIndex >= 90 ? 'excellent' : healthIndex >= 75 ? 'good' : healthIndex >= 60 ? 'warning' : 'critical',
-          sparkline: healthSparkline
+          status: healthIndex === null ? 'unknown' : healthIndex >= 90 ? 'excellent' : healthIndex >= 75 ? 'good' : healthIndex >= 60 ? 'warning' : 'critical',
+          sparkline: healthSparkline,
+          hasData: healthIndex !== null
         },
         fileThroughput: {
           count: currentCount,
