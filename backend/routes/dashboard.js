@@ -344,11 +344,12 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const apiQuery = `
       SELECT 
         COUNT(DISTINCT at.id) as active_tokens,
-        COALESCE(SUM(atu.request_count), 0) as total_requests
+        COUNT(DISTINCT f.id) as total_requests
       FROM api_tokens at
-      LEFT JOIN api_token_usage atu ON at.id = atu.token_id 
-        AND atu.usage_date >= $1
-      WHERE at.revoked_at IS NULL
+      LEFT JOIN files f ON f.created_at >= $1
+        AND f.metadata->>'upload_method' = 'api'
+      WHERE at.is_active = true
+      AND at.revoked_at IS NULL
       AND (at.expires_at IS NULL OR at.expires_at > NOW())
       ${isAdmin ? '' : 'AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2)))'}
     `;
