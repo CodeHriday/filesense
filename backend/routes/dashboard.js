@@ -171,4 +171,252 @@ router.get('/metrics', dashboardCacheMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/dashboard/executive-metrics
+ * Get executive-level strategic KPIs for C-suite dashboard
+ * Returns 8 strategic metrics across 4 pillars:
+ * - Data Health, Pipeline Reliability, Governance & Compliance, Adoption & Automation
+ */
+router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const userId = parseInt(req.user.id, 10);
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.includes('Admin');
+    
+    // Get time range from query params (default: 30 days)
+    const timeRange = parseInt(req.query.days) || 30;
+    const comparisonRange = timeRange; // Compare to previous period of same length
+    
+    const now = new Date();
+    const rangeStart = new Date(now.getTime() - timeRange * 24 * 60 * 60 * 1000);
+    const comparisonStart = new Date(rangeStart.getTime() - comparisonRange * 24 * 60 * 60 * 1000);
+
+    // Build project filter for non-admin users
+    const projectFilter = isAdmin 
+      ? '' 
+      : 'AND f.project_id IN (SELECT project_id FROM get_user_projects($1))';
+    const projectParams = isAdmin ? [] : [userId];
+
+    // ========== 1. DATA HEALTH INDEX ==========
+    // Weighted average of quality dimensions (completeness, accuracy, validity, consistency, timeliness)
+    const healthQuery = `
+      SELECT 
+        ROUND(AVG(
+          COALESCE(completeness_score, 0) * 0.25 +
+          COALESCE(accuracy_score, 0) * 0.20 +
+          COALESCE(validity_score, 0) * 0.20 +
+          COALESCE(consistency_score, 0) * 0.20 +
+          COALESCE(timeliness_score, 0) * 0.15
+        )::numeric, 1) as health_index,
+        COUNT(*) as sample_size
+      FROM file_quality_metrics fqm
+      INNER JOIN files f ON fqm.file_id = f.id
+      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+      ${projectFilter}
+    `;
+    const healthParams = isAdmin ? [rangeStart] : [rangeStart, userId];
+    const healthResult = await pool.query(healthQuery, healthParams);
+    const healthIndex = parseFloat(healthResult.rows[0]?.health_index || 85);
+
+    // Get previous period for comparison
+    const prevHealthQuery = healthQuery.replace('$' + (isAdmin ? '1' : '2'), '$' + (isAdmin ? '1' : '2'));
+    const prevHealthParams = isAdmin ? [comparisonStart] : [comparisonStart, userId];
+    const prevHealthResult = await pool.query(healthQuery.replace('>= $' + (isAdmin ? '1' : '2'), 
+      `>= $${isAdmin ? '1' : '2'} AND f.created_at < $${isAdmin ? '2' : '3'}`), 
+      isAdmin ? [comparisonStart, rangeStart] : [comparisonStart, rangeStart, userId]);
+    const prevHealthIndex = parseFloat(prevHealthResult.rows[0]?.health_index || healthIndex);
+    const healthDelta = healthIndex - prevHealthIndex;
+
+    // ========== 2. FILE THROUGHPUT ==========
+    // Count of files uploaded in current period vs previous period
+    const throughputQuery = `
+      SELECT COUNT(*) as count
+      FROM files f
+      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+      ${projectFilter}
+    `;
+    const currentThroughput = await pool.query(throughputQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
+    const currentCount = parseInt(currentThroughput.rows[0]?.count || 0);
+
+    const prevThroughputQuery = throughputQuery.replace('>= $' + (isAdmin ? '1' : '2'), 
+      `>= $${isAdmin ? '1' : '2'} AND f.created_at < $${isAdmin ? '2' : '3'}`);
+    const prevThroughput = await pool.query(prevThroughputQuery, 
+      isAdmin ? [comparisonStart, rangeStart] : [comparisonStart, rangeStart, userId]);
+    const prevCount = parseInt(prevThroughput.rows[0]?.count || 0);
+    const throughputDelta = prevCount > 0 ? ((currentCount - prevCount) / prevCount * 100) : 0;
+
+    // ========== 3. ETL JOB SUCCESS RATE ==========
+    // Percentage of completed jobs vs total jobs
+    const jobsQuery = `
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'completed') as completed,
+        COUNT(*) FILTER (WHERE status = 'failed') as failed,
+        COUNT(*) as total
+      FROM transformation_jobs tj
+      WHERE tj.created_at >= $${isAdmin ? '1' : '2'}
+      ${isAdmin ? '' : 'AND tj.project_id IN (SELECT project_id FROM get_user_projects($1))'}
+    `;
+    const jobsResult = await pool.query(jobsQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
+    const completedJobs = parseInt(jobsResult.rows[0]?.completed || 0);
+    const totalJobs = parseInt(jobsResult.rows[0]?.total || 0);
+    const jobSuccessRate = totalJobs > 0 ? (completedJobs / totalJobs * 100) : 100;
+
+    // ========== 4. ACTIVE CRITICAL ALERTS ==========
+    // Count of open SEV1/critical severity alerts
+    const alertsQuery = `
+      SELECT COUNT(*) as count
+      FROM alert_events ae
+      INNER JOIN alert_policies ap ON ae.policy_id = ap.id
+      WHERE ae.status = 'OPEN'
+      AND ap.severity IN ('critical', 'SEV1', 'high')
+      ${isAdmin ? '' : 'AND ap.project_id IN (SELECT project_id FROM get_user_projects($1))'}
+    `;
+    const alertsResult = await pool.query(alertsQuery, isAdmin ? [] : [userId]);
+    const criticalAlerts = parseInt(alertsResult.rows[0]?.count || 0);
+
+    // ========== 5. HIGH-RISK PII EXPOSURE ==========
+    // Files with PII/PHI classification AND quality issues
+    const piiQuery = `
+      SELECT COUNT(DISTINCT f.id) as count
+      FROM files f
+      WHERE f.contains_pii = true
+      AND f.data_classification IN ('Confidential', 'PHI', 'PII')
+      AND (
+        f.quality_score < 90 
+        OR EXISTS (
+          SELECT 1 FROM quality_rule_violations qrv 
+          WHERE qrv.file_id = f.id AND qrv.severity IN ('high', 'critical')
+        )
+      )
+      ${projectFilter}
+    `;
+    const piiResult = await pool.query(piiQuery, projectParams);
+    const highRiskPII = parseInt(piiResult.rows[0]?.count || 0);
+
+    // ========== 6. VENDOR SLA COMPLIANCE ==========
+    // Percentage of vendors meeting upload SLA
+    const vendorQuery = `
+      SELECT 
+        COUNT(DISTINCT va.id) as total_vendors,
+        COUNT(DISTINCT va.id) FILTER (
+          WHERE EXISTS (
+            SELECT 1 FROM files f 
+            WHERE f.project_id = va.project_id 
+            AND f.created_at >= NOW() - INTERVAL '30 days'
+          )
+        ) as compliant_vendors
+      FROM vendor_agreements va
+      WHERE va.is_active = true
+      ${isAdmin ? '' : 'AND va.project_id IN (SELECT project_id FROM get_user_projects($1))'}
+    `;
+    const vendorResult = await pool.query(vendorQuery, isAdmin ? [] : [userId]);
+    const totalVendors = parseInt(vendorResult.rows[0]?.total_vendors || 0);
+    const compliantVendors = parseInt(vendorResult.rows[0]?.compliant_vendors || 0);
+    const vendorCompliance = totalVendors > 0 ? (compliantVendors / totalVendors * 100) : 100;
+
+    // ========== 7. GOVERNANCE TAG COVERAGE ==========
+    // Percentage of files with governance tags
+    const govQuery = `
+      SELECT 
+        COUNT(DISTINCT f.id) as total_files,
+        COUNT(DISTINCT f.id) FILTER (
+          WHERE EXISTS (
+            SELECT 1 FROM file_gov_metadata fgm 
+            WHERE fgm.file_id = f.id 
+            AND fgm.tag_id IS NOT NULL
+          )
+        ) as tagged_files
+      FROM files f
+      WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+      ${projectFilter}
+    `;
+    const govResult = await pool.query(govQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
+    const totalFiles = parseInt(govResult.rows[0]?.total_files || 0);
+    const taggedFiles = parseInt(govResult.rows[0]?.tagged_files || 0);
+    const tagCoverage = totalFiles > 0 ? (taggedFiles / totalFiles * 100) : 0;
+
+    // ========== 8. API USAGE ==========
+    // Active API tokens and upload volume
+    const apiQuery = `
+      SELECT 
+        COUNT(DISTINCT at.id) as active_tokens,
+        COALESCE(SUM(atu.request_count), 0) as total_requests
+      FROM api_tokens at
+      LEFT JOIN api_token_usage atu ON at.id = atu.token_id 
+        AND atu.usage_date >= $1
+      WHERE at.revoked_at IS NULL
+      AND (at.expires_at IS NULL OR at.expires_at > NOW())
+      ${isAdmin ? '' : 'AND (at.project_id IS NULL OR at.project_id IN (SELECT project_id FROM get_user_projects($2)))'}
+    `;
+    const apiResult = await pool.query(apiQuery, isAdmin ? [rangeStart] : [rangeStart, userId]);
+    const activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
+    const apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
+
+    // Return all metrics
+    res.json({
+      success: true,
+      timeRange: timeRange,
+      metrics: {
+        dataHealth: {
+          index: healthIndex,
+          delta: parseFloat(healthDelta.toFixed(1)),
+          trend: healthDelta >= 0 ? 'up' : 'down',
+          status: healthIndex >= 90 ? 'excellent' : healthIndex >= 75 ? 'good' : healthIndex >= 60 ? 'warning' : 'critical'
+        },
+        fileThroughput: {
+          count: currentCount,
+          delta: parseFloat(throughputDelta.toFixed(1)),
+          trend: throughputDelta >= 0 ? 'up' : 'down',
+          previousPeriodCount: prevCount
+        },
+        jobSuccessRate: {
+          rate: parseFloat(jobSuccessRate.toFixed(1)),
+          completedJobs: completedJobs,
+          totalJobs: totalJobs,
+          failedJobs: totalJobs - completedJobs,
+          status: jobSuccessRate >= 95 ? 'excellent' : jobSuccessRate >= 80 ? 'good' : jobSuccessRate >= 60 ? 'warning' : 'critical'
+        },
+        criticalAlerts: {
+          count: criticalAlerts,
+          status: criticalAlerts === 0 ? 'excellent' : criticalAlerts <= 3 ? 'warning' : 'critical'
+        },
+        highRiskPII: {
+          count: highRiskPII,
+          status: highRiskPII === 0 ? 'excellent' : highRiskPII <= 5 ? 'warning' : 'critical'
+        },
+        vendorCompliance: {
+          rate: parseFloat(vendorCompliance.toFixed(1)),
+          compliantVendors: compliantVendors,
+          totalVendors: totalVendors,
+          status: vendorCompliance >= 90 ? 'excellent' : vendorCompliance >= 70 ? 'good' : vendorCompliance >= 50 ? 'warning' : 'critical'
+        },
+        governanceCoverage: {
+          rate: parseFloat(tagCoverage.toFixed(1)),
+          taggedFiles: taggedFiles,
+          totalFiles: totalFiles,
+          status: tagCoverage >= 80 ? 'excellent' : tagCoverage >= 60 ? 'good' : tagCoverage >= 40 ? 'warning' : 'critical'
+        },
+        apiUsage: {
+          activeTokens: activeTokens,
+          totalRequests: apiRequests,
+          avgRequestsPerToken: activeTokens > 0 ? Math.round(apiRequests / activeTokens) : 0
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching executive metrics:', error);
+    res.status(500).json({
+      error: 'Failed to fetch executive metrics',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
