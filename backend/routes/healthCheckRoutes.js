@@ -6,8 +6,50 @@
 
 const express = require('express');
 const { spawn } = require('child_process');
+const { getUploadQueue } = require('../queues/uploadQueue');
 
 const router = express.Router();
+
+let isQueueHealthy = null;
+let lastQueueCheck = null;
+
+async function checkQueueHealth() {
+  try {
+    const queue = getUploadQueue();
+    await queue.getJobCounts();
+    isQueueHealthy = true;
+    lastQueueCheck = new Date();
+    return true;
+  } catch (error) {
+    isQueueHealthy = false;
+    lastQueueCheck = new Date();
+    return false;
+  }
+}
+
+/**
+ * Check overall system health including upload queue
+ */
+router.get('/', async (req, res) => {
+  const queueHealthy = await checkQueueHealth();
+  
+  const health = {
+    status: queueHealthy ? 'healthy' : 'degraded',
+    timestamp: new Date().toISOString(),
+    services: {
+      api: 'healthy',
+      uploadQueue: queueHealthy ? 'healthy' : 'degraded'
+    },
+    degradedMode: !queueHealthy
+  };
+
+  if (!queueHealthy) {
+    health.message = 'Upload queue unavailable - uploads processing synchronously without retry/durability';
+    health.recommendation = 'Start Redis server to restore queue-based processing';
+  }
+
+  res.status(200).json(health);
+});
 
 /**
  * Check Python environment and required packages
