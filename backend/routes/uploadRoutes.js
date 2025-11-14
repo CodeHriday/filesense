@@ -400,6 +400,7 @@ async function processUploadedFile(uploadFile, filePath, options) {
     }
 
     // Process file with batch record processor
+    // Note: batchRecordProcessor.processFile handles status updates internally
     await uploadBatchService.updateFileStatus(uploadFile.file_id, {
       phase: 'processing_records'
     });
@@ -412,15 +413,8 @@ async function processUploadedFile(uploadFile, filePath, options) {
       triggerETL
     });
 
-    // Mark as completed
-    await uploadBatchService.updateFileStatus(uploadFile.file_id, {
-      status: 'completed',
-      phase: 'completed',
-      totalRecords: processingResult.totalRecords,
-      processedRecords: processingResult.processedRecords
-    });
-
-    systemLogger.info('File processing completed', {
+    // batchRecordProcessor already marked file as completed
+    systemLogger.info('Upload pipeline completed', {
       fileId: uploadFile.file_id,
       filename: uploadFile.original_filename,
       totalRecords: processingResult.totalRecords,
@@ -432,17 +426,23 @@ async function processUploadedFile(uploadFile, filePath, options) {
     // - File catalog registration
     // - ETL job triggering
   } catch (error) {
-    systemLogger.error('File processing error', {
+    systemLogger.error('Upload pipeline error', {
       fileId: uploadFile.file_id,
       error: error.message,
       stack: error.stack
     });
 
-    await uploadBatchService.updateFileStatus(uploadFile.file_id, {
-      status: 'failed',
-      errorMessage: error.message,
-      errorDetails: { stack: error.stack }
-    });
+    // Only update status if error occurred before batchRecordProcessor
+    // (batchRecordProcessor sets status:'failed' internally if it encounters an error)
+    // This catch handles virus scan failures or other pre-processing errors
+    const currentStatus = await uploadBatchService.getFileStatus(uploadFile.file_id);
+    if (currentStatus.status === 'processing') {
+      await uploadBatchService.updateFileStatus(uploadFile.file_id, {
+        status: 'failed',
+        errorMessage: error.message,
+        errorDetails: { stack: error.stack, phase: currentStatus.phase }
+      });
+    }
   }
 }
 

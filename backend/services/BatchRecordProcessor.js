@@ -78,8 +78,16 @@ class BatchRecordProcessor {
           throw new Error(`Unsupported file type: ${fileType}`);
       }
 
+      // Mark file as completed with final metrics
       await this.uploadBatchService.updateFileStatus(uploadFile.file_id, {
+        status: 'completed',
         phase: 'completed',
+        totalRecords: result.totalRecords,
+        processedRecords: result.processedRecords
+      });
+
+      systemLogger.info('File processing completed successfully', {
+        fileId: uploadFile.file_id,
         totalRecords: result.totalRecords,
         processedRecords: result.processedRecords
       });
@@ -90,6 +98,17 @@ class BatchRecordProcessor {
         fileId: uploadFile.file_id,
         error: error.message,
         stack: error.stack
+      });
+
+      // Mark file as failed with error details
+      await this.uploadBatchService.updateFileStatus(uploadFile.file_id, {
+        status: 'failed',
+        phase: 'failed',
+        errorMessage: error.message,
+        errorDetails: { 
+          stack: error.stack,
+          fileType: path.extname(uploadFile.original_filename).toLowerCase().substring(1)
+        }
       });
 
       throw error;
