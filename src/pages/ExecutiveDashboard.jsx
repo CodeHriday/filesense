@@ -16,6 +16,7 @@ import { API_BASE_URL } from '../config';
 import HeroKPICard from '../components/HeroKPICard';
 import { COLORS, PILLAR_GRADIENTS } from '../config/colors';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PageLayout from '../components/PageLayout';
 import { FiRefreshCw } from 'react-icons/fi';
 
 ChartJS.register(
@@ -79,78 +80,82 @@ const ExecutiveDashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-8 max-w-md text-center">
-          <div className="text-red-600 text-5xl mb-4">⚠</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Dashboard</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => fetchExecutiveMetrics()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Retry
-          </button>
+      <PageLayout
+        title="Executive Dashboard"
+        subtitle="Strategic KPIs across 4 pillars: Data Health, Pipeline Reliability, Governance, and Automation"
+      >
+        <div className="flex items-center justify-center py-12">
+          <div className="bg-white rounded-lg shadow-md p-8 max-w-md text-center">
+            <div className="text-red-600 text-5xl mb-4">⚠</div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Dashboard</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button
+              onClick={() => fetchExecutiveMetrics()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   if (!metrics) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">No metrics available</p>
-          <button
-            onClick={() => fetchExecutiveMetrics()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Retry
-          </button>
+      <PageLayout
+        title="Executive Dashboard"
+        subtitle="Strategic KPIs across 4 pillars: Data Health, Pipeline Reliability, Governance, and Automation"
+      >
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">No metrics available</p>
+            <button
+              onClick={() => fetchExecutiveMetrics()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Executive Dashboard</h1>
-            <p className="text-gray-600 mt-2">
-              Strategic KPIs across 4 pillars: Data Health, Pipeline Reliability, Governance, and Automation
-            </p>
+    <PageLayout
+      title="Executive Dashboard"
+      subtitle="Strategic KPIs across 4 pillars: Data Health, Pipeline Reliability, Governance, and Automation"
+      headerActions={
+        <div className="flex items-center gap-4">
+          <div className="flex bg-white rounded-lg shadow-sm">
+            {[7, 30, 90].map((days) => (
+              <button
+                key={days}
+                onClick={() => setTimeRange(days)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  timeRange === days
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                } ${days === 7 ? 'rounded-l-lg' : days === 90 ? 'rounded-r-lg' : ''}`}
+              >
+                {days}d
+              </button>
+            ))}
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="flex bg-white rounded-lg shadow-sm">
-              {[7, 30, 90].map((days) => (
-                <button
-                  key={days}
-                  onClick={() => setTimeRange(days)}
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    timeRange === days
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  } ${days === 7 ? 'rounded-l-lg' : days === 90 ? 'rounded-r-lg' : ''}`}
-                >
-                  {days}d
-                </button>
-              ))}
-            </div>
-            
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50"
-            >
-              <FiRefreshCw className={refreshing ? 'animate-spin' : ''} />
-              Refresh
-            </button>
-          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            <FiRefreshCw className={refreshing ? 'animate-spin' : ''} />
+            Refresh
+          </button>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      }
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <HeroKPICard
             title="Data Health Index"
             value={metrics?.dataHealth?.index || 0}
@@ -303,17 +308,16 @@ const ExecutiveDashboard = () => {
           </motion.div>
         </div>
 
-        <footer className="text-center text-sm text-gray-500 mt-8">
-          <p>
-            Last updated: {lastUpdate.toLocaleString()} • 
-            Time Range: Last {timeRange} days • 
-            <a href="/dashboard" className="text-blue-600 hover:underline ml-2">
-              View Detailed Reports
-            </a>
-          </p>
-        </footer>
-      </div>
-    </div>
+      <footer className="text-center text-sm text-gray-500 mt-8">
+        <p>
+          Last updated: {lastUpdate.toLocaleString()} • 
+          Time Range: Last {timeRange} days • 
+          <a href="/dashboard" className="text-blue-600 hover:underline ml-2">
+            View Detailed Reports
+          </a>
+        </p>
+      </footer>
+    </PageLayout>
   );
 };
 
