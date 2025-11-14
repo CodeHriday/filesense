@@ -9207,6 +9207,11 @@ const uploadRoutes = require('./backend/routes/uploadRoutes');
 app.use('/api/uploads', uploadRoutes);
 console.log('Added programmatic upload routes');
 
+// API token management routes
+const apiTokenRoutes = require('./backend/routes/apiTokenRoutes');
+app.use('/api/tokens', apiTokenRoutes);
+console.log('Added API token management routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 
