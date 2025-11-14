@@ -291,7 +291,7 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         f.quality_score < 90 
         OR EXISTS (
           SELECT 1 FROM quality_rule_violations qrv 
-          WHERE qrv.file_id = f.id AND qrv.severity IN ('high', 'critical')
+          WHERE qrv.file_id = f.file_id AND qrv.severity IN ('high', 'critical')
         )
       )
       ${projectFilter}
@@ -327,9 +327,9 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
         COUNT(DISTINCT f.id) as total_files,
         COUNT(DISTINCT f.id) FILTER (
           WHERE EXISTS (
-            SELECT 1 FROM file_gov_metadata fgm 
-            WHERE fgm.file_id = f.id 
-            AND fgm.tag_id IS NOT NULL
+            SELECT 1 FROM column_governance_tag_assignments cgta 
+            WHERE cgta.file_id = f.file_id 
+            AND cgta.tag_id IS NOT NULL
           )
         ) as tagged_files
       FROM files f
