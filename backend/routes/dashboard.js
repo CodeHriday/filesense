@@ -358,7 +358,58 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
     const activeTokens = parseInt(apiResult.rows[0]?.active_tokens || 0);
     const apiRequests = parseInt(apiResult.rows[0]?.total_requests || 0);
 
-    // Return all metrics
+    // ========== SPARKLINE DATA (7-day daily breakdown) ==========
+    // Generate sparklines for Data Health Index and File Throughput
+    const sparklineQuery = `
+      WITH date_series AS (
+        SELECT generate_series(
+          $${isAdmin ? '1' : '2'}::date,
+          CURRENT_DATE,
+          '1 day'::interval
+        )::date as date
+      ),
+      daily_health AS (
+        SELECT 
+          f.created_at::date as date,
+          ROUND(AVG(
+            COALESCE(fqm.completeness_score, 0) * 0.25 +
+            COALESCE(fqm.accuracy_score, 0) * 0.20 +
+            COALESCE(fqm.validity_score, 0) * 0.20 +
+            COALESCE(fqm.consistency_score, 0) * 0.20 +
+            COALESCE(fqm.timeliness_score, 0) * 0.15
+          )::numeric, 1) as health_score
+        FROM file_quality_metrics fqm
+        INNER JOIN files f ON fqm.file_id = f.id
+        WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+        ${projectFilter}
+        GROUP BY f.created_at::date
+      ),
+      daily_files AS (
+        SELECT 
+          f.created_at::date as date,
+          COUNT(*) as file_count
+        FROM files f
+        WHERE f.created_at >= $${isAdmin ? '1' : '2'}
+        ${projectFilter}
+        GROUP BY f.created_at::date
+      )
+      SELECT 
+        ds.date,
+        COALESCE(dh.health_score, 0) as health_score,
+        COALESCE(df.file_count, 0) as file_count
+      FROM date_series ds
+      LEFT JOIN daily_health dh ON ds.date = dh.date
+      LEFT JOIN daily_files df ON ds.date = df.date
+      ORDER BY ds.date
+    `;
+    const sparklineStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sparklineResult = await pool.query(sparklineQuery, 
+      isAdmin ? [sparklineStart] : [sparklineStart, userId]);
+    
+    const healthSparkline = sparklineResult.rows.map(r => parseFloat(r.health_score) || 0);
+    const throughputSparkline = sparklineResult.rows.map(r => parseInt(r.file_count) || 0);
+
+    // Return all metrics with sparklines
     res.json({
       success: true,
       timeRange: timeRange,
@@ -367,13 +418,15 @@ router.get('/executive-metrics', dashboardCacheMiddleware, async (req, res) => {
           index: healthIndex,
           delta: parseFloat(healthDelta.toFixed(1)),
           trend: healthDelta >= 0 ? 'up' : 'down',
-          status: healthIndex >= 90 ? 'excellent' : healthIndex >= 75 ? 'good' : healthIndex >= 60 ? 'warning' : 'critical'
+          status: healthIndex >= 90 ? 'excellent' : healthIndex >= 75 ? 'good' : healthIndex >= 60 ? 'warning' : 'critical',
+          sparkline: healthSparkline
         },
         fileThroughput: {
           count: currentCount,
           delta: parseFloat(throughputDelta.toFixed(1)),
           trend: throughputDelta >= 0 ? 'up' : 'down',
-          previousPeriodCount: prevCount
+          previousPeriodCount: prevCount,
+          sparkline: throughputSparkline
         },
         jobSuccessRate: {
           rate: parseFloat(jobSuccessRate.toFixed(1)),
