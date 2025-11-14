@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import PageLayout from '../components/PageLayout';
-import '../styles/admin.css';
 
 const APITokens = () => {
   const [tokens, setTokens] = useState([]);

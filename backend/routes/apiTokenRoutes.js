@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const APITokenService = require('../services/APITokenService');
-const { authenticate } = require('../middleware/auth');
+const authenticateToken = require('../middleware/authenticate');
 const { systemLogger } = require('../utils/logger');
 
 const apiTokenService = new APITokenService();
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { name, projectId, scopes, rateLimit, rateWindowHours, expiresAt } = req.body;
 
@@ -45,7 +45,7 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     if (!req.user.is_admin && !req.user.role?.includes('admin')) {
       return res.status(403).json({ error: 'Admin privileges required' });
@@ -69,7 +69,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.get('/:tokenId/usage', authenticate, async (req, res) => {
+router.get('/:tokenId/usage', authenticateToken, async (req, res) => {
   try {
     if (!req.user.is_admin && !req.user.role?.includes('admin')) {
       return res.status(403).json({ error: 'Admin privileges required' });
@@ -88,7 +88,7 @@ router.get('/:tokenId/usage', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/:tokenId', authenticate, async (req, res) => {
+router.delete('/:tokenId', authenticateToken, async (req, res) => {
   try {
     if (!req.user.is_admin && !req.user.role?.includes('admin')) {
       return res.status(403).json({ error: 'Admin privileges required' });

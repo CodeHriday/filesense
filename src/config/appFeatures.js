@@ -289,6 +289,14 @@ export const APP_FEATURES = [
     showInSidebar: true
   },
   { 
+    id: 'api_documentation', 
+    name: 'API Documentation', 
+    category: 'Administration',
+    icon: FiBookOpen,
+    route: '/api-documentation',
+    showInSidebar: true
+  },
+  { 
     id: 'vendor_management', 
     name: 'Vendor Management', 
     category: 'Administration',

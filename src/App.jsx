@@ -76,6 +76,7 @@ import { EmailProvidersConfig } from './pages/EmailProvidersConfig';
 import AlertHistory from './pages/AlertHistory';
 import { OAuth2Callback } from './pages/OAuth2Callback';
 import APITokens from './pages/APITokens';
+import APIDocumentation from './pages/APIDocumentation';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -323,6 +324,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/anomalies" element={<ProtectedRoute><Anomalies /></ProtectedRoute>} />
                 <Route path="/tag-management" element={<ProtectedRoute><TagManagement /></ProtectedRoute>} />
                 <Route path="/api-tokens" element={<ProtectedRoute><APITokens /></ProtectedRoute>} />
+                <Route path="/api-documentation" element={<ProtectedRoute><APIDocumentation /></ProtectedRoute>} />
                 <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
                 <Route path="/group-management" element={<ProtectedRoute><GroupManagement /></ProtectedRoute>} />
