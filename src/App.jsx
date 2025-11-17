@@ -49,6 +49,7 @@ import VendorRoleManagement from './pages/VendorRoleManagement';
 import VendorAgreements from './pages/VendorAgreements';
 import VendorFileUpload from './pages/VendorFileUpload';
 import VendorFileQuality from './pages/VendorFileQuality';
+import SLAMonitoring from './pages/SLAMonitoring';
 import DBTTransformations from './pages/DBTTransformations';
 import HooksDemo from './pages/HooksDemo';
 // Business Process Management imports
@@ -300,6 +301,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/vendor-agreements" element={<ProtectedRoute><VendorAgreements /></ProtectedRoute>} />
                 <Route path="/vendor-file-upload" element={<ProtectedRoute><VendorFileUpload /></ProtectedRoute>} />
                 <Route path="/vendor-file-quality" element={<ProtectedRoute><VendorFileQuality /></ProtectedRoute>} />
+                <Route path="/sla-monitoring" element={<ProtectedRoute><SLAMonitoring /></ProtectedRoute>} />
                 <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} />
                 {/* Business Process Management routes */}
                 <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />

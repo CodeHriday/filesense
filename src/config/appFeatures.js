@@ -350,6 +350,15 @@ export const APP_FEATURES = [
         icon: null,
         route: '/vendor-agreements',
         showInSidebar: true
+      },
+      {
+        id: 'sla_monitoring',
+        name: 'SLA Monitoring',
+        parentId: 'vendor_management',
+        category: 'Administration',
+        icon: null,
+        route: '/sla-monitoring',
+        showInSidebar: true
       }
     ]
   },
