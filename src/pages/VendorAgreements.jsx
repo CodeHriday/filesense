@@ -117,7 +117,12 @@ const VendorAgreements = () => {
     expected_arrival_time: '',
     delivery_method: '',
     contract_start_date: new Date().toISOString().split('T')[0],
-    contract_end_date: ''
+    contract_end_date: '',
+    sla_enabled: false,
+    frequency_pattern: 'daily',
+    arrival_time: '09:00',
+    arrival_days: '',
+    alert_threshold_minutes: 60
   });
   
   const [templateFile, setTemplateFile] = useState(null);
@@ -608,7 +613,12 @@ const VendorAgreements = () => {
         const minutes = String(now.getMinutes()).padStart(2, '0');
         return `${year}-${month}-${day}T${hours}:${minutes}`;
       })(),
-      contract_end_date: ''
+      contract_end_date: '',
+      sla_enabled: false,
+      frequency_pattern: 'daily',
+      arrival_time: '09:00',
+      arrival_days: '',
+      alert_threshold_minutes: 60
     });
     setTemplateFile(null);
     setModalMode('create');
@@ -705,7 +715,12 @@ const VendorAgreements = () => {
       expected_arrival_time: agreement.expected_arrival_time || '',
       delivery_method: agreement.delivery_method || '',
       contract_start_date: formattedStartDate,
-      contract_end_date: formattedEndDate
+      contract_end_date: formattedEndDate,
+      sla_enabled: agreement.sla_enabled || false,
+      frequency_pattern: agreement.frequency_pattern || 'daily',
+      arrival_time: agreement.arrival_time || '09:00',
+      arrival_days: agreement.arrival_days || '',
+      alert_threshold_minutes: agreement.alert_threshold_minutes || 60
     });
     setTemplateFile(null);
     setModalMode('edit');
@@ -2189,6 +2204,111 @@ const VendorAgreements = () => {
                       />
                     </div>
                   </div>
+                </div>
+                
+                {/* Section 8: SLA Monitoring Configuration */}
+                <div className="form-section">
+                  <h3 className="section-title">SLA Monitoring Configuration</h3>
+                  
+                  {/* SLA Enabled Toggle */}
+                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        name="sla_enabled"
+                        checked={formData.sla_enabled}
+                        onChange={(e) => setFormData(prev => ({ ...prev, sla_enabled: e.target.checked }))}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontWeight: 500 }}>Enable SLA Monitoring</span>
+                    </label>
+                    <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem', marginLeft: '26px' }}>
+                      Automatically track file arrival times and send alerts when files are late
+                    </small>
+                  </div>
+                  
+                  {formData.sla_enabled && (
+                    <>
+                      <div className="form-row-grid">
+                        <div className="form-group">
+                          <label htmlFor="frequency_pattern">
+                            Frequency Pattern <span className="required-field">*</span>
+                          </label>
+                          <select
+                            id="frequency_pattern"
+                            name="frequency_pattern"
+                            value={formData.frequency_pattern}
+                            onChange={handleInputChange}
+                            required={formData.sla_enabled}
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="custom">Custom</option>
+                          </select>
+                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                            How often the file is expected to arrive
+                          </small>
+                        </div>
+                        
+                        <div className="form-group">
+                          <label htmlFor="arrival_time">
+                            Expected Arrival Time <span className="required-field">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            id="arrival_time"
+                            name="arrival_time"
+                            value={formData.arrival_time}
+                            onChange={handleInputChange}
+                            required={formData.sla_enabled}
+                          />
+                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                            Time of day the file should arrive (24-hour format)
+                          </small>
+                        </div>
+                      </div>
+                      
+                      {formData.frequency_pattern === 'weekly' && (
+                        <div className="form-group">
+                          <label htmlFor="arrival_days">
+                            Expected Arrival Days <span className="required-field">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="arrival_days"
+                            name="arrival_days"
+                            value={formData.arrival_days}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 1,3,5 for Monday, Wednesday, Friday"
+                            required={formData.sla_enabled && formData.frequency_pattern === 'weekly'}
+                          />
+                          <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                            Days of the week: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+                          </small>
+                        </div>
+                      )}
+                      
+                      <div className="form-group">
+                        <label htmlFor="alert_threshold_minutes">
+                          Alert Threshold (Minutes) <span className="required-field">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          id="alert_threshold_minutes"
+                          name="alert_threshold_minutes"
+                          value={formData.alert_threshold_minutes}
+                          onChange={handleInputChange}
+                          placeholder="e.g., 60"
+                          min="0"
+                          required={formData.sla_enabled}
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.875rem', display: 'block', marginTop: '0.5rem' }}>
+                          Grace period in minutes after expected arrival time before triggering an alert
+                        </small>
+                      </div>
+                    </>
+                  )}
                 </div>
                 
                 {/* Section 4: Connection Configuration */}
