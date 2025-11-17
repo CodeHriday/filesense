@@ -204,7 +204,7 @@ class SLAMonitorService {
   }
 
   /**
-   * Record SLA violation
+   * Record SLA violation and create alert event
    * @param {Object} agreement - Vendor agreement
    * @param {Object} window - Arrival window details
    * @returns {Object} Violation record
@@ -269,6 +269,8 @@ class SLAMonitorService {
         JSON.stringify(metadata)
       ]);
 
+      const violation = insertResult.rows[0];
+
       systemLogger.info('SLA violation recorded', {
         agreementId: agreement.id,
         agreementCode: agreement.agreement_code,
@@ -276,13 +278,76 @@ class SLAMonitorService {
         delayMinutes
       });
 
-      return insertResult.rows[0];
+      // Create alert event for email notification
+      await this.createAlertEvent(violation, agreement);
+
+      return violation;
     } catch (error) {
       systemLogger.error('Error recording SLA violation', {
         agreementId: agreement.id,
         error: error.message
       });
       throw error;
+    }
+  }
+
+  /**
+   * Create alert event for SLA violation
+   * @param {Object} violation - Violation record
+   * @param {Object} agreement - Vendor agreement
+   */
+  async createAlertEvent(violation, agreement) {
+    try {
+      const insertEventQuery = `
+        INSERT INTO alert_events (
+          entity_type,
+          entity_id,
+          event_type,
+          status,
+          vendor_sla_violation_id,
+          metadata,
+          occurred_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+      `;
+
+      const message = `File "${agreement.file_name}" for agreement "${agreement.agreement_code}" did not arrive on schedule. Expected by ${violation.expected_arrival_time.toISOString()}, currently ${violation.delay_minutes} minutes late.`;
+
+      const eventMetadata = {
+        agreement_id: agreement.id,
+        agreement_code: agreement.agreement_code,
+        file_name: agreement.file_name,
+        project_id: agreement.project_id,
+        project_name: agreement.project_name,
+        frequency_pattern: agreement.frequency_pattern,
+        expected_arrival_time: violation.expected_arrival_time,
+        delay_minutes: violation.delay_minutes,
+        alert_threshold_minutes: agreement.alert_threshold_minutes,
+        vendor_id: agreement.vendor_id,
+        message: message
+      };
+
+      const result = await pool.query(insertEventQuery, [
+        'vendor_sla',
+        agreement.id.toString(), // entity_id as string
+        'sla_violation',
+        'failure', // SLA violations are always failures
+        violation.id,
+        JSON.stringify(eventMetadata),
+        violation.violation_detected_at
+      ]);
+
+      systemLogger.info('Alert event created for SLA violation', {
+        violationId: violation.id,
+        eventId: result.rows[0].id,
+        agreementId: agreement.id
+      });
+    } catch (error) {
+      systemLogger.error('Error creating alert event for SLA violation', {
+        violationId: violation.id,
+        error: error.message
+      });
+      // Don't throw - violation was recorded, alert event failure shouldn't break the flow
     }
   }
 

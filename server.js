@@ -3908,6 +3908,7 @@ const { addPrimaryKeyColumnsToQualityRuleViolations } = require('./backend/migra
 const seedGovernanceTags = require('./backend/migrations/seedGovernanceTags');
 const migrateColumnSensitivityToGovernance = require('./backend/migrations/migrateColumnSensitivityToGovernance');
 const { up: addSLAMonitoringToVendorAgreements } = require('./backend/migrations/addSLAMonitoringToVendorAgreements');
+const { addVendorSLAToAlertScope } = require('./backend/migrations/addVendorSLAToAlertScope');
 
 // Run schema migrations asynchronously with tracking to prevent re-running
 (async () => {
@@ -3953,6 +3954,7 @@ const { up: addSLAMonitoringToVendorAgreements } = require('./backend/migrations
     await migrationTracker.runOnce('seedGovernanceTags', () => seedGovernanceTags(dbPool));
     await migrationTracker.runOnce('migrateColumnSensitivityToGovernance', () => migrateColumnSensitivityToGovernance(dbPool));
     await migrationTracker.runOnce('addSLAMonitoringToVendorAgreements', () => addSLAMonitoringToVendorAgreements());
+    await migrationTracker.runOnce('addVendorSLAToAlertScope', () => addVendorSLAToAlertScope(dbPool));
     
     console.log('🎉 All migrations completed successfully');
   } catch (err) {
