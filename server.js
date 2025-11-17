@@ -9164,6 +9164,11 @@ const vendorAgreementRoutes = require('./backend/routes/vendorAgreementRoutes');
 app.use('/api/vendor-agreements', authenticateToken, vendorAgreementRoutes);
 console.log('Added vendor agreement routes');
 
+// Vendor SLA monitoring routes
+const vendorSLARoutes = require('./backend/routes/vendorSLARoutes');
+app.use('/api/vendor-sla', authenticateToken, vendorSLARoutes);
+console.log('Added vendor SLA monitoring routes');
+
 // Vendor agreement file schema routes
 const vendorAgreementFileSchemaRoutes = require('./backend/routes/vendorAgreementFileSchemaRoutes');
 app.use('/api/vendor-agreements', authenticateToken, vendorAgreementFileSchemaRoutes);
