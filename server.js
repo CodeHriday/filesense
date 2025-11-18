@@ -443,12 +443,34 @@ const ALLOWED_FILE_TYPES = [
   'application/json',
   'application/vnd.apache.parquet',
   'application/x-parquet',
-  'application/octet-stream', // For parquet files that might be detected as binary
+  'application/octet-stream', // For binary files (parquet, avro, dat, archives)
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
   'text/xml',
-  'application/xml'
+  'application/xml',
+  // Archive formats
+  'application/x-tar',
+  'application/tar',
+  'application/zip',
+  'application/x-zip',
+  'application/x-zip-compressed',
+  'application/gzip',
+  'application/x-gzip',
+  'application/x-7z-compressed',
+  // Data formats
+  'application/avro',
+  'application/x-avro',
+  'application/x-sas-data', // SAS datasets
+  'application/x-sas-xport' // SAS XPORT files
 ];
-const ALLOWED_EXTENSIONS = ['.csv', '.json', '.parquet', '.xlsx', '.xml'];
+const ALLOWED_EXTENSIONS = [
+  '.csv', '.json', '.parquet', '.xlsx', '.xml',
+  // Archive formats
+  '.tar', '.zip', '.gz', '.gzip', '.7z',
+  // Data formats
+  '.avro', '.dat',
+  // SAS formats
+  '.sas7bdat', '.xpt'
+];
 
 const fileFilter = (req, file, cb) => {
   // Get file extension
@@ -466,8 +488,10 @@ const fileFilter = (req, file, cb) => {
   
   // Check MIME type
   if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
-    // Allow if extension matches even if MIME type is generic
-    if ((ext === '.parquet' || ext === '.xlsx') && file.mimetype === 'application/octet-stream') {
+    // Allow if extension is valid even if MIME type is generic octet-stream
+    // Many binary formats (parquet, avro, archives, dat files) are detected as octet-stream
+    const binaryExtensions = ['.parquet', '.xlsx', '.avro', '.dat', '.tar', '.zip', '.gz', '.gzip', '.7z', '.sas7bdat', '.xpt'];
+    if (binaryExtensions.includes(ext) && file.mimetype === 'application/octet-stream') {
       return cb(null, true);
     }
     
