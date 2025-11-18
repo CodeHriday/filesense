@@ -4641,6 +4641,85 @@ app.put('/api/files/:fileId/ownership', authenticateToken, invalidateCache('cach
   }
 });
 
+// Fixed-Width File Schema API endpoints
+
+// Get fixed-width schema for a file
+app.get('/api/files/:fileId/fixed-width-schema', cacheMiddleware(300), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      'SELECT * FROM fixed_width_schemas WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No schema found for this file' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching fixed-width schema:', err);
+    res.status(500).json({ error: 'Failed to fetch fixed-width schema' });
+  }
+});
+
+// Create or update fixed-width schema
+app.post('/api/files/:fileId/fixed-width-schema', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { schema_definition } = req.body;
+    
+    if (!schema_definition || !Array.isArray(schema_definition.columns)) {
+      return res.status(400).json({ error: 'Invalid schema definition. Must include columns array.' });
+    }
+    
+    // Validate schema structure
+    for (const col of schema_definition.columns) {
+      if (!col.name || typeof col.width !== 'number' || col.width <= 0) {
+        return res.status(400).json({ 
+          error: 'Invalid column definition. Each column must have name and positive width.' 
+        });
+      }
+    }
+    
+    const result = await dbPool.query(
+      `INSERT INTO fixed_width_schemas (file_id, schema_definition, created_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (file_id) DO UPDATE
+       SET schema_definition = $2, updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [fileId, JSON.stringify(schema_definition), req.user?.id || null]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error saving fixed-width schema:', err);
+    res.status(500).json({ error: 'Failed to save fixed-width schema' });
+  }
+});
+
+// Delete fixed-width schema
+app.delete('/api/files/:fileId/fixed-width-schema', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const result = await dbPool.query(
+      'DELETE FROM fixed_width_schemas WHERE file_id = $1 RETURNING *',
+      [fileId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Schema not found' });
+    }
+    
+    res.json({ message: 'Schema deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting fixed-width schema:', err);
+    res.status(500).json({ error: 'Failed to delete schema' });
+  }
+});
+
 // Column Sensitivity Tagging API endpoints
 
 // Get all sensitivity tags for a file's columns
