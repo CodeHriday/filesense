@@ -388,6 +388,9 @@ def load_csv(file_path, delimiter=None, header_config=None):
                    If None, pandas will auto-detect using sep=None
         header_config: Optional dict with hasHeader (bool) and columnNames (list)
     """
+    # DEBUG: Log received header_config
+    logger.info(f"load_csv called with header_config: {header_config}")
+    
     # Determine pandas header parameter
     header_param = 0  # Default: first row is header
     column_names = None
@@ -942,6 +945,9 @@ def vendor_profile():
         delimiter = data.get('delimiter')  # For delimited files (supports multi-character delimiters)
         header_config = data.get('header_config')  # For files without headers (hasHeader, columnNames)
         
+        # DEBUG: Log received header_config
+        logger.info(f"/api/vendor-profile received header_config: {header_config}")
+        
         # Check if using local file path (preferred)
         if local_file_path:
             if not os.path.exists(local_file_path):
@@ -1061,7 +1067,7 @@ def vendor_profile():
             try:
                 # Profile the file
                 filename = os.path.basename(storage_key)
-                profile_result = profile_vendor_file(temp_path, filename)
+                profile_result = profile_vendor_file(temp_path, filename, password=password, delimiter=delimiter, header_config=header_config)
                 
                 logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
                 

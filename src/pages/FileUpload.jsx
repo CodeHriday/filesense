@@ -2644,44 +2644,6 @@ function FileUpload() {
           </div>
         )}
       </Card>
-
-      {/* Debug Tools */}
-      <Card>
-        <div className="debug-section">
-          <h2>API Diagnostics</h2>
-          <div className="debug-status">
-            <div className="api-status">
-              <span>API Status: </span>
-              <span className={`status-badge ${apiStatus.status}`}>
-                {!apiStatus.checked ? 'Checking...' : 
-                  apiStatus.status === 'connected' ? 'Connected' : 'Error'}
-              </span>
-            </div>
-            
-            <div className="debug-actions">
-              <button 
-                className="btn btn-secondary"
-                onClick={handleTestConnection}
-              >
-                Test API Connection
-              </button>
-              <button 
-                className="btn btn-primary"
-                onClick={handleDirectUpload}
-              >
-                Test Direct Upload
-              </button>
-            </div>
-          </div>
-          
-          <div className="diagnostic-info">
-            <h3>Diagnostic Information</h3>
-            <pre>
-              {diagnosticInfo || 'No diagnostic information available yet.'}
-            </pre>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }
