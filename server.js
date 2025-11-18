@@ -3000,13 +3000,11 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
         // Get file path from local_file_path
         const { local_file_path, filename } = file;
         
-        // Call Flask profiling API directly with schema
-        const schema = schemaResult.rows[0].schema_definition;
+        // Call Flask profiling API directly (it will fetch schema from DB automatically)
         const profilingResponse = await axios.post(`${process.env.PROFILING_SERVICE_URL || 'http://localhost:8000'}/api/vendor-profile`, {
           file_id: fileId,
           local_file_path,
-          filename,
-          schema
+          filename
         });
         
         logger.info('Fixed-width file re-profiled successfully', { fileId });
