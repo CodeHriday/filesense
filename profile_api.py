@@ -429,12 +429,42 @@ def load_avro(file_path):
     except Exception as e:
         raise Exception(f"Failed to load Avro file: {str(e)}")
 
-def load_dat(file_path):
+def load_dat(file_path, fixed_width_schema=None):
     """
-    Load .dat file with heuristic detection
-    Tries: delimiter detection → fixed-width → binary (requires schema)
+    Load .dat file with heuristic detection or user-provided schema
+    Tries: user schema → delimiter detection → fixed-width → binary (requires schema)
+    
+    Args:
+        file_path: Path to the .dat file
+        fixed_width_schema: Optional dict with 'columns' array of {'name': str, 'width': int, 'type': str}
     """
     try:
+        # Strategy 0: User-provided fixed-width schema (highest priority)
+        if fixed_width_schema and isinstance(fixed_width_schema, dict):
+            columns_spec = fixed_width_schema.get('columns', [])
+            if columns_spec:
+                try:
+                    # Build column specifications for pandas read_fwf
+                    colspecs = []
+                    names = []
+                    start_pos = 0
+                    
+                    for col in columns_spec:
+                        width = col.get('width', 0)
+                        name = col.get('name', f'col_{len(names)}')
+                        names.append(name)
+                        colspecs.append((start_pos, start_pos + width))
+                        start_pos += width
+                    
+                    # Load with user-defined schema
+                    df = pd.read_fwf(file_path, colspecs=colspecs, names=names, header=None)
+                    
+                    if len(df.columns) > 0 and len(df) > 0:
+                        logger.info(f"Successfully loaded DAT file using user-provided schema ({len(names)} columns)")
+                        return df, names, {'dat_load_method': 'user_schema', 'schema_columns': len(names)}
+                except Exception as schema_error:
+                    logger.warning(f"User-provided schema failed: {str(schema_error)}")
+        
         # Strategy 1: Try delimiter detection with pandas
         try:
             df = pd.read_csv(file_path, sep=None, engine='python', low_memory=False)
@@ -598,7 +628,7 @@ def load_archive(file_path, file_ext, password=None):
         raise Exception(f"Failed to process archive: {str(e)}")
 
 
-def profile_vendor_file(file_path, filename, password=None):
+def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None):
     """
     Run comprehensive quality profiling on a vendor file
     Supports: CSV, JSON, XLSX, Parquet, XML, SAS (.sas7bdat, .xpt), Avro, DAT, Archives (.zip, .tar, .tar.gz, .tar.bz2)
@@ -607,6 +637,7 @@ def profile_vendor_file(file_path, filename, password=None):
         file_path: Path to the file
         filename: Original filename
         password: Optional password for encrypted archives
+        fixed_width_schema: Optional schema for fixed-width .dat files
     
     Returns:
         Dictionary with profiling results
@@ -632,7 +663,7 @@ def profile_vendor_file(file_path, filename, password=None):
         elif file_ext == '.avro':
             df, raw_headers, format_metadata = load_avro(file_path)
         elif file_ext == '.dat':
-            df, raw_headers, format_metadata = load_dat(file_path)
+            df, raw_headers, format_metadata = load_dat(file_path, fixed_width_schema)
         elif file_ext in ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz']:
             df, raw_headers, format_metadata = load_archive(file_path, file_ext, password)
         else:
@@ -823,8 +854,32 @@ def vendor_profile():
             if not filename:
                 filename = os.path.basename(local_file_path)
             
+            # Fetch fixed-width schema if this is a .dat file
+            fixed_width_schema = None
+            if filename.lower().endswith('.dat'):
+                conn = get_db_connection()
+                if conn:
+                    try:
+                        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                        cursor.execute(
+                            "SELECT schema_definition FROM fixed_width_schemas WHERE file_id = %s",
+                            (file_id,)
+                        )
+                        result = cursor.fetchone()
+                        cursor.close()
+                        
+                        if result and result['schema_definition']:
+                            fixed_width_schema = result['schema_definition']
+                            logger.info(f"Found fixed-width schema for file {file_id}: {len(fixed_width_schema.get('columns', []))} columns")
+                        
+                        conn.close()
+                    except Exception as schema_error:
+                        logger.warning(f"Failed to fetch fixed-width schema: {str(schema_error)}")
+                        if conn:
+                            conn.close()
+            
             # Profile the local file directly
-            profile_result = profile_vendor_file(local_file_path, filename)
+            profile_result = profile_vendor_file(local_file_path, filename, fixed_width_schema=fixed_width_schema)
             
             logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
             
