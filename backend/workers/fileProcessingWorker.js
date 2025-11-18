@@ -186,7 +186,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -294,9 +294,10 @@ class FileProcessingWorker {
           fileId, 
           fileExtension,
           hasPassword: !!archivePassword,
-          hasDelimiter: !!delimiter
+          hasDelimiter: !!delimiter,
+          hasFixedWidthSchema: !!fixedWidthSchema
         });
-        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, fileId, archivePassword, delimiter, headerConfig);
+        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, fileId, archivePassword, delimiter, headerConfig, fixedWidthSchema);
       } else {
         // Use legacy process_file.py for standard formats
         fileInfo = await this.callPythonProcessor(filePath, fileType);
@@ -372,7 +373,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 75);
 
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId, delimiter, headerConfig);
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId, delimiter, headerConfig, fixedWidthSchema);
       
       // Step 4.2: Track file processing artifacts and archive members (for archives/special formats)
       if (fileInfo.format_specific) {
@@ -858,7 +859,7 @@ class FileProcessingWorker {
    * Call Flask profile API for archives and special formats
    * Supports password-protected archives, SAS, Avro, DAT files, and custom delimiters
    */
-  async callFlaskProfileAPI(filePath, originalName, fileId, password = null, delimiter = null, headerConfig = null) {
+  async callFlaskProfileAPI(filePath, originalName, fileId, password = null, delimiter = null, headerConfig = null, fixedWidthSchema = null) {
     try {
       const profileAPIUrl = process.env.PROFILE_API_URL || 'http://localhost:8000';
       
@@ -882,6 +883,11 @@ class FileProcessingWorker {
       // Add header configuration if provided (for files without headers)
       if (headerConfig) {
         requestBody.header_config = headerConfig;
+      }
+      
+      // Add fixed-width schema if provided (for .dat files without delimiters)
+      if (fixedWidthSchema) {
+        requestBody.fixed_width_schema = fixedWidthSchema;
       }
       
       this.logger.info('Calling Flask profile API', { 
@@ -1212,7 +1218,7 @@ print(json.dumps(result))
   /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null, agreementId = null, userDelimiter = null, headerConfig = null) {
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null, agreementId = null, userDelimiter = null, headerConfig = null, fixedWidthSchema = null) {
     // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
     let existingMetadata = {};
     try {
@@ -1235,7 +1241,7 @@ print(json.dumps(result))
 
     // Merge existing metadata with new profiling data
     // Existing fields (connection_id, storage_location, provider, etc.) are preserved
-    // New/updated fields (encoding, delimiter, preview_data, header_validation, header_config) are added
+    // New/updated fields (encoding, delimiter, preview_data, header_validation, header_config, fixed_width_schema) are added
     // User-provided delimiter takes precedence over auto-detected delimiter
     const metadata = {
       ...existingMetadata, // Preserve original metadata
@@ -1243,7 +1249,8 @@ print(json.dumps(result))
       delimiter: userDelimiter || fileInfo.delimiter || null,
       preview_data: fileInfo.preview_data || [],
       header_validation: headerValidation || null,
-      header_config: headerConfig || existingMetadata.header_config || null
+      header_config: headerConfig || existingMetadata.header_config || null,
+      fixed_width_schema: fixedWidthSchema || existingMetadata.fixed_width_schema || null
     };
     
     this.logger.info('Merged metadata result', { 

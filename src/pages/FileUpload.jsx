@@ -87,12 +87,17 @@ function FileUpload() {
   const [validationError, setValidationError] = useState(null); // Unified contract validation error state
   
   // Delimiter configuration states
-  const [delimiterType, setDelimiterType] = useState('comma'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none'
+  const [delimiterType, setDelimiterType] = useState('comma'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none', 'fixed-width'
   const [customDelimiter, setCustomDelimiter] = useState(''); // For multi-character delimiters like '~^'
   
   // Header configuration states
   const [hasHeader, setHasHeader] = useState(true); // Whether file has a header row
   const [columnNames, setColumnNames] = useState(''); // Comma-separated column names for files without headers
+  
+  // Fixed-width schema configuration
+  const [fixedWidthSchema, setFixedWidthSchema] = useState([
+    { name: '', width: '' }
+  ]); // Array of {name: string, width: number} for fixed-width files
   
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
@@ -443,8 +448,8 @@ function FileUpload() {
   
   // Helper function to get the actual delimiter value
   const getDelimiterValue = () => {
-    if (delimiterType === 'none') {
-      return null; // No delimiter specified - let backend auto-detect
+    if (delimiterType === 'none' || delimiterType === 'fixed-width') {
+      return null; // No delimiter specified - let backend auto-detect or use fixed-width
     }
     
     if (delimiterType === 'custom') {
@@ -463,6 +468,11 @@ function FileUpload() {
   
   // Helper function to build header configuration object
   const getHeaderConfig = () => {
+    // Fixed-width files define headers in their schema, not separately
+    if (delimiterType === 'fixed-width') {
+      return null;
+    }
+    
     if (hasHeader) {
       return null; // File has headers - no config needed
     }
@@ -480,6 +490,30 @@ function FileUpload() {
     return {
       hasHeader: false,
       columnNames: names
+    };
+  };
+  
+  // Helper function to build fixed-width schema object
+  const getFixedWidthSchema = () => {
+    if (delimiterType !== 'fixed-width') {
+      return null; // Not a fixed-width file
+    }
+    
+    // Filter out empty rows and parse widths as integers
+    const columns = fixedWidthSchema
+      .filter(col => col.name.trim() && col.width)
+      .map(col => ({
+        name: col.name.trim(),
+        width: parseInt(col.width, 10),
+        type: 'string' // Default type
+      }));
+    
+    if (columns.length === 0) {
+      return null; // No valid columns defined
+    }
+    
+    return {
+      columns
     };
   };
   
@@ -806,7 +840,8 @@ function FileUpload() {
         const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
         const delimiterValue = getDelimiterValue();
         const headerConfigValue = getHeaderConfig();
-        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue, headerConfigValue);
+        const fixedWidthSchemaValue = getFixedWidthSchema();
+        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue, headerConfigValue, fixedWidthSchemaValue);
         
         // Process batch results
         if (result.results && Array.isArray(result.results)) {
@@ -914,6 +949,7 @@ function FileUpload() {
       const fileSchemaIdForUpload = uploadType === 'contract' ? selectedFilePattern : null;
       const delimiterValue = getDelimiterValue();
       const headerConfigValue = getHeaderConfig();
+      const fixedWidthSchemaValue = getFixedWidthSchema();
       const result = await uploadFile(
         file, 
         wrappedProgressHandler, 
@@ -926,7 +962,8 @@ function FileUpload() {
         fileSchemaIdForUpload,  // Pass the specific file pattern schema ID for validation
         fileHash,  // Pass fileHash to avoid redundant hashing
         delimiterValue,  // Pass delimiter for delimited files
-        headerConfigValue  // Pass header configuration for files without headers
+        headerConfigValue,  // Pass header configuration for files without headers
+        fixedWidthSchemaValue  // Pass fixed-width schema for .dat files
       );
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
@@ -1772,6 +1809,7 @@ function FileUpload() {
                   <option value="tab">Tab (\t)</option>
                   <option value="semicolon">Semicolon (;)</option>
                   <option value="custom">Custom Delimiter...</option>
+                  <option value="fixed-width">Fixed-Width (no delimiter)</option>
                 </select>
                 
                 {/* Custom delimiter input */}
@@ -1799,11 +1837,104 @@ function FileUpload() {
                     </div>
                   </div>
                 )}
+                
+                {/* Fixed-Width Schema Builder */}
+                {delimiterType === 'fixed-width' && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Define Column Schema:
+                    </label>
+                    <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                      Fixed-width files have no delimiters. Specify each column's name and width in characters.
+                    </p>
+                    
+                    <div style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '0.75rem', backgroundColor: '#f9f9f9' }}>
+                      {fixedWidthSchema.map((column, index) => (
+                        <div key={index} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                          <input 
+                            type="text"
+                            value={column.name}
+                            onChange={(e) => {
+                              const newSchema = [...fixedWidthSchema];
+                              newSchema[index].name = e.target.value;
+                              setFixedWidthSchema(newSchema);
+                            }}
+                            placeholder="Column Name"
+                            style={{
+                              flex: 2,
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              border: '1px solid #ccc'
+                            }}
+                          />
+                          <input 
+                            type="number"
+                            value={column.width}
+                            onChange={(e) => {
+                              const newSchema = [...fixedWidthSchema];
+                              newSchema[index].width = e.target.value;
+                              setFixedWidthSchema(newSchema);
+                            }}
+                            placeholder="Width"
+                            min="1"
+                            style={{
+                              flex: 1,
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              border: '1px solid #ccc'
+                            }}
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const newSchema = fixedWidthSchema.filter((_, i) => i !== index);
+                              setFixedWidthSchema(newSchema.length > 0 ? newSchema : [{ name: '', width: '' }]);
+                            }}
+                            style={{
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '4px',
+                              border: '1px solid #dc3545',
+                              backgroundColor: '#fff',
+                              color: '#dc3545',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setFixedWidthSchema([...fixedWidthSchema, { name: '', width: '' }]);
+                        }}
+                        style={{
+                          marginTop: '0.5rem',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '4px',
+                          border: '1px solid #28a745',
+                          backgroundColor: '#fff',
+                          color: '#28a745',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        + Add Column
+                      </button>
+                    </div>
+                    
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      Example: ID (width: 5), Name (width: 20), Age (width: 3)
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             
-            {/* Header Configuration Section */}
-            {selectedProject && (
+            {/* Header Configuration Section - hide when fixed-width is selected */}
+            {selectedProject && delimiterType !== 'fixed-width' && (
               <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
                 <label htmlFor="has-header-checkbox" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
                   Header Configuration:

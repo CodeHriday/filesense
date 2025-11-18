@@ -564,10 +564,20 @@ def load_dat(file_path, fixed_width_schema=None, delimiter=None, header_config=N
         
         # Strategy 1: Try automatic delimiter detection with pandas
         try:
-            df = pd.read_csv(file_path, sep=None, engine='python')
+            # Check if header configuration is provided
+            if header_config and not header_config.get('hasHeader', True):
+                # File has no headers - use provided column names
+                column_names = header_config.get('columnNames', [])
+                logger.info(f"DAT file (auto-detect) has no headers, using provided column names: {column_names}")
+                df = pd.read_csv(file_path, sep=None, engine='python', header=None, names=column_names)
+                raw_headers = column_names
+            else:
+                # File has headers or no config provided
+                df = pd.read_csv(file_path, sep=None, engine='python')
+                raw_headers = list(df.columns)
+            
             if len(df.columns) > 1 and len(df) > 0:
                 logger.info(f"Successfully loaded DAT file using automatic delimiter detection")
-                raw_headers = list(df.columns)
                 return df, raw_headers, {'dat_load_method': 'delimiter_detection'}
         except Exception as delim_error:
             logger.debug(f"Automatic delimiter detection failed: {str(delim_error)}")
@@ -944,9 +954,10 @@ def vendor_profile():
         password = data.get('password')  # For password-protected archives
         delimiter = data.get('delimiter')  # For delimited files (supports multi-character delimiters)
         header_config = data.get('header_config')  # For files without headers (hasHeader, columnNames)
+        fixed_width_schema = data.get('fixed_width_schema')  # For .dat files without delimiters (columns with name and width)
         
-        # DEBUG: Log received header_config
-        logger.info(f"/api/vendor-profile received header_config: {header_config}")
+        # DEBUG: Log received configuration
+        logger.info(f"/api/vendor-profile received header_config: {header_config}, fixed_width_schema: {fixed_width_schema}")
         
         # Check if using local file path (preferred)
         if local_file_path:
@@ -962,9 +973,8 @@ def vendor_profile():
             if not filename:
                 filename = os.path.basename(local_file_path)
             
-            # Fetch fixed-width schema if this is a .dat file
-            fixed_width_schema = None
-            if filename.lower().endswith('.dat'):
+            # Fetch fixed-width schema from database if not provided and this is a .dat file
+            if not fixed_width_schema and filename.lower().endswith('.dat'):
                 conn = get_db_connection()
                 if conn:
                     try:

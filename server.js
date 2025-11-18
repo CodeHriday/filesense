@@ -1472,6 +1472,21 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       }
     }
     
+    // Get fixed-width schema if provided (for .dat files without delimiters)
+    let fixedWidthSchema = null;
+    if (req.body.fixedWidthSchema) {
+      try {
+        fixedWidthSchema = JSON.parse(req.body.fixedWidthSchema);
+        logger.info('Fixed-width schema provided for upload', { 
+          columnCount: fixedWidthSchema.columns?.length || 0,
+          userId: req.user?.id 
+        });
+      } catch (e) {
+        logger.warn('Invalid fixedWidthSchema format', { fixedWidthSchema: req.body.fixedWidthSchema });
+        fixedWidthSchema = null;
+      }
+    }
+    
     // Get pre-calculated file hashes if provided (optimization to avoid double hashing)
     let fileHashes = {};
     if (req.body.fileHashes) {
@@ -1802,7 +1817,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           qualityRuleIds: mergedQualityRuleIds,
           agreementId,
           delimiter,
-          headerConfig
+          headerConfig,
+          fixedWidthSchema
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
@@ -4924,7 +4940,8 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
       qualityRuleIds: [],
       agreementId: vendor_agreement_id,
       delimiter,
-      headerConfig
+      headerConfig,
+      fixedWidthSchema: null  // Not supported in re-profile flow yet
     }, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
