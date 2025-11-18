@@ -4803,6 +4803,109 @@ app.delete('/api/files/:fileId/fixed-width-schema', authenticateToken, async (re
   }
 });
 
+// Configure delimiter for delimited files (CSV, DAT, TXT)
+app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { delimiter } = req.body;
+    const userId = req.user.id;
+    
+    if (!delimiter) {
+      return res.status(400).json({ error: 'Delimiter is required' });
+    }
+    
+    // Verify file exists and user has access
+    const fileResult = await dbPool.query(
+      'SELECT file_id, project_id, filename, metadata FROM files WHERE file_id = $1',
+      [fileId]
+    );
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = fileResult.rows[0];
+    
+    // Check file ownership - user must have access to the project
+    const projectAccessQuery = `
+      SELECT 1 FROM project_members 
+      WHERE project_id = $1 AND user_id = $2
+      UNION
+      SELECT 1 FROM project_access_groups pag
+      INNER JOIN user_groups ug ON pag.group_id = ug.group_id
+      WHERE pag.project_id = $1 AND ug.user_id = $2
+    `;
+    const accessResult = await dbPool.query(projectAccessQuery, [file.project_id, userId]);
+    
+    if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
+      return res.status(403).json({ error: 'Unauthorized to access this file' });
+    }
+    
+    // Update file metadata with delimiter
+    let metadata = file.metadata || {};
+    if (typeof metadata === 'string') {
+      metadata = JSON.parse(metadata);
+    }
+    
+    metadata.delimiter = delimiter;
+    
+    await dbPool.query(
+      'UPDATE files SET metadata = $1 WHERE file_id = $2',
+      [JSON.stringify(metadata), fileId]
+    );
+    
+    logger.info('Delimiter saved for file', { fileId, delimiter, userId });
+    
+    // Trigger re-profiling by calling the retry endpoint logic
+    // Use the file service to get file path
+    const fileService = diContainer.get('fileService');
+    const fileDetails = await fileService.getFileById(fileId);
+    
+    if (!fileDetails) {
+      return res.status(404).json({ error: 'File details not found' });
+    }
+    
+    const { filename, created_at } = fileDetails;
+    const storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', created_at.substring(0, 10), filename);
+    
+    // Clear existing profiling data
+    await dbPool.query(
+      'DELETE FROM profiling_metrics WHERE file_id = $1',
+      [fileId]
+    );
+    
+    // Re-queue file for processing with delimiter
+    const queue = diContainer.get('queue');
+    await queue.addJob(`reprocess_file_${fileId}`, {
+      fileId,
+      userId,
+      filePath: storagePath,
+      retryWithDelimiter: true
+    });
+    
+    // Update file status
+    await dbPool.query(
+      'UPDATE files SET processing_step = $1, failure_reason_code = NULL, processing_error = NULL WHERE file_id = $2',
+      ['queued', fileId]
+    );
+    
+    // Invalidate cache
+    await invalidateFileCache(fileId);
+    await invalidateFileCatalogCache();
+    
+    res.json({ 
+      message: 'Delimiter saved and file queued for re-profiling',
+      delimiter 
+    });
+  } catch (err) {
+    console.error('Error saving delimiter:', err);
+    res.status(500).json({ 
+      error: 'Failed to save delimiter',
+      details: err.message 
+    });
+  }
+});
+
 // Column Sensitivity Tagging API endpoints
 
 // Get all sensitivity tags for a file's columns
