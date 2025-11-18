@@ -390,7 +390,7 @@ def load_csv(file_path, delimiter=None):
     if delimiter:
         # Use specified delimiter (supports multi-character delimiters)
         logger.info(f"Using specified delimiter: {repr(delimiter)}")
-        df = pd.read_csv(file_path, sep=delimiter, engine='python', low_memory=False)
+        df = pd.read_csv(file_path, sep=delimiter, engine='python')
         raw_headers = list(pd.read_csv(file_path, sep=delimiter, engine='python', nrows=0).columns)
     else:
         # Auto-detect delimiter
@@ -519,7 +519,7 @@ def load_dat(file_path, fixed_width_schema=None, delimiter=None):
         if delimiter:
             try:
                 logger.info(f"Trying user-provided delimiter for DAT file: {repr(delimiter)}")
-                df = pd.read_csv(file_path, sep=delimiter, engine='python', low_memory=False)
+                df = pd.read_csv(file_path, sep=delimiter, engine='python')
                 if len(df.columns) > 1 and len(df) > 0:
                     logger.info(f"Successfully loaded DAT file using user-provided delimiter ({len(df.columns)} columns)")
                     raw_headers = list(df.columns)
@@ -529,7 +529,7 @@ def load_dat(file_path, fixed_width_schema=None, delimiter=None):
         
         # Strategy 1: Try automatic delimiter detection with pandas
         try:
-            df = pd.read_csv(file_path, sep=None, engine='python', low_memory=False)
+            df = pd.read_csv(file_path, sep=None, engine='python')
             if len(df.columns) > 1 and len(df) > 0:
                 logger.info(f"Successfully loaded DAT file using automatic delimiter detection")
                 raw_headers = list(df.columns)
