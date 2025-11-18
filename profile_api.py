@@ -48,6 +48,28 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
+# Helper function to convert numpy types to Python native types
+def convert_numpy_types(obj):
+    """
+    Recursively convert numpy types to Python native types for JSON serialization
+    """
+    import numpy as np
+    
+    if isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
+
 # Database connection
 def get_db_connection():
     """Get PostgreSQL database connection"""
@@ -127,7 +149,7 @@ def store_profiling_metrics_and_detect_anomalies(
         quality_score = profile_result.get('quality_score', {})
         metadata = profile_result.get('metadata', {})
         
-        # Store profiling metrics
+        # Store profiling metrics (UPSERT to handle re-profiling)
         cursor.execute("""
             INSERT INTO profiling_metrics (
                 file_id,
@@ -143,6 +165,18 @@ def store_profiling_metrics_and_detect_anomalies(
                 profiled_at,
                 file_role
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (file_id, file_role) 
+            DO UPDATE SET
+                file_name = EXCLUDED.file_name,
+                mapping_id = EXCLUDED.mapping_id,
+                job_id = EXCLUDED.job_id,
+                row_count = EXCLUDED.row_count,
+                column_count = EXCLUDED.column_count,
+                completeness_score = EXCLUDED.completeness_score,
+                consistency_score = EXCLUDED.consistency_score,
+                validity_score = EXCLUDED.validity_score,
+                overall_quality_score = EXCLUDED.overall_quality_score,
+                profiled_at = EXCLUDED.profiled_at
         """, (
             file_id,
             filename,
@@ -933,6 +967,9 @@ def vendor_profile():
                     'message': 'Anomaly detection unavailable (no database connection)'
                 }
             
+            # Convert numpy types to Python native types for JSON serialization
+            profile_result = convert_numpy_types(profile_result)
+            
             return jsonify(profile_result), 200
         
         # Fallback to cloud storage download (legacy)
@@ -980,6 +1017,9 @@ def vendor_profile():
                         'anomalies_detected': 0,
                         'message': 'Anomaly detection unavailable (no database connection)'
                     }
+                
+                # Convert numpy types to Python native types for JSON serialization
+                profile_result = convert_numpy_types(profile_result)
                 
                 return jsonify(profile_result), 200
                 
