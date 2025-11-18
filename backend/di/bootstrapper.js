@@ -12,6 +12,9 @@ const { registerServices } = require('./services');
 // Import improved database configuration
 const database = require('../config/database');
 
+// Import queue system
+const { getQueue } = require('../queue/queueFactory');
+
 // Import service classes (not instances)
 const ServiceBase = require('../services/ServiceBase');
 
@@ -33,6 +36,9 @@ function configureDI() {
   
   container.register('logger', () => systemLogger);
   container.register('uuid', () => uuidv4, false); // Non-singleton, return a new UUID each time
+  
+  // Register queue system (singleton)
+  container.register('queue', () => getQueue());
   
   // Register services
   
