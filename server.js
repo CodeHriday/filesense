@@ -2978,7 +2978,7 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
       INNER JOIN user_groups ug ON pag.group_id = ug.group_id
       WHERE pag.project_id = $1 AND ug.user_id = $2
     `;
-    const accessResult = await pool.query(projectAccessQuery, [file.project_id, userId]);
+    const accessResult = await dbPool.query(projectAccessQuery, [file.project_id, userId]);
     
     if (accessResult.rows.length === 0 && !req.user.roles?.includes('Admin')) {
       return res.status(403).json({ error: 'Unauthorized to access this file' });
@@ -2989,7 +2989,7 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
     
     if (isFixedWidth) {
       // Fetch schema configuration for this file
-      const schemaResult = await pool.query(
+      const schemaResult = await dbPool.query(
         'SELECT schema_definition FROM fixed_width_schemas WHERE file_id = $1',
         [fileId]
       );
@@ -3030,7 +3030,7 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
     });
 
     // Update file status to processing
-    await pool.query(
+    await dbPool.query(
       'UPDATE files SET processing_step = $1, failure_reason_code = NULL, processing_error = NULL WHERE file_id = $2',
       ['processing', fileId]
     );
