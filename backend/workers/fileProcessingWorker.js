@@ -270,7 +270,7 @@ class FileProcessingWorker {
           fileExtension,
           hasPassword: !!archivePassword
         });
-        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, archivePassword);
+        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, fileId, archivePassword);
       } else {
         // Use legacy process_file.py for standard formats
         fileInfo = await this.callPythonProcessor(filePath, fileType);
@@ -832,7 +832,7 @@ class FileProcessingWorker {
    * Call Flask profile API for archives and special formats
    * Supports password-protected archives, SAS, Avro, DAT files
    */
-  async callFlaskProfileAPI(filePath, originalName, password = null) {
+  async callFlaskProfileAPI(filePath, originalName, fileId, password = null) {
     try {
       const profileAPIUrl = process.env.PROFILE_API_URL || 'http://localhost:8000';
       
@@ -841,6 +841,8 @@ class FileProcessingWorker {
       const fileBase64 = fileBuffer.toString('base64');
       
       const requestBody = {
+        file_id: fileId,
+        file_name: originalName,
         file_path: filePath,
         filename: originalName,
         file_data: fileBase64
