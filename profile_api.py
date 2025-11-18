@@ -378,7 +378,7 @@ def scan_file_with_clamav(file_path):
 # Format-Specific File Loaders
 # ============================================================================
 
-def load_csv(file_path, delimiter=None):
+def load_csv(file_path, delimiter=None, header_config=None):
     """
     Load CSV file into DataFrame
     
@@ -386,16 +386,35 @@ def load_csv(file_path, delimiter=None):
         file_path: Path to CSV file
         delimiter: Optional delimiter (supports multi-character delimiters like '~^')
                    If None, pandas will auto-detect using sep=None
+        header_config: Optional dict with hasHeader (bool) and columnNames (list)
     """
+    # Determine pandas header parameter
+    header_param = 0  # Default: first row is header
+    column_names = None
+    
+    if header_config and not header_config.get('hasHeader', True):
+        # File has no headers - use provided column names
+        header_param = None
+        column_names = header_config.get('columnNames', [])
+        logger.info(f"File has no headers, using provided column names: {column_names}")
+    
     if delimiter:
         # Use specified delimiter (supports multi-character delimiters)
         logger.info(f"Using specified delimiter: {repr(delimiter)}")
-        df = pd.read_csv(file_path, sep=delimiter, engine='python')
-        raw_headers = list(pd.read_csv(file_path, sep=delimiter, engine='python', nrows=0).columns)
+        if header_param is None and column_names:
+            df = pd.read_csv(file_path, sep=delimiter, engine='python', header=None, names=column_names)
+            raw_headers = column_names
+        else:
+            df = pd.read_csv(file_path, sep=delimiter, engine='python')
+            raw_headers = list(df.columns)
     else:
         # Auto-detect delimiter
-        df = pd.read_csv(file_path, low_memory=False)
-        raw_headers = list(pd.read_csv(file_path, nrows=0).columns)
+        if header_param is None and column_names:
+            df = pd.read_csv(file_path, low_memory=False, header=None, names=column_names)
+            raw_headers = column_names
+        else:
+            df = pd.read_csv(file_path, low_memory=False)
+            raw_headers = list(df.columns)
     
     return df, raw_headers, {}
 
@@ -478,10 +497,12 @@ def load_avro(file_path):
     except Exception as e:
         raise Exception(f"Failed to load Avro file: {str(e)}")
 
-def load_dat(file_path, fixed_width_schema=None, delimiter=None):
+def load_dat(file_path, fixed_width_schema=None, delimiter=None, header_config=None):
     """
     Load .dat file with heuristic detection or user-provided schema
     Tries: user delimiter → user schema → delimiter detection → fixed-width → binary (requires schema)
+    
+    header_config: Optional dict with hasHeader (bool) and columnNames (list)
     
     Args:
         file_path: Path to the .dat file
@@ -519,10 +540,21 @@ def load_dat(file_path, fixed_width_schema=None, delimiter=None):
         if delimiter:
             try:
                 logger.info(f"Trying user-provided delimiter for DAT file: {repr(delimiter)}")
-                df = pd.read_csv(file_path, sep=delimiter, engine='python')
+                
+                # Check if header configuration is provided
+                if header_config and not header_config.get('hasHeader', True):
+                    # File has no headers - use provided column names
+                    column_names = header_config.get('columnNames', [])
+                    logger.info(f"DAT file has no headers, using provided column names: {column_names}")
+                    df = pd.read_csv(file_path, sep=delimiter, engine='python', header=None, names=column_names)
+                    raw_headers = column_names
+                else:
+                    # File has headers or no config provided
+                    df = pd.read_csv(file_path, sep=delimiter, engine='python')
+                    raw_headers = list(df.columns)
+                
                 if len(df.columns) > 1 and len(df) > 0:
                     logger.info(f"Successfully loaded DAT file using user-provided delimiter ({len(df.columns)} columns)")
-                    raw_headers = list(df.columns)
                     return df, raw_headers, {'dat_load_method': 'user_delimiter', 'delimiter': delimiter}
             except Exception as user_delim_error:
                 logger.warning(f"User-provided delimiter failed: {str(user_delim_error)}")
@@ -690,10 +722,14 @@ def load_archive(file_path, file_ext, password=None):
         raise Exception(f"Failed to process archive: {str(e)}")
 
 
-def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None, delimiter=None):
+def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None, delimiter=None, header_config=None):
     """
     Run comprehensive quality profiling on a vendor file
     Supports: CSV, JSON, XLSX, Parquet, XML, SAS (.sas7bdat, .xpt), Avro, DAT, Archives (.zip, .tar, .tar.gz, .tar.bz2)
+    
+    header_config: Optional dict with keys:
+        - hasHeader (bool): Whether file has a header row
+        - columnNames (list): Column names to use when hasHeader=False
     
     Args:
         file_path: Path to the file
@@ -714,7 +750,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
     
     try:
         if file_ext == '.csv':
-            df, raw_headers, format_metadata = load_csv(file_path, delimiter=delimiter)
+            df, raw_headers, format_metadata = load_csv(file_path, delimiter=delimiter, header_config=header_config)
         elif file_ext in ['.xlsx', '.xls']:
             df, raw_headers, format_metadata = load_excel(file_path)
         elif file_ext == '.json':
@@ -726,7 +762,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         elif file_ext == '.avro':
             df, raw_headers, format_metadata = load_avro(file_path)
         elif file_ext == '.dat':
-            df, raw_headers, format_metadata = load_dat(file_path, fixed_width_schema, delimiter)
+            df, raw_headers, format_metadata = load_dat(file_path, fixed_width_schema, delimiter, header_config)
         elif file_ext in ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz']:
             df, raw_headers, format_metadata = load_archive(file_path, file_ext, password)
         else:
@@ -904,6 +940,7 @@ def vendor_profile():
         filename = data.get('filename')
         password = data.get('password')  # For password-protected archives
         delimiter = data.get('delimiter')  # For delimited files (supports multi-character delimiters)
+        header_config = data.get('header_config')  # For files without headers (hasHeader, columnNames)
         
         # Check if using local file path (preferred)
         if local_file_path:
@@ -944,7 +981,7 @@ def vendor_profile():
                             conn.close()
             
             # Profile the local file directly
-            profile_result = profile_vendor_file(local_file_path, filename, fixed_width_schema=fixed_width_schema, password=password, delimiter=delimiter)
+            profile_result = profile_vendor_file(local_file_path, filename, fixed_width_schema=fixed_width_schema, password=password, delimiter=delimiter, header_config=header_config)
             
             logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
             

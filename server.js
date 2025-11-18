@@ -1456,6 +1456,22 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       logger.info('Delimiter provided for upload', { delimiter, userId: req.user?.id });
     }
     
+    // Get header configuration if provided (for files without headers)
+    let headerConfig = null;
+    if (req.body.headerConfig) {
+      try {
+        headerConfig = JSON.parse(req.body.headerConfig);
+        logger.info('Header configuration provided for upload', { 
+          hasHeader: headerConfig.hasHeader,
+          columnCount: headerConfig.columnNames?.length || 0,
+          userId: req.user?.id 
+        });
+      } catch (e) {
+        logger.warn('Invalid headerConfig format', { headerConfig: req.body.headerConfig });
+        headerConfig = null;
+      }
+    }
+    
     // Get pre-calculated file hashes if provided (optimization to avoid double hashing)
     let fileHashes = {};
     if (req.body.fileHashes) {
@@ -1785,7 +1801,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           subProjectId,
           qualityRuleIds: mergedQualityRuleIds,
           agreementId,
-          delimiter
+          delimiter,
+          headerConfig
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
