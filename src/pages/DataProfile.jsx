@@ -818,7 +818,7 @@ function DataProfile() {
                      headerValidation.status === 'warning' ? 'Warning' : 'Critical'}
                   </h4>
                   <p>
-                    {headerValidation.issues_found === 0 
+                    {(headerValidation.issues_found || 0) === 0
                       ? 'No header issues detected' 
                       : `${headerValidation.issues_found} issue${headerValidation.issues_found > 1 ? 's' : ''} found`}
                   </p>
