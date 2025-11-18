@@ -2984,6 +2984,42 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to access this file' });
     }
 
+    // Check if this is a fixed-width .dat file with schema configuration
+    const isFixedWidth = file.filename && file.filename.toLowerCase().endsWith('.dat');
+    
+    if (isFixedWidth) {
+      // Fetch schema configuration for this file
+      const schemaResult = await pool.query(
+        'SELECT schema_definition FROM fixed_width_schemas WHERE file_id = $1',
+        [fileId]
+      );
+      
+      if (schemaResult.rows.length > 0) {
+        logger.info('Re-profiling fixed-width file with schema', { fileId });
+        
+        // Get file path from local_file_path
+        const { local_file_path, filename } = file;
+        
+        // Call Flask profiling API directly with schema
+        const schema = schemaResult.rows[0].schema_definition;
+        const profilingResponse = await axios.post(`${process.env.PROFILING_SERVICE_URL || 'http://localhost:8000'}/api/vendor-profile`, {
+          file_id: fileId,
+          local_file_path,
+          filename,
+          schema
+        });
+        
+        logger.info('Fixed-width file re-profiled successfully', { fileId });
+        
+        return res.json({
+          success: true,
+          message: 'File re-profiled successfully with custom schema.',
+          fileId
+        });
+      }
+    }
+
+    // Standard retry flow for non-fixed-width files
     // Re-queue the file for processing
     const queue = diContainer.get('queue');
     await queue.addJob(`process_file_${fileId}`, {
@@ -3008,7 +3044,7 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error retrying file processing', { fileId, error: error.message });
+    logger.error('Error retrying file processing', { fileId, error: error.message, stack: error.stack });
     res.status(500).json({ 
       error: 'Failed to retry file processing', 
       details: error.message 

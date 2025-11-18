@@ -2243,18 +2243,23 @@ function DataProfile() {
                 setShowFixedWidthModal(false);
                 try {
                   const encodedFileId = encodeURIComponent(fileId);
-                  await axios.post(
+                  const response = await axios.post(
                     `/api/files/${encodedFileId}/retry`,
                     {},
                     { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
                   );
-                  setErrorMessage('Schema saved successfully. Re-profiling file...');
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 2000);
+                  
+                  setSuccessMessage('Schema saved and file re-profiled successfully!');
+                  
+                  setTimeout(async () => {
+                    setSuccessMessage(null);
+                    await fetchFileDetails();
+                    await fetchProfileData();
+                  }, 1500);
                 } catch (err) {
                   console.error('Error triggering re-profile:', err);
-                  setErrorMessage('Schema saved but re-profiling failed. Please refresh the page.');
+                  const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Re-profiling failed';
+                  setErrorMessage(`Schema saved but re-profiling failed: ${errorMsg}`);
                 }
               }}
               setErrorMessage={setErrorMessage}
