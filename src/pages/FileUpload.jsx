@@ -649,9 +649,15 @@ function FileUpload() {
       // Check for duplicate file first (scoped to selected project)
       const duplicateCheck = await checkDuplicateFile(file, selectedProject);
       
+      // Capture fileHash from duplicate check to avoid redundant hashing
+      const fileHash = duplicateCheck.fileHash;
+      
       if (duplicateCheck.isDuplicate) {
-        // Show duplicate modal
-        setDuplicateFileInfo(duplicateCheck.existingFile);
+        // Show duplicate modal - preserve hash for later use
+        setDuplicateFileInfo({
+          ...duplicateCheck.existingFile,
+          fileHash: fileHash  // Store hash so it can be reused in replace/keep-both flows
+        });
         setPendingFile(file);
         setPendingProgressHandler(() => progressHandler);
         setShowDuplicateModal(true);
@@ -662,7 +668,7 @@ function FileUpload() {
       }
       
       // If not duplicate, proceed with upload
-      await proceedWithUpload(file, progressHandler);
+      await proceedWithUpload(file, progressHandler, null, fileHash);
     } catch (error) {
       console.error('Error checking for duplicate or uploading file:', error);
       setDiagnosticInfo(prev => prev + `Error: ${error.message}\n`);
@@ -693,80 +699,87 @@ function FileUpload() {
         throw new Error('Please select a vendor agreement for contract validation');
       }
       
-      const results = [];
-      let successCount = 0;
-      let failedCount = 0;
+      setDiagnosticInfo(prev => prev + `Checking for duplicates and capturing file hashes...\n`);
       
-      // Process each file sequentially to show individual progress
+      // Check all files for duplicates and build hash map
+      const fileHashes = {};
+      const filesToUpload = [];
+      const skippedDuplicates = [];
+      
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fileNumber = i + 1;
         
-        try {
-          // Update batch status
-          setBatchUploadStatus({ 
-            total: files.length, 
-            current: fileNumber, 
-            currentFile: file.name 
-          });
-          
-          setDiagnosticInfo(prev => prev + `\n📁 Uploading file ${fileNumber} of ${files.length}: ${file.name}\n`);
-          
-          // Create a wrapped progress handler for this specific file
-          const wrappedProgressHandler = (progressEvent) => {
-            const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setUploadProgress(percentage);
-            
-            // Call the original progress handler
-            if (progressHandler) {
-              progressHandler(progressEvent);
-            }
-          };
-          
-          // Upload individual file
-          const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
-          const result = await uploadFile(file, wrappedProgressHandler, fileOwner, selectedProject, null, selectedSubProject, selectedQualityRules, agreementIdForUpload);
-          
-          // Extract fileId from result
-          let fileId;
-          if (result.results && result.results.length > 0) {
-            const firstResult = result.results[0];
-            fileId = firstResult.fileId || (firstResult.file && firstResult.file.file_id);
-          } else {
-            fileId = result.fileId || (result.file && result.file.file_id);
-          }
-          
-          setDiagnosticInfo(prev => prev + `✅ File ${fileNumber} uploaded successfully: ${file.name} (ID: ${fileId})\n`);
-          
-          results.push({
-            success: true,
+        setBatchUploadStatus({ 
+          total: files.length, 
+          current: fileNumber, 
+          currentFile: file.name 
+        });
+        
+        setDiagnosticInfo(prev => prev + `📁 Checking file ${fileNumber} of ${files.length}: ${file.name}\n`);
+        
+        // Check for duplicate and capture hash to avoid redundant hashing
+        const duplicateCheck = await checkDuplicateFile(file, selectedProject);
+        
+        if (duplicateCheck.isDuplicate) {
+          // In batch mode, skip duplicates automatically
+          setDiagnosticInfo(prev => prev + `⚠️ File is a duplicate of ${duplicateCheck.existingFile.filename}, skipping\n`);
+          skippedDuplicates.push({
             filename: file.name,
-            fileId: fileId
+            error: 'Duplicate file (automatically skipped in batch mode)'
           });
-          successCount++;
-          
-          // Add a small delay between files to make progress visible (400ms)
-          if (i < files.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 400));
-          }
-          
-        } catch (error) {
-          console.error(`Error uploading file ${fileNumber} (${file.name}):`, error);
-          setDiagnosticInfo(prev => prev + `❌ File ${fileNumber} failed: ${file.name} - ${error.message}\n`);
-          
-          results.push({
-            success: false,
-            filename: file.name,
-            error: error.message
-          });
-          failedCount++;
-          
-          // Add delay even on error to show the failure
-          if (i < files.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 400));
-          }
+        } else {
+          // Capture hash for non-duplicate files
+          fileHashes[file.name] = duplicateCheck.fileHash;
+          filesToUpload.push(file);
+          setDiagnosticInfo(prev => prev + `✓ File ${fileNumber} ready for upload (hash captured)\n`);
         }
       }
+      
+      setDiagnosticInfo(prev => prev + `\n📤 Uploading ${filesToUpload.length} files (${skippedDuplicates.length} duplicates skipped)...\n`);
+      
+      let results = [];
+      let successCount = 0;
+      let failedCount = skippedDuplicates.length;
+      
+      // Upload all non-duplicate files in batch with hash map
+      if (filesToUpload.length > 0) {
+        const wrappedProgressHandler = (progressEvent) => {
+          const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentage);
+          
+          if (progressHandler) {
+            progressHandler(progressEvent);
+          }
+        };
+        
+        const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
+        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes);
+        
+        // Process batch results
+        if (result.results && Array.isArray(result.results)) {
+          results = result.results.map(r => ({
+            success: r.success !== false,
+            filename: r.filename,
+            fileId: r.fileId || (r.file && r.file.file_id),
+            error: r.error
+          }));
+          
+          successCount = results.filter(r => r.success).length;
+          failedCount += results.filter(r => !r.success).length;
+          
+          results.forEach(r => {
+            if (r.success) {
+              setDiagnosticInfo(prev => prev + `✅ ${r.filename} uploaded successfully (ID: ${r.fileId})\n`);
+            } else {
+              setDiagnosticInfo(prev => prev + `❌ ${r.filename} failed: ${r.error}\n`);
+            }
+          });
+        }
+      }
+      
+      // Add skipped duplicates to results
+      results = [...results, ...skippedDuplicates.map(d => ({ success: false, ...d }))];
       
       // Show final summary
       setDiagnosticInfo(prev => prev + `\n📊 Batch upload complete: ${successCount} succeeded, ${failedCount} failed\n`);
@@ -814,7 +827,7 @@ function FileUpload() {
     }
   };
 
-  const proceedWithUpload = async (file, progressHandler, replaceFileId = null) => {
+  const proceedWithUpload = async (file, progressHandler, replaceFileId = null, fileHash = null) => {
     try {
       setDiagnosticInfo(`Starting file upload for ${file.name} (${file.size} bytes, type: ${file.type})...\n`);
       setUploadStatus('uploading');
@@ -856,7 +869,8 @@ function FileUpload() {
         selectedSubProject, 
         selectedQualityRules, 
         agreementIdForUpload,
-        fileSchemaIdForUpload  // Pass the specific file pattern schema ID for validation
+        fileSchemaIdForUpload,  // Pass the specific file pattern schema ID for validation
+        fileHash  // Pass fileHash to avoid redundant hashing
       );
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
@@ -928,8 +942,8 @@ function FileUpload() {
     }
   };
 
-  const proceedWithUploadWithReplacement = async (file, progressHandler, replaceFileId) => {
-    return proceedWithUpload(file, progressHandler, replaceFileId);
+  const proceedWithUploadWithReplacement = async (file, progressHandler, replaceFileId, fileHash = null) => {
+    return proceedWithUpload(file, progressHandler, replaceFileId, fileHash);
   };
 
   const handleReplaceFile = async () => {
@@ -944,7 +958,8 @@ function FileUpload() {
     
     try {
       // Upload new file with atomic replacement (backend handles deletion)
-      const result = await proceedWithUploadWithReplacement(pendingFile, pendingProgressHandler, duplicateFileInfo.fileId);
+      // Reuse pre-calculated hash from duplicate check to avoid redundant hashing
+      const result = await proceedWithUploadWithReplacement(pendingFile, pendingProgressHandler, duplicateFileInfo.fileId, duplicateFileInfo.fileHash);
       
       // Check if replacement was successful
       if (result && result.results && result.results.length > 0 && result.results[0].replaced) {
@@ -976,7 +991,8 @@ function FileUpload() {
     
     try {
       // Simply proceed with upload (keeps both files)
-      await proceedWithUpload(pendingFile, pendingProgressHandler);
+      // Reuse pre-calculated hash from duplicate check to avoid redundant hashing
+      await proceedWithUpload(pendingFile, pendingProgressHandler, null, duplicateFileInfo.fileHash);
       
       // Clean up state after successful upload
       setPendingFile(null);

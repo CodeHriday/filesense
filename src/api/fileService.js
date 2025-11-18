@@ -171,7 +171,7 @@ export const bulkDeleteFiles = async (fileIds) => {
 /**
  * Upload a file with progress tracking
  */
-export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null) => {
+export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null, fileHash = null) => {
   try {
     const formData = new FormData();
     formData.append('files', file);
@@ -196,6 +196,12 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
     if (vendorAgreementFileSchemaId) {
       formData.append('vendor_agreement_file_schema_id', vendorAgreementFileSchemaId);
     }
+    // Optimize: Pass pre-calculated hash to avoid redundant file read on server
+    if (fileHash) {
+      const hashes = {};
+      hashes[file.name] = fileHash;
+      formData.append('fileHashes', JSON.stringify(hashes));
+    }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {
       headers: {
@@ -219,7 +225,7 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
 /**
  * Upload multiple files in a single batch request with progress tracking
  */
-export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null, qualityRuleIds = null, agreementId = null) => {
+export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, fileHashes = null) => {
   try {
     const formData = new FormData();
     
@@ -242,6 +248,10 @@ export const uploadFilesBatch = async (files, progressCallback, owner = null, pr
     }
     if (agreementId) {
       formData.append('agreement_id', agreementId);
+    }
+    // Optimize: Pass pre-calculated hashes to avoid redundant file reads on server
+    if (fileHashes && Object.keys(fileHashes).length > 0) {
+      formData.append('fileHashes', JSON.stringify(fileHashes));
     }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {

@@ -64,7 +64,7 @@ class UploadWorker {
     try {
       await job.updateProgress(0);
 
-      await uploadBatchService.updateFileStatus(uploadFile.file_id, 'processing', {
+      await uploadBatchService.updateFileStatus(uploadFile.file_id, 'queued', {
         started_at: new Date()
       });
 
@@ -74,12 +74,22 @@ class UploadWorker {
 
       await job.updateProgress(10);
 
+      // Update status to scanning before virus check
+      await uploadBatchService.updateFileStatus(uploadFile.file_id, 'scanning', {
+        scanning_started_at: new Date()
+      });
+
       const scanResult = await virusScanService.scanFile(filePath);
       if (!scanResult.isClean) {
         throw new Error(`Virus detected: ${scanResult.virus || 'Unknown threat'}`);
       }
 
       await job.updateProgress(30);
+
+      // Update status to processing after virus scan
+      await uploadBatchService.updateFileStatus(uploadFile.file_id, 'processing', {
+        processing_started_at: new Date()
+      });
 
       const result = await batchProcessor.processFile(uploadFile, filePath, options);
 

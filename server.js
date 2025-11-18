@@ -1453,6 +1453,21 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       }
     }
     
+    // Get pre-calculated file hashes if provided (optimization to avoid double hashing)
+    let fileHashes = {};
+    if (req.body.fileHashes) {
+      try {
+        fileHashes = JSON.parse(req.body.fileHashes);
+        if (typeof fileHashes !== 'object') {
+          fileHashes = {};
+        }
+        logger.info('Pre-calculated hashes provided', { count: Object.keys(fileHashes).length });
+      } catch (e) {
+        logger.warn('Invalid fileHashes format', { fileHashes: req.body.fileHashes });
+        fileHashes = {};
+      }
+    }
+    
     // Get vendor agreement_id if provided (for contract validation)
     const agreementId = req.body.agreement_id ? parseInt(req.body.agreement_id) : null;
     
@@ -1688,7 +1703,6 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     
     const userId = req.user ? req.user.id : null;
     const crypto = require('crypto');
-    const virusScanner = require('./backend/services/VirusScanService');
     
     // Process each file in batch
     const results = [];
@@ -1698,54 +1712,35 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       const fileType = path.extname(file.originalname).substring(1).toLowerCase();
       
       try {
-        // Virus scan the uploaded file
-        const scanResult = await virusScanner.scanFile(file.path);
+        // OPTIMIZATION: Virus scanning moved to async worker for faster upload response
+        // Files are queued immediately and scanned by uploadWorker.js
         
-        if (scanResult.isInfected) {
-          logger.warn('Virus detected in uploaded file', {
+        // Calculate file hash (or use pre-calculated hash if provided)
+        let fileHash;
+        if (fileHashes[file.originalname]) {
+          // Use pre-calculated hash from duplicate check to avoid redundant file read
+          fileHash = fileHashes[file.originalname];
+          logger.info('Using pre-calculated hash (optimization)', {
             fileId,
             filename: file.originalname,
-            viruses: scanResult.viruses,
-            userId
-          });
-          
-          // Delete infected file
-          try { fs.unlinkSync(file.path); } catch (e) {}
-          
-          results.push({
-            success: false,
-            filename: file.originalname,
-            error: 'Virus detected',
-            message: `The uploaded file contains malware: ${scanResult.viruses.join(', ')}`,
-            viruses: scanResult.viruses
-          });
-          continue;
-        }
-        
-        if (scanResult.skipped) {
-          logger.warn('Virus scan skipped for uploaded file', {
-            fileId,
-            filename: file.originalname,
-            reason: scanResult.message,
-            userId
+            hashPrefix: fileHash.substring(0, 16) + '...'
           });
         } else {
-          logger.info('File passed virus scan', {
+          // Calculate hash if not provided
+          fileHash = await new Promise((resolve, reject) => {
+            const hash = crypto.createHash('sha256');
+            const stream = fs.createReadStream(file.path);
+            
+            stream.on('data', (data) => hash.update(data));
+            stream.on('end', () => resolve(hash.digest('hex')));
+            stream.on('error', reject);
+          });
+          logger.info('Calculated file hash', {
             fileId,
             filename: file.originalname,
-            userId
+            hashPrefix: fileHash.substring(0, 16) + '...'
           });
         }
-        
-        // Calculate file hash
-        const fileHash = await new Promise((resolve, reject) => {
-          const hash = crypto.createHash('sha256');
-          const stream = fs.createReadStream(file.path);
-          
-          stream.on('data', (data) => hash.update(data));
-          stream.on('end', () => resolve(hash.digest('hex')));
-          stream.on('error', reject);
-        });
         
         logger.info('File uploaded, adding to processing queue', { 
           fileId,
