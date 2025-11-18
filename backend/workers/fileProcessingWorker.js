@@ -235,8 +235,30 @@ class FileProcessingWorker {
 
       // Step 0.5: Check if file is an archive and retrieve password if needed
       let archivePassword = null;
+      let delimiter = null;
       const fileExtension = this.getFileExtension(filePath);
       const isArchive = ARCHIVE_EXTENSIONS.includes(fileExtension);
+      
+      // Step 0.6: Retrieve file metadata for delimiter configuration
+      try {
+        const metadataResult = await this.dbPool.query('SELECT metadata FROM files WHERE file_id = $1', [fileId]);
+        if (metadataResult.rows.length > 0 && metadataResult.rows[0].metadata) {
+          const metadata = typeof metadataResult.rows[0].metadata === 'string'
+            ? JSON.parse(metadataResult.rows[0].metadata)
+            : metadataResult.rows[0].metadata;
+          
+          if (metadata.delimiter) {
+            delimiter = metadata.delimiter;
+            this.logger.info('Delimiter found in file metadata', { fileId, delimiter });
+          }
+        }
+      } catch (metadataError) {
+        this.logger.warn('Could not retrieve file metadata for delimiter', { 
+          fileId, 
+          error: metadataError.message 
+        });
+        // Continue without delimiter - will use auto-detection
+      }
       
       if (isArchive) {
         this.logger.info('Archive file detected, checking for password', { fileId, fileExtension });
@@ -268,9 +290,10 @@ class FileProcessingWorker {
         this.logger.info('Using Flask profile API for archive/special format', { 
           fileId, 
           fileExtension,
-          hasPassword: !!archivePassword
+          hasPassword: !!archivePassword,
+          hasDelimiter: !!delimiter
         });
-        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, fileId, archivePassword);
+        fileInfo = await this.callFlaskProfileAPI(filePath, originalName, fileId, archivePassword, delimiter);
       } else {
         // Use legacy process_file.py for standard formats
         fileInfo = await this.callPythonProcessor(filePath, fileType);
@@ -830,9 +853,9 @@ class FileProcessingWorker {
 
   /**
    * Call Flask profile API for archives and special formats
-   * Supports password-protected archives, SAS, Avro, DAT files
+   * Supports password-protected archives, SAS, Avro, DAT files, and custom delimiters
    */
-  async callFlaskProfileAPI(filePath, originalName, fileId, password = null) {
+  async callFlaskProfileAPI(filePath, originalName, fileId, password = null, delimiter = null) {
     try {
       const profileAPIUrl = process.env.PROFILE_API_URL || 'http://localhost:8000';
       
@@ -846,6 +869,11 @@ class FileProcessingWorker {
       // Add password if provided
       if (password) {
         requestBody.password = password;
+      }
+      
+      // Add delimiter if provided (supports multi-character delimiters)
+      if (delimiter) {
+        requestBody.delimiter = delimiter;
       }
       
       this.logger.info('Calling Flask profile API', { 
