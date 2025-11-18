@@ -4863,8 +4863,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     
     logger.info('Delimiter saved for file', { fileId, delimiter, userId });
     
-    // Trigger re-profiling by calling the retry endpoint logic
-    // Use the file service to get file path
+    // Trigger re-profiling by queueing a file-processing job with delimiter
     const fileService = diContainer.get('fileService');
     const fileDetails = await fileService.getFileById(fileId);
     
@@ -4872,7 +4871,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
       return res.status(404).json({ error: 'File details not found' });
     }
     
-    const { filename, created_at } = fileDetails;
+    const { filename, created_at, file_type, file_size, checksum, project_id, sub_project_id, vendor_agreement_id } = fileDetails;
     const createdAtString = created_at instanceof Date ? created_at.toISOString() : created_at;
     const storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', createdAtString.substring(0, 10), filename);
     
@@ -4884,12 +4883,26 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     
     // Re-queue file for processing with delimiter
     const queue = diContainer.get('queue');
-    await queue.addJob(`reprocess_file_${fileId}`, {
+    const jobId = await queue.addJob('file-processing', {
       fileId,
-      userId,
       filePath: storagePath,
-      retryWithDelimiter: true
+      originalName: filename,
+      fileSize: file_size,
+      fileType: file_type,
+      userId,
+      fileHash: checksum,
+      projectId: project_id,
+      subProjectId: sub_project_id,
+      qualityRuleIds: [],
+      agreementId: vendor_agreement_id,
+      delimiter
+    }, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      timeout: 1800000
     });
+    
+    logger.info('File re-profiling job queued with delimiter', { fileId, jobId, delimiter });
     
     // Update file status
     await dbPool.query(

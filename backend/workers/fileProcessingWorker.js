@@ -235,29 +235,32 @@ class FileProcessingWorker {
 
       // Step 0.5: Check if file is an archive and retrieve password if needed
       let archivePassword = null;
-      let delimiter = null;
       const fileExtension = this.getFileExtension(filePath);
       const isArchive = ARCHIVE_EXTENSIONS.includes(fileExtension);
       
-      // Step 0.6: Retrieve file metadata for delimiter configuration
-      try {
-        const metadataResult = await this.dbPool.query('SELECT metadata FROM files WHERE file_id = $1', [fileId]);
-        if (metadataResult.rows.length > 0 && metadataResult.rows[0].metadata) {
-          const metadata = typeof metadataResult.rows[0].metadata === 'string'
-            ? JSON.parse(metadataResult.rows[0].metadata)
-            : metadataResult.rows[0].metadata;
-          
-          if (metadata.delimiter) {
-            delimiter = metadata.delimiter;
-            this.logger.info('Delimiter found in file metadata', { fileId, delimiter });
+      // Step 0.6: If delimiter not provided in job.data, retrieve from file metadata
+      if (!delimiter) {
+        try {
+          const metadataResult = await this.dbPool.query('SELECT metadata FROM files WHERE file_id = $1', [fileId]);
+          if (metadataResult.rows.length > 0 && metadataResult.rows[0].metadata) {
+            const metadata = typeof metadataResult.rows[0].metadata === 'string'
+              ? JSON.parse(metadataResult.rows[0].metadata)
+              : metadataResult.rows[0].metadata;
+            
+            if (metadata.delimiter) {
+              delimiter = metadata.delimiter;
+              this.logger.info('Delimiter found in file metadata', { fileId, delimiter });
+            }
           }
+        } catch (metadataError) {
+          this.logger.warn('Could not retrieve file metadata for delimiter', { 
+            fileId, 
+            error: metadataError.message 
+          });
+          // Continue without delimiter - will use auto-detection
         }
-      } catch (metadataError) {
-        this.logger.warn('Could not retrieve file metadata for delimiter', { 
-          fileId, 
-          error: metadataError.message 
-        });
-        // Continue without delimiter - will use auto-detection
+      } else {
+        this.logger.info('Delimiter provided in job data', { fileId, delimiter });
       }
       
       if (isArchive) {
