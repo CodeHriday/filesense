@@ -378,10 +378,25 @@ def scan_file_with_clamav(file_path):
 # Format-Specific File Loaders
 # ============================================================================
 
-def load_csv(file_path):
-    """Load CSV file into DataFrame"""
-    df = pd.read_csv(file_path, low_memory=False)
-    raw_headers = list(pd.read_csv(file_path, nrows=0).columns)
+def load_csv(file_path, delimiter=None):
+    """
+    Load CSV file into DataFrame
+    
+    Args:
+        file_path: Path to CSV file
+        delimiter: Optional delimiter (supports multi-character delimiters like '~^')
+                   If None, pandas will auto-detect using sep=None
+    """
+    if delimiter:
+        # Use specified delimiter (supports multi-character delimiters)
+        logger.info(f"Using specified delimiter: {repr(delimiter)}")
+        df = pd.read_csv(file_path, sep=delimiter, engine='python', low_memory=False)
+        raw_headers = list(pd.read_csv(file_path, sep=delimiter, engine='python', nrows=0).columns)
+    else:
+        # Auto-detect delimiter
+        df = pd.read_csv(file_path, low_memory=False)
+        raw_headers = list(pd.read_csv(file_path, nrows=0).columns)
+    
     return df, raw_headers, {}
 
 def load_excel(file_path):
@@ -463,14 +478,15 @@ def load_avro(file_path):
     except Exception as e:
         raise Exception(f"Failed to load Avro file: {str(e)}")
 
-def load_dat(file_path, fixed_width_schema=None):
+def load_dat(file_path, fixed_width_schema=None, delimiter=None):
     """
     Load .dat file with heuristic detection or user-provided schema
-    Tries: user schema → delimiter detection → fixed-width → binary (requires schema)
+    Tries: user delimiter → user schema → delimiter detection → fixed-width → binary (requires schema)
     
     Args:
         file_path: Path to the .dat file
         fixed_width_schema: Optional dict with 'columns' array of {'name': str, 'width': int, 'type': str}
+        delimiter: Optional delimiter for delimited .dat files (supports multi-character delimiters like '~^')
     """
     try:
         # Strategy 0: User-provided fixed-width schema (highest priority)
@@ -499,15 +515,27 @@ def load_dat(file_path, fixed_width_schema=None):
                 except Exception as schema_error:
                     logger.warning(f"User-provided schema failed: {str(schema_error)}")
         
-        # Strategy 1: Try delimiter detection with pandas
+        # Strategy 0.5: User-provided delimiter (second priority after schema)
+        if delimiter:
+            try:
+                logger.info(f"Trying user-provided delimiter for DAT file: {repr(delimiter)}")
+                df = pd.read_csv(file_path, sep=delimiter, engine='python', low_memory=False)
+                if len(df.columns) > 1 and len(df) > 0:
+                    logger.info(f"Successfully loaded DAT file using user-provided delimiter ({len(df.columns)} columns)")
+                    raw_headers = list(df.columns)
+                    return df, raw_headers, {'dat_load_method': 'user_delimiter', 'delimiter': delimiter}
+            except Exception as user_delim_error:
+                logger.warning(f"User-provided delimiter failed: {str(user_delim_error)}")
+        
+        # Strategy 1: Try automatic delimiter detection with pandas
         try:
             df = pd.read_csv(file_path, sep=None, engine='python', low_memory=False)
             if len(df.columns) > 1 and len(df) > 0:
-                logger.info(f"Successfully loaded DAT file using delimiter detection")
+                logger.info(f"Successfully loaded DAT file using automatic delimiter detection")
                 raw_headers = list(df.columns)
                 return df, raw_headers, {'dat_load_method': 'delimiter_detection'}
         except Exception as delim_error:
-            logger.debug(f"Delimiter detection failed: {str(delim_error)}")
+            logger.debug(f"Automatic delimiter detection failed: {str(delim_error)}")
         
         # Strategy 2: Try fixed-width format (use pandas default widths)
         try:
@@ -662,7 +690,7 @@ def load_archive(file_path, file_ext, password=None):
         raise Exception(f"Failed to process archive: {str(e)}")
 
 
-def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None):
+def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=None, delimiter=None):
     """
     Run comprehensive quality profiling on a vendor file
     Supports: CSV, JSON, XLSX, Parquet, XML, SAS (.sas7bdat, .xpt), Avro, DAT, Archives (.zip, .tar, .tar.gz, .tar.bz2)
@@ -672,6 +700,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         filename: Original filename
         password: Optional password for encrypted archives
         fixed_width_schema: Optional schema for fixed-width .dat files
+        delimiter: Optional delimiter for CSV/delimited files (supports multi-character delimiters)
     
     Returns:
         Dictionary with profiling results
@@ -685,7 +714,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
     
     try:
         if file_ext == '.csv':
-            df, raw_headers, format_metadata = load_csv(file_path)
+            df, raw_headers, format_metadata = load_csv(file_path, delimiter=delimiter)
         elif file_ext in ['.xlsx', '.xls']:
             df, raw_headers, format_metadata = load_excel(file_path)
         elif file_ext == '.json':
@@ -697,7 +726,7 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         elif file_ext == '.avro':
             df, raw_headers, format_metadata = load_avro(file_path)
         elif file_ext == '.dat':
-            df, raw_headers, format_metadata = load_dat(file_path, fixed_width_schema)
+            df, raw_headers, format_metadata = load_dat(file_path, fixed_width_schema, delimiter)
         elif file_ext in ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz']:
             df, raw_headers, format_metadata = load_archive(file_path, file_ext, password)
         else:
@@ -873,6 +902,8 @@ def vendor_profile():
         file_id = data.get('file_id')
         local_file_path = data.get('local_file_path')
         filename = data.get('filename')
+        password = data.get('password')  # For password-protected archives
+        delimiter = data.get('delimiter')  # For delimited files (supports multi-character delimiters)
         
         # Check if using local file path (preferred)
         if local_file_path:
@@ -913,7 +944,7 @@ def vendor_profile():
                             conn.close()
             
             # Profile the local file directly
-            profile_result = profile_vendor_file(local_file_path, filename, fixed_width_schema=fixed_width_schema)
+            profile_result = profile_vendor_file(local_file_path, filename, fixed_width_schema=fixed_width_schema, password=password, delimiter=delimiter)
             
             logger.info(f"Profiling completed for file: {file_id}, issues: {len(profile_result['issues'])}")
             
