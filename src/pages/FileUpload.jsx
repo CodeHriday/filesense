@@ -87,8 +87,12 @@ function FileUpload() {
   const [validationError, setValidationError] = useState(null); // Unified contract validation error state
   
   // Delimiter configuration states
-  const [delimiterType, setDelimiterType] = useState('comma'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom'
+  const [delimiterType, setDelimiterType] = useState('comma'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none'
   const [customDelimiter, setCustomDelimiter] = useState(''); // For multi-character delimiters like '~^'
+  
+  // Header configuration states
+  const [hasHeader, setHasHeader] = useState(true); // Whether file has a header row
+  const [columnNames, setColumnNames] = useState(''); // Comma-separated column names for files without headers
   
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
@@ -439,6 +443,10 @@ function FileUpload() {
   
   // Helper function to get the actual delimiter value
   const getDelimiterValue = () => {
+    if (delimiterType === 'none') {
+      return null; // No delimiter specified - let backend auto-detect
+    }
+    
     if (delimiterType === 'custom') {
       return customDelimiter || ','; // Default to comma if custom is empty
     }
@@ -451,6 +459,28 @@ function FileUpload() {
     };
     
     return delimiterMap[delimiterType] || ',';
+  };
+  
+  // Helper function to build header configuration object
+  const getHeaderConfig = () => {
+    if (hasHeader) {
+      return null; // File has headers - no config needed
+    }
+    
+    // File has no headers - parse column names
+    const names = columnNames
+      .split(',')
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
+    
+    if (names.length === 0) {
+      return null; // No column names provided
+    }
+    
+    return {
+      hasHeader: false,
+      columnNames: names
+    };
   };
   
   // Load vendor projects (or all projects for admins)
@@ -775,7 +805,8 @@ function FileUpload() {
         
         const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
         const delimiterValue = getDelimiterValue();
-        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue);
+        const headerConfigValue = getHeaderConfig();
+        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue, headerConfigValue);
         
         // Process batch results
         if (result.results && Array.isArray(result.results)) {
@@ -882,6 +913,7 @@ function FileUpload() {
       const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
       const fileSchemaIdForUpload = uploadType === 'contract' ? selectedFilePattern : null;
       const delimiterValue = getDelimiterValue();
+      const headerConfigValue = getHeaderConfig();
       const result = await uploadFile(
         file, 
         wrappedProgressHandler, 
@@ -893,7 +925,8 @@ function FileUpload() {
         agreementIdForUpload,
         fileSchemaIdForUpload,  // Pass the specific file pattern schema ID for validation
         fileHash,  // Pass fileHash to avoid redundant hashing
-        delimiterValue  // Pass delimiter for delimited files
+        delimiterValue,  // Pass delimiter for delimited files
+        headerConfigValue  // Pass header configuration for files without headers
       );
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
@@ -1733,6 +1766,7 @@ function FileUpload() {
                     marginBottom: delimiterType === 'custom' ? '0.75rem' : '0'
                   }}
                 >
+                  <option value="none">Auto-detect</option>
                   <option value="comma">Comma (,)</option>
                   <option value="pipe">Pipe (|)</option>
                   <option value="tab">Tab (\t)</option>
@@ -1762,6 +1796,62 @@ function FileUpload() {
                     />
                     <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
                       Supports multi-character delimiters (e.g., '~^', '||', '::')
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Header Configuration Section */}
+            {selectedProject && (
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="has-header-checkbox" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  Header Configuration:
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  Specify whether your file has a header row. If not, provide column names.
+                </p>
+                
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input 
+                      id="has-header-checkbox"
+                      type="checkbox"
+                      checked={hasHeader}
+                      onChange={(e) => {
+                        setHasHeader(e.target.checked);
+                        if (e.target.checked) {
+                          setColumnNames(''); // Clear column names when header is present
+                        }
+                      }}
+                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                    />
+                    <span>File has a header row</span>
+                  </label>
+                </div>
+                
+                {/* Column names input (shown when hasHeader is false) */}
+                {!hasHeader && (
+                  <div>
+                    <label htmlFor="column-names-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Enter Column Names (comma-separated):
+                    </label>
+                    <input 
+                      id="column-names-input"
+                      type="text"
+                      value={columnNames}
+                      onChange={(e) => setColumnNames(e.target.value)}
+                      placeholder="e.g., PatientID, Name, DOB, Visit Date"
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      Separate column names with commas. These will be used as headers for your data.
                     </div>
                   </div>
                 )}
