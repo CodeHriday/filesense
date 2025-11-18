@@ -1373,8 +1373,8 @@ app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.
     
     const result = await dbPool.query(query, params);
     
-    // Delete temporary uploaded file
-    fs.unlinkSync(file.path);
+    // NOTE: File is NOT deleted here - it will be used by the subsequent /api/files/upload request
+    // The FileProcessingWorker will handle cleanup after profiling completes
     
     if (result.rows.length > 0) {
       const existingFile = result.rows[0];
@@ -1398,10 +1398,7 @@ app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.
   } catch (error) {
     logger.error('Duplicate check error', { error: error.message });
     
-    // Clean up temp file on error
-    if (req.file && req.file.path) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
-    }
+    // NOTE: Don't delete file on error - the upload endpoint will handle cleanup if needed
     
     res.status(500).json({ 
       error: 'Duplicate check failed',
