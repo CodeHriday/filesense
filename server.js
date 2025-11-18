@@ -4866,7 +4866,8 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
     }
     
     const { filename, created_at } = fileDetails;
-    const storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', created_at.substring(0, 10), filename);
+    const createdAtString = created_at instanceof Date ? created_at.toISOString() : created_at;
+    const storagePath = path.join(process.env.FILE_STORAGE_PATH || './file_storage', createdAtString.substring(0, 10), filename);
     
     // Clear existing profiling data
     await dbPool.query(
