@@ -892,19 +892,40 @@ class FileProcessingWorker {
       };
       
     } catch (error) {
+      // Enhanced diagnostics for Flask API errors
+      const fileExists = fs.existsSync(filePath);
+      const fileStats = fileExists ? fs.statSync(filePath) : null;
+      
       this.logger.error('Flask profile API call failed', {
         error: error.message,
-        response: error.response?.data,
-        status: error.response?.status
+        responseData: error.response?.data,
+        responseStatus: error.response?.status,
+        requestFilename: originalName,
+        requestFilePath: filePath,
+        fileExists: fileExists,
+        fileSize: fileStats ? fileStats.size : null,
+        fileModified: fileStats ? fileStats.mtime : null,
+        stackTrace: error.stack
       });
       
-      // Handle specific error cases
-      if (error.response?.status === 400 && error.response?.data?.error?.includes('password')) {
-        throw new Error('Archive requires password. Please provide a password and retry.');
+      // Handle specific error cases with detailed messages
+      if (error.response?.status === 400) {
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Unknown error';
+        
+        if (errorMsg.includes('password')) {
+          throw new Error('Archive requires password. Please provide a password and retry.');
+        }
+        
+        if (errorMsg.includes('Virus detected')) {
+          throw new Error('File failed virus scan. Cannot process infected archive.');
+        }
+        
+        // Include Flask error details in the thrown error
+        throw new Error(`Failed to profile file via Flask API: ${errorMsg}. File: ${originalName}, Exists: ${fileExists}`);
       }
       
-      if (error.response?.status === 400 && error.response?.data?.error?.includes('Virus detected')) {
-        throw new Error('File failed virus scan. Cannot process infected archive.');
+      if (!fileExists) {
+        throw new Error(`Failed to profile file via Flask API: File not found at ${filePath}. The file may have been deleted prematurely.`);
       }
       
       throw new Error(`Failed to profile file via Flask API: ${error.message}`);
