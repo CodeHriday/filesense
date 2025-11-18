@@ -35,6 +35,124 @@ ChartJS.register(
   Legend
 );
 
+function FixedWidthSchemaModal({ fileId, onClose, onSave, setErrorMessage }) {
+  const [columns, setColumns] = useState([{ name: '', width: '' }]);
+  const [saving, setSaving] = useState(false);
+
+  const addColumn = () => {
+    setColumns([...columns, { name: '', width: '' }]);
+  };
+
+  const removeColumn = (index) => {
+    const newColumns = columns.filter((_, i) => i !== index);
+    setColumns(newColumns);
+  };
+
+  const updateColumn = (index, field, value) => {
+    const newColumns = [...columns];
+    newColumns[index][field] = value;
+    setColumns(newColumns);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      
+      const validColumns = columns.filter(col => col.name && col.width);
+      
+      if (validColumns.length === 0) {
+        setErrorMessage('Please add at least one column with name and width');
+        setSaving(false);
+        return;
+      }
+      
+      const parsedColumns = validColumns.map(col => ({
+        name: col.name.trim(),
+        width: parseInt(col.width, 10),
+        type: 'string'
+      }));
+      
+      if (parsedColumns.some(col => isNaN(col.width) || col.width <= 0)) {
+        setErrorMessage('Column widths must be positive numbers');
+        setSaving(false);
+        return;
+      }
+      
+      const encodedFileId = encodeURIComponent(fileId);
+      await axios.post(
+        `/api/files/${encodedFileId}/fixed-width-schema`,
+        { schema_definition: { columns: parsedColumns } },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      
+      onSave();
+    } catch (err) {
+      console.error('Error saving schema:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to save schema';
+      setErrorMessage(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '600px' }}>
+        <h2>Configure Fixed-Width File Headers</h2>
+        <p style={{ marginBottom: '20px', color: '#64748b' }}>
+          Define column names and their character widths for this .dat file.
+        </p>
+        
+        <div className="form-group">
+          {columns.map((col, index) => (
+            <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Column Name"
+                value={col.name}
+                onChange={(e) => updateColumn(index, 'name', e.target.value)}
+                className="form-control"
+                style={{ flex: 2 }}
+              />
+              <input
+                type="number"
+                placeholder="Width"
+                value={col.width}
+                onChange={(e) => updateColumn(index, 'width', e.target.value)}
+                className="form-control"
+                style={{ flex: 1 }}
+                min="1"
+              />
+              {columns.length > 1 && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => removeColumn(index)}
+                  style={{ padding: '8px 16px' }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        <button className="btn btn-secondary" onClick={addColumn} style={{ marginBottom: '20px' }}>
+          + Add Column
+        </button>
+        
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save & Re-profile'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SensitivityTagModal({ fileId, columnName, currentTags, availableTags, onClose, onSave, setErrorMessage }) {
   const [selectedTagIds, setSelectedTagIds] = useState((currentTags || []).map(t => t.tag_id));
   const [saving, setSaving] = useState(false);
@@ -388,6 +506,9 @@ function DataProfile() {
   
   // Error modal state
   const [errorMessage, setErrorMessage] = useState(null);
+  
+  // Fixed-width schema modal state
+  const [showFixedWidthModal, setShowFixedWidthModal] = useState(false);
 
   // Quality Rules state
   const [qualityViolations, setQualityViolations] = useState(null);
@@ -2009,6 +2130,25 @@ function DataProfile() {
             </div>
           )}
           
+          {file.filename && file.filename.toLowerCase().endsWith('.dat') && profile && profile.rowCount === 0 && (
+            <div className="info-banner" style={{ backgroundColor: '#fef3c7', borderColor: '#f59e0b', marginBottom: '20px' }}>
+              <div className="error-banner-content">
+                <span className="error-icon">ℹ️</span>
+                <div className="error-text-content">
+                  <h3>Fixed-Width File Detected</h3>
+                  <p>This .dat file requires header configuration. Click below to define column names and widths.</p>
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ marginTop: '10px' }}
+                    onClick={() => setShowFixedWidthModal(true)}
+                  >
+                    Configure Headers
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {showOwnershipModal && (
             <OwnershipModal
               fileId={fileId}
@@ -2085,6 +2225,32 @@ function DataProfile() {
                 // Refresh column governance data to update the table
                 if (profile && profile.columns) {
                   await fetchAllColumnGovernanceData(profile.columns);
+                }
+              }}
+              setErrorMessage={setErrorMessage}
+            />
+          )}
+          
+          {showFixedWidthModal && (
+            <FixedWidthSchemaModal
+              fileId={fileId}
+              onClose={() => setShowFixedWidthModal(false)}
+              onSave={async () => {
+                setShowFixedWidthModal(false);
+                try {
+                  const encodedFileId = encodeURIComponent(fileId);
+                  await axios.post(
+                    `/api/files/${encodedFileId}/retry`,
+                    {},
+                    { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                  );
+                  setErrorMessage('Schema saved successfully. Re-profiling file...');
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2000);
+                } catch (err) {
+                  console.error('Error triggering re-profile:', err);
+                  setErrorMessage('Schema saved but re-profiling failed. Please refresh the page.');
                 }
               }}
               setErrorMessage={setErrorMessage}
