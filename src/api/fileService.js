@@ -171,7 +171,7 @@ export const bulkDeleteFiles = async (fileIds) => {
 /**
  * Upload a file with progress tracking
  */
-export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null, fileHash = null) => {
+export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null, fileHash = null, delimiter = null) => {
   try {
     const formData = new FormData();
     formData.append('files', file);
@@ -202,6 +202,10 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
       hashes[file.name] = fileHash;
       formData.append('fileHashes', JSON.stringify(hashes));
     }
+    // Pass delimiter for delimited files
+    if (delimiter) {
+      formData.append('delimiter', delimiter);
+    }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {
       headers: {
@@ -225,7 +229,7 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
 /**
  * Upload multiple files in a single batch request with progress tracking
  */
-export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, fileHashes = null) => {
+export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, fileHashes = null, delimiter = null) => {
   try {
     const formData = new FormData();
     
@@ -252,6 +256,10 @@ export const uploadFilesBatch = async (files, progressCallback, owner = null, pr
     // Optimize: Pass pre-calculated hashes to avoid redundant file reads on server
     if (fileHashes && Object.keys(fileHashes).length > 0) {
       formData.append('fileHashes', JSON.stringify(fileHashes));
+    }
+    // Pass delimiter for delimited files
+    if (delimiter) {
+      formData.append('delimiter', delimiter);
     }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {

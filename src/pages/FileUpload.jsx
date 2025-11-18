@@ -86,6 +86,10 @@ function FileUpload() {
   const [filenameValidationError, setFilenameValidationError] = useState(null);
   const [validationError, setValidationError] = useState(null); // Unified contract validation error state
   
+  // Delimiter configuration states
+  const [delimiterType, setDelimiterType] = useState('comma'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom'
+  const [customDelimiter, setCustomDelimiter] = useState(''); // For multi-character delimiters like '~^'
+  
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
     if (!filename || agreementFilePatterns.length === 0) {
@@ -433,6 +437,22 @@ function FileUpload() {
     }
   };
   
+  // Helper function to get the actual delimiter value
+  const getDelimiterValue = () => {
+    if (delimiterType === 'custom') {
+      return customDelimiter || ','; // Default to comma if custom is empty
+    }
+    
+    const delimiterMap = {
+      'comma': ',',
+      'pipe': '|',
+      'tab': '\t',
+      'semicolon': ';'
+    };
+    
+    return delimiterMap[delimiterType] || ',';
+  };
+  
   // Load vendor projects (or all projects for admins)
   const loadVendorProjects = async () => {
     setLoadingVendorProjects(true);
@@ -754,7 +774,8 @@ function FileUpload() {
         };
         
         const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
-        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes);
+        const delimiterValue = getDelimiterValue();
+        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue);
         
         // Process batch results
         if (result.results && Array.isArray(result.results)) {
@@ -860,6 +881,7 @@ function FileUpload() {
       // Note: Pattern validation is done by backend, which returns detailed error messages
       const agreementIdForUpload = uploadType === 'contract' ? selectedAgreement : null;
       const fileSchemaIdForUpload = uploadType === 'contract' ? selectedFilePattern : null;
+      const delimiterValue = getDelimiterValue();
       const result = await uploadFile(
         file, 
         wrappedProgressHandler, 
@@ -870,7 +892,8 @@ function FileUpload() {
         selectedQualityRules, 
         agreementIdForUpload,
         fileSchemaIdForUpload,  // Pass the specific file pattern schema ID for validation
-        fileHash  // Pass fileHash to avoid redundant hashing
+        fileHash,  // Pass fileHash to avoid redundant hashing
+        delimiterValue  // Pass delimiter for delimited files
       );
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
@@ -1680,6 +1703,68 @@ function FileUpload() {
                     ) : null;
                   })}
                 </div>
+              </div>
+            )}
+            
+            {/* Delimiter Configuration Section */}
+            {selectedProject && (
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="delimiter-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  File Delimiter (Optional):
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  Specify the delimiter for delimited files (.csv, .dat, .txt). Default is comma.
+                </p>
+                <select 
+                  id="delimiter-select"
+                  value={delimiterType}
+                  onChange={(e) => {
+                    setDelimiterType(e.target.value);
+                    if (e.target.value !== 'custom') {
+                      setCustomDelimiter(''); // Clear custom delimiter when switching to predefined type
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    cursor: 'pointer',
+                    marginBottom: delimiterType === 'custom' ? '0.75rem' : '0'
+                  }}
+                >
+                  <option value="comma">Comma (,)</option>
+                  <option value="pipe">Pipe (|)</option>
+                  <option value="tab">Tab (\t)</option>
+                  <option value="semicolon">Semicolon (;)</option>
+                  <option value="custom">Custom Delimiter...</option>
+                </select>
+                
+                {/* Custom delimiter input */}
+                {delimiterType === 'custom' && (
+                  <div>
+                    <label htmlFor="custom-delimiter-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                      Enter Custom Delimiter:
+                    </label>
+                    <input 
+                      id="custom-delimiter-input"
+                      type="text"
+                      value={customDelimiter}
+                      onChange={(e) => setCustomDelimiter(e.target.value)}
+                      placeholder="e.g., ~^ or || or any multi-character string"
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                      Supports multi-character delimiters (e.g., '~^', '||', '::')
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
