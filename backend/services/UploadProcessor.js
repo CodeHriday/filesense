@@ -30,9 +30,8 @@ class UploadProcessor {
         completed_at: new Date()
       });
 
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      // NOTE: File is NOT deleted here - FileProcessingWorker needs it for profiling
+      // FileProcessingWorker.cleanupUploadedFile() handles deletion after profiling completes
 
       return {
         success: true,
@@ -50,11 +49,14 @@ class UploadProcessor {
         completed_at: new Date()
       });
 
-      if (fs.existsSync(filePath)) {
+      // Clean up infected files immediately (security requirement)
+      // For other errors, FileProcessingWorker handles cleanup
+      if (error.message.includes('Virus detected') && fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);
+          systemLogger.info('Deleted infected file', { filePath });
         } catch (cleanupError) {
-          systemLogger.error('Failed to cleanup file', {
+          systemLogger.error('Failed to cleanup infected file', {
             filePath,
             error: cleanupError.message
           });
