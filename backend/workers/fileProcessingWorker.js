@@ -836,16 +836,11 @@ class FileProcessingWorker {
     try {
       const profileAPIUrl = process.env.PROFILE_API_URL || 'http://localhost:8000';
       
-      // Read file and encode to base64 for API transmission
-      const fileBuffer = fs.readFileSync(filePath);
-      const fileBase64 = fileBuffer.toString('base64');
-      
+      // Flask API expects local_file_path, not file_data
       const requestBody = {
         file_id: fileId,
-        file_name: originalName,
-        file_path: filePath,
-        filename: originalName,
-        file_data: fileBase64
+        local_file_path: filePath,
+        filename: originalName
       };
       
       // Add password if provided
@@ -856,8 +851,9 @@ class FileProcessingWorker {
       this.logger.info('Calling Flask profile API', { 
         url: `${profileAPIUrl}/api/vendor-profile`,
         filename: originalName,
-        hasPassword: !!password,
-        fileSize: fileBuffer.length
+        filePath: filePath,
+        fileId: fileId,
+        hasPassword: !!password
       });
       
       const response = await axios.post(
