@@ -2130,13 +2130,17 @@ function DataProfile() {
             </div>
           )}
           
-          {file.filename && file.filename.toLowerCase().endsWith('.dat') && profile && profile.rowCount === 0 && (
-            <div className="info-banner" style={{ backgroundColor: '#fef3c7', borderColor: '#f59e0b', marginBottom: '20px' }}>
+          {file.filename && file.filename.toLowerCase().endsWith('.dat') && profile && (
+            <div className="info-banner" style={{ backgroundColor: '#e0f2fe', borderColor: '#0284c7', marginBottom: '20px' }}>
               <div className="error-banner-content">
                 <span className="error-icon">ℹ️</span>
                 <div className="error-text-content">
                   <h3>Fixed-Width File Detected</h3>
-                  <p>This .dat file requires header configuration. Click below to define column names and widths.</p>
+                  <p>
+                    {profile.rowCount === 0 
+                      ? "This .dat file couldn't be auto-parsed. Define column names and widths to properly read the file."
+                      : "This .dat file was auto-parsed. If the columns look incorrect, you can configure custom headers."}
+                  </p>
                   <button 
                     className="btn btn-primary" 
                     style={{ marginTop: '10px' }}
