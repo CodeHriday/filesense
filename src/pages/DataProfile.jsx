@@ -35,6 +35,128 @@ ChartJS.register(
   Legend
 );
 
+function DelimiterConfigModal({ fileId, onClose, onSave, setErrorMessage }) {
+  const [delimiterType, setDelimiterType] = useState('comma');
+  const [customDelimiter, setCustomDelimiter] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const getDelimiterValue = () => {
+    if (delimiterType === 'custom') {
+      return customDelimiter || ',';
+    }
+    
+    const delimiterMap = {
+      'comma': ',',
+      'pipe': '|',
+      'tab': '\t',
+      'semicolon': ';'
+    };
+    
+    return delimiterMap[delimiterType] || ',';
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      
+      if (delimiterType === 'custom' && !customDelimiter) {
+        setErrorMessage('Please enter a custom delimiter');
+        setSaving(false);
+        return;
+      }
+      
+      const delimiter = getDelimiterValue();
+      const encodedFileId = encodeURIComponent(fileId);
+      
+      await axios.post(
+        `/api/files/${encodedFileId}/delimiter`,
+        { delimiter },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      
+      onSave();
+    } catch (err) {
+      console.error('Error saving delimiter:', err);
+      const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Failed to save delimiter';
+      setErrorMessage(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '500px' }}>
+        <h2>Configure File Delimiter</h2>
+        <p style={{ marginBottom: '20px', color: '#64748b' }}>
+          Specify the delimiter used in this delimited file to parse columns correctly.
+        </p>
+        
+        <div className="form-group">
+          <label htmlFor="delimiter-select" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+            Delimiter Type:
+          </label>
+          <select 
+            id="delimiter-select"
+            value={delimiterType}
+            onChange={(e) => {
+              setDelimiterType(e.target.value);
+              if (e.target.value !== 'custom') {
+                setCustomDelimiter('');
+              }
+            }}
+            className="form-control"
+            style={{ marginBottom: delimiterType === 'custom' ? '1rem' : '0' }}
+          >
+            <option value="comma">Comma (,)</option>
+            <option value="pipe">Pipe (|)</option>
+            <option value="tab">Tab (\t)</option>
+            <option value="semicolon">Semicolon (;)</option>
+            <option value="custom">Custom Delimiter...</option>
+          </select>
+          
+          {delimiterType === 'custom' && (
+            <div style={{ marginTop: '1rem' }}>
+              <label htmlFor="custom-delimiter-input" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                Enter Custom Delimiter:
+              </label>
+              <input 
+                id="custom-delimiter-input"
+                type="text"
+                value={customDelimiter}
+                onChange={(e) => setCustomDelimiter(e.target.value)}
+                placeholder="e.g., ~^ or || or any multi-character string"
+                className="form-control"
+                style={{ fontFamily: 'monospace' }}
+              />
+              <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                Supports multi-character delimiters (e.g., '~^', '||', '::')
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="modal-footer">
+          <button
+            className="btn btn-secondary"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save & Re-profile'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FixedWidthSchemaModal({ fileId, onClose, onSave, setErrorMessage }) {
   const [columns, setColumns] = useState([{ name: '', width: '' }]);
   const [saving, setSaving] = useState(false);
@@ -509,6 +631,9 @@ function DataProfile() {
   
   // Fixed-width schema modal state
   const [showFixedWidthModal, setShowFixedWidthModal] = useState(false);
+  
+  // Delimiter configuration modal state
+  const [showDelimiterModal, setShowDelimiterModal] = useState(false);
 
   // Quality Rules state
   const [qualityViolations, setQualityViolations] = useState(null);
@@ -2153,6 +2278,30 @@ function DataProfile() {
             </div>
           )}
           
+          {/* Delimiter detection banner */}
+          {profile && profile.columns && profile.columns.length === 1 && file.file_type && 
+           ['csv', 'dat', 'txt'].includes(file.file_type.toLowerCase()) && (
+            <div className="info-banner" style={{ backgroundColor: '#fef3c7', borderColor: '#f59e0b', marginBottom: '20px' }}>
+              <div className="error-banner-content">
+                <span className="error-icon">⚠️</span>
+                <div className="error-text-content">
+                  <h3>Delimiter Configuration Needed</h3>
+                  <p>
+                    This file has only 1 column, which may indicate an incorrect delimiter. 
+                    Configure the correct delimiter to properly parse the columns.
+                  </p>
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ marginTop: '10px' }}
+                    onClick={() => setShowDelimiterModal(true)}
+                  >
+                    Configure Delimiter
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {showOwnershipModal && (
             <OwnershipModal
               fileId={fileId}
@@ -2261,6 +2410,24 @@ function DataProfile() {
                   const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Re-profiling failed';
                   setErrorMessage(`Schema saved but re-profiling failed: ${errorMsg}`);
                 }
+              }}
+              setErrorMessage={setErrorMessage}
+            />
+          )}
+          
+          {showDelimiterModal && (
+            <DelimiterConfigModal
+              fileId={fileId}
+              onClose={() => setShowDelimiterModal(false)}
+              onSave={async () => {
+                setShowDelimiterModal(false);
+                setSuccessMessage('Delimiter saved and file re-profiled successfully!');
+                
+                setTimeout(async () => {
+                  setSuccessMessage(null);
+                  await fetchFileDetails();
+                  await fetchProfileData();
+                }, 1500);
               }}
               setErrorMessage={setErrorMessage}
             />
