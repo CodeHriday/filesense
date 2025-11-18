@@ -921,6 +921,81 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
                 row_dict[col] = str(value)
         preview_data.append(row_dict)
     
+    # Helper function to detect data patterns
+    def detect_patterns(col_data):
+        """Detect common data patterns in a column"""
+        patterns = {}
+        non_null = col_data.dropna()
+        if len(non_null) == 0:
+            return []
+        
+        # Sample up to 1000 values for pattern detection
+        sample = non_null.head(1000).astype(str)
+        total_sample = len(sample)
+        
+        # Email pattern
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_matches = sample.str.match(email_pattern).sum()
+        if email_matches > total_sample * 0.7:
+            patterns['Email'] = {'count': email_matches, 'percentage': round((email_matches / total_sample) * 100, 1)}
+        
+        # Phone patterns (US)
+        phone_patterns = [
+            (r'^\d{3}-\d{3}-\d{4}$', 'Phone (xxx-xxx-xxxx)'),
+            (r'^\(\d{3}\)\s?\d{3}-\d{4}$', 'Phone ((xxx) xxx-xxxx)'),
+            (r'^\d{10}$', 'Phone (10 digits)'),
+            (r'^\+1\d{10}$', 'Phone (+1xxxxxxxxxx)')
+        ]
+        for pattern, name in phone_patterns:
+            matches = sample.str.match(pattern).sum()
+            if matches > total_sample * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+        
+        # Date patterns
+        date_patterns = [
+            (r'^\d{4}-\d{2}-\d{2}$', 'Date (YYYY-MM-DD)'),
+            (r'^\d{2}/\d{2}/\d{4}$', 'Date (MM/DD/YYYY)'),
+            (r'^\d{2}-\d{2}-\d{4}$', 'Date (MM-DD-YYYY)'),
+            (r'^\d{4}/\d{2}/\d{2}$', 'Date (YYYY/MM/DD)')
+        ]
+        for pattern, name in date_patterns:
+            matches = sample.str.match(pattern).sum()
+            if matches > total_sample * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+        
+        # SSN pattern
+        ssn_pattern = r'^\d{3}-\d{2}-\d{4}$'
+        ssn_matches = sample.str.match(ssn_pattern).sum()
+        if ssn_matches > total_sample * 0.7:
+            patterns['SSN (xxx-xx-xxxx)'] = {'count': ssn_matches, 'percentage': round((ssn_matches / total_sample) * 100, 1)}
+        
+        # ZIP code patterns
+        zip_patterns = [
+            (r'^\d{5}$', 'ZIP (5 digits)'),
+            (r'^\d{5}-\d{4}$', 'ZIP+4 (xxxxx-xxxx)')
+        ]
+        for pattern, name in zip_patterns:
+            matches = sample.str.match(pattern).sum()
+            if matches > total_sample * 0.7:
+                patterns[name] = {'count': matches, 'percentage': round((matches / total_sample) * 100, 1)}
+        
+        # Credit card pattern (basic)
+        cc_pattern = r'^\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}$'
+        cc_matches = sample.str.match(cc_pattern).sum()
+        if cc_matches > total_sample * 0.7:
+            patterns['Credit Card'] = {'count': cc_matches, 'percentage': round((cc_matches / total_sample) * 100, 1)}
+        
+        # Convert to array format expected by UI
+        pattern_array = []
+        for pattern_name, stats in patterns.items():
+            pattern_array.append({
+                'pattern': pattern_name,
+                'count': stats['count'],
+                'percentage': stats['percentage']
+            })
+        
+        return pattern_array
+    
     # Generate detailed column profiling (unique values, frequencies, min/max)
     column_profiles = []
     for col in df.columns:
@@ -955,6 +1030,18 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         except Exception:
             profile['top_values'] = []
         
+        # Extract most/least frequent values from top_values
+        if profile['top_values'] and len(profile['top_values']) > 0:
+            # Most frequent is the first item
+            most_freq = profile['top_values'][0]
+            profile['most_frequent_value'] = most_freq['value']
+            profile['most_frequent_count'] = most_freq['count']
+            
+            # Least frequent is the last item in top_values
+            least_freq = profile['top_values'][-1]
+            profile['least_frequent_value'] = least_freq['value']
+            profile['least_frequent_count'] = least_freq['count']
+        
         # Get min/max for numeric or date-like columns
         try:
             non_null = col_data.dropna()
@@ -972,6 +1059,12 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
                     profile['avg_length'] = float(str_lengths.mean())
         except Exception:
             pass
+        
+        # Detect data patterns
+        try:
+            profile['patterns'] = detect_patterns(col_data)
+        except Exception:
+            profile['patterns'] = []
         
         column_profiles.append(profile)
     

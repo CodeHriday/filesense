@@ -930,7 +930,13 @@ class FileProcessingWorker {
           mean: col.mean,
           min_length: col.min_length,
           max_length: col.max_length,
-          top_values: col.top_values || []
+          avg_length: col.avg_length,
+          top_values: col.top_values || [],
+          patterns: col.patterns || [],
+          most_frequent_value: col.most_frequent_value,
+          most_frequent_count: col.most_frequent_count,
+          least_frequent_value: col.least_frequent_value,
+          least_frequent_count: col.least_frequent_count
         }));
       } else if (metadata.columns && metadata.columns.length > 0) {
         schema = metadata.columns.map(colName => ({
