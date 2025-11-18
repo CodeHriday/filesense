@@ -2997,23 +2997,72 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
       if (schemaResult.rows.length > 0) {
         logger.info('Re-profiling fixed-width file with schema', { fileId });
         
-        // Get file path from local_file_path
-        const { local_file_path, filename } = file;
+        const { filename, created_at } = file;
         
-        // Call Flask profiling API directly (it will fetch schema from DB automatically)
-        const profilingResponse = await axios.post(`${process.env.PROFILING_SERVICE_URL || 'http://localhost:8000'}/api/vendor-profile`, {
-          file_id: fileId,
-          local_file_path,
-          filename
-        });
+        // Find the actual file on disk - files are named {timestamp}-{filename}
+        // We need to search for the file in the uploads directory
+        const uploadDir = path.join(__dirname, 'uploads');
+        const filePattern = `*-${filename}`;
         
-        logger.info('Fixed-width file re-profiled successfully', { fileId });
-        
-        return res.json({
-          success: true,
-          message: 'File re-profiled successfully with custom schema.',
-          fileId
-        });
+        try {
+          const files = fs.readdirSync(uploadDir);
+          const matchingFiles = files.filter(f => f.endsWith(`-${filename}`));
+          
+          if (matchingFiles.length === 0) {
+            logger.error('File not found on disk', { fileId, filename, uploadDir });
+            return res.status(404).json({ 
+              error: 'File not found on disk',
+              details: `Could not find ${filename} in uploads directory`
+            });
+          }
+          
+          // If multiple matches, find the one closest to the created_at timestamp
+          let actualFilePath;
+          if (matchingFiles.length === 1) {
+            actualFilePath = path.join(uploadDir, matchingFiles[0]);
+          } else {
+            // Sort by timestamp and pick the one closest to created_at
+            const createdTimestamp = new Date(created_at).getTime();
+            matchingFiles.sort((a, b) => {
+              const tsA = parseInt(a.split('-')[0]);
+              const tsB = parseInt(b.split('-')[0]);
+              const diffA = Math.abs(tsA - createdTimestamp);
+              const diffB = Math.abs(tsB - createdTimestamp);
+              return diffA - diffB;
+            });
+            actualFilePath = path.join(uploadDir, matchingFiles[0]);
+          }
+          
+          logger.info('Found file on disk for re-profiling', { fileId, actualFilePath, filename });
+          
+          // Call Flask profiling API directly (it will fetch schema from DB automatically)
+          const profilingResponse = await axios.post(`${process.env.PROFILING_SERVICE_URL || 'http://localhost:8000'}/api/vendor-profile`, {
+            file_id: fileId,
+            local_file_path: actualFilePath,
+            filename
+          });
+          
+          logger.info('Fixed-width file re-profiled successfully', { fileId });
+          
+          return res.json({
+            success: true,
+            message: 'File re-profiled successfully with custom schema.',
+            fileId,
+            profile: profilingResponse.data
+          });
+        } catch (flaskError) {
+          logger.error('Flask profiling API error', { 
+            fileId, 
+            status: flaskError.response?.status,
+            statusText: flaskError.response?.statusText,
+            data: flaskError.response?.data,
+            message: flaskError.message
+          });
+          return res.status(500).json({
+            error: 'Failed to re-profile file',
+            details: flaskError.response?.data || flaskError.message
+          });
+        }
       }
     }
 
