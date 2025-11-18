@@ -3059,11 +3059,19 @@ app.post('/api/files/:fileId/retry', authenticateToken, async (req, res) => {
           
           logger.info('Found file on disk for re-profiling', { fileId, actualFilePath, filename });
           
+          // Fetch header_config from file metadata if present
+          let headerConfig = null;
+          if (file.metadata) {
+            const metadata = typeof file.metadata === 'string' ? JSON.parse(file.metadata) : file.metadata;
+            headerConfig = metadata.header_config || null;
+          }
+          
           // Call Flask profiling API directly (it will fetch schema from DB automatically)
           const profilingResponse = await axios.post(`${process.env.PROFILING_SERVICE_URL || 'http://localhost:8000'}/api/vendor-profile`, {
             file_id: fileId,
             local_file_path: actualFilePath,
-            filename
+            filename,
+            header_config: headerConfig
           });
           
           logger.info('Fixed-width file re-profiled successfully', { fileId });
@@ -4871,6 +4879,9 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
       metadata = JSON.parse(metadata);
     }
     
+    // Preserve existing header_config if present
+    const headerConfig = metadata.header_config || null;
+    
     metadata.delimiter = delimiter;
     
     await dbPool.query(
@@ -4878,7 +4889,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
       [JSON.stringify(metadata), fileId]
     );
     
-    logger.info('Delimiter saved for file', { fileId, delimiter, userId });
+    logger.info('Delimiter saved for file', { fileId, delimiter, userId, headerConfig });
     
     // Trigger re-profiling by queueing a file-processing job with delimiter
     const fileService = diContainer.get('fileService');
@@ -4898,7 +4909,7 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
       [fileId]
     );
     
-    // Re-queue file for processing with delimiter
+    // Re-queue file for processing with delimiter and header config
     const queue = diContainer.get('queue');
     const jobId = await queue.addJob('file-processing', {
       fileId,
@@ -4912,7 +4923,8 @@ app.post('/api/files/:fileId/delimiter', authenticateToken, async (req, res) => 
       subProjectId: sub_project_id,
       qualityRuleIds: [],
       agreementId: vendor_agreement_id,
-      delimiter
+      delimiter,
+      headerConfig
     }, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
