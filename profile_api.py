@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import pandas as pd
+import numpy as np
 import logging
 import sys
 import boto3
@@ -904,6 +905,76 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
             'details': duplicate_data
         })
     
+    # Generate preview data (first 100 rows)
+    preview_data = []
+    preview_limit = min(100, len(df))
+    for idx in range(preview_limit):
+        row_dict = {}
+        for col in df.columns:
+            value = df.iloc[idx][col]
+            # Convert to JSON-serializable format
+            if pd.isna(value):
+                row_dict[col] = None
+            elif isinstance(value, (np.integer, np.floating)):
+                row_dict[col] = float(value)
+            else:
+                row_dict[col] = str(value)
+        preview_data.append(row_dict)
+    
+    # Generate detailed column profiling (unique values, frequencies, min/max)
+    column_profiles = []
+    for col in df.columns:
+        col_data = df[col]
+        
+        # Basic stats
+        profile = {
+            'name': col,
+            'type': str(col_data.dtype),
+            'nullable': bool(col_data.isna().any()),
+            'null_count': int(col_data.isna().sum()),
+            'null_percentage': float((col_data.isna().sum() / len(df)) * 100) if len(df) > 0 else 0.0,
+            'unique_count': int(col_data.nunique()),
+            'unique_percentage': float((col_data.nunique() / len(df)) * 100) if len(df) > 0 else 0.0
+        }
+        
+        # Get top frequent values (limit to 10)
+        try:
+            value_counts = col_data.value_counts().head(10)
+            profile['top_values'] = []
+            for val, count in value_counts.items():
+                try:
+                    if pd.isna(val):
+                        continue
+                except (TypeError, ValueError):
+                    pass
+                profile['top_values'].append({
+                    'value': str(val),
+                    'count': int(count),
+                    'percentage': float((count / len(df)) * 100)
+                })
+        except Exception:
+            profile['top_values'] = []
+        
+        # Get min/max for numeric or date-like columns
+        try:
+            non_null = col_data.dropna()
+            if len(non_null) > 0:
+                # Try numeric
+                if pd.api.types.is_numeric_dtype(col_data):
+                    profile['min'] = float(non_null.min())
+                    profile['max'] = float(non_null.max())
+                    profile['mean'] = float(non_null.mean())
+                else:
+                    # For strings, get min/max length
+                    str_lengths = non_null.astype(str).str.len()
+                    profile['min_length'] = int(str_lengths.min())
+                    profile['max_length'] = int(str_lengths.max())
+                    profile['avg_length'] = float(str_lengths.mean())
+        except Exception:
+            pass
+        
+        column_profiles.append(profile)
+    
     # Build profiling result
     result = {
         'quality_score': quality_score,
@@ -912,6 +983,8 @@ def profile_vendor_file(file_path, filename, password=None, fixed_width_schema=N
         'null_value_summary': null_value_summary,
         'date_format_issues': date_format_issues,
         'duplicate_data': duplicate_data,
+        'preview_data': preview_data,
+        'column_profiles': column_profiles,
         'metadata': {
             'row_count': len(df),
             'column_count': len(df.columns),

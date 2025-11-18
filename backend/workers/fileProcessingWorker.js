@@ -914,20 +914,41 @@ class FileProcessingWorker {
       // Transform Flask response to match process_file.py format
       const flaskResult = response.data;
       const metadata = flaskResult.metadata || {};
+      const columnProfiles = flaskResult.column_profiles || [];
+      
+      // Build schema from column profiles if available, otherwise use basic column list
+      let schema = [];
+      if (columnProfiles.length > 0) {
+        schema = columnProfiles.map(col => ({
+          name: col.name,
+          type: col.type || 'string',
+          nullable: col.nullable !== undefined ? col.nullable : true,
+          null_count: col.null_count || 0,
+          unique_count: col.unique_count || 0,
+          min: col.min,
+          max: col.max,
+          mean: col.mean,
+          min_length: col.min_length,
+          max_length: col.max_length,
+          top_values: col.top_values || []
+        }));
+      } else if (metadata.columns && metadata.columns.length > 0) {
+        schema = metadata.columns.map(colName => ({
+          name: colName,
+          type: 'string',
+          nullable: true
+        }));
+      }
       
       return {
         row_count: metadata.row_count || 0,
         column_count: metadata.column_count || 0,
-        schema: (metadata.columns || []).map(colName => ({
-          name: colName,
-          type: 'string', // Flask API doesn't provide detailed types in initial response
-          nullable: true
-        })),
+        schema: schema,
         processing_time_seconds: 0,
         size_bytes: metadata.file_size_mb ? Math.round(metadata.file_size_mb * 1024 * 1024) : 0,
         encoding: null,
         delimiter: null,
-        preview_data: [],
+        preview_data: flaskResult.preview_data || [],
         format_specific: metadata.format_specific || {} // SAS labels, Avro schema, archive manifest
       };
       
