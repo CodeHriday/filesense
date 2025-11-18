@@ -186,7 +186,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -369,7 +369,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 75);
 
       // Step 4: Save metadata to database (including duplicates, hash, and header validation)
-      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId);
+      await this.saveFileMetadata(fileId, originalName, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId, agreementId, delimiter);
       
       // Step 4.2: Track file processing artifacts and archive members (for archives/special formats)
       if (fileInfo.format_specific) {
@@ -1204,7 +1204,7 @@ print(json.dumps(result))
   /**
    * Save file metadata to database
    */
-  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null, agreementId = null) {
+  async saveFileMetadata(fileId, filename, fileType, fileSize, fileInfo, userId, fileHash, duplicateStats, headerValidation, projectId, subProjectId = null, agreementId = null, userDelimiter = null) {
     // Fetch existing metadata to preserve original fields (connection_id, storage_location, provider, etc.)
     let existingMetadata = {};
     try {
@@ -1228,10 +1228,11 @@ print(json.dumps(result))
     // Merge existing metadata with new profiling data
     // Existing fields (connection_id, storage_location, provider, etc.) are preserved
     // New/updated fields (encoding, delimiter, preview_data, header_validation) are added
+    // User-provided delimiter takes precedence over auto-detected delimiter
     const metadata = {
       ...existingMetadata, // Preserve original metadata
       encoding: fileInfo.encoding || null,
-      delimiter: fileInfo.delimiter || null,
+      delimiter: userDelimiter || fileInfo.delimiter || null,
       preview_data: fileInfo.preview_data || [],
       header_validation: headerValidation || null
     };

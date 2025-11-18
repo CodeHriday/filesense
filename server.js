@@ -1450,6 +1450,12 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       }
     }
     
+    // Get delimiter if provided (supports multi-character delimiters)
+    const delimiter = req.body.delimiter || null;
+    if (delimiter) {
+      logger.info('Delimiter provided for upload', { delimiter, userId: req.user?.id });
+    }
+    
     // Get pre-calculated file hashes if provided (optimization to avoid double hashing)
     let fileHashes = {};
     if (req.body.fileHashes) {
@@ -1778,7 +1784,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           projectId,
           subProjectId,
           qualityRuleIds: mergedQualityRuleIds,
-          agreementId
+          agreementId,
+          delimiter
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
