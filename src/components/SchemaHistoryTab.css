@@ -39,47 +39,14 @@
   max-width: 500px;
 }
 
-.schema-history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.history-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.history-title h2 {
-  margin: 0;
-  font-size: 2rem;
-  color: #025043;
-}
-
-.canonical-name {
-  font-size: 0.9rem;
-  color: #666;
-  padding: 4px 10px;
-  background: #f3f4f6;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
-}
-
-.canonical-name strong {
-  color: #025043;
-  font-family: 'Monaco', 'Courier New', monospace;
-}
-
-.history-meta {
+.schema-history-metrics {
   display: flex;
   align-items: center;
   gap: 15px;
   flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .upload-count {
@@ -181,18 +148,22 @@
 }
 
 .schema-section {
-  background: #f9fafb;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid #e5e7eb;
+  padding: 15px 0;
+  border-right: 1px solid #e5e7eb;
+  padding-right: 20px;
   height: fit-content;
   max-height: 800px;
   overflow-y: auto;
 }
 
+.schema-section:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
 .schema-section h3 {
-  margin: 0 0 15px 0;
-  font-size: 1.2rem;
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
   color: #025043;
   display: flex;
   flex-direction: column;
@@ -200,7 +171,7 @@
 }
 
 .schema-subtitle {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #6b7280;
   font-weight: normal;
   font-family: 'Monaco', 'Courier New', monospace;
@@ -211,8 +182,8 @@
 }
 
 .schema-info {
-  margin-bottom: 15px;
-  padding-bottom: 15px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -220,14 +191,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 0 8px 0;
-  font-size: 0.9rem;
+  margin: 0 0 6px 0;
+  font-size: 0.85rem;
   color: #6b7280;
 }
 
 .schema-stats {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #6b7280;
 }
 
@@ -238,16 +209,17 @@
 .schema-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .schema-table th {
   background: #025043;
   color: white;
-  padding: 10px;
+  padding: 8px;
   text-align: left;
   font-weight: 600;
   white-space: nowrap;
+  font-size: 0.8rem;
 }
 
 .schema-table th:first-child {
@@ -255,8 +227,9 @@
 }
 
 .schema-table td {
-  padding: 10px;
+  padding: 8px;
   border-bottom: 1px solid #e5e7eb;
+  font-size: 0.85rem;
 }
 
 .schema-table tr:last-child td {
@@ -270,11 +243,11 @@
 
 .type-badge {
   display: inline-block;
-  padding: 3px 8px;
+  padding: 2px 6px;
   background: #e0e7ff;
   color: #4338ca;
   border-radius: 3px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-family: 'Monaco', 'Courier New', monospace;
 }
 
@@ -374,26 +347,30 @@
 
 /* Schema Changes Panel (Right Panel in Three-Panel Layout) */
 .schema-changes-panel {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 20px;
-  border: 2px solid #e5e7eb;
+  padding: 15px 0;
+  padding-left: 20px;
+  border-left: 1px solid #e5e7eb;
   max-height: 800px;
   overflow-y: auto;
 }
 
+.schema-changes-panel:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
 .schema-changes-panel h3 {
-  margin: 0 0 20px 0;
-  font-size: 1.2rem;
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
   color: #025043;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 8px;
 }
 
 .changes-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
 }
 
 .change-overview {
