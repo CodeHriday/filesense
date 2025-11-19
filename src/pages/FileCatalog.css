@@ -211,9 +211,6 @@
 }
 
 .file-name-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   font-weight: var(--font-medium);
 }
 
@@ -367,9 +364,6 @@
 }
 
 .actions-cell {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
 }
 
 /* Icon-based action buttons */
