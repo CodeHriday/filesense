@@ -263,6 +263,11 @@
   transition: all var(--transition-base);
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none;
+}
+
 .tab-button:hover {
   color: var(--color-primary);
 }

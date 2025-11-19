@@ -30,6 +30,11 @@
   transition: all 0.2s ease;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none;
+}
+
 .tab-button:hover {
   border-color: var(--border-medium);
   color: var(--text-primary);

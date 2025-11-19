@@ -109,6 +109,11 @@
   transition: all 0.2s;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none;
+}
+
 .tab-button:hover {
   color: #495057;
   background: rgba(0, 0, 0, 0.02);

@@ -58,6 +58,11 @@
   transition: all 0.2s;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none;
+}
+
 .tab-button:hover {
   color: #3b82f6;
   background: #f9fafb;

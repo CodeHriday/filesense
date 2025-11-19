@@ -22,6 +22,11 @@
   border-radius: 8px;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none;
+}
+
 .tab-button:hover {
   color: #3b82f6;
   background-color: #f1f5f9;

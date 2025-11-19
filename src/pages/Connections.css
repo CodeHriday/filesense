@@ -34,6 +34,11 @@
   border-radius: 8px;
 }
 
+.tab-button:focus,
+.tab-button:focus-visible {
+  outline: none;
+}
+
 .tab-button:hover {
   color: var(--primary-color);
   background-color: rgba(52, 152, 219, 0.05);
