@@ -95,6 +95,11 @@
   border-radius: var(--radius-md);
 }
 
+.sidebar-nav a:focus,
+.sidebar-nav a:focus-visible {
+  outline: none;
+}
+
 .sidebar-nav a:hover {
   background-color: var(--color-gray-50);
   color: var(--text-primary);
@@ -214,6 +219,11 @@
   font-weight: var(--font-medium);
   margin: 0 var(--space-2);
   border-radius: var(--radius-md);
+}
+
+.collapsible-menu-item:focus,
+.collapsible-menu-item:focus-visible {
+  outline: none;
 }
 
 .collapsible-menu-item:hover {
