@@ -84,7 +84,16 @@ th {
 .page-header button.btn-create-group,
 .page-header-actions .btn-primary,
 .page-header-actions .btn,
-.page-header-actions button {
+.page-header-actions button,
+.connections-header .btn-primary,
+.connections-header .btn,
+.connections-header button,
+.mappings-header .btn-primary,
+.mappings-header .btn,
+.mappings-header button,
+.groups-header .btn-primary,
+.groups-header .btn,
+.groups-header button {
   padding: 8px 16px !important;
   font-size: 0.875rem !important;
   height: 36px !important;
