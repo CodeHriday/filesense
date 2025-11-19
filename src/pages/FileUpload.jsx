@@ -566,13 +566,20 @@ function FileUpload() {
             setSchemaUploadError(`Column ${i + 1}: missing or invalid "name" field`);
             return;
           }
-          if (!col.width || isNaN(parseInt(col.width))) {
-            setSchemaUploadError(`Column ${i + 1}: missing or invalid "width" field`);
+          if (!col.width) {
+            setSchemaUploadError(`Column ${i + 1}: missing "width" field`);
             return;
           }
-          const width = parseInt(col.width);
+          
+          // Strict validation: width must be a positive integer (no decimals, no extra characters)
+          const widthStr = String(col.width).trim();
+          if (!/^\d+$/.test(widthStr)) {
+            setSchemaUploadError(`Column ${i + 1}: width must be a positive integer (got: "${widthStr}")`);
+            return;
+          }
+          const width = parseInt(widthStr, 10);
           if (width <= 0) {
-            setSchemaUploadError(`Column ${i + 1}: width must be a positive integer`);
+            setSchemaUploadError(`Column ${i + 1}: width must be greater than 0`);
             return;
           }
           validatedColumns.push({ name: col.name.trim(), width: width.toString() });
@@ -613,13 +620,19 @@ function FileUpload() {
             setSchemaUploadError(`Row ${i + 1}: missing column name`);
             return;
           }
-          if (!width || isNaN(parseInt(width))) {
-            setSchemaUploadError(`Row ${i + 1}: missing or invalid width`);
+          if (!width) {
+            setSchemaUploadError(`Row ${i + 1}: missing width`);
             return;
           }
-          const widthNum = parseInt(width);
+          
+          // Strict validation: width must be a positive integer (no decimals, no extra characters)
+          if (!/^\d+$/.test(width)) {
+            setSchemaUploadError(`Row ${i + 1}: width must be a positive integer (got: "${width}")`);
+            return;
+          }
+          const widthNum = parseInt(width, 10);
           if (widthNum <= 0) {
-            setSchemaUploadError(`Row ${i + 1}: width must be a positive integer`);
+            setSchemaUploadError(`Row ${i + 1}: width must be greater than 0`);
             return;
           }
           validatedColumns.push({ name: name, width: widthNum.toString() });
