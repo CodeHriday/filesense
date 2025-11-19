@@ -91,6 +91,25 @@
   background-color: var(--color-primary-50);
 }
 
+/* Standardized Header Action Button - 36px height for all header Create/Add buttons */
+/* High specificity to override all page-specific CSS that loads after App.css */
+button.btn-primary.header-action-btn,
+button.btn.header-action-btn,
+.header-action-btn.btn-primary,
+.header-action-btn.btn,
+.header-action-btn {
+  padding: 8px 16px !important;
+  font-size: 0.875rem !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  line-height: 1.25 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+}
+
 .card {
   background-color: var(--bg-card);
   border-radius: var(--radius-md);
