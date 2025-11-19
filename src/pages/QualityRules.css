@@ -250,12 +250,12 @@ textarea.form-control {
   gap: 8px;
 }
 
-.btn-primary {
+.btn-primary:not(.header-action-btn) {
   background-color: var(--primary-color, #3498db);
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:not(.header-action-btn):hover {
   background-color: var(--primary-dark, #2980b9);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
