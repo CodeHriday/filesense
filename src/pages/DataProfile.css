@@ -58,11 +58,25 @@
 .header-line-2 {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
   font-size: var(--text-sm);
   padding-top: var(--space-3);
   border-top: 1px solid var(--border-light);
   flex-wrap: wrap;
+}
+
+.header-line-2-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.header-line-2-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .header-line-2 .header-property {
@@ -77,6 +91,15 @@
   font-weight: var(--font-medium);
 }
 
+.header-line-2 .sensitivity-badge {
+  color: white;
+  font-weight: var(--font-semibold);
+}
+
+.header-line-2 .sensitivity-badge strong {
+  color: white;
+}
+
 .header-line-2 .icon-inline {
   width: 14px;
   height: 14px;
@@ -87,19 +110,27 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--text-secondary);
+  color: white;
   font-size: var(--text-sm);
 }
 
 .header-right .header-property strong {
-  color: var(--text-primary);
+  color: white;
   font-weight: var(--font-medium);
 }
 
 .header-right .icon-inline {
   width: 14px;
   height: 14px;
-  color: var(--color-primary);
+  color: white;
+}
+
+.header-right .btn-icon-small {
+  color: white;
+}
+
+.header-right .btn-icon-small svg {
+  color: white;
 }
 
 /* Legacy header styles (can be removed if not used elsewhere) */
