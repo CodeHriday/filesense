@@ -162,10 +162,7 @@ function TagManagement() {
     <div className="tag-management-container">
       <div className="page-header">
         <div>
-          <h1>
-            <FiTag className="header-icon" />
-            Data Governance Tags
-          </h1>
+          <h1>Data Governance Tags</h1>
           <p className="page-description">
             Define and manage tags for classifying and organizing your data files.
           </p>
