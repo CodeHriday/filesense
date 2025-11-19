@@ -1504,15 +1504,15 @@ function DataProfile() {
                           </span>
                         )}
                       </div>
-                      <div className="null-metrics">
-                        <div className="null-metric">
-                          <span className="null-label">Count:</span>
+                      <div className="null-metrics-vertical">
+                        <div className="null-metric-vertical">
+                          <span className="null-label">Count</span>
                           <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
                             {nullCount.toLocaleString()}
                           </span>
                         </div>
-                        <div className="null-metric">
-                          <span className="null-label">Percentage:</span>
+                        <div className="null-metric-vertical">
+                          <span className="null-label">Percentage</span>
                           <span className={`null-value ${hasNulls ? 'has-nulls' : ''}`}>
                             {nullPercentage}%
                           </span>
@@ -2204,10 +2204,30 @@ function DataProfile() {
         </div>
       ) : file ? (
         <>
-          <div className="profile-header-three-line">
+          <div className="profile-header-two-line">
             <div className="header-line-1">
-              <span className="file-icon">{file.file_type.toUpperCase()}</span>
-              <h1>{file.filename}</h1>
+              <div className="header-left">
+                <span className="file-icon">{file.file_type.toUpperCase()}</span>
+                <h1>{file.filename}</h1>
+              </div>
+              <div className="header-right">
+                <span className="header-property">
+                  <FiUser className="icon-inline" />
+                  <strong>Creator:</strong> {ownership?.creator_name || ownership?.creator_email || 'Unknown'}
+                </span>
+                <span className="header-property">
+                  <FiUser className="icon-inline" />
+                  <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
+                  <button 
+                    className="btn-icon-small" 
+                    onClick={() => setShowOwnershipModal(true)}
+                    disabled={!currentUser?.roles?.includes('Admin')}
+                    title={currentUser?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
+                  >
+                    <FiEdit2 />
+                  </button>
+                </span>
+              </div>
             </div>
             <div className="header-line-2">
               <span className="header-property">
@@ -2221,24 +2241,6 @@ function DataProfile() {
               </span>
               <span className="header-property">
                 <strong>Format:</strong> {file.file_type || 'Unknown'}
-              </span>
-            </div>
-            <div className="header-line-3">
-              <span className="header-property">
-                <FiUser className="icon-inline" />
-                <strong>Creator:</strong> {ownership?.creator_name || ownership?.creator_email || 'Unknown'}
-              </span>
-              <span className="header-property">
-                <FiUser className="icon-inline" />
-                <strong>Owner:</strong> {ownership?.owner_name || ownership?.owner_email || 'Unassigned'}
-                <button 
-                  className="btn-icon-small" 
-                  onClick={() => setShowOwnershipModal(true)}
-                  disabled={!currentUser?.roles?.includes('Admin')}
-                  title={currentUser?.roles?.includes('Admin') ? "Edit ownership" : "Only Admin can edit file ownership"}
-                >
-                  <FiEdit2 />
-                </button>
               </span>
             </div>
           </div>

@@ -4,8 +4,8 @@
   margin: 0 auto;
 }
 
-/* Three-line header layout */
-.profile-header-three-line {
+/* Two-line header layout */
+.profile-header-two-line {
   margin-bottom: var(--space-4);
   background: linear-gradient(to right, var(--color-gray-50), var(--color-gray-100));
   padding: var(--space-4);
@@ -16,8 +16,21 @@
 .header-line-1 {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
+}
+
+.header-line-1 .header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.header-line-1 .header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
 }
 
 .header-line-1 .file-icon {
@@ -70,30 +83,20 @@
   color: var(--color-primary);
 }
 
-.header-line-3 {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  font-size: var(--text-sm);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-light);
-  flex-wrap: wrap;
-  margin-top: var(--space-2);
-}
-
-.header-line-3 .header-property {
+.header-right .header-property {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
-.header-line-3 .header-property strong {
+.header-right .header-property strong {
   color: var(--text-primary);
   font-weight: var(--font-medium);
 }
 
-.header-line-3 .icon-inline {
+.header-right .icon-inline {
   width: 14px;
   height: 14px;
   color: var(--color-primary);
@@ -594,8 +597,8 @@
 
 .distribution-card-header h3 {
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -1581,11 +1584,26 @@
   border: 1px solid var(--border-light);
 }
 
+.null-metrics-vertical {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.null-metric-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background-color: white;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
 .null-label {
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  font-weight: var(--font-semibold);
-  text-transform: uppercase;
+  font-weight: var(--font-bold);
+  text-transform: capitalize;
 }
 
 .null-value {
