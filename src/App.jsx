@@ -222,13 +222,12 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
       {/* Skip to main content link for keyboard users */}
       <a href="#main-content" className="skip-link">Skip to main content</a>
       
-      {/* Show header and sidebar only if logged in */}
+      {/* Show sidebar only if logged in */}
       {currentUser && (
         <>
-          <Header showAIInsights={toggleAIInsights} />
           <div className="main-container">
             <Sidebar />
-            <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''}`} tabIndex="-1">
+            <main id="main-content" className={`content ${isCollapsed ? 'sidebar-collapsed' : ''} full-width`} tabIndex="-1">
               <Routes>
                 <Route path="/" element={<ProtectedRoute><DashboardOrRedirect /></ProtectedRoute>} />
                 <Route path="/executive-dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />

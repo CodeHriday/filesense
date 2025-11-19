@@ -6,8 +6,8 @@
 
 .main-container {
   display: flex;
-  margin-top: 60px; /* Height of fixed header */
-  height: calc(100vh - 60px);
+  margin-top: 0; /* No header at top */
+  height: 100vh;
   overflow: hidden;
 }
 
@@ -23,6 +23,16 @@
 
 .content.sidebar-collapsed {
   margin-left: 70px; /* Width of collapsed sidebar */
+  width: calc(100% - 70px);
+}
+
+.content.full-width {
+  margin-left: 250px;
+  width: calc(100% - 250px);
+}
+
+.content.full-width.sidebar-collapsed {
+  margin-left: 70px;
   width: calc(100% - 70px);
 }
 
