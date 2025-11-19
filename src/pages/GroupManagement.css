@@ -284,11 +284,6 @@
   background: var(--primary-hover);
 }
 
-.btn-create-group {
-  border: 2px solid white !important;
-  font-weight: bold;
-}
-
 .btn-secondary {
   background: var(--bg-secondary);
   color: var(--text-primary);
