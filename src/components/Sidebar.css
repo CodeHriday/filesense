@@ -101,7 +101,6 @@
 }
 
 .sidebar-nav a.active {
-  background-color: var(--color-primary-50);
   color: var(--color-primary);
   font-weight: var(--font-semibold);
 }
@@ -163,7 +162,7 @@
 
 .nav-divider span {
   font-size: var(--text-xs);
-  text-transform: uppercase;
+  text-transform: capitalize;
   color: var(--text-tertiary);
   font-weight: var(--font-semibold);
   letter-spacing: 0.05em;

@@ -41,7 +41,6 @@
 
 .tab-button.active {
   color: var(--primary-color);
-  background-color: rgba(52, 152, 219, 0.1);
   font-weight: 600;
 }
 

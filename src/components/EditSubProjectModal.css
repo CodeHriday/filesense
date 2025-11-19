@@ -116,8 +116,7 @@
 
 .tab-button.active {
   color: var(--primary-color, #025043);
-  border-bottom-color: var(--primary-color, #025043);
-  background: #ffffff;
+  font-weight: 600;
 }
 
 .tab-content {

@@ -270,8 +270,6 @@
 .tab-button.active {
   color: var(--color-primary);
   font-weight: var(--font-semibold);
-  background-color: rgba(52, 152, 219, 0.1);
-  border-radius: var(--radius-md);
 }
 
 .profile-content {

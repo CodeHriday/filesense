@@ -62,8 +62,8 @@
 }
 
 .tab-button.active {
-  background-color: var(--color-info);
-  color: white;
+  color: var(--color-info);
+  font-weight: 600;
 }
 
 /* Integration Content */

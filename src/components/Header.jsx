@@ -99,34 +99,6 @@ function Header({ showAIInsights }) {
                 </div>
                 
                 <div className="dropdown-content">
-                  <Link to="/dashboard-settings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                    <FaCog /> Settings
-                  </Link>
-                  
-                  <Link to="/insights" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                    <FaChartBar /> Data Insights
-                  </Link>
-                  
-                  {(currentUser.roles.includes('Admin') || hasPermission('user_view')) && (
-                    <>
-                      <Link to="/users" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaUsers /> User Management
-                      </Link>
-                      <Link to="/vendors" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaUsers /> Vendor Management
-                      </Link>
-                      <Link to="/vendor-users" className="dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
-                        <FaUsers /> Vendor User Management
-                      </Link>
-                      <Link to="/vendor-roles" className="dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
-                        <FaCog /> Vendor Role Management
-                      </Link>
-                      <Link to="/vendor-agreements" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaCog /> Vendor Contracts
-                      </Link>
-                    </>
-                  )}
-                  
                   <button className="dropdown-item" onClick={handleLogout}>
                     <FaSignOutAlt /> Logout
                   </button>
