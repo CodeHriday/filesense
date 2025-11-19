@@ -1850,7 +1850,8 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           agreementId,
           delimiter,
           headerConfig,
-          fixedWidthSchema
+          fixedWidthSchema,
+          archivePassword
         }, {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },

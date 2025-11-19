@@ -200,7 +200,7 @@ class FileProcessingWorker {
    * Process a single file upload job
    */
   async processJob(jobId, job) {
-    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema } = job.data;
+    const { fileId, filePath, originalName, fileSize, fileType, userId, fileHash, projectId, subProjectId, qualityRuleIds, agreementId, isVendorFile, delimiter, headerConfig, fixedWidthSchema, archivePassword } = job.data;
     const startTime = Date.now();
 
     this.logger.info('Processing file job', {
@@ -248,7 +248,7 @@ class FileProcessingWorker {
       await this.queue.updateProgress(jobId, 10);
 
       // Step 0.5: Check if file is an archive and retrieve password if needed
-      let archivePassword = null;
+      // archivePassword may come from job.data (ad-hoc upload) or password vault (vendor agreement)
       const fileExtension = this.getFileExtension(filePath);
       const isArchive = ARCHIVE_EXTENSIONS.includes(fileExtension);
       
@@ -279,19 +279,27 @@ class FileProcessingWorker {
       
       if (isArchive) {
         this.logger.info('Archive file detected, checking for password', { fileId, fileExtension });
-        try {
-          archivePassword = await this.passwordVaultService.retrievePassword('file', fileId, userId);
-          if (archivePassword) {
-            this.logger.info('Archive password retrieved from vault', { fileId });
-          } else {
-            this.logger.info('No password found for archive (processing without password)', { fileId });
+        
+        // Two password flows: ad-hoc (from job.data) or vendor agreement (from vault)
+        if (!archivePassword) {
+          // No password in job.data, try retrieving from vault (vendor agreement flow)
+          try {
+            archivePassword = await this.passwordVaultService.retrievePassword('file', fileId, userId);
+            if (archivePassword) {
+              this.logger.info('Archive password retrieved from vault (vendor agreement)', { fileId });
+            } else {
+              this.logger.info('No password found for archive (processing without password)', { fileId });
+            }
+          } catch (passwordError) {
+            this.logger.warn('Failed to retrieve archive password from vault', { 
+              fileId, 
+              error: passwordError.message 
+            });
+            // Continue without password - file might not be encrypted
           }
-        } catch (passwordError) {
-          this.logger.warn('Failed to retrieve archive password', { 
-            fileId, 
-            error: passwordError.message 
-          });
-          // Continue without password - file might not be encrypted
+        } else {
+          // Password provided in job.data (ad-hoc upload flow)
+          this.logger.info('Using ad-hoc archive password from upload request', { fileId, passwordLength: archivePassword.length });
         }
 
         // Step 0.7: Extract archive contents
