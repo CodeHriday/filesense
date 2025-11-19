@@ -1124,6 +1124,10 @@ function DataProfile() {
             <div className="stat-details">
               <h3>{getTimeSince(basicInfo.created_at || file.created_at)}</h3>
               <p>Age</p>
+              <div className="stat-timestamps">
+                <div><strong>Created:</strong> {formatDate(basicInfo.created_at || file.created_at)}</div>
+                <div><strong>Updated:</strong> {formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</div>
+              </div>
             </div>
           </Card>
           
@@ -1264,25 +1268,6 @@ function DataProfile() {
               <p>No completeness data available.</p>
             </div>
           )}
-        </Card>
-        
-        <Card title="Data Freshness">
-          <div className="freshness-stats">
-            <div className="freshness-stat">
-              <h3>Last Updated</h3>
-              <p>{formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</p>
-            </div>
-            
-            <div className="freshness-stat">
-              <h3>Created At</h3>
-              <p>{formatDate(basicInfo.created_at || file.created_at)}</p>
-            </div>
-            
-            <div className="freshness-stat">
-              <h3>File Type</h3>
-              <p>{basicInfo.file_type || file.file_type || 'Unknown'}</p>
-            </div>
-          </div>
         </Card>
       </div>
     );
@@ -2227,8 +2212,18 @@ function DataProfile() {
                 </span>
               </div>
               <div className="header-line-2-right">
-                <span className="header-property sensitivity-badge">
-                  <strong>Sensitivity:</strong> {fileSensitivity || 'Public'}
+                <span className="header-property sensitivity-select-wrapper">
+                  <strong>Sensitivity:</strong>
+                  <select 
+                    value={fileSensitivity}
+                    onChange={handleSensitivityChange}
+                    className="sensitivity-select"
+                  >
+                    <option value="Public">Public</option>
+                    <option value="Internal">Internal</option>
+                    <option value="Confidential">Confidential</option>
+                    <option value="Restricted">Restricted</option>
+                  </select>
                 </span>
               </div>
             </div>
