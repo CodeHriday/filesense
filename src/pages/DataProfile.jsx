@@ -960,31 +960,31 @@ function DataProfile() {
     fetchData();
   }, [fileId]);
 
+  const handleSensitivityChange = async (e) => {
+    const newSensitivity = e.target.value;
+    setFileSensitivity(newSensitivity);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const encodedFileId = encodeURIComponent(fileId);
+      await axios.put(
+        `/api/files/${encodedFileId}/sensitivity`,
+        { sensitivity_level: newSensitivity },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await fetchOwnership();
+    } catch (error) {
+      console.error('Error saving sensitivity:', error);
+      setErrorMessage('Failed to save sensitivity level');
+    }
+  };
+
   const renderOverviewTab = () => {
     if (!file || !profile) return null;
     
     // Get data from the updated API response format
     const basicInfo = profile.basic_info || {};
     const columns = profile.columns || [];
-    
-    const handleSensitivityChange = async (e) => {
-      const newSensitivity = e.target.value;
-      setFileSensitivity(newSensitivity);
-      
-      try {
-        const token = localStorage.getItem('token');
-        const encodedFileId = encodeURIComponent(fileId);
-        await axios.put(
-          `/api/files/${encodedFileId}/sensitivity`,
-          { sensitivity_level: newSensitivity },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        await fetchOwnership();
-      } catch (error) {
-        console.error('Error saving sensitivity:', error);
-        setErrorMessage('Failed to save sensitivity level');
-      }
-    };
     
     const handleTagToggle = async (tagId) => {
       const isSelected = fileTags.some(ft => ft.tag_id === tagId);
