@@ -1034,26 +1034,8 @@ function DataProfile() {
     
     return (
       <div className="profile-overview">
-        <Card title="File Governance">
-          <div className="file-governance-grid">
-            <div className="governance-field">
-              <label htmlFor="sensitivity">Sensitivity Level</label>
-              <select 
-                id="sensitivity"
-                value={fileSensitivity}
-                onChange={handleSensitivityChange}
-                className="governance-select"
-              >
-                <option value="Public">Public</option>
-                <option value="Internal">Internal</option>
-                <option value="Confidential">Confidential</option>
-                <option value="Restricted">Restricted</option>
-              </select>
-            </div>
-          </div>
-        </Card>
         
-        {headerValidation && (
+        {headerValidation && hasHeaderIssues && (
           <Card title="Header Validation">
             <div className="header-validation-container">
               <div className="header-validation-status">
@@ -2230,18 +2212,25 @@ function DataProfile() {
               </div>
             </div>
             <div className="header-line-2">
-              <span className="header-property">
-                <strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}
-              </span>
-              <span className="header-property">
-                <strong>Uploaded:</strong> {getTimeSince(file.created_at)}
-              </span>
-              <span className="header-property">
-                <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
-              </span>
-              <span className="header-property">
-                <strong>Format:</strong> {file.file_type || 'Unknown'}
-              </span>
+              <div className="header-line-2-left">
+                <span className="header-property">
+                  <strong>Size:</strong> {file.file_size ? formatBytes(file.file_size) : 'Unknown'}
+                </span>
+                <span className="header-property">
+                  <strong>Uploaded:</strong> {getTimeSince(file.created_at)}
+                </span>
+                <span className="header-property">
+                  <strong>Encoding:</strong> {file.encoding || profile?.basic_info?.encoding || 'UTF-8'}
+                </span>
+                <span className="header-property">
+                  <strong>Format:</strong> {file.file_type || 'Unknown'}
+                </span>
+              </div>
+              <div className="header-line-2-right">
+                <span className="header-property sensitivity-badge">
+                  <strong>Sensitivity:</strong> {fileSensitivity || 'Public'}
+                </span>
+              </div>
             </div>
           </div>
           
