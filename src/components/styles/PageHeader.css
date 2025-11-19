@@ -67,15 +67,6 @@
   gap: 0.8rem;
 }
 
-.page-header-actions button,
-.page-header-actions .btn {
-  padding: 8px 16px !important;
-  font-size: 0.875rem !important;
-  height: auto !important;
-  min-height: 36px !important;
-  max-height: 36px !important;
-}
-
 /* Catalog file count display in header actions */
 .catalog-file-count {
   display: flex;
