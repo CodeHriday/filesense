@@ -103,6 +103,10 @@ function FileUpload() {
   const [archivePassword, setArchivePassword] = useState('');
   const [showArchivePassword, setShowArchivePassword] = useState(false);
   
+  // Fixed-width schema file upload states
+  const [schemaUploadError, setSchemaUploadError] = useState('');
+  const [schemaUploadSuccess, setSchemaUploadSuccess] = useState('');
+  
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
     if (!filename || agreementFilePatterns.length === 0) {
@@ -519,6 +523,164 @@ function FileUpload() {
     return {
       columns
     };
+  };
+  
+  // Handle fixed-width schema file upload (JSON or CSV)
+  const handleSchemaFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Clear previous messages
+    setSchemaUploadError('');
+    setSchemaUploadSuccess('');
+    
+    const fileName = file.name.toLowerCase();
+    const isJSON = fileName.endsWith('.json');
+    const isCSV = fileName.endsWith('.csv');
+    
+    if (!isJSON && !isCSV) {
+      setSchemaUploadError('Please upload a .json or .csv file');
+      return;
+    }
+    
+    try {
+      const text = await file.text();
+      
+      if (isJSON) {
+        // Parse JSON schema
+        const data = JSON.parse(text);
+        
+        // Validate structure - expect { columns: [{name, width}, ...] } or [{name, width}, ...]
+        let columns = Array.isArray(data) ? data : data.columns;
+        
+        if (!Array.isArray(columns) || columns.length === 0) {
+          setSchemaUploadError('Invalid JSON format. Expected array of columns with "name" and "width" fields');
+          return;
+        }
+        
+        // Validate each column
+        const validatedColumns = [];
+        for (let i = 0; i < columns.length; i++) {
+          const col = columns[i];
+          if (!col.name || typeof col.name !== 'string') {
+            setSchemaUploadError(`Column ${i + 1}: missing or invalid "name" field`);
+            return;
+          }
+          if (!col.width || isNaN(parseInt(col.width))) {
+            setSchemaUploadError(`Column ${i + 1}: missing or invalid "width" field`);
+            return;
+          }
+          const width = parseInt(col.width);
+          if (width <= 0) {
+            setSchemaUploadError(`Column ${i + 1}: width must be a positive integer`);
+            return;
+          }
+          validatedColumns.push({ name: col.name.trim(), width: width.toString() });
+        }
+        
+        setFixedWidthSchema(validatedColumns);
+        setSchemaUploadSuccess(`Successfully loaded ${validatedColumns.length} columns from JSON file`);
+        
+      } else if (isCSV) {
+        // Parse CSV schema
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) {
+          setSchemaUploadError('CSV file must contain a header row and at least one data row');
+          return;
+        }
+        
+        // Parse header
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const nameIndex = headers.indexOf('name');
+        const widthIndex = headers.indexOf('width');
+        
+        if (nameIndex === -1 || widthIndex === -1) {
+          setSchemaUploadError('CSV must have "name" and "width" columns in the header row');
+          return;
+        }
+        
+        // Parse data rows
+        const validatedColumns = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue; // Skip empty lines
+          
+          const values = line.split(',').map(v => v.trim());
+          const name = values[nameIndex];
+          const width = values[widthIndex];
+          
+          if (!name) {
+            setSchemaUploadError(`Row ${i + 1}: missing column name`);
+            return;
+          }
+          if (!width || isNaN(parseInt(width))) {
+            setSchemaUploadError(`Row ${i + 1}: missing or invalid width`);
+            return;
+          }
+          const widthNum = parseInt(width);
+          if (widthNum <= 0) {
+            setSchemaUploadError(`Row ${i + 1}: width must be a positive integer`);
+            return;
+          }
+          validatedColumns.push({ name: name, width: widthNum.toString() });
+        }
+        
+        if (validatedColumns.length === 0) {
+          setSchemaUploadError('No valid columns found in CSV file');
+          return;
+        }
+        
+        setFixedWidthSchema(validatedColumns);
+        setSchemaUploadSuccess(`Successfully loaded ${validatedColumns.length} columns from CSV file`);
+      }
+      
+      // Clear the file input so the same file can be uploaded again
+      event.target.value = '';
+      
+    } catch (error) {
+      console.error('Error parsing schema file:', error);
+      if (isJSON) {
+        setSchemaUploadError(`Failed to parse JSON file: ${error.message}`);
+      } else {
+        setSchemaUploadError(`Failed to parse CSV file: ${error.message}`);
+      }
+    }
+  };
+  
+  // Download JSON template
+  const downloadJSONTemplate = () => {
+    const template = {
+      columns: [
+        { name: 'ID', width: 5 },
+        { name: 'Name', width: 20 },
+        { name: 'Age', width: 3 }
+      ]
+    };
+    
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'fixed-width-schema-template.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+  
+  // Download CSV template
+  const downloadCSVTemplate = () => {
+    const csvContent = 'name,width\nID,5\nName,20\nAge,3';
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'fixed-width-schema-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
   
   // Load vendor projects (or all projects for admins)
@@ -1903,8 +2065,100 @@ function FileUpload() {
                       Define Column Schema:
                     </label>
                     <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
-                      Fixed-width files have no delimiters. Specify each column's name and width in characters.
+                      Fixed-width files have no delimiters. Specify each column's name and width in characters. You can upload a schema file or define it manually below.
                     </p>
+                    
+                    {/* Schema File Upload and Template Download */}
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f0f8ff', borderRadius: '4px', border: '1px solid #b0d4f1' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <label htmlFor="schema-file-upload" style={{ 
+                          padding: '0.5rem 1rem',
+                          borderRadius: '4px',
+                          border: '1px solid #007bff',
+                          backgroundColor: '#fff',
+                          color: '#007bff',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          display: 'inline-block'
+                        }}>
+                          📁 Upload Schema File
+                        </label>
+                        <input
+                          id="schema-file-upload"
+                          type="file"
+                          accept=".json,.csv"
+                          onChange={handleSchemaFileUpload}
+                          style={{ display: 'none' }}
+                        />
+                        
+                        <span style={{ fontSize: '0.875rem', color: '#666' }}>or download template:</span>
+                        
+                        <button
+                          type="button"
+                          onClick={downloadJSONTemplate}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '4px',
+                            border: '1px solid #28a745',
+                            backgroundColor: '#fff',
+                            color: '#28a745',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          ⬇ JSON Template
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={downloadCSVTemplate}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '4px',
+                            border: '1px solid #28a745',
+                            backgroundColor: '#fff',
+                            color: '#28a745',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          ⬇ CSV Template
+                        </button>
+                      </div>
+                      
+                      {/* Success/Error Messages */}
+                      {schemaUploadSuccess && (
+                        <div style={{ 
+                          padding: '0.5rem', 
+                          backgroundColor: '#d4edda', 
+                          border: '1px solid #c3e6cb',
+                          borderRadius: '4px',
+                          color: '#155724',
+                          fontSize: '0.875rem',
+                          marginTop: '0.5rem'
+                        }}>
+                          ✓ {schemaUploadSuccess}
+                        </div>
+                      )}
+                      
+                      {schemaUploadError && (
+                        <div style={{ 
+                          padding: '0.5rem', 
+                          backgroundColor: '#f8d7da', 
+                          border: '1px solid #f5c6cb',
+                          borderRadius: '4px',
+                          color: '#721c24',
+                          fontSize: '0.875rem',
+                          marginTop: '0.5rem'
+                        }}>
+                          ✗ {schemaUploadError}
+                        </div>
+                      )}
+                      
+                      <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem' }}>
+                        Accepted formats: .json or .csv with "name" and "width" columns
+                      </div>
+                    </div>
                     
                     <div style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '0.75rem', backgroundColor: '#f9f9f9' }}>
                       {fixedWidthSchema.map((column, index) => (
