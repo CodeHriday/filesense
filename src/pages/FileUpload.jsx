@@ -87,7 +87,7 @@ function FileUpload() {
   const [validationError, setValidationError] = useState(null); // Unified contract validation error state
   
   // Delimiter configuration states
-  const [delimiterType, setDelimiterType] = useState('comma'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none', 'fixed-width'
+  const [delimiterType, setDelimiterType] = useState('none'); // 'comma', 'pipe', 'tab', 'semicolon', 'custom', 'none', 'fixed-width'
   const [customDelimiter, setCustomDelimiter] = useState(''); // For multi-character delimiters like '~^'
   
   // Header configuration states
