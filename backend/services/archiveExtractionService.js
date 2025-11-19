@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const AdmZip = require('adm-zip');
+const yauzl = require('yauzl');
 const tar = require('tar-stream');
 const gunzip = require('gunzip-maybe');
 const { spawn } = require('child_process');
@@ -173,54 +173,91 @@ class ArchiveExtractionService {
   }
 
   async extractZip(archiveFilePath, outputDir, password = null) {
-    try {
-      const zip = new AdmZip(archiveFilePath);
-      const entries = zip.getEntries();
+    return new Promise((resolve, reject) => {
       const extractedFiles = [];
+      const logger = this.logger;
+      const openOptions = {
+        lazyEntries: true,
+        decodeStrings: false
+      };
 
-      for (const entry of entries) {
-        if (entry.isDirectory) continue;
-        
-        if (entry.name.includes('..') || path.isAbsolute(entry.name)) {
-          this.logger.warn('Skipping potentially malicious path', {
-            entryName: entry.name
-          });
-          continue;
+      const handleOpen = (err, zipfile) => {
+        if (err) {
+          if (err.message && (err.message.toLowerCase().includes('encrypted') || err.message.toLowerCase().includes('wrong password'))) {
+            return reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Archive is password-protected but no valid password was provided'));
+          }
+          return reject(new Error(`Failed to open ZIP: ${err.message}`));
         }
 
-        const sanitizedName = path.basename(entry.name);
-        const outputPath = path.join(outputDir, sanitizedName);
+        zipfile.readEntry();
 
-        try {
-          if (password) {
-            zip.extractEntryTo(entry, outputDir, false, true, false, password);
-          } else {
-            zip.extractEntryTo(entry, outputDir, false, true);
+        zipfile.on('entry', (entry) => {
+          if (/\/$/.test(entry.fileName)) {
+            zipfile.readEntry();
+            return;
           }
 
-          extractedFiles.push({
-            relativePath: entry.entryName,
-            fileName: sanitizedName,
-            fullPath: outputPath,
-            originalSize: entry.header.size
+          if (entry.fileName.includes('..') || path.isAbsolute(entry.fileName)) {
+            logger.warn('Skipping potentially malicious path', {
+              entryName: entry.fileName
+            });
+            zipfile.readEntry();
+            return;
+          }
+
+          const sanitizedName = path.basename(entry.fileName);
+          const outputPath = path.join(outputDir, sanitizedName);
+
+          const openReadStreamOptions = password ? { decrypt: true, password: Buffer.from(password, 'utf-8') } : {};
+
+          zipfile.openReadStream(entry, openReadStreamOptions, (err, readStream) => {
+            if (err) {
+              if (err.message && err.message.toLowerCase().includes('password')) {
+                zipfile.close();
+                return reject(new Error('ARCHIVE_PASSWORD_REQUIRED: Incorrect password or encrypted entry'));
+              }
+              logger.error('Error opening ZIP entry stream', {
+                fileName: entry.fileName,
+                error: err.message
+              });
+              zipfile.readEntry();
+              return;
+            }
+
+            const writeStream = fs.createWriteStream(outputPath);
+            readStream.pipe(writeStream);
+
+            writeStream.on('finish', () => {
+              extractedFiles.push({
+                relativePath: entry.fileName,
+                fileName: sanitizedName,
+                fullPath: outputPath,
+                originalSize: entry.uncompressedSize
+              });
+              zipfile.readEntry();
+            });
+
+            writeStream.on('error', (error) => {
+              logger.error('Error writing ZIP entry', {
+                fileName: entry.fileName,
+                error: error.message
+              });
+              zipfile.readEntry();
+            });
           });
+        });
 
-        } catch (error) {
-          if (error.message && (error.message.includes('encrypted') || error.message.includes('password'))) {
-            throw new Error('ARCHIVE_PASSWORD_REQUIRED: Archive is password-protected but no password was provided');
-          }
-          throw error;
-        }
-      }
+        zipfile.on('end', () => {
+          resolve(extractedFiles);
+        });
 
-      return extractedFiles;
+        zipfile.on('error', (error) => {
+          reject(new Error(`ZIP extraction error: ${error.message}`));
+        });
+      };
 
-    } catch (error) {
-      if (error.message && error.message.includes('ARCHIVE_PASSWORD_REQUIRED')) {
-        throw error;
-      }
-      throw new Error(`ZIP extraction failed: ${error.message}`);
-    }
+      yauzl.open(archiveFilePath, openOptions, handleOpen);
+    });
   }
 
   async extractTar(archiveFilePath, outputDir) {
@@ -473,20 +510,20 @@ class ArchiveExtractionService {
 
   async createFileRecord(parentArchiveId, relativePath, filePath, checksum, size, extractionOrder, userId) {
     const fileName = path.basename(relativePath);
+    const fileExt = path.extname(fileName).substring(1);
     
     const result = await this.dbPool.query(
       `INSERT INTO archive_members (
         parent_file_id,
-        relative_path,
-        member_name,
-        member_type,
-        size_bytes,
-        checksum,
-        extraction_order,
+        logical_name,
+        original_name,
+        file_format,
+        file_size_bytes,
+        extraction_status,
         extracted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+      ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
       RETURNING *`,
-      [parentArchiveId, relativePath, fileName, 'file', size, checksum, extractionOrder]
+      [parentArchiveId, relativePath, fileName, fileExt || null, size, 'completed']
     );
 
     return result.rows[0];
@@ -498,18 +535,21 @@ class ArchiveExtractionService {
     let paramIndex = 1;
 
     if (updates.extraction_status !== undefined) {
-      setClauses.push(`extraction_status = $${paramIndex++}`);
-      values.push(updates.extraction_status);
-    }
-
-    if (updates.extracted_count !== undefined) {
-      setClauses.push(`extracted_count = $${paramIndex++}`);
-      values.push(updates.extracted_count);
+      const processingStep = updates.extraction_status === 'completed' ? 'extraction_complete' : 'extraction_failed';
+      setClauses.push(`processing_step = $${paramIndex++}`);
+      values.push(processingStep);
     }
 
     if (updates.error_message !== undefined) {
-      setClauses.push(`error_message = $${paramIndex++}`);
+      setClauses.push(`processing_error = $${paramIndex++}`);
       values.push(updates.error_message);
+    }
+
+    if (updates.extracted_count !== undefined) {
+      setClauses.push(`processed_at = CURRENT_TIMESTAMP`);
+      const metadataUpdate = JSON.stringify({ extracted_file_count: updates.extracted_count });
+      setClauses.push(`metadata = COALESCE(metadata, '{}'::jsonb) || $${paramIndex++}::jsonb`);
+      values.push(metadataUpdate);
     }
 
     if (setClauses.length === 0) {
@@ -519,7 +559,7 @@ class ArchiveExtractionService {
     values.push(archiveFileId);
 
     await this.dbPool.query(
-      `UPDATE archive_members SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`,
+      `UPDATE files SET ${setClauses.join(', ')} WHERE file_id = $${paramIndex}`,
       values
     );
   }

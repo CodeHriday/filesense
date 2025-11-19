@@ -9577,6 +9577,11 @@ const apiTokenRoutes = require('./backend/routes/apiTokenRoutes');
 app.use('/api/tokens', apiTokenRoutes);
 console.log('Added API token management routes');
 
+// DLQ (Dead Letter Queue) routes
+const dlqRoutes = require('./backend/routes/dlqRoutes');
+app.use('/api/dlq-jobs', authenticateToken, dlqRoutes);
+console.log('Added DLQ routes');
+
 // Setup enhanced backend features
 setupEnhancedFeatures(app);
 

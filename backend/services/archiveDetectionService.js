@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const fileType = require('file-type');
-const AdmZip = require('adm-zip');
+const yauzl = require('yauzl');
 
 const MAGIC_BYTES = {
   ZIP: [0x50, 0x4b, 0x03, 0x04],
@@ -128,41 +128,61 @@ class ArchiveDetectionService {
   }
 
   async isZipPasswordProtected(filePath) {
-    try {
-      const zip = new AdmZip(filePath);
-      const zipEntries = zip.getEntries();
-
-      if (zipEntries.length === 0) {
-        return {
-          isEncrypted: false,
-          needsPassword: false,
-          reason: 'Empty ZIP archive'
-        };
-      }
-
-      let hasEncryptedFiles = false;
-      for (const entry of zipEntries) {
-        if (entry.isEncrypted || entry.header.encrypted) {
-          hasEncryptedFiles = true;
-          break;
+    return new Promise((resolve) => {
+      yauzl.open(filePath, { lazyEntries: true }, (err, zipfile) => {
+        if (err) {
+          if (err.message && err.message.toLowerCase().includes('encrypted')) {
+            return resolve({
+              isEncrypted: true,
+              needsPassword: true,
+              reason: 'ZIP encryption detected during open'
+            });
+          }
+          return resolve({
+            isEncrypted: false,
+            needsPassword: false,
+            error: err.message
+          });
         }
-      }
 
-      return {
-        isEncrypted: hasEncryptedFiles,
-        needsPassword: hasEncryptedFiles,
-        reason: hasEncryptedFiles ? 'ZIP contains encrypted entries' : 'ZIP is not encrypted'
-      };
-    } catch (error) {
-      if (error.message && error.message.includes('encrypted')) {
-        return {
-          isEncrypted: true,
-          needsPassword: true,
-          reason: 'ZIP encryption detected via error message'
-        };
-      }
-      throw error;
-    }
+        let hasEncryptedFiles = false;
+        let entryCount = 0;
+
+        zipfile.on('entry', (entry) => {
+          entryCount++;
+          if (entry.generalPurposeBitFlag & 0x01) {
+            hasEncryptedFiles = true;
+          }
+          zipfile.readEntry();
+        });
+
+        zipfile.on('end', () => {
+          if (entryCount === 0) {
+            resolve({
+              isEncrypted: false,
+              needsPassword: false,
+              reason: 'Empty ZIP archive'
+            });
+          } else {
+            resolve({
+              isEncrypted: hasEncryptedFiles,
+              needsPassword: hasEncryptedFiles,
+              reason: hasEncryptedFiles ? 'ZIP contains encrypted entries' : 'ZIP is not encrypted'
+            });
+          }
+        });
+
+        zipfile.on('error', (error) => {
+          resolve({
+            isEncrypted: false,
+            needsPassword: false,
+            error: error.message
+          });
+        });
+
+        zipfile.readEntry();
+      });
+    });
   }
 
   async is7zPasswordProtected(filePath) {
