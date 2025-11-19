@@ -21,6 +21,9 @@ const QualityValidationEngine = require('../services/qualityValidationEngine');
 const { persistGovernanceMetadata } = require('../services/governanceService');
 const { invalidateFileCache, invalidateFileCatalogCache } = require('../src/middleware/cache');
 const PasswordVaultService = require('../services/passwordVaultService');
+const ArchiveDetectionService = require('../services/archiveDetectionService');
+const ArchiveExtractionService = require('../services/archiveExtractionService');
+const DLQService = require('../services/dlqService');
 
 // Archive and special format file extensions
 const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.tgz', '.tbz2'];
@@ -39,6 +42,17 @@ class FileProcessingWorker {
       this.passwordVaultService = new PasswordVaultService(dbPool, auditService, logger);
     } catch (error) {
       this.logger.error('Failed to initialize password vault service', { error: error.message });
+      throw error;
+    }
+    
+    // Initialize archive services
+    try {
+      const virusScanService = require('../services/VirusScanService');
+      this.archiveDetectionService = new ArchiveDetectionService(dbPool, logger);
+      this.archiveExtractionService = new ArchiveExtractionService(dbPool, virusScanService, logger);
+      this.dlqService = new DLQService(dbPool, logger);
+    } catch (error) {
+      this.logger.error('Failed to initialize archive services', { error: error.message });
       throw error;
     }
   }
@@ -278,6 +292,127 @@ class FileProcessingWorker {
             error: passwordError.message 
           });
           // Continue without password - file might not be encrypted
+        }
+
+        // Step 0.7: Extract archive contents
+        this.logger.info('Attempting to extract archive', { fileId, filePath });
+        try {
+          const extractionResult = await this.archiveExtractionService.extractArchive(
+            filePath,
+            fileId,
+            archivePassword,
+            userId
+          );
+
+          this.logger.info('Archive extraction completed successfully', {
+            fileId,
+            extractedCount: extractionResult.extractedCount,
+            files: extractionResult.files.map(f => f.filename)
+          });
+
+          // Complete the job - extracted files will be queued separately
+          await this.queue.completeJob(jobId, {
+            success: true,
+            fileId,
+            extractedCount: extractionResult.extractedCount,
+            files: extractionResult.files,
+            message: 'Archive extracted successfully'
+          });
+
+          // Audit log: Archive extraction completed
+          if (this.auditService) {
+            await this.auditService.logExecutionStateChange({
+              executionId: jobId,
+              executionType: 'archive_extraction',
+              entityId: fileId,
+              entityName: originalName,
+              previousStatus: 'processing',
+              newStatus: 'completed',
+              triggeredByUser: userId,
+              triggerType: 'extraction',
+              metadata: {
+                extractedCount: extractionResult.extractedCount,
+                extractedFiles: extractionResult.files.map(f => f.filename)
+              },
+              context: null
+            });
+          }
+
+          return;
+        } catch (extractionError) {
+          this.logger.error('Archive extraction failed', {
+            fileId,
+            error: extractionError.message,
+            stack: extractionError.stack
+          });
+
+          // Categorize error and create DLQ job if appropriate
+          const errorCategory = this.categorizeError(extractionError);
+
+          if (errorCategory.reasonCode === 'password_missing' || 
+              extractionError.message.toLowerCase().includes('password') ||
+              extractionError.message.toLowerCase().includes('encrypted')) {
+            // Create DLQ job for password-related failures
+            await this.dlqService.createDLQJob(
+              'archive_extraction',
+              {
+                archiveFilePath: filePath,
+                archiveFileId: fileId,
+                userId: userId
+              },
+              extractionError,
+              'Provide the correct password for this password-protected archive'
+            );
+
+            this.logger.info('DLQ job created for password-protected archive', { fileId });
+
+            // Update file status to indicate password required
+            await this.dbPool.query(
+              'UPDATE files SET processing_step = $1, metadata = jsonb_set(COALESCE(metadata, \'{}\'::jsonb), \'{password_required}\', \'true\') WHERE file_id = $2',
+              ['password_required', fileId]
+            );
+
+            // Fail the job gracefully
+            await this.queue.failJob(jobId, extractionError);
+
+            // Audit log: Archive extraction failed - password required
+            if (this.auditService) {
+              await this.auditService.logExecutionStateChange({
+                executionId: jobId,
+                executionType: 'archive_extraction',
+                entityId: fileId,
+                entityName: originalName,
+                previousStatus: 'processing',
+                newStatus: 'failed_password_required',
+                triggeredByUser: userId,
+                triggerType: 'extraction',
+                metadata: {
+                  errorCode: errorCategory.reasonCode,
+                  errorMessage: extractionError.message
+                },
+                context: null
+              });
+            }
+
+            return;
+          } else {
+            // Other extraction failures - create DLQ job but don't return early
+            await this.dlqService.createDLQJob(
+              'archive_extraction',
+              {
+                archiveFilePath: filePath,
+                archiveFileId: fileId,
+                userId: userId,
+                password: archivePassword || null
+              },
+              extractionError,
+              errorCategory.actionableMessage
+            );
+
+            this.logger.warn('DLQ job created for failed archive extraction, continuing with container profiling', { fileId });
+            
+            // Continue to profile the archive container as a fallback
+          }
         }
       }
 

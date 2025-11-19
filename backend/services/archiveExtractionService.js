@@ -22,9 +22,86 @@ class ArchiveExtractionService {
     }
   }
 
+  async createExtractionRecord(fileId, archiveType, isEncrypted) {
+    try {
+      const result = await this.dbPool.query(
+        `INSERT INTO archive_extractions (
+          file_id,
+          archive_type,
+          is_encrypted,
+          password_required,
+          extraction_status,
+          started_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW())
+        RETURNING *`,
+        [fileId, archiveType, isEncrypted, isEncrypted, 'in_progress']
+      );
+
+      this.logger.info('Archive extraction record created', {
+        extractionId: result.rows[0].id,
+        fileId,
+        archiveType
+      });
+
+      return result.rows[0];
+    } catch (error) {
+      this.logger.error('Failed to create extraction record', {
+        fileId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  async updateExtractionRecord(extractionId, updates) {
+    try {
+      const setClauses = [];
+      const values = [];
+      let paramIndex = 1;
+
+      Object.entries(updates).forEach(([key, value]) => {
+        setClauses.push(`${key} = $${paramIndex++}`);
+        values.push(value);
+      });
+
+      setClauses.push(`updated_at = NOW()`);
+      values.push(extractionId);
+
+      const query = `
+        UPDATE archive_extractions
+        SET ${setClauses.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const result = await this.dbPool.query(query, values);
+
+      if (result.rows.length > 0) {
+        this.logger.info('Archive extraction record updated', {
+          extractionId: result.rows[0].id,
+          fileId: result.rows[0].file_id,
+          updates
+        });
+        return result.rows[0];
+      }
+
+      this.logger.warn('No extraction record found to update', {
+        extractionId
+      });
+      return null;
+    } catch (error) {
+      this.logger.error('Failed to update extraction record', {
+        extractionId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
   async extractArchive(archiveFilePath, archiveFileId, password = null, userId = null) {
     let extractedFiles = [];
     let tempDir = null;
+    let extractionRecord = null;
 
     try {
       const archiveInfo = await this.archiveDetector.analyzeArchive(archiveFilePath);
@@ -42,11 +119,18 @@ class ArchiveExtractionService {
         throw new Error(`Archive size ${(fileStats.size / 1024 / 1024).toFixed(2)} MB exceeds maximum limit of 25 MB`);
       }
 
+      extractionRecord = await this.createExtractionRecord(
+        archiveFileId,
+        archiveInfo.archiveType,
+        archiveInfo.isEncrypted || false
+      );
+
       tempDir = path.join(EXTRACTION_TEMP_DIR, `extract_${Date.now()}_${Math.random().toString(36).substring(7)}`);
       await fs.promises.mkdir(tempDir, { recursive: true });
 
       this.logger.info('Starting archive extraction', {
         archiveFileId,
+        extractionId: extractionRecord.id,
         archiveType: archiveInfo.archiveType,
         tempDir
       });
@@ -86,15 +170,23 @@ class ArchiveExtractionService {
         try {
           const scanResult = await this.virusScanService.scanFile(extractedFile.fullPath);
           
-          if (!scanResult.isClean) {
+          if (scanResult.isInfected) {
             this.logger.warn('Virus detected in extracted file', {
               archiveFileId,
               fileName: extractedFile.relativePath,
-              threat: scanResult.threat
+              viruses: scanResult.viruses
             });
             
             await fs.promises.unlink(extractedFile.fullPath).catch(() => {});
             continue;
+          }
+          
+          if (scanResult.skipped) {
+            this.logger.warn('Virus scan skipped for extracted file', {
+              archiveFileId,
+              fileName: extractedFile.relativePath,
+              reason: 'Virus definitions unavailable'
+            });
           }
 
           const checksum = await this.calculateChecksum(extractedFile.fullPath);
@@ -135,11 +227,14 @@ class ArchiveExtractionService {
         }
       }
 
-      await this.updateArchiveRecord(archiveFileId, {
-        extraction_status: 'completed',
-        extracted_count: processedFiles.length,
-        error_message: null
-      });
+      if (extractionRecord) {
+        await this.updateExtractionRecord(extractionRecord.id, {
+          extraction_status: 'completed',
+          extracted_count: processedFiles.length,
+          completed_at: new Date(),
+          error_message: null
+        });
+      }
 
       return {
         success: true,
@@ -153,10 +248,13 @@ class ArchiveExtractionService {
         error: error.message
       });
 
-      await this.updateArchiveRecord(archiveFileId, {
-        extraction_status: 'failed',
-        error_message: error.message
-      });
+      if (extractionRecord) {
+        await this.updateExtractionRecord(extractionRecord.id, {
+          extraction_status: 'failed',
+          completed_at: new Date(),
+          error_message: error.message
+        });
+      }
 
       throw error;
 
@@ -526,41 +624,6 @@ class ArchiveExtractionService {
     );
 
     return result.rows[0];
-  }
-
-  async updateArchiveRecord(archiveFileId, updates) {
-    const setClauses = [];
-    const values = [];
-    let paramIndex = 1;
-
-    if (updates.extraction_status !== undefined) {
-      const processingStep = updates.extraction_status === 'completed' ? 'extraction_complete' : 'extraction_failed';
-      setClauses.push(`processing_step = $${paramIndex++}`);
-      values.push(processingStep);
-    }
-
-    if (updates.error_message !== undefined) {
-      setClauses.push(`processing_error = $${paramIndex++}`);
-      values.push(updates.error_message);
-    }
-
-    if (updates.extracted_count !== undefined) {
-      setClauses.push(`processed_at = CURRENT_TIMESTAMP`);
-      const metadataUpdate = JSON.stringify({ extracted_file_count: updates.extracted_count });
-      setClauses.push(`metadata = COALESCE(metadata, '{}'::jsonb) || $${paramIndex++}::jsonb`);
-      values.push(metadataUpdate);
-    }
-
-    if (setClauses.length === 0) {
-      return;
-    }
-
-    values.push(archiveFileId);
-
-    await this.dbPool.query(
-      `UPDATE files SET ${setClauses.join(', ')} WHERE file_id = $${paramIndex}`,
-      values
-    );
   }
 }
 
