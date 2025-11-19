@@ -1487,6 +1487,15 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
       }
     }
     
+    // Get archive password if provided (for password-protected archives - ad-hoc upload flow)
+    const archivePassword = req.body.archivePassword || null;
+    if (archivePassword) {
+      logger.info('Archive password provided for ad-hoc upload', { 
+        userId: req.user?.id,
+        passwordLength: archivePassword.length
+      });
+    }
+    
     // Get pre-calculated file hashes if provided (optimization to avoid double hashing)
     let fileHashes = {};
     if (req.body.fileHashes) {
@@ -1784,6 +1793,17 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
           userId,
           fileHash: fileHash.substring(0, 16) + '...'
         });
+        
+        // Store ad-hoc archive password in vault if provided (for password-protected archives)
+        if (archivePassword) {
+          const passwordVaultService = diContainer.get('passwordVaultService');
+          await passwordVaultService.storePassword('file', fileId, archivePassword, userId);
+          logger.info('Ad-hoc archive password stored in vault', { 
+            fileId, 
+            userId,
+            filename: file.originalname 
+          });
+        }
         
         // Extract quality rules from vendor agreement if contract validation is enabled
         let mergedQualityRuleIds = [...qualityRuleIds]; // Start with manually provided rules
