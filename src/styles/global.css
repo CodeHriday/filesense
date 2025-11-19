@@ -77,6 +77,11 @@ th {
 }
 
 /* Standardized Header Action Button - Apply this class to all header Create/Add buttons */
+/* Using high specificity selectors to override all page-specific button styles */
+button.btn-primary.header-action-btn,
+button.btn.header-action-btn,
+.header-action-btn.btn-primary,
+.header-action-btn.btn,
 .header-action-btn {
   padding: 8px 16px !important;
   font-size: 0.875rem !important;
@@ -87,4 +92,5 @@ th {
   display: inline-flex !important;
   align-items: center !important;
   gap: 8px !important;
+  box-sizing: border-box !important;
 }
