@@ -208,7 +208,7 @@ const Login = () => {
           <div className="hero-section animate-on-scroll">
             <div className="hero-badge">FILEOBS</div>
             <h1 className="hero-title">
-              Data quality and data<br />
+              File data quality and<br />
               observability at<br />
               massive scale and<br />
               minimal effort
