@@ -240,7 +240,7 @@ function Sidebar() {
               <FiHome />
             </button>
             <Link to="/" className="sidebar-logo">
-              <h1>Data Observatory</h1>
+              <h1>FileOBs</h1>
             </Link>
             <NotificationBell />
           </div>
