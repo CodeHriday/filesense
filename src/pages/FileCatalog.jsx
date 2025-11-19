@@ -133,14 +133,10 @@ export const FileCatalog = ({ onFileSelect }) => {
     }
   }, [uniqueProjects]);
   
-  // Auto-select first subproject when project changes
+  // Auto-select "Select a subproject" when project changes
   useEffect(() => {
     if (selectedProject !== 'all') {
-      if (uniqueSubProjects.length > 0) {
-        setSelectedSubProject(uniqueSubProjects[0].id);
-      } else {
-        setSelectedSubProject('all');
-      }
+      setSelectedSubProject('none');
     }
   }, [selectedProject, uniqueSubProjects]);
 
@@ -326,7 +322,14 @@ export const FileCatalog = ({ onFileSelect }) => {
       const matchesProject = selectedProject === 'all' || file.project_id === selectedProject;
       
       // Filter by sub-project
-      const matchesSubProject = selectedSubProject === 'all' || file.sub_project_id === selectedSubProject;
+      let matchesSubProject;
+      if (selectedSubProject === 'all') {
+        matchesSubProject = true;
+      } else if (selectedSubProject === 'none') {
+        matchesSubProject = !file.sub_project_id;
+      } else {
+        matchesSubProject = file.sub_project_id === selectedSubProject;
+      }
       
       return matchesSearch && matchesType && matchesProject && matchesSubProject;
     })
@@ -397,23 +400,25 @@ export const FileCatalog = ({ onFileSelect }) => {
           />
         </td>
         <td className="file-name-cell">
-          <span className="file-name">{file.filename}</span>
-          {file.has_schema_changes && (
-            <span 
-              className="schema-changed-indicator" 
-              title="Schema has changed from previous upload"
-            >
-              <FiGitBranch /> Schema Changed
-            </span>
-          )}
-          {file.processing_error && (
-            <span 
-              className="file-error-indicator" 
-              title={`Processing failed: ${file.processing_error}`}
-            >
-              ⚠️
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+            <span className="file-name">{file.filename}</span>
+            {file.has_schema_changes && (
+              <span 
+                className="schema-changed-indicator" 
+                title="Schema has changed from previous upload"
+              >
+                <FiGitBranch /> Schema Changed
+              </span>
+            )}
+            {file.processing_error && (
+              <span 
+                className="file-error-indicator" 
+                title={`Processing failed: ${file.processing_error}`}
+              >
+                ⚠️
+              </span>
+            )}
+          </div>
         </td>
         <td>
           <span className="file-type-badge">{file.file_type?.toUpperCase() || 'N/A'}</span>
@@ -473,36 +478,38 @@ export const FileCatalog = ({ onFileSelect }) => {
           </div>
         </td>
         <td className="actions-cell">
-          {file.failure_reason_code === 'password_missing' && (
+          <div style={{ display: 'flex', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+            {file.failure_reason_code === 'password_missing' && (
+              <button
+                className="action-icon-btn password-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleProvidePassword(file);
+                }}
+                title="Provide Password"
+              >
+                <FiLock />
+              </button>
+            )}
             <button
-              className="action-icon-btn password-btn"
+              className="action-icon-btn view-btn"
+              onClick={() => handleViewDetails(file)}
+              title="View Details"
+            >
+              <FiEye />
+            </button>
+            <button
+              className="action-icon-btn delete-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                handleProvidePassword(file);
+                handleDelete(file);
               }}
-              title="Provide Password"
+              disabled={deletingFileId === file.file_id}
+              title="Delete"
             >
-              <FiLock />
+              <FiTrash2 />
             </button>
-          )}
-          <button
-            className="action-icon-btn view-btn"
-            onClick={() => handleViewDetails(file)}
-            title="View Details"
-          >
-            <FiEye />
-          </button>
-          <button
-            className="action-icon-btn delete-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(file);
-            }}
-            disabled={deletingFileId === file.file_id}
-            title="Delete"
-          >
-            <FiTrash2 />
-          </button>
+          </div>
         </td>
       </tr>
     );
@@ -620,10 +627,18 @@ export const FileCatalog = ({ onFileSelect }) => {
           
           <select 
             value={selectedSubProject}
-            onChange={(e) => setSelectedSubProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === 'all' || value === 'none') {
+                setSelectedSubProject(value);
+              } else {
+                setSelectedSubProject(parseInt(value));
+              }
+            }}
             className="filter-select"
             disabled={selectedProject === 'all'}
           >
+            <option value="none">Select a subproject</option>
             <option value="all">All Sub-Projects</option>
             {uniqueSubProjects.map(sp => (
               <option key={sp.id} value={sp.id}>{sp.name}</option>

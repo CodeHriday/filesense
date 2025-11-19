@@ -302,13 +302,13 @@
   cursor: help;
 }
 
-.file-type-badge {
+.file-catalog-table .file-type-badge {
   display: inline-block;
-  padding: 1px 4px;
+  padding: 1px 4px !important;
   border-radius: var(--radius-sm);
   background-color: var(--color-gray-200);
   color: var(--text-secondary);
-  font-size: 0.55rem;
+  font-size: 0.55rem !important;
   font-weight: var(--font-semibold);
   text-transform: uppercase;
 }
