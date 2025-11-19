@@ -1427,7 +1427,7 @@ const Connections = () => {
       <div className="connections-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Cloud Storage Connections</h1>
         {!showForm && hasWritePermission('connections') && (
-          <button className="btn btn-primary add-connection-btn" onClick={handleAddNew}>
+          <button className="btn btn-primary header-action-btn" onClick={handleAddNew}>
             <FiPlus /> Add Connection
           </button>
         )}

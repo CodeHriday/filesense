@@ -590,7 +590,7 @@ const RoleManagement = () => {
             </button>
           )}
           <button 
-            className="create-role-btn"
+            className="create-role-btn header-action-btn"
             onClick={openCreateModal}
           >
             Add New Role
