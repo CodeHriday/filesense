@@ -1409,6 +1409,10 @@ app.post('/api/files/check-duplicate', authenticateToken, uploadLimiter, upload.
 
 // File upload endpoint with async queue processing (supports batch uploads)
 app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files*'), uploadLimiter, upload.array('files', 20), async (req, res) => {
+  console.log('========== UPLOAD ENDPOINT HIT ==========');
+  console.log('req.body keys:', Object.keys(req.body));
+  console.log('req.body.archive_password:', req.body.archive_password);
+  console.log('req.files count:', req.files?.length);
   try {
     // Check if user has file_upload:write permission
     if (!req.user || !req.user.permissions || !req.user.permissions.includes('file_upload:write')) {
