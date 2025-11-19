@@ -177,8 +177,7 @@ class ArchiveExtractionService {
       const extractedFiles = [];
       const logger = this.logger;
       const openOptions = {
-        lazyEntries: true,
-        decodeStrings: false
+        lazyEntries: true
       };
 
       const handleOpen = (err, zipfile) => {
