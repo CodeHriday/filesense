@@ -111,7 +111,7 @@
 
 .tab-button:focus,
 .tab-button:focus-visible {
-  outline: none;
+  outline: none !important;
 }
 
 .tab-button:hover {
