@@ -1488,7 +1488,7 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     }
     
     // Get archive password if provided (for password-protected archives - ad-hoc upload flow)
-    const archivePassword = req.body.archivePassword || null;
+    const archivePassword = req.body.archive_password || null;
     if (archivePassword) {
       logger.info('Archive password provided for ad-hoc upload', { 
         userId: req.user?.id,
