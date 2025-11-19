@@ -169,7 +169,7 @@ const APITokens = () => {
             <p>Manage API tokens for programmatic file uploads</p>
           </div>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary header-action-btn"
             onClick={() => setShowCreateForm(!showCreateForm)}
           >
             {showCreateForm ? 'Cancel' : 'Create New Token'}
