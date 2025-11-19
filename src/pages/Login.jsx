@@ -208,13 +208,10 @@ const Login = () => {
           <div className="hero-section animate-on-scroll">
             <div className="hero-badge">FILEOBS</div>
             <h1 className="hero-title">
-              File data quality and<br />
-              observability at<br />
-              massive scale and<br />
-              minimal effort
+              End-to-end file data quality, governance, and observability — with minimal operational effort.
             </h1>
             <p className="hero-subtitle">
-              Blumetra FileOBs is exactly what data professionals need to make sure that the data can be trusted by the business. Profile data, ensure data migration quality, and detect issues in a single, easy-to-use platform.
+              Blumetra FileOBs is exactly what data professionals need to make sure that the data can be trusted by the business. Built for data engineering, governance, and compliance teams, FileObs ensures that every file ingested into your enterprise pipeline is trustworthy, validated, governed, and observable — from the moment it lands to its final destination.
             </p>
             
             <div className="data-flow-animation">
