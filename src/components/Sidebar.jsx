@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiChevronDown, FiChevronRight, FiChevronLeft, FiHome } from 'react-icons/fi';
-import { FaUser, FaCog, FaSignOutAlt, FaChartBar, FaUsers } from 'react-icons/fa';
+import { FaUser, FaCog, FaSignOutAlt, FaChartBar, FaUsers, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 import { APP_FEATURES, getSidebarCategoryName, FEATURE_CATEGORIES_ORDER } from '../config/appFeatures';
@@ -311,6 +311,9 @@ function Sidebar() {
                       </Link>
                       <Link to="/vendor-agreements" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
                         <FaCog /> Vendor Contracts
+                      </Link>
+                      <Link to="/failed-jobs" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        <FaExclamationTriangle /> Failed Jobs
                       </Link>
                     </>
                   )}

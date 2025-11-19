@@ -79,6 +79,7 @@ import AlertHistory from './pages/AlertHistory';
 import { OAuth2Callback } from './pages/OAuth2Callback';
 import APITokens from './pages/APITokens';
 import APIDocumentation from './pages/APIDocumentation';
+import FailedJobs from './pages/FailedJobs';
 import WorkflowCanvas from './pages/WorkflowCanvas';
 import WorkflowCanvasFixed from './pages/WorkflowCanvasFixed';
 import WorkflowCanvasStandalone from './pages/WorkflowCanvasStandalone';
@@ -302,6 +303,7 @@ function AppContent({ showOnboarding, setShowOnboarding }) {
                 <Route path="/vendor-file-quality" element={<ProtectedRoute><VendorFileQuality /></ProtectedRoute>} />
                 <Route path="/sla-monitoring" element={<ProtectedRoute><SLAMonitoring /></ProtectedRoute>} />
                 <Route path="/dbt-transformations" element={<ProtectedRoute><DBTTransformations /></ProtectedRoute>} />
+                <Route path="/failed-jobs" element={<ProtectedRoute><FailedJobs /></ProtectedRoute>} />
                 {/* Business Process Management routes */}
                 <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
                 <Route path="/business-processes" element={<ProtectedRoute><BusinessProcesses /></ProtectedRoute>} />
