@@ -79,13 +79,14 @@ a:hover {
 }
 
 .page-header {
-  padding: var(--space-6) 0;
-  margin-bottom: var(--space-6);
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 12px;
 }
 
 .page-header h1 {
   color: #025043;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   margin-bottom: 0;
   font-weight: var(--font-semibold);
 }
@@ -429,8 +430,8 @@ div.spinner {
   }
   
   .page-header {
-    margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) var(--space-6) calc(var(--space-4) * -1);
-    padding: var(--space-4);
+    margin: 0 0 12px 0;
+    padding: 0;
   }
   
   .card {
