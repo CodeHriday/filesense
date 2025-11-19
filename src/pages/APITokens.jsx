@@ -171,7 +171,7 @@ const APITokens = () => {
           <button
             className="btn btn-primary header-action-btn"
             onClick={() => setShowCreateForm(!showCreateForm)}
-            style={{ paddingLeft: '10px', paddingRight: '10px' }}
+            style={{ paddingLeft: '10px', paddingRight: '10px', width: 'auto', flex: 'none' }}
           >
             {showCreateForm ? 'Cancel' : 'Create New Token'}
           </button>
