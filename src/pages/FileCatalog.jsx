@@ -789,7 +789,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                                   ) : (
                                     <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
                                   )}
-                                  <span style={{ flex: 1, color: '#9ca3af' }}>{subproject.subProjectName}</span>
+                                  <span style={{ flex: 1, color: '#374151' }}>{subproject.subProjectName}</span>
                                   <span
                                     style={{
                                       color: '#d1d5db',
@@ -844,7 +844,7 @@ export const FileCatalog = ({ onFileSelect }) => {
                           })}
 
                           {/* Unassigned Files (no subproject) */}
-                          {project.unassignedFiles.length > 0 && (
+                          {project.unassignedFiles.length > 0 && project.subprojects.length > 0 && (
                             <div style={{ marginBottom: '0.75rem' }}>
                               {(() => {
                                 const unassignedKey = `subproject-${project.projectId}-unassigned`;
@@ -928,6 +928,45 @@ export const FileCatalog = ({ onFileSelect }) => {
                                   </>
                                 );
                               })()}
+                            </div>
+                          )}
+                          
+                          {/* Files directly under project (when no subprojects exist) */}
+                          {project.unassignedFiles.length > 0 && project.subprojects.length === 0 && (
+                            <div style={{ marginTop: '0.5rem', overflow: 'auto' }}>
+                              <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                <thead>
+                                  <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
+                                    <th className="checkbox-cell">
+                                      <input
+                                        type="checkbox"
+                                        checked={project.unassignedFiles.every(f => selectedFiles.includes(f.file_id))}
+                                        onChange={() => {
+                                          const allSelected = project.unassignedFiles.every(f => selectedFiles.includes(f.file_id));
+                                          if (allSelected) {
+                                            setSelectedFiles(prev => prev.filter(id => !project.unassignedFiles.some(f => f.file_id === id)));
+                                          } else {
+                                            const newIds = project.unassignedFiles.map(f => f.file_id);
+                                            setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
+                                          }
+                                        }}
+                                        title="Select all files in project"
+                                      />
+                                    </th>
+                                    <th>File Name</th>
+                                    <th>Type</th>
+                                    <th>Size</th>
+                                    <th>Rows</th>
+                                    <th>Columns</th>
+                                    <th>Uploaded</th>
+                                    <th>Quality</th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
+                                  {project.unassignedFiles.map(file => renderFileRow(file))}
+                                </tbody>
+                              </table>
                             </div>
                           )}
                         </div>
