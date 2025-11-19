@@ -13,6 +13,8 @@ const vendorService = require('../services/vendorService');
 const AgreementTemplateUtils = require('../utils/agreementTemplateUtils');
 const { systemLogger } = require('../utils/logger');
 const { requirePermission, checkPermission, hasPermission } = require('../middleware/vendorPermissions');
+const PasswordVaultService = require('../services/passwordVaultService');
+const AuditService = require('../services/auditService');
 
 // Multer error handling middleware
 const handleMulterError = (err, req, res, next) => {
@@ -1168,6 +1170,147 @@ router.delete('/:id/documents/:docId', checkAgreementAccess, async (req, res) =>
     systemLogger.error('Error deleting agreement document', { error: error.message });
     res.status(500).json({ 
       error: error.message || 'Failed to delete document'
+    });
+  }
+});
+
+/**
+ * POST /api/vendor-agreements/:id/archive-password
+ * Store/update archive password for vendor agreement
+ */
+router.post('/:id/archive-password', requirePermission('vendor_agreements:write'), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    const { password } = req.body;
+    
+    if (isNaN(agreementId)) {
+      return res.status(400).json({ error: 'Invalid agreement ID' });
+    }
+    
+    if (!password || typeof password !== 'string' || password.trim().length === 0) {
+      return res.status(400).json({ error: 'Password is required and must be a non-empty string' });
+    }
+    
+    const { pool } = require('../config/database');
+    const auditService = new AuditService(pool);
+    const passwordVaultService = new PasswordVaultService(pool, auditService, systemLogger);
+    
+    const result = await passwordVaultService.storePassword(
+      'vendor_agreement',
+      agreementId.toString(),
+      password,
+      req.user.id
+    );
+    
+    systemLogger.info('Archive password stored for vendor agreement', {
+      agreementId,
+      userId: req.user.id,
+      passwordId: result.id
+    });
+    
+    res.json({
+      success: true,
+      message: 'Archive password stored successfully',
+      hasPassword: true
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error storing archive password', {
+      agreementId: req.params.id,
+      error: error.message
+    });
+    res.status(500).json({
+      error: 'Failed to store archive password',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/vendor-agreements/:id/archive-password
+ * Check if archive password exists for vendor agreement
+ */
+router.get('/:id/archive-password', requirePermission('vendor_agreements:read'), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    if (isNaN(agreementId)) {
+      return res.status(400).json({ error: 'Invalid agreement ID' });
+    }
+    
+    const { pool } = require('../config/database');
+    const auditService = new AuditService(pool);
+    const passwordVaultService = new PasswordVaultService(pool, auditService, systemLogger);
+    
+    const hasPassword = await passwordVaultService.hasPassword(
+      'vendor_agreement',
+      agreementId.toString()
+    );
+    
+    res.json({
+      success: true,
+      hasPassword
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error checking archive password', {
+      agreementId: req.params.id,
+      error: error.message
+    });
+    res.status(500).json({
+      error: 'Failed to check archive password',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/vendor-agreements/:id/archive-password
+ * Delete archive password for vendor agreement
+ */
+router.delete('/:id/archive-password', requirePermission('vendor_agreements:write'), async (req, res) => {
+  try {
+    const agreementId = parseInt(req.params.id);
+    
+    if (isNaN(agreementId)) {
+      return res.status(400).json({ error: 'Invalid agreement ID' });
+    }
+    
+    const { pool } = require('../config/database');
+    const auditService = new AuditService(pool);
+    const passwordVaultService = new PasswordVaultService(pool, auditService, systemLogger);
+    
+    const deleted = await passwordVaultService.deletePassword(
+      'vendor_agreement',
+      agreementId.toString(),
+      req.user.id
+    );
+    
+    if (!deleted) {
+      return res.status(404).json({
+        error: 'No archive password found for this vendor agreement'
+      });
+    }
+    
+    systemLogger.info('Archive password deleted for vendor agreement', {
+      agreementId,
+      userId: req.user.id
+    });
+    
+    res.json({
+      success: true,
+      message: 'Archive password deleted successfully',
+      hasPassword: false
+    });
+    
+  } catch (error) {
+    systemLogger.error('Error deleting archive password', {
+      agreementId: req.params.id,
+      error: error.message
+    });
+    res.status(500).json({
+      error: 'Failed to delete archive password',
+      details: error.message
     });
   }
 });
