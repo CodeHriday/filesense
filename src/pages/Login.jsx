@@ -313,7 +313,7 @@ const Login = () => {
                 e.target.style.display = 'none';
               }}
             />
-            <h2>Data File Observatory</h2>
+            <h2>FileOBs</h2>
             <h3>Sign In</h3>
           </div>
           
