@@ -91,7 +91,6 @@
   transition: all var(--transition-fast);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  border-left: 3px solid transparent;
   margin: 0 var(--space-2);
   border-radius: var(--radius-md);
 }
@@ -104,7 +103,6 @@
 .sidebar-nav a.active {
   background-color: var(--color-primary-50);
   color: var(--color-primary);
-  border-left-color: var(--color-primary);
   font-weight: var(--font-semibold);
 }
 
@@ -121,7 +119,6 @@
   transition: all var(--transition-fast);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  border-left: 3px solid transparent;
   margin: 0 var(--space-2);
   border-radius: var(--radius-md);
 }
@@ -216,7 +213,6 @@
   transition: all var(--transition-fast);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  border-left: 3px solid transparent;
   margin: 0 var(--space-2);
   border-radius: var(--radius-md);
 }
