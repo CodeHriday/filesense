@@ -14,7 +14,7 @@ const AgreementTemplateUtils = require('../utils/agreementTemplateUtils');
 const { systemLogger } = require('../utils/logger');
 const { requirePermission, checkPermission, hasPermission } = require('../middleware/vendorPermissions');
 const PasswordVaultService = require('../services/passwordVaultService');
-const AuditService = require('../services/auditService');
+const AuditService = require('../services/AuditService');
 
 // Multer error handling middleware
 const handleMulterError = (err, req, res, next) => {
