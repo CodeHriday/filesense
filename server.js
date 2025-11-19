@@ -1488,12 +1488,20 @@ app.post('/api/files/upload', authenticateToken, invalidateCache('cache:*:*files
     }
     
     // Get archive password if provided (for password-protected archives - ad-hoc upload flow)
+    logger.info('[DIAGNOSTIC] Checking for archive password in req.body', {
+      hasField: 'archive_password' in req.body,
+      fieldValue: req.body.archive_password,
+      allBodyKeys: Object.keys(req.body)
+    });
+    
     const archivePassword = req.body.archive_password || null;
     if (archivePassword) {
       logger.info('Archive password provided for ad-hoc upload', { 
         userId: req.user?.id,
         passwordLength: archivePassword.length
       });
+    } else {
+      logger.warn('[DIAGNOSTIC] No archive password found in request body');
     }
     
     // Get pre-calculated file hashes if provided (optimization to avoid double hashing)

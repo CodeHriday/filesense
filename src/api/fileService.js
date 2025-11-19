@@ -173,6 +173,8 @@ export const bulkDeleteFiles = async (fileIds) => {
  */
 export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null, fileHash = null, delimiter = null, headerConfig = null, fixedWidthSchema = null, archivePassword = null) => {
   try {
+    console.log('[DIAGNOSTIC] uploadFile called with archivePassword:', { hasPassword: !!archivePassword, length: archivePassword?.length });
+    
     const formData = new FormData();
     formData.append('files', file);
     if (owner) {
@@ -216,8 +218,15 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
     }
     // Pass archive password for password-protected archives (one-time use, not stored)
     if (archivePassword) {
+      console.log('[DIAGNOSTIC] Appending archive_password to FormData');
       formData.append('archive_password', archivePassword);
     }
+    
+    console.log('[DIAGNOSTIC] FormData contents before upload:', {
+      hasFile: formData.has('files'),
+      hasPassword: formData.has('archive_password'),
+      hasProjectId: formData.has('project_id')
+    });
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {
       headers: {
