@@ -364,7 +364,7 @@
 .file-stat-card {
   display: flex;
   align-items: center;
-  padding: var(--space-4);
+  padding: var(--space-3);
   transition: background-color var(--transition-base);
   flex: 1;
   border-right: 1px solid var(--border-light);
@@ -443,6 +443,20 @@
 .stat-timestamps strong {
   font-weight: var(--font-medium);
   color: var(--text-secondary);
+}
+
+.stat-timestamps-only {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.stat-timestamps-only div {
+  margin-bottom: 4px;
+}
+
+.stat-timestamps-only strong {
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
 }
 
 .completeness-table-container {

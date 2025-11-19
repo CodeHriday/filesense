@@ -1118,16 +1118,9 @@ function DataProfile() {
           </Card>
           
           <Card className="file-stat-card">
-            <div className="stat-icon age-icon">
-              <FiCalendar />
-            </div>
-            <div className="stat-details">
-              <h3>{getTimeSince(basicInfo.created_at || file.created_at)}</h3>
-              <p>Age</p>
-              <div className="stat-timestamps">
-                <div><strong>Created:</strong> {formatDate(basicInfo.created_at || file.created_at)}</div>
-                <div><strong>Updated:</strong> {formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</div>
-              </div>
+            <div className="stat-details stat-timestamps-only">
+              <div><strong>Created:</strong> {formatDate(basicInfo.created_at || file.created_at)}</div>
+              <div><strong>Updated:</strong> {formatDate(basicInfo.updated_at || basicInfo.created_at || file.created_at)}</div>
             </div>
           </Card>
           
