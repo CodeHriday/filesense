@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { FiUpload } from 'react-icons/fi';
+import { FiUpload, FiEye, FiEyeOff } from 'react-icons/fi';
 import Card from '../components/Card';
 import FileDropzone from '../components/FileDropzone';
 import DuplicateFileModal from '../components/DuplicateFileModal';
@@ -98,6 +98,10 @@ function FileUpload() {
   const [fixedWidthSchema, setFixedWidthSchema] = useState([
     { name: '', width: '' }
   ]); // Array of {name: string, width: number} for fixed-width files
+  
+  // Archive password configuration (for password-protected archives)
+  const [archivePassword, setArchivePassword] = useState('');
+  const [showArchivePassword, setShowArchivePassword] = useState(false);
   
   // Auto-match file pattern when file is selected (contract validation mode)
   const autoMatchFilePattern = (filename) => {
@@ -841,7 +845,7 @@ function FileUpload() {
         const delimiterValue = getDelimiterValue();
         const headerConfigValue = getHeaderConfig();
         const fixedWidthSchemaValue = getFixedWidthSchema();
-        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue, headerConfigValue, fixedWidthSchemaValue);
+        const result = await uploadFilesBatch(filesToUpload, wrappedProgressHandler, fileOwner, selectedProject, selectedSubProject, selectedQualityRules, agreementIdForUpload, fileHashes, delimiterValue, headerConfigValue, fixedWidthSchemaValue, archivePassword);
         
         // Process batch results
         if (result.results && Array.isArray(result.results)) {
@@ -963,7 +967,8 @@ function FileUpload() {
         fileHash,  // Pass fileHash to avoid redundant hashing
         delimiterValue,  // Pass delimiter for delimited files
         headerConfigValue,  // Pass header configuration for files without headers
-        fixedWidthSchemaValue  // Pass fixed-width schema for .dat files
+        fixedWidthSchemaValue,  // Pass fixed-width schema for .dat files
+        archivePassword  // Pass archive password for password-protected archives
       );
       
       setDiagnosticInfo(prev => prev + `Upload successful: ${JSON.stringify(result, null, 2)}\n`);
@@ -989,6 +994,12 @@ function FileUpload() {
       
       setUploadedFile(fileDetails);
       setUploadStatus('success');
+      
+      // Clear archive password after successful upload (security best practice - one-time use)
+      if (archivePassword) {
+        setArchivePassword('');
+        setShowArchivePassword(false);
+      }
       
       // Move to scanning step (virus scan happens on server after upload)
       setCurrentStep('scanning');
@@ -1522,6 +1533,53 @@ function FileUpload() {
                 >
                   Edit
                 </button>
+              </div>
+
+              {/* Archive Password - for password-protected ZIP/7z/TAR files */}
+              <div style={{ flex: '1 1 100%', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e0e0e0' }}>
+                <label htmlFor="archive-password" style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
+                  Archive Password <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: '#666' }}>(Optional)</span>
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+                  If you're uploading a password-protected archive (ZIP, 7z, TAR), enter the password here. The password is used only for extraction and is not stored.
+                </p>
+                <div style={{ position: 'relative', maxWidth: '400px' }}>
+                  <input
+                    id="archive-password"
+                    type={showArchivePassword ? 'text' : 'password'}
+                    value={archivePassword}
+                    onChange={(e) => setArchivePassword(e.target.value)}
+                    placeholder="Enter archive password..."
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      paddingRight: '2.5rem',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      fontFamily: 'monospace'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowArchivePassword(!showArchivePassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '0.5rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: '#666'
+                    }}
+                    title={showArchivePassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showArchivePassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
               </div>
             </div>
 

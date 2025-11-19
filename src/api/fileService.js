@@ -171,7 +171,7 @@ export const bulkDeleteFiles = async (fileIds) => {
 /**
  * Upload a file with progress tracking
  */
-export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null, fileHash = null, delimiter = null, headerConfig = null, fixedWidthSchema = null) => {
+export const uploadFile = async (file, progressCallback, owner = null, projectId = null, replaceFileId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, vendorAgreementFileSchemaId = null, fileHash = null, delimiter = null, headerConfig = null, fixedWidthSchema = null, archivePassword = null) => {
   try {
     const formData = new FormData();
     formData.append('files', file);
@@ -214,6 +214,10 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
     if (fixedWidthSchema) {
       formData.append('fixedWidthSchema', JSON.stringify(fixedWidthSchema));
     }
+    // Pass archive password for password-protected archives (one-time use, not stored)
+    if (archivePassword) {
+      formData.append('archive_password', archivePassword);
+    }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {
       headers: {
@@ -237,7 +241,7 @@ export const uploadFile = async (file, progressCallback, owner = null, projectId
 /**
  * Upload multiple files in a single batch request with progress tracking
  */
-export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, fileHashes = null, delimiter = null, headerConfig = null, fixedWidthSchema = null) => {
+export const uploadFilesBatch = async (files, progressCallback, owner = null, projectId = null, subProjectId = null, qualityRuleIds = null, agreementId = null, fileHashes = null, delimiter = null, headerConfig = null, fixedWidthSchema = null, archivePassword = null) => {
   try {
     const formData = new FormData();
     
@@ -276,6 +280,10 @@ export const uploadFilesBatch = async (files, progressCallback, owner = null, pr
     // Pass fixed-width schema for .dat files
     if (fixedWidthSchema) {
       formData.append('fixedWidthSchema', JSON.stringify(fixedWidthSchema));
+    }
+    // Pass archive password for password-protected archives (one-time use, not stored)
+    if (archivePassword) {
+      formData.append('archive_password', archivePassword);
     }
     
     const response = await axios.post(`${API_URL}/files/upload`, formData, {
