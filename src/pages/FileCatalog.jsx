@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiChevronDown, FiChevronRight, FiLock } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiEye, FiTrash2, FiAlertTriangle, FiGitBranch, FiLock } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -12,7 +12,6 @@ import { QualityTooltip } from '../components/QualityTooltip';
 import { DLQBadge } from '../components/DLQBadge';
 import { PasswordInputModal } from '../components/PasswordInputModal';
 import { bulkDeleteFiles, submitFilePassword } from '../api/fileService';
-import { groupFilesByProject, initializeExpansionState, autoExpandMatchingSections } from '../utils/fileGrouping';
 import './FileCatalog.css';
 
 export const FileCatalog = ({ onFileSelect }) => {
@@ -23,8 +22,8 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedType, setSelectedType] = useState('all');
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [selectedSubProject, setSelectedSubProject] = useState(null);
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedSubProject, setSelectedSubProject] = useState('all');
   const [deletingFileId, setDeletingFileId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
@@ -35,8 +34,6 @@ export const FileCatalog = ({ onFileSelect }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [expansionState, setExpansionState] = useState({});
-  const [initialized, setInitialized] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordModalFile, setPasswordModalFile] = useState(null);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
@@ -109,14 +106,43 @@ export const FileCatalog = ({ onFileSelect }) => {
   // Properly handle the file data format from the API
   const files = fileData || [];
   
-  // Get unique sub-projects for filtering
+  // Get unique projects for filtering
+  const uniqueProjects = React.useMemo(() => {
+    const projects = files
+      .filter(f => f.project_id)
+      .map(f => ({ id: f.project_id, name: f.project_name }))
+      .filter((p, index, self) => self.findIndex(s => s.id === p.id) === index);
+    return projects;
+  }, [files]);
+  
+  // Get unique sub-projects for the selected project
   const uniqueSubProjects = React.useMemo(() => {
+    if (selectedProject === 'all') return [];
+    
     const subProjects = files
-      .filter(f => f.sub_project_id)
+      .filter(f => f.project_id === selectedProject && f.sub_project_id)
       .map(f => ({ id: f.sub_project_id, name: f.sub_project_name }))
       .filter((sp, index, self) => self.findIndex(s => s.id === sp.id) === index);
     return subProjects;
-  }, [files]);
+  }, [files, selectedProject]);
+  
+  // Auto-select first project and subproject on initial load
+  useEffect(() => {
+    if (uniqueProjects.length > 0 && selectedProject === 'all') {
+      setSelectedProject(uniqueProjects[0].id);
+    }
+  }, [uniqueProjects]);
+  
+  // Auto-select first subproject when project changes
+  useEffect(() => {
+    if (selectedProject !== 'all') {
+      if (uniqueSubProjects.length > 0) {
+        setSelectedSubProject(uniqueSubProjects[0].id);
+      } else {
+        setSelectedSubProject('all');
+      }
+    }
+  }, [selectedProject, uniqueSubProjects]);
 
   const handleViewDetails = (file) => {
     navigate(`/profile/${encodeURIComponent(file.file_id)}`);
@@ -297,10 +323,10 @@ export const FileCatalog = ({ onFileSelect }) => {
       const matchesType = selectedType === 'all' || file.file_type === selectedType;
       
       // Filter by project
-      const matchesProject = selectedProject === null || file.project_id === selectedProject;
+      const matchesProject = selectedProject === 'all' || file.project_id === selectedProject;
       
       // Filter by sub-project
-      const matchesSubProject = selectedSubProject === null || file.sub_project_id === selectedSubProject;
+      const matchesSubProject = selectedSubProject === 'all' || file.sub_project_id === selectedSubProject;
       
       return matchesSearch && matchesType && matchesProject && matchesSubProject;
     })
@@ -339,25 +365,6 @@ export const FileCatalog = ({ onFileSelect }) => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedFiles = filteredAndSortedFiles.slice(startIndex, endIndex);
 
-  // Group files by project and subproject hierarchy
-  const groupedProjects = useMemo(() => {
-    return groupFilesByProject(paginatedFiles);
-  }, [paginatedFiles]);
-
-  // Initialize expansion state when grouped data changes or search term changes
-  useEffect(() => {
-    if (groupedProjects.length > 0) {
-      if (searchTerm) {
-        // Auto-expand sections with search matches
-        setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
-      } else if (!initialized) {
-        // Initialize with all sections collapsed by default (first load)
-        setExpansionState(initializeExpansionState(groupedProjects, false));
-        setInitialized(true);
-      }
-    }
-  }, [groupedProjects, searchTerm, initialized]);
-
   // Reset to page 1 when filters change
   React.useEffect(() => {
     setCurrentPage(1);
@@ -373,14 +380,6 @@ export const FileCatalog = ({ onFileSelect }) => {
     setItemsPerPage(Number(e.target.value));
     setCurrentPage(1);
     setSelectedFiles([]);
-  };
-
-  // Toggle expansion for a project or subproject
-  const toggleExpansion = (key) => {
-    setExpansionState(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
   };
 
   // Render individual file row
@@ -597,37 +596,6 @@ export const FileCatalog = ({ onFileSelect }) => {
           />
         </div>
         
-        {selectedProject && (
-          <div className="active-filter-badge" style={{ 
-            padding: '0.5rem 1rem', 
-            background: '#e3f2fd', 
-            borderRadius: '4px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem',
-            fontSize: '0.9rem'
-          }}>
-            <span>Project Filter: {files.find(f => f.project_id === selectedProject)?.project_name || `ID ${selectedProject}`}</span>
-            <button 
-              onClick={() => {
-                setSearchParams({});
-                setSelectedProject(null);
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                padding: '0 0.25rem',
-                color: '#666'
-              }}
-              title="Clear project filter"
-            >
-              ×
-            </button>
-          </div>
-        )}
-        
         <div className="filter-container">
           {selectedFiles.length > 0 && (
             <button 
@@ -640,6 +608,29 @@ export const FileCatalog = ({ onFileSelect }) => {
           )}
           
           <select 
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+            className="filter-select"
+          >
+            <option value="all">All Projects</option>
+            {uniqueProjects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          
+          <select 
+            value={selectedSubProject}
+            onChange={(e) => setSelectedSubProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+            className="filter-select"
+            disabled={selectedProject === 'all'}
+          >
+            <option value="all">All Sub-Projects</option>
+            {uniqueSubProjects.map(sp => (
+              <option key={sp.id} value={sp.id}>{sp.name}</option>
+            ))}
+          </select>
+          
+          <select 
             value={selectedType}
             onChange={handleTypeChange}
             className="filter-select"
@@ -648,17 +639,6 @@ export const FileCatalog = ({ onFileSelect }) => {
             <option value="csv">CSV</option>
             <option value="json">JSON</option>
             <option value="parquet">Parquet</option>
-          </select>
-          
-          <select 
-            value={selectedSubProject || ''}
-            onChange={(e) => setSelectedSubProject(e.target.value ? parseInt(e.target.value) : null)}
-            className="filter-select"
-          >
-            <option value="">All Sub-Projects</option>
-            {uniqueSubProjects.map(sp => (
-              <option key={sp.id} value={sp.id}>{sp.name}</option>
-            ))}
           </select>
           
           <select 
@@ -711,271 +691,41 @@ export const FileCatalog = ({ onFileSelect }) => {
               </div>
             </div>
             
-            {groupedProjects.length === 0 ? (
-              <div className="no-results">
-                <p>No files found on this page.</p>
-              </div>
-            ) : (
-              <div style={{ marginTop: '1rem' }}>
-                {groupedProjects.map(project => {
-                  const projectKey = `project-${project.projectId}`;
-                  const isProjectExpanded = expansionState[projectKey];
-
-                  return (
-                    <div key={project.projectId} style={{ marginBottom: '1.25rem' }}>
-                      {/* Project Header */}
-                      <div
-                        onClick={() => toggleExpansion(projectKey)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.5rem 0.75rem',
-                          background: 'white',
-                          color: '#6b7280',
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          fontWeight: '500',
-                          fontSize: '0.8125rem',
-                          transition: 'all 0.2s ease'
+            <div className="file-table-wrapper">
+              <table className="file-catalog-table">
+                <thead>
+                  <tr>
+                    <th className="checkbox-cell">
+                      <input
+                        type="checkbox"
+                        checked={paginatedFiles.length > 0 && paginatedFiles.every(f => selectedFiles.includes(f.file_id))}
+                        onChange={() => {
+                          const allSelected = paginatedFiles.every(f => selectedFiles.includes(f.file_id));
+                          if (allSelected) {
+                            setSelectedFiles(prev => prev.filter(id => !paginatedFiles.some(f => f.file_id === id)));
+                          } else {
+                            const newIds = paginatedFiles.map(f => f.file_id);
+                            setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
+                          }
                         }}
-                      >
-                        {isProjectExpanded ? (
-                          <FiChevronDown size={14} style={{ color: '#6b7280' }} />
-                        ) : (
-                          <FiChevronRight size={14} style={{ color: '#6b7280' }} />
-                        )}
-                        <span style={{ flex: 1 }}>Project : {project.projectName}</span>
-                        <span
-                          style={{
-                            color: '#9ca3af',
-                            fontSize: '0.75rem',
-                            fontWeight: '400'
-                          }}
-                        >
-                          {project.filesCount} {project.filesCount === 1 ? 'file' : 'files'}
-                        </span>
-                      </div>
-
-                      {/* Project Content - Subprojects */}
-                      {isProjectExpanded && (
-                        <div style={{ marginTop: '0.75rem', paddingLeft: '0.5rem' }}>
-                          {/* Subprojects */}
-                          {project.subprojects.map(subproject => {
-                            const subprojectKey = `subproject-${project.projectId}-${subproject.subProjectId}`;
-                            const isSubprojectExpanded = expansionState[subprojectKey];
-
-                            return (
-                              <div key={subproject.subProjectId} style={{ marginBottom: '0.75rem' }}>
-                                {/* Subproject Header */}
-                                <div
-                                  onClick={() => toggleExpansion(subprojectKey)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.4rem 0.75rem',
-                                    background: 'white',
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    marginLeft: '1.5rem',
-                                    fontWeight: '400',
-                                    fontSize: '0.75rem',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                >
-                                  {isSubprojectExpanded ? (
-                                    <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                                  ) : (
-                                    <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                                  )}
-                                  <span style={{ flex: 1, color: '#374151' }}>{subproject.subProjectName}</span>
-                                  <span
-                                    style={{
-                                      color: '#d1d5db',
-                                      fontSize: '0.6875rem',
-                                      fontWeight: '400'
-                                    }}
-                                  >
-                                    {subproject.filesCount}
-                                  </span>
-                                </div>
-
-                                {/* Subproject Files Table */}
-                                {isSubprojectExpanded && subproject.items.length > 0 && (
-                                  <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                    <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
-                                      <thead>
-                                        <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
-                                          <th className="checkbox-cell">
-                                            <input
-                                              type="checkbox"
-                                              checked={subproject.items.every(f => selectedFiles.includes(f.file_id))}
-                                              onChange={() => {
-                                                const allSelected = subproject.items.every(f => selectedFiles.includes(f.file_id));
-                                                if (allSelected) {
-                                                  setSelectedFiles(prev => prev.filter(id => !subproject.items.some(f => f.file_id === id)));
-                                                } else {
-                                                  const newIds = subproject.items.map(f => f.file_id);
-                                                  setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
-                                                }
-                                              }}
-                                              title="Select all files in this subproject"
-                                            />
-                                          </th>
-                                          <th>File Name</th>
-                                          <th>Type</th>
-                                          <th>Size</th>
-                                          <th>Rows</th>
-                                          <th>Columns</th>
-                                          <th>Uploaded</th>
-                                          <th>Quality</th>
-                                          <th>Actions</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
-                                        {subproject.items.map(file => renderFileRow(file))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          {/* Unassigned Files (no subproject) */}
-                          {project.unassignedFiles.length > 0 && project.subprojects.length > 0 && (
-                            <div style={{ marginBottom: '0.75rem' }}>
-                              {(() => {
-                                const unassignedKey = `subproject-${project.projectId}-unassigned`;
-                                const isUnassignedExpanded = expansionState[unassignedKey];
-
-                                return (
-                                  <>
-                                    {/* Unassigned Header */}
-                                    <div
-                                      onClick={() => toggleExpansion(unassignedKey)}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.4rem 0.75rem',
-                                        background: 'white',
-                                        cursor: 'pointer',
-                                        userSelect: 'none',
-                                        marginLeft: '1.5rem',
-                                        fontWeight: '400',
-                                        fontSize: '0.75rem',
-                                        transition: 'all 0.2s ease'
-                                      }}
-                                    >
-                                      {isUnassignedExpanded ? (
-                                        <FiChevronDown size={12} style={{ color: '#9ca3af' }} />
-                                      ) : (
-                                        <FiChevronRight size={12} style={{ color: '#9ca3af' }} />
-                                      )}
-                                      <FiAlertTriangle size={12} style={{ color: '#d1d5db' }} />
-                                      <span style={{ flex: 1, color: '#9ca3af' }}>No Subproject</span>
-                                      <span
-                                        style={{
-                                          color: '#d1d5db',
-                                          fontSize: '0.6875rem',
-                                          fontWeight: '400'
-                                        }}
-                                      >
-                                        {project.unassignedFiles.length}
-                                      </span>
-                                    </div>
-
-                                    {/* Unassigned Files Table */}
-                                    {isUnassignedExpanded && (
-                                      <div style={{ marginLeft: '1.5rem', marginTop: '0.5rem', overflow: 'auto' }}>
-                                        <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
-                                          <thead>
-                                            <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
-                                              <th className="checkbox-cell">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={project.unassignedFiles.every(f => selectedFiles.includes(f.file_id))}
-                                                  onChange={() => {
-                                                    const allSelected = project.unassignedFiles.every(f => selectedFiles.includes(f.file_id));
-                                                    if (allSelected) {
-                                                      setSelectedFiles(prev => prev.filter(id => !project.unassignedFiles.some(f => f.file_id === id)));
-                                                    } else {
-                                                      const newIds = project.unassignedFiles.map(f => f.file_id);
-                                                      setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
-                                                    }
-                                                  }}
-                                                  title="Select all unassigned files"
-                                                />
-                                              </th>
-                                              <th>File Name</th>
-                                              <th>Type</th>
-                                              <th>Size</th>
-                                              <th>Rows</th>
-                                              <th>Columns</th>
-                                              <th>Uploaded</th>
-                                              <th>Quality</th>
-                                              <th>Actions</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
-                                            {project.unassignedFiles.map(file => renderFileRow(file))}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          )}
-                          
-                          {/* Files directly under project (when no subprojects exist) */}
-                          {project.unassignedFiles.length > 0 && project.subprojects.length === 0 && (
-                            <div style={{ marginTop: '0.5rem', overflow: 'auto' }}>
-                              <table className="file-catalog-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
-                                <thead>
-                                  <tr style={{ fontSize: '0.8125rem', fontWeight: 'bold' }}>
-                                    <th className="checkbox-cell">
-                                      <input
-                                        type="checkbox"
-                                        checked={project.unassignedFiles.every(f => selectedFiles.includes(f.file_id))}
-                                        onChange={() => {
-                                          const allSelected = project.unassignedFiles.every(f => selectedFiles.includes(f.file_id));
-                                          if (allSelected) {
-                                            setSelectedFiles(prev => prev.filter(id => !project.unassignedFiles.some(f => f.file_id === id)));
-                                          } else {
-                                            const newIds = project.unassignedFiles.map(f => f.file_id);
-                                            setSelectedFiles(prev => [...new Set([...prev, ...newIds])]);
-                                          }
-                                        }}
-                                        title="Select all files in project"
-                                      />
-                                    </th>
-                                    <th>File Name</th>
-                                    <th>Type</th>
-                                    <th>Size</th>
-                                    <th>Rows</th>
-                                    <th>Columns</th>
-                                    <th>Uploaded</th>
-                                    <th>Quality</th>
-                                    <th>Actions</th>
-                                  </tr>
-                                </thead>
-                                <tbody style={{ fontSize: '0.8125rem', fontWeight: 'normal' }}>
-                                  {project.unassignedFiles.map(file => renderFileRow(file))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        title="Select all files on this page"
+                      />
+                    </th>
+                    <th>File Name</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Rows</th>
+                    <th>Columns</th>
+                    <th>Uploaded</th>
+                    <th>Quality</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedFiles.map(file => renderFileRow(file))}
+                </tbody>
+              </table>
+            </div>
           
             {totalPages > 1 && (
               <div className="pagination-controls">

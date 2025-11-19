@@ -4,6 +4,10 @@
   margin: 0 auto;
 }
 
+.file-catalog-container .page-header h1 {
+  font-size: 1.25rem;
+}
+
 .page-title {
   font-size: 1.5rem;
   margin-bottom: var(--space-5);
@@ -125,6 +129,11 @@
   font-size: var(--text-sm);
 }
 
+.file-table-wrapper {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
 .file-catalog-table thead {
   background-color: var(--bg-surface);
   border-bottom: 2px solid var(--border-light);
@@ -138,6 +147,11 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  border-right: 1px solid var(--border-light);
+}
+
+.file-catalog-table th:last-child {
+  border-right: none;
 }
 
 .file-catalog-table th:nth-child(1) {
@@ -174,6 +188,11 @@
 
 .file-catalog-table tbody tr {
   transition: background-color var(--transition-fast);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.file-catalog-table tbody tr:last-child {
+  border-bottom: none;
 }
 
 .file-catalog-table tbody tr:hover {
@@ -184,6 +203,11 @@
   padding: var(--space-3) var(--space-4);
   color: var(--text-secondary);
   font-size: var(--text-xs);
+  border-right: 1px solid var(--border-light);
+}
+
+.file-catalog-table td:last-child {
+  border-right: none;
 }
 
 .file-name-cell {
@@ -280,11 +304,11 @@
 
 .file-type-badge {
   display: inline-block;
-  padding: 2px 6px;
+  padding: 1px 4px;
   border-radius: var(--radius-sm);
   background-color: var(--color-gray-200);
   color: var(--text-secondary);
-  font-size: 0.65rem;
+  font-size: 0.55rem;
   font-weight: var(--font-semibold);
   text-transform: uppercase;
 }
@@ -306,11 +330,11 @@
 }
 
 .quality-score.medium {
-  color: var(--color-warning);
+  color: #b45309;
 }
 
 .quality-score.low {
-  color: var(--color-error);
+  color: #991b1b;
 }
 
 .header-validation-badge {
