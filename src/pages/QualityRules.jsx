@@ -678,7 +678,7 @@ function QualityRules() {
           <p className="page-description">Define and manage rules to monitor data quality across your datasets</p>
         </div>
         {hasWritePermission('quality_rules') && (
-          <button className="btn btn-primary header-action-btn" onClick={handleAddRule}>
+          <button className="btn btn-primary header-action-btn" onClick={handleAddRule} style={{ paddingLeft: '10px', paddingRight: '10px' }}>
             <FiPlus className="btn-icon" />
             Create Rule
           </button>

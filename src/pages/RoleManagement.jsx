@@ -578,7 +578,7 @@ const RoleManagement = () => {
               }}
             />
           </div>
-          <Link to="/users" className="user-management-link">
+          <Link to="/users" className="user-management-link" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
             User Management
           </Link>
           {selectedRoleIds.length > 0 && (
@@ -592,6 +592,7 @@ const RoleManagement = () => {
           <button 
             className="create-role-btn header-action-btn"
             onClick={openCreateModal}
+            style={{ paddingLeft: '10px', paddingRight: '10px' }}
           >
             Add New Role
           </button>
