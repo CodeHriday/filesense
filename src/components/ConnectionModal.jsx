@@ -12,6 +12,59 @@ const ConnectionModal = ({
   connection = null,
   connectionDirection = 'source'
 }) => {
+  // Compact styling - Inter 12px medium weight, minimal spacing
+  const compactStyles = {
+    formGroup: {
+      marginBottom: '0.75rem'
+    },
+    label: {
+      display: 'block',
+      marginBottom: '0.25rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      color: '#1f2937'
+    },
+    input: {
+      width: '100%',
+      padding: '0.375rem 0.5rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      border: '1px solid #d1d5db',
+      borderRadius: '4px',
+      height: '32px'
+    },
+    select: {
+      width: '100%',
+      padding: '0.375rem 0.5rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      border: '1px solid #d1d5db',
+      borderRadius: '4px',
+      height: '32px',
+      backgroundColor: 'white'
+    },
+    textarea: {
+      width: '100%',
+      padding: '0.375rem 0.5rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      border: '1px solid #d1d5db',
+      borderRadius: '4px'
+    },
+    helperText: {
+      display: 'block',
+      marginTop: '0.25rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '11px',
+      fontWeight: 400,
+      color: '#6b7280'
+    }
+  };
+  
   const [formData, setFormData] = useState({
     name: '',
     connection_user: 'Internal',
@@ -403,8 +456,8 @@ const ConnectionModal = ({
       case 'aws-iam-role':
         return (
           <>
-            <div className="form-group">
-              <label>IAM Role ARN *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>IAM Role ARN *</label>
               <input
                 type="text"
                 name="iam_role_arn"
@@ -412,19 +465,21 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="arn:aws:iam::123456789012:role/MyRole"
+                style={compactStyles.input}
               />
-              <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+              <small style={compactStyles.helperText}>
                 The ARN of the IAM role to assume
               </small>
             </div>
-            <div className="form-group">
-              <label>External ID (Optional)</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>External ID (Optional)</label>
               <input
                 type="text"
                 name="external_id"
                 value={formData.external_id}
                 onChange={handleInputChange}
                 placeholder="Optional external ID for role assumption"
+                style={compactStyles.input}
               />
             </div>
           </>
@@ -433,8 +488,8 @@ const ConnectionModal = ({
       case 'gcp-sa-oidc':
         return (
           <>
-            <div className="form-group">
-              <label>Workload Identity Pool *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Workload Identity Pool *</label>
               <input
                 type="text"
                 name="workload_identity_pool"
@@ -442,10 +497,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="projects/PROJECT_ID/locations/global/workloadIdentityPools/POOL_ID"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Workload Identity Provider *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Workload Identity Provider *</label>
               <input
                 type="text"
                 name="workload_identity_provider"
@@ -453,10 +509,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="projects/PROJECT_ID/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Service Account Email *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Service Account Email *</label>
               <input
                 type="email"
                 name="service_account_email"
@@ -464,6 +521,7 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="sa-name@project-id.iam.gserviceaccount.com"
+                style={compactStyles.input}
               />
             </div>
           </>
@@ -472,8 +530,8 @@ const ConnectionModal = ({
       case 'azure-managed-identity':
         return (
           <>
-            <div className="form-group">
-              <label>Azure Resource ID *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Azure Resource ID *</label>
               <input
                 type="text"
                 name="azure_resource_id"
@@ -481,16 +539,18 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="/subscriptions/.../resourceGroups/.../providers/Microsoft.Storage/storageAccounts/..."
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Client ID (Optional)</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Client ID (Optional)</label>
               <input
                 type="text"
                 name="azure_client_id"
                 value={formData.azure_client_id}
                 onChange={handleInputChange}
                 placeholder="Optional client ID for user-assigned managed identity"
+                style={compactStyles.input}
               />
             </div>
           </>
@@ -499,8 +559,8 @@ const ConnectionModal = ({
       case 'db-short-lived-token':
         return (
           <>
-            <div className="form-group">
-              <label>Database Host *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Database Host *</label>
               <input
                 type="text"
                 name="db_host"
@@ -508,10 +568,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="database.example.com"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Database Port *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Database Port *</label>
               <input
                 type="number"
                 name="db_port"
@@ -519,10 +580,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="5432"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Database Name *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Database Name *</label>
               <input
                 type="text"
                 name="db_name"
@@ -530,10 +592,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="mydb"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Database User *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Database User *</label>
               <input
                 type="text"
                 name="db_user"
@@ -541,10 +604,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="dbuser"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Token Endpoint *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Token Endpoint *</label>
               <input
                 type="url"
                 name="token_endpoint"
@@ -552,6 +616,7 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="https://auth.example.com/token"
+                style={compactStyles.input}
               />
             </div>
           </>
@@ -560,8 +625,8 @@ const ConnectionModal = ({
       case 'oauth2':
         return (
           <>
-            <div className="form-group">
-              <label>OAuth Client ID *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>OAuth Client ID *</label>
               <input
                 type="text"
                 name="oauth_client_id"
@@ -569,10 +634,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="client_id_from_provider"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>OAuth Client Secret {!isEditMode && '*'}</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>OAuth Client Secret {!isEditMode && '*'}</label>
               <input
                 type="password"
                 name="oauth_client_secret"
@@ -580,10 +646,11 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required={!isEditMode}
                 placeholder={isEditMode ? 'Leave blank to keep existing' : 'client_secret_from_provider'}
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Token URL *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Token URL *</label>
               <input
                 type="url"
                 name="oauth_token_url"
@@ -591,16 +658,18 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="https://oauth.example.com/token"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Scopes (Optional)</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Scopes (Optional)</label>
               <input
                 type="text"
                 name="oauth_scopes"
                 value={formData.oauth_scopes}
                 onChange={handleInputChange}
                 placeholder="read write"
+                style={compactStyles.input}
               />
             </div>
           </>
@@ -609,8 +678,8 @@ const ConnectionModal = ({
       case 'kerberos':
         return (
           <>
-            <div className="form-group">
-              <label>Kerberos Principal *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Kerberos Principal *</label>
               <input
                 type="text"
                 name="kerberos_principal"
@@ -618,22 +687,23 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="username@REALM.EXAMPLE.COM"
+                style={compactStyles.input}
               />
             </div>
-            <div className="form-group">
-              <label>Kerberos Keytab {!isEditMode && '*'}</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Kerberos Keytab {!isEditMode && '*'}</label>
               <textarea
                 name="kerberos_keytab"
                 value={formData.kerberos_keytab}
                 onChange={handleInputChange}
                 required={!isEditMode}
                 placeholder={isEditMode ? 'Leave blank to keep existing' : 'Base64-encoded keytab content'}
-                rows="3"
-                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                rows="2"
+                style={compactStyles.textarea}
               />
             </div>
-            <div className="form-group">
-              <label>Kerberos Realm *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Kerberos Realm *</label>
               <input
                 type="text"
                 name="kerberos_realm"
@@ -641,6 +711,7 @@ const ConnectionModal = ({
                 onChange={handleInputChange}
                 required
                 placeholder="REALM.EXAMPLE.COM"
+                style={compactStyles.input}
               />
             </div>
           </>
@@ -658,70 +729,77 @@ const ConnectionModal = ({
       case 'aws':
         return (
           <>
-            <div className="form-group">
-              <label>AWS Region</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>AWS Region</label>
               <input
                 type="text"
                 name="region"
                 value={formData.region}
                 onChange={handleInputChange}
                 placeholder="us-east-1"
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Bucket Name *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>S3 Bucket Name *</label>
               <input
                 type="text"
                 name="bucket"
                 value={formData.bucket}
                 onChange={handleInputChange}
                 required
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Access Key ID {!isEditMode && '*'}</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Access Key ID {!isEditMode && '*'}</label>
               <input
                 type="text"
                 name="access_key_id"
                 value={formData.access_key_id}
                 onChange={handleInputChange}
                 placeholder={isEditMode ? 'Leave blank to keep existing' : ''}
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Secret Access Key {!isEditMode && '*'}</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Secret Access Key {!isEditMode && '*'}</label>
               <input
                 type="password"
                 name="secret_access_key"
                 value={formData.secret_access_key}
                 onChange={handleInputChange}
                 placeholder={isEditMode ? 'Leave blank to keep existing' : ''}
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Endpoint (Optional)</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Endpoint (Optional)</label>
               <input
                 type="text"
                 name="endpoint"
                 value={formData.endpoint}
                 onChange={handleInputChange}
                 placeholder="s3.amazonaws.com"
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  name="use_ssl"
-                  checked={formData.use_ssl}
-                  onChange={handleInputChange}
-                />
-                {' '}Use SSL
+            <div style={{ ...compactStyles.formGroup, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                id="use_ssl"
+                name="use_ssl"
+                checked={formData.use_ssl}
+                onChange={handleInputChange}
+                style={{ width: 'auto', margin: 0 }}
+              />
+              <label htmlFor="use_ssl" style={{ ...compactStyles.label, margin: 0, cursor: 'pointer' }}>
+                Use SSL
               </label>
             </div>
           </>
@@ -730,38 +808,41 @@ const ConnectionModal = ({
       case 'gcp':
         return (
           <>
-            <div className="form-group">
-              <label>GCP Project ID *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>GCP Project ID *</label>
               <input
                 type="text"
                 name="gcp_project_id"
                 value={formData.gcp_project_id}
                 onChange={handleInputChange}
                 required
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Bucket Name *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Bucket Name *</label>
               <input
                 type="text"
                 name="gcp_bucket"
                 value={formData.gcp_bucket}
                 onChange={handleInputChange}
                 required
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Service Account JSON (JSON format) {!isEditMode && '*'}</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Service Account JSON {!isEditMode && '*'}</label>
               <textarea
                 name="service_account_json"
                 value={formData.service_account_json}
                 onChange={handleInputChange}
-                rows="4"
-                placeholder={isEditMode ? 'Leave blank to keep existing' : 'Paste service account JSON key file content'}
+                rows="3"
+                placeholder={isEditMode ? 'Leave blank to keep existing' : 'Paste JSON key file content'}
+                style={compactStyles.textarea}
               />
-              <small style={{ color: '#6b7280' }}>
+              <small style={compactStyles.helperText}>
                 Paste the entire JSON key file content from GCP
               </small>
             </div>
@@ -771,47 +852,51 @@ const ConnectionModal = ({
       case 'azure':
         return (
           <>
-            <div className="form-group">
-              <label>Account Name *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Account Name *</label>
               <input
                 type="text"
                 name="account_name"
                 value={formData.account_name}
                 onChange={handleInputChange}
                 required
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Container Name *</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Container Name *</label>
               <input
                 type="text"
                 name="container_name"
                 value={formData.container_name}
                 onChange={handleInputChange}
                 required
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Account Key {!isEditMode && '*'}</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Account Key {!isEditMode && '*'}</label>
               <input
                 type="password"
                 name="account_key"
                 value={formData.account_key}
                 onChange={handleInputChange}
                 placeholder={isEditMode ? 'Leave blank to keep existing' : ''}
+                style={compactStyles.input}
               />
             </div>
             
-            <div className="form-group">
-              <label>Endpoint (Optional)</label>
+            <div style={compactStyles.formGroup}>
+              <label style={compactStyles.label}>Endpoint (Optional)</label>
               <input
                 type="text"
                 name="azure_endpoint"
                 value={formData.azure_endpoint}
                 onChange={handleInputChange}
                 placeholder="blob.core.windows.net"
+                style={compactStyles.input}
               />
             </div>
           </>
@@ -851,9 +936,9 @@ const ConnectionModal = ({
           </>
         }
       >
-        <form onSubmit={handleSubmit} className="vendor-connection-form">
-          <div className="form-group">
-            <label>Connection Name *</label>
+        <form onSubmit={handleSubmit} className="vendor-connection-form" style={{ padding: '1rem' }}>
+          <div style={compactStyles.formGroup}>
+            <label style={compactStyles.label}>Connection Name *</label>
             <input
               type="text"
               name="name"
@@ -861,60 +946,64 @@ const ConnectionModal = ({
               onChange={handleInputChange}
               required
               placeholder="My Connection"
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label>Connection User *</label>
+          <div style={compactStyles.formGroup}>
+            <label style={compactStyles.label}>Connection User *</label>
             <select
               name="connection_user"
               value={formData.connection_user}
               onChange={handleInputChange}
               required
+              style={compactStyles.select}
             >
               <option value="Internal">Internal</option>
               <option value="External">External</option>
             </select>
-            <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-              Internal: Company-managed connections | External: Third-party/vendor connections
+            <small style={compactStyles.helperText}>
+              Internal: Company-managed | External: Third-party/vendor
             </small>
           </div>
           
-          <div className="form-group">
-            <label>Connection Direction *</label>
+          <div style={compactStyles.formGroup}>
+            <label style={compactStyles.label}>Connection Direction *</label>
             <select
               name="connection_direction"
               value={formData.connection_direction}
               onChange={handleInputChange}
               required
+              style={compactStyles.select}
             >
-              <option value="source">Source (Read From)</option>
-              <option value="target">Target (Write To)</option>
+              <option value="source">Source (Read data from)</option>
+              <option value="target">Target (Write data to)</option>
             </select>
-            <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-              Source: Read data from this connection | Target: Write data to this connection
+            <small style={compactStyles.helperText}>
+              Choose the authentication method for this connection
             </small>
           </div>
           
-          <div className="form-group">
-            <label>Description</label>
+          <div style={compactStyles.formGroup}>
+            <label style={compactStyles.label}>Description</label>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleInputChange}
               placeholder="Brief description of this connection"
               rows="2"
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}
+              style={compactStyles.textarea}
             />
           </div>
           
-          <div className="form-group">
-            <label>Authentication Method *</label>
+          <div style={compactStyles.formGroup}>
+            <label style={compactStyles.label}>Authentication Method *</label>
             <select
               name="authentication_method"
               value={formData.authentication_method}
               onChange={handleInputChange}
               required
+              style={compactStyles.select}
             >
               <option value="key-based">Key-Based (Access Keys/Secrets)</option>
               <option value="aws-iam-role">AWS IAM Role (Assume Role)</option>
@@ -924,20 +1013,21 @@ const ConnectionModal = ({
               <option value="oauth2">OAuth 2.0</option>
               <option value="kerberos">Kerberos</option>
             </select>
-            <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+            <small style={compactStyles.helperText}>
               Choose the authentication method for this connection
             </small>
           </div>
           
           {renderAuthenticationFields()}
           
-          <div className="form-group">
-            <label>Provider *</label>
+          <div style={compactStyles.formGroup}>
+            <label style={compactStyles.label}>Provider *</label>
             <select
               name="provider"
               value={formData.provider}
               onChange={handleInputChange}
               required
+              style={compactStyles.select}
             >
               <option value="aws">AWS S3</option>
               <option value="gcp">Google Cloud Storage</option>
@@ -948,13 +1038,13 @@ const ConnectionModal = ({
           {renderProviderFields()}
           
           {testResult && (
-            <div className={`test-result ${testResult.success ? 'success' : 'error'}`} style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+            <div className={`test-result ${testResult.success ? 'success' : 'error'}`} style={{ marginTop: '0.75rem', marginBottom: '0.75rem', fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
               {testResult.message}
             </div>
           )}
           
-          <div className="form-group">
-            <label>Path</label>
+          <div style={compactStyles.formGroup}>
+            <label style={compactStyles.label}>Path</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
                 type="text"
@@ -964,6 +1054,7 @@ const ConnectionModal = ({
                 placeholder="vendors/uploads"
                 disabled={!canBrowse}
                 style={{ 
+                  ...compactStyles.input,
                   flex: 1,
                   backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
                   cursor: !canBrowse ? 'not-allowed' : 'text'
@@ -974,7 +1065,7 @@ const ConnectionModal = ({
                 onClick={handleBrowseClick}
                 disabled={!canBrowse}
                 style={{
-                  padding: '0.5rem 1rem',
+                  padding: '0.375rem 0.75rem',
                   background: canBrowse ? '#4a90e2' : '#d1d5db',
                   color: 'white',
                   border: 'none',
@@ -982,24 +1073,28 @@ const ConnectionModal = ({
                   cursor: canBrowse ? 'pointer' : 'not-allowed',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  gap: '0.375rem',
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  height: '32px'
                 }}
                 title={!canBrowse ? 'Test connection or save to enable browsing' : 'Browse folders'}
               >
                 <FaFolder /> Browse
               </button>
             </div>
-            <small style={{ color: '#6b7280' }}>
+            <small style={compactStyles.helperText}>
               {!canBrowse 
                 ? 'Test connection or save to enable folder browsing'
-                : 'Folder path within the bucket/container. Click Browse to select from available folders.'
+                : 'Folder path within the bucket/container. Click Browse to select folders.'
               }
             </small>
           </div>
           
           {/* Archive Password Section */}
-          <div className="form-group" style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <div style={{ ...compactStyles.formGroup, marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <input
                 type="checkbox"
                 id="has_archive_password"
@@ -1014,26 +1109,27 @@ const ConnectionModal = ({
                 }}
                 style={{ width: 'auto', margin: 0 }}
               />
-              <label htmlFor="has_archive_password" style={{ margin: 0, fontWeight: 600, cursor: 'pointer' }}>
-                Files are password-protected archives
+              <label htmlFor="has_archive_password" style={{ ...compactStyles.label, margin: 0, cursor: 'pointer' }}>
+                Password-protected archives
               </label>
             </div>
             
             {formData.has_archive_password && (
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Archive Password *</label>
+              <div style={{ marginBottom: 0 }}>
+                <label style={compactStyles.label}>Archive Password *</label>
                 <input
                   type="password"
                   name="archive_password"
                   value={formData.archive_password}
                   onChange={handleInputChange}
-                  placeholder={isEditMode && connection?.has_archive_password ? "Leave blank to keep existing password" : "Enter password for archives"}
+                  placeholder={isEditMode && connection?.has_archive_password ? "Leave blank to keep existing" : "Enter password for archives"}
                   required={!isEditMode}
+                  style={compactStyles.input}
                 />
-                <small style={{ color: '#6b7280' }}>
+                <small style={compactStyles.helperText}>
                   {isEditMode && connection?.has_archive_password
-                    ? 'Password is already set. Enter a new password to update, or leave blank to keep the existing one.'
-                    : 'This password will be used to extract password-protected ZIP, 7z, and TAR archives from this connection.'}
+                    ? 'Password already set. Enter new password to update or leave blank.'
+                    : 'Password for ZIP, 7z, and TAR archives from this connection.'}
                 </small>
               </div>
             )}
