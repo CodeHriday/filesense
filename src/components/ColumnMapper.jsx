@@ -49,15 +49,17 @@ const ColumnMapper = ({
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
       {/* Source Columns */}
       <div>
         <h4 style={{ 
           margin: 0, 
-          marginBottom: '1rem', 
-          fontSize: '0.9375rem', 
+          marginBottom: '0.5rem', 
+          fontSize: '10px', 
           fontWeight: '600',
-          color: '#374151'
+          fontFamily: 'Inter',
+          color: '#374151',
+          textTransform: 'uppercase'
         }}>
           {sourceLabel}
         </h4>
@@ -91,11 +93,11 @@ const ColumnMapper = ({
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '500', color: '#111827', fontSize: '0.875rem' }}>
+                  <div style={{ fontWeight: '500', color: '#111827', fontSize: '10px', fontFamily: 'Inter' }}>
                     {col.name}
                   </div>
                   {col.type && (
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.125rem' }}>
+                    <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#6b7280', marginTop: '0.125rem' }}>
                       {col.type}
                     </div>
                   )}
@@ -104,24 +106,26 @@ const ColumnMapper = ({
                   <button
                     onClick={() => handleAddMapping(col)}
                     style={{
-                      padding: '0.25rem 0.5rem',
+                      padding: '0.125rem 0.25rem',
                       backgroundColor: 'hsl(210, 100%, 50%)',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '4px',
+                      borderRadius: '3px',
                       cursor: 'pointer',
-                      fontSize: '0.75rem',
+                      fontSize: '10px',
+                      fontFamily: 'Inter',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.25rem'
+                      gap: '0.125rem',
+                      height: '20px'
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
                     onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
                   >
-                    <FiPlus size={12} /> Add
+                    <FiPlus size={10} /> Add
                   </button>
                 ) : (
-                  <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '500' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'Inter', color: '#10b981', fontWeight: '500' }}>
                     Added
                   </span>
                 )}
@@ -135,10 +139,12 @@ const ColumnMapper = ({
       <div>
         <h4 style={{ 
           margin: 0, 
-          marginBottom: '1rem', 
-          fontSize: '0.9375rem', 
+          marginBottom: '0.5rem', 
+          fontSize: '10px', 
           fontWeight: '600',
-          color: '#374151'
+          fontFamily: 'Inter',
+          color: '#374151',
+          textTransform: 'uppercase'
         }}>
           {targetLabel}
         </h4>
@@ -156,8 +162,9 @@ const ColumnMapper = ({
               borderBottom: '2px solid #e5e7eb'
             }}>
               <div style={{ 
-                padding: '0.5rem 1rem',
-                fontSize: '0.75rem',
+                padding: '0.25rem 0.5rem',
+                fontSize: '10px',
+                fontFamily: 'Inter',
                 fontWeight: '600',
                 color: '#6b7280',
                 textTransform: 'uppercase',
@@ -171,22 +178,22 @@ const ColumnMapper = ({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '0.75rem 1rem',
+                    padding: '0.5rem',
                     borderBottom: '1px solid #f3f4f6',
                     backgroundColor: '#fafafa'
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '500', color: '#6b7280', fontSize: '0.875rem' }}>
+                    <div style={{ fontWeight: '500', color: '#6b7280', fontSize: '10px', fontFamily: 'Inter' }}>
                       {col.name}
                     </div>
                     {col.type && (
-                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.125rem' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#9ca3af', marginTop: '0.125rem' }}>
                         {col.type}
                       </div>
                     )}
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'Inter', color: '#9ca3af' }}>
                     Existing
                   </span>
                 </div>
@@ -199,8 +206,9 @@ const ColumnMapper = ({
             <div>
               {existingTargetColumns.length > 0 && (
                 <div style={{ 
-                  padding: '0.5rem 1rem',
-                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.5rem',
+                  fontSize: '10px',
+                  fontFamily: 'Inter',
                   fontWeight: '600',
                   color: '#6b7280',
                   textTransform: 'uppercase',
@@ -218,7 +226,7 @@ const ColumnMapper = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '0.75rem 1rem',
+                    padding: '0.5rem',
                     borderBottom: idx < mappings.length - 1 ? '1px solid #f3f4f6' : 'none',
                     backgroundColor: 'white'
                   }}
@@ -240,7 +248,8 @@ const ColumnMapper = ({
                           padding: '0.25rem 0.5rem',
                           border: '1px solid hsl(210, 100%, 50%)',
                           borderRadius: '4px',
-                          fontSize: '0.875rem',
+                          fontSize: '10px',
+                          fontFamily: 'Inter',
                           outline: 'none'
                         }}
                       />
@@ -249,10 +258,11 @@ const ColumnMapper = ({
                         <div style={{ 
                           fontWeight: '500', 
                           color: '#111827', 
-                          fontSize: '0.875rem',
+                          fontSize: '10px',
+                          fontFamily: 'Inter',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.5rem'
+                          gap: '0.25rem'
                         }}>
                           {mapping.targetColumn}
                           {allowRename && (
@@ -269,11 +279,11 @@ const ColumnMapper = ({
                               }}
                               title="Rename column"
                             >
-                              <FiEdit2 size={12} />
+                              <FiEdit2 size={10} />
                             </button>
                           )}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.125rem' }}>
+                        <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#6b7280', marginTop: '0.125rem' }}>
                           from: {mapping.sourceColumn}
                         </div>
                       </>
@@ -282,7 +292,7 @@ const ColumnMapper = ({
                   <button
                     onClick={() => handleRemoveMapping(idx)}
                     style={{
-                      padding: '0.25rem',
+                      padding: '0.125rem',
                       backgroundColor: 'transparent',
                       color: '#ef4444',
                       border: 'none',
@@ -295,7 +305,7 @@ const ColumnMapper = ({
                     onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
                     title="Remove column"
                   >
-                    <FiTrash2 size={14} />
+                    <FiTrash2 size={10} />
                   </button>
                 </div>
               ))}
