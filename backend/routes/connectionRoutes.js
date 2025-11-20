@@ -689,50 +689,42 @@ router.put('/:id', async (req, res) => {
     
     // Update archive password if provided
     if (archive_password !== undefined) {
-      try {
-        if (archive_password) {
-          // Store or update the password
-          await passwordVault.storePassword(
-            'connection',
-            id.toString(),
-            archive_password,
-            req.user?.id || 1
-          );
-          
-          // Update has_archive_password flag
-          await pool.query(
-            'UPDATE storage_connections SET has_archive_password = true WHERE connection_id = $1',
-            [id]
-          );
-          
-          systemLogger.info('Archive password updated for connection', {
-            connectionId: id,
-            userId: req.user?.id
-          });
-        } else {
-          // If empty string/null, remove the password
-          await pool.query(
-            'DELETE FROM encrypted_passwords WHERE entity_type = $1 AND entity_id = $2',
-            ['connection', id.toString()]
-          );
-          
-          // Update has_archive_password flag
-          await pool.query(
-            'UPDATE storage_connections SET has_archive_password = false WHERE connection_id = $1',
-            [id]
-          );
-          
-          systemLogger.info('Archive password removed for connection', {
-            connectionId: id,
-            userId: req.user?.id
-          });
-        }
-      } catch (pwdError) {
-        systemLogger.error('Failed to update archive password', {
+      if (archive_password) {
+        // Store or update the password
+        await passwordVault.storePassword(
+          'connection',
+          id.toString(),
+          archive_password,
+          req.user?.id || 1
+        );
+        
+        // Update has_archive_password flag
+        await pool.query(
+          'UPDATE storage_connections SET has_archive_password = true WHERE connection_id = $1',
+          [id]
+        );
+        
+        systemLogger.info('Archive password updated for connection', {
           connectionId: id,
-          error: pwdError.message
+          userId: req.user?.id
         });
-        // Non-fatal - connection still updated, just log the error
+      } else {
+        // If empty string/null, remove the password
+        await pool.query(
+          'DELETE FROM encrypted_passwords WHERE entity_type = $1 AND entity_id = $2',
+          ['connection', id.toString()]
+        );
+        
+        // Update has_archive_password flag
+        await pool.query(
+          'UPDATE storage_connections SET has_archive_password = false WHERE connection_id = $1',
+          [id]
+        );
+        
+        systemLogger.info('Archive password removed for connection', {
+          connectionId: id,
+          userId: req.user?.id
+        });
       }
     }
     
