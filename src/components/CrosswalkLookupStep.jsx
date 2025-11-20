@@ -89,12 +89,6 @@ const CrosswalkLookupStep = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div className="alert alert-info" style={{ color: 'white', fontSize: '10px', fontFamily: 'Inter' }}>
-        <FiInfo style={{ marginRight: '0.25rem' }} />
-        Map source values to target values using predefined crosswalk tables. Select columns from 
-        your data to lookup values and enrich your records.
-      </div>
-
       <div style={{ 
         padding: '0.5rem', 
         backgroundColor: '#f9fafb', 
@@ -272,22 +266,6 @@ const CrosswalkLookupStep = ({
           </>
         )}
       </div>
-
-      {!crosswalkConfig?.crosswalk_id && (
-        <div style={{ 
-          padding: '0.5rem', 
-          backgroundColor: '#fffbeb', 
-          border: '1px solid #fde68a', 
-          borderRadius: '6px',
-          fontSize: '10px',
-          fontFamily: 'Inter',
-          color: '#78350f',
-          textAlign: 'center'
-        }}>
-          <FiInfo style={{ marginRight: '0.25rem' }} />
-          Select a crosswalk table above to configure column mappings and value lookups.
-        </div>
-      )}
     </div>
   );
 };
