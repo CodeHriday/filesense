@@ -34,6 +34,7 @@ function Mappings() {
   const { hasWritePermission, hasExecutePermission, currentUser } = useAuth();
   const navigate = useNavigate();
   const [mappings, setMappings] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -42,15 +43,42 @@ function Mappings() {
   const [executionResult, setExecutionResult] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedSubProjectId, setSelectedSubProjectId] = useState('');
   const [expansionState, setExpansionState] = useState({});
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchProjects();
   }, []);
 
+  useEffect(() => {
+    if (selectedProjectId) {
+      fetchData();
+    } else {
+      setMappings([]);
+    }
+  }, [selectedProjectId]);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setProjects(response.data || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setError(err.response?.data?.error || 'Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchData = async () => {
+    if (!selectedProjectId) return;
+    
     try {
       setLoading(true);
       const mappingsRes = await axios.get(`${API_BASE_URL}/api/transformations`, {
@@ -134,19 +162,27 @@ function Mappings() {
     setExecutionResult(null);
   };
 
-  // Filter mappings based on search term (MUST be before any conditional returns)
+  // Filter mappings based on selected project and subproject
   const filteredMappings = mappings.filter(mapping => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (mapping.mapping_name || '').toLowerCase().includes(searchLower) ||
-      (mapping.project_name || '').toLowerCase().includes(searchLower) ||
-      (mapping.sub_project_name || '').toLowerCase().includes(searchLower) ||
-      (mapping.source_connection_name || '').toLowerCase().includes(searchLower) ||
-      (mapping.target_connection_name || '').toLowerCase().includes(searchLower) ||
-      (mapping.file_name_pattern || '').toLowerCase().includes(searchLower) ||
-      (mapping.source_file_pattern || '').toLowerCase().includes(searchLower)
-    );
+    if (!selectedProjectId) return false;
+    
+    const mappingProjectId = Number(mapping.project_id);
+    const selectedProjId = Number(selectedProjectId);
+    const matchesProject = mappingProjectId === selectedProjId;
+    
+    if (!selectedSubProjectId) {
+      return matchesProject;
+    }
+    
+    const mappingSubProjId = Number(mapping.sub_project_id);
+    const selectedSubProjId = Number(selectedSubProjectId);
+    const matchesSubProject = mappingSubProjId === selectedSubProjId;
+    return matchesProject && matchesSubProject;
   });
+
+  // Get subprojects for selected project
+  const selectedProject = projects.find(p => Number(p.id) === Number(selectedProjectId));
+  const availableSubProjects = selectedProject?.sub_projects || [];
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -159,19 +195,14 @@ function Mappings() {
     return groupMappingsByProject(currentMappings);
   }, [currentMappings]);
 
-  // Initialize expansion state when grouped data changes or search term changes
+  // Initialize expansion state when grouped data changes
   useEffect(() => {
-    if (groupedProjects.length > 0) {
-      if (searchTerm) {
-        // Auto-expand sections with search matches
-        setExpansionState(prev => autoExpandMatchingSections(groupedProjects, prev));
-      } else if (!initialized) {
-        // Initialize with all sections collapsed by default (first load)
-        setExpansionState(initializeExpansionState(groupedProjects, false));
-        setInitialized(true);
-      }
+    if (groupedProjects.length > 0 && !initialized) {
+      // Initialize with all sections collapsed by default (first load)
+      setExpansionState(initializeExpansionState(groupedProjects, false));
+      setInitialized(true);
     }
-  }, [groupedProjects, searchTerm, initialized]);
+  }, [groupedProjects, initialized]);
 
   // Conditional render AFTER all hooks
   if (loading) {
@@ -264,30 +295,59 @@ function Mappings() {
     <div className="page-container">
       <div className="page-header">
         <div className="header-content">
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Mapping Jobs</h1>
+          <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Mapping Jobs</h1>
           <p style={{ color: '#037c6e', fontSize: '0.875rem' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
         </div>
         <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ position: 'relative', minWidth: '300px' }}>
-            <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Search mappings..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '0.5rem 0.5rem 0.5rem 2.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                outline: 'none'
-              }}
-            />
-          </div>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setSelectedSubProjectId('');
+              setCurrentPage(1);
+            }}
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              outline: 'none',
+              minWidth: '200px'
+            }}
+          >
+            <option value="">Select Project</option>
+            {projects.map(project => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+          
+          <select
+            value={selectedSubProjectId}
+            onChange={(e) => {
+              setSelectedSubProjectId(e.target.value);
+              setCurrentPage(1);
+            }}
+            disabled={!selectedProjectId}
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              outline: 'none',
+              minWidth: '200px',
+              opacity: selectedProjectId ? 1 : 0.5
+            }}
+          >
+            <option value="">All Subprojects</option>
+            {availableSubProjects.map(subProject => (
+              <option key={subProject.id} value={subProject.id}>
+                {subProject.name}
+              </option>
+            ))}
+          </select>
+          
           <button 
             className="btn btn-primary"
             onClick={handleCreateMapping}
@@ -306,7 +366,13 @@ function Mappings() {
         )}
 
         <div className="mappings-table-container">
-          {mappings.length === 0 ? (
+          {!selectedProjectId ? (
+            <div className="empty-state">
+              <FiFolder size={48} />
+              <h3>No project selected</h3>
+              <p>Please select a project from the dropdown above to view mapping jobs</p>
+            </div>
+          ) : mappings.length === 0 ? (
             <div className="empty-state">
               <FiLayers size={48} />
               <h3>No mappings yet</h3>
@@ -320,9 +386,9 @@ function Mappings() {
             </div>
           ) : filteredMappings.length === 0 ? (
             <div className="empty-state">
-              <FiSearch size={48} />
-              <h3>No matching mappings</h3>
-              <p>Try adjusting your search term</p>
+              <FiFolder size={48} />
+              <h3>No mapping jobs found</h3>
+              <p>No mappings found for the selected project{selectedSubProjectId ? ' and subproject' : ''}</p>
             </div>
           ) : (
             <div>
@@ -515,13 +581,13 @@ function Mappings() {
             </div>
           )}
           
-          {mappings.length > 0 && (
+          {filteredMappings.length > 0 && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               itemsPerPage={itemsPerPage}
-              totalItems={mappings.length}
+              totalItems={filteredMappings.length}
             />
           )}
         </div>
