@@ -206,12 +206,12 @@ const Login = () => {
       <div className="marketing-content">
         <div className="marketing-scroll-container">
           <div className="hero-section animate-on-scroll">
-            <div className="hero-badge">FILEOBS</div>
+            <div className="hero-badge">FILESENSE</div>
             <h1 className="hero-title">
               End-to-end file data quality, governance, and observability — with minimal operational effort.
             </h1>
             <p className="hero-subtitle">
-              Blumetra FileOBs is exactly what data professionals need to make sure that the data can be trusted by the business. Built for data engineering, governance, and compliance teams, FileObs ensures that every file ingested into your enterprise pipeline is trustworthy, validated, governed, and observable — from the moment it lands to its final destination.
+              Blumetra FileSense is exactly what data professionals need to make sure that the data can be trusted by the business. Built for data engineering, governance, and compliance teams, FileSense ensures that every file ingested into your enterprise pipeline is trustworthy, validated, governed, and observable — from the moment it lands to its final destination.
             </p>
             
             <div className="data-flow-animation">
@@ -234,7 +234,7 @@ const Login = () => {
           
           <div className="features-showcase">
             <div className="showcase-header animate-on-scroll">
-              <h2>FileOBs Platform</h2>
+              <h2>FileSense Platform</h2>
               <p>Comprehensive data governance and quality at your fingertips</p>
             </div>
             
@@ -313,7 +313,7 @@ const Login = () => {
                 e.target.style.display = 'none';
               }}
             />
-            <h2>FileOBs</h2>
+            <h2>FileSense</h2>
             <h3>Sign In</h3>
           </div>
           
