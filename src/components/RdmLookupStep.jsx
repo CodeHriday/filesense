@@ -328,131 +328,39 @@ const RdmLookupStep = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="alert alert-info" style={{ color: 'white' }}>
-        <FiInfo style={{ marginRight: '0.5rem' }} />
-        Configure RDM lookups to enrich your data with reference datasets and crosswalk mappings. 
-        Dataset joins execute first, followed by crosswalk lookups.
-      </div>
-
-      {/* Enable/Disable Toggles */}
+    <div>
       <div style={{ 
-        padding: '1rem',
-        backgroundColor: '#f9fafb',
-        border: '1px solid #e5e7eb',
-        borderRadius: '8px',
-        display: 'flex',
-        gap: '2rem',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <label style={{ 
-            position: 'relative', 
-            display: 'inline-block', 
-            width: '48px', 
-            height: '24px' 
-          }}>
-            <input
-              type="checkbox"
-              checked={datasetEnabled}
-              onChange={(e) => onDatasetEnabledChange(e.target.checked)}
-              style={{ opacity: 0, width: 0, height: 0 }}
-            />
-            <span style={{
-              position: 'absolute',
-              cursor: 'pointer',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: datasetEnabled ? 'hsl(210, 100%, 50%)' : '#ccc',
-              transition: '0.3s',
-              borderRadius: '24px'
-            }}>
-              <span style={{
-                position: 'absolute',
-                content: '""',
-                height: '18px',
-                width: '18px',
-                left: datasetEnabled ? '26px' : '3px',
-                bottom: '3px',
-                backgroundColor: 'white',
-                transition: '0.3s',
-                borderRadius: '50%'
-              }}></span>
-            </span>
-          </label>
-          <span style={{ fontWeight: '500', color: '#374151' }}>Enable Dataset Join</span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <label style={{ 
-            position: 'relative', 
-            display: 'inline-block', 
-            width: '48px', 
-            height: '24px' 
-          }}>
-            <input
-              type="checkbox"
-              checked={crosswalkEnabled}
-              onChange={(e) => onCrosswalkEnabledChange(e.target.checked)}
-              style={{ opacity: 0, width: 0, height: 0 }}
-            />
-            <span style={{
-              position: 'absolute',
-              cursor: 'pointer',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: crosswalkEnabled ? 'hsl(210, 100%, 50%)' : '#ccc',
-              transition: '0.3s',
-              borderRadius: '24px'
-            }}>
-              <span style={{
-                position: 'absolute',
-                content: '""',
-                height: '18px',
-                width: '18px',
-                left: crosswalkEnabled ? '26px' : '3px',
-                bottom: '3px',
-                backgroundColor: 'white',
-                transition: '0.3s',
-                borderRadius: '50%'
-              }}></span>
-            </span>
-          </label>
-          <span style={{ fontWeight: '500', color: '#374151' }}>Enable Crosswalk Lookup</span>
-        </div>
-      </div>
-
-      {datasetEnabled && (
-        <div style={{ 
-        padding: '1.5rem', 
+        padding: '0.5rem', 
         backgroundColor: '#f9fafb', 
         border: '1px solid #e5e7eb', 
-        borderRadius: '8px' 
+        borderRadius: '6px' 
       }}>
         <h3 style={{ 
           margin: 0, 
-          marginBottom: '1rem', 
-          fontSize: '1.125rem', 
+          marginBottom: '0.5rem', 
+          fontSize: '10px', 
           fontWeight: '600',
+          fontFamily: 'Inter',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.5rem'
+          gap: '0.25rem'
         }}>
-          <FiDatabase /> Dataset Join
+          <FiDatabase size={10} /> Dataset Join
         </h3>
-        <p style={{ margin: 0, marginBottom: '1.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
-          Join your data with a reference dataset to enrich records with additional fields.
-        </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Reference Dataset</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+          <div style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Reference Dataset</label>
             <select
-              className="form-control"
+              style={{ 
+                width: '100%', 
+                padding: '0.25rem', 
+                fontSize: '10px', 
+                fontFamily: 'Inter',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                height: '24px'
+              }}
               value={datasetConfig?.dataset_id || ''}
               onChange={(e) => handleDatasetChange('dataset_id', e.target.value)}
             >
@@ -465,10 +373,18 @@ const RdmLookupStep = ({
             </select>
           </div>
 
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Join Type</label>
+          <div style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Join Type</label>
             <select
-              className="form-control"
+              style={{ 
+                width: '100%', 
+                padding: '0.25rem', 
+                fontSize: '10px', 
+                fontFamily: 'Inter',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                height: '24px'
+              }}
               value={datasetConfig?.join_type || 'inner'}
               onChange={(e) => handleDatasetChange('join_type', e.target.value)}
               disabled={!datasetConfig?.dataset_id}
@@ -481,22 +397,31 @@ const RdmLookupStep = ({
           </div>
         </div>
 
-        <div style={{ marginTop: '1.5rem' }}>
+        <div style={{ marginTop: '0.5rem' }}>
           <h4 style={{ 
             margin: 0, 
-            marginBottom: '1rem', 
-            fontSize: '1rem', 
+            marginBottom: '0.5rem', 
+            fontSize: '10px', 
             fontWeight: '600',
+            fontFamily: 'Inter',
             color: '#111827'
           }}>
             Join Conditions
           </h4>
           {joinConditions.map((condition, idx) => (
-            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.75rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Dataset Column (Reference Data)</label>
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Dataset Column (Reference Data)</label>
                 <select
-                  className="form-control"
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.25rem', 
+                    fontSize: '10px', 
+                    fontFamily: 'Inter',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    height: '24px'
+                  }}
                   value={condition.dataset_column}
                   onChange={(e) => updateJoinCondition(idx, 'dataset_column', e.target.value)}
                   disabled={!datasetConfig?.dataset_id || loadingDatasetSchema}
@@ -508,10 +433,18 @@ const RdmLookupStep = ({
                 </select>
               </div>
               
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Source Column (Your Data)</label>
+              <div style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: '500', display: 'block', marginBottom: '0.25rem' }}>Source Column (Your Data)</label>
                 <select
-                  className="form-control"
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.25rem', 
+                    fontSize: '10px', 
+                    fontFamily: 'Inter',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    height: '24px'
+                  }}
                   value={condition.source_column}
                   onChange={(e) => updateJoinCondition(idx, 'source_column', e.target.value)}
                   disabled={!datasetConfig?.dataset_id}
@@ -523,49 +456,49 @@ const RdmLookupStep = ({
                 </select>
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.25rem' }}>
                 {joinConditions.length > 1 && (
                   <button 
                     onClick={() => removeJoinCondition(idx)} 
                     style={{
-                      padding: '0.5rem',
+                      padding: '0.25rem',
                       backgroundColor: '#dc2626',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      width: '36px',
-                      height: '36px'
+                      width: '24px',
+                      height: '24px'
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = '#b91c1c'}
                     onMouseOut={(e) => e.target.style.backgroundColor = '#dc2626'}
                   >
-                    <FiTrash2 />
+                    <FiTrash2 size={12} />
                   </button>
                 )}
                 {idx === joinConditions.length - 1 && (
                   <button 
                     onClick={addJoinCondition} 
                     style={{
-                      padding: '0.5rem',
+                      padding: '0.25rem',
                       backgroundColor: 'hsl(210, 100%, 50%)',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      width: '36px',
-                      height: '36px'
+                      width: '24px',
+                      height: '24px'
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
                     onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
                   >
-                    <FiPlus />
+                    <FiPlus size={12} />
                   </button>
                 )}
               </div>
@@ -576,32 +509,33 @@ const RdmLookupStep = ({
         {datasetConfig?.dataset_id && (
           <>
             <div style={{ 
-              marginTop: '1rem', 
-              padding: '0.75rem', 
+              marginTop: '0.5rem', 
+              padding: '0.25rem', 
               backgroundColor: '#e0f2fe', 
               border: '1px solid #bae6fd', 
-              borderRadius: '6px',
-              fontSize: '0.875rem',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontFamily: 'Inter',
               color: '#0c4a6e'
             }}>
               <strong>Join Preview:</strong> Your records will be enriched with data from the selected dataset 
               {joinConditions.length === 1 ? (
                 <>
-                  {' '}where <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                  {' '}where <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px', fontSize: '10px' }}>
                     {joinConditions[0].source_column || '[source column]'}
-                  </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                  </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px', fontSize: '10px' }}>
                     {joinConditions[0].dataset_column || '[dataset column]'}
                   </code>
                 </>
               ) : (
                 <>
                   {' '}where:
-                  <ul style={{ margin: '0.5rem 0 0 0', paddingLeft: '1.5rem' }}>
+                  <ul style={{ margin: '0.25rem 0 0 0', paddingLeft: '1rem' }}>
                     {joinConditions.map((condition, idx) => (
                       <li key={idx}>
-                        <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                        <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px', fontSize: '10px' }}>
                           {condition.source_column || '[source column]'}
-                        </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px' }}>
+                        </code> matches <code style={{ backgroundColor: '#bae6fd', padding: '0.125rem 0.25rem', borderRadius: '3px', fontSize: '10px' }}>
                           {condition.dataset_column || '[dataset column]'}
                         </code>
                       </li>
@@ -611,20 +545,21 @@ const RdmLookupStep = ({
               )}
             </div>
 
-            <div style={{ marginTop: '1.5rem' }}>
+            <div style={{ marginTop: '0.5rem' }}>
               <h4 style={{ 
                 margin: 0, 
-                marginBottom: '1rem', 
-                fontSize: '1rem', 
+                marginBottom: '0.5rem', 
+                fontSize: '10px', 
                 fontWeight: '600',
+                fontFamily: 'Inter',
                 color: '#111827'
               }}>
                 Select Columns to Add from Reference Dataset
               </h4>
               {loadingDatasetSchema ? (
-                <div style={{ padding: '2rem', textAlign: 'center' }}>
+                <div style={{ padding: '1rem', textAlign: 'center' }}>
                   <LoadingSpinner size="small" />
-                  <p style={{ marginTop: '0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                  <p style={{ marginTop: '0.25rem', color: '#6b7280', fontSize: '10px', fontFamily: 'Inter' }}>
                     Loading dataset columns...
                   </p>
                 </div>
@@ -643,22 +578,6 @@ const RdmLookupStep = ({
           </>
         )}
       </div>
-      )}
-
-      {!datasetEnabled && !crosswalkEnabled && (
-        <div style={{ 
-          padding: '1.5rem', 
-          backgroundColor: '#fffbeb', 
-          border: '1px solid #fde68a', 
-          borderRadius: '8px',
-          fontSize: '0.875rem',
-          color: '#78350f',
-          textAlign: 'center'
-        }}>
-          <FiInfo style={{ marginRight: '0.5rem' }} />
-          Enable Dataset Join or Crosswalk Lookup above to configure RDM enrichment for your data transformation.
-        </div>
-      )}
     </div>
   );
 };
