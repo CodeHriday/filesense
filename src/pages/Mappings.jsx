@@ -368,7 +368,7 @@ function Mappings() {
           <button 
             type="submit"
             className="btn btn-primary"
-            style={{ fontFamily: 'Inter, sans-serif' }}
+            style={{ fontFamily: 'Inter, sans-serif', width: 'auto' }}
           >
             <FiSearch /> Search
           </button>
@@ -388,7 +388,8 @@ function Mappings() {
             padding: '0.5rem',
             border: '1px solid #ddd',
             borderRadius: '6px',
-            fontSize: '0.9rem',
+            fontSize: '14px',
+            fontWeight: '500',
             outline: 'none',
             minWidth: '200px',
             fontFamily: 'Inter, sans-serif'
@@ -413,7 +414,8 @@ function Mappings() {
             padding: '0.5rem',
             border: '1px solid #ddd',
             borderRadius: '6px',
-            fontSize: '0.9rem',
+            fontSize: '14px',
+            fontWeight: '500',
             outline: 'none',
             minWidth: '200px',
             opacity: (selectedProjectId && projectHasSubProjects) ? 1 : 0.5,
