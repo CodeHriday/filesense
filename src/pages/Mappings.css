@@ -653,6 +653,7 @@
   font-size: 0.8125rem;
   color: #475569;
   letter-spacing: 0.05em;
+  text-transform: none;
 }
 
 .mappings-table tbody tr {
