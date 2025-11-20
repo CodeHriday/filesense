@@ -250,7 +250,7 @@ function Mappings() {
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FiServer size={14} style={{ color: '#64748b' }} />
-            {mapping.source_connection_name || 'Local'}
+            {mapping.source_connection_name || mapping.vendor_agreement_name || mapping.source_filename || mapping.source_owner || '-'}
           </div>
         </td>
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
@@ -262,7 +262,7 @@ function Mappings() {
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FiTarget size={14} style={{ color: '#64748b' }} />
-            {mapping.target_connection_name || 'Local'}
+            {mapping.target_connection_name || mapping.target_file_name || mapping.target_file_path || mapping.target_owner || '-'}
           </div>
         </td>
         <td style={{ textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>{fieldCount}</td>
@@ -310,7 +310,9 @@ function Mappings() {
           <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', fontFamily: 'Inter, sans-serif' }}>Mapping Jobs</h1>
           <p style={{ color: '#037c6e', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
         </div>
-        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        
+        {/* First Row: Search only */}
+        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <div style={{ position: 'relative' }}>
               <input
@@ -356,7 +358,10 @@ function Mappings() {
               <FiSearch /> Search
             </button>
           </form>
-          
+        </div>
+        
+        {/* Second Row: Project, Subproject, and Create Button */}
+        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             value={selectedProjectId}
             onChange={(e) => {
@@ -412,7 +417,7 @@ function Mappings() {
             className="btn btn-primary"
             onClick={handleCreateMapping}
             disabled={!hasWritePermission('transformation')}
-            style={{ fontFamily: 'Inter, sans-serif' }}
+            style={{ fontFamily: 'Inter, sans-serif', width: 'auto' }}
           >
             <FiPlus /> Create Mapping Job
           </button>
