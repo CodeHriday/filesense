@@ -1437,8 +1437,8 @@ function MappingWizard() {
               {/* Schema Drift Handling Panel */}
               <div style={{ padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-                  <FiAlertCircle style={{ color: '#d97706' }} />
-                  <strong style={{ fontSize: '12px', fontFamily: 'Inter', fontWeight: 700 }}>Schema Drift Handling *</strong>
+                  <FiAlertCircle style={{ color: '#d97706', fontSize: '10px' }} />
+                  <strong style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700 }}>Schema Drift Handling *</strong>
                 </div>
                 
                 {/* Radio Options */}
@@ -1454,10 +1454,10 @@ function MappingWizard() {
                       style={{ marginTop: '2px', cursor: 'pointer' }}
                     />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '2px' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '2px' }}>
                         Abort Job - Stop processing if schema mismatch is detected
                       </div>
-                      <div style={{ fontSize: '12px', fontFamily: 'Inter', fontWeight: 400, color: '#6b7280' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 400, color: '#6b7280' }}>
                         Recommended for critical data pipelines where schema consistency is mandatory
                       </div>
                     </div>
@@ -1474,10 +1474,10 @@ function MappingWizard() {
                       style={{ marginTop: '2px', cursor: 'pointer' }}
                     />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '2px' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '2px' }}>
                         Alert & Process - Log warning and continue processing
                       </div>
-                      <div style={{ fontSize: '12px', fontFamily: 'Inter', fontWeight: 400, color: '#6b7280' }}>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 400, color: '#6b7280' }}>
                         Schema drift will be logged in the Monitor with "Fail" status, but the job will continue
                       </div>
                     </div>
@@ -1488,7 +1488,7 @@ function MappingWizard() {
               {/* RDM Lookup Toggles Panel */}
               <div style={{ padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
                 {/* Panel Header */}
-                <div style={{ fontSize: '14px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '1rem' }}>
+                <div style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '1rem' }}>
                   Enable RDM Lookup
                 </div>
                 
@@ -1496,10 +1496,10 @@ function MappingWizard() {
                   {/* Enable Dataset Lookup Toggle */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '10px', fontFamily: 'Inter' }}>
                         Enable Datasets Lookup
                       </div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                    <div style={{ fontSize: '10px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
                       Join datasets from RDM to enrich records
                     </div>
                   </div>
@@ -1539,10 +1539,10 @@ function MappingWizard() {
                 {/* Enable Crosswalk Lookup Toggle */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '10px', fontFamily: 'Inter' }}>
                       Enable Crosswalks Lookup
                     </div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                    <div style={{ fontSize: '10px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
                       Apply crosswalk mappings to transform values
                     </div>
                   </div>
