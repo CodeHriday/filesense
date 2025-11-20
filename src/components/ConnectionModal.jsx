@@ -61,7 +61,10 @@ const ConnectionModal = ({
     kerberos_keytab: '',
     kerberos_realm: '',
     // Common
-    file_path: ''
+    file_path: '',
+    // Archive password
+    archive_password: '',
+    has_archive_password: false
   });
   
   const [error, setError] = useState('');
@@ -132,7 +135,10 @@ const ConnectionModal = ({
         kerberos_keytab: '',
         kerberos_realm: authConfig.kerberos_realm || '',
         // Common
-        file_path: config.path_prefix || ''
+        file_path: config.path_prefix || '',
+        // Archive password (flag only, never send actual password)
+        archive_password: '',
+        has_archive_password: connection.has_archive_password || false
       });
       setSavedConnectionId(connection.connection_id);
     } else {
@@ -176,7 +182,10 @@ const ConnectionModal = ({
         kerberos_principal: '',
         kerberos_keytab: '',
         kerberos_realm: '',
-        file_path: ''
+        file_path: '',
+        // Archive password
+        archive_password: '',
+        has_archive_password: false
       });
       setSavedConnectionId(null);
     }
@@ -986,6 +995,48 @@ const ConnectionModal = ({
                 : 'Folder path within the bucket/container. Click Browse to select from available folders.'
               }
             </small>
+          </div>
+          
+          {/* Archive Password Section */}
+          <div className="form-group" style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <input
+                type="checkbox"
+                id="has_archive_password"
+                name="has_archive_password"
+                checked={formData.has_archive_password}
+                onChange={(e) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    has_archive_password: e.target.checked,
+                    archive_password: e.target.checked ? prev.archive_password : ''
+                  }));
+                }}
+                style={{ width: 'auto', margin: 0 }}
+              />
+              <label htmlFor="has_archive_password" style={{ margin: 0, fontWeight: 600, cursor: 'pointer' }}>
+                Files are password-protected archives
+              </label>
+            </div>
+            
+            {formData.has_archive_password && (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Archive Password *</label>
+                <input
+                  type="password"
+                  name="archive_password"
+                  value={formData.archive_password}
+                  onChange={handleInputChange}
+                  placeholder={isEditMode && connection?.has_archive_password ? "Leave blank to keep existing password" : "Enter password for archives"}
+                  required={!isEditMode}
+                />
+                <small style={{ color: '#6b7280' }}>
+                  {isEditMode && connection?.has_archive_password
+                    ? 'Password is already set. Enter a new password to update, or leave blank to keep the existing one.'
+                    : 'This password will be used to extract password-protected ZIP, 7z, and TAR archives from this connection.'}
+                </small>
+              </div>
+            )}
           </div>
           
           {error && (

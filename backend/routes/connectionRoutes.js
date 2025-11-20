@@ -3,6 +3,11 @@ const router = express.Router();
 const connectionService = require('../services/ConnectionService');
 const { encrypt, decrypt } = require('../utils/encryption');
 const { pool } = require('../config/database');
+const PasswordVaultService = require('../services/passwordVaultService');
+const AuditService = require('../services/AuditService');
+const { systemLogger } = require('../utils/logger');
+
+const passwordVault = new PasswordVaultService(pool, new AuditService(pool), systemLogger);
 
 /**
  * @route   GET /api/connections
@@ -73,7 +78,9 @@ router.get('/', async (req, res) => {
         has_snowflake_password: !!config.snowflake_password,
         has_databricks_token: !!config.databricks_token,
         has_sharepoint_client_secret: !!config.sharepoint_client_secret,
-        has_outlook_client_secret: !!config.outlook_client_secret
+        has_outlook_client_secret: !!config.outlook_client_secret,
+        // Archive password flag (never send the actual password)
+        has_archive_password: conn.has_archive_password || false
       };
     });
     
@@ -158,7 +165,9 @@ router.get('/:id', async (req, res) => {
       has_snowflake_password: !!config.snowflake_password,
       has_databricks_token: !!config.databricks_token,
       has_sharepoint_client_secret: !!config.sharepoint_client_secret,
-      has_outlook_client_secret: !!config.outlook_client_secret
+      has_outlook_client_secret: !!config.outlook_client_secret,
+      // Archive password flag (never send the actual password)
+      has_archive_password: connection.has_archive_password || false
     };
     
     res.json(sanitizedConnection);
@@ -226,6 +235,8 @@ router.post('/', async (req, res) => {
       // Common
       path_prefix = '',
       path, // Optional folder path within the bucket
+      // Archive password (for password-protected files in cloud storage)
+      archive_password,
       ...otherConfigDetails
     } = req.body;
     
@@ -366,7 +377,56 @@ router.post('/', async (req, res) => {
       path: path || null // Optional folder path within the bucket
     };
     
+    // Create connection first
     const newConnection = await connectionService.createConnection(connectionData);
+    
+    // Store archive password if provided (compensating delete on failure)
+    let passwordStored = false;
+    if (archive_password) {
+      try {
+        // Store password in encrypted vault
+        await passwordVault.storePassword(
+          'connection',
+          newConnection.connection_id.toString(),
+          archive_password,
+          req.user?.id || 1
+        );
+        
+        // Update has_archive_password flag
+        await pool.query(
+          'UPDATE storage_connections SET has_archive_password = true WHERE connection_id = $1',
+          [newConnection.connection_id]
+        );
+        
+        passwordStored = true;
+        systemLogger.info('Archive password stored for connection', {
+          connectionId: newConnection.connection_id,
+          userId: req.user?.id
+        });
+      } catch (pwdError) {
+        // CRITICAL: Password storage failed - rollback connection creation
+        systemLogger.error('Archive password storage failed, deleting connection', {
+          connectionId: newConnection.connection_id,
+          error: pwdError.message
+        });
+        
+        // Attempt compensating delete
+        await pool.query(
+          'DELETE FROM storage_connections WHERE connection_id = $1',
+          [newConnection.connection_id]
+        ).catch(deleteError => {
+          // Log but don't throw - original password error is more important
+          systemLogger.error('Compensating delete failed - orphaned connection may exist', {
+            connectionId: newConnection.connection_id,
+            originalError: pwdError.message,
+            deleteError: deleteError.message
+          });
+        });
+        
+        // Throw original password error to fail the request
+        throw new Error(`Failed to store archive password: ${pwdError.message}`);
+      }
+    }
     
     // Return sanitized response
     res.status(201).json({
@@ -381,7 +441,8 @@ router.post('/', async (req, res) => {
         description: newConnection.description,
         authentication_method: newConnection.authentication_method,
         status: newConnection.status,
-        created_at: newConnection.created_at
+        created_at: newConnection.created_at,
+        has_archive_password: passwordStored
       }
     });
   } catch (error) {
@@ -444,7 +505,9 @@ router.put('/:id', async (req, res) => {
       // Common
       path_prefix,
       path, // Optional folder path within the bucket
-      status
+      status,
+      // Archive password (for password-protected files in cloud storage)
+      archive_password
     } = req.body;
     
     // Check project access before allowing update
@@ -623,6 +686,55 @@ router.put('/:id', async (req, res) => {
     );
     
     console.log('[UPDATE CONNECTION] Connection updated successfully');
+    
+    // Update archive password if provided
+    if (archive_password !== undefined) {
+      try {
+        if (archive_password) {
+          // Store or update the password
+          await passwordVault.storePassword(
+            'connection',
+            id.toString(),
+            archive_password,
+            req.user?.id || 1
+          );
+          
+          // Update has_archive_password flag
+          await pool.query(
+            'UPDATE storage_connections SET has_archive_password = true WHERE connection_id = $1',
+            [id]
+          );
+          
+          systemLogger.info('Archive password updated for connection', {
+            connectionId: id,
+            userId: req.user?.id
+          });
+        } else {
+          // If empty string/null, remove the password
+          await pool.query(
+            'DELETE FROM encrypted_passwords WHERE entity_type = $1 AND entity_id = $2',
+            ['connection', id.toString()]
+          );
+          
+          // Update has_archive_password flag
+          await pool.query(
+            'UPDATE storage_connections SET has_archive_password = false WHERE connection_id = $1',
+            [id]
+          );
+          
+          systemLogger.info('Archive password removed for connection', {
+            connectionId: id,
+            userId: req.user?.id
+          });
+        }
+      } catch (pwdError) {
+        systemLogger.error('Failed to update archive password', {
+          connectionId: id,
+          error: pwdError.message
+        });
+        // Non-fatal - connection still updated, just log the error
+      }
+    }
     
     res.json({
       success: true,
