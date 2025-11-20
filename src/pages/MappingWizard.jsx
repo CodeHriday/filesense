@@ -1217,17 +1217,17 @@ function MappingWizard() {
               return (
                 <div className="info-box" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <FiCheckCircle style={{ color: '#16a34a' }} />
-                    <strong style={{ color: '#15803d' }}>Vendor Contract Selected - Source Connection Auto-Populated</strong>
+                    <FiCheckCircle style={{ color: '#16a34a', fontSize: '10px' }} />
+                    <strong style={{ color: '#15803d', fontSize: '10px', fontFamily: 'Inter' }}>Vendor Contract Selected - Source Connection Auto-Populated</strong>
                   </div>
                   <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1fae5' }}>
-                    <small style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Source Connection:</small>
-                    <div style={{ color: '#15803d', fontWeight: '500' }}>
+                    <small style={{ color: '#6b7280', display: 'block', marginBottom: '4px', fontSize: '10px', fontFamily: 'Inter' }}>Source Connection:</small>
+                    <div style={{ color: '#15803d', fontWeight: '500', fontSize: '10px', fontFamily: 'Inter' }}>
                       {agreement.vendor_connection_name || 'Vendor Connection'}
                     </div>
-                    <small style={{ color: '#6b7280' }}>ID: {agreement.vendor_connection_id?.substring(0, 8)}...</small>
+                    <small style={{ color: '#6b7280', fontSize: '10px', fontFamily: 'Inter' }}>ID: {agreement.vendor_connection_id?.substring(0, 8)}...</small>
                   </div>
-                  <small style={{ color: '#15803d', display: 'block', marginTop: '8px' }}>
+                  <small style={{ color: '#15803d', display: 'block', marginTop: '8px', fontSize: '10px', fontFamily: 'Inter' }}>
                     The source connection is managed by the vendor contract. You can specify your own target connection in Step 4.
                   </small>
                 </div>
@@ -1818,10 +1818,10 @@ function MappingWizard() {
                         }}
                         style={{ marginRight: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
                       />
-                      <span style={{ fontWeight: 500, fontSize: '0.9rem', marginRight: '0.5rem' }}>
+                      <span style={{ fontWeight: 500, fontSize: '10px', fontFamily: 'Inter', marginRight: '0.5rem' }}>
                         {rule.rule_name}
                       </span>
-                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      <span style={{ fontSize: '10px', fontFamily: 'Inter', color: '#64748b' }}>
                         Type: {rule.rule_type}
                       </span>
                     </div>
@@ -1936,34 +1936,16 @@ function MappingWizard() {
           <div className="wizard-actions-right">
             {currentStep < getWizardSteps().length ? (
               <>
-                <button 
-                  className="btn btn-outline-success" 
-                  onClick={handleSaveDraft} 
-                  disabled={loading}
-                  style={{ marginRight: '0.5rem' }}
-                >
-                  <FiSave /> {loading ? 'Saving...' : 'Save Draft'}
+                <button className="btn btn-xs btn-success" onClick={handleSave} disabled={loading} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', marginRight: '0.25rem' }}>
+                  <FiSave /> {loading ? 'Saving...' : 'Save'}
                 </button>
-                {isEditMode && (
-                  <button className="btn btn-success" onClick={handleSave} disabled={loading} style={{ marginRight: '0.5rem' }}>
-                    <FiSave /> {loading ? 'Saving...' : 'Save'}
-                  </button>
-                )}
-                <button className="btn btn-primary" onClick={handleNext}>
+                <button className="btn btn-xs btn-primary" onClick={handleNext} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
                   Next <FiArrowRight />
                 </button>
               </>
             ) : (
               <>
-                <button 
-                  className="btn btn-outline-success" 
-                  onClick={handleSaveDraft} 
-                  disabled={loading}
-                  style={{ marginRight: '0.5rem' }}
-                >
-                  <FiSave /> {loading ? 'Saving...' : 'Save Draft'}
-                </button>
-                <button className="btn btn-success" onClick={handleSave} disabled={loading}>
+                <button className="btn btn-xs btn-success" onClick={handleSave} disabled={loading} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
                   <FiSave /> {loading ? 'Saving...' : 'Save Mapping'}
                 </button>
               </>
