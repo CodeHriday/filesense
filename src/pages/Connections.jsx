@@ -633,8 +633,8 @@ const Connections = () => {
     // Common fields for all connection types
     const commonFields = (
       <div className="form-grid">
-        <div className="form-group form-group-full">
-          <label htmlFor="connection_name">Connection Name</label>
+        <div className="form-group form-group-full" style={compactStyles.formGroup}>
+          <label htmlFor="connection_name" style={compactStyles.label}>Connection Name</label>
           <input
             type="text"
             id="connection_name"
@@ -643,11 +643,12 @@ const Connections = () => {
             value={formData.connection_name}
             onChange={handleInputChange}
             required
+            style={compactStyles.input}
           />
         </div>
         
-        <div className="form-group">
-          <label htmlFor="connection_type">Connection Type</label>
+        <div className="form-group" style={compactStyles.formGroup}>
+          <label htmlFor="connection_type" style={compactStyles.label}>Connection Type</label>
           <select
             id="connection_type"
             name="connection_type"
@@ -655,6 +656,7 @@ const Connections = () => {
             value={formData.connection_type}
             onChange={handleConnectionTypeChange}
             required
+            style={compactStyles.select}
           >
             <option value="aws">AWS S3</option>
             <option value="gcp">Google Cloud Storage</option>
@@ -666,8 +668,8 @@ const Connections = () => {
           </select>
         </div>
         
-        <div className="form-group">
-          <label htmlFor="connection_direction">Connection Direction</label>
+        <div className="form-group" style={compactStyles.formGroup}>
+          <label htmlFor="connection_direction" style={compactStyles.label}>Connection Direction</label>
           <select
             id="connection_direction"
             name="connection_direction"
@@ -675,14 +677,15 @@ const Connections = () => {
             value={formData.connection_direction}
             onChange={handleInputChange}
             required
+            style={compactStyles.select}
           >
             <option value="source">Source (Read data from)</option>
             <option value="target">Target (Write data to)</option>
           </select>
         </div>
         
-        <div className="form-group">
-          <label htmlFor="connection_user">Connection User</label>
+        <div className="form-group" style={compactStyles.formGroup}>
+          <label htmlFor="connection_user" style={compactStyles.label}>Connection User</label>
           <select
             id="connection_user"
             name="connection_user"
@@ -690,17 +693,18 @@ const Connections = () => {
             value={formData.connection_user}
             onChange={handleInputChange}
             required
+            style={compactStyles.select}
           >
             <option value="Internal">Internal</option>
             <option value="External">External</option>
           </select>
-          <small className="form-text text-muted">
+          <small className="form-text text-muted" style={compactStyles.helperText}>
             Internal: Company-managed | External: Third-party/vendor
           </small>
         </div>
         
-        <div className="form-group">
-          <label htmlFor="authentication_method">Authentication Method</label>
+        <div className="form-group" style={compactStyles.formGroup}>
+          <label htmlFor="authentication_method" style={compactStyles.label}>Authentication Method</label>
           <select
             id="authentication_method"
             name="authentication_method"
@@ -708,6 +712,7 @@ const Connections = () => {
             value={formData.authentication_method}
             onChange={handleInputChange}
             required
+            style={compactStyles.select}
           >
             <option value="key-based">Key-Based (Access Keys/Secrets)</option>
             <option value="aws-iam-role">AWS IAM Role (Assume Role)</option>
@@ -717,13 +722,13 @@ const Connections = () => {
             <option value="oauth2">OAuth 2.0</option>
             <option value="kerberos">Kerberos</option>
           </select>
-          <small className="form-text text-muted">
+          <small className="form-text text-muted" style={compactStyles.helperText}>
             Choose the authentication method for this connection
           </small>
         </div>
         
-        <div className="form-group form-group-full">
-          <label htmlFor="description">Description</label>
+        <div className="form-group form-group-full" style={compactStyles.formGroup}>
+          <label htmlFor="description" style={compactStyles.label}>Description</label>
           <textarea
             id="description"
             name="description"
@@ -732,6 +737,7 @@ const Connections = () => {
             onChange={handleInputChange}
             placeholder="Brief description of this connection"
             rows="2"
+            style={compactStyles.textarea}
           />
         </div>
       </div>
