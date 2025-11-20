@@ -1051,12 +1051,12 @@ function MappingWizard() {
         {/* Step 1: Basic Info & Source */}
         {currentStep === 1 && (
           <div className="wizard-step-content">
-            <h2><FiServer /> Mapping Configuration</h2>
+            <h2 style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}><FiServer /> Mapping Configuration</h2>
             
             {/* Project and Sub Project side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Project *</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Project *</label>
                 <select
                   className="form-control"
                   value={projectId}
@@ -1066,6 +1066,7 @@ function MappingWizard() {
                     setSubProjectId('');
                   }}
                   disabled={loadingProjects}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select a project...</option>
                   {projects.map(proj => (
@@ -1074,16 +1075,17 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">Select the project for this mapping</small>
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>Select the project for this mapping</small>
               </div>
 
               <div className="form-group">
-                <label>Sub Project</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Sub Project</label>
                 <select
                   className="form-control"
                   value={subProjectId}
                   onChange={(e) => setSubProjectId(e.target.value ? parseInt(e.target.value) : '')}
                   disabled={!projectId || loadingSubProjects || subProjects.length === 0}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select a sub-project (optional)...</option>
                   {subProjects.map(sp => (
@@ -1092,7 +1094,7 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {!projectId ? 'Select a project first' : subProjects.length === 0 ? 'No sub-projects available' : 'Optional: Select a sub-project'}
                 </small>
               </div>
@@ -1101,24 +1103,26 @@ function MappingWizard() {
             {/* Name and Description side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Mapping Name *</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Name *</label>
                 <input
                   type="text"
                   className="form-control"
                   value={mappingName}
                   onChange={(e) => setMappingName(e.target.value)}
                   placeholder="e.g., Daily Sales Data Transformation"
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 />
               </div>
 
               <div className="form-group">
-                <label>Mapping Description</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Mapping Description</label>
                 <input
                   type="text"
                   className="form-control"
                   value={mappingDescription}
                   onChange={(e) => setMappingDescription(e.target.value)}
                   placeholder="Brief description of this mapping"
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 />
               </div>
             </div>
@@ -1126,7 +1130,7 @@ function MappingWizard() {
             {/* Source Connection and Vendor Contract side-by-side */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label>Source Connection</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source Connection</label>
                 <select
                   className="form-control"
                   value={sourceConnectionId}
@@ -1138,6 +1142,7 @@ function MappingWizard() {
                     }
                   }}
                   disabled={!!selectedVendorAgreement}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select source connection</option>
                   {connections.filter(c => c.connection_direction === 'source').map(conn => (
@@ -1146,13 +1151,13 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {selectedVendorAgreement ? 'Disabled (Vendor Contract selected)' : 'Select where to read files from'}
                 </small>
               </div>
 
               <div className="form-group">
-                <label>Vendor Contract</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Vendor Contract</label>
                 <select
                   className="form-control"
                   value={selectedVendorAgreement}
@@ -1189,6 +1194,7 @@ function MappingWizard() {
                     }
                   }}
                   disabled={!!sourceConnectionId}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select Vendor Contract</option>
                   {vendorAgreements.map(agreement => (
@@ -1197,7 +1203,7 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {sourceConnectionId ? 'Disabled (Source Connection selected)' : 'Or select an approved vendor contract'}
                 </small>
               </div>
@@ -1242,27 +1248,28 @@ function MappingWizard() {
         {/* Step 2: Source Configuration */}
         {currentStep === 2 && (
           <div className="wizard-step-content">
-            <h2><FiFilter /> Source Configuration</h2>
+            <h2 style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}><FiFilter /> Source Configuration</h2>
             
             {/* File Path and File Name/Pattern in one row */}
             <div className="form-group">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '12px', alignItems: 'start' }}>
                 <div>
-                  <label>File Path *</label>
+                  <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Path *</label>
                   <input
                     type="text"
                     className="form-control"
                     value={filePath}
                     onChange={(e) => setFilePath(e.target.value)}
                     placeholder="e.g., /year/month/day/ or use / for root"
+                    style={{ fontSize: '10px', fontFamily: 'Inter' }}
                   />
-                  <small className="form-help">
+                  <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                     Required. Use "/" for root directory or specify a folder path (e.g., /data/input/).<br/>
                     Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
                   </small>
                 </div>
                 <div>
-                  <label>File Name/Pattern *</label>
+                  <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>File Name/Pattern *</label>
                   <input
                     type="text"
                     className="form-control"
@@ -1270,9 +1277,9 @@ function MappingWizard() {
                     onChange={(e) => setFileNamePattern(e.target.value)}
                     placeholder="e.g., sales_data.csv or sales_*.csv"
                     readOnly={!!selectedVendorAgreement}
-                    style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed' } : {}}
+                    style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed', fontSize: '10px', fontFamily: 'Inter' } : { fontSize: '10px', fontFamily: 'Inter' }}
                   />
-                  <small className="form-help">
+                  <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                     {selectedVendorAgreement ? (
                       <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
                     ) : (
@@ -1301,7 +1308,7 @@ function MappingWizard() {
             {/* File Schema Selection - Show when agreement has multiple files */}
             {selectedVendorAgreement && agreementFileSchemas.length > 1 && (
               <div className="form-group">
-                <label>Select File Pattern * <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span></label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Select File Pattern * <span style={{ color: '#6b7280', fontWeight: 'normal', textTransform: 'none' }}>(From Vendor Contract)</span></label>
                 <select
                   className="form-control"
                   value={selectedFileSchema?.id || ''}
@@ -1315,7 +1322,7 @@ function MappingWizard() {
                       extractPiiColumnsFromSchema(schema.schema);
                     }
                   }}
-                  style={{ marginBottom: '0.5rem' }}
+                  style={{ marginBottom: '0.5rem', fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select a file pattern...</option>
                   {agreementFileSchemas.map(schema => (
@@ -1397,12 +1404,13 @@ function MappingWizard() {
 
             {/* Source Owner Field */}
             <div className="form-group">
-              <label>Source File Owner</label>
+              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Source File Owner</label>
               <select
                 className="form-control"
                 value={sourceOwner}
                 onChange={(e) => setSourceOwner(e.target.value)}
                 disabled={loadingSourceOwners}
+                style={{ fontSize: '10px', fontFamily: 'Inter' }}
               >
                 <option value="">Select source file owner (optional)...</option>
                 {availableSourceOwners.map((owner, idx) => (
@@ -1411,7 +1419,7 @@ function MappingWizard() {
                   </option>
                 ))}
               </select>
-              <small className="form-help">
+              <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                 {loadingSourceOwners ? (
                   'Loading available owners...'
                 ) : selectedVendorAgreement ? (
@@ -1642,7 +1650,7 @@ function MappingWizard() {
         {/* Target & Rules Step */}
         {getWizardSteps()[currentStep - 1]?.id === 'target' && (
           <div className="wizard-step-content">
-            <h2><FiTarget /> Target Connection & Quality Rules</h2>
+            <h2 style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}><FiTarget /> Target Connection & Quality Rules</h2>
             
             {/* Target Connection Section - 2 Column Grid */}
             <div style={{ 
@@ -1652,11 +1660,12 @@ function MappingWizard() {
               marginBottom: '1.5rem'
             }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target Connection</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target Connection</label>
                 <select
                   className="form-control"
                   value={targetConnectionId}
                   onChange={(e) => setTargetConnectionId(e.target.value)}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="">Select target connection</option>
                   {connections.filter(c => c.connection_direction === 'target').map(conn => (
@@ -1665,13 +1674,13 @@ function MappingWizard() {
                     </option>
                   ))}
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   Select where to write transformed files
                 </small>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target File Path</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Path</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
@@ -1679,7 +1688,7 @@ function MappingWizard() {
                     value={targetFilePath}
                     onChange={(e) => setTargetFilePath(e.target.value)}
                     placeholder="e.g., /output/processed/"
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, fontSize: '10px', fontFamily: 'Inter' }}
                   />
                   {targetConnectionId && (
                     <button
@@ -1692,31 +1701,33 @@ function MappingWizard() {
                     </button>
                   )}
                 </div>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   Optional: Specify folder path (e.g., <code>/folder/</code>)
                 </small>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target File Name</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Name</label>
                 <input
                   type="text"
                   className="form-control"
                   value={targetFileName}
                   onChange={(e) => setTargetFileName(e.target.value)}
                   placeholder="e.g., output_<current_date>.csv"
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 />
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   Use <code>&lt;current_date&gt;</code> or <code>&lt;current_timestamp&gt;</code>
                 </small>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Target File Format</label>
+                <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Format</label>
                 <select
                   className="form-control"
                   value={targetFileFormat}
                   onChange={(e) => setTargetFileFormat(e.target.value)}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="csv">CSV</option>
                   <option value="json">JSON</option>
@@ -1724,17 +1735,18 @@ function MappingWizard() {
                   <option value="xlsx">Excel (XLSX)</option>
                   <option value="parquet">Parquet</option>
                 </select>
-                <small className="form-help">Choose output file format</small>
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>Choose output file format</small>
               </div>
             </div>
 
             <div className="form-group">
-              <label>Target File Owner (Data Steward)</label>
+              <label style={{ fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>Target File Owner (Data Steward)</label>
               <select
                 className="form-control"
                 value={targetOwner}
                 onChange={(e) => setTargetOwner(e.target.value)}
                 disabled={loadingDataStewards || dataStewards.length === 0}
+                style={{ fontSize: '10px', fontFamily: 'Inter' }}
               >
                 <option value="">Select target file owner (optional)...</option>
                 {dataStewards.map((steward) => (
@@ -1743,7 +1755,7 @@ function MappingWizard() {
                   </option>
                 ))}
               </select>
-              <small className="form-help">
+              <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                 {loadingDataStewards ? (
                   'Loading data stewards...'
                 ) : dataStewards.length === 0 ? (
@@ -1756,7 +1768,7 @@ function MappingWizard() {
 
             {/* Quality Rules Selection */}
             <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>
                 <FiShield /> Quality Rules (Optional)
               </label>
               {loadingQualityRules ? (
@@ -1838,18 +1850,19 @@ function MappingWizard() {
             {/* Quality Violation Handling */}
             {selectedQualityRules.length > 0 && (
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '10px', fontFamily: 'Inter', fontWeight: 600, textTransform: 'uppercase' }}>
                   <FiAlertCircle /> Quality Violation Handling
                 </label>
                 <select
                   className="form-control"
                   value={violationHandling}
                   onChange={(e) => setViolationHandling(e.target.value)}
+                  style={{ fontSize: '10px', fontFamily: 'Inter' }}
                 >
                   <option value="log_continue">Log and Proceed - Continue processing, log violations for review</option>
                   <option value="log_abort">Log and Abort - Stop processing immediately when violations are detected</option>
                 </select>
-                <small className="form-help">
+                <small className="form-help" style={{ fontSize: '10px', fontFamily: 'Inter' }}>
                   {violationHandling === 'log_continue' 
                     ? 'Processing will continue even if quality rule violations are found. All violations will be logged in Quality Violations for review.'
                     : 'Processing will stop immediately if any quality rule violations are detected. The job will be marked as failed and all violations will be logged.'
@@ -1865,7 +1878,11 @@ function MappingWizard() {
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: '0.5rem',
-                userSelect: 'none'
+                userSelect: 'none',
+                fontSize: '10px',
+                fontFamily: 'Inter',
+                fontWeight: 600,
+                textTransform: 'uppercase'
               }}
             >
               <FiSettings /> 
