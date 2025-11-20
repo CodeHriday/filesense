@@ -1225,32 +1225,58 @@ function MappingWizard() {
           <div className="wizard-step-content">
             <h2><FiFilter /> Source Configuration</h2>
             
+            {/* File Path and File Name/Pattern in one row */}
             <div className="form-group">
-              <label>File Path *</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={filePath}
-                  onChange={(e) => setFilePath(e.target.value)}
-                  placeholder="e.g., /year/month/day/ or use / for root"
-                  style={{ flex: 1 }}
-                />
-                {(sourceConnectionId || selectedVendorAgreement) && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowSourceBrowse(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                  >
-                    <FiFolder /> Browse
-                  </button>
-                )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '12px', alignItems: 'start' }}>
+                <div>
+                  <label>File Path *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={filePath}
+                    onChange={(e) => setFilePath(e.target.value)}
+                    placeholder="e.g., /year/month/day/ or use / for root"
+                  />
+                  <small className="form-help">
+                    Required. Use "/" for root directory or specify a folder path (e.g., /data/input/).<br/>
+                    Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
+                  </small>
+                </div>
+                <div>
+                  <label>File Name/Pattern *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={fileNamePattern}
+                    onChange={(e) => setFileNamePattern(e.target.value)}
+                    placeholder="e.g., sales_data.csv or sales_*.csv"
+                    readOnly={!!selectedVendorAgreement}
+                    style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed' } : {}}
+                  />
+                  <small className="form-help">
+                    {selectedVendorAgreement ? (
+                      <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
+                    ) : (
+                      <>
+                        Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
+                        Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
+                        File existence will be validated during job execution.
+                      </>
+                    )}
+                  </small>
+                </div>
+                <div style={{ paddingTop: '24px' }}>
+                  {(sourceConnectionId || selectedVendorAgreement) && (
+                    <button
+                      type="button"
+                      className="btn btn-browse"
+                      onClick={() => setShowSourceBrowse(true)}
+                    >
+                      <FiFolder /> Browse
+                    </button>
+                  )}
+                </div>
               </div>
-              <small className="form-help">
-                Required. Use "/" for root directory or specify a folder path (e.g., /data/input/).<br/>
-                Example: If file exists in bucket 'source' → subfolder 'year' → 'month' → 'day', enter: <code>/year/month/day/</code>
-              </small>
             </div>
 
             {/* File Schema Selection - Show when agreement has multiple files */}
@@ -1349,32 +1375,6 @@ function MappingWizard() {
               </div>
             )}
 
-            {/* File Name/Pattern Input - Show when no agreement OR only one file */}
-            {(!selectedVendorAgreement || agreementFileSchemas.length <= 1) && (
-              <div className="form-group">
-                <label>File Name/Pattern * {selectedVendorAgreement && <span style={{ color: '#6b7280', fontWeight: 'normal' }}>(From Vendor Contract)</span>}</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={fileNamePattern}
-                  onChange={(e) => setFileNamePattern(e.target.value)}
-                  placeholder="e.g., sales_data.csv or sales_*.csv"
-                  readOnly={!!selectedVendorAgreement}
-                  style={selectedVendorAgreement ? { backgroundColor: '#f9fafb', cursor: 'not-allowed' } : {}}
-                />
-                <small className="form-help">
-                  {selectedVendorAgreement ? (
-                    <>Auto-populated from vendor contract and locked for editing to ensure compliance.</>
-                  ) : (
-                    <>
-                      Enter a complete file name (e.g., <code>data.csv</code>) or a pattern with wildcards.<br/>
-                      Wildcards: <code>*</code> matches multiple characters, <code>?</code> matches single character.<br/>
-                      File existence will be validated during job execution.
-                    </>
-                  )}
-                </small>
-              </div>
-            )}
 
             {/* Source Owner Field */}
             <div className="form-group">
@@ -1455,6 +1455,144 @@ function MappingWizard() {
                 </div>
               </div>
             </div>
+
+            {/* RDM Lookup Toggles */}
+            <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Enable RDM Lookup Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
+                      Enable RDM Lookup
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                      Enrich your data with Reference Data Management lookups
+                    </div>
+                  </div>
+                  <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={rdmLookupEnabled}
+                      onChange={(e) => setRdmLookupEnabled(e.target.checked)}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: rdmLookupEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                      transition: '0.4s',
+                      borderRadius: '28px'
+                    }}>
+                      <span style={{
+                        position: 'absolute',
+                        content: '""',
+                        height: '22px',
+                        width: '22px',
+                        left: rdmLookupEnabled ? '25px' : '3px',
+                        bottom: '3px',
+                        backgroundColor: 'white',
+                        transition: '0.4s',
+                        borderRadius: '50%'
+                      }}></span>
+                    </span>
+                  </label>
+                </div>
+
+                {/* Enable Dataset Lookup Toggle */}
+                {rdmLookupEnabled && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between', paddingLeft: '1rem', borderLeft: '2px solid #e5e7eb' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
+                        Enable Datasets Lookup
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                        Join datasets from RDM to enrich records
+                      </div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={rdmDatasetEnabled}
+                        onChange={(e) => setRdmDatasetEnabled(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span style={{
+                        position: 'absolute',
+                        cursor: 'pointer',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: rdmDatasetEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                        transition: '0.4s',
+                        borderRadius: '28px'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          content: '""',
+                          height: '22px',
+                          width: '22px',
+                          left: rdmDatasetEnabled ? '25px' : '3px',
+                          bottom: '3px',
+                          backgroundColor: 'white',
+                          transition: '0.4s',
+                          borderRadius: '50%'
+                        }}></span>
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* Enable Crosswalk Lookup Toggle */}
+                {rdmLookupEnabled && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between', paddingLeft: '1rem', borderLeft: '2px solid #e5e7eb' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
+                        Enable Crosswalks Lookup
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                        Apply crosswalk mappings to transform values
+                      </div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={rdmCrosswalkEnabled}
+                        onChange={(e) => setRdmCrosswalkEnabled(e.target.checked)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span style={{
+                        position: 'absolute',
+                        cursor: 'pointer',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: rdmCrosswalkEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                        transition: '0.4s',
+                        borderRadius: '28px'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          content: '""',
+                          height: '22px',
+                          width: '22px',
+                          left: rdmCrosswalkEnabled ? '25px' : '3px',
+                          bottom: '3px',
+                          backgroundColor: 'white',
+                          transition: '0.4s',
+                          borderRadius: '50%'
+                        }}></span>
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1482,78 +1620,6 @@ function MappingWizard() {
                     }
                   }}
                 />
-                
-                {/* RDM Lookup Toggle */}
-                <div style={{ 
-                  marginTop: '2rem', 
-                  padding: '1.5rem', 
-                  backgroundColor: '#f9fafb', 
-                  border: '1px solid #e5e7eb', 
-                  borderRadius: '8px' 
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.125rem', fontWeight: '600' }}>
-                        <FiServer style={{ marginRight: '0.5rem' }} />
-                        Enable RDM Lookup
-                      </h3>
-                      <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem' }}>
-                        Enrich your data with Reference Data Management lookups. Join datasets and apply crosswalk mappings after field transformations.
-                      </p>
-                    </div>
-                    <label style={{ 
-                      position: 'relative', 
-                      display: 'inline-block', 
-                      width: '60px', 
-                      height: '34px',
-                      cursor: 'pointer'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={rdmLookupEnabled}
-                        onChange={(e) => setRdmLookupEnabled(e.target.checked)}
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
-                      <span style={{
-                        position: 'absolute',
-                        cursor: 'pointer',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: rdmLookupEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
-                        transition: '0.4s',
-                        borderRadius: '34px'
-                      }}>
-                        <span style={{
-                          position: 'absolute',
-                          content: '""',
-                          height: '26px',
-                          width: '26px',
-                          left: rdmLookupEnabled ? '30px' : '4px',
-                          bottom: '4px',
-                          backgroundColor: 'white',
-                          transition: '0.4s',
-                          borderRadius: '50%'
-                        }}></span>
-                      </span>
-                    </label>
-                  </div>
-                  {rdmLookupEnabled && (
-                    <div style={{ 
-                      marginTop: '1rem', 
-                      padding: '1rem', 
-                      backgroundColor: '#e0f2fe', 
-                      border: '1px solid #bae6fd', 
-                      borderRadius: '6px',
-                      fontSize: '0.875rem',
-                      color: '#0c4a6e'
-                    }}>
-                      <FiCheckCircle style={{ marginRight: '0.5rem' }} />
-                      RDM Lookup step will be added after this step. You'll be able to configure dataset joins and crosswalk mappings.
-                    </div>
-                  )}
-                </div>
               </>
             ) : (
               <div className="alert alert-warning">
