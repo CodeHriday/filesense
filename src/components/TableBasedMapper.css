@@ -11,16 +11,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
   border-bottom: 2px solid #dee2e6;
 }
 
 .mapper-header h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 10px;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
   color: #212529;
+  text-transform: uppercase;
 }
 
 .mapper-actions {
@@ -49,19 +51,21 @@
 .source-panel h4,
 .target-panel h4 {
   margin: 0;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem;
   background: #e9ecef;
   border-bottom: 1px solid #dee2e6;
-  font-size: 0.875rem;
+  font-size: 10px;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
   color: #495057;
+  text-transform: uppercase;
 }
 
 .target-panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem;
   background: #e9ecef;
   border-bottom: 1px solid #dee2e6;
 }
@@ -71,17 +75,20 @@
   padding: 0;
   background: none;
   border: none;
-  font-size: 0.875rem;
+  font-size: 10px;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
   color: #495057;
+  text-transform: uppercase;
 }
 
 .target-panel-header .btn {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  padding: 0.375rem 0.75rem;
+  gap: 0.125rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  padding: 0.25rem 0.5rem;
   flex-grow: 0;
   flex-shrink: 0;
   width: auto;
@@ -90,27 +97,29 @@
 
 .custom-badge {
   display: inline-block;
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem 0.375rem;
   background: #17a2b8;
   color: white;
-  font-size: 0.625rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
   border-radius: 3px;
   text-transform: uppercase;
-  margin-right: 0.25rem;
+  margin-right: 0.125rem;
 }
 
 .field-search {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem;
   border-bottom: 1px solid #dee2e6;
 }
 
 .field-search input {
   width: 100%;
-  padding: 0.375rem 0.75rem;
+  padding: 0.25rem 0.5rem;
   border: 1px solid #ced4da;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
 }
 
 .source-fields-list {
@@ -123,8 +132,8 @@
 .source-field-item {
   display: flex;
   align-items: center;
-  padding: 0.5rem;
-  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  gap: 0.25rem;
   border-radius: 4px;
   transition: background-color 0.15s;
 }
@@ -136,12 +145,15 @@
 .source-field-item input[type="checkbox"] {
   margin: 0;
   cursor: pointer;
+  width: 1rem;
+  height: 1rem;
 }
 
 .source-field-item label {
   margin: 0;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #495057;
   user-select: none;
 }
@@ -155,7 +167,8 @@
 .target-mapping-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
 }
 
 .target-mapping-table thead {
@@ -167,16 +180,17 @@
 
 .target-mapping-table th {
   text-align: left;
-  padding: 0.75rem;
+  padding: 0.5rem;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
   color: #495057;
   border-bottom: 2px solid #dee2e6;
-  font-size: 0.8rem;
+  font-size: 10px;
   text-transform: uppercase;
 }
 
 .target-mapping-table td {
-  padding: 0.5rem 0.75rem;
+  padding: 0.375rem 0.5rem;
   border-bottom: 1px solid #e9ecef;
   vertical-align: middle;
 }
@@ -204,10 +218,11 @@
 
 .target-name-input {
   width: 100%;
-  padding: 0.25rem 0.5rem;
+  padding: 0.125rem 0.25rem;
   border: 1px solid #ced4da;
   border-radius: 3px;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   background: white;
   transition: border-color 0.15s;
 }
@@ -226,8 +241,8 @@
 
 .arrow-icon {
   color: #6c757d;
-  font-size: 0.875rem;
-  margin-right: 0.25rem;
+  font-size: 10px;
+  margin-right: 0.125rem;
 }
 
 .btn-icon-small {
@@ -308,8 +323,10 @@
 
 .expression-editor-modal .modal-header h4 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 10px;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
 }
 
 .expression-editor-modal .btn-close {
@@ -345,18 +362,20 @@
 
 .expression-editor-modal .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #495057;
 }
 
 .expression-editor-modal .form-control {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.375rem 0.5rem;
   border: 1px solid #ced4da;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   transition: border-color 0.15s;
 }
 
@@ -372,13 +391,13 @@
 }
 
 .expression-preview {
-  padding: 0.75rem;
+  padding: 0.5rem;
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 4px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   color: #0066cc;
-  font-size: 0.875rem;
+  font-size: 10px;
   word-break: break-all;
 }
 
@@ -444,16 +463,19 @@
 
 .variables-title h4 {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 10px;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
   color: #4338ca;
+  text-transform: uppercase;
 }
 
 .variables-info {
-  font-size: 0.75rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #6b7280;
   font-style: italic;
-  margin-left: 0.5rem;
+  margin-left: 0.25rem;
 }
 
 .variables-content {
@@ -461,10 +483,11 @@
 }
 
 .no-variables {
-  padding: 2rem;
+  padding: 1rem;
   text-align: center;
   color: #6b7280;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   border: 2px dashed #e5e7eb;
   border-radius: 6px;
   background: #f9fafb;
@@ -511,10 +534,11 @@
 }
 
 .order-number {
-  font-size: 0.75rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
   color: #6366f1;
-  padding: 0.125rem 0.375rem;
+  padding: 0.125rem 0.25rem;
   background: white;
   border-radius: 3px;
   border: 1px solid #c7d2fe;
@@ -524,12 +548,13 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   min-width: 0;
 }
 
 .variable-name {
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #1f2937;
   white-space: nowrap;
 }
@@ -541,10 +566,10 @@
 .variable-expression {
   flex: 1;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.8125rem;
+  font-size: 10px;
   color: #059669;
   background: #f0fdf4;
-  padding: 0.25rem 0.5rem;
+  padding: 0.125rem 0.25rem;
   border-radius: 3px;
   border: 1px solid #d1fae5;
   overflow: hidden;
@@ -559,14 +584,16 @@
 
 .form-text {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
+  margin-top: 0.125rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #6b7280;
 }
 
 .mapping-summary p {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #6c757d;
   font-weight: 500;
 }
@@ -611,12 +638,14 @@
 }
 
 .variable-pane-header {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem;
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #374151;
+  text-transform: uppercase;
 }
 
 .variable-pane-content {
@@ -644,7 +673,7 @@
 }
 
 .insertable-item-name {
-  font-size: 0.875rem;
+  font-size: 10px;
   color: #3B82F6;
   font-weight: 500;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -655,21 +684,23 @@
 }
 
 .insertable-item-type {
-  font-size: 0.75rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #6b7280;
-  margin-right: 0.5rem;
+  margin-right: 0.25rem;
 }
 
 .btn-insert {
   background: white;
   border-radius: 4px;
-  padding: 0.25rem 0.5rem;
+  padding: 0.125rem 0.25rem;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.125rem;
   transition: all 0.2s;
 }
 
@@ -724,27 +755,29 @@
 }
 
 .function-item-name {
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #10B981;
   font-weight: 500;
 }
 
 .function-item-syntax {
-  font-size: 0.75rem;
+  font-size: 10px;
   color: #059669;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  margin-top: 0.25rem;
+  margin-top: 0.125rem;
 }
 
 .function-group-header {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: #f3f4f6;
-  margin: 0.5rem 0 0.25rem 0;
+  margin: 0.25rem 0 0.125rem 0;
   border-radius: 4px;
 }
 
@@ -753,11 +786,12 @@
   background: #f3f4f6;
   color: #6b7280;
   font-weight: 600;
-  padding: 0.5rem 0.75rem;
+  font-family: 'Inter', sans-serif;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 0.75rem;
+  font-size: 10px;
 }
 
 .function-item-conditional {
@@ -783,11 +817,12 @@
 }
 
 .function-item-description {
-  font-size: 0.7rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #78716c;
   font-style: italic;
-  margin-top: 0.5rem;
-  padding: 0.25rem 0.5rem;
+  margin-top: 0.25rem;
+  padding: 0.125rem 0.25rem;
   background: #fafaf9;
   border-left: 2px solid #d6d3d1;
   border-radius: 2px;
@@ -807,9 +842,10 @@
 
 .expression-builder-header label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #374151;
 }
 
@@ -825,11 +861,11 @@
   left: 0;
   right: 0;
   min-height: 200px;
-  padding: 0.75rem;
+  padding: 0.5rem;
   border: 1px solid transparent;
   border-radius: 6px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.875rem;
+  font-size: 10px;
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -846,11 +882,11 @@
 .expression-textarea {
   width: 100%;
   min-height: 200px;
-  padding: 0.75rem;
+  padding: 0.5rem;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.875rem;
+  font-size: 10px;
   line-height: 1.5;
   resize: vertical;
   transition: border-color 0.15s;
@@ -870,12 +906,13 @@
 }
 
 .expression-help {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
   background: #f0f9ff;
   border: 1px solid #bae6fd;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #0369a1;
 }
 
@@ -894,30 +931,33 @@
 
 .expression-preview-section label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #374151;
 }
 
 .variable-name-input {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .variable-name-input label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
   color: #374151;
 }
 
 .variable-name-input input {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.375rem 0.5rem;
   border: 1px solid #d1d5db;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
 }
 
 .variable-name-input input:focus {
