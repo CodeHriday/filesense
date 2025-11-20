@@ -138,9 +138,9 @@ const RdmLookupStep = ({
 
   if (loading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <div style={{ padding: '1rem', textAlign: 'center' }}>
         <LoadingSpinner size="small" />
-        <p style={{ marginTop: '1rem', color: '#6b7280' }}>Loading RDM resources...</p>
+        <p style={{ marginTop: '0.5rem', color: '#6b7280', fontSize: '10px', fontFamily: 'Inter' }}>Loading RDM resources...</p>
       </div>
     );
   }
@@ -212,14 +212,14 @@ const RdmLookupStep = ({
           borderRadius: '8px',
           marginBottom: '1rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-            <FiInfo style={{ color: '#dc2626', fontSize: '1.25rem' }} />
-            <h3 style={{ margin: 0, color: '#dc2626', fontSize: '1.125rem', fontWeight: '600' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.5rem' }}>
+            <FiInfo style={{ color: '#dc2626', fontSize: '10px' }} />
+            <h3 style={{ margin: 0, color: '#dc2626', fontSize: '10px', fontFamily: 'Inter', fontWeight: '600', textTransform: 'uppercase' }}>
               {hint.title}
             </h3>
           </div>
           
-          <p style={{ margin: 0, marginBottom: '1rem', color: '#991b1b' }}>
+          <p style={{ margin: 0, marginBottom: '0.5rem', color: '#991b1b', fontSize: '10px', fontFamily: 'Inter' }}>
             {error.message}
           </p>
 
@@ -231,14 +231,14 @@ const RdmLookupStep = ({
               borderRadius: '6px',
               marginBottom: '1rem'
             }}>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <strong style={{ color: '#991b1b' }}>Status:</strong>{' '}
+              <div style={{ marginBottom: '0.5rem' }}>
+                <strong style={{ color: '#991b1b', fontSize: '10px', fontFamily: 'Inter' }}>Status:</strong>{' '}
                 <span style={{ 
-                  padding: '0.25rem 0.5rem',
+                  padding: '0.125rem 0.25rem',
                   backgroundColor: '#fee2e2',
                   borderRadius: '4px',
                   fontFamily: 'monospace',
-                  fontSize: '0.875rem',
+                  fontSize: '10px',
                   color: '#991b1b'
                 }}>
                   {error.status} {error.statusText}
@@ -246,13 +246,13 @@ const RdmLookupStep = ({
               </div>
 
               {error.details?.endpoint && (
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <strong style={{ color: '#991b1b' }}>Endpoint:</strong>{' '}
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong style={{ color: '#991b1b', fontSize: '10px', fontFamily: 'Inter' }}>Endpoint:</strong>{' '}
                   <code style={{ 
-                    padding: '0.25rem 0.5rem',
+                    padding: '0.125rem 0.25rem',
                     backgroundColor: '#f3f4f6',
                     borderRadius: '4px',
-                    fontSize: '0.875rem'
+                    fontSize: '10px'
                   }}>
                     {error.details.endpoint}
                   </code>
@@ -260,16 +260,17 @@ const RdmLookupStep = ({
               )}
 
               {error.details?.responseBody && (
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <strong style={{ color: '#991b1b', display: 'block', marginBottom: '0.5rem' }}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong style={{ color: '#991b1b', fontSize: '10px', fontFamily: 'Inter', display: 'block', marginBottom: '0.25rem' }}>
                     Response Details:
                   </strong>
                   <pre style={{ 
-                    padding: '0.75rem',
+                    padding: '0.5rem',
                     backgroundColor: '#f9fafb',
                     border: '1px solid #e5e7eb',
                     borderRadius: '4px',
-                    fontSize: '0.8125rem',
+                    fontSize: '10px',
+                    fontFamily: 'Consolas, Monaco, Courier New, monospace',
                     margin: 0,
                     overflow: 'auto',
                     maxHeight: '200px',
@@ -281,7 +282,7 @@ const RdmLookupStep = ({
               )}
 
               {error.details?.timestamp && (
-                <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
+                <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#6b7280' }}>
                   <strong>Time:</strong> {new Date(error.details.timestamp).toLocaleString()}
                 </div>
               )}
@@ -289,18 +290,18 @@ const RdmLookupStep = ({
           )}
 
           <div style={{ 
-            padding: '1rem',
+            padding: '0.5rem',
             backgroundColor: '#fffbeb',
             border: '1px solid #fde68a',
             borderRadius: '6px',
-            marginBottom: '1rem'
+            marginBottom: '0.5rem'
           }}>
-            <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#92400e' }}>
+            <strong style={{ display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '10px', fontFamily: 'Inter' }}>
               Troubleshooting Steps:
             </strong>
-            <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#78350f' }}>
+            <ul style={{ margin: 0, paddingLeft: '1rem', color: '#78350f', fontSize: '10px', fontFamily: 'Inter' }}>
               {hint.actions.map((action, idx) => (
-                <li key={idx} style={{ marginBottom: '0.25rem' }}>{action}</li>
+                <li key={idx} style={{ marginBottom: '0.125rem' }}>{action}</li>
               ))}
             </ul>
           </div>
@@ -308,14 +309,15 @@ const RdmLookupStep = ({
           <button
             onClick={fetchRdmResources}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.125rem 0.25rem',
               backgroundColor: 'hsl(210, 100%, 50%)',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
               cursor: 'pointer',
               fontWeight: '500',
-              fontSize: '0.875rem'
+              fontSize: '10px',
+              fontFamily: 'Inter'
             }}
             onMouseOver={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 45%)'}
             onMouseOut={(e) => e.target.style.backgroundColor = 'hsl(210, 100%, 50%)'}
