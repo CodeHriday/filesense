@@ -242,6 +242,19 @@ function Mappings() {
       ? (typeof mapping.anomaly_rules === 'object' ? Object.keys(mapping.anomaly_rules).length : 0) 
       : 0;
     
+    // Construct complete source path
+    const sourcePath = [];
+    if (mapping.source_connection_name) sourcePath.push(mapping.source_connection_name);
+    else if (mapping.vendor_agreement_name) sourcePath.push(mapping.vendor_agreement_name);
+    if (mapping.file_path && mapping.file_path !== '') sourcePath.push(mapping.file_path);
+    const sourceDisplay = sourcePath.length > 0 ? sourcePath.join('/') : (mapping.source_owner || '-');
+    
+    // Construct complete target path
+    const targetPath = [];
+    if (mapping.target_connection_name) targetPath.push(mapping.target_connection_name);
+    if (mapping.target_file_path && mapping.target_file_path !== '') targetPath.push(mapping.target_file_path);
+    const targetDisplay = targetPath.length > 0 ? targetPath.join('/') : (mapping.target_owner || '-');
+    
     return (
       <tr key={mapping.id} style={{ fontFamily: 'Inter, sans-serif' }}>
         <td className="mapping-name-cell" style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
@@ -250,19 +263,19 @@ function Mappings() {
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FiServer size={14} style={{ color: '#64748b' }} />
-            {mapping.source_connection_name || mapping.vendor_agreement_name || mapping.source_filename || mapping.source_owner || '-'}
+            {sourceDisplay}
           </div>
         </td>
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
           <code style={{ fontSize: '11px', background: '#f1f5f9', padding: '0.2rem 0.4rem', borderRadius: '3px', fontFamily: 'Inter, monospace' }}>
-            {mapping.file_path && mapping.file_path !== '' ? `${mapping.file_path}` : ''}
+            {mapping.file_path && mapping.file_path !== '' ? `${mapping.file_path}/` : ''}
             {mapping.file_name_pattern || mapping.source_file_pattern}
           </code>
         </td>
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FiTarget size={14} style={{ color: '#64748b' }} />
-            {mapping.target_connection_name || mapping.target_file_name || mapping.target_file_path || mapping.target_owner || '-'}
+            {targetDisplay}
           </div>
         </td>
         <td style={{ textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>{fieldCount}</td>
