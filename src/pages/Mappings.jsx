@@ -365,7 +365,7 @@ function Mappings() {
           <button 
             type="submit"
             className="btn btn-primary"
-            style={{ fontFamily: 'Inter, sans-serif', width: 'auto', padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}
+            style={{ fontFamily: 'Inter, sans-serif', width: 'auto', padding: '0.5rem 1rem', whiteSpace: 'nowrap', flexGrow: 0, flexShrink: 0 }}
           >
             <FiSearch /> Search
           </button>
@@ -431,7 +431,7 @@ function Mappings() {
           className="btn btn-primary"
           onClick={handleCreateMapping}
           disabled={!hasWritePermission('transformation')}
-          style={{ fontFamily: 'Inter, sans-serif', width: 'auto', padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}
+          style={{ fontFamily: 'Inter, sans-serif', width: 'auto', padding: '0.5rem 1rem', whiteSpace: 'nowrap', flexGrow: 0, flexShrink: 0 }}
         >
           <FiPlus /> Create Mapping Job
         </button>
