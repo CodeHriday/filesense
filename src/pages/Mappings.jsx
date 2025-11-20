@@ -305,123 +305,124 @@ function Mappings() {
 
   return (
     <div className="page-container" style={{ fontFamily: 'Inter, sans-serif' }}>
+      {/* Header with title and description */}
       <div className="page-header">
         <div className="header-content">
           <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', fontFamily: 'Inter, sans-serif' }}>Mapping Jobs</h1>
           <p style={{ color: '#037c6e', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }}>Create and manage data transformation mappings with file pattern matching and quality checks</p>
         </div>
-        
-        {/* First Row: Search only */}
-        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder="Search mapping jobs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+      </div>
+      
+      {/* First Row: Search only */}
+      <div style={{ marginBottom: '1rem' }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Search mapping jobs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: '0.5rem 2.5rem 0.5rem 0.75rem',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                outline: 'none',
+                minWidth: '250px',
+                fontFamily: 'Inter, sans-serif'
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={clearSearch}
                 style={{
-                  padding: '0.5rem 2.5rem 0.5rem 0.75rem',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  minWidth: '250px',
-                  fontFamily: 'Inter, sans-serif'
+                  position: 'absolute',
+                  right: '0.5rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#999',
+                  padding: '0.25rem'
                 }}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  style={{
-                    position: 'absolute',
-                    right: '0.5rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#999',
-                    padding: '0.25rem'
-                  }}
-                >
-                  <FiXCircle size={16} />
-                </button>
-              )}
-            </div>
-            <button 
-              type="submit"
-              className="btn btn-primary"
-              style={{ fontFamily: 'Inter, sans-serif' }}
-            >
-              <FiSearch /> Search
-            </button>
-          </form>
-        </div>
-        
-        {/* Second Row: Project, Subproject, and Create Button */}
-        <div className="header-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <select
-            value={selectedProjectId}
-            onChange={(e) => {
-              setSelectedProjectId(e.target.value);
-              setSelectedSubProjectId('');
-              setCurrentPage(1);
-            }}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              outline: 'none',
-              minWidth: '200px',
-              fontFamily: 'Inter, sans-serif'
-            }}
-          >
-            <option value="">Select Project</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-          
-          <select
-            value={selectedSubProjectId}
-            onChange={(e) => {
-              setSelectedSubProjectId(e.target.value);
-              setCurrentPage(1);
-            }}
-            disabled={!selectedProjectId || !projectHasSubProjects}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              outline: 'none',
-              minWidth: '200px',
-              opacity: (selectedProjectId && projectHasSubProjects) ? 1 : 0.5,
-              fontFamily: 'Inter, sans-serif'
-            }}
-          >
-            <option value="">Select Subproject</option>
-            {availableSubProjects.map(subProject => (
-              <option key={subProject.id} value={subProject.id}>
-                {subProject.name}
-              </option>
-            ))}
-          </select>
-          
+              >
+                <FiXCircle size={16} />
+              </button>
+            )}
+          </div>
           <button 
+            type="submit"
             className="btn btn-primary"
-            onClick={handleCreateMapping}
-            disabled={!hasWritePermission('transformation')}
-            style={{ fontFamily: 'Inter, sans-serif', width: 'auto' }}
+            style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            <FiPlus /> Create Mapping Job
+            <FiSearch /> Search
           </button>
-        </div>
+        </form>
+      </div>
+      
+      {/* Second Row: Project, Subproject, and Create Button */}
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+        <select
+          value={selectedProjectId}
+          onChange={(e) => {
+            setSelectedProjectId(e.target.value);
+            setSelectedSubProjectId('');
+            setCurrentPage(1);
+          }}
+          style={{
+            padding: '0.5rem',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '0.9rem',
+            outline: 'none',
+            minWidth: '200px',
+            fontFamily: 'Inter, sans-serif'
+          }}
+        >
+          <option value="">Select Project</option>
+          {projects.map(project => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+        
+        <select
+          value={selectedSubProjectId}
+          onChange={(e) => {
+            setSelectedSubProjectId(e.target.value);
+            setCurrentPage(1);
+          }}
+          disabled={!selectedProjectId || !projectHasSubProjects}
+          style={{
+            padding: '0.5rem',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '0.9rem',
+            outline: 'none',
+            minWidth: '200px',
+            opacity: (selectedProjectId && projectHasSubProjects) ? 1 : 0.5,
+            fontFamily: 'Inter, sans-serif'
+          }}
+        >
+          <option value="">Select Subproject</option>
+          {availableSubProjects.map(subProject => (
+            <option key={subProject.id} value={subProject.id}>
+              {subProject.name}
+            </option>
+          ))}
+        </select>
+        
+        <button 
+          className="btn btn-primary"
+          onClick={handleCreateMapping}
+          disabled={!hasWritePermission('transformation')}
+          style={{ fontFamily: 'Inter, sans-serif', width: 'auto' }}
+        >
+          <FiPlus /> Create Mapping Job
+        </button>
       </div>
 
       <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
