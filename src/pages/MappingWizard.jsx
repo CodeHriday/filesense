@@ -1479,13 +1479,18 @@ function MappingWizard() {
 
               {/* RDM Lookup Toggles Panel */}
               <div style={{ padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Enable Dataset Lookup Toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
-                      Enable Datasets Lookup
-                    </div>
+                {/* Panel Header */}
+                <div style={{ fontSize: '14px', fontFamily: 'Inter', fontWeight: 700, marginBottom: '1rem' }}>
+                  Enable RDM Lookup
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Enable Dataset Lookup Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
+                        Enable Datasets Lookup
+                      </div>
                     <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
                       Join datasets from RDM to enrich records
                     </div>
