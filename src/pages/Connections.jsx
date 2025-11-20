@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiDatabase, FiCloud, FiServer, FiHardDrive, FiFolder, FiMail, FiLink, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiFolder, FiLink, FiCheckCircle, FiAlertCircle, FiSearch, FiActivity } from 'react-icons/fi';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
@@ -599,27 +599,6 @@ const Connections = () => {
     } catch (err) {
       console.error('Error saving connection:', err);
       setError('Failed to save connection. Please check your inputs and try again.');
-    }
-  };
-  
-  const renderConnectionIcon = (type) => {
-    switch (type) {
-      case 'aws':
-        return <FiCloud className="connection-icon aws" />;
-      case 'gcp':
-        return <FiCloud className="connection-icon gcp" />;
-      case 'azure':
-        return <FiCloud className="connection-icon azure" />;
-      case 'snowflake':
-        return <FiDatabase className="connection-icon snowflake" />;
-      case 'databricks':
-        return <FiDatabase className="connection-icon databricks" />;
-      case 'sharepoint':
-        return <FiFolder className="connection-icon sharepoint" />;
-      case 'outlook':
-        return <FiMail className="connection-icon outlook" />;
-      default:
-        return <FiDatabase className="connection-icon" />;
     }
   };
   
@@ -1839,7 +1818,7 @@ const Connections = () => {
                     <table className="connections-table">
                     <thead>
                       <tr>
-                        <th className="col-icon"></th>
+                        <th className="col-id">Connection ID</th>
                         <th className="col-name">Connection Name</th>
                         <th className="col-user">User</th>
                         <th className="col-auth">Auth Method</th>
@@ -1856,8 +1835,8 @@ const Connections = () => {
                         
                         return (
                         <tr key={connection.id} className={`connection-row ${connection.connection_type || connection.type}`}>
-                          <td className="col-icon">
-                            {renderConnectionIcon(provider)}
+                          <td className="col-id">
+                            {connection.id?.substring(0, 8) || '-'}
                           </td>
                           <td className="col-name">
                             <div className="connection-name-wrapper">
