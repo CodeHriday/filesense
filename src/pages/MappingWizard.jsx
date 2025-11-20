@@ -119,9 +119,9 @@ function MappingWizard() {
   const [loadingSchema, setLoadingSchema] = useState(false);
   
   // RDM Lookup toggle and configuration
-  const [rdmLookupEnabled, setRdmLookupEnabled] = useState(false);
   const [rdmDatasetEnabled, setRdmDatasetEnabled] = useState(false);
   const [rdmCrosswalkEnabled, setRdmCrosswalkEnabled] = useState(false);
+  const [rdmStepOrder, setRdmStepOrder] = useState([]); // Track order of enabled RDM steps
   const [rdmDatasetConfig, setRdmDatasetConfig] = useState({});
   const [rdmCrosswalkConfig, setRdmCrosswalkConfig] = useState({});
 
@@ -206,17 +206,28 @@ function MappingWizard() {
     }
   }, [projectId]);
   
-  // Handle RDM toggle changes - normalize currentStep (preserve configs for better UX)
-  useEffect(() => {
-    if (!rdmLookupEnabled) {
-      // If RDM is disabled and we're on Step 4 (RDM step), skip to Step 5
-      if (currentStep === 4) {
-        setCurrentStep(5);
-        setMaxCompletedStep(Math.max(maxCompletedStep, 5));
-      }
-      // Note: We preserve RDM configs even when disabled, so users don't lose data if they accidentally toggle off
+  // Handlers for RDM toggle changes - track order of enabled steps
+  const handleDatasetToggle = (enabled) => {
+    setRdmDatasetEnabled(enabled);
+    if (enabled) {
+      // Add to order if not already present
+      setRdmStepOrder(prev => prev.includes('dataset') ? prev : [...prev, 'dataset']);
+    } else {
+      // Remove from order
+      setRdmStepOrder(prev => prev.filter(step => step !== 'dataset'));
     }
-  }, [rdmLookupEnabled, currentStep, maxCompletedStep]);
+  };
+
+  const handleCrosswalkToggle = (enabled) => {
+    setRdmCrosswalkEnabled(enabled);
+    if (enabled) {
+      // Add to order if not already present
+      setRdmStepOrder(prev => prev.includes('crosswalk') ? prev : [...prev, 'crosswalk']);
+    } else {
+      // Remove from order
+      setRdmStepOrder(prev => prev.filter(step => step !== 'crosswalk'));
+    }
+  };
 
   // Fetch sub-projects when projectId changes
   useEffect(() => {
@@ -817,7 +828,7 @@ function MappingWizard() {
         source_schema: schema || null,
         quality_rule_ids: selectedQualityRules && selectedQualityRules.length > 0 ? selectedQualityRules : null,
         violation_handling: selectedQualityRules && selectedQualityRules.length > 0 ? violationHandling : null,
-        rdm_lookup_enabled: rdmLookupEnabled,
+        rdm_lookup_enabled: rdmDatasetEnabled || rdmCrosswalkEnabled,
         rdm_dataset_config: rdmDatasetConfig || null,
         rdm_crosswalk_config: rdmCrosswalkConfig || null
       };
@@ -914,13 +925,14 @@ function MappingWizard() {
       { id: 'expressions', label: 'Expressions', component: 'expressions' },
     ];
     
-    if (rdmLookupEnabled) {
-      steps.push({ id: 'rdm', label: 'RDM Lookup', component: 'rdm' });
-    }
-    
-    if (rdmLookupEnabled && rdmCrosswalkEnabled) {
-      steps.push({ id: 'crosswalk', label: 'Crosswalk Lookup', component: 'crosswalk' });
-    }
+    // Add RDM steps in the order they were enabled
+    rdmStepOrder.forEach(stepType => {
+      if (stepType === 'dataset' && rdmDatasetEnabled) {
+        steps.push({ id: 'rdm-dataset', label: 'Dataset Lookup', component: 'rdm-dataset' });
+      } else if (stepType === 'crosswalk' && rdmCrosswalkEnabled) {
+        steps.push({ id: 'rdm-crosswalk', label: 'Crosswalk Lookup', component: 'rdm-crosswalk' });
+      }
+    });
     
     steps.push({ id: 'target', label: 'Target & Rules', component: 'target' });
     
@@ -1461,21 +1473,21 @@ function MappingWizard() {
               {/* RDM Lookup Toggles Panel */}
               <div style={{ padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Enable RDM Lookup Toggle */}
+                {/* Enable Dataset Lookup Toggle */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
-                      Enable RDM Lookup
+                      Enable Datasets Lookup
                     </div>
                     <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
-                      Enrich your data with Reference Data Management lookups
+                      Join datasets from RDM to enrich records
                     </div>
                   </div>
                   <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
-                      checked={rdmLookupEnabled}
-                      onChange={(e) => setRdmLookupEnabled(e.target.checked)}
+                      checked={rdmDatasetEnabled}
+                      onChange={(e) => handleDatasetToggle(e.target.checked)}
                       style={{ opacity: 0, width: 0, height: 0 }}
                     />
                     <span style={{
@@ -1485,7 +1497,7 @@ function MappingWizard() {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      backgroundColor: rdmLookupEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                      backgroundColor: rdmDatasetEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
                       transition: '0.4s',
                       borderRadius: '28px'
                     }}>
@@ -1494,7 +1506,7 @@ function MappingWizard() {
                         content: '""',
                         height: '22px',
                         width: '22px',
-                        left: rdmLookupEnabled ? '25px' : '3px',
+                        left: rdmDatasetEnabled ? '25px' : '3px',
                         bottom: '3px',
                         backgroundColor: 'white',
                         transition: '0.4s',
@@ -1504,95 +1516,48 @@ function MappingWizard() {
                   </label>
                 </div>
 
-                {/* Enable Dataset Lookup Toggle */}
-                {rdmLookupEnabled && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between', paddingLeft: '1rem', borderLeft: '2px solid #e5e7eb' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
-                        Enable Datasets Lookup
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
-                        Join datasets from RDM to enrich records
-                      </div>
-                    </div>
-                    <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={rdmDatasetEnabled}
-                        onChange={(e) => setRdmDatasetEnabled(e.target.checked)}
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
-                      <span style={{
-                        position: 'absolute',
-                        cursor: 'pointer',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: rdmDatasetEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
-                        transition: '0.4s',
-                        borderRadius: '28px'
-                      }}>
-                        <span style={{
-                          position: 'absolute',
-                          content: '""',
-                          height: '22px',
-                          width: '22px',
-                          left: rdmDatasetEnabled ? '25px' : '3px',
-                          bottom: '3px',
-                          backgroundColor: 'white',
-                          transition: '0.4s',
-                          borderRadius: '50%'
-                        }}></span>
-                      </span>
-                    </label>
-                  </div>
-                )}
-
                 {/* Enable Crosswalk Lookup Toggle */}
-                {rdmLookupEnabled && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between', paddingLeft: '1rem', borderLeft: '2px solid #e5e7eb' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
-                        Enable Crosswalks Lookup
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
-                        Apply crosswalk mappings to transform values
-                      </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'space-between' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>
+                      Enable Crosswalks Lookup
                     </div>
-                    <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={rdmCrosswalkEnabled}
-                        onChange={(e) => setRdmCrosswalkEnabled(e.target.checked)}
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
+                    <div style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Inter', fontWeight: 400 }}>
+                      Apply crosswalk mappings to transform values
+                    </div>
+                  </div>
+                  <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={rdmCrosswalkEnabled}
+                      onChange={(e) => handleCrosswalkToggle(e.target.checked)}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: rdmCrosswalkEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                      transition: '0.4s',
+                      borderRadius: '28px'
+                    }}>
                       <span style={{
                         position: 'absolute',
-                        cursor: 'pointer',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: rdmCrosswalkEnabled ? 'hsl(221, 83%, 53%)' : '#ccc',
+                        content: '""',
+                        height: '22px',
+                        width: '22px',
+                        left: rdmCrosswalkEnabled ? '25px' : '3px',
+                        bottom: '3px',
+                        backgroundColor: 'white',
                         transition: '0.4s',
-                        borderRadius: '28px'
-                      }}>
-                        <span style={{
-                          position: 'absolute',
-                          content: '""',
-                          height: '22px',
-                          width: '22px',
-                          left: rdmCrosswalkEnabled ? '25px' : '3px',
-                          bottom: '3px',
-                          backgroundColor: 'white',
-                          transition: '0.4s',
-                          borderRadius: '50%'
-                        }}></span>
-                      </span>
-                    </label>
-                  </div>
-                )}
+                        borderRadius: '50%'
+                      }}></span>
+                    </span>
+                  </label>
+                </div>
               </div>
               </div>
             </div>
@@ -1632,26 +1597,26 @@ function MappingWizard() {
           </div>
         )}
 
-        {/* Step 4: RDM Lookup */}
-        {getWizardSteps()[currentStep - 1]?.id === 'rdm' && (
+        {/* Dataset Lookup Step (dynamic) */}
+        {getWizardSteps()[currentStep - 1]?.id === 'rdm-dataset' && (
           <div className="wizard-step-content">
-            <h2><FiServer /> RDM Lookup</h2>
+            <h2><FiServer /> Dataset Lookup</h2>
             <RdmLookupStep
               datasetConfig={rdmDatasetConfig}
               crosswalkConfig={rdmCrosswalkConfig}
               schema={schema}
               datasetEnabled={rdmDatasetEnabled}
-              crosswalkEnabled={rdmCrosswalkEnabled}
+              crosswalkEnabled={false}
               onDatasetConfigChange={setRdmDatasetConfig}
               onCrosswalkConfigChange={setRdmCrosswalkConfig}
-              onDatasetEnabledChange={setRdmDatasetEnabled}
-              onCrosswalkEnabledChange={setRdmCrosswalkEnabled}
+              onDatasetEnabledChange={handleDatasetToggle}
+              onCrosswalkEnabledChange={handleCrosswalkToggle}
             />
           </div>
         )}
 
-        {/* Step 5: Crosswalk Lookup (conditional) */}
-        {getWizardSteps()[currentStep - 1]?.id === 'crosswalk' && (
+        {/* Crosswalk Lookup Step (dynamic) */}
+        {getWizardSteps()[currentStep - 1]?.id === 'rdm-crosswalk' && (
           <div className="wizard-step-content">
             <h2><FiGitBranch /> Crosswalk Lookup</h2>
             <CrosswalkLookupStep
