@@ -75,7 +75,7 @@ a:hover {
 .page-container {
   background-color: var(--bg-page);
   min-height: 100vh;
-  padding: var(--space-6);
+  padding: 0 var(--space-6) var(--space-6) var(--space-6);
 }
 
 .page-header {
@@ -426,7 +426,7 @@ div.spinner {
 /* === RESPONSIVE === */
 @media (max-width: 960px) {
   .page-container {
-    padding: var(--space-4);
+    padding: 0 var(--space-4) var(--space-4) var(--space-4);
   }
   
   .page-header {
