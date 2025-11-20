@@ -1917,7 +1917,7 @@ function MappingWizard() {
             </button>
           )}
           <div className="wizard-actions-right">
-            {currentStep < 4 ? (
+            {currentStep < getWizardSteps().length ? (
               <>
                 <button 
                   className="btn btn-outline-success" 
