@@ -533,9 +533,7 @@ function MappingWizard() {
       }
       
       // Load RDM lookup configuration
-      if (mapping.rdm_lookup_enabled !== undefined) {
-        setRdmLookupEnabled(mapping.rdm_lookup_enabled);
-      }
+      const tempRdmStepOrder = [];
       
       if (mapping.rdm_dataset_config) {
         // Parse if string, otherwise use as-is
@@ -543,6 +541,8 @@ function MappingWizard() {
           ? JSON.parse(mapping.rdm_dataset_config) 
           : mapping.rdm_dataset_config;
         setRdmDatasetConfig(datasetConfig);
+        setRdmDatasetEnabled(true);
+        tempRdmStepOrder.push('dataset');
       }
       
       if (mapping.rdm_crosswalk_config) {
@@ -551,6 +551,13 @@ function MappingWizard() {
           ? JSON.parse(mapping.rdm_crosswalk_config)
           : mapping.rdm_crosswalk_config;
         setRdmCrosswalkConfig(crosswalkConfig);
+        setRdmCrosswalkEnabled(true);
+        tempRdmStepOrder.push('crosswalk');
+      }
+      
+      // Set the RDM step order based on loaded configs
+      if (tempRdmStepOrder.length > 0) {
+        setRdmStepOrder(tempRdmStepOrder);
       }
       
       // Determine max completed step based on available data (5-step model)
