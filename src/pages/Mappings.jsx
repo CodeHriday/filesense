@@ -261,10 +261,7 @@ function Mappings() {
           <strong>{mapping.mapping_name}</strong>
         </td>
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FiServer size={14} style={{ color: '#64748b' }} />
-            {sourceDisplay}
-          </div>
+          {sourceDisplay}
         </td>
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
           <code style={{ fontSize: '11px', background: '#f1f5f9', padding: '0.2rem 0.4rem', borderRadius: '3px', fontFamily: 'Inter, monospace' }}>
@@ -273,10 +270,10 @@ function Mappings() {
           </code>
         </td>
         <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FiTarget size={14} style={{ color: '#64748b' }} />
-            {targetDisplay}
-          </div>
+          {targetDisplay}
+        </td>
+        <td style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>
+          {mapping.target_file_name || '-'}
         </td>
         <td style={{ textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>{fieldCount}</td>
         <td style={{ textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: '500' }}>{rulesCount}</td>
@@ -368,7 +365,7 @@ function Mappings() {
           <button 
             type="submit"
             className="btn btn-primary"
-            style={{ fontFamily: 'Inter, sans-serif', width: 'auto' }}
+            style={{ fontFamily: 'Inter, sans-serif', width: 'auto', padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}
           >
             <FiSearch /> Search
           </button>
@@ -434,7 +431,7 @@ function Mappings() {
           className="btn btn-primary"
           onClick={handleCreateMapping}
           disabled={!hasWritePermission('transformation')}
-          style={{ fontFamily: 'Inter, sans-serif', width: 'auto' }}
+          style={{ fontFamily: 'Inter, sans-serif', width: 'auto', padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}
         >
           <FiPlus /> Create Mapping Job
         </button>
@@ -492,9 +489,10 @@ function Mappings() {
                 <thead>
                   <tr style={{ fontSize: '14px', fontWeight: '500', fontFamily: 'Inter, sans-serif' }}>
                     <th>Mapping Name</th>
-                    <th>Source</th>
-                    <th>File Pattern</th>
-                    <th>Target</th>
+                    <th>Source Path</th>
+                    <th>Source File Pattern</th>
+                    <th>Target Path</th>
+                    <th>Target File Name</th>
                     <th>Fields</th>
                     <th>Quality Rules</th>
                     <th>Created</th>
