@@ -1935,7 +1935,7 @@ function MappingWizard() {
         {/* Navigation Buttons */}
         <div className="wizard-actions">
           {currentStep > 1 && (
-            <button className="btn btn-secondary" onClick={handleBack}>
+            <button className="btn btn-back" onClick={handleBack}>
               <FiArrowLeft /> Back
             </button>
           )}
