@@ -863,8 +863,8 @@ const Connections = () => {
     } else if (providerType === 'gcp') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="project_id">GCP Project ID</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="project_id" style={compactStyles.label}>GCP Project ID</label>
             <input
               type="text"
               id="project_id"
@@ -873,11 +873,12 @@ const Connections = () => {
               value={formData.project_id}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="bucket_name">Storage Bucket Name</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="bucket_name" style={compactStyles.label}>Storage Bucket Name</label>
             <input
               type="text"
               id="bucket_name"
@@ -886,11 +887,12 @@ const Connections = () => {
               value={formData.bucket_name}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="path">Path</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="path" style={compactStyles.label}>Path</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
                 type="text"
@@ -902,6 +904,7 @@ const Connections = () => {
                 placeholder="e.g., vendor-uploads/"
                 disabled={!canBrowse}
                 style={{ 
+                  ...compactStyles.input,
                   flex: 1,
                   backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
                   cursor: !canBrowse ? 'not-allowed' : 'text'
@@ -922,7 +925,7 @@ const Connections = () => {
                 <FiFolder style={{ marginRight: '0.25rem' }} /> Browse
               </button>
             </div>
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               {!canBrowse 
                 ? 'Test connection or save to enable folder browsing'
                 : 'Folder path within the bucket where files will be uploaded. Click Browse to select from available folders.'
@@ -930,8 +933,8 @@ const Connections = () => {
             </small>
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="client_email">Service Account Email</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="client_email" style={compactStyles.label}>Service Account Email</label>
             <input
               type="text"
               id="client_email"
@@ -940,11 +943,12 @@ const Connections = () => {
               value={formData.client_email}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="private_key">Service Account Private Key</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="private_key" style={compactStyles.label}>Service Account Private Key</label>
             <textarea
               id="private_key"
               name="private_key"
@@ -954,9 +958,10 @@ const Connections = () => {
               required={!editMode}
               placeholder={editMode ? '(unchanged)' : ''}
               rows={3}
+              style={compactStyles.textarea}
             />
             {editMode && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 Leave blank to keep the existing private key.
               </small>
             )}
@@ -966,8 +971,8 @@ const Connections = () => {
     } else if (providerType === 'azure') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="account_name">Storage Account Name</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="account_name" style={compactStyles.label}>Storage Account Name</label>
             <input
               type="text"
               id="account_name"
@@ -976,11 +981,12 @@ const Connections = () => {
               value={formData.account_name}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="container_name">Container Name</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="container_name" style={compactStyles.label}>Container Name</label>
             <input
               type="text"
               id="container_name"
@@ -989,11 +995,12 @@ const Connections = () => {
               value={formData.container_name}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="path">Base Path (Optional)</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="path" style={compactStyles.label}>Base Path (Optional)</label>
             <input
               type="text"
               id="path"
@@ -1002,14 +1009,15 @@ const Connections = () => {
               value={formData.path}
               onChange={handleInputChange}
               placeholder="e.g., vendor-uploads/"
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Optional folder path within the container where files will be uploaded
             </small>
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="account_key">Storage Account Key</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="account_key" style={compactStyles.label}>Storage Account Key</label>
             <input
               type="password"
               id="account_key"
@@ -1019,9 +1027,10 @@ const Connections = () => {
               onChange={handleInputChange}
               required={!editMode}
               placeholder={editMode ? '(unchanged)' : ''}
+              style={compactStyles.input}
             />
             {editMode && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 Leave blank to keep the existing account key.
               </small>
             )}
@@ -1031,8 +1040,8 @@ const Connections = () => {
     } else if (providerType === 'snowflake') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group form-group-full">
-            <label htmlFor="snowflake_account">Snowflake Account</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="snowflake_account" style={compactStyles.label}>Snowflake Account</label>
             <input
               type="text"
               id="snowflake_account"
@@ -1041,14 +1050,15 @@ const Connections = () => {
               value={formData.snowflake_account}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               The account identifier (e.g., xy12345.us-east-1)
             </small>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="snowflake_username">Username</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="snowflake_username" style={compactStyles.label}>Username</label>
             <input
               type="text"
               id="snowflake_username"
@@ -1057,11 +1067,12 @@ const Connections = () => {
               value={formData.snowflake_username}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="snowflake_password">Password</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="snowflake_password" style={compactStyles.label}>Password</label>
             <input
               type="password"
               id="snowflake_password"
@@ -1071,16 +1082,17 @@ const Connections = () => {
               onChange={handleInputChange}
               required={!editMode}
               placeholder={editMode ? '(unchanged)' : ''}
+              style={compactStyles.input}
             />
             {editMode && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 Leave blank to keep the existing password.
               </small>
             )}
           </div>
           
-          <div className="form-group">
-            <label htmlFor="snowflake_warehouse">Warehouse</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="snowflake_warehouse" style={compactStyles.label}>Warehouse</label>
             <input
               type="text"
               id="snowflake_warehouse"
@@ -1089,11 +1101,12 @@ const Connections = () => {
               value={formData.snowflake_warehouse}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="snowflake_database">Database</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="snowflake_database" style={compactStyles.label}>Database</label>
             <input
               type="text"
               id="snowflake_database"
@@ -1102,11 +1115,12 @@ const Connections = () => {
               value={formData.snowflake_database}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="snowflake_schema">Schema</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="snowflake_schema" style={compactStyles.label}>Schema</label>
             <input
               type="text"
               id="snowflake_schema"
@@ -1115,11 +1129,12 @@ const Connections = () => {
               value={formData.snowflake_schema}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="snowflake_role">Role</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="snowflake_role" style={compactStyles.label}>Role</label>
             <input
               type="text"
               id="snowflake_role"
@@ -1127,8 +1142,9 @@ const Connections = () => {
               className="form-control"
               value={formData.snowflake_role}
               onChange={handleInputChange}
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Optional - leave blank to use the default role
             </small>
           </div>
@@ -1137,8 +1153,8 @@ const Connections = () => {
     } else if (providerType === 'databricks') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group form-group-full">
-            <label htmlFor="databricks_host">Databricks Host</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="databricks_host" style={compactStyles.label}>Databricks Host</label>
             <input
               type="text"
               id="databricks_host"
@@ -1147,14 +1163,15 @@ const Connections = () => {
               value={formData.databricks_host}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               The Databricks workspace URL (e.g., https://dbc-abc123.cloud.databricks.com)
             </small>
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="databricks_token">Access Token</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="databricks_token" style={compactStyles.label}>Access Token</label>
             <input
               type="password"
               id="databricks_token"
@@ -1164,16 +1181,17 @@ const Connections = () => {
               onChange={handleInputChange}
               required={!editMode}
               placeholder={editMode ? '(unchanged)' : ''}
+              style={compactStyles.input}
             />
             {editMode && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 Leave blank to keep the existing token.
               </small>
             )}
           </div>
           
-          <div className="form-group">
-            <label htmlFor="databricks_catalog">Catalog</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="databricks_catalog" style={compactStyles.label}>Catalog</label>
             <input
               type="text"
               id="databricks_catalog"
@@ -1182,11 +1200,12 @@ const Connections = () => {
               value={formData.databricks_catalog}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="databricks_schema">Schema</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="databricks_schema" style={compactStyles.label}>Schema</label>
             <input
               type="text"
               id="databricks_schema"
@@ -1195,6 +1214,7 @@ const Connections = () => {
               value={formData.databricks_schema}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
         </div>
@@ -1202,8 +1222,8 @@ const Connections = () => {
     } else if (providerType === 'sharepoint') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="sharepoint_tenant_id">Microsoft Tenant ID</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="sharepoint_tenant_id" style={compactStyles.label}>Microsoft Tenant ID</label>
             <input
               type="text"
               id="sharepoint_tenant_id"
@@ -1212,14 +1232,15 @@ const Connections = () => {
               value={formData.sharepoint_tenant_id}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Your Microsoft 365 tenant ID
             </small>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="sharepoint_client_id">Application (Client) ID</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="sharepoint_client_id" style={compactStyles.label}>Application (Client) ID</label>
             <input
               type="text"
               id="sharepoint_client_id"
@@ -1228,14 +1249,15 @@ const Connections = () => {
               value={formData.sharepoint_client_id}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Client ID from your Azure AD registered application
             </small>
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="sharepoint_client_secret">Client Secret</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="sharepoint_client_secret" style={compactStyles.label}>Client Secret</label>
             <input
               type="password"
               id="sharepoint_client_secret"
@@ -1245,16 +1267,17 @@ const Connections = () => {
               onChange={handleInputChange}
               required={!editMode}
               placeholder={editMode ? '(unchanged)' : ''}
+              style={compactStyles.input}
             />
             {editMode && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 Leave blank to keep the existing client secret.
               </small>
             )}
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="sharepoint_site_url">SharePoint Site URL</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="sharepoint_site_url" style={compactStyles.label}>SharePoint Site URL</label>
             <input
               type="text"
               id="sharepoint_site_url"
@@ -1263,14 +1286,15 @@ const Connections = () => {
               value={formData.sharepoint_site_url}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               The URL of your SharePoint site (e.g., https://contoso.sharepoint.com/sites/mysite)
             </small>
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="sharepoint_document_library">Document Library</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="sharepoint_document_library" style={compactStyles.label}>Document Library</label>
             <input
               type="text"
               id="sharepoint_document_library"
@@ -1279,8 +1303,9 @@ const Connections = () => {
               value={formData.sharepoint_document_library}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Name of the document library where your files are stored (e.g., "Documents" or "Shared Documents")
             </small>
           </div>
@@ -1289,8 +1314,8 @@ const Connections = () => {
     } else if (providerType === 'outlook') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="outlook_tenant_id">Microsoft Tenant ID</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="outlook_tenant_id" style={compactStyles.label}>Microsoft Tenant ID</label>
             <input
               type="text"
               id="outlook_tenant_id"
@@ -1299,14 +1324,15 @@ const Connections = () => {
               value={formData.outlook_tenant_id}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Your Microsoft 365 tenant ID
             </small>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="outlook_client_id">Application (Client) ID</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="outlook_client_id" style={compactStyles.label}>Application (Client) ID</label>
             <input
               type="text"
               id="outlook_client_id"
@@ -1315,14 +1341,15 @@ const Connections = () => {
               value={formData.outlook_client_id}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Client ID from your Azure AD registered application
             </small>
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="outlook_client_secret">Client Secret</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="outlook_client_secret" style={compactStyles.label}>Client Secret</label>
             <input
               type="password"
               id="outlook_client_secret"
@@ -1332,16 +1359,17 @@ const Connections = () => {
               onChange={handleInputChange}
               required={!editMode}
               placeholder={editMode ? '(unchanged)' : ''}
+              style={compactStyles.input}
             />
             {editMode && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 Leave blank to keep the existing client secret.
               </small>
             )}
           </div>
           
-          <div className="form-group">
-            <label htmlFor="outlook_user_email">User Email</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="outlook_user_email" style={compactStyles.label}>User Email</label>
             <input
               type="email"
               id="outlook_user_email"
@@ -1350,14 +1378,15 @@ const Connections = () => {
               value={formData.outlook_user_email}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               The email address of the Outlook account to access
             </small>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="outlook_folder_path">Folder Path</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="outlook_folder_path" style={compactStyles.label}>Folder Path</label>
             <input
               type="text"
               id="outlook_folder_path"
@@ -1366,8 +1395,9 @@ const Connections = () => {
               value={formData.outlook_folder_path}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               Path to the folder containing attachment files (e.g., "Inbox/Reports" or leave as "Inbox" for default)
             </small>
           </div>
