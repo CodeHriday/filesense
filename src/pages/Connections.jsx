@@ -749,8 +749,8 @@ const Connections = () => {
     if (providerType === 'aws') {
       specificFields = (
         <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="region">AWS Region</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="region" style={compactStyles.label}>AWS Region</label>
             <input
               type="text"
               id="region"
@@ -759,11 +759,12 @@ const Connections = () => {
               value={formData.region}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="bucket_name">S3 Bucket Name</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="bucket_name" style={compactStyles.label}>S3 Bucket Name</label>
             <input
               type="text"
               id="bucket_name"
@@ -772,11 +773,12 @@ const Connections = () => {
               value={formData.bucket_name}
               onChange={handleInputChange}
               required
+              style={compactStyles.input}
             />
           </div>
           
-          <div className="form-group form-group-full">
-            <label htmlFor="path">Path</label>
+          <div className="form-group form-group-full" style={compactStyles.formGroup}>
+            <label htmlFor="path" style={compactStyles.label}>Path</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
                 type="text"
@@ -788,6 +790,7 @@ const Connections = () => {
                 placeholder="e.g., vendor-uploads/"
                 disabled={!canBrowse}
                 style={{ 
+                  ...compactStyles.input,
                   flex: 1,
                   backgroundColor: !canBrowse ? '#f3f4f6' : 'white',
                   cursor: !canBrowse ? 'not-allowed' : 'text'
@@ -808,7 +811,7 @@ const Connections = () => {
                 <FiFolder style={{ marginRight: '0.25rem' }} /> Browse
               </button>
             </div>
-            <small className="form-text text-muted">
+            <small className="form-text text-muted" style={compactStyles.helperText}>
               {!canBrowse 
                 ? 'Test connection or save to enable folder browsing'
                 : 'Folder path within the bucket where files will be uploaded. Click Browse to select from available folders.'
@@ -816,8 +819,8 @@ const Connections = () => {
             </small>
           </div>
           
-          <div className="form-group">
-            <label htmlFor="access_key">Access Key ID</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="access_key" style={compactStyles.label}>Access Key ID</label>
             <input
               type="text"
               id="access_key"
@@ -827,16 +830,17 @@ const Connections = () => {
               onChange={handleInputChange}
               required={!editMode || !formData.has_access_key}
               placeholder={editMode && formData.has_access_key ? '(saved - leave blank to keep)' : ''}
+              style={compactStyles.input}
             />
             {editMode && formData.has_access_key && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 ✓ Access key is saved. Leave blank to keep existing, or enter new value to update.
               </small>
             )}
           </div>
           
-          <div className="form-group">
-            <label htmlFor="secret_key">Secret Access Key</label>
+          <div className="form-group" style={compactStyles.formGroup}>
+            <label htmlFor="secret_key" style={compactStyles.label}>Secret Access Key</label>
             <input
               type="password"
               id="secret_key"
@@ -846,9 +850,10 @@ const Connections = () => {
               onChange={handleInputChange}
               required={!editMode || !formData.has_secret_key}
               placeholder={editMode && formData.has_secret_key ? '(saved - leave blank to keep)' : ''}
+              style={compactStyles.input}
             />
             {editMode && formData.has_secret_key && (
-              <small className="form-text text-muted">
+              <small className="form-text text-muted" style={compactStyles.helperText}>
                 ✓ Secret key is saved. Leave blank to keep existing, or enter new value to update.
               </small>
             )}
