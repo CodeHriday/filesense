@@ -178,22 +178,21 @@ const ColumnMapper = ({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '0.5rem',
+                    padding: '0.25rem 0.5rem',
                     borderBottom: '1px solid #f3f4f6',
-                    backgroundColor: '#fafafa'
+                    backgroundColor: '#fafafa',
+                    gap: '0.5rem'
                   }}
                 >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '500', color: '#6b7280', fontSize: '10px', fontFamily: 'Inter' }}>
-                      {col.name}
-                    </div>
-                    {col.type && (
-                      <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#9ca3af', marginTop: '0.125rem' }}>
-                        {col.type}
-                      </div>
-                    )}
+                  <div style={{ fontWeight: '500', color: '#6b7280', fontSize: '10px', fontFamily: 'Inter', flex: '1 1 auto', minWidth: 0 }}>
+                    {col.name}
                   </div>
-                  <span style={{ fontSize: '10px', fontFamily: 'Inter', color: '#9ca3af' }}>
+                  {col.type && (
+                    <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#9ca3af', flex: '0 0 auto' }}>
+                      {col.type}
+                    </div>
+                  )}
+                  <span style={{ fontSize: '10px', fontFamily: 'Inter', color: '#9ca3af', flex: '0 0 auto' }}>
                     Existing
                   </span>
                 </div>
@@ -226,69 +225,73 @@ const ColumnMapper = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '0.5rem',
+                    padding: '0.25rem 0.5rem',
                     borderBottom: idx < mappings.length - 1 ? '1px solid #f3f4f6' : 'none',
-                    backgroundColor: 'white'
+                    backgroundColor: 'white',
+                    gap: '0.5rem'
                   }}
                 >
-                  <div style={{ flex: 1, marginRight: '0.5rem' }}>
-                    {editingIndex === idx ? (
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => handleRenameSave(idx)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleRenameSave(idx);
-                          if (e.key === 'Escape') handleRenameCancel();
-                        }}
-                        autoFocus
-                        style={{
-                          width: '100%',
-                          padding: '0.25rem 0.5rem',
-                          border: '1px solid hsl(210, 100%, 50%)',
-                          borderRadius: '4px',
-                          fontSize: '10px',
-                          fontFamily: 'Inter',
-                          outline: 'none'
-                        }}
-                      />
-                    ) : (
-                      <>
-                        <div style={{ 
-                          fontWeight: '500', 
-                          color: '#111827', 
-                          fontSize: '10px',
-                          fontFamily: 'Inter',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem'
-                        }}>
-                          {mapping.targetColumn}
-                          {allowRename && (
-                            <button
-                              onClick={() => handleRenameStart(idx, mapping.targetColumn)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: '0.125rem',
-                                cursor: 'pointer',
-                                color: '#6b7280',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}
-                              title="Rename column"
-                            >
-                              <FiEdit2 size={10} />
-                            </button>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#6b7280', marginTop: '0.125rem' }}>
-                          from: {mapping.sourceColumn}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  {editingIndex === idx ? (
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleRenameSave(idx)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSave(idx);
+                        if (e.key === 'Escape') handleRenameCancel();
+                      }}
+                      autoFocus
+                      style={{
+                        flex: '1 1 auto',
+                        padding: '0.25rem 0.5rem',
+                        border: '1px solid hsl(210, 100%, 50%)',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontFamily: 'Inter',
+                        outline: 'none'
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div style={{ 
+                        fontWeight: '500', 
+                        color: '#111827', 
+                        fontSize: '10px',
+                        fontFamily: 'Inter',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        flex: '1 1 auto',
+                        minWidth: 0
+                      }}>
+                        {mapping.targetColumn}
+                        {allowRename && (
+                          <button
+                            onClick={() => handleRenameStart(idx, mapping.targetColumn)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: '0.125rem',
+                              cursor: 'pointer',
+                              color: '#6b7280',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title="Rename column"
+                          >
+                            <FiEdit2 size={10} />
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '10px', fontFamily: 'Inter', color: '#6b7280', flex: '0 0 auto' }}>
+                        from: {mapping.sourceColumn}
+                      </div>
+                      <span style={{ fontSize: '10px', fontFamily: 'Inter', color: '#16a34a', flex: '0 0 auto' }}>
+                        Added
+                      </span>
+                    </>
+                  )}
                   <button
                     onClick={() => handleRemoveMapping(idx)}
                     style={{
@@ -299,7 +302,8 @@ const ColumnMapper = ({
                       borderRadius: '4px',
                       cursor: 'pointer',
                       display: 'flex',
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      flex: '0 0 auto'
                     }}
                     onMouseOver={(e) => e.target.style.backgroundColor = '#fee2e2'}
                     onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}

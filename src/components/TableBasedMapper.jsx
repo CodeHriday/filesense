@@ -666,10 +666,10 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
       <div className="mapper-header">
         <h3>Field Mapping Parameter Details</h3>
         <div className="mapper-actions">
-          <button className="btn btn-secondary btn-sm" onClick={handleClearMapping}>
+          <button className="btn btn-secondary btn-xs" onClick={handleClearMapping} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
             Clear Mapping
           </button>
-          <button className="btn btn-primary btn-sm" onClick={handleAutomap}>
+          <button className="btn btn-primary btn-xs" onClick={handleAutomap} style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem' }}>
             Automap
           </button>
         </div>
@@ -684,8 +684,9 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
             <span className="variables-info">Pre-calculations executed sequentially</span>
           </div>
           <button 
-            className="btn btn-primary btn-sm" 
+            className="btn btn-primary btn-xs" 
             onClick={(e) => { e.stopPropagation(); handleAddVariable(); }}
+            style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}
           >
             <FiPlus /> Add Variable
           </button>
@@ -784,7 +785,7 @@ const TableBasedMapper = ({ schema, fieldMappings, variables: initialVariables =
         <div className="target-panel">
           <div className="target-panel-header">
             <h4>Target Fields</h4>
-            <button className="btn btn-primary btn-sm" onClick={handleAddNewColumn} title="Add a new calculated column">
+            <button className="btn btn-primary btn-xs" onClick={handleAddNewColumn} title="Add a new calculated column" style={{ fontSize: '10px', fontFamily: 'Inter', padding: '0.125rem 0.25rem', gap: '0.125rem' }}>
               <FiPlus /> Add New Column
             </button>
           </div>
