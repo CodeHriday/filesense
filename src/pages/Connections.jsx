@@ -56,6 +56,59 @@ const Connections = () => {
   // Must have either saved connection or successful test, AND no modifications since
   const canBrowse = ((editMode && editId) || testSuccessful) && !connectionDetailsModified;
   
+  // Compact styling - Inter 12px medium weight, minimal spacing
+  const compactStyles = {
+    formGroup: {
+      marginBottom: '0.75rem'
+    },
+    label: {
+      display: 'block',
+      marginBottom: '0.25rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      color: '#1f2937'
+    },
+    input: {
+      width: '100%',
+      padding: '0.375rem 0.5rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      border: '1px solid #d1d5db',
+      borderRadius: '4px',
+      height: '32px'
+    },
+    select: {
+      width: '100%',
+      padding: '0.375rem 0.5rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      border: '1px solid #d1d5db',
+      borderRadius: '4px',
+      height: '32px',
+      backgroundColor: 'white'
+    },
+    textarea: {
+      width: '100%',
+      padding: '0.375rem 0.5rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '12px',
+      fontWeight: 500,
+      border: '1px solid #d1d5db',
+      borderRadius: '4px'
+    },
+    helperText: {
+      display: 'block',
+      marginTop: '0.25rem',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '11px',
+      fontWeight: 400,
+      color: '#6b7280'
+    }
+  };
+  
   // Connection form state
   const [formData, setFormData] = useState({
     connection_name: '',
