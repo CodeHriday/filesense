@@ -12,7 +12,7 @@ const CrosswalkLookupStep = ({
 }) => {
   const [crosswalks, setCrosswalks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [crosswalkSchema, setCrosswalkSchema] = useState([]);
+  const [crosswalkSchema, setCrosswalkSchema] = useState(null);
   const [loadingCrosswalkSchema, setLoadingCrosswalkSchema] = useState(false);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const CrosswalkLookupStep = ({
     if (crosswalkConfig?.crosswalk_id) {
       fetchCrosswalkSchema(crosswalkConfig.crosswalk_id);
     } else {
-      setCrosswalkSchema([]);
+      setCrosswalkSchema(null);
     }
   }, [crosswalkConfig?.crosswalk_id]);
 
@@ -54,10 +54,11 @@ const CrosswalkLookupStep = ({
         { headers }
       );
       
-      setCrosswalkSchema(response.data.data || []);
+      const schemaData = response.data.data;
+      setCrosswalkSchema(schemaData || null);
     } catch (err) {
       console.error('Failed to fetch crosswalk schema:', err);
-      setCrosswalkSchema([]);
+      setCrosswalkSchema(null);
     } finally {
       setLoadingCrosswalkSchema(false);
     }
@@ -149,14 +150,19 @@ const CrosswalkLookupStep = ({
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Crosswalk Source Field</label>
-            <input
-              type="text"
+            <select
               className="form-control"
-              value={crosswalkConfig?.crosswalk_source_field || 'source_code'}
+              value={crosswalkConfig?.crosswalk_source_field || ''}
               onChange={(e) => handleCrosswalkChange('crosswalk_source_field', e.target.value)}
-              disabled={!crosswalkConfig?.crosswalk_id}
-              placeholder="e.g., source_code, source_value"
-            />
+              disabled={!crosswalkConfig?.crosswalk_id || loadingCrosswalkSchema}
+            >
+              <option value="">Select crosswalk source field</option>
+              {crosswalkSchema?.sourceSystem?.fields?.map(field => (
+                <option key={field.name} value={field.name}>
+                  {field.name} ({field.dataType})
+                </option>
+              ))}
+            </select>
             <small className="form-help">
               Field in the crosswalk table to match against
             </small>
@@ -218,6 +224,21 @@ const CrosswalkLookupStep = ({
               }}>
                 Select Columns to Add from Crosswalk Table
               </h4>
+              
+              {crosswalkSchema?.sourceSystem && crosswalkSchema?.targetSystem && (
+                <div style={{ 
+                  marginBottom: '1rem',
+                  padding: '0.75rem',
+                  backgroundColor: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  color: '#0c4a6e'
+                }}>
+                  <strong>Crosswalk Mapping:</strong> {crosswalkSchema.sourceSystem.name} → {crosswalkSchema.targetSystem.name}
+                </div>
+              )}
+              
               {loadingCrosswalkSchema ? (
                 <div style={{ padding: '2rem', textAlign: 'center' }}>
                   <LoadingSpinner size="small" />
@@ -227,11 +248,11 @@ const CrosswalkLookupStep = ({
                 </div>
               ) : (
                 <ColumnMapper
-                  sourceColumns={crosswalkSchema}
+                  sourceColumns={crosswalkSchema?.targetSystem?.fields || []}
                   existingTargetColumns={schema || []}
                   mappings={crosswalkConfig?.column_mappings || []}
                   onMappingsChange={handleCrosswalkMappingsChange}
-                  sourceLabel="Crosswalk Columns"
+                  sourceLabel="Crosswalk Target Columns"
                   targetLabel="Your Target Schema"
                   allowRename={true}
                 />

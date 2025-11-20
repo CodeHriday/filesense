@@ -68,19 +68,12 @@ const RdmLookupStep = ({
   };
 
   useEffect(() => {
-    console.log('[RDM] datasetConfig.dataset_id changed to:', datasetConfig?.dataset_id);
     if (datasetConfig?.dataset_id) {
       fetchDatasetSchema(datasetConfig.dataset_id);
     } else {
-      console.log('[RDM] No dataset_id, clearing schema');
       setDatasetSchema([]);
     }
   }, [datasetConfig?.dataset_id]);
-
-  useEffect(() => {
-    console.log('[RDM] datasetSchema state changed:', datasetSchema);
-    console.log('[RDM] datasetSchema length:', datasetSchema.length);
-  }, [datasetSchema]);
 
   const fetchDatasetSchema = async (datasetId) => {
     try {
@@ -88,29 +81,15 @@ const RdmLookupStep = ({
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       
-      console.log('[RDM] Fetching schema for dataset:', datasetId);
-      
       const response = await axios.get(
         `${API_BASE_URL}/api/rdm/datasets/${datasetId}/schema`,
         { headers }
       );
       
-      console.log('[RDM] Full response:', response);
-      console.log('[RDM] response.data:', response.data);
-      console.log('[RDM] response.data.data:', response.data.data);
-      console.log('[RDM] Extracted schema length:', (response.data.data || []).length);
-      
-      const schema = response.data.data || [];
-      
-      // Temporary debug - will remove after fixing
-      alert(`Schema loaded: ${schema.length} columns. First column: ${schema[0]?.name || 'N/A'}`);
-      
+      const schema = response.data.data?.fields || [];
       setDatasetSchema(schema);
-      
-      console.log('[RDM] Set datasetSchema to:', schema);
     } catch (err) {
-      console.error('[RDM] Failed to fetch dataset schema:', err);
-      console.error('[RDM] Error response:', err.response);
+      console.error('Failed to fetch dataset schema:', err);
       setDatasetSchema([]);
     } finally {
       setLoadingDatasetSchema(false);
@@ -524,7 +503,7 @@ const RdmLookupStep = ({
                 >
                   <option value="">Select column</option>
                   {datasetSchema.map(col => (
-                    <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
+                    <option key={col.name} value={col.name}>{col.name} ({col.dataType})</option>
                   ))}
                 </select>
               </div>

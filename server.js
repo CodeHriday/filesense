@@ -699,6 +699,149 @@ app.get('/api/test-di', (req, res) => {
   }
 });
 
+// RDM (Reference Data Management) API Proxy Endpoints
+// These endpoints forward requests to the external RDM system using secrets
+
+// Get all datasets from RDM
+app.get('/api/rdm/datasets', authenticateToken, async (req, res) => {
+  try {
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/datasets`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching datasets from RDM', { 
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch datasets from RDM',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Get dataset schema from RDM
+app.get('/api/rdm/datasets/:datasetId/schema', authenticateToken, async (req, res) => {
+  try {
+    const { datasetId } = req.params;
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/datasets/${datasetId}/schema`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching dataset schema from RDM', { 
+      datasetId: req.params.datasetId,
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch dataset schema from RDM',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Get all crosswalks from RDM
+app.get('/api/rdm/crosswalks', authenticateToken, async (req, res) => {
+  try {
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/crosswalks`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching crosswalks from RDM', { 
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch crosswalks from RDM',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Get crosswalk schema from RDM
+app.get('/api/rdm/crosswalks/:crosswalkId/schema', authenticateToken, async (req, res) => {
+  try {
+    const { crosswalkId } = req.params;
+    const rdmBaseUrl = process.env.RDM_BASE_URL;
+    const rdmApiKey = process.env.RDM_API_KEY;
+    
+    if (!rdmBaseUrl || !rdmApiKey) {
+      return res.status(500).json({ 
+        error: 'RDM configuration missing',
+        message: 'RDM_BASE_URL or RDM_API_KEY not configured'
+      });
+    }
+    
+    const response = await axios.get(`${rdmBaseUrl}/api/external/crosswalks/${crosswalkId}/schema`, {
+      headers: {
+        'Authorization': `Bearer ${rdmApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    logger.error('Error fetching crosswalk schema from RDM', { 
+      crosswalkId: req.params.crosswalkId,
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch crosswalk schema from RDM',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
 // Files API (with caching and vendor filtering)
 app.get('/api/files', authenticateToken, attachVendorProfile, cacheMiddleware(300), async (req, res) => {
   try {
