@@ -458,19 +458,6 @@ const ExecutiveDashboard = () => {
       <div className="charts-grid">
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Project Health Scores (Top 10)</h3>
-          </div>
-          <div className="chart-container">
-            {projectHealthScores.length > 0 ? (
-              <Bar data={projectHealthChartData} options={projectHealthChartOptions} />
-            ) : (
-              <div className="no-data">No project data available</div>
-            )}
-          </div>
-        </div>
-
-        <div className="chart-card">
-          <div className="chart-header">
             <h3>File Type Distribution</h3>
           </div>
           <div className="chart-container donut">
@@ -488,6 +475,19 @@ const ExecutiveDashboard = () => {
           </div>
           <div className="chart-container">
             <Bar data={throughputChartData} options={throughputChartOptions} />
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Project Health Scores (Top 10)</h3>
+          </div>
+          <div className="chart-container">
+            {projectHealthScores.length > 0 ? (
+              <Bar data={projectHealthChartData} options={projectHealthChartOptions} />
+            ) : (
+              <div className="no-data">No project data available</div>
+            )}
           </div>
         </div>
       </div>

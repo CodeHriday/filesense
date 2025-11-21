@@ -52,7 +52,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--exec-space-lg);
+  margin-bottom: var(--exec-space-md);
 }
 
 .dashboard-header h1 {
