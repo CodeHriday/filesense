@@ -9,7 +9,8 @@ const dashboardCacheMiddleware = createCacheMiddleware({
     const roles = req.user?.roles?.sort().join(':') || 'no-roles';
     const path = req.path || req.route?.path || 'unknown';
     const days = req.query?.days || '';
-    return `dashboard:${path}:user:${userId}:roles:${roles}:days:${days}`;
+    const projectId = req.query?.project_id || 'all';
+    return `dashboard:${path}:user:${userId}:roles:${roles}:days:${days}:project:${projectId}`;
   },
   shouldCache: (req, res) => res.statusCode === 200
 });
