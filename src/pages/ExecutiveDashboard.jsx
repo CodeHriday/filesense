@@ -172,9 +172,7 @@ const ExecutiveDashboard = () => {
         borderColor: '#E5E7EB',
         borderWidth: 1,
         padding: 12,
-        displayColors: false,
-        titleFont: { size: 12, family: 'Inter', weight: '500' },
-        bodyFont: { size: 12, family: 'Inter', weight: '500' }
+        displayColors: false
       }
     },
     scales: {
@@ -184,20 +182,20 @@ const ExecutiveDashboard = () => {
           display: true,
           text: 'Time Period',
           color: '#6B7280',
-          font: { size: 12, family: 'Inter', weight: '500' }
+          font: { size: 12, family: 'Inter' }
         },
         grid: { color: '#E5E7EB', drawBorder: false },
-        ticks: { color: '#6B7280', font: { size: 12, family: 'Inter', weight: '500' } }
+        ticks: { color: '#6B7280', font: { size: 10 } }
       },
       y: {
         title: {
           display: true,
           text: 'Files Processed',
           color: '#6B7280',
-          font: { size: 12, family: 'Inter', weight: '500' }
+          font: { size: 12, family: 'Inter' }
         },
         grid: { color: '#E5E7EB', drawBorder: false },
-        ticks: { color: '#6B7280', font: { size: 12, family: 'Inter', weight: '500' } }
+        ticks: { color: '#6B7280', font: { size: 12 } }
       }
     }
   };
@@ -230,20 +228,18 @@ const ExecutiveDashboard = () => {
         bodyColor: '#374151',
         borderColor: '#E5E7EB',
         borderWidth: 1,
-        padding: 12,
-        titleFont: { size: 12, family: 'Inter', weight: '500' },
-        bodyFont: { size: 12, family: 'Inter', weight: '500' }
+        padding: 12
       }
     },
     scales: {
       x: {
         grid: { color: '#E5E7EB', drawBorder: false },
-        ticks: { color: '#6B7280', font: { size: 12, family: 'Inter', weight: '500' } },
+        ticks: { color: '#6B7280', font: { size: 11, family: "'Inter', sans-serif" } },
         max: 100
       },
       y: {
         grid: { display: false },
-        ticks: { color: '#374151', font: { size: 12, family: 'Inter', weight: '500' } }
+        ticks: { color: '#374151', font: { size: 12, family: "'Inter', sans-serif", weight: '500' } }
       }
     }
   };
@@ -278,7 +274,7 @@ const ExecutiveDashboard = () => {
           usePointStyle: true,
           pointStyle: 'circle',
           padding: 12,
-          font: { size: 12, family: 'Inter', weight: '500' },
+          font: { size: 12, family: "'Inter', sans-serif" },
           color: '#374151',
           generateLabels: (chart) => {
             const data = chart.data;
@@ -298,8 +294,6 @@ const ExecutiveDashboard = () => {
         borderColor: '#E5E7EB',
         borderWidth: 1,
         padding: 12,
-        titleFont: { size: 12, family: 'Inter', weight: '500' },
-        bodyFont: { size: 12, family: 'Inter', weight: '500' },
         callbacks: {
           label: (context) => {
             const fileType = fileTypeDistribution[context.dataIndex];
