@@ -287,37 +287,6 @@ function Sidebar() {
                 </div>
                 
                 <div className="sidebar-dropdown-content">
-                  <Link to="/dashboard-settings" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                    <FaCog /> Settings
-                  </Link>
-                  
-                  <Link to="/insights" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                    <FaChartBar /> Data Insights
-                  </Link>
-                  
-                  {(currentUser.roles.includes('Admin') || hasPermission('user_view')) && (
-                    <>
-                      <Link to="/users" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaUsers /> User Management
-                      </Link>
-                      <Link to="/vendors" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaUsers /> Vendor Management
-                      </Link>
-                      <Link to="/vendor-users" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
-                        <FaUsers /> Vendor User Management
-                      </Link>
-                      <Link to="/vendor-roles" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)} style={{ paddingLeft: '2rem' }}>
-                        <FaCog /> Vendor Role Management
-                      </Link>
-                      <Link to="/vendor-agreements" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaCog /> Vendor Contracts
-                      </Link>
-                      <Link to="/failed-jobs" className="sidebar-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        <FaExclamationTriangle /> Failed Jobs
-                      </Link>
-                    </>
-                  )}
-                  
                   <button className="sidebar-dropdown-item" onClick={handleLogout}>
                     <FaSignOutAlt /> Logout
                   </button>
