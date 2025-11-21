@@ -817,6 +817,8 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
             COUNT(CASE WHEN f.quality_score < 70 THEN 1 END) as poor_files
           FROM projects p
           LEFT JOIN files f ON p.id = f.project_id
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE (fad.file_role IS NULL OR fad.file_role != 'target')
           GROUP BY p.id, p.name, p.project_type
         )
         SELECT 
@@ -854,6 +856,8 @@ router.get('/project-health-scores', dashboardCacheMiddleware, async (req, res) 
           FROM projects p
           INNER JOIN accessible_projects ap ON p.id = ap.project_id
           LEFT JOIN files f ON p.id = f.project_id
+          LEFT JOIN file_audit_details fad ON f.file_id = fad.file_id
+          WHERE (fad.file_role IS NULL OR fad.file_role != 'target')
           GROUP BY p.id, p.name, p.project_type
         )
         SELECT 
