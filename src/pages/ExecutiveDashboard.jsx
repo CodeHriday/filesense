@@ -498,7 +498,7 @@ const ExecutiveDashboard = () => {
 
           <div className="section-header platform-overview-header">
             <h2>Platform Overview</h2>
-            <p className="section-description">Global metrics across all projects and resources</p>
+            <p className="section-description">System-wide metrics and platform statistics</p>
           </div>
 
           <div className="kpi-cards platform-overview-section">
