@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import axios from 'axios';
 import {
   Chart as ChartJS,
@@ -41,6 +41,8 @@ const ExecutiveDashboard = () => {
   const [projects, setProjects] = useState([]);
   const [projectHealthScores, setProjectHealthScores] = useState([]);
   const [fileTypeDistribution, setFileTypeDistribution] = useState([]);
+  const [jobTrend, setJobTrend] = useState([]);
+  const [schemaDriftTrend, setSchemaDriftTrend] = useState([]);
 
   const fetchProjects = async () => {
     try {
@@ -76,6 +78,32 @@ const ExecutiveDashboard = () => {
       setFileTypeDistribution(response.data.fileTypes || []);
     } catch (err) {
       console.error('Error fetching file type distribution:', err);
+    }
+  };
+
+  const fetchJobTrend = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/dashboard/job-trend${projectParam}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setJobTrend(response.data.jobTrend || []);
+    } catch (err) {
+      console.error('Error fetching job trend:', err);
+    }
+  };
+
+  const fetchSchemaDriftTrend = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const projectParam = selectedProject ? `?project_id=${selectedProject}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/dashboard/schema-drift-trend${projectParam}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSchemaDriftTrend(response.data.driftTrend || []);
+    } catch (err) {
+      console.error('Error fetching schema drift trend:', err);
     }
   };
 
@@ -116,6 +144,8 @@ const ExecutiveDashboard = () => {
   useEffect(() => {
     fetchExecutiveMetrics();
     fetchFileTypeDistribution();
+    fetchJobTrend();
+    fetchSchemaDriftTrend();
   }, [timeRange, selectedProject]);
 
   const handleRefresh = () => {
@@ -319,6 +349,138 @@ const ExecutiveDashboard = () => {
               `Avg Quality: ${fileType.avgQuality}%`
             ];
           }
+        }
+      }
+    }
+  };
+
+  // Job Trend Chart (Stacked Bar)
+  const jobTrendChartData = {
+    labels: jobTrend.map(item => new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    datasets: [
+      {
+        label: 'Passed',
+        data: jobTrend.map(item => item.passed),
+        backgroundColor: '#2ECC71',
+        borderRadius: 4,
+        maxBarThickness: 20
+      },
+      {
+        label: 'Failed',
+        data: jobTrend.map(item => item.failed),
+        backgroundColor: '#EF4444',
+        borderRadius: 4,
+        maxBarThickness: 20
+      }
+    ]
+  };
+
+  const jobTrendChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 8,
+          font: { size: 10, family: "'Inter', sans-serif" },
+          color: '#374151'
+        }
+      },
+      tooltip: {
+        backgroundColor: '#fff',
+        titleColor: '#1F2937',
+        bodyColor: '#374151',
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        padding: 10
+      }
+    },
+    scales: {
+      x: {
+        stacked: true,
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { 
+          color: '#6B7280', 
+          font: { size: 10, family: "'Inter', sans-serif" },
+          maxRotation: 45,
+          minRotation: 0
+        }
+      },
+      y: {
+        stacked: true,
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { 
+          color: '#6B7280', 
+          font: { size: 10, family: "'Inter', sans-serif" },
+          precision: 0
+        }
+      }
+    }
+  };
+
+  // Schema Drift Trend Chart (Line)
+  const schemaDriftChartData = {
+    labels: schemaDriftTrend.map(item => new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    datasets: [
+      {
+        label: 'Schema Drifts',
+        data: schemaDriftTrend.map(item => item.count),
+        borderColor: '#4C6EF5',
+        backgroundColor: 'rgba(76, 110, 245, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#4C6EF5'
+      }
+    ]
+  };
+
+  const schemaDriftChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 8,
+          font: { size: 10, family: "'Inter', sans-serif" },
+          color: '#374151'
+        }
+      },
+      tooltip: {
+        backgroundColor: '#fff',
+        titleColor: '#1F2937',
+        bodyColor: '#374151',
+        borderColor: '#E5E7EB',
+        borderWidth: 1,
+        padding: 10
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { 
+          color: '#6B7280', 
+          font: { size: 10, family: "'Inter', sans-serif" },
+          maxRotation: 45,
+          minRotation: 0
+        }
+      },
+      y: {
+        grid: { color: '#E5E7EB', drawBorder: false },
+        ticks: { 
+          color: '#6B7280', 
+          font: { size: 10, family: "'Inter', sans-serif" },
+          precision: 0
         }
       }
     }
@@ -643,6 +805,34 @@ const ExecutiveDashboard = () => {
               <span className="stat-label">Failed Jobs</span>
               <span className="stat-value status-critical">{metrics.jobSuccessRate?.failedJobs || 0}</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="charts-grid">
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Daily Job Trend (Last 30 Days)</h3>
+          </div>
+          <div className="chart-container">
+            {jobTrend.length > 0 ? (
+              <Bar data={jobTrendChartData} options={jobTrendChartOptions} />
+            ) : (
+              <div className="no-data">No job trend data available</div>
+            )}
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Schema Drift Trend (Last 30 Days)</h3>
+          </div>
+          <div className="chart-container">
+            {schemaDriftTrend.length > 0 ? (
+              <Line data={schemaDriftChartData} options={schemaDriftChartOptions} />
+            ) : (
+              <div className="no-data">No schema drift data available</div>
+            )}
           </div>
         </div>
       </div>

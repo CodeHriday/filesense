@@ -1140,4 +1140,222 @@ router.get('/file-type-distribution', dashboardCacheMiddleware, async (req, res)
   }
 });
 
+/**
+ * GET /api/dashboard/job-trend
+ * Get daily job execution trend (passed/failed) for last 30 days
+ */
+router.get('/job-trend', dashboardCacheMiddleware, async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({
+      error: 'Authentication required'
+    });
+  }
+
+  try {
+    const userId = parseInt(req.user.id, 10);
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.includes('Admin');
+    const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+
+    let jobTrendQuery;
+    let queryParams;
+
+    if (isAdmin) {
+      if (projectId) {
+        jobTrendQuery = `
+          SELECT 
+            DATE(start_time) as date,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as passed,
+            COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+          FROM transformation_jobs
+          WHERE start_time >= CURRENT_DATE - INTERVAL '30 days'
+          AND project_id = $1
+          GROUP BY DATE(start_time)
+          ORDER BY DATE(start_time)
+        `;
+        queryParams = [projectId];
+      } else {
+        jobTrendQuery = `
+          SELECT 
+            DATE(start_time) as date,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as passed,
+            COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+          FROM transformation_jobs
+          WHERE start_time >= CURRENT_DATE - INTERVAL '30 days'
+          GROUP BY DATE(start_time)
+          ORDER BY DATE(start_time)
+        `;
+        queryParams = [];
+      }
+    } else {
+      if (projectId) {
+        jobTrendQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            DATE(tj.start_time) as date,
+            COUNT(CASE WHEN tj.status = 'completed' THEN 1 END) as passed,
+            COUNT(CASE WHEN tj.status = 'failed' THEN 1 END) as failed
+          FROM transformation_jobs tj
+          INNER JOIN accessible_projects ap ON tj.project_id = ap.project_id
+          WHERE tj.start_time >= CURRENT_DATE - INTERVAL '30 days'
+          AND tj.project_id = $2
+          GROUP BY DATE(tj.start_time)
+          ORDER BY DATE(tj.start_time)
+        `;
+        queryParams = [userId, projectId];
+      } else {
+        jobTrendQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            DATE(tj.start_time) as date,
+            COUNT(CASE WHEN tj.status = 'completed' THEN 1 END) as passed,
+            COUNT(CASE WHEN tj.status = 'failed' THEN 1 END) as failed
+          FROM transformation_jobs tj
+          INNER JOIN accessible_projects ap ON tj.project_id = ap.project_id
+          WHERE tj.start_time >= CURRENT_DATE - INTERVAL '30 days'
+          GROUP BY DATE(tj.start_time)
+          ORDER BY DATE(tj.start_time)
+        `;
+        queryParams = [userId];
+      }
+    }
+
+    const result = await pool.query(jobTrendQuery, queryParams);
+
+    const jobTrend = result.rows.map(row => ({
+      date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+      passed: parseInt(row.passed || 0),
+      failed: parseInt(row.failed || 0)
+    }));
+
+    res.json({
+      jobTrend: jobTrend,
+      projectId: projectId
+    });
+
+  } catch (error) {
+    console.error('Error fetching job trend:', error);
+    res.status(500).json({
+      error: 'Failed to fetch job trend',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/dashboard/schema-drift-trend
+ * Get daily schema drift detection trend for last 30 days
+ */
+router.get('/schema-drift-trend', dashboardCacheMiddleware, async (req, res) => {
+  const pool = req.app.locals.pool || req.app.get('db');
+  
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({
+      error: 'Authentication required'
+    });
+  }
+
+  try {
+    const userId = parseInt(req.user.id, 10);
+    const userRoles = req.user.roles || [];
+    const isAdmin = userRoles.includes('Admin');
+    const projectId = req.query.project_id ? parseInt(req.query.project_id, 10) : null;
+
+    let driftTrendQuery;
+    let queryParams;
+
+    if (isAdmin) {
+      if (projectId) {
+        driftTrendQuery = `
+          SELECT 
+            DATE(a.detected_at) as date,
+            COUNT(*) as drift_count
+          FROM anomalies a
+          INNER JOIN files f ON a.file_id = f.file_id
+          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND a.anomaly_type = 'schema_drift'
+          AND f.project_id = $1
+          GROUP BY DATE(a.detected_at)
+          ORDER BY DATE(a.detected_at)
+        `;
+        queryParams = [projectId];
+      } else {
+        driftTrendQuery = `
+          SELECT 
+            DATE(detected_at) as date,
+            COUNT(*) as drift_count
+          FROM anomalies
+          WHERE detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND anomaly_type = 'schema_drift'
+          GROUP BY DATE(detected_at)
+          ORDER BY DATE(detected_at)
+        `;
+        queryParams = [];
+      }
+    } else {
+      if (projectId) {
+        driftTrendQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            DATE(a.detected_at) as date,
+            COUNT(*) as drift_count
+          FROM anomalies a
+          INNER JOIN files f ON a.file_id = f.file_id
+          INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
+          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND a.anomaly_type = 'schema_drift'
+          AND f.project_id = $2
+          GROUP BY DATE(a.detected_at)
+          ORDER BY DATE(a.detected_at)
+        `;
+        queryParams = [userId, projectId];
+      } else {
+        driftTrendQuery = `
+          WITH accessible_projects AS (
+            SELECT project_id FROM get_user_projects($1)
+          )
+          SELECT 
+            DATE(a.detected_at) as date,
+            COUNT(*) as drift_count
+          FROM anomalies a
+          INNER JOIN files f ON a.file_id = f.file_id
+          INNER JOIN accessible_projects ap ON f.project_id = ap.project_id
+          WHERE a.detected_at >= CURRENT_DATE - INTERVAL '30 days'
+          AND a.anomaly_type = 'schema_drift'
+          GROUP BY DATE(a.detected_at)
+          ORDER BY DATE(a.detected_at)
+        `;
+        queryParams = [userId];
+      }
+    }
+
+    const result = await pool.query(driftTrendQuery, queryParams);
+
+    const driftTrend = result.rows.map(row => ({
+      date: typeof row.date === 'string' ? row.date : row.date.toISOString().split('T')[0],
+      count: parseInt(row.drift_count || 0)
+    }));
+
+    res.json({
+      driftTrend: driftTrend,
+      projectId: projectId
+    });
+
+  } catch (error) {
+    console.error('Error fetching schema drift trend:', error);
+    res.status(500).json({
+      error: 'Failed to fetch schema drift trend',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
